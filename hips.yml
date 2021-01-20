@@ -1,0 +1,10 @@
+name: hips
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - pyyaml
+  - python=3.8
+  - pip
+  - conda
+  - conda-env

@@ -9,6 +9,11 @@ def hips_init():
     """
     global ij, args
 
+    from conda.cli.python_api import run_command, Commands
+
+    # conda create environment
+    # conda run with environment
+
     from scyjava import config, jimport
     config.add_repositories({'jitpack': 'https://jitpack.io'})
     import imagej
