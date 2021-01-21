@@ -40,19 +40,38 @@ def get_active_hips():
     return _active_hips
 
 
+def get_environment_name(hips):
+    return 'hips_full'
+
+
+def env_create(filename):
+    # need to replicate behavior of this function:
+    # https://github.com/conda/conda/blob/e37cf84a57f935c578cdcea6ea034c80d7677ccc/conda_env/cli/main_create.py#L76
+    pass
+
+
 def run(args):
-    # First setup environment
-    # Create from a list of depndencies
-    #condacli.run_command(condacli.Commands.CREATE, '-n', 'clitest', 'pyyaml', 'pytorch')
-    condacli.run_command(condacli.Commands.CREATE, '-f', 'hips_full.yml')
+    # Load HIPS
+    hips_script = open(args.path).read()
+    exec(hips_script)
+    hips = get_active_hips()
 
-    environment_name = 'hips_full'
+    # Get environment name
+    environment_name = get_environment_name(hips)
 
+    # If environment doesn't exist, then create it
+    # Create an environment from a list of depndencies
+    # condacli.run_command(condacli.Commands.CREATE, '-n', 'clitest', 'pyyaml', 'pytorch')
+
+    # Create an environment from a yml
+    # condacli.run_command(condacli.Commands.CREATE, '--file', 'hips_full.yml')
+
+    # Create script to run within target environment
     script = ''
 
     # Evaluate the path
     # If the path is a file
-    script += open(args.path).read()
+    script += hips_script
 
     # If the path is a directory
     # If the path is a URL

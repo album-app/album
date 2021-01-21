@@ -1,4 +1,4 @@
-name: hips
+name: hips_full
 channels:
   - conda-forge
   - defaults
