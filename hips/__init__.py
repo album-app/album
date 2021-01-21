@@ -1,4 +1,7 @@
 import conda.cli.python_api as condacli
+import subprocess
+import tempfile
+import os
 
 
 class Hips:
@@ -50,6 +53,25 @@ def env_create(filename):
     pass
 
 
+def run_in_environment(environment_name, script):
+    # environment_path = '/home/kharrin/anaconda3/envs/hips_full'
+    environment_path = os.path.join(os.path.expanduser('~/'), 'anaconda3',
+                                    'envs', environment_name)
+
+    # Using named environment doesn't work
+    # condacli.run_command(condacli.Commands.RUN, '-n', environment_name,
+    #                      'python', '-c', script)
+
+    # Use an environment path and a temporary file to store the script
+    fp = tempfile.NamedTemporaryFile(mode='w+')
+    fp.write(script)
+    script_name = fp.name
+    condacli.run_command(condacli.Commands.RUN, '--prefix', environment_path,
+                         'python', script_name)
+
+    fp.close()
+
+
 def run(args):
     # Load HIPS
     hips_script = open(args.path).read()
@@ -83,5 +105,4 @@ _active_hips.init()
 # now parse the HIPS, then run
 _active_hips.main()"""
 
-    condacli.run_command(condacli.Commands.RUN, '-n', environment_name,
-                         'python', '-c', script)
+    run_in_environment(environment_name, script)
