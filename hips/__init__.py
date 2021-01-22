@@ -64,10 +64,26 @@ def run_in_environment(environment_name, script):
 
     # Use an environment path and a temporary file to store the script
     fp = tempfile.NamedTemporaryFile(mode='w+')
+
+    #fp = open('/tmp/hips_test.py', 'w')
     fp.write(script)
+
     script_name = fp.name
-    condacli.run_command(condacli.Commands.RUN, '--prefix', environment_path,
-                         'python', script_name)
+    #script_name = '/tmp/hips_test.py'
+    #print('script: ' + script)
+
+    # hips needs to be installed in the target environment
+    #condacli.run_command(condacli.Commands.RUN, '--no-capture-output',
+    #                     '--prefix', environment_path, 'python', script_name)
+
+    # condacli.run_command(condacli.Commands.RUN, '--no-capture-output',
+    #                      '--prefix', environment_path, 'python',
+    #                      '/tmp/script_test.py')
+
+    subprocess.run([
+        'conda', 'run', '--no-capture-output', '--prefix', environment_path,
+        'python', script_name
+    ])
 
     fp.close()
 
@@ -77,6 +93,8 @@ def run(args):
     hips_script = open(args.path).read()
     exec(hips_script)
     hips = get_active_hips()
+
+    #print('hips loaded locally: ' + str(hips))
 
     # Get environment name
     environment_name = get_environment_name(hips)
@@ -101,8 +119,8 @@ def run(args):
 
     # Add the execution code
     script += """
-_active_hips.init()
+hips.get_active_hips().init()
 # now parse the HIPS, then run
-_active_hips.main()"""
+hips.get_active_hips().main()"""
 
     run_in_environment(environment_name, script)
