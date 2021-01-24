@@ -3,6 +3,8 @@ import subprocess
 import tempfile
 import os
 
+DEBUG = False
+
 
 class Hips:
     """
@@ -58,17 +60,25 @@ def run_in_environment(environment_name, script):
     environment_path = os.path.join(os.path.expanduser('~/'), 'anaconda3',
                                     'envs', environment_name)
 
+    if DEBUG:
+        print('run_in_environment: %s' % environment_path)
+
     # Using named environment doesn't work
     # condacli.run_command(condacli.Commands.RUN, '-n', environment_name,
     #                      'python', '-c', script)
 
     # Use an environment path and a temporary file to store the script
-    fp = tempfile.NamedTemporaryFile(mode='w+')
+    if DEBUG:
+        fp = open('/tmp/hips_test.py', 'w')
+    else:
+        fp = tempfile.NamedTemporaryFile(mode='w+')
 
-    #fp = open('/tmp/hips_test.py', 'w')
     fp.write(script)
+    fp.flush()
 
     script_name = fp.name
+    if DEBUG:
+        print('script_name: %s' % script_name)
     #script_name = '/tmp/hips_test.py'
     #print('script: ' + script)
 
@@ -80,10 +90,15 @@ def run_in_environment(environment_name, script):
     #                      '--prefix', environment_path, 'python',
     #                      '/tmp/script_test.py')
 
-    subprocess.run([
+    subprocess_args = [
         'conda', 'run', '--no-capture-output', '--prefix', environment_path,
         'python', script_name
-    ])
+    ]
+
+    if DEBUG:
+        print('subprocess.run: %s' % (' '.join(subprocess_args)))
+
+    subprocess.run(subprocess_args)
 
     fp.close()
 
@@ -94,7 +109,8 @@ def run(args):
     exec(hips_script)
     hips = get_active_hips()
 
-    #print('hips loaded locally: ' + str(hips))
+    if DEBUG:
+        print('hips loaded locally: ' + str(hips))
 
     # Get environment name
     environment_name = get_environment_name(hips)
