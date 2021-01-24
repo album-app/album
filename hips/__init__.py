@@ -13,7 +13,7 @@ class Hips:
     setup_keywords = ('name', 'version', 'description', 'url', 'license',
                       'min_hips_version', 'tested_hips_version', 'args',
                       'init', 'main', 'author', 'author_email',
-                      'long_description', 'git_repo')
+                      'long_description', 'git_repo', 'dependencies')
 
     def __init__(self, attrs=None):
         for attr in self.setup_keywords:
@@ -26,6 +26,9 @@ class Hips:
             if attr in dir(self):
                 s += (attr + '\t' + str(getattr(self, attr))) + '\n'
         return s
+
+    def __getitem__(self, k):
+        return getattr(self, k)
 
 
 global _active_hips
@@ -46,7 +49,11 @@ def get_active_hips():
 
 
 def get_environment_name(hips):
-    return 'hips_full'
+    if ('dependencies' in dir(hips)) and ('environment_name'
+                                          in hips['dependencies']):
+        return hips['dependencies']['environment_name']
+    else:
+        return 'hips_full'
 
 
 def env_create(filename):

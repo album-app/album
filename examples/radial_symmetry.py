@@ -101,4 +101,5 @@ hips.setup(name="radial-symmetry",
                "action": lambda path: args.put("resultsFilePath", path)
            }],
            init=hips_init,
-           main=radial_symmetry)
+           main=radial_symmetry,
+           dependencies={'environment_name': 'hips_full'})
