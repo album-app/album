@@ -20,7 +20,7 @@ def init():
         'net.imagej:imagej-legacy:0.37.4'
     ],
                      headless=True)
-    ImageJFunctions = jimport("net.imglib2.img.display.imagej.ImageJFunctions")
+
     HashMap = jimport("java.util.HashMap")
     IJ = jimport("ij.IJ")
     args = HashMap()

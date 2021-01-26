@@ -2,14 +2,14 @@
 
 import hips
 
-global ij, args
+global ij, args, IJ
 
 
 def hips_init():
     """
     Initialization to setup this HIPS
     """
-    global ij, args
+    global ij, args, IJ
 
     from scyjava import config, jimport
     config.add_repositories({'jitpack': 'https://jitpack.io'})
@@ -21,7 +21,7 @@ def hips_init():
         'net.imagej:imagej-legacy:0.37.4'
     ],
                      headless=True)
-    ImageJFunctions = jimport("net.imglib2.img.display.imagej.ImageJFunctions")
+
     HashMap = jimport("java.util.HashMap")
     IJ = jimport("ij.IJ")
     args = HashMap()
