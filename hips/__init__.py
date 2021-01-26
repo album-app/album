@@ -2,6 +2,7 @@ import conda.cli.python_api as condacli
 import subprocess
 import tempfile
 import os
+import yaml
 
 DEBUG = False
 
@@ -31,6 +32,10 @@ class Hips:
         return getattr(self, k)
 
 
+"""
+Global variable for tracking the currently active HIPS. Do not use this 
+directly instead use get_active_hips()
+"""
 global _active_hips
 
 
@@ -43,15 +48,28 @@ def setup(**attrs):
 
 
 def get_active_hips():
+    """
+    Return the currently active HIPS, which is defined globally
+    """
     global _active_hips
 
     return _active_hips
 
 
 def get_environment_name(hips):
-    if ('dependencies' in dir(hips)) and ('environment_name'
-                                          in hips['dependencies']):
-        return hips['dependencies']['environment_name']
+    """
+    Get the environment name for a HIPS
+    """
+    if ('dependencies' in dir(hips)):
+        if ('environment_name' in hips['dependencies']):
+            return hips['dependencies']['environment_name']
+        else:
+            yaml_path = hips['dependencies']['environment_path']
+            # Read from YAML
+            env: dict
+            with open(yaml_path) as f:
+                env = yaml.load(f, Loader=yaml.FullLoader)
+            return env['name']
     else:
         return 'hips_full'
 
@@ -110,6 +128,24 @@ def run_in_environment(environment_name, script):
     fp.close()
 
 
+def create_environment(hips):
+    environment_name = get_environment_name(hips)
+    # Create an environment from a list of depndencies
+    # condacli.run_command(condacli.Commands.CREATE, '-n', 'clitest', 'pyyaml', 'pytorch')
+
+    # Create an environment from a yml
+    if environment_name == 'hips_full':
+        condacli.run_command(condacli.Commands.CREATE, '--file',
+                             'hips_full.yml')
+
+
+def environment_exists(environment_name):
+    output = subprocess.check_output(['conda', 'info', '--envs'])
+    lines = output.split(b"\n")
+    env_lines = lines[2:-1]
+    [print(l) for l in env_lines]
+
+
 def run(args):
     # Load HIPS
     hips_script = open(args.path).read()
@@ -123,11 +159,8 @@ def run(args):
     environment_name = get_environment_name(hips)
 
     # If environment doesn't exist, then create it
-    # Create an environment from a list of depndencies
-    # condacli.run_command(condacli.Commands.CREATE, '-n', 'clitest', 'pyyaml', 'pytorch')
-
-    # Create an environment from a yml
-    # condacli.run_command(condacli.Commands.CREATE, '--file', 'hips_full.yml')
+    # if not environment_exists(environment_name):
+    #     create_environment(hips)
 
     # Create script to run within target environment
     script = ''
