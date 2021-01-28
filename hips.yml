@@ -8,3 +8,6 @@ dependencies:
   - pip
   - conda
   - conda-env
+  - pip:
+      - xdg
+      
