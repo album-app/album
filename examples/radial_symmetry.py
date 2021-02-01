@@ -35,8 +35,6 @@ def radial_symmetry():
     """
     global ij, args
 
-    print(args)
-
     ij.command().run("gui.radial.symmetry.plugin.Radial_Symmetry", True, args)
 
 
