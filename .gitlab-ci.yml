@@ -29,11 +29,13 @@ cache:
 before_script:
   - python -V  # Print out python version for debugging
   - pwd
+  - which python
 #  - ls ${CONDA_ROOT}
   - conda env create -f hips.yml
   - conda init bash
   - source ~/.bashrc
   - conda activate hips
+  - which python  
   - pwd
   - ls
 
