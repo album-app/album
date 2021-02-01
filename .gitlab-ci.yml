@@ -1,12 +1,16 @@
 # This file is a template, and might need editing before it works on your project.
 # Official language image. Look for the different tagged releases at:
 # https://hub.docker.com/r/library/python/tags/
-image: python:latest
+image: continuumio/miniconda3:4.9.2
 
 # Change pip's cache directory to be inside the project directory since we can
 # only cache local items.
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  CONDA_ENV_NAME: hips
+  CONDA_PREFIX: /local/opt/conda
+  PREFIX: $CONDA_PREFIX/envs/$CONDA_ENV_NAME
+
 
 # Pip's cache doesn't store the python packages
 # https://pip.pypa.io/en/stable/reference/pip_install/#caching
@@ -17,36 +21,37 @@ cache:
   paths:
     - .cache/pip
     - venv/
+    - miniconda.sh
+    - ${CONDA_ROOT}/pkgs/*.tar.bz2
+    - ${CONDA_ROOT}/pkgs/urls.txt
+    
 
 before_script:
   - python -V  # Print out python version for debugging
-  - pip install virtualenv
-  - virtualenv venv
-  - source venv/bin/activate
+  - conda env create -f hips.yml
+  - conda activate hips
 
-test:
-  script:
-    - python setup.py test
-    - pip install tox flake8  # you can also use tox
-    - tox -e py36,flake8
+#test:
+#  script:
+#    - python setup.py test
+#    - pip install tox flake8  # you can also use tox
+#    - tox -e py36,flake8
 
 run:
   script:
-    - python setup.py bdist_wheel
-    # an alternative approach is to install and run:
-    - pip install dist/*
-    # run the command here
-  artifacts:
-    paths:
-      - dist/*.whl
+    - conda activate hips
+    - python -V
+  # artifacts:
+  #   paths:
+  #     - dist/*.whl
 
-pages:
-  script:
-    - pip install sphinx sphinx-rtd-theme
-    - cd doc ; make html
-    - mv build/html/ ../public/
-  artifacts:
-    paths:
-      - public
-  only:
-    - master
+# pages:
+#   script:
+#     - pip install sphinx sphinx-rtd-theme
+#     - cd doc ; make html
+#     - mv build/html/ ../public/
+#   artifacts:
+#     paths:
+#       - public
+#   only:
+#     - master
