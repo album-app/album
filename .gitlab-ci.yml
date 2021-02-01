@@ -10,7 +10,7 @@ variables:
   CONDA_ENV_NAME: hips
   CONDA_PREFIX: /local/opt/conda
   PREFIX: $CONDA_PREFIX/envs/$CONDA_ENV_NAME
-
+  CONDA_ROOT: "${CI_PROJECT_DIR}/miniconda"
 
 # Pip's cache doesn't store the python packages
 # https://pip.pypa.io/en/stable/reference/pip_install/#caching
