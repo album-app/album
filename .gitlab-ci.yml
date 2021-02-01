@@ -36,6 +36,7 @@ before_script:
   - which python  
   - pwd
   - ls ${CONDA_PREFIX}
+  - ls /opt
 
 #test:
 #  script:
