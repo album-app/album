@@ -35,7 +35,7 @@ before_script:
   - conda activate hips
   - which python  
   - pwd
-  - ls
+  - ls ${CONDA_PREFIX}
 
 #test:
 #  script:
