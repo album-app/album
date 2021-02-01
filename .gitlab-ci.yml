@@ -8,9 +8,8 @@ image: continuumio/miniconda3:4.9.2
 variables:
 #  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   CONDA_ENV_NAME: hips
-  CONDA_PREFIX: /local/opt/conda
+  CONDA_PREFIX: /opt/conda
   PREFIX: $CONDA_PREFIX/envs/$CONDA_ENV_NAME
-  CONDA_ROOT: "${CI_PROJECT_DIR}/miniconda"
 
 # Pip's cache doesn't store the python packages
 # https://pip.pypa.io/en/stable/reference/pip_install/#caching
@@ -22,15 +21,14 @@ cache:
 #    - .cache/pip
 #    - venv/
 #    - miniconda.sh
-    - ${CONDA_ROOT}/pkgs/*.tar.bz2
-    - ${CONDA_ROOT}/pkgs/urls.txt
+    - ${CONDA_PREFIX}/pkgs/*.tar.bz2
+    - ${CONDA_PREFIX}/pkgs/urls.txt
     
 
 before_script:
   - python -V  # Print out python version for debugging
   - pwd
   - which python
-#  - ls ${CONDA_ROOT}
   - conda env create -f hips.yml
   - conda init bash
   - source ~/.bashrc
