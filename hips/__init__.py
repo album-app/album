@@ -36,6 +36,13 @@ class Hips:
     def __getitem__(self, k):
         return getattr(self, k)
 
+    def get_arg(self, k):
+        """
+        Get a specific named argument for this hips if it exists
+        """
+        matches = [arg for arg in self['args'] if arg['name'] == k]
+        return matches[0]
+
 
 """
 Global variable for tracking the currently active HIPS. Do not use this 

@@ -39,6 +39,7 @@ def deploy(args):
     with open(yaml_path, 'w') as f:
         f.write(yaml_str)
 
+    # TODO fix these commands for proper paths in the catalog
     print("""
 Run these commands:
 git clone https://github.com/ida-mdc/hips-catalog.git

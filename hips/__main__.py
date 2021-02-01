@@ -24,8 +24,11 @@ def main():
     parser_run.add_argument('path', type=str, help='path for the HIPS file')
     parser_run.set_defaults(func=deploy)
 
-    # Parse args then run the respective subcommand
-    args = parser.parse_args()
+    # Parse args at the "hips" level
+    args = parser.parse_args(sys.argv[1:3])
+
+    # Run the respective subcommand
+    sys.argv = sys.argv[2:]
     args.func(args)
 
     # h = Hips(args)

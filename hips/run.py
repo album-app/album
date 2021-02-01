@@ -2,6 +2,8 @@ import os
 import subprocess
 import tempfile
 import sys
+import json
+
 from hips import Hips, get_active_hips, get_environment_name, hips_debug, run_in_environment
 
 
@@ -40,20 +42,61 @@ def run(args):
     #     create_environment(hips)
 
     # Create script to run within target environment
-    script = ''
+    script = """import sys
+import json
+import argparse
+from hips import get_active_hips
+"""
+
+    # This could have an issue with nested quotes
+    script += "sys.argv = json.loads('%s')\n" % json.dumps(sys.argv)
 
     # Evaluate the path
     # If the path is a file
     script += hips_script
 
-    # If the path is a directory
-    # If the path is a URL
-    # If the path is the base of a git repo
-
-    # Add the execution code
+    # Add the init code
     script += """
 hips.get_active_hips().init()
-# now parse the HIPS, then run
+"""
+
+    # Add the argument handling
+    script += """
+parser = argparse.ArgumentParser(description='HIPS Run %s')
+""" % hips['name']
+
+    for arg in get_active_hips()['args']:
+        class_name = '%sAction' % arg['name'].capitalize()
+
+        # Create an action
+        script += """
+class {class_name}(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        if nargs is not None:
+            raise ValueError("nargs not allowed")
+        super({class_name}, self).__init__(option_strings, dest, **kwargs)
+        
+    def __call__(self, parser, namespace, values, option_string=None):
+        get_active_hips().get_arg(self.dest)['action'](values)
+""".format(class_name=class_name)
+
+        # Add an argument
+        script += """
+parser.add_argument('--{name}',
+                    default='{default}',
+                    help='{description}',
+                    action={class_name})
+""".format(name=arg['name'],
+           default=arg['default'],
+           description=arg['description'],
+           class_name=class_name)
+
+    script += """
+parser.parse_args()
+"""
+
+    # Add the run code
+    script += """
 hips.get_active_hips().main()"""
 
     run_in_environment(environment_name, script)
