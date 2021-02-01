@@ -21,7 +21,7 @@ cache:
   paths:
 #    - .cache/pip
 #    - venv/
-    - miniconda.sh
+#    - miniconda.sh
     - ${CONDA_ROOT}/pkgs/*.tar.bz2
     - ${CONDA_ROOT}/pkgs/urls.txt
     
@@ -33,11 +33,11 @@ before_script:
   - source ~/.bashrc
   - conda activate hips
 
-#test:
-#  script:
-#    - python setup.py test
-#    - pip install tox flake8  # you can also use tox
-#    - tox -e py36,flake8
+test:
+  script:
+    - conda activate hips
+    - pip install tox flake8  # you can also use tox
+    - tox -e py36,flake8
 
 run:
   script:
