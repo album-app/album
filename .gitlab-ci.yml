@@ -28,7 +28,6 @@ cache:
 
 before_script:
   - python -V  # Print out python version for debugging
-  - ls ~/anaconda3
   - ls ${CONDA_ROOT}
   - conda env create -f hips.yml
   - conda init bash
