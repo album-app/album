@@ -15,3 +15,4 @@ dependencies:
   - openjdk >=8.0.192,<8.1.0a0  
   - pytorch
   - tensorflow-gpu
+  - gitpython

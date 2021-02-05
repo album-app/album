@@ -4,6 +4,7 @@ import tempfile
 import os
 import yaml
 import sys
+import git
 
 DEBUG = False
 
@@ -89,6 +90,25 @@ def get_environment_name(hips):
         return 'hips_full'
 
 
+def download_repository():
+    """
+    Downloads the repository if needed, returns deployment_path on success.
+    """
+
+    download_path = os.path.join(os.path.expanduser('~/'), '.hips', get_active_hips()['name'])
+    os.makedirs(download_path, exist_ok=True)
+
+    # update existing repo or clone new repo
+    if os.path.exists(os.path.join(download_path, ".git")):
+        repo = git.Repo(download_path)
+        repo.remote().fetch()
+        git.refs.head.HEAD(repo, path='HEAD').reset(commit='HEAD', index=True, working_tree=False)
+    else:
+        repo = git.Repo.clone_from(get_active_hips()['git_repo'], download_path)
+
+    return repo.working_tree_dir
+
+
 def env_create(filename):
     # need to replicate behavior of this function:
     # https://github.com/conda/conda/blob/e37cf84a57f935c578cdcea6ea034c80d7677ccc/conda_env/cli/main_create.py#L76
@@ -113,10 +133,16 @@ def environment_exists(environment_name):
     [print(l) for l in env_lines]
 
 
+def get_environment_path(environment_name):
+    """
+    Returns the full environment path
+    """
+    return os.path.join(os.path.expanduser('~/'), 'anaconda3', 'envs', environment_name)
+
+
 def run_in_environment(environment_name, script):
     # environment_path = '/home/kharrin/anaconda3/envs/hips_full'
-    environment_path = os.path.join(os.path.expanduser('~/'), 'anaconda3',
-                                    'envs', environment_name)
+    environment_path = get_environment_path(environment_name)
 
     if hips_debug():
         print('run_in_environment: %s' % environment_path)

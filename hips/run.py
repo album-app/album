@@ -3,6 +3,7 @@ import subprocess
 import tempfile
 import sys
 import json
+from argparse import ArgumentError
 
 from hips import Hips, get_active_hips, get_environment_name, hips_debug, run_in_environment
 
@@ -60,16 +61,29 @@ from hips import get_active_hips
 hips.get_active_hips().init()
 """
 
-    # Add the argument handling
-    script += """
+    args = get_active_hips()['args']
+
+    # special argument parsing cases
+    if isinstance(args, str):
+        # pass through to module
+        if args == 'pass-through':
+            pass
+        # read arguments from file
+        elif args == 'read-from-file':
+            pass  # ToDo: discuss if we want this!
+        else:
+            raise ArgumentError('Argument keyword \'%s\' not supported!' % args)
+    else:
+        # Add the argument handling
+        script += """
 parser = argparse.ArgumentParser(description='HIPS Run %s')
 """ % hips['name']
 
-    for arg in get_active_hips()['args']:
-        class_name = '%sAction' % arg['name'].capitalize()
+        for arg in args:
+            class_name = '%sAction' % arg['name'].capitalize()
 
-        # Create an action
-        script += """
+            # Create an action
+            script += """
 class {class_name}(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
@@ -80,8 +94,8 @@ class {class_name}(argparse.Action):
         get_active_hips().get_arg(self.dest)['action'](values)
 """.format(class_name=class_name)
 
-        # Add an argument
-        script += """
+            # Add an argument
+            script += """
 parser.add_argument('--{name}',
                     default='{default}',
                     help='{description}',
@@ -91,7 +105,7 @@ parser.add_argument('--{name}',
            description=arg['description'],
            class_name=class_name)
 
-    script += """
+        script += """
 parser.parse_args()
 """
 
