@@ -3,7 +3,7 @@
 import subprocess
 import os
 import sys
-import hips
+import hips.run
 
 global args, python_path, module_name, deployment_path
 
@@ -16,19 +16,17 @@ def hips_init():
 
     active_hips = hips.get_active_hips()
 
-    # determine python executable
-    environment_name = hips.get_environment_name(active_hips)
-    environment = hips.get_environment_path(environment_name)
-    python_path = os.path.join(environment, 'bin', 'python')
+    # determine python executable and create environment - ToDo: should migrate to pathlib?
+    python_path = os.path.join(hips.run.get_environment_path(active_hips), 'bin', 'python')
 
-    # download repo
-    deployment_path = hips.download_repository()
+    # get deployment path
+    deployment_path = hips.run.get_deployment_path(active_hips)
 
     # change into to deployment_path
     os.chdir(deployment_path)
 
-    # set module name to hips name
-    module_name = active_hips['name']
+    # set module name
+    module_name = "cellpose"
 
 
 def cellpose_prediction():
@@ -54,5 +52,8 @@ hips.setup(
     args="pass-through",
     init=hips_init,
     main=cellpose_prediction,
-    dependencies={'environment_name': 'hips_full'}
+    dependencies={
+        'environment_name': "cellpose",  # ToDo: parse this from environment_file file
+        'environment_file': 'https://raw.githubusercontent.com/MouseLand/cellpose/master/environment.yml',
+    }
 )

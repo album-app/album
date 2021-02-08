@@ -1,12 +1,10 @@
-# import conda.cli.python_api as condacli
+import os
+import sys
 import subprocess
 import tempfile
-import os
 import yaml
-import sys
-import git
 
-DEBUG = False
+DEBUG = True
 
 
 def hips_debug():
@@ -72,17 +70,23 @@ def get_active_hips():
     return _active_hips
 
 
+def env_create(filename):
+    # need to replicate behavior of this function:
+    # https://github.com/conda/conda/blob/e37cf84a57f935c578cdcea6ea034c80d7677ccc/conda_env/cli/main_create.py#L76
+    pass
+
+
 def get_environment_name(hips):
     """
     Get the environment name for a HIPS
     """
-    if ('dependencies' in dir(hips)):
-        if ('environment_name' in hips['dependencies']):
+    if 'dependencies' in dir(hips):
+        if 'environment_name' in hips['dependencies']:
             return hips['dependencies']['environment_name']
         else:
             yaml_path = hips['dependencies']['environment_path']
             # Read from YAML
-            env: dict
+            # env: dict
             with open(yaml_path) as f:
                 env = yaml.load(f, Loader=yaml.FullLoader)
             return env['name']
@@ -90,66 +94,9 @@ def get_environment_name(hips):
         return 'hips_full'
 
 
-def download_repository():
-    """
-    Downloads the repository if needed, returns deployment_path on success.
-    """
-
-    download_path = os.path.join(os.path.expanduser('~/'), '.hips', get_active_hips()['name'])
-    os.makedirs(download_path, exist_ok=True)
-
-    # update existing repo or clone new repo
-    if os.path.exists(os.path.join(download_path, ".git")):
-        repo = git.Repo(download_path)
-        repo.remote().fetch()
-        git.refs.head.HEAD(repo, path='HEAD').reset(commit='HEAD', index=True, working_tree=False)
-    else:
-        repo = git.Repo.clone_from(get_active_hips()['git_repo'], download_path)
-
-    return repo.working_tree_dir
-
-
-def env_create(filename):
-    # need to replicate behavior of this function:
-    # https://github.com/conda/conda/blob/e37cf84a57f935c578cdcea6ea034c80d7677ccc/conda_env/cli/main_create.py#L76
-    pass
-
-
-def create_environment(hips):
-    environment_name = get_environment_name(hips)
-    # Create an environment from a list of depndencies
-    # condacli.run_command(condacli.Commands.CREATE, '-n', 'clitest', 'pyyaml', 'pytorch')
-
-    # Create an environment from a yml
-    if environment_name == 'hips_full':
-        condacli.run_command(condacli.Commands.CREATE, '--file',
-                             'hips_full.yml')
-
-
-def environment_exists(environment_name):
-    output = subprocess.check_output(['conda', 'info', '--envs'])
-    lines = output.split(b"\n")
-    env_lines = lines[2:-1]
-    [print(l) for l in env_lines]
-
-
-def get_environment_path(environment_name):
-    """
-    Returns the full environment path
-    """
-    return os.path.join(os.path.expanduser('~/'), 'anaconda3', 'envs', environment_name)
-
-
-def run_in_environment(environment_name, script):
-    # environment_path = '/home/kharrin/anaconda3/envs/hips_full'
-    environment_path = get_environment_path(environment_name)
-
+def run_in_environment(environment_path, script):
     if hips_debug():
         print('run_in_environment: %s' % environment_path)
-
-    # Using named environment doesn't work
-    # condacli.run_command(condacli.Commands.RUN, '-n', environment_name,
-    #                      'python', '-c', script)
 
     # Use an environment path and a temporary file to store the script
     if hips_debug():
@@ -164,9 +111,8 @@ def run_in_environment(environment_name, script):
     script_name = fp.name
     if hips_debug():
         print('script_name: %s' % script_name)
-    #script_name = '/tmp/hips_test.py'
-    #print('script: ' + script)
 
+    # ToDo: would install hips not here, but when environment gets created -> discuss
     # hips needs to be installed in the target environment
     # condacli.run_command(condacli.Commands.RUN, '--no-capture-output',
     #                     '--prefix', environment_path, 'python', script_name)

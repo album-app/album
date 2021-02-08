@@ -6,8 +6,7 @@ dependencies:
   - pyyaml
   - python=3.8
   - pip
-  - conda
-  - conda-env
+  - gitpython
   - pip:
       - xdg
       
