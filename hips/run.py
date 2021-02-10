@@ -2,6 +2,7 @@ import json
 import subprocess
 import sys
 import urllib.request
+import validators
 from argparse import ArgumentError
 from pathlib import Path
 
@@ -62,6 +63,7 @@ def download_environment_yaml(hips):
     urllib.request.urlretrieve(
         hips['dependencies']['environment_file'], environment_file
     )
+    # ToDo: proper checking
     return environment_file
 
 
@@ -72,8 +74,12 @@ def create_environment(hips):
     if environment_exists(environment_name):    # updates environment
         pass
     elif 'environment_file' in hips['dependencies']:
+        if validators.url(hips['dependencies']['environment_file']):
+            file = download_environment_yaml(hips)
+        else:  # ToDo: proper exception, proper checking
+            file = hips['dependencies']['environment_file']
         subprocess_args = [
-            'conda', 'env', 'create', '-f', download_environment_yaml(hips)
+            'conda', 'env', 'create', '-f', file
         ]
         subprocess.run(subprocess_args)
     else:

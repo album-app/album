@@ -19,7 +19,7 @@ def hips_init():
     # determine python executable and create environment - ToDo: should migrate to pathlib?
     python_path = os.path.join(hips.run.get_environment_path(active_hips), 'bin', 'python')
 
-    # get deployment path
+    # repository path
     deployment_path = hips.run.get_deployment_path(active_hips)
 
     # change into to deployment_path

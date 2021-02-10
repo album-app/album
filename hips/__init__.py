@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 import yaml
 
-DEBUG = True
+DEBUG = False
 
 
 def hips_debug():
