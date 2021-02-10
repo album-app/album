@@ -53,7 +53,9 @@ hips.setup(
     init=hips_init,
     main=cellpose_prediction,
     dependencies={
+        'download_repo': True,
         'environment_name': "cellpose",  # ToDo: parse this from environment_file file
+        # could also be a stream
         'environment_file': 'https://raw.githubusercontent.com/MouseLand/cellpose/master/environment.yml',
     }
 )

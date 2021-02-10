@@ -41,7 +41,7 @@ def _get_environment_dict():
 # ToDo: get rid of all the encoding decoding stuff and format nicely
 def get_environment_path(hips):
     """
-    Returns the full environment path.
+    Returns the full environment path
     """
     environment_name = get_environment_name(hips)
     environment_dict = _get_environment_dict()
@@ -53,7 +53,7 @@ def get_environment_path(hips):
 
 def download_environment_yaml(hips):
     """
-    Downloads a environment_file which URL is specified in hips['dependencies']['environment_file'] of the hips
+    Downloads a environment_file. URL is specified in hips['dependencies']['environment_file']
     """
     # ToDo: get_environment_name() currently can also read from a yaml file specified as `environment_path`.
     #  This is NOT the same as `environment_file`. Currently, to determine a environment_name from the yaml
@@ -88,7 +88,38 @@ def create_environment(hips):
         ]
         subprocess.run(subprocess_args)
 
+    # update environment to fit hips needs
+#    install_hips_in_environment(hips)
+
     return get_environment_path(hips)
+
+
+# # ToDo: Replace with conda install hips in target environment
+# Somehow this replaces all previously installed packages...
+# def install_hips_in_environment(hips):
+#     environment_path = get_environment_path(hips)
+#     environment_name = get_environment_name(hips)
+#
+#     # list specification in file
+#     subprocess_args = [
+#         'conda', 'list', '--name', 'hips', '--explicit',
+#     ]
+#     f = open('hips-spec-file.txt', mode='w+')
+#     subprocess.run(subprocess_args, stdout=f)
+#
+#     # install in target environment
+#     subprocess_args = [
+#         'conda', 'install', '--name', environment_name, '--freeze-installed', '--no-dep', '--file', 'hips-spec-file.txt'
+#     ]
+#     subprocess.run(subprocess_args)
+#
+#     # manually install pip dependencies as they are not listed in list export
+#     # ToDo: remove hardcoded package specification
+#     subprocess_args = [
+#         'conda', 'run',  '--no-capture-output', '--prefix', environment_path,
+#         'pip', 'install', 'xdg'
+#     ]
+#     subprocess.run(subprocess_args)
 
 
 # ToDo: decide where to put environment_exists method
@@ -104,25 +135,27 @@ def environment_exists(environment_name):
 # ToDo: proper logging system for hips?
 def download_repository(hips):
     """
-    Downloads the repository if needed, returns deployment_path on success.
+    Downloads the repository if needed, returns deployment_path on success
     """
-    # ToDo: discuss: which of the dataDirs to take - since it is a git do we need this extra folder `hips['name'}`?...
-    download_path = xdg_data_dirs()[0].joinpath(hips['name'])
-    Path.mkdir(download_path, parents=True, exist_ok=True)
+    if 'download_repo' in hips['dependencies']:
+        # ToDo: discuss: which of the dataDirs to take - since it is a git do we need this extra folder `hips['name'}`?...
+        download_path = xdg_data_dirs()[0].joinpath(hips['name'])
+        Path.mkdir(download_path, parents=True, exist_ok=True)
 
-    # update existing repo or clone new repo
-    if Path.exists(download_path.joinpath(".git")):
-        repo = git.Repo(download_path)
-        try:
-            repo.remote().fetch()
-        except AssertionError as err:
-            print(err)
-            pass
-        git.refs.head.HEAD(repo, path='HEAD').reset(commit='HEAD', index=True, working_tree=False)
-    else:
-        repo = git.Repo.clone_from(hips['git_repo'], download_path)
+        # update existing repo or clone new repo
+        if Path.exists(download_path.joinpath(".git")):
+            repo = git.Repo(download_path)
+            try:
+                repo.remote().fetch()
+            except AssertionError as err:
+                print(err)
+                pass
+            git.refs.head.HEAD(repo, path='HEAD').reset(commit='HEAD', index=True, working_tree=False)
+        else:
+            repo = git.Repo.clone_from(hips['dependencies']['git_repo'], download_path)
 
-    return repo.working_tree_dir
+        return repo.working_tree_dir
+    return None
 
 
 # ToDo: discuss: rather than having to initialize the repo every time to get the deployment path,
@@ -143,7 +176,7 @@ def run(args):
     # update or create environment
     create_environment(hips)
 
-    # download git if needed ToDo: discuss - download here? or in run_in_environment?
+    # download git if needed ToDo: discuss - download here? or in run_in_environment? Download necessary at all?
     download_repository(hips)
 
     # Create script to run within target environment
@@ -220,4 +253,5 @@ hips.get_active_hips().main()"""
     # ToDo: discuss: rather pass the name only and handle everything else in `run_in_environment` method???
     environment_path = get_environment_path(get_active_hips())
 
+    print("Hips dependencies have do be installed manually in the target environment!")
     run_in_environment(environment_path, script)

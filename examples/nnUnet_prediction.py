@@ -6,36 +6,36 @@ import sys
 import tempfile
 import hips.run
 
-global args, python_path, module_name
+global args, command
 
 
 def hips_init():
     """
     Initialization to setup this HIPS
     """
-    global args, module_name
+    global args, command
 
     # set module name to hips name
-    module_name = "nnUNet_predict"
+    command = "nnUNet_predict"
 
 
 def cellpose_prediction():
     """
     This is the main entry point of this HIPS
     """
-    global args, module_name
+    global args, command
 
     subprocess_args = [
-        module_name
+        command
     ] + sys.argv[1:]
     subprocess.run(subprocess_args)
 
 
 hips.setup(
-    name="nnUNet_predict",  # Note: must be same as python module/file to run!
+    name="nnUNet_predict",
     version="0.1.0",
     description="Cellpose Prediction HIP Solution",
-    git_repo="https://github.com/MouseLand/cellpose.git",
+    git_repo="https://github.com/ida-mdc/hips",
     license="BSD-3-Clause License",
     min_hips_version="0.1.0",
     tested_hips_version="0.1.0",
