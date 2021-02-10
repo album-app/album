@@ -45,9 +45,18 @@ with open("README.md") as f:
 hips.setup(
     name="radial-symmetry",
     version="0.1.0",
+    format_version="0.3.0",
+    timestamp="2021-02-08T22:16:03.331998",
     description="Radial symmetry HIP Solution",
+    authors="Specification Author XY",
+    cite="radial symmetry paper <3",
     git_repo="https://github.com/ida-mdc/hips",
+    tags=["tag1", "tag2", "tag3"],
     license="MIT License",
+    documentation="",
+    covers=["/assets/images/solutions/radial-symmetry/cover.png"],
+    sample_inputs=["/assets/images/solutions/radial-symmetry/input.png"],
+    sample_outputs=["/assets/images/solutions/radial-symmetry/output.png"],
     min_hips_version="0.1.0",
     tested_hips_version="0.1.0",
     args=[{

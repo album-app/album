@@ -9,8 +9,9 @@ def hips_deploy_dict(hips):
     d = {}
 
     deploy_keys = [
-        'description', 'name', 'version', 'tested_hips_version',
-        'min_hips_version', 'license', 'git_repo'
+        'name', 'description', 'timestamp', 'version', 'format_version', 'tested_hips_version',
+        'min_hips_version', 'license', 'git_repo', 'authors', 'cite', 'tags', 'documentation',
+        'covers', 'sample_inputs', 'sample_outputs', 'args'
     ]
 
     for k in deploy_keys:
@@ -32,12 +33,12 @@ def deploy(args):
 
     yaml_str = yaml.dump(d, Dumper=yaml.Dumper)
 
-    yaml_path = '%s.yml' % hips['name']
+    yaml_path = '_solutions/%s.md' % hips['name']
 
     print('writing to: %s' % yaml_path)
 
     with open(yaml_path, 'w') as f:
-        f.write(yaml_str)
+        f.write("---\n" + yaml_str + "\n---")
 
     # TODO fix these commands for proper paths in the catalog
     print("""
