@@ -1,0 +1,7 @@
+description: BoneJ2-based skeletonize HIP Solution
+git_repo: https://github.com/ida-mdc/hips
+license: MIT License
+min_hips_version: 0.1.0
+name: bonej-skeletonize
+tested_hips_version: 0.1.0
+version: 0.1.0
