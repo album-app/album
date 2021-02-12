@@ -19,8 +19,8 @@ class Hips:
                       'min_hips_version', 'tested_hips_version', 'args',
                       'init', 'main', 'author', 'author_email',
                       'long_description', 'git_repo', 'dependencies',
-                      'timestamp', 'format_version', 'authors', 'cite',
-                      'tags', 'documentation', 'covers', 'sample_inputs',
+                      'timestamp', 'format_version', 'authors', 'cite', 'tags',
+                      'documentation', 'covers', 'sample_inputs',
                       'sample_outputs')
 
     def __init__(self, attrs=None):
