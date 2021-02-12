@@ -22,7 +22,8 @@ def _get_environment_dict():
 
     # remove empty lines and preceded information
     def _split_and_clean(bytes_str):
-        return None if bytes_str == b'' or bytes_str.startswith(b'#') else bytes_str.split(b' ')
+        return None if bytes_str == b'' or bytes_str.startswith(
+            b'#') else bytes_str.split(b' ')
 
     # list environments via conda info command - Note: conda.cli.python_api support missing
     output = subprocess.check_output(['conda', 'info', '--envs'])
@@ -46,7 +47,8 @@ def get_environment_path(hips):
     environment_name = get_environment_name(hips)
     environment_dict = _get_environment_dict()
     if bytes(environment_name, 'utf-8') in environment_dict.keys():
-        return _get_environment_dict()[bytes(environment_name, 'utf-8')].decode("utf-8")
+        return _get_environment_dict()[bytes(environment_name,
+                                             'utf-8')].decode("utf-8")
 
     raise RuntimeError('Could not find environment!')
 
@@ -60,9 +62,8 @@ def download_environment_yaml(hips):
     #  the file must already be downloaded. We can definitely change this.
     environment_name = get_environment_name(hips)
     environment_file = xdg_cache_home().joinpath(environment_name + '.yml')
-    urllib.request.urlretrieve(
-        hips['dependencies']['environment_file'], environment_file
-    )
+    urllib.request.urlretrieve(hips['dependencies']['environment_file'],
+                               environment_file)
     # ToDo: proper checking
     return environment_file
 
@@ -71,27 +72,36 @@ def download_environment_yaml(hips):
 def create_environment(hips):
     environment_name = get_environment_name(hips)
 
-    if environment_exists(environment_name):    # updates environment
+    if environment_exists(environment_name):  # updates environment
         pass
     elif 'environment_file' in hips['dependencies']:
         if validators.url(hips['dependencies']['environment_file']):
             file = download_environment_yaml(hips)
         else:  # ToDo: proper exception, proper checking
             file = hips['dependencies']['environment_file']
-        subprocess_args = [
-            'conda', 'env', 'create', '-f', file
-        ]
-        subprocess.run(subprocess_args)
-    else:
-        subprocess_args = [
-            'conda', 'env', 'create', '-f', 'hips_full.yml'
-        ]
+        subprocess_args = ['conda', 'env', 'create', '-f', file]
         subprocess.run(subprocess_args)
 
-    # update environment to fit hips needs
-#    install_hips_in_environment(hips)
+        # update environment to fit hips needs
+        install_hips_in_environment(hips)
+    else:
+        subprocess_args = ['conda', 'env', 'create', '-f', 'hips_full.yml']
+        subprocess.run(subprocess_args)
+
+        # update environment to fit hips needs
+        install_hips_in_environment(hips)
 
     return get_environment_path(hips)
+
+
+# ToDo: use explicit versioning of hips
+def install_hips_in_environment(hips):
+    environment_path = get_environment_path(hips)
+    subprocess_args = [
+        'conda', 'run', '--no-capture-output', '--prefix', environment_path,
+        'pip', 'install', 'git+https://gitlab.com/ida-mdc/hips.git'
+    ]
+    subprocess.run(subprocess_args)
 
 
 # # ToDo: Replace with conda install hips in target environment
@@ -129,7 +139,8 @@ def environment_exists(environment_name):
     Returns True when the given environment name exists for the conda installation else False
     """
     environment_dict = _get_environment_dict()
-    return True if bytes(environment_name, 'utf-8') in environment_dict.keys() else False
+    return True if bytes(environment_name,
+                         'utf-8') in environment_dict.keys() else False
 
 
 # ToDo: proper logging system for hips?
@@ -150,9 +161,12 @@ def download_repository(hips):
             except AssertionError as err:
                 print(err)
                 pass
-            git.refs.head.HEAD(repo, path='HEAD').reset(commit='HEAD', index=True, working_tree=False)
+            git.refs.head.HEAD(repo, path='HEAD').reset(commit='HEAD',
+                                                        index=True,
+                                                        working_tree=False)
         else:
-            repo = git.Repo.clone_from(hips['dependencies']['git_repo'], download_path)
+            repo = git.Repo.clone_from(hips['dependencies']['git_repo'],
+                                       download_path)
 
         return repo.working_tree_dir
     return None
@@ -209,7 +223,8 @@ hips.get_active_hips().init()
         elif args == 'read-from-file':
             pass  # ToDo: discuss if we want this!
         else:
-            raise ArgumentError('Argument keyword \'%s\' not supported!' % args)
+            raise ArgumentError('Argument keyword \'%s\' not supported!' %
+                                args)
     else:
         # Add the argument handling
         script += """
@@ -238,9 +253,9 @@ parser.add_argument('--{name}',
                     help='{description}',
                     action={class_name})
 """.format(name=arg['name'],
-           default=arg['default'],
-           description=arg['description'],
-           class_name=class_name)
+            default=arg['default'],
+            description=arg['description'],
+            class_name=class_name)
 
         script += """
 parser.parse_args()
@@ -253,5 +268,4 @@ hips.get_active_hips().main()"""
     # ToDo: discuss: rather pass the name only and handle everything else in `run_in_environment` method???
     environment_path = get_environment_path(get_active_hips())
 
-    print("Hips dependencies have do be installed manually in the target environment!")
     run_in_environment(environment_path, script)
