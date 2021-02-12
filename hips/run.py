@@ -104,34 +104,6 @@ def install_hips_in_environment(hips):
     subprocess.run(subprocess_args)
 
 
-# # ToDo: Replace with conda install hips in target environment
-# Somehow this replaces all previously installed packages...
-# def install_hips_in_environment(hips):
-#     environment_path = get_environment_path(hips)
-#     environment_name = get_environment_name(hips)
-#
-#     # list specification in file
-#     subprocess_args = [
-#         'conda', 'list', '--name', 'hips', '--explicit',
-#     ]
-#     f = open('hips-spec-file.txt', mode='w+')
-#     subprocess.run(subprocess_args, stdout=f)
-#
-#     # install in target environment
-#     subprocess_args = [
-#         'conda', 'install', '--name', environment_name, '--freeze-installed', '--no-dep', '--file', 'hips-spec-file.txt'
-#     ]
-#     subprocess.run(subprocess_args)
-#
-#     # manually install pip dependencies as they are not listed in list export
-#     # ToDo: remove hardcoded package specification
-#     subprocess_args = [
-#         'conda', 'run',  '--no-capture-output', '--prefix', environment_path,
-#         'pip', 'install', 'xdg'
-#     ]
-#     subprocess.run(subprocess_args)
-
-
 # ToDo: decide where to put environment_exists method
 # ToDo: get rid of all the encoding decoding stuff?
 def environment_exists(environment_name):
