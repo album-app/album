@@ -1,32 +1,30 @@
 # Copyright 2021 Kyle Harrington
 
 import subprocess
-import os
 import sys
-import hips.run
+import hips
 
-global args, python_path, module_name, deployment_path
+global args, python_path, module_name, active_hips
 
 
 def hips_init():
     """
     Initialization to setup this HIPS
     """
-    global args, python_path, module_name, deployment_path
-
-    active_hips = hips.get_active_hips()
-
-    # determine python executable and create environment - ToDo: should migrate to pathlib?
-    python_path = os.path.join(hips.run.get_environment_path(active_hips), 'bin', 'python')
-
-    # repository path
-    deployment_path = hips.run.get_deployment_path(active_hips)
-
-    # change into to deployment_path
-    os.chdir(deployment_path)
+    global args, python_path, module_name, active_hips
 
     # set module name
     module_name = "cellpose"
+
+
+# ToDo: setup install routine in the hips environment
+def install_routine():
+    """Installation routine of the hips solution. Does not run in the target environment,
+    but expects target environment to be already created.
+    Can only call methods in the source environment."""
+    import install_helper.modules
+
+    install_helper.modules.download_repository(hips.get_active_hips())
 
 
 def cellpose_prediction():
@@ -36,7 +34,7 @@ def cellpose_prediction():
     global args, python_path, module_name
 
     subprocess_args = [
-        python_path, '-m', module_name
+        'python', '-m', module_name
     ] + sys.argv[1:]
     subprocess.run(subprocess_args)
 
@@ -45,17 +43,16 @@ hips.setup(
     name="cellpose",
     version="0.1.0",
     description="Cellpose Prediction HIP Solution",
-    git_repo="https://github.com/MouseLand/cellpose.git",
+    git_repo="https://github.com/MouseLand/cellpose.git",  # ToDo: specific githash -> no version slip!
     license="BSD-3-Clause License",
     min_hips_version="0.1.0",
     tested_hips_version="0.1.0",
     args="pass-through",
-    init=hips_init,
+    install=install_routine,  # in the source environment
+    init=hips_init,  # in the target environment
     main=cellpose_prediction,
     dependencies={
-        'download_repo': True,
-        'environment_name': "cellpose",  # ToDo: parse this from environment_file file
         # could also be a stream
-        'environment_file': 'https://raw.githubusercontent.com/MouseLand/cellpose/master/environment.yml',
+        'environment_file': 'https://raw.githubusercontent.com/MouseLand/cellpose/2447cfeb266185c0de9ff4a800a8f61d8ac42226/environment.yml',
     }
 )

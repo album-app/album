@@ -1,7 +1,6 @@
 # Copyright 2021 Kyle Harrington
-
-import subprocess
 import os
+import subprocess
 import sys
 import tempfile
 import hips.run
@@ -31,6 +30,25 @@ def cellpose_prediction():
     subprocess.run(subprocess_args)
 
 
+yaml = tempfile.NamedTemporaryFile(mode='w+', suffix=".yaml")
+yaml.write("""
+name: nnunet
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - pyyaml
+  - python=3.8
+  - pip
+  - gitpython
+  - validators
+  - pip:
+    - nnunet
+    - xdg
+""")
+yaml.flush()
+os.fsync(yaml)
+
 hips.setup(
     name="nnUNet_predict",
     version="0.1.0",
@@ -43,14 +61,6 @@ hips.setup(
     init=hips_init,
     main=cellpose_prediction,
     dependencies={  # ToDo: Discuss: how to handle pip installable solutions without yaml in their repo?
-        'environment_name': "nnunet",
-        'environment_file': tempfile.SpooledTemporaryFile(max_size=1000, mode='w+').write("""
-name:nnunet
-dependencies:
-    - python>3.4,<3.8
-    - pip
-    - pip:
-        - nnunet 
-"""),
+        'environment_file': yaml.name  # ToDo: explicit version
     }
 )
