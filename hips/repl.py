@@ -3,7 +3,7 @@ import subprocess
 import tempfile
 import sys
 from code import InteractiveConsole
-from hips import Hips, get_active_hips, get_environment_name, hips_debug, run_in_environment
+from hips import Hips, get_active_hips, set_environment_name, hips_debug, run_in_environment
 
 
 def repl(args):
@@ -17,7 +17,7 @@ def repl(args):
         print('hips loaded locally: ' + str(hips))
 
     # Get environment name
-    environment_name = get_environment_name(hips)
+    environment_name = set_environment_name(hips)
 
     script = """from code import InteractiveConsole
 """
