@@ -3,6 +3,10 @@ import sys
 import subprocess
 import tempfile
 import yaml
+import validators
+import urllib.request
+from pathlib import Path
+from xdg import xdg_cache_home
 
 DEBUG = False
 
@@ -17,16 +21,22 @@ class Hips:
     """
     setup_keywords = ('name', 'version', 'description', 'url', 'license',
                       'min_hips_version', 'tested_hips_version', 'args',
-                      'init', 'main', 'author', 'author_email',
+                      'init', 'main', 'install', 'author', 'author_email',
                       'long_description', 'git_repo', 'dependencies',
                       'timestamp', 'format_version', 'authors', 'cite', 'tags',
                       'documentation', 'covers', 'sample_inputs',
                       'sample_outputs')
 
+    private_setup_keywords = ('_environment_name', '_environment_path', '_repository_path')
+
     def __init__(self, attrs=None):
         for attr in self.setup_keywords:
             if attr in attrs:
                 setattr(self, attr, attrs[attr])
+
+        # every hips has them
+        for private_attr in self.private_setup_keywords:
+            setattr(self, private_attr, "")
 
     def __str__(self):
         s = ''
@@ -38,13 +48,16 @@ class Hips:
     def __getitem__(self, k):
         return getattr(self, k)
 
+    def __setitem__(self, key, value):
+        if key in self.private_setup_keywords:
+            setattr(self, key, value)
+
     def get_arg(self, k):
         """
         Get a specific named argument for this hips if it exists
         """
         matches = [arg for arg in self['args'] if arg['name'] == k]
         return matches[0]
-
 
 """
 Global variable for tracking the currently active HIPS. Do not use this 
@@ -76,31 +89,64 @@ def env_create(filename):
     pass
 
 
-def get_environment_name(hips):
+def parse_environment_name_from_yaml(yaml_env_path):
+    with open(yaml_env_path) as f:
+        env = yaml.load(f, Loader=yaml.FullLoader)
+    return env['name']
+
+
+def set_environment_name(active_hips):
     """
     Get the environment name for a HIPS
     """
-    if 'dependencies' in dir(hips):
-        if 'environment_name' in hips['dependencies']:
-            return hips['dependencies']['environment_name']
-        else:
-            yaml_path = hips['dependencies']['environment_path']
-            # Read from YAML
-            # env: dict
-            with open(yaml_path) as f:
-                env = yaml.load(f, Loader=yaml.FullLoader)
-            return env['name']
+    environment_name = ""
+    if 'dependencies' in dir(active_hips):
+        if 'environment_name' in active_hips['dependencies']:
+            environment_name = active_hips['dependencies']['environment_name']
+        elif 'environment_file' in active_hips['dependencies']:
+            env_file = active_hips['dependencies']['environment_file']
+
+            # case valid path
+            if Path.exists(Path(env_file)):
+                yaml_path = env_file
+
+            # case url
+            elif validators.url(env_file):
+                yaml_path = download_environment_yaml(active_hips)
+                env_file = str(yaml_path)
+
+            # don't know what to do
+            else:
+                raise RuntimeError  # Todo: better exception here
+            environment_name = parse_environment_name_from_yaml(yaml_path)
     else:
-        return 'hips_full'
+        environment_name = 'hips_full'
+
+    active_hips["_environment_name"] = environment_name
+
+    return environment_name
 
 
-def run_in_environment(environment_path, script):
+def download_environment_yaml(active_hips):
+    """
+    Downloads a environment_file. URL is specified in hips['dependencies']['environment_file']
+    """
+    environment_file = xdg_cache_home().joinpath('environment_file.yml')
+    urllib.request.urlretrieve(
+        active_hips['dependencies']['environment_file'], environment_file
+    )
+    # ToDo: proper checking
+    return environment_file
+
+
+def run_in_environment(active_hips, script):
     if hips_debug():
-        print('run_in_environment: %s' % environment_path)
+        print('run_in_environment: %s' % active_hips["_environment_path"])
 
     # Use an environment path and a temporary file to store the script
     if hips_debug():
-        fp = open('/tmp/hips_test.py', 'w')
+        fp = open(str(xdg_cache_home().joinpath('hips_test.py')), 'w')
+        print("Executable file in: %s" % str(xdg_cache_home().joinpath('hips_test.py')))
     else:
         fp = tempfile.NamedTemporaryFile(mode='w+')
 
@@ -112,17 +158,8 @@ def run_in_environment(environment_path, script):
     if hips_debug():
         print('script_name: %s' % script_name)
 
-    # ToDo: would install hips not here, but when environment gets created -> discuss
-    # hips needs to be installed in the target environment
-    # condacli.run_command(condacli.Commands.RUN, '--no-capture-output',
-    #                     '--prefix', environment_path, 'python', script_name)
-
-    # condacli.run_command(condacli.Commands.RUN, '--no-capture-output',
-    #                      '--prefix', environment_path, 'python',
-    #                      '/tmp/script_test.py')
-
     subprocess_args = [
-        'conda', 'run', '--no-capture-output', '--prefix', environment_path,
+        'conda', 'run', '--no-capture-output', '--prefix', active_hips["_environment_path"],
         'python', script_name
     ]
 
