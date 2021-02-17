@@ -42,19 +42,18 @@ covers:
 - /assets/images/solutions/radial-symmetry/cover.png
 description: Radial symmetry HIP Solution
 documentation: ''
+doi: coming soon
 format_version: 0.3.0
 git_repo: https://github.com/ida-mdc/hips
 license: MIT License
 min_hips_version: 0.1.0
 name: radial-symmetry
 sample_inputs:
-- /assets/images/solutions/radial-symmetry/input.png
+- /assets/images/solutions/radial-symmetry/radial_symmetry_example_input.tif
 sample_outputs:
-- /assets/images/solutions/radial-symmetry/output.png
+- /assets/images/solutions/radial-symmetry/radial_symmetry_example_result.txt
 tags:
-- tag1
-- tag2
-- tag3
+- point detection
 tested_hips_version: 0.1.0
 timestamp: '2021-02-08T22:16:03.331998'
 version: 0.1.0
