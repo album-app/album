@@ -25,7 +25,7 @@ class Hips:
                       'long_description', 'git_repo', 'dependencies',
                       'timestamp', 'format_version', 'authors', 'cite', 'tags',
                       'documentation', 'covers', 'sample_inputs',
-                      'sample_outputs')
+                      'sample_outputs', 'doi')
 
     private_setup_keywords = ('_environment_name', '_environment_path', '_repository_path')
 

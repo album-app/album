@@ -11,7 +11,7 @@ def hips_deploy_dict(hips):
     deploy_keys = [
         'name', 'description', 'timestamp', 'version', 'format_version', 'tested_hips_version',
         'min_hips_version', 'license', 'git_repo', 'authors', 'cite', 'tags', 'documentation',
-        'covers', 'sample_inputs', 'sample_outputs', 'args'
+        'covers', 'sample_inputs', 'sample_outputs', 'args', 'doi'
     ]
 
     for k in deploy_keys:
