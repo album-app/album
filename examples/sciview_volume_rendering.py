@@ -59,7 +59,10 @@ hips.setup(
          "description": "Cover created based on data from [MICCAI Challenge on "
          + "Circuit Reconstruction from Electron Microscopy Images](https://cremi.org/data/)"}
     ],
-    sample_inputs=[],
+    sample_inputs=[{
+        "name": "input",
+        "description": "Path to 3D image stack"
+    }],
     sample_outputs=[],
     min_hips_version="0.1.0",
     tested_hips_version="0.1.0",

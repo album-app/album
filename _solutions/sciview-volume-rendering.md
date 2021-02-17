@@ -16,7 +16,9 @@ git_repo: https://github.com/scenerygraphics/sciview
 license: not specified
 min_hips_version: 0.1.0
 name: sciview-volume-rendering
-sample_inputs: []
+sample_inputs:
+- description: Path to 3D image stack
+  name: input
 sample_outputs: []
 tags:
 - volumetric viewer
