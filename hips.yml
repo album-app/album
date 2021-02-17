@@ -3,10 +3,5 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - pyyaml
-  - python=3.8
+  - python=3.6
   - pip
-  - gitpython
-  - validators
-  - pip:
-      - xdg
