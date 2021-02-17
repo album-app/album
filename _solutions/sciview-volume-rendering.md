@@ -1,5 +1,7 @@
 ---
-args: []
+args:
+- description: Path to 3D image stack
+  name: input
 authors: Deborah Schmidt
 cite: "G\xFCnther, U., & Harrington, K. I. (2020). Tales from the Trenches: Developing\
   \ sciview, a new 3D viewer for the ImageJ community. VisGap @ EuroGraphics. arXiv\
@@ -16,9 +18,7 @@ git_repo: https://github.com/scenerygraphics/sciview
 license: not specified
 min_hips_version: 0.1.0
 name: sciview-volume-rendering
-sample_inputs:
-- description: Path to 3D image stack
-  name: input
+sample_inputs: []
 sample_outputs: []
 tags:
 - volumetric viewer
