@@ -15,14 +15,7 @@ def hips_init():
     from scyjava import config, jimport
     config.add_repositories({'scijava.public': 'https://maven.scijava.org/content/groups/public'})
     config.add_repositories({'jitpack': 'https://jitpack.io'})
-    import imagej
-    # Create an ImageJ gateway (this should be run within the main function)
-    ij = imagej.init([
-        'net.imagej:imagej:2.2.0',
-        'net.imagej:imagej-legacy:0.37.4',
-        'sc.iview:sciview:311d92a2cf'
-    ], headless=False)
-
+    config.add_endpoints('sc.iview:sciview:311d92a2cf')
     HashMap = jimport("java.util.HashMap")
     args = HashMap()
 
@@ -31,9 +24,10 @@ def sciview_volume_rendering():
     """
     This is the main entry point of this HIPS
     """
-    global ij, args
-    #
-    # ij.command().run("sc.iview.commands.demo.basic.MeshDemo", True, args)
+    from scyjava import config, jimport
+    SciView = jimport("sc.iview.SciView")
+    sciView = SciView.create()
+    sciView.open(args["input"])
 
 
 # Read the README.md as the long description
@@ -65,7 +59,9 @@ hips.setup(
     tested_hips_version="0.1.0",
     args=[{
         "name": "input",
-        "description": "Path to 3D image stack"
+        "default": "",
+        "description": "Path to 3D image stack",
+        "action":  lambda v: args.put("input", v)
     }],
     init=hips_init,
     main=sciview_volume_rendering,

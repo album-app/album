@@ -1,6 +1,8 @@
 ---
 args:
-- description: Path to 3D image stack
+- action: !!python/name:hips.deploy.%3Clambda%3E ''
+  default: ''
+  description: Path to 3D image stack
   name: input
 authors: Deborah Schmidt
 cite: "G\xFCnther, U., & Harrington, K. I. (2020). Tales from the Trenches: Developing\
