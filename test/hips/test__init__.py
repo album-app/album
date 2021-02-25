@@ -95,7 +95,7 @@ dependencies:
         pass
 
 
-def test_run():
+def test_init_run():
     run_suite = unittest.TestSuite()
     run_suite.addTest(TestHipsInit('test_download_environment_yaml'))
     run_suite.addTest(TestHipsInit('test_set_environment_name'))
@@ -106,4 +106,9 @@ def test_run():
 
 if __name__ == '__main__':
     runner = unittest.TextTestRunner()
-    runner.run(test_run())
+    result = runner.run(test_init_run())
+
+    if result.wasSuccessful():
+        exit(0)
+    else:
+        exit(1)

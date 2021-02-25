@@ -37,28 +37,23 @@ before_script:
   - pwd
   - ls ${CONDA_PREFIX}
   - ls /opt
+  - conda activate hips
+  - python -V
+  - pip list
+  - pip install .  # Need an installed hips for all stages
+  - pip list
 
-#test:
-#  script:
-#    - conda activate hips
-#    - pip install tox flake8  # you can also use tox
-#    - tox -e py36,flake8
+stages:
+  - build
+  - test
 
-run:
+cmdline:
+  stage: build
   script:
-    - conda activate hips
-    - python -V
-  # artifacts:
-  #   paths:
-  #     - dist/*.whl
+    - python -m hips run -h
+    # here more cmdline could follow
 
-# pages:
-#   script:
-#     - pip install sphinx sphinx-rtd-theme
-#     - cd doc ; make html
-#     - mv build/html/ ../public/
-#   artifacts:
-#     paths:
-#       - public
-#   only:
-#     - master
+unit tests:
+  stage: test
+  script:
+    - python -m unittest test/run_all.py

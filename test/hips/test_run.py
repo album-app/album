@@ -48,13 +48,17 @@ class TestHipsRun(TestHipsCommon):
         pass
 
 
-def test_run():
+def test_run_run():
     run_suite = unittest.TestSuite()
-    run_suite.addTest(TestHipsRun('test_download_environment_yaml'))
-    run_suite.addTest(TestHipsRun('test_get_environment_path'))
+    run_suite.addTest(TestHipsRun('test_set_environment_path'))
     return run_suite
 
 
 if __name__ == '__main__':
     runner = unittest.TextTestRunner()
-    runner.run(test_run())
+    result = runner.run(test_run_run())
+
+    if result.wasSuccessful():
+        exit(0)
+    else:
+        exit(1)

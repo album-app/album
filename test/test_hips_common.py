@@ -2,6 +2,7 @@ import unittest
 
 
 class TestHipsCommon(unittest.TestCase):
+    """Base class for all Unittest using a hips object"""
 
     @classmethod
     def setUpClass(cls):
