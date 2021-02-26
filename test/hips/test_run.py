@@ -3,7 +3,7 @@ import hips.run
 import unittest.mock
 from unittest.mock import patch
 
-from test.test_hips_common import TestHipsCommon
+from test.test_common import TestHipsCommon
 
 
 class TestHipsRun(TestHipsCommon):

@@ -5,7 +5,7 @@ import unittest.suite
 from xdg import xdg_cache_home
 from unittest.mock import patch
 
-from test.test_hips_common import TestHipsCommon
+from test.test_common import TestHipsCommon
 
 
 class TestHipsInit(TestHipsCommon):

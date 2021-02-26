@@ -11,6 +11,7 @@ from hips.tutorial import tutorial
 
 
 def main():
+    """Entry points of `hips`."""
     parser = argparse.ArgumentParser(
         description=
         'Helmholtz Imaging Platform (HIP) Solutions framework for running, building, and deploying generalized imaging solutions'

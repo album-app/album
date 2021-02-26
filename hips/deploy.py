@@ -3,9 +3,7 @@ from hips import Hips, get_active_hips
 
 
 def hips_deploy_dict(hips):
-    """
-    Return a dictionary with the relevant deployment key/values for a given hips
-    """
+    """Return a dictionary with the relevant deployment key/values for a given hips."""
     d = {}
 
     deploy_keys = [
@@ -21,19 +19,19 @@ def hips_deploy_dict(hips):
 
 
 def deploy(args):
-    """
-    Function corresponding to the `deploy` subcommand of `hips`
-    Generates the yml for a hips
+    """Function corresponding to the `deploy` subcommand of `hips`.
+
+    Generates the yml for a hips.
     """
     # Load HIPS
     hips_script = open(args.path).read()
     exec(hips_script)
-    hips = get_active_hips()
-    d = hips_deploy_dict(hips)
+    active_hips = get_active_hips()
+    d = hips_deploy_dict(active_hips)
 
     yaml_str = yaml.dump(d, Dumper=yaml.Dumper)
 
-    yaml_path = '_solutions/%s.md' % hips['name']
+    yaml_path = '_solutions/%s.md' % active_hips['name']
 
     print('writing to: %s' % yaml_path)
 
@@ -49,4 +47,7 @@ git checkout %s
 git add %s
 git add %s
 git commit -m \"Adding updated %s\"""" %
-          (hips['name'], hips['name'], args.path, yaml_path, hips['name']))
+          (active_hips['name'], active_hips['name'], args.path, yaml_path, active_hips['name']))
+
+
+

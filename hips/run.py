@@ -6,12 +6,16 @@ from argparse import ArgumentError
 import hips
 
 
+# ToDo: proper logging system for hips?
+# ToDo: environment purge method
+# ToDo: reusable versioned environments?
+# ToDo: test for windows
+# ToDo: subprocess logging (https://www.endpoint.com/blog/2015/01/28/getting-realtime-output-using-python)
+
 # ToDo: maybe find a nice way than extracting stuff from some console output?
 #  The current solution might be highly risky...
 def _get_environment_dict():
-    """
-    Returns the conda environments available for the conda installation
-    """
+    """Returns the conda environments available for the conda installation."""
     environment_dict = dict()
 
     # remove empty lines and preceded information
@@ -33,27 +37,42 @@ def _get_environment_dict():
 
 
 def set_environment_path(hips_object):
-    """
-    Sets the hips attribute and returns the full environment path
+    """Sets the hips attribute and returns the full environment path.
+
+    Args:
+        hips_object:
+            The hips object to create a solution for.
+
+    Raises:
+        RuntimeError: When the environment could not be found.
     """
     environment_dict = _get_environment_dict()
     if hips_object["_environment_name"] in environment_dict.keys():
-        # get path
+
         environment_path = environment_dict[hips_object["_environment_name"]]
-        # set path
+
         hips_object["_environment_path"] = environment_path
-        # return path
+
         return environment_path
     else:
         raise RuntimeError('Could not find environment!')
 
 
 # ToDo: decide where to put create_environment method
-def create_environment(hips_object):
+def create_or_update_environment(hips_object):
+    """Creates environment a solution runs in.
+
+    Args:
+        hips_object:
+            The hips object to create a solution for.
+
+    Returns:
+        The complete environment path.
+    """
     environment_name = hips.set_environment_name(hips_object)
 
     if environment_exists(environment_name):  # updates environment
-        pass
+        pass  # ToDo: implement
     elif 'environment_file' in hips_object['dependencies']:
         file = hips_object['dependencies']['environment_file']
         subprocess_args = [
@@ -76,6 +95,12 @@ def create_environment(hips_object):
 
 # ToDo: use explicit versioning of hips
 def install_hips_in_environment(hips_object):
+    """Installs the hips dependency in the environment
+
+    Args:
+        hips_object:
+            The hips object to create a solution for.
+    """
     environment_path = hips_object["_environment_path"]
     subprocess_args = [
         'conda', 'run', '--no-capture-output', '--prefix', environment_path,
@@ -86,20 +111,31 @@ def install_hips_in_environment(hips_object):
 
 # ToDo: decide where to put environment_exists method
 def environment_exists(environment_name):
-    """
-    Returns True when the given environment name exists for the conda installation else False
+    """Checks whether an environmment already exists or not.
+
+    Args:
+        environment_name:
+            The name of the environment in which a solution will run.
+
+    Returns:
+        True when environment exists else false.
     """
     environment_dict = _get_environment_dict()
     return True if environment_name in environment_dict.keys() else False
 
 
-# ToDo: proper logging system for hips?
-# ToDo: environment purge method
-# ToDo: reusable versioned environments?
-# ToDo: test for windows
-# ToDo: subprocess logging (https://www.endpoint.com/blog/2015/01/28/getting-realtime-output-using-python)
-
 def create_run_script(hips_object, hips_script):
+    """Creates the script which will later run a solution.
+
+    Args:
+        hips_object:
+            The hips object to create a solution for.
+        hips_script:
+            The script file to write to.
+
+    Returns:
+        The script as opened file.
+    """
 
     # Create script to run within target environment
     script = """import sys
@@ -177,6 +213,7 @@ hips.get_active_hips().main()"""
 
 
 def run(args):
+    """Function corresponding to the `run` subcommand of `hips`."""
     # Load HIPS
     hips_script = open(args.path).read()
     exec(hips_script)
@@ -186,7 +223,7 @@ def run(args):
         print('hips loaded locally: ' + str(active_hips))
 
     # update or create environment
-    create_environment(active_hips)
+    create_or_update_environment(active_hips)
 
     # execute install routine
     if hasattr(active_hips, 'install') and callable(active_hips['install']):

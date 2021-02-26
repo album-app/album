@@ -11,27 +11,32 @@ class ExtractArgparseError(Exception):
 
 
 def get_line_indent(line):
+    """Returns the line indent of a line."""
     return len(re.findall('^[ ]*', line)[0])/4
 
 
 def auto_format(file):
+    """Autformats file to pep8 standard."""
     fixed_file = autopep8.fix_file(file)
     return fixed_file
 
 
 def is_comment(line):
+    """Finds out if line is a comment line."""
     if re.match('^[ ]*[#]', line):
         return True
     return False
 
 
 def is_blank_line(line):
+    """Finds out if line is blank."""
     if re.match('^\n', line):
         return True
     return False
 
 
 def to_executable(argument_parsing):
+    """Connects all arguments in a argument list"""
     executable = ""
     for arg in argument_parsing:
         executable += arg
@@ -39,9 +44,14 @@ def to_executable(argument_parsing):
 
 
 def extract_argparse(file):
-    """
-    Extracts the argument parsing out of a file.
-    Returns all add_argument() calls
+    """Extracts the argument parsing from a python file.
+
+    Args:
+        file:
+            The file to extract argument parsing from.
+
+    Returns:
+        list of all arguments.
     """
     argument_parsing = ["global args\n"]
 
@@ -49,6 +59,7 @@ def extract_argparse(file):
     # arser.add_argument(\'--mkldnn\', action=\'store_true\', help=\'for
     # mxnet, force MXNET_SUBGRAPH_BACKEND = "MKLDNN"\') <-- wrong indent, but allowed by python parser. Would be fixed
     # with autoformat.
+
     # string = auto_format(file)
 
     with open(file, 'r') as f:
