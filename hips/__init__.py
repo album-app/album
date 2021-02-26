@@ -16,9 +16,7 @@ def hips_debug():
 
 
 class Hips:
-    """
-    Encapsulates a HIPS
-    """
+    """Encapsulates a HIPS."""
     setup_keywords = ('name', 'version', 'description', 'url', 'license',
                       'min_hips_version', 'tested_hips_version', 'args',
                       'init', 'main', 'install', 'author', 'author_email',
@@ -30,11 +28,17 @@ class Hips:
     private_setup_keywords = ('_environment_name', '_environment_path', '_repository_path')
 
     def __init__(self, attrs=None):
+        """sets object attributes in setup_keywords
+
+        Args:
+            attrs:
+                Dictionary containing the attributes.
+        """
         for attr in self.setup_keywords:
             if attr in attrs:
                 setattr(self, attr, attrs[attr])
 
-        # every hips has them
+        # Attributes only available in the hips environment.
         for private_attr in self.private_setup_keywords:
             setattr(self, private_attr, "")
 
@@ -53,9 +57,7 @@ class Hips:
             setattr(self, key, value)
 
     def get_arg(self, k):
-        """
-        Get a specific named argument for this hips if it exists
-        """
+        """Get a specific named argument for this hips if it exists."""
         matches = [arg for arg in self['args'] if arg['name'] == k]
         return matches[0]
 
@@ -67,38 +69,34 @@ global _active_hips
 
 
 def setup(**attrs):
-    """
-    This configures a HIPS to for use by the main HIPS tool
-    """
+    """This configures a HIPS to for use by the main HIPS tool."""
     global _active_hips
     _active_hips = Hips(attrs)
 
 
 def get_active_hips():
-    """
-    Return the currently active HIPS, which is defined globally
-    """
+    """Return the currently active HIPS, which is defined globally."""
     global _active_hips
 
     return _active_hips
 
 
-def env_create(filename):
-    # need to replicate behavior of this function:
-    # https://github.com/conda/conda/blob/e37cf84a57f935c578cdcea6ea034c80d7677ccc/conda_env/cli/main_create.py#L76
-    pass
-
-
 def parse_environment_name_from_yaml(yaml_env_path):
+    """Reads out the "name" keywords from the environment yaml file
+
+    Args:
+        yaml_env_path: The path to the environment file
+
+    Returns:
+        The name of the environment.
+    """
     with open(yaml_env_path) as f:
         env = yaml.load(f, Loader=yaml.FullLoader)
     return env['name']
 
 
 def set_environment_name(active_hips):
-    """
-    Get the environment name for a HIPS
-    """
+    """Get the environment name for a HIPS."""
     environment_name = ""
     if 'dependencies' in dir(active_hips):
         if 'environment_name' in active_hips['dependencies']:
@@ -128,8 +126,9 @@ def set_environment_name(active_hips):
 
 
 def download_environment_yaml(active_hips):
-    """
-    Downloads a environment_file. URL is specified in hips['dependencies']['environment_file']
+    """Downloads an environment_file.
+
+     URL is specified in hips['dependencies']['environment_file']
     """
     environment_file = xdg_cache_home().joinpath('environment_file.yml')
     urllib.request.urlretrieve(
@@ -140,6 +139,14 @@ def download_environment_yaml(active_hips):
 
 
 def run_in_environment(active_hips, script):
+    """Runs the solution in the target environment
+
+    Args:
+        active_hips:
+            The hips to run.
+        script:
+            The script calling the solution
+    """
     if hips_debug():
         print('run_in_environment: %s' % active_hips["_environment_path"])
 

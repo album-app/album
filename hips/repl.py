@@ -7,6 +7,7 @@ from hips import Hips, get_active_hips, set_environment_name, hips_debug, run_in
 
 
 def repl(args):
+    """Function corresponding to the `repl` subcommand of `hips`."""
     # Load HIPS
     hips_script = open(args.path).read()
     exec(hips_script)

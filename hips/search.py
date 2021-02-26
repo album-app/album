@@ -11,18 +11,12 @@ import gitdir
 
 
 def hips_cache_home():
-    """
-    Return the path for the HIPS cache, 
-    e.g. ~/.config/hips/cache
-    """
+    """Return the path for the HIPS cache, e.g. ~/.config/hips/cache"""
     return os.path.join(xdg_cache_home(), 'hips', 'cache')
 
 
 def load_search_index():
-    """
-    Load a package search index
-    This is a dictionary of package name:dicts
-    """
+    """Load a package search index. This is a dictionary of package name:dicts."""
     search_cache = os.path.join(hips_cache_home(), 'catalog')
     gitdir.download(
         'https://gitlab.com/ida-mdc/hips-catalog/-/tree/main/catalog',
@@ -38,8 +32,8 @@ def load_search_index():
 
 
 def search(args):
-    """
-    Function corresponding to the `search` subcommand of `hips`
+    """Function corresponding to the `search` subcommand of `hips`.
+
     Searches through hips catalog to find closest matching hips
     """
     sys.argv = ['search'] + sys.argv

@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import install_helper.modules
 
-from test.test_hips_common import TestHipsCommon
+from test.test_common import TestHipsCommon
 
 
 class TestInstallHelperModules(TestHipsCommon):
