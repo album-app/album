@@ -13,14 +13,12 @@ class TestHipsRun(TestHipsCommon):
         # self.something_all_tests_use = some_value
         pass
 
-    @patch('hips.run.get_environment_name', return_value="hips")
-    @patch('hips.run._get_environment_dict', return_value={b"hips": b"/some/path"})
+    @unittest.skip("Needs to be implemented!")
     def test_set_environment_path(self, _, __):
+        pass
+        #self.some_hips = hips.Hips(self.attrs)
 
-        self.some_hips = hips.Hips(self.attrs)
-
-        self.assertTrue("/some/path" == hips.run.get_environment_path(self.some_hips),
-                        "get_environment_name returns false value!")
+        #self.assertTrue("/some/path" == hips.run.get_environment_path(self.some_hips), "get_environment_name returns false value!")
 
     @unittest.skip("Needs to be implemented!")
     def test_run(self):
@@ -48,13 +46,18 @@ class TestHipsRun(TestHipsCommon):
         pass
 
 
-def test_run():
+def test_run_run():
     run_suite = unittest.TestSuite()
-    run_suite.addTest(TestHipsRun('test_download_environment_yaml'))
-    run_suite.addTest(TestHipsRun('test_get_environment_path'))
+    # ToDo: add all tests
+    run_suite.addTest(TestHipsRun('test_set_environment_path'))
     return run_suite
 
 
 if __name__ == '__main__':
     runner = unittest.TextTestRunner()
-    runner.run(test_run())
+    result = runner.run(test_run_run())
+
+    if result.wasSuccessful():
+        exit(0)
+    else:
+        exit(1)

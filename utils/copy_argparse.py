@@ -85,6 +85,3 @@ def extract_argparse(file):
                     # set new indent
                     previous_indent = get_line_indent(line)
     return ""
-
-
-#print(extract_argparse("/home/jpa/PycharmProjects/cellpose/cellpose/__main__.py"))
