@@ -1,5 +1,9 @@
 import yaml
+import logging
 from hips import Hips, get_active_hips
+
+
+module_logger = logging.getLogger('hips')
 
 
 def hips_deploy_dict(hips):
@@ -23,17 +27,18 @@ def deploy(args):
 
     Generates the yml for a hips.
     """
-    # Load HIPS
+    module_logger.debug('Load hips...')
     hips_script = open(args.path).read()
     exec(hips_script)
     active_hips = get_active_hips()
     d = hips_deploy_dict(active_hips)
 
+    module_logger.debug('Create yaml file from solution...')
     yaml_str = yaml.dump(d, Dumper=yaml.Dumper)
 
     yaml_path = '_solutions/%s.md' % active_hips['name']
 
-    print('writing to: %s' % yaml_path)
+    module_logger.info('writing to: %s' % yaml_path)
 
     with open(yaml_path, 'w') as f:
         f.write("---\n" + yaml_str + "\n---")

@@ -1,12 +1,15 @@
 import json
 import subprocess
 import sys
+import logging
 from argparse import ArgumentError
 
 import hips
 
 
-# ToDo: proper logging system for hips?
+module_logger = logging.getLogger('hips')
+
+
 # ToDo: environment purge method
 # ToDo: reusable versioned environments?
 # ToDo: test for windows
@@ -23,10 +26,12 @@ def _get_environment_dict():
         return None if line_str == '' or line_str.startswith('#') else line_str.replace('\r', '').split(' ')
 
     # list environments via conda info command - Note: conda.cli.python_api support missing
+    module_logger.debug('List available conda environments...')
     output = subprocess.check_output(['conda', 'info', '--envs']).decode("utf-8")
     lines = output.split("\n")
 
     # extract name and path
+    module_logger.debug('Parse conda info output...')
     for line in lines:
         parsed_line = _split_and_clean(line)
         if parsed_line:
@@ -51,6 +56,7 @@ def set_environment_path(hips_object):
 
         environment_path = environment_dict[hips_object["_environment_name"]]
 
+        module_logger.debug('Set environment path to %s' % environment_path)
         hips_object["_environment_path"] = environment_path
 
         return environment_path
@@ -72,16 +78,21 @@ def create_or_update_environment(hips_object):
     environment_name = hips.set_environment_name(hips_object)
 
     if environment_exists(environment_name):  # updates environment
+        module_logger.debug('Update environment %s...' % environment_name)
         pass  # ToDo: implement
     elif 'environment_file' in hips_object['dependencies']:
         file = hips_object['dependencies']['environment_file']
+        module_logger.debug('Found environment file %s in hips dependencies...' % file)
         subprocess_args = [
             'conda', 'env', 'create', '-f', file
         ]
+        module_logger.debug('Create environment with subprocess:  %s...' % " ".join(subprocess_args))
         subprocess.run(subprocess_args)
 
     else:
-        subprocess_args = ['conda', 'env', 'create', '-f', 'hips_full.yml']
+        module_logger.debug('No environment specified in hips dependencies. Taking %s environment...' % 'hips_full')
+        subprocess_args = ['conda', 'env', 'create', '-f', 'hips_full.yml']  # ToDo: get rid of hardcoded stuff
+        module_logger.debug('Create environment with subprocess: %s...' % " ".join(subprocess_args))
         subprocess.run(subprocess_args)
 
     # set environment path
@@ -106,6 +117,7 @@ def install_hips_in_environment(hips_object):
         'conda', 'run', '--no-capture-output', '--prefix', environment_path,
         'pip', 'install', 'git+https://gitlab.com/ida-mdc/hips.git'
     ]
+    module_logger.debug('Install hips in target environment with subprocess: %s...' % " ".join(subprocess_args))
     subprocess.run(subprocess_args)
 
 
@@ -136,7 +148,6 @@ def create_run_script(hips_object, hips_script):
     Returns:
         The script as opened file.
     """
-
     # Create script to run within target environment
     script = """import sys
 import json
@@ -158,10 +169,12 @@ hips.get_active_hips().init()
 
     args = hips_object['args']
 
+    module_logger.debug('Read out arguments in hips solution and add to runtime script...')
     # special argument parsing cases
     if isinstance(args, str):
         # pass through to module
         if args == 'pass-through':
+            module_logger.info('Argument parsing not specified in hips solution. Passing arguments through...')
             pass
         # read arguments from file
         elif args == 'read-from-file':
@@ -170,6 +183,7 @@ hips.get_active_hips().init()
             raise ArgumentError('Argument keyword \'%s\' not supported!' %
                                 args)
     else:
+        module_logger.debug('Add argument parsing for hips solution to runtime script...')
         # Add the argument handling
         script += """
 parser = argparse.ArgumentParser(description='HIPS Run %s')
@@ -214,19 +228,21 @@ hips.get_active_hips().main()"""
 
 def run(args):
     """Function corresponding to the `run` subcommand of `hips`."""
-    # Load HIPS
+
+    module_logger.debug('Load hips...')
     hips_script = open(args.path).read()
     exec(hips_script)
+
     active_hips = hips.get_active_hips()
 
-    if hips.hips_debug():
-        print('hips loaded locally: ' + str(active_hips))
+    module_logger.debug('hips loaded locally: %s' % str(active_hips))
 
     # update or create environment
     create_or_update_environment(active_hips)
 
     # execute install routine
     if hasattr(active_hips, 'install') and callable(active_hips['install']):
+        module_logger.debug('Calling install routine specified in solution...')
         active_hips.install()
 
     # ToDo: install helper - methods (pip install) (git-download) (java-dependcies)
