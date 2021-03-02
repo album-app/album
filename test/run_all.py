@@ -3,6 +3,7 @@ from test.hips.test_run import test_run_run
 from test.hips.test__init__ import test_init_run
 from test.install_helper.test_modules import test_modules_run
 from test.utils.test_zenodo_api import test_utils_run
+from test.utils.test_hips_logging import test_hips_logging_run
 
 
 def evaluate_result(result: unittest.TestResult):
@@ -17,7 +18,8 @@ def main():
         evaluate_result(runner.run(test_run_run())),
         evaluate_result(runner.run(test_init_run())),
         evaluate_result(runner.run(test_modules_run())),
-        evaluate_result(runner.run(test_utils_run()))
+        evaluate_result(runner.run(test_utils_run())),
+        evaluate_result(runner.run(test_hips_logging_run())),
     )
     print("%s test suit(s) failed!" % sum(r))
 
