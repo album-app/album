@@ -19,7 +19,7 @@ def hips_debug():
 
 class Hips:
     """Encapsulates a HIPS."""
-    setup_keywords = ('name', 'version', 'description', 'url', 'license',
+    setup_keywords = ('group', 'name', 'version', 'description', 'url', 'license',
                       'min_hips_version', 'tested_hips_version', 'args',
                       'init', 'main', 'install', 'author', 'author_email',
                       'long_description', 'git_repo', 'dependencies',
