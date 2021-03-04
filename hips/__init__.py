@@ -91,6 +91,9 @@ def parse_environment_name_from_yaml(yaml_env_path):
 
     Returns:
         The name of the environment.
+
+    Raises:
+        RuntimeError: When no valid environment file or name in hips dependency specified.
     """
     module_logger.debug('Parsing environment name form yaml: %s...' % yaml_env_path)
     with open(yaml_env_path) as f:
@@ -120,7 +123,10 @@ def set_environment_name(active_hips):
 
             # don't know what to do
             else:
-                raise RuntimeError  # Todo: better exception here
+                message = 'No valid environment name or file specified! Don\'t know where to run solution'
+                module_logger.error(message)
+                raise RuntimeError(message)
+
             environment_name = parse_environment_name_from_yaml(yaml_path)
             module_logger.debug('Extracted following name from file: %s...' % environment_name)
 

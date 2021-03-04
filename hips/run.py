@@ -14,6 +14,7 @@ module_logger = logging.getLogger('hips')
 # ToDo: reusable versioned environments?
 # ToDo: test for windows
 # ToDo: subprocess logging (https://www.endpoint.com/blog/2015/01/28/getting-realtime-output-using-python)
+# ToDo: solutions should not run in hips.yml for comp. reasons. Maybe check that?
 
 # ToDo: maybe find a nice way than extracting stuff from some console output?
 #  The current solution might be highly risky...
@@ -61,7 +62,9 @@ def set_environment_path(hips_object):
 
         return environment_path
     else:
-        raise RuntimeError('Could not find environment!')
+        message = 'Could not find environment!'
+        module_logger.error(message)
+        raise RuntimeError(message)
 
 
 # ToDo: decide where to put create_environment method
@@ -147,6 +150,9 @@ def create_run_script(hips_object, hips_script):
 
     Returns:
         The script as opened file.
+
+    Raises:
+        ArgumentError: When the arguments in the hips are not supported
     """
     # Create script to run within target environment
     script = """import sys
@@ -180,8 +186,10 @@ hips.get_active_hips().init()
         elif args == 'read-from-file':
             pass  # ToDo: discuss if we want this!
         else:
-            raise ArgumentError('Argument keyword \'%s\' not supported!' %
-                                args)
+            message = 'Argument keyword \'%s\' not supported!' % args
+            module_logger.error(message)
+            raise ArgumentError(message)
+
     else:
         module_logger.debug('Add argument parsing for hips solution to runtime script...')
         # Add the argument handling
