@@ -162,6 +162,7 @@ from hips import get_active_hips
 """
 
     # This could have an issue with nested quotes
+    module_logger.debug("Add sys.argv arguments to runtime script: %s" % ", ".join(sys.argv))
     script += "sys.argv = json.loads('%s')\n" % json.dumps(sys.argv)
 
     # Evaluate the path

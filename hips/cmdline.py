@@ -102,13 +102,13 @@ def main():
     # ToDo: clean all hips environments
 
     module_logger.debug('Parsing base hips call arguments...')
-    args = parser.parse_known_args(sys.argv[1:])
+    args = parser.parse_known_args()
 
     # switch to desired logging level
     hips_logging.set_loglevel(args[0].log, 'hips')
 
     module_logger.debug("Running %s subcommand..." % sys.argv[1])
-    sys.argv = args[1]  # unparsed arguments belonging to solution
+    sys.argv = ["None"] + args[1]  # unparsed arguments belonging to solution
     args[0].func(args[0])
 
 
