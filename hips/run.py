@@ -262,13 +262,6 @@ def run(args):
     # update or create environment
     create_or_update_environment(active_hips)
 
-    # execute install routine
-    if hasattr(active_hips, 'install') and callable(active_hips['install']):
-        module_logger.debug('Calling install routine specified in solution...')
-        active_hips.install()
-
-    # ToDo: install helper - methods (pip install) (git-download) (java-dependcies)
-
     script = create_run_script(active_hips, hips_script)
 
     hips.run_in_environment(active_hips, script)

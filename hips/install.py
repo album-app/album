@@ -17,6 +17,13 @@ def install(args):
         if 'hips' in dependencies:
             install_hips_dependencies(dependencies['hips'])
 
+    # execute install routine
+    if hasattr(get_active_hips(), 'install') and callable(get_active_hips()['install']):
+        module_logger.debug('Calling install routine specified in solution...')
+        get_active_hips().install()
+
+    # ToDo: install helper - methods (pip install) (git-download) (java-dependcies)
+
     module_logger.info('Installed %s' % hips['name'])
 
 
