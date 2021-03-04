@@ -28,7 +28,7 @@ class TestInstallHelperModules(TestHipsCommon):
         hips_with_git_repo = hips.Hips(self.attrs)
 
         # run
-        install_helper.modules.download_repository(hips_with_git_repo)
+        install_helper.modules.download_hips_repository(hips_with_git_repo)
 
         # check
         self.assertIn("test", os.listdir(str(xdg_cache_home())), "Download failed!")
@@ -39,7 +39,7 @@ class TestInstallHelperModules(TestHipsCommon):
         # checkout old version of repo
 
         # run again
-        install_helper.modules.download_repository(hips_with_git_repo)
+        install_helper.modules.download_hips_repository(hips_with_git_repo)
 
         # assert that repo has been updated to head!
 
