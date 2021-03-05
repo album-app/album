@@ -1,4 +1,5 @@
 import logging
+from enum import Enum, unique
 
 DEBUG = False
 module_logger = logging.getLogger('hips')
@@ -6,6 +7,15 @@ module_logger = logging.getLogger('hips')
 
 def hips_debug():
     return DEBUG
+
+
+@unique
+class HipsDefaultValues(Enum):
+    """Add a entry here to initialize default attributes for a hips object.
+
+     Takes the Enum name as attribute name and the Enum value as default value.
+     """
+    catalog = 'https://github.com/ida-mdc/hips-catalog.git'
 
 
 class Hips:
@@ -16,7 +26,7 @@ class Hips:
                       'long_description', 'git_repo', 'dependencies',
                       'timestamp', 'format_version', 'authors', 'cite', 'tags',
                       'documentation', 'covers', 'sample_inputs',
-                      'sample_outputs', 'doi')
+                      'sample_outputs', 'doi', 'catalog')
 
     private_setup_keywords = ('_environment_name', '_environment_path',
                               '_repository_path', '_script')
@@ -28,9 +38,17 @@ class Hips:
             attrs:
                 Dictionary containing the attributes.
         """
+        # Attributes from the solution.py
         for attr in self.setup_keywords:
             if attr in attrs:
                 setattr(self, attr, attrs[attr])
+
+        # Default attributes
+        for defaultAttribute in HipsDefaultValues:
+            if defaultAttribute.name not in attrs:
+                module_logger.info("Attribute %s not specified. Set it to %s" %
+                                   (defaultAttribute.name, defaultAttribute.value))
+                setattr(self, defaultAttribute.name, defaultAttribute.value)
 
         # Attributes only available in the hips environment.
         for private_attr in self.private_setup_keywords:

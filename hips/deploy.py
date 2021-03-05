@@ -28,6 +28,21 @@ def hips_deploy_dict(active_hips):
     return d
 
 
+def extract_catalog_name(catalog_repo):
+    """Extracts a basename from a repository URL.
+
+    Args:
+        catalog_repo:
+            The repository URL or ssh string of the catalog.
+
+    Returns:
+        The basename of the repository
+
+    """
+    name, _ = os.path.splitext(os.path.basename(catalog_repo))
+    return name
+
+
 def deploy(args):
     """Function corresponding to the `deploy` subcommand of `hips`.
 
@@ -42,8 +57,11 @@ def deploy(args):
     active_hips = get_active_hips()
     d = hips_deploy_dict(active_hips)
 
-    # download (or update) repo
-    repo = modules.download_repository('https://github.com/ida-mdc/hips-catalog.git', "hips_catalog")
+    # download (or update) catalog
+    catalog_url = active_hips['catalog']
+    catalog_name = extract_catalog_name(catalog_url)
+    module_logger.debug("Donwload catalog %s to the name %s" % (catalog_url, catalog_name))
+    repo = modules.download_repository(catalog_url, catalog_name)
 
     # make a new branch and checkout
     new_head = repo.create_head(active_hips['name'])
