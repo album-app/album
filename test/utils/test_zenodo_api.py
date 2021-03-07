@@ -197,32 +197,5 @@ class TestZenodoAPI(TestUtilsCommon):
         pass
 
 
-def test_utils_run():
-    run_suite = unittest.TestSuite()
-    run_suite.addTests([
-        TestZenodoEntry('test_to_to_dict'),
-        TestZenodoDeposit('test_get_files_id_by_name'),
-        TestZenodoDeposit('test_list_files_name'),
-        TestZenodoDeposit('test_reload'),
-        TestZenodoDeposit('test_update'),
-        TestZenodoDeposit('test_delete'),
-        TestZenodoDeposit('test_publish'),
-        TestZenodoDeposit('test_new_version'),
-        TestZenodoDeposit('test_get_remote_files'),
-        TestZenodoDeposit('test_create_file'),
-        TestZenodoDeposit('test_delete_file'),
-        TestZenodoDeposit('test_update_file'),
-        TestZenodoDeposit('test_update_file_by_id'),
-        TestZenodoDeposit('test_delete_file_by_id'),
-        TestZenodoRecord('test_print_stats'),
-        TestZenodoAPI('test_validate_response'),
-        TestZenodoAPI('test_deposit_get'),
-        TestZenodoAPI('test_deposit_create'),
-        TestZenodoAPI('test_records_get')
-    ])
-    return run_suite
-
-
 if __name__ == '__main__':
-    runner = unittest.TextTestRunner()
-    runner.run(test_utils_run())
+    unittest.main()

@@ -50,18 +50,5 @@ class TestHipsRun(TestHipsCommon):
         pass
 
 
-def test_run_run():
-    run_suite = unittest.TestSuite()
-    # ToDo: add all tests
-    run_suite.addTest(TestHipsRun('test_set_environment_path'))
-    return run_suite
-
-
 if __name__ == '__main__':
-    runner = unittest.TextTestRunner()
-    result = runner.run(test_run_run())
-
-    if result.wasSuccessful():
-        exit(0)
-    else:
-        exit(1)
+    unittest.main()

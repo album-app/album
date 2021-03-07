@@ -1,19 +1,17 @@
 import os
 import sys
 import tempfile
-import unittest
 import unittest.mock
 from unittest.mock import patch
 
 from hips import cmdline
-
+from hips.containerize import containerize
 from hips.deploy import deploy
-from hips.run import run
-from hips.repl import repl
-from hips.search import search
 from hips.install import install
 from hips.remove import remove
-from hips.containerize import containerize
+from hips.repl import repl
+from hips.run import run
+from hips.search import search
 from hips.tutorial import tutorial
 
 
@@ -70,20 +68,5 @@ class TestCommandLine(unittest.TestCase):
         self.assertEqual(method, args[0].func)
 
 
-def cmdline_run():
-    run_suite = unittest.TestSuite()
-    run_suite.addTest(TestCommandLine('test_run'))
-    run_suite.addTest(TestCommandLine('test_run_no_args'))
-    run_suite.addTest(TestCommandLine('test_run_non_existing_file'))
-    run_suite.addTest(TestCommandLine('test_create_parser'))
-    return run_suite
-
-
 if __name__ == '__main__':
-    runner = unittest.TextTestRunner()
-    result = runner.run(cmdline_run())
-
-    if result.wasSuccessful():
-        exit(0)
-    else:
-        exit(1)
+    unittest.main()

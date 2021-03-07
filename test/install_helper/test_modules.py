@@ -44,18 +44,5 @@ class TestInstallHelperModules(TestHipsCommon):
         # assert that repo has been updated to head!
 
 
-def test_modules_run():
-    run_suite = unittest.TestSuite()
-    run_suite.addTest(TestInstallHelperModules('test_download_repository'))
-
-    return run_suite
-
-
 if __name__ == '__main__':
-    runner = unittest.TextTestRunner()
-    result = runner.run(test_modules_run())
-
-    if result.wasSuccessful():
-        exit(0)
-    else:
-        exit(1)
+    unittest.main()

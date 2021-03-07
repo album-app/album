@@ -1,31 +1,30 @@
 import unittest
-from test.hips.test_run import test_run_run
-from test.hips.test__init__ import test_init_run
-from test.install_helper.test_modules import test_modules_run
-from test.utils.test_zenodo_api import test_utils_run
-from test.utils.test_hips_logging import test_hips_logging_run
 
-
-def evaluate_result(result: unittest.TestResult):
-    if result.wasSuccessful():
-        return 0
-    return 1
+from test.hips import test__init__
+from test.hips import test_cmdline
+from test.hips import test_run
+from test.install_helper import test_modules
+from test.integration import test_integration_cmdline
+from test.utils import test_hips_logging
+from test.utils import test_zenodo_api
 
 
 def main():
-    runner = unittest.TextTestRunner()
-    r = (
-        evaluate_result(runner.run(test_run_run())),
-        evaluate_result(runner.run(test_init_run())),
-        evaluate_result(runner.run(test_modules_run())),
-        # evaluate_result(runner.run(test_utils_run())),
-        evaluate_result(runner.run(test_hips_logging_run())),
-        evaluate_result(runner.run(cmdline_run())),
-        evaluate_result(runner.run(integration_cmdline_run())),
-    )
-    print("%s test suit(s) failed!" % sum(r))
-
-    exit(0) if sum(r) == 0 else exit(1)
+    loader = unittest.TestLoader()
+    suite = unittest.TestSuite()
+    suite.addTests(loader.loadTestsFromModule(test_cmdline))
+    suite.addTests(loader.loadTestsFromModule(test_integration_cmdline))
+    suite.addTests(loader.loadTestsFromModule(test_hips_logging))
+    suite.addTests(loader.loadTestsFromModule(test_zenodo_api))
+    suite.addTests(loader.loadTestsFromModule(test_run))
+    suite.addTests(loader.loadTestsFromModule(test__init__))
+    suite.addTests(loader.loadTestsFromModule(test_modules))
+    runner = unittest.TextTestRunner(verbosity=3)
+    result = runner.run(suite)
+    if result.wasSuccessful():
+        exit(0)
+    else:
+        exit(1)
 
 
 main()
