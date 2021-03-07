@@ -9,6 +9,8 @@ import logging
 from pathlib import Path
 from xdg import xdg_cache_home
 
+from utils import subcommand
+
 DEBUG = False
 module_logger = logging.getLogger('hips')
 
@@ -208,6 +210,6 @@ def run_in_environment(active_hips, script):
 
     module_logger.debug('Running solution with subprocess command: %s...' % " ".join(subprocess_args))
 
-    subprocess.run(subprocess_args)
+    subcommand.run(subprocess_args)
 
     fp.close()

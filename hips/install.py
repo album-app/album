@@ -30,7 +30,7 @@ def install(args):
 def install_hips_dependencies(args):
     for hips in args:
         hips_script = resolve_hips(hips)
-        subcommand.run("python -m hips install " + hips_script)
+        subcommand.run_string("python -m hips install " + hips_script)
 
 
 def resolve_hips(hips):
