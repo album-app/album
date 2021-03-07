@@ -18,8 +18,10 @@ def main():
         evaluate_result(runner.run(test_run_run())),
         evaluate_result(runner.run(test_init_run())),
         evaluate_result(runner.run(test_modules_run())),
-        evaluate_result(runner.run(test_utils_run())),
+        # evaluate_result(runner.run(test_utils_run())),
         evaluate_result(runner.run(test_hips_logging_run())),
+        evaluate_result(runner.run(cmdline_run())),
+        evaluate_result(runner.run(integration_cmdline_run())),
     )
     print("%s test suit(s) failed!" % sum(r))
 
