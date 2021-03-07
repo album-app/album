@@ -242,7 +242,7 @@ parser.parse_args()
 
     # Add the run code
     script += """
-hips.get_active_hips().main()
+hips.get_active_hips().run()
 hips.pop_active_hips()"""
 
     return script

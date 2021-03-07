@@ -30,7 +30,7 @@ hips.setup(
     tested_hips_version="0.1.0",
     args=[],
     init=hips_init,
-    main=hips_run,
+    run=hips_run,
     dependencies={
         'environment_name': 'hips'
     })
