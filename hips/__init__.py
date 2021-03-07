@@ -206,8 +206,7 @@ def run_in_environment(active_hips, script):
         active_hips["_environment_path"], 'python', script_name
     ]
 
-    module_logger.debug('Running soltuion with subprocess command: %s...' %
-                        " ".join(subprocess_args))
+    module_logger.debug('Running solution with subprocess command: %s...' % " ".join(subprocess_args))
 
     subprocess.run(subprocess_args)
 
