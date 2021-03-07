@@ -65,9 +65,9 @@ class HIPSParser:
         self.parser = self.create_hips_parser()
         self.subparsers = self.parser.add_subparsers(title='actions', help='sub-command help')
 
-        parser = argparse.ArgumentParser(
     @staticmethod
     def create_hips_parser():
+        parser = ArgumentParser(
             add_help=False,
             description=
             'Helmholtz Imaging Platform (HIP) Solutions framework for running, building, and deploying generalized imaging solutions'
@@ -76,7 +76,7 @@ class HIPSParser:
 
     @staticmethod
     def create_parent_parser():
-        parent_parser = argparse.ArgumentParser(add_help=False)
+        parent_parser = ArgumentParser(add_help=False)
         # parse logging
         parent_parser.add_argument(
             '--log',
@@ -100,6 +100,12 @@ class HIPSParser:
                             type=str,
                             help='path for the HIPS file')
         return parser
+
+
+class ArgumentParser(argparse.ArgumentParser):
+
+    def error(self, message):
+        raise RuntimeError('%s: error: %s\n' % (self.prog, message))
 
 
 if __name__ == "__main__":
