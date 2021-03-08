@@ -1,12 +1,11 @@
-import os
-import sys
-import subprocess
-import tempfile
-import yaml
-import validators
-import urllib.request
 import logging
+import os
+import tempfile
+import urllib.request
 from pathlib import Path
+
+import validators
+import yaml
 from xdg import xdg_cache_home
 
 from utils import subcommand
