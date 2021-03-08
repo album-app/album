@@ -9,22 +9,34 @@ module_logger = logging.getLogger('hips')
 def install(args):
     """Function corresponding to the `install` subcommand of `hips`."""
     # Load HIPS
-    hips_script = open(args.path).read()
-    exec(hips_script)
-    hips = get_active_hips()
-    if 'dependencies' in dir(hips):
-        dependencies = hips['dependencies']
-        if 'hips' in dependencies:
-            __install_hips_dependencies(dependencies['hips'])
-
-    # execute install routine
-    if hasattr(get_active_hips(), 'install') and callable(get_active_hips()['install']):
-        module_logger.debug('Calling install routine specified in solution...')
-        get_active_hips().install()
+    __load_script(args.path)
+    __handle_dependencies(get_active_hips())
+    __execute_install_routine(get_active_hips())
 
     # ToDo: install helper - methods (pip install) (git-download) (java-dependcies)
 
-    module_logger.info('Installed %s' % hips['name'])
+    module_logger.info('Installed %s' % get_active_hips()['name'])
+
+
+def __load_script(path):
+    """Load hips script"""
+    hips_script = open(path).read()
+    exec(hips_script)
+
+
+def __execute_install_routine(active_hips):
+    """Run install routine of hips if specified"""
+    if hasattr(active_hips, 'install') and callable(active_hips['install']):
+        module_logger.debug('Calling install routine specified in solution...')
+        active_hips.install()
+
+
+def __handle_dependencies(active_hips):
+    """Handle dependencies in hips dependency block"""
+    if 'dependencies' in dir():
+        dependencies = active_hips['dependencies']
+        if 'hips' in dependencies:
+            __install_hips_dependencies(dependencies['hips'])
 
 
 def __install_hips_dependencies(args):
