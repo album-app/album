@@ -20,33 +20,37 @@ module_logger = logging.getLogger('hips')
 def main():
     """Entry points of `hips`."""
 
-    retrieve_logger()
+    __retrieve_logger()
     parser = create_parser()
 
     # ToDo: clean all hips environments
 
     module_logger.debug('Parsing base hips call arguments...')
-    handle_args(parser.parse_known_args())
+    __handle_args(parser.parse_known_args())
 
 
-def handle_args(args):
+def __handle_args(args):
+    """Handles all arguments provided after the hips command."""
     hips_logging.set_loglevel(args[0].log, 'hips')
-    run_subcommand(args)
+    __run_subcommand(args)
 
 
-def run_subcommand(args):
+def __run_subcommand(args):
+    """Calls a specific hips subcommand."""
     hips_command = sys.argv[1]
     module_logger.debug("Running %s subcommand..." % hips_command)
     sys.argv = ["None"] + args[1]
     args[0].func(args[0])
 
 
-def retrieve_logger():
+def __retrieve_logger():
+    """Retrieves the default hips logger."""
     hips_logging.configure_logging(hips_logging.LogLevel(hips_debug()), 'hips')
 
 
 def create_parser():
-    parser = HIPSParser()
+    """Creates a parser for all known hips arguments."""
+    parser = __HIPSParser()
     parser.create_command_parser('search', search, 'search for a HIP Solution using keywords')
     parser.create_hips_file_command_parser('run', run, 'run a HIP Solution')
     parser.create_hips_file_command_parser('repl', repl, 'get an interactive repl for a HIP Solution')
@@ -58,15 +62,15 @@ def create_parser():
     return parser.parser
 
 
-class HIPSParser:
+class __HIPSParser:
 
     def __init__(self):
-        self.parent_parser = self.create_parent_parser()
-        self.parser = self.create_hips_parser()
+        self.parent_parser = self.__create_parent_parser()
+        self.parser = self.__create_hips_parser()
         self.subparsers = self.parser.add_subparsers(title='actions', help='sub-command help')
 
     @staticmethod
-    def create_hips_parser():
+    def __create_hips_parser():
         parser = ArgumentParser(
             add_help=False,
             description=
@@ -75,7 +79,7 @@ class HIPSParser:
         return parser
 
     @staticmethod
-    def create_parent_parser():
+    def __create_parent_parser():
         parent_parser = ArgumentParser(add_help=False)
         # parse logging
         parent_parser.add_argument(
@@ -89,12 +93,14 @@ class HIPSParser:
         return parent_parser
 
     def create_command_parser(self, command_name, command_function, command_help):
+        """Creates a parser for a hips command, specified by a name, a function and a help description."""
         parser = self.subparsers.add_parser(
             command_name, help=command_help, parents=[self.parent_parser])
         parser.set_defaults(func=command_function)
         return parser
 
     def create_hips_file_command_parser(self, command_name, command_function, command_help):
+        """Creates a parser for a hips command dealing with a hips file, specified by a name, a function and a help description."""
         parser = self.create_command_parser(command_name, command_function, command_help)
         parser.add_argument('path',
                             type=str,

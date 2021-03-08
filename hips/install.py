@@ -15,7 +15,7 @@ def install(args):
     if 'dependencies' in dir(hips):
         dependencies = hips['dependencies']
         if 'hips' in dependencies:
-            install_hips_dependencies(dependencies['hips'])
+            __install_hips_dependencies(dependencies['hips'])
 
     # execute install routine
     if hasattr(get_active_hips(), 'install') and callable(get_active_hips()['install']):
@@ -27,13 +27,15 @@ def install(args):
     module_logger.info('Installed %s' % hips['name'])
 
 
-def install_hips_dependencies(args):
+def __install_hips_dependencies(args):
+    """Calls `install` for all hips declared in a dependency block"""
     for hips in args:
-        hips_script = resolve_hips(hips)
+        hips_script = __resolve_hips(hips)
         subcommand.run_string("python -m hips install " + hips_script)
 
 
-def resolve_hips(hips):
+def __resolve_hips(hips):
+    """Resolves a hips id and returns a path to the solution file."""
     # TODO properly implement this - i.e. match with zenodo
     path = ""
     if hips["group"] == "ida-mdc" and hips["name"] == "blender":

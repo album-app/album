@@ -20,7 +20,7 @@ class TestCommandLine(unittest.TestCase):
     def setUp(self):
         pass
 
-    @patch('hips.cmdline.run_subcommand', return_value=True)
+    @patch('hips.cmdline.__run_subcommand', return_value=True)
     def test_run(self, _):
         fd, path = tempfile.mkstemp()
         try:
