@@ -6,15 +6,14 @@ from argparse import ArgumentError
 
 import hips
 
-
 module_logger = logging.getLogger('hips')
-
 
 # ToDo: environment purge method
 # ToDo: reusable versioned environments?
 # ToDo: test for windows
 # ToDo: subprocess logging (https://www.endpoint.com/blog/2015/01/28/getting-realtime-output-using-python)
 # ToDo: solutions should not run in hips.yml for comp. reasons. Maybe check that?
+
 
 # ToDo: maybe find a nice way than extracting stuff from some console output?
 #  The current solution might be highly risky...
@@ -24,11 +23,13 @@ def _get_environment_dict():
 
     # remove empty lines and preceded information
     def _split_and_clean(line_str):
-        return None if line_str == '' or line_str.startswith('#') else line_str.replace('\r', '').split(' ')
+        return None if line_str == '' or line_str.startswith(
+            '#') else line_str.replace('\r', '').split(' ')
 
     # list environments via conda info command - Note: conda.cli.python_api support missing
     module_logger.debug('List available conda environments...')
-    output = subprocess.check_output(['conda', 'info', '--envs']).decode("utf-8")
+    output = subprocess.check_output(['conda', 'info',
+                                      '--envs']).decode("utf-8")
     lines = output.split("\n")
 
     # extract name and path
@@ -85,17 +86,21 @@ def create_or_update_environment(hips_object):
         pass  # ToDo: implement
     elif 'environment_file' in hips_object['dependencies']:
         file = hips_object['dependencies']['environment_file']
-        module_logger.debug('Found environment file %s in hips dependencies...' % file)
-        subprocess_args = [
-            'conda', 'env', 'create', '-f', file
-        ]
-        module_logger.debug('Create environment with subprocess:  %s...' % " ".join(subprocess_args))
+        module_logger.debug(
+            'Found environment file %s in hips dependencies...' % file)
+        subprocess_args = ['conda', 'env', 'create', '-f', file]
+        module_logger.debug('Create environment with subprocess:  %s...' %
+                            " ".join(subprocess_args))
         subprocess.run(subprocess_args)
 
     else:
-        module_logger.debug('No environment specified in hips dependencies. Taking %s environment...' % 'hips_full')
-        subprocess_args = ['conda', 'env', 'create', '-f', 'hips_full.yml']  # ToDo: get rid of hardcoded stuff
-        module_logger.debug('Create environment with subprocess: %s...' % " ".join(subprocess_args))
+        module_logger.debug(
+            'No environment specified in hips dependencies. Taking %s environment...'
+            % 'hips_full')
+        subprocess_args = ['conda', 'env', 'create', '-f',
+                           'hips_full.yml']  # ToDo: get rid of hardcoded stuff
+        module_logger.debug('Create environment with subprocess: %s...' %
+                            " ".join(subprocess_args))
         subprocess.run(subprocess_args)
 
     # set environment path
@@ -120,7 +125,9 @@ def install_hips_in_environment(hips_object):
         'conda', 'run', '--no-capture-output', '--prefix', environment_path,
         'pip', 'install', 'git+https://gitlab.com/ida-mdc/hips.git'
     ]
-    module_logger.debug('Install hips in target environment with subprocess: %s...' % " ".join(subprocess_args))
+    module_logger.debug(
+        'Install hips in target environment with subprocess: %s...' %
+        " ".join(subprocess_args))
     subprocess.run(subprocess_args)
 
 
@@ -162,7 +169,8 @@ from hips import get_active_hips
 """
 
     # This could have an issue with nested quotes
-    module_logger.debug("Add sys.argv arguments to runtime script: %s" % ", ".join(sys.argv))
+    module_logger.debug("Add sys.argv arguments to runtime script: %s" %
+                        ", ".join(sys.argv))
     script += "sys.argv = json.loads('%s')\n" % json.dumps(sys.argv)
 
     # Evaluate the path
@@ -176,12 +184,15 @@ hips.get_active_hips().init()
 
     args = hips_object['args']
 
-    module_logger.debug('Read out arguments in hips solution and add to runtime script...')
+    module_logger.debug(
+        'Read out arguments in hips solution and add to runtime script...')
     # special argument parsing cases
     if isinstance(args, str):
         # pass through to module
         if args == 'pass-through':
-            module_logger.info('Argument parsing not specified in hips solution. Passing arguments through...')
+            module_logger.info(
+                'Argument parsing not specified in hips solution. Passing arguments through...'
+            )
             pass
         # read arguments from file
         elif args == 'read-from-file':
@@ -192,7 +203,8 @@ hips.get_active_hips().init()
             raise ArgumentError(message)
 
     else:
-        module_logger.debug('Add argument parsing for hips solution to runtime script...')
+        module_logger.debug(
+            'Add argument parsing for hips solution to runtime script...')
         # Add the argument handling
         script += """
 parser = argparse.ArgumentParser(description='HIPS Run %s')
@@ -220,9 +232,9 @@ parser.add_argument('--{name}',
                     help='{description}',
                     action={class_name})
 """.format(name=arg['name'],
-           default=arg['default'],
-           description=arg['description'],
-           class_name=class_name)
+            default=arg['default'],
+            description=arg['description'],
+            class_name=class_name)
 
         script += """
 parser.parse_args()
@@ -230,7 +242,8 @@ parser.parse_args()
 
     # Add the run code
     script += """
-hips.get_active_hips().main()"""
+hips.get_active_hips().main()
+hips.pop_active_hips()"""
 
     return script
 
