@@ -1,9 +1,9 @@
 import logging
 
 import hips
-from hips import get_active_hips
 from utils import subcommand
-from utils.environment import create_or_update_environment
+from utils.environment import create_or_update_environment, run_in_environment
+from utils.hips_script import create_script
 
 module_logger = logging.getLogger('hips')
 
@@ -17,21 +17,21 @@ def install(args):
     module_logger.debug('hips loaded locally: %s' % str(active_hips))
 
     create_or_update_environment(active_hips)
-    __handle_dependencies(get_active_hips())
-    __execute_install_routine(get_active_hips())
+    __handle_dependencies(active_hips)
+    __execute_install_routine(active_hips)
 
     # ToDo: install helper - methods (pip install) (git-download) (java-dependcies)
 
-    module_logger.info('Installed %s' % get_active_hips()['name'])
+    module_logger.info('Installed %s' % active_hips['name'])
     hips.pop_active_hips()
 
 
 def __execute_install_routine(active_hips):
     """Run install routine of hips if specified"""
-    # FIXME run install routine in target environment - create script blablabla
     if hasattr(active_hips, 'install') and callable(active_hips['install']):
         module_logger.debug('Calling install routine specified in solution...')
-        active_hips.install()
+        script = create_script(active_hips, "\nhips.get_active_hips().install()\n")
+        run_in_environment(active_hips, script)
 
 
 def __handle_dependencies(active_hips):

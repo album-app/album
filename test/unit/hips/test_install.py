@@ -14,27 +14,28 @@ class TestHipsInstall(TestHipsCommon):
         pass
 
     def __install_hips(self, _):
-        setup(**self.attrs)
+        setup(**vars(self.attrs))
         pass
 
     @patch('hips.load_and_push_hips')
-    def test_install(self, load_mock):
+    @patch('hips.install.run_in_environment')
+    @patch('hips.install.create_script')
+    def test_install(self, _, run_in_environment_mock, load_mock):
         # setup mocks
-        install_mock = Mock()
         load_mock.side_effect = self.__install_hips
 
         # setup fake hips
-        self.attrs = {
-            "path": "",
-            "name": "",
-            "install": install_mock
-        }
-        self.args = Namespace(**self.attrs)
+        self.attrs = Namespace(
+            path="",
+            name="",
+            dependencies={'environment_name': 'hips_full'},
+            install=Mock()
+        )
 
         # test install call
-        self.assertIsNone(install(self.args))
+        self.assertIsNone(install(self.attrs))
         self.assertEqual(1, load_mock.call_count)
-        self.assertEqual(1, install_mock.call_count)
+        self.assertEqual(1, run_in_environment_mock.call_count)
 
 
 if __name__ == '__main__':
