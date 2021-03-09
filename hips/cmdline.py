@@ -20,96 +20,98 @@ module_logger = logging.getLogger('hips')
 def main():
     """Entry points of `hips`."""
 
-    # retrieve logger
-    hips_logging.configure_logging(hips_logging.LogLevel(hips_debug()), 'hips')
-
-    # parent parser all inherit
-    parent_parser = argparse.ArgumentParser(add_help=False)
-
-    # parse logging
-    parent_parser.add_argument(
-        '--log',
-        required=False,
-        help='Logging level for your hips command. Choose between %s' %
-             ", ".join([loglevel.name for loglevel in hips_logging.LogLevel]),
-        default='INFO',
-        type=(lambda choice: hips_logging.to_loglevel(choice, 'hips')),
-    )
-
-    # hips parser
-    parser = argparse.ArgumentParser(
-        add_help=False,
-        description=
-        'Helmholtz Imaging Platform (HIP) Solutions framework for running, building, and deploying generalized imaging solutions'
-    )
-
-    # hips command subparser
-    subparsers = parser.add_subparsers(title='actions', help='sub-command help')
-
-    # run
-    parser_run = subparsers.add_parser('run', help='run a HIP Solution', parents=[parent_parser])
-    parser_run.add_argument('path', type=str, help='path for the HIPS file')
-    parser_run.set_defaults(func=run)
-
-    # repl
-    parser_repl = subparsers.add_parser(
-        'repl', help='get an interactive repl for a HIP Solution', parents=[parent_parser])
-    parser_repl.add_argument('path', type=str, help='path for the HIPS file')
-    parser_repl.set_defaults(func=repl)
-
-    # deploy
-    parser_deploy = subparsers.add_parser('deploy',
-                                          help='deploy a HIP Solution', parents=[parent_parser])
-    parser_deploy.add_argument('path', type=str, help='path for the HIPS file')
-    parser_deploy.set_defaults(func=deploy)
-
-    # search
-    parser_search = subparsers.add_parser(
-        'search', help='search for a HIP Solution using keywords', parents=[parent_parser])
-    parser_search.set_defaults(func=search)
-
-    # install
-    parser_install = subparsers.add_parser('install',
-                                           help='install a HIP Solution', parents=[parent_parser])
-    parser_install.add_argument('path',
-                                type=str,
-                                help='path for the HIPS file')
-    parser_install.set_defaults(func=install)
-
-    # remove
-    parser_remove = subparsers.add_parser('remove',
-                                          help='remove a HIP Solution', parents=[parent_parser])
-    parser_remove.add_argument('path', type=str, help='path for the HIPS file')
-    parser_remove.set_defaults(func=remove)
-
-    # containerize
-    parser_containerize = subparsers.add_parser(
-        'containerize',
-        help='create a Singularity container for a HIP Solution', parents=[parent_parser])
-    parser_containerize.add_argument('path',
-                                     type=str,
-                                     help='path for the HIPS file')
-    parser_containerize.set_defaults(func=containerize)
-
-    # tutorial
-    parser_tutorial = subparsers.add_parser(
-        'tutorial', help='run a tutorial for a HIP Solution', parents=[parent_parser])
-    parser_tutorial.add_argument('path',
-                                 type=str,
-                                 help='path for the HIPS file')
-    parser_tutorial.set_defaults(func=tutorial)
+    __retrieve_logger()
+    parser = create_parser()
 
     # ToDo: clean all hips environments
 
     module_logger.debug('Parsing base hips call arguments...')
-    args = parser.parse_known_args()
+    __handle_args(parser.parse_known_args())
 
-    # switch to desired logging level
+
+def __handle_args(args):
+    """Handles all arguments provided after the hips command."""
     hips_logging.set_loglevel(args[0].log, 'hips')
+    __run_subcommand(args)
 
-    module_logger.debug("Running %s subcommand..." % sys.argv[1])
-    sys.argv = ["None"] + args[1]  # unparsed arguments belonging to solution
+
+def __run_subcommand(args):
+    """Calls a specific hips subcommand."""
+    hips_command = sys.argv[1]
+    module_logger.debug("Running %s subcommand..." % hips_command)
+    sys.argv = ["None"] + args[1]
     args[0].func(args[0])
+
+
+def __retrieve_logger():
+    """Retrieves the default hips logger."""
+    hips_logging.configure_logging(hips_logging.LogLevel(hips_debug()), 'hips')
+
+
+def create_parser():
+    """Creates a parser for all known hips arguments."""
+    parser = __HIPSParser()
+    parser.create_command_parser('search', search, 'search for a HIP Solution using keywords')
+    parser.create_hips_file_command_parser('run', run, 'run a HIP Solution')
+    parser.create_hips_file_command_parser('repl', repl, 'get an interactive repl for a HIP Solution')
+    parser.create_hips_file_command_parser('deploy', deploy, 'deploy a HIP Solution')
+    parser.create_hips_file_command_parser('install', install, 'install a HIP Solution')
+    parser.create_hips_file_command_parser('remove', remove, 'remove a HIP Solution')
+    parser.create_hips_file_command_parser('containerize', containerize, 'create a Singularity container for a HIP Solution')
+    parser.create_hips_file_command_parser('tutorial', tutorial, 'run a tutorial for a HIP Solution')
+    return parser.parser
+
+
+class __HIPSParser:
+
+    def __init__(self):
+        self.parent_parser = self.__create_parent_parser()
+        self.parser = self.__create_hips_parser()
+        self.subparsers = self.parser.add_subparsers(title='actions', help='sub-command help')
+
+    @staticmethod
+    def __create_hips_parser():
+        parser = ArgumentParser(
+            add_help=False,
+            description=
+            'Helmholtz Imaging Platform (HIP) Solutions framework for running, building, and deploying generalized imaging solutions'
+        )
+        return parser
+
+    @staticmethod
+    def __create_parent_parser():
+        parent_parser = ArgumentParser(add_help=False)
+        # parse logging
+        parent_parser.add_argument(
+            '--log',
+            required=False,
+            help='Logging level for your hips command. Choose between %s' %
+                 ", ".join([loglevel.name for loglevel in hips_logging.LogLevel]),
+            default='INFO',
+            type=(lambda choice: hips_logging.to_loglevel(choice, 'hips')),
+        )
+        return parent_parser
+
+    def create_command_parser(self, command_name, command_function, command_help):
+        """Creates a parser for a hips command, specified by a name, a function and a help description."""
+        parser = self.subparsers.add_parser(
+            command_name, help=command_help, parents=[self.parent_parser])
+        parser.set_defaults(func=command_function)
+        return parser
+
+    def create_hips_file_command_parser(self, command_name, command_function, command_help):
+        """Creates a parser for a hips command dealing with a hips file, specified by a name, a function and a help description."""
+        parser = self.create_command_parser(command_name, command_function, command_help)
+        parser.add_argument('path',
+                            type=str,
+                            help='path for the HIPS file')
+        return parser
+
+
+class ArgumentParser(argparse.ArgumentParser):
+
+    def error(self, message):
+        raise RuntimeError('%s: error: %s\n' % (self.prog, message))
 
 
 if __name__ == "__main__":

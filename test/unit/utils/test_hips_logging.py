@@ -57,16 +57,5 @@ class TestHipsLogging(unittest.TestCase):
         self.assertEqual(handler_levels, [to_level.name] * len(handler_levels))
 
 
-def test_hips_logging_run():
-    run_suite = unittest.TestSuite()
-    run_suite.addTests([
-        TestHipsLogging('test_to_loglevel'),
-        TestHipsLogging('test_configure_logging'),
-        TestHipsLogging('test_set_loglevel'),
-    ])
-    return run_suite
-
-
 if __name__ == '__main__':
-    runner = unittest.TextTestRunner()
-    runner.run(test_hips_logging_run())
+    unittest.main()
