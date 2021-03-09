@@ -3,10 +3,9 @@ from argparse import Namespace
 from unittest.mock import Mock
 from unittest.mock import patch
 
-import hips
 from hips import setup
 from hips.install import install
-from test.test_common import TestHipsCommon
+from test.unit.test_common import TestHipsCommon
 
 
 class TestHipsInstall(TestHipsCommon):

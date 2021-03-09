@@ -4,7 +4,7 @@ import unittest
 
 from requests import Response
 
-from test.test_common import TestUtilsCommon
+from test.unit.test_common import TestUtilsCommon
 from utils.zenodo_api import *
 
 

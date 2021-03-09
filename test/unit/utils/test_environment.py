@@ -6,7 +6,7 @@ from unittest.mock import patch
 from xdg import xdg_cache_home
 
 import hips
-from test.test_common import TestHipsCommon
+from test.unit.test_common import TestHipsCommon
 from utils.environment import parse_environment_name_from_yaml, download_environment_yaml, set_environment_name
 
 

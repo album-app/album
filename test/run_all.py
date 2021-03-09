@@ -1,12 +1,9 @@
 import unittest
 
-from test.hips import test__init__
-from test.hips import test_cmdline
-from test.hips import test_install
-from test.hips import test_run
-from test.install_helper import test_modules
+from test.unit.hips import test_run, test_install, test__init__, test_cmdline
+from test.unit.install_helper import test_modules
 from test.integration import test_integration_cmdline
-from test.utils import test_hips_logging, test_environment, test_zenodo_api
+from test.unit.utils import test_hips_logging, test_zenodo_api, test_environment
 
 
 def main():

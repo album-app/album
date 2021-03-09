@@ -1,7 +1,7 @@
 import unittest.suite
 
 import hips
-from test.test_common import TestHipsCommon
+from test.unit.test_common import TestHipsCommon
 
 
 class TestHipsInit(TestHipsCommon):
