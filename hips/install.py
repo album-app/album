@@ -1,7 +1,9 @@
-from hips import Hips, get_active_hips
-from utils import subcommand
 import logging
 
+import hips
+from hips import get_active_hips
+from utils import subcommand
+from utils.environment import create_or_update_environment
 
 module_logger = logging.getLogger('hips')
 
@@ -9,23 +11,24 @@ module_logger = logging.getLogger('hips')
 def install(args):
     """Function corresponding to the `install` subcommand of `hips`."""
     # Load HIPS
-    __load_script(args.path)
+    hips.load_and_push_hips(args.path)
+    active_hips = hips.get_active_hips()
+
+    module_logger.debug('hips loaded locally: %s' % str(active_hips))
+
+    create_or_update_environment(active_hips)
     __handle_dependencies(get_active_hips())
     __execute_install_routine(get_active_hips())
 
     # ToDo: install helper - methods (pip install) (git-download) (java-dependcies)
 
     module_logger.info('Installed %s' % get_active_hips()['name'])
-
-
-def __load_script(path):
-    """Load hips script"""
-    hips_script = open(path).read()
-    exec(hips_script)
+    hips.pop_active_hips()
 
 
 def __execute_install_routine(active_hips):
     """Run install routine of hips if specified"""
+    # FIXME run install routine in target environment - create script blablabla
     if hasattr(active_hips, 'install') and callable(active_hips['install']):
         module_logger.debug('Calling install routine specified in solution...')
         active_hips.install()
@@ -41,16 +44,16 @@ def __handle_dependencies(active_hips):
 
 def __install_hips_dependencies(args):
     """Calls `install` for all hips declared in a dependency block"""
-    for hips in args:
-        hips_script = __resolve_hips(hips)
+    for hips_dependency in args:
+        hips_script = __resolve_hips(hips_dependency)
         subcommand.run_string("python -m hips install " + hips_script)
 
 
-def __resolve_hips(hips):
+def __resolve_hips(hips_dependency):
     """Resolves a hips id and returns a path to the solution file."""
     # TODO properly implement this - i.e. match with zenodo
     path = ""
-    if hips["group"] == "ida-mdc" and hips["name"] == "blender":
+    if hips_dependency["group"] == "ida-mdc" and hips_dependency["name"] == "blender":
         path = "./examples/blender.py"
     return path
 

@@ -3,6 +3,7 @@ from argparse import Namespace
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import hips
 from hips import setup
 from hips.install import install
 from test.test_common import TestHipsCommon
@@ -17,7 +18,7 @@ class TestHipsInstall(TestHipsCommon):
         setup(**self.attrs)
         pass
 
-    @patch('hips.install.__load_script')
+    @patch('hips.load_and_push_hips')
     def test_install(self, load_mock):
         # setup mocks
         install_mock = Mock()

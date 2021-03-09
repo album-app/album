@@ -1,11 +1,13 @@
 import os
-import hips
 import tempfile
 import unittest.suite
-from xdg import xdg_cache_home
 from unittest.mock import patch
 
+from xdg import xdg_cache_home
+
+import hips
 from test.test_common import TestHipsCommon
+from utils.environment import parse_environment_name_from_yaml, download_environment_yaml, set_environment_name
 
 
 class TestHipsInit(TestHipsCommon):
@@ -14,7 +16,17 @@ class TestHipsInit(TestHipsCommon):
         # self.something_all_tests_use = some_value
         pass
 
-    @patch('hips.set_environment_name', return_value="hips")
+    def test_setup(self):
+        get_active_hips = hips.get_active_hips()
+        self.assertIsNone(get_active_hips)
+        self.name = "myname"
+        self.assertIsNone(hips.setup(**self.attrs))
+        active_hips = hips.get_active_hips()
+        self.assertIsNotNone(active_hips)
+        self.assertEqual(self.name, active_hips["name"])
+        hips.pop_active_hips()
+
+    @patch('utils.environment.set_environment_name', return_value="hips")
     def test_download_environment_yaml(self, _):
 
         # hips with valid url
@@ -31,14 +43,14 @@ class TestHipsInit(TestHipsCommon):
         hips_faulty_environment_file = hips.Hips(self.attrs)
 
         # case valid url
-        r_valid = hips.download_environment_yaml(hips_valid_environment_file)
+        r_valid = download_environment_yaml(hips_valid_environment_file)
         self.assertTrue(r_valid == xdg_cache_home().joinpath("environment_file.yml"), "File was not downloaded!")
 
         # case faulty url
-        self.assertRaises(ValueError, hips.download_environment_yaml, hips_faulty_environment_file)
+        self.assertRaises(ValueError, download_environment_yaml, hips_faulty_environment_file)
 
-    @patch('hips.download_environment_yaml', return_value="test.yml")
-    @patch('hips.parse_environment_name_from_yaml', return_value="test")
+    @patch('utils.environment.download_environment_yaml', return_value="test.yml")
+    @patch('utils.environment.parse_environment_name_from_yaml', return_value="test")
     @patch('pathlib.Path.exists')
     def test_set_environment_name(self, _, __, path_exists):
 
@@ -63,18 +75,18 @@ class TestHipsInit(TestHipsCommon):
         }
         hips_environment_url = hips.Hips(self.attrs)
 
-        self.assertTrue(hips.set_environment_name(hips_no_deps) == "hips_full",
+        self.assertTrue(set_environment_name(hips_no_deps) == "hips_full",
                         "hips_no_deps: Environment name wrong!")
 
-        self.assertTrue(hips.set_environment_name(hips_environment_name) == "test_name",
+        self.assertTrue(set_environment_name(hips_environment_name) == "test_name",
                         "hips_environment_name: Environment name wrong!")
 
         path_exists.return_value = True
-        self.assertTrue(hips.set_environment_name(hips_environment_file) == "test",
+        self.assertTrue(set_environment_name(hips_environment_file) == "test",
                         "hips_environment_file: Environment name wrong!")
 
         path_exists.return_value = False  # ToDo: this is not working properly. Idk why?!?
-        self.assertTrue(hips.set_environment_name(hips_environment_url) == "test",
+        self.assertTrue(set_environment_name(hips_environment_url) == "test",
                         "hips_environment_url: Environment name wrong!")
 
     def test_parse_environment_name_from_yaml(self):
@@ -86,7 +98,7 @@ dependencies:
 """)
         test_yaml.flush()
         os.fsync(test_yaml)
-        self.assertTrue(hips.parse_environment_name_from_yaml(test_yaml.name) == "test_environment",
+        self.assertTrue(parse_environment_name_from_yaml(test_yaml.name) == "test_environment",
                         "Environment name parsing went wrong!")
 
     @unittest.skip("Needs to be implemented!")
