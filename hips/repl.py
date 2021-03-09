@@ -1,9 +1,5 @@
-import os
-import subprocess
-import tempfile
-import sys
-from code import InteractiveConsole
-from hips import Hips, get_active_hips, set_environment_name, hips_debug, run_in_environment
+from hips import get_active_hips, hips_debug
+from utils.environment import run_in_environment, set_environment_name
 
 
 def repl(args):
