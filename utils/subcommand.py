@@ -1,13 +1,12 @@
 import subprocess
-import shlex
-import logging
 
+from utils import hips_logging
 
-module_logger = logging.getLogger('hips')
+module_logger = hips_logging.get_active_logger
 
 
 def run(command):
-    module_logger.info('Running command: %s' % command)
+    module_logger().info('Running command: %s' % command)
     process = subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True)
     while True:
         output = process.stdout.readline()
@@ -15,7 +14,7 @@ def run(command):
             break
         if output:
             # TODO: be smarter about log level based on output line (e.g. catch errors)
-            module_logger.info(output.strip())
+            module_logger().info(output.strip())
     out, err = process.communicate()
     if process.returncode:
         raise Exception(

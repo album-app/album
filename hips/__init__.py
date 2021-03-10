@@ -1,8 +1,9 @@
-import logging
 from enum import Enum, unique
 
+from utils import hips_logging
+
 DEBUG = False
-module_logger = logging.getLogger('hips')
+module_logger = hips_logging.get_active_logger
 
 
 def hips_debug():
@@ -15,7 +16,7 @@ class HipsDefaultValues(Enum):
 
      Takes the Enum name as attribute name and the Enum value as default value.
      """
-    catalog = 'https://github.com/ida-mdc/hips-catalog.git'
+    catalog = 'https://gitlab.com/ida-mdc/hips-catalog.git'
 
 
 class Hips:
@@ -46,7 +47,7 @@ class Hips:
         # Default attributes
         for defaultAttribute in HipsDefaultValues:
             if defaultAttribute.name not in attrs:
-                module_logger.info("Attribute %s not specified. Set it to %s" %
+                module_logger().info("Attribute %s not specified. Set it to %s" %
                                    (defaultAttribute.name, defaultAttribute.value))
                 setattr(self, defaultAttribute.name, defaultAttribute.value)
 
@@ -115,9 +116,8 @@ def pop_active_hips():
 
 def load_and_push_hips(path):
     """Load hips script"""
-    module_logger.debug('Load hips...')
+    module_logger().debug('Load hips...')
     hips_script = open(path).read()
     exec(hips_script)
     get_active_hips().script = hips_script
-    module_logger.debug('hips loaded locally: %s' % str(get_active_hips()))
-
+    module_logger().debug('hips loaded locally: %s' % str(get_active_hips()))

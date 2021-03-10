@@ -97,10 +97,17 @@ class TestZenodoDeposit(TestUtilsCommon):
         file.flush()
         os.fsync(file)
 
+        parsed_name, ext = os.path.splitext(os.path.basename(file.name))
+        expected_file_name = parsed_name + ext
+
         self.test_deposit.create_file(file.name)
+        self.assertEqual(expected_file_name, self.test_deposit.files[expected_file_name].filename)
+        self.assertTrue(len(self.test_deposit.files) == 1)
+
         self.test_deposit.delete_file(os.path.basename(file.name))
 
-        self.assertIsNone(self.test_deposit.files)
+        self.assertIsInstance(self.test_deposit.files, IterableList)
+        self.assertTrue(len(self.test_deposit.files) == 0)
 
     def test_update_file(self):
         file = tempfile.NamedTemporaryFile(mode='w+')
@@ -195,6 +202,17 @@ class TestZenodoAPI(TestUtilsCommon):
     @unittest.skip("Needs to be implemented!")
     def test_records_get(self):
         pass
+
+    def test_deposit_create_with_prereserve_doi(self):
+
+        title = "unit_test_solution.py"
+
+        deposit = self.zenodoAPI.deposit_create_with_prereserve_doi(title)
+
+        self.assertIsNot(deposit.id, "", "ID empty string!")
+        self.assertIsNot(deposit.metadata.prereserve_doi["doi"], "", "doi empty string!")
+        self.assertIsNotNone(deposit.id, "ID of deposit not set!")
+        self.assertIsNotNone(deposit.metadata.prereserve_doi["doi"], "doi of deposit not set!")
 
 
 if __name__ == '__main__':

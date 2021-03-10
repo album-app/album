@@ -13,11 +13,13 @@ class TestHipsInit(TestHipsCommon):
     def test_setup(self):
         get_active_hips = hips.get_active_hips()
         self.assertIsNone(get_active_hips)
-        self.name = "myname"
+        self.attrs = {
+            "name": "myname"
+        }
         self.assertIsNone(hips.setup(**self.attrs))
         active_hips = hips.get_active_hips()
         self.assertIsNotNone(active_hips)
-        self.assertEqual(self.name, active_hips["name"])
+        self.assertEqual("myname", active_hips["name"])
         hips.pop_active_hips()
 
 

@@ -1,8 +1,12 @@
 import os
-import git
 from pathlib import Path
 
+import git
 from xdg import xdg_data_dirs
+
+from utils import hips_logging
+
+module_logger = hips_logging.get_active_logger
 
 
 def download_repository(repo_url, git_folder_name):
@@ -25,7 +29,7 @@ def download_repository(repo_url, git_folder_name):
 
     # update existing repo or clone new repo
     if Path.exists(download_path.joinpath(".git")):
-        print("Found existing repository in %s. Trying to update." % download_path)
+        module_logger().info("Found existing repository in %s. Trying to update." % download_path)
 
         repo = git.Repo(download_path)
         # checkout remote HEAD
@@ -34,7 +38,7 @@ def download_repository(repo_url, git_folder_name):
         repo.git.add('*')
         repo.git.reset('--hard')
     else:
-        print("Download repository from %s in %s..." % (repo_url, download_path))
+        module_logger().info("Download repository from %s in %s..." % (repo_url, download_path))
 
         try:
             repo = git.Repo.clone_from(repo_url, download_path)

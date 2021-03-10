@@ -8,12 +8,12 @@ def hips_init():
 def hips_run():
     pass
 
-
 hips.setup(
     group="group",
     name="name",
     version="0.1.0",
     doi="",
+    deposit_id="",
     format_version="0.3.0",
     timestamp="",
     description="",

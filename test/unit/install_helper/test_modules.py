@@ -22,8 +22,10 @@ class TestInstallHelperModules(TestHipsCommon):
         shutil.rmtree(xdg_cache_home().joinpath("test"), ignore_errors=True)
 
         # create hips
-        self.git_repo = "https://github.com/rmccue/test-repository.git"
-        self.name = "test"
+        self.attrs = {
+            "git_repo": "https://github.com/rmccue/test-repository.git",
+            "name": "test"
+        }
         hips_with_git_repo = hips.Hips(self.attrs)
 
         # run

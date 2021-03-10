@@ -1,15 +1,16 @@
-import yaml
 import argparse
-from hips import Hips, get_active_hips
-import sys
-from xdg import xdg_cache_home
-import os
-from acora import AcoraBuilder
-from functools import reduce
 import operator
+import os
+import sys
+from functools import reduce
+
 import gitdir
+import yaml
+from acora import AcoraBuilder
+from xdg import xdg_cache_home
 
 
+# ToDo: use the paths in public API
 def hips_cache_home():
     """Return the path for the HIPS cache, e.g. ~/.config/hips/cache"""
     return os.path.join(xdg_cache_home(), 'hips', 'cache')

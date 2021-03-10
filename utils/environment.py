@@ -1,4 +1,3 @@
-import logging
 import os
 import subprocess
 import tempfile
@@ -10,9 +9,9 @@ import yaml
 from xdg import xdg_cache_home
 
 import hips
-from utils import subcommand
+from utils import subcommand, hips_logging
 
-module_logger = logging.getLogger('hips')
+module_logger = hips_logging.get_active_logger
 
 
 def parse_environment_name_from_yaml(yaml_env_path):
@@ -27,7 +26,7 @@ def parse_environment_name_from_yaml(yaml_env_path):
     Raises:
         RuntimeError: When no valid environment file or name in hips dependency specified.
     """
-    module_logger.debug('Parsing environment name form yaml: %s...' %
+    module_logger().debug('Parsing environment name form yaml: %s...' %
                         yaml_env_path)
     with open(yaml_env_path) as f:
         env = yaml.load(f, Loader=yaml.FullLoader)
@@ -40,11 +39,11 @@ def set_environment_name(active_hips):
     if 'dependencies' in dir(active_hips):
         if 'environment_name' in active_hips['dependencies']:
             environment_name = active_hips['dependencies']['environment_name']
-            module_logger.debug('Environment name explicit given as: %s...' %
+            module_logger().debug('Environment name explicit given as: %s...' %
                                 environment_name)
         elif 'environment_file' in active_hips['dependencies']:
             env_file = active_hips['dependencies']['environment_file']
-            module_logger.debug('Environment name implicit given in: %s...' %
+            module_logger().debug('Environment name implicit given in: %s...' %
                                 env_file)
 
             # case valid path
@@ -59,23 +58,22 @@ def set_environment_name(active_hips):
             # don't know what to do
             else:
                 message = 'No valid environment name or file specified! Don\'t know where to run solution'
-                module_logger.error(message)
+                module_logger().error(message)
                 raise RuntimeError(message)
 
             environment_name = parse_environment_name_from_yaml(yaml_path)
-            module_logger.debug('Extracted following name from file: %s...' %
+            module_logger().debug('Extracted following name from file: %s...' %
                                 environment_name)
 
     else:
         environment_name = 'hips_full'
-        module_logger.debug(
+        module_logger().debug(
             'Environment name not given. Assume solution can be run in: %s...'
             % environment_name)
 
     active_hips["_environment_name"] = environment_name
 
     return environment_name
-
 
 
 def set_environment_path(hips_object):
@@ -93,13 +91,13 @@ def set_environment_path(hips_object):
 
         environment_path = environment_dict[hips_object["_environment_name"]]
 
-        module_logger.debug('Set environment path to %s' % environment_path)
+        module_logger().debug('Set environment path to %s' % environment_path)
         hips_object["_environment_path"] = environment_path
 
         return environment_path
     else:
         message = 'Could not find environment!'
-        module_logger.error(message)
+        module_logger().error(message)
         raise RuntimeError(message)
 
 
@@ -115,13 +113,13 @@ def get_environment_dict():
             '#') else line_str.replace('\r', '').split(' ')
 
     # list environments via conda info command - Note: conda.cli.python_api support missing
-    module_logger.debug('List available conda environments...')
+    module_logger().debug('List available conda environments...')
     output = subprocess.check_output(['conda', 'info',
                                       '--envs']).decode("utf-8")
     lines = output.split("\n")
 
     # extract name and path
-    module_logger.debug('Parse conda info output...')
+    module_logger().debug('Parse conda info output...')
     for line in lines:
         parsed_line = _split_and_clean(line)
         if parsed_line:
@@ -138,7 +136,7 @@ def download_environment_yaml(active_hips):
     """
     environment_file = xdg_cache_home().joinpath('environment_file.yml')
     environment_url = active_hips['dependencies']['environment_file']
-    module_logger.debug('Downloading environment file from %s into %s...' %
+    module_logger().debug('Downloading environment file from %s into %s...' %
                         (environment_file, environment_url))
 
     urllib.request.urlretrieve(environment_url, environment_file)
@@ -155,17 +153,17 @@ def run_in_environment(active_hips, script):
         script:
             The script calling the solution
     """
-    module_logger.debug('run_in_environment: %s...' %
+    module_logger().debug('run_in_environment: %s...' %
                         active_hips["_environment_path"])
 
     # Use an environment path and a temporary file to store the script
     if hips.hips_debug():
         fp = open(str(xdg_cache_home().joinpath('hips_test.py')), 'w')
-        module_logger.debug("Executable file in: %s..." %
+        module_logger().debug("Executable file in: %s..." %
                             str(xdg_cache_home().joinpath('hips_test.py')))
     else:
         fp = tempfile.NamedTemporaryFile(mode='w+')
-        module_logger.debug('Executable file in: %s...' % fp.name)
+        module_logger().debug('Executable file in: %s...' % fp.name)
 
     fp.write(script)
     fp.flush()
@@ -178,11 +176,12 @@ def run_in_environment(active_hips, script):
         active_hips["_environment_path"], 'python', script_name
     ]
 
-    module_logger.debug('Running solution with subprocess command: %s...' % " ".join(subprocess_args))
+    module_logger().debug('Running solution with subprocess command: %s...' % " ".join(subprocess_args))
 
     subcommand.run(subprocess_args)
 
     fp.close()
+
 
 # ToDo: decide where to put create_environment method
 def create_or_update_environment(hips_object):
@@ -198,24 +197,24 @@ def create_or_update_environment(hips_object):
     environment_name = set_environment_name(hips_object)
 
     if environment_exists(environment_name):  # updates environment
-        module_logger.debug('Update environment %s...' % environment_name)
+        module_logger().debug('Update environment %s...' % environment_name)
         pass  # ToDo: implement
     elif 'environment_file' in hips_object['dependencies']:
         file = hips_object['dependencies']['environment_file']
-        module_logger.debug(
+        module_logger().debug(
             'Found environment file %s in hips dependencies...' % file)
         subprocess_args = ['conda', 'env', 'create', '-f', file]
-        module_logger.debug('Create environment with subprocess:  %s...' %
+        module_logger().debug('Create environment with subprocess:  %s...' %
                             " ".join(subprocess_args))
         subprocess.run(subprocess_args)
 
     else:
-        module_logger.debug(
+        module_logger().debug(
             'No environment specified in hips dependencies. Taking %s environment...'
             % 'hips_full')
         subprocess_args = ['conda', 'env', 'create', '-f',
                            'hips_full.yml']  # ToDo: get rid of hardcoded stuff
-        module_logger.debug('Create environment with subprocess: %s...' %
+        module_logger().debug('Create environment with subprocess: %s...' %
                             " ".join(subprocess_args))
         subprocess.run(subprocess_args)
 
@@ -241,7 +240,7 @@ def install_hips_in_environment(hips_object):
         'conda', 'run', '--no-capture-output', '--prefix', environment_path,
         'pip', 'install', 'git+https://gitlab.com/ida-mdc/hips.git'
     ]
-    module_logger.debug(
+    module_logger().debug(
         'Install hips in target environment with subprocess: %s...' %
         " ".join(subprocess_args))
     # TODO use util.subcommand
@@ -250,7 +249,7 @@ def install_hips_in_environment(hips_object):
 
 # ToDo: decide where to put environment_exists method
 def environment_exists(environment_name):
-    """Checks whether an environmment already exists or not.
+    """Checks whether an environment already exists or not.
 
     Args:
         environment_name:

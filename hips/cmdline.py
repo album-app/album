@@ -1,5 +1,4 @@
 import argparse
-import logging
 import sys
 
 from hips import hips_debug
@@ -13,7 +12,7 @@ from hips.search import search
 from hips.tutorial import tutorial
 from utils import hips_logging
 
-module_logger = logging.getLogger('hips')
+module_logger = hips_logging.get_active_logger
 
 
 def main():
@@ -24,7 +23,7 @@ def main():
 
     # ToDo: clean all hips environments
 
-    module_logger.debug('Parsing base hips call arguments...')
+    module_logger().debug('Parsing base hips call arguments...')
     args = parser.parse_known_args()
     __handle_args(args, parser)
 
@@ -42,8 +41,8 @@ def __run_subcommand(args, parser):
         hips_command = sys.argv[1]  # hips command always expected at second position
     except IndexError:
         parser.error("Please provide a valid action!")
-    module_logger.debug("Running %s subcommand..." % hips_command)
-    sys.argv = ["None"] + args[1]
+    module_logger().debug("Running %s subcommand..." % hips_command)
+    sys.argv = [sys.argv[0]] + args[1]
     args[0].func(args[0])  # execute entry point function
 
 
