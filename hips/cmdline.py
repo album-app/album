@@ -115,7 +115,7 @@ class __HIPSParser(ArgumentParser):
 
     def create_hips_file_command_parser(self, command_name, command_function, command_help):
         """Creates a parser for a hips command dealing with a hips file.
-        
+
         Parser is specified by a name, a function and a help description.
         """
         parser = self.create_command_parser(command_name, command_function, command_help)

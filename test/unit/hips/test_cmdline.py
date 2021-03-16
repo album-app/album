@@ -31,8 +31,10 @@ class TestCommandLine(unittest.TestCase):
 
     def test_run_no_args(self):
         sys.argv = ["", "run"]
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(SystemExit) as e:
             cmdline.main()
+
+        self.assertEqual(e.exception.code, 2)
 
     def test_run_non_existing_file(self):
         sys.argv = ["", "run", "test/path"]
