@@ -6,10 +6,6 @@ import logging
 module_logger = logging.getLogger('hips')
 
 
-def run_string(command):
-    return run(shlex.split(command))
-
-
 def run(command):
     module_logger.info('Running command: %s' % command)
     process = subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True)

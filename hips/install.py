@@ -3,6 +3,7 @@ import logging
 import hips
 from utils import subcommand
 from utils.environment import create_or_update_environment, run_in_environment
+from utils.hips_resolve import resolve_hips
 from utils.hips_script import create_script
 
 module_logger = logging.getLogger('hips')
@@ -36,7 +37,7 @@ def __execute_install_routine(active_hips):
 
 def __handle_dependencies(active_hips):
     """Handle dependencies in hips dependency block"""
-    if 'dependencies' in dir():
+    if 'dependencies' in dir(active_hips):
         dependencies = active_hips['dependencies']
         if 'hips' in dependencies:
             __install_hips_dependencies(dependencies['hips'])
@@ -45,15 +46,6 @@ def __handle_dependencies(active_hips):
 def __install_hips_dependencies(args):
     """Calls `install` for all hips declared in a dependency block"""
     for hips_dependency in args:
-        hips_script = __resolve_hips(hips_dependency)
-        subcommand.run_string("python -m hips install " + hips_script)
-
-
-def __resolve_hips(hips_dependency):
-    """Resolves a hips id and returns a path to the solution file."""
-    # TODO properly implement this - i.e. match with zenodo
-    path = ""
-    if hips_dependency["group"] == "ida-mdc" and hips_dependency["name"] == "blender":
-        path = "./examples/blender.py"
-    return path
+        hips_script = resolve_hips(hips_dependency)
+        subcommand.run("python -m hips install " + hips_script)
 

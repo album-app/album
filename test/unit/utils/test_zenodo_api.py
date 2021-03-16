@@ -110,8 +110,8 @@ class TestZenodoDeposit(TestUtilsCommon):
         os.fsync(file)
 
         self.test_deposit.create_file(file.name)
-        assert len(self.test_deposit.files) == 1
-        assert self.test_deposit.files[0].filename == file_name
+        self.assertEqual(1, len(self.test_deposit.files))
+        self.assertEqual(file_name, self.test_deposit.files[0].filename)
 
         file_new = tempfile.NamedTemporaryFile(mode='w+')
         file_new.write('test_new')
