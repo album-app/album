@@ -1,18 +1,17 @@
-import sys
 import argparse
+import logging
+import sys
+
 from hips import hips_debug
+from hips.containerize import containerize
 from hips.deploy import deploy
-from hips.run import run
-from hips.repl import repl
-from hips.search import search
 from hips.install import install
 from hips.remove import remove
-from hips.containerize import containerize
+from hips.repl import repl
+from hips.run import run
+from hips.search import search
 from hips.tutorial import tutorial
-
-import logging
 from utils import hips_logging
-
 
 module_logger = logging.getLogger('hips')
 
@@ -26,21 +25,26 @@ def main():
     # ToDo: clean all hips environments
 
     module_logger.debug('Parsing base hips call arguments...')
-    __handle_args(parser.parse_known_args())
+    args = parser.parse_known_args()
+    __handle_args(args, parser)
 
 
-def __handle_args(args):
+def __handle_args(args, parser):
     """Handles all arguments provided after the hips command."""
     hips_logging.set_loglevel(args[0].log, 'hips')
-    __run_subcommand(args)
+    __run_subcommand(args, parser)
 
 
-def __run_subcommand(args):
+def __run_subcommand(args, parser):
     """Calls a specific hips subcommand."""
-    hips_command = sys.argv[1]
+    hips_command = ""
+    try:
+        hips_command = sys.argv[1]  # hips command always expected at second position
+    except IndexError:
+        parser.error("Please provide a valid action!")
     module_logger.debug("Running %s subcommand..." % hips_command)
     sys.argv = ["None"] + args[1]
-    args[0].func(args[0])
+    args[0].func(args[0])  # execute entry point function
 
 
 def __retrieve_logger():
@@ -62,24 +66,24 @@ def create_parser():
     return parser.parser
 
 
-class __HIPSParser:
+class ArgumentParser(argparse.ArgumentParser):
+    """Override default error method of all parsers to show help of subcommand"""
+    def error(self, message):
+        self.print_help()
+        self.exit(2, '%s: error: %s\n' % (self.prog, message))
+
+
+class __HIPSParser(ArgumentParser):
 
     def __init__(self):
+        super().__init__()
         self.parent_parser = self.__create_parent_parser()
         self.parser = self.__create_hips_parser()
         self.subparsers = self.parser.add_subparsers(title='actions', help='sub-command help')
 
     @staticmethod
-    def __create_hips_parser():
-        parser = ArgumentParser(
-            add_help=False,
-            description=
-            'Helmholtz Imaging Platform (HIP) Solutions framework for running, building, and deploying generalized imaging solutions'
-        )
-        return parser
-
-    @staticmethod
     def __create_parent_parser():
+        """Parent parser for all subparsers to have the same set of arguments."""
         parent_parser = ArgumentParser(add_help=False)
         # parse logging
         parent_parser.add_argument(
@@ -87,10 +91,20 @@ class __HIPSParser:
             required=False,
             help='Logging level for your hips command. Choose between %s' %
                  ", ".join([loglevel.name for loglevel in hips_logging.LogLevel]),
-            default='INFO',
-            type=(lambda choice: hips_logging.to_loglevel(choice, 'hips')),
+            default=hips_logging.LogLevel.INFO,
+            type=(lambda choice: hips_logging.to_loglevel(choice)),
         )
         return parent_parser
+
+    def __create_hips_parser(self):
+        """Creates the main parser for the hip framework."""
+        parser = ArgumentParser(
+            add_help=False,
+            description='Helmholtz Imaging Platform (HIP) Solutions framework for running, building,'
+                        ' and deploying generalized imaging solutions',
+            parents=[self.parent_parser]
+        )
+        return parser
 
     def create_command_parser(self, command_name, command_function, command_help):
         """Creates a parser for a hips command, specified by a name, a function and a help description."""
@@ -100,18 +114,15 @@ class __HIPSParser:
         return parser
 
     def create_hips_file_command_parser(self, command_name, command_function, command_help):
-        """Creates a parser for a hips command dealing with a hips file, specified by a name, a function and a help description."""
+        """Creates a parser for a hips command dealing with a hips file.
+        
+        Parser is specified by a name, a function and a help description.
+        """
         parser = self.create_command_parser(command_name, command_function, command_help)
         parser.add_argument('path',
                             type=str,
                             help='path for the HIPS file')
         return parser
-
-
-class ArgumentParser(argparse.ArgumentParser):
-
-    def error(self, message):
-        raise RuntimeError('%s: error: %s\n' % (self.prog, message))
 
 
 if __name__ == "__main__":
