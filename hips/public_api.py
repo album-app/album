@@ -35,6 +35,21 @@ def get_cache_path_hips(active_hips):
         return get_base_cache_path().joinpath("solutions", "local", active_hips["group"], active_hips["name"], active_hips["version"])
 
 
+def get_cache_path_app(active_hips):
+    """
+
+    Args:
+        active_hips: The HIPS object
+
+    Returns: Path to local cache of any apps belonging to a HIPS
+
+    """
+    if hasattr(active_hips, "doi"):
+        return get_base_cache_path().joinpath("apps", "doi", active_hips["doi"])
+    else:
+        return get_base_cache_path().joinpath("apps", "local", active_hips["group"], active_hips["name"], active_hips["version"])
+
+
 def get_cache_path_downloads(active_hips):
     """
 
@@ -62,19 +77,19 @@ def get_cache_path_catalog(catalog_id):
     return get_base_cache_path().joinpath("catalogs", catalog_id)
 
 
-def download_if_not_exists(hips, url, file_name):
+def download_if_not_exists(active_hips, url, file_name):
     """
     Downloads resource if not already cached and returns local resource path.
 
     Args:
-        hips: The HIPS object the download belongs to
+        active_hips: The HIPS object the download belongs to
         url: The URL of the download
         file_name: The local filename of the download
 
     Returns: The path to the downloaded resource
 
     """
-    download_dir = get_cache_path_downloads(hips)
+    download_dir = get_cache_path_downloads(active_hips)
     download_path = download_dir.joinpath(file_name)
     if download_path.exists():
         print(f"Found cache of {url}: {download_path}")
