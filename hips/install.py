@@ -1,3 +1,5 @@
+import sys
+
 import hips
 from utils import subcommand, hips_logging
 from utils.environment import create_or_update_environment, run_in_environment
@@ -17,6 +19,7 @@ def install(args):
 
     create_or_update_environment(active_hips)
     __handle_dependencies(active_hips)
+    __handle_parent(active_hips)
     __execute_install_routine(active_hips)
 
     # ToDo: install helper - methods (pip install) (git-download) (java-dependcies)
@@ -29,8 +32,8 @@ def __execute_install_routine(active_hips):
     """Run install routine of hips if specified"""
     if hasattr(active_hips, 'install') and callable(active_hips['install']):
         module_logger().debug('Calling install routine specified in solution...')
-        script = create_script(active_hips, "\nhips.get_active_hips().install()\n")
-        run_in_environment(active_hips, script)
+        script = create_script(active_hips, "\nhips.get_active_hips().install()\n", sys.argv)
+        run_in_environment(active_hips["_environment_path"], script)
 
 
 def __handle_dependencies(active_hips):
@@ -38,11 +41,19 @@ def __handle_dependencies(active_hips):
     if 'dependencies' in dir(active_hips):
         dependencies = active_hips['dependencies']
         if 'hips' in dependencies:
-            __install_hips_dependencies(dependencies['hips'])
+            args = dependencies['hips']
+            for hips_dependency in args:
+                __install_hips(hips_dependency)
 
 
-def __install_hips_dependencies(args):
-    """Calls `install` for all hips declared in a dependency block"""
-    for hips_dependency in args:
-        hips_script = resolve_hips(hips_dependency)
-        subcommand.run("python -m hips install " + hips_script)
+def __install_hips(hips_dependency):
+    """Calls `install` for a HIPS declared in a dependency block"""
+    hips_script = resolve_hips(hips_dependency)
+    subcommand.run("python -m hips install " + hips_script)
+
+
+def __handle_parent(active_hips):
+    """Handle parent of hips"""
+    if 'parent' in dir(active_hips):
+        parent = active_hips['parent']
+        __install_hips(parent)

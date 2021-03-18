@@ -144,17 +144,16 @@ def download_environment_yaml(active_hips):
     return environment_file
 
 
-def run_in_environment(active_hips, script):
+def run_in_environment(environment_path, script):
     """Runs the solution in the target environment
 
     Args:
-        active_hips:
-            The hips to run.
+        environment_path:
+            The name of the environment path to run the script in.
         script:
             The script calling the solution
     """
-    module_logger().debug('run_in_environment: %s...' %
-                        active_hips["_environment_path"])
+    module_logger().debug('run_in_environment: %s...' % environment_path)
 
     # Use an environment path and a temporary file to store the script
     if hips.hips_debug():
@@ -173,7 +172,7 @@ def run_in_environment(active_hips, script):
 
     subprocess_args = [
         'conda', 'run', '--no-capture-output', '--prefix',
-        active_hips["_environment_path"], 'python', script_name
+        environment_path, 'python', script_name
     ]
 
     module_logger().debug('Running solution with subprocess command: %s...' % " ".join(subprocess_args))

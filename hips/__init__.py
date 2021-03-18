@@ -27,10 +27,10 @@ class Hips:
                       'long_description', 'git_repo', 'dependencies',
                       'timestamp', 'format_version', 'authors', 'cite', 'tags',
                       'documentation', 'covers', 'sample_inputs',
-                      'sample_outputs', 'doi', 'catalog')
+                      'sample_outputs', 'doi', 'catalog', 'parent')
 
     private_setup_keywords = ('_environment_name', '_environment_path',
-                              '_repository_path', '_script')
+                              '_repository_path', '_script', '_app')
 
     def __init__(self, attrs=None):
         """sets object attributes in setup_keywords
@@ -94,6 +94,14 @@ def push_active_hips(hips_object):
     """Pop a hips to the _active_hips stack."""
     global _active_hips
     _active_hips.insert(0, hips_object)
+
+
+def get_parent_hips():
+    """Return the parent HIPS of the currently active HIPS."""
+    global _active_hips
+    if len(_active_hips) > 1:
+        return _active_hips[1]
+    return None
 
 
 def get_active_hips():

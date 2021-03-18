@@ -7,7 +7,7 @@ from utils import hips_logging
 module_logger = hips_logging.get_active_logger
 
 
-def create_script(hips_object, custom_code):
+def create_script(hips_object, custom_code, argv):
     """Creates the script which will later run custom_code in the environment of the hips_object.
 
     Args:
@@ -15,6 +15,8 @@ def create_script(hips_object, custom_code):
             The hips object to create a solution for.
         custom_code:
             The code which will be executed by the returned script in the environment associated with the hips object
+        argv:
+            Arguments which should be appended to the script call
 
     Returns:
         The script as opened file.
@@ -28,11 +30,13 @@ def create_script(hips_object, custom_code):
               "import argparse\n"
               "from hips import get_active_hips\n")
     # This could have an issue with nested quotes
-    argv_string = ", ".join(sys.argv)
+    argv_string = ", ".join(argv)
     module_logger().debug("Add sys.argv arguments to runtime script: %s" % argv_string)
-    script += "sys.argv = json.loads('%s')\n" % json.dumps(sys.argv)
+    script += "sys.argv = json.loads('%s')\n" % json.dumps(argv)
     script += hips_object['script']
+    script += "\nprint('Initializing HIPS: ' + hips.get_active_hips()['name'])\n"
     script += "\nhips.get_active_hips().init()\n"
+    script += "\nprint('Running HIPS: ' + hips.get_active_hips()['name'])\n"
     args = hips_object['args']
     script = __append_arguments(args, hips_object, script)
     script += custom_code

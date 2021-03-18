@@ -6,7 +6,7 @@ module_logger = hips_logging.get_active_logger
 
 
 def run(command):
-    module_logger().info('Running command: %s' % command)
+    module_logger().info('Running command: %s' % " ".join(command))
     process = subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True)
     while True:
         output = process.stdout.readline()
