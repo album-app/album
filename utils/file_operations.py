@@ -4,6 +4,10 @@ import shutil
 
 from xdg import xdg_cache_home
 
+from utils import hips_logging
+
+module_logger = hips_logging.get_active_logger
+
 
 class FileOperationError(Exception):
     """Exception class for argument extraction"""
@@ -145,6 +149,7 @@ def get_zenodo_metadata(file, metadata):
 
 
 def set_zenodo_metadata_in_solutionfile(file, doi, deposit_id):
+    module_logger().debug("Set doi %s and deposit_id: %s in file %s" % (doi, deposit_id, file))
 
     solution_name, solution_ext = os.path.splitext(os.path.basename(file))
     solution_name_full = solution_name + "_tmp" + solution_ext

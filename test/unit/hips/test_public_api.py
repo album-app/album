@@ -1,4 +1,5 @@
 import unittest.mock
+from unittest.mock import patch
 
 from hips import Hips
 from hips import public_api
@@ -32,6 +33,29 @@ class TestHipsPublicAPI(TestHipsCommon):
 
         path = public_api.get_cache_path_catalog("mycatalog")
         self.assertEqual(root.joinpath("catalogs/mycatalog"), path)
+
+    @patch('hips.public_api.get_cache_path_catalog', return_value="catalog")
+    @patch('utils.git_operations.download_repository', return_value=True)
+    def test_download_hips_catalog(self, dl_mock, getCache_mock):
+        self.attrs = {
+            "catalog": "https://gitlab.com/ida-mdc/hips-catalog.ext"
+        }
+
+        active_hips = Hips(self.attrs)
+
+        public_api.download_hips_catalog(active_hips)
+
+        dl_mock.assert_called_once_with("https://gitlab.com/ida-mdc/hips-catalog.ext", "catalog")
+        getCache_mock.assert_called_once()
+
+    def test__extract_catalog_name(self):
+        self.attrs = {
+            "catalog": "https://gitlab.com/ida-mdc/hips-catalog.ext"
+        }
+
+        active_hips = Hips(self.attrs)
+
+        self.assertEqual(public_api._extract_catalog_name(active_hips["catalog"]), "hips-catalog")
 
     @unittest.skip("Needs to be implemented!")
     def test_download_if_not_exists(self):
