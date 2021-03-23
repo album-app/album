@@ -174,7 +174,7 @@ def run_in_environment(environment_path, script):
     script_name = fp.name
 
     subprocess_args = [
-        'conda', 'run', '--no-capture-output', '--prefix',
+        'conda', 'run', '--no-capture-output', '--live-stream', '--prefix',
         environment_path, 'python', script_name
     ]
 
