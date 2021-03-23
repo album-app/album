@@ -124,8 +124,10 @@ def pop_active_hips():
 
 def load_and_push_hips(path):
     """Load hips script"""
-    module_logger().debug('Load hips...')
+    module_logger().debug(f'Loading HIPS from {path}...')
     hips_script = open(path).read()
     exec(hips_script)
-    get_active_hips().script = hips_script
-    module_logger().debug('hips loaded locally: %s' % str(get_active_hips()))
+    active_hips = get_active_hips()
+    active_hips.script = hips_script
+    module_logger().debug('hips loaded locally: %s' % str(active_hips))
+    return active_hips

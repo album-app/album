@@ -20,8 +20,7 @@ module_logger = logging.getLogger('hips')
 
 def run(args):
     """Function corresponding to the `run` subcommand of `hips`."""
-    hips.load_and_push_hips(args.path)
-    active_hips = hips.get_active_hips()
+    active_hips = hips.load_and_push_hips(run_args.path)
     if hasattr(active_hips, "parent"):
         __handle_hips_with_parent(active_hips)
     else:

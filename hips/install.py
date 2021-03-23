@@ -12,8 +12,7 @@ module_logger = hips_logging.get_active_logger
 def install(args):
     """Function corresponding to the `install` subcommand of `hips`."""
     # Load HIPS
-    hips.load_and_push_hips(args.path)
-    active_hips = hips.get_active_hips()
+    active_hips = hips.load_and_push_hips(args.path)
 
     module_logger().debug('hips loaded locally: %s' % str(active_hips))
 
