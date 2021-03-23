@@ -11,25 +11,29 @@ from utils.environment import parse_environment_name_from_yaml, download_environ
 
 
 class TestEnvironment(TestHipsCommon):
+
     def setUp(self):
         """Setup things necessary for all tests of this class"""
         # self.something_all_tests_use = some_value
         pass
 
-
     @patch('utils.environment.set_environment_name', return_value="hips")
     def test_download_environment_yaml(self, _):
 
         # hips with valid url
-        self.dependencies = {
-            # ToDo: replace with our environment file once repo is public
-            "environment_file": "https://raw.githubusercontent.com/MouseLand/cellpose/master/environment.yml",
+        self.attrs = {
+            "dependencies": {
+                # ToDo: replace with our environment file once repo is public
+                "environment_file": "https://raw.githubusercontent.com/MouseLand/cellpose/master/environment.yml",
+            }
         }
         hips_valid_environment_file = hips.Hips(self.attrs)
 
         # hips with faulty url
-        self.dependencies = {
-            "environment_file": "faulty_url",
+        self.attrs = {
+            "dependencies": {
+                "environment_file": "faulty_url",
+            }
         }
         hips_faulty_environment_file = hips.Hips(self.attrs)
 
@@ -49,20 +53,27 @@ class TestEnvironment(TestHipsCommon):
         hips_no_deps = hips.Hips(self.attrs)
 
         # hips with environment_name
-        self.dependencies = {
-            "environment_name": "test_name"
+        self.attrs = {
+            "dependencies": {
+                "environment_name": "test_name"
+            }
         }
+
         hips_environment_name = hips.Hips(self.attrs)
 
         # hips with environment file
-        self.dependencies = {
-            "environment_file": "test.yaml"
+        self.attrs = {
+            "dependencies": {
+                "environment_file": "test.yaml"
+            }
         }
         hips_environment_file = hips.Hips(self.attrs)
 
         # hips with environment url
-        self.dependencies = {
-            "environment_file": "fake_url"
+        self.attrs = {
+            "dependencies": {
+                "environment_file": "fake_url"
+            }
         }
         hips_environment_url = hips.Hips(self.attrs)
 

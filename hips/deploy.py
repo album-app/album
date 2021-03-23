@@ -1,26 +1,24 @@
-import yaml
-import hips
-from hips import get_active_hips
-import logging
-from hips import Hips, get_active_hips
-from install_helper import modules
 import os
-import git
-import shutil
+
+import yaml
+
+from hips import get_active_hips, load_and_push_hips
+from hips.public_api import download_hips_catalog
+from utils import hips_logging
+from utils.git_operations import _add_files_commit_and_push, _copy_solution_to_repository, __create_new_head
+
+module_logger = hips_logging.get_active_logger
+
+deploy_keys = [
+    'group', 'name', 'description', 'version', 'format_version', 'tested_hips_version',
+    'min_hips_version', 'license', 'git_repo', 'authors', 'cite', 'tags', 'documentation',
+    'covers', 'sample_inputs', 'sample_outputs', 'args',
+]
 
 
-module_logger = logging.getLogger('hips')
-
-
-def hips_deploy_dict(active_hips):
+def _hips_deploy_dict(active_hips):
     """Return a dictionary with the relevant deployment key/values for a given hips."""
     d = {}
-
-    deploy_keys = [
-        'group', 'name', 'description', 'timestamp', 'version', 'format_version', 'tested_hips_version',
-        'min_hips_version', 'license', 'git_repo', 'authors', 'cite', 'tags', 'documentation',
-        'covers', 'sample_inputs', 'sample_outputs', 'args', 'doi'
-    ]
 
     for k in deploy_keys:
         d[k] = active_hips[k]
@@ -28,65 +26,80 @@ def hips_deploy_dict(active_hips):
     return d
 
 
+def _create_yaml_file_in_repo(repo, active_hips):
+    """Creates a Markdown file in the given repo for the given solution
+
+    Args:
+        repo:
+            The repo of the catalog.
+        active_hips:
+            The active hips object.
+
+    Returns:
+        The Path to the created markdown file.
+
+    """
+    d = _hips_deploy_dict(active_hips)
+    module_logger().debug('Create yaml file from solution...')
+    yaml_str = yaml.dump(d, Dumper=yaml.Dumper)
+    yaml_path = os.path.join(repo.working_tree_dir, "catalog", "%s%s" % (active_hips['name'], ".yml"))
+
+    module_logger().info('writing to: %s' % yaml_path)
+    with open(yaml_path, 'w') as f:
+        f.write(yaml_str)
+
+    return yaml_path
+
+
+# Todo: write tests
+def _create_hips_merge_request(repo, file_paths, active_hips, dry_run=False):
+    """Creates a merge request to the catalog repository for the hips object.
+
+    Commits first the files given in the call, but will not include anything else than that.
+
+    Args:
+        repo:
+            The catalog repository.
+        file_paths:
+            A list of files to include in the merge request. Can be relative to the catalog repository path or absolute.
+        active_hips:
+            The active hips object.
+        dry_run:
+            Option to only show what would happen. No Merge request will be created.
+
+    Raises:
+        RuntimeError when no differences to the previous commit can be found.
+
+    """
+    # make a new branch and checkout
+    new_head = __create_new_head(repo, active_hips['name'])
+    new_head.checkout()
+
+    commit_mssg = "Adding new/updated %s" % active_hips["name"]
+
+    _add_files_commit_and_push(new_head, file_paths, commit_mssg, dry_run)
+
+
 def deploy(args):
     """Function corresponding to the `deploy` subcommand of `hips`.
 
-    Generates the yml for a hips and creates a merge request to the catalog.
+    Generates the yml for a hips and creates a merge request to the catalog only
+    including the markdown and solution file.
 
-    Raises:
-        GitCommandError: When there is an error with gitpython.
     """
-    module_logger.debug('Load hips...')
-    hips_script = open(args.path).read()
-    exec(hips_script)
+    load_and_push_hips(args.path)
     active_hips = get_active_hips()
-    d = hips_deploy_dict(active_hips)
 
-    # download (or update) repo
-    repo = modules.download_repository('https://github.com/ida-mdc/hips-catalog.git', "hips_catalog")
+    # run installation of new solution file in debug mode
+    # Todo: call the installation routine
 
-    # make a new branch and checkout
-    new_head = repo.create_head(active_hips['name'])
-    new_head.checkout()
-
-    # create new solution markdown file
-    module_logger.debug('Create yaml file from solution...')
-    yaml_str = yaml.dump(d, Dumper=yaml.Dumper)
-    yaml_path = os.path.join(repo.working_tree_dir, "_solutions", "%s%s" % (active_hips['name'], ".md"))
-
-    module_logger.info('writing to: %s' % yaml_path)
-
-    with open(yaml_path, 'w') as f:
-        f.write("---\n" + yaml_str + "\n---")
+    repo = download_hips_catalog(active_hips)
 
     # copy script to repository
-    solution_file = os.path.join(repo.working_tree_dir, "solutions", "%s%s" % (active_hips['name'], ".py"))
-    shutil.copy(args.path, solution_file)
+    solution_file = _copy_solution_to_repository(args.path, repo, active_hips)
+
+    # create solution yml file
+    yml_file = _create_yaml_file_in_repo(repo, active_hips)
 
     # create merge request
-    if repo.index.diff() or repo.untracked_files:
-        module_logger.info('Creating a merge request...')
-        repo.git.add(solution_file)
-        repo.git.add(yaml_path)
-        repo.git.commit(m="Adding new/updated %s" % active_hips['name'])
-        try:
-            module_logger.debug("Running command: repo.git.push('--set-upstream',"
-                                " '--push-option=merge_request.create', 'origin', %s)..." % new_head)
-            repo.git.push('--set-upstream', '--push-option=merge_request.create', 'origin', new_head)
-            # see https://docs.gitlab.com/ee/user/project/push_options.html
-        except git.GitCommandError as err:
-            module_logger.error(err.stderr)
-            raise
-    else:
-        message = "Diff shows no changes to the repository. Is the solution already deployed? Aborting..."
-        module_logger.error(message)
-        raise RuntimeError(message)
-
-
-def zenodo_upload():
-    # check for new solution files
-    # upload new solution files
-    # alter DOI of solution
-    # merge
-    pass
-
+    _create_hips_merge_request(repo, [yml_file, solution_file], active_hips)

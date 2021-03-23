@@ -1,9 +1,10 @@
 import json
-import logging
 import sys
 from argparse import ArgumentError
 
-module_logger = logging.getLogger('hips')
+from utils import hips_logging
+
+module_logger = hips_logging.get_active_logger
 
 
 def create_script(hips_object, custom_code):
@@ -28,7 +29,7 @@ def create_script(hips_object, custom_code):
               "from hips import get_active_hips\n")
     # This could have an issue with nested quotes
     argv_string = ", ".join(sys.argv)
-    module_logger.debug("Add sys.argv arguments to runtime script: %s" % argv_string)
+    module_logger().debug("Add sys.argv arguments to runtime script: %s" % argv_string)
     script += "sys.argv = json.loads('%s')\n" % json.dumps(sys.argv)
     script += hips_object['script']
     script += "\nhips.get_active_hips().init()\n"
@@ -43,7 +44,7 @@ def __append_hips_init_call():
 
 
 def __append_arguments(args, hips_object, script):
-    module_logger.debug(
+    module_logger().debug(
         'Read out arguments in hips solution and add to runtime script...')
     # special argument parsing cases
     if isinstance(args, str):
@@ -62,19 +63,19 @@ def __handle_args_string(args):
         pass  # ToDo: discuss if we want this!
     else:
         message = 'Argument keyword \'%s\' not supported!' % args
-        module_logger.error(message)
+        module_logger().error(message)
         raise ArgumentError(message)
 
 
 def __handle_pass_through():
-    module_logger.info(
+    module_logger().info(
         'Argument parsing not specified in hips solution. Passing arguments through...'
     )
     pass
 
 
 def __handle_args_list(args, hips_object, script):
-    module_logger.debug(
+    module_logger().debug(
         'Add argument parsing for hips solution to runtime script...')
     # Add the argument handling
     script += "\nparser = argparse.ArgumentParser(description='HIPS Run %s')\n" % hips_object['name']

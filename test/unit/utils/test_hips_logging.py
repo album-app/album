@@ -21,10 +21,10 @@ class TestHipsLogging(unittest.TestCase):
     def test_to_loglevel(self):
 
         for level in self.loglevels:
-            self.assertEqual(to_loglevel(level.name, None), level)
+            self.assertEqual(to_loglevel(level.name), level)
 
         with self.assertRaises(KeyError):
-            to_loglevel("NotAvailableLogLevel", None)
+            to_loglevel("NotAvailableLogLevel")
 
     def test_configure_logging(self):
 

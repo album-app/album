@@ -58,6 +58,15 @@ class UploadType(Enum):
 
 
 @unique
+class AccessRight(Enum):
+    """Possible upload values and their name."""
+    OPEN = "open"
+    EMBARGOED = "embargoed"
+    RESTRICTED = "restricted"
+    CLOSED = "closed"
+
+
+@unique
 class PublicationType(Enum):
     """Possible publication values and their name."""
     ANNOTATION_COLLECTION = "annotationcollection"
@@ -168,6 +177,25 @@ class ZenodoEntry(object):
 class ZenodoMetadata(ZenodoEntry):
     """All possible metadata of a @ZenodoDeposit."""
 
+    @classmethod
+    def default_values(cls, title):
+        default_values = {
+            "access_right": AccessRight.OPEN.value,
+            "access_right_category": None,
+            "creators": [{"name": "UploadInitialization", "affiliation": 'HIPS_MDC'}],
+            "description": "Hips solution file",
+            "doi": None,
+            "license": None,
+            "prereserve_doi": "true",
+            "publication_date": None,
+            "related_identifiers": None,
+            "relations": None,
+            "resource_type": None,
+            "title": title,
+            "upload_type": UploadType.SOFTWARE.value,
+        }
+        return cls(default_values)
+
     def __init__(self, entry_dict):
         super().__init__(entry_dict, '', '')
         self.access_right = self._get_attribute(entry_dict, "access_right")
@@ -176,7 +204,7 @@ class ZenodoMetadata(ZenodoEntry):
         self.description = self._get_attribute(entry_dict, "description")
         self.doi = self._get_attribute(entry_dict, "doi")
         self.license = self._get_attribute(entry_dict, "license")
-        self.preserve_doi = self._get_attribute(entry_dict, "preserve_doi")
+        self.prereserve_doi = self._get_attribute(entry_dict, "prereserve_doi")
         self.publication_date = self._get_attribute(entry_dict, "publication_date")
         self.related_identifiers = self._get_attribute(entry_dict, "related_identifiers")
         self.relations = self._get_attribute(entry_dict, "relations")
@@ -185,8 +213,50 @@ class ZenodoMetadata(ZenodoEntry):
         self.upload_type = self._get_attribute(entry_dict, "upload_type")
 
 
+class IterableList(list):
+    """List for accessing objects in the list by a certain attribute or by the index."""
+
+    def __init__(self, id_attr):
+        super().__init__()
+        self._id_attr = id_attr
+
+    def __contains__(self, attr):
+        try:
+            getattr(self, attr)
+            return True
+        except (AttributeError, TypeError):
+            return False
+
+    def __getattr__(self, attr):
+        for item in self:
+            if getattr(item, self._id_attr) == attr:
+                return item
+        return list.__getattribute__(self, attr)
+
+    def __getitem__(self, index):
+        if isinstance(index, int):
+            return list.__getitem__(self, index)
+
+        try:
+            return getattr(self, index)
+        except AttributeError as e:
+            raise IndexError("No item found with id %r" % index) from e
+
+
 class ZenodoFile(ZenodoEntry):
     """Describes a file in a @ZenodoDeposit or a @ZenodoRecord."""
+
+    _id_attribute_ = "filename"
+
+    @classmethod
+    def list_items(cls, deposit):
+        out_list = IterableList(cls._id_attribute_)
+        out_list.extend(cls.iter_items(deposit))
+        return out_list
+
+    @classmethod
+    def iter_items(cls, deposit):
+        return (f for f in deposit._files)
 
     def __init__(self, entry_dict):
         super().__init__(entry_dict, '', '')
@@ -223,7 +293,6 @@ class ZenodoDeposit(ZenodoEntry):
         self.created = self._get_attribute(entry_dict, "created")
         self.doi = self._get_attribute(entry_dict, "doi")
         self.doi_url = self._get_attribute(entry_dict, "doi_url")
-        self.files = None
         self.id = self._get_attribute(entry_dict, "id")
         self.links = self._get_attribute(entry_dict, "links")
         self.modified = self._get_attribute(entry_dict, "modified")
@@ -237,11 +306,24 @@ class ZenodoDeposit(ZenodoEntry):
         self.metadata = ZenodoMetadata(meta_init) if meta_init is not None else meta_init
 
         files_init = self._get_attribute(entry_dict, "files")
+        self.files = files_init
+
+    @property
+    def files(self):
+        return ZenodoFile.list_items(self)
+
+    @files.setter
+    def files(self, files_init):
         if files_init:
             files = []
             for file_entry in files_init:
-                files.append(ZenodoFile(file_entry))
-            self.files = files
+                if isinstance(file_entry, ZenodoFile):
+                    files.append(file_entry)
+                else:
+                    files.append(ZenodoFile(file_entry))
+            self._files = files
+        else:
+            self._files = []
 
     # ############# Deposits attributes #############
 
@@ -396,17 +478,29 @@ class ZenodoDeposit(ZenodoEntry):
             InvalidResponseStatusError: If query response status other than expected.
         """
 
+        def extract_draft_id(latest_draft_l):
+            draft_id, _ = os.path.splitext(os.path.basename(latest_draft_l))
+            return draft_id
+
         link = self.base_url + "/api/deposit/depositions/%s/actions/newversion" % self.id
 
         r = requests.post(link, params=self.params)
 
         response_dict = ZenodoAPI.validate_response(r, ResponseStatus.OK)
 
-        # ToDO: get back the new version - deposit
         # update object according to response
         self.__init__(response_dict, self.base_url, self.params["access_token"])
 
-        return True
+        # return new version
+        try:
+            latest_draft_link = self.links["latest_draft"]
+            latest_draft_id = extract_draft_id(latest_draft_link)
+        except KeyError as e:
+            raise KeyError("Could not find link to latest_draft in response! Aborting...") from e
+
+        return ZenodoAPI(self.base_url, self.params["access_token"]).deposit_get(
+            latest_draft_id, status=DepositStatus.DRAFT
+        )
 
     # ############# Deposition files #############
 
@@ -681,6 +775,15 @@ class ZenodoAPI:
         response_dict = self.validate_response(r, ResponseStatus.Created)
 
         return ZenodoDeposit(response_dict, self.base_url, self.params["access_token"])
+
+    def deposit_create_with_prereserve_doi(self, title):
+        deposit = self.deposit_create()
+
+        default_zenodo_metadata = ZenodoMetadata.default_values(title)
+
+        deposit.update(default_zenodo_metadata)
+
+        return deposit
 
     # ############# Records #############
 
