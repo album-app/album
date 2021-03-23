@@ -43,10 +43,6 @@ def create_script(hips_object, custom_code, argv):
     return script
 
 
-def __append_hips_init_call():
-    return "\nhips.get_active_hips().init()\n"
-
-
 def __append_arguments(args, hips_object, script):
     module_logger().debug(
         'Read out arguments in hips solution and add to runtime script...')

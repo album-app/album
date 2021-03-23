@@ -185,7 +185,6 @@ def run_in_environment(environment_path, script):
     fp.close()
 
 
-# ToDo: decide where to put create_environment method
 def create_or_update_environment(hips_object):
     """Creates environment a solution runs in.
 
@@ -245,11 +244,9 @@ def install_hips_in_environment(hips_object):
     module_logger().debug(
         'Install hips in target environment with subprocess: %s...' %
         " ".join(subprocess_args))
-    # TODO use util.subcommand
-    subprocess.run(subprocess_args)
+    subcommand.run(subprocess_args)
 
 
-# ToDo: decide where to put environment_exists method
 def environment_exists(environment_name):
     """Checks whether an environment already exists or not.
 
