@@ -27,10 +27,10 @@ class Hips:
                       'long_description', 'git_repo', 'dependencies',
                       'timestamp', 'format_version', 'authors', 'cite', 'tags',
                       'documentation', 'covers', 'sample_inputs',
-                      'sample_outputs', 'doi', 'catalog', 'parent')
+                      'sample_outputs', 'doi', 'catalog', 'parent', 'steps', 'close')
 
     private_setup_keywords = ('_environment_name', '_environment_path',
-                              '_repository_path', '_script', '_app')
+                              '_repository_path', '_script')
 
     def __init__(self, attrs=None):
         """sets object attributes in setup_keywords
