@@ -87,9 +87,10 @@ def set_environment_path(hips_object):
         RuntimeError: When the environment could not be found.
     """
     environment_dict = get_environment_dict()
-    if hips_object["_environment_name"] in environment_dict.keys():
+    environment_name = hips_object["_environment_name"]
+    if environment_name in environment_dict.keys():
 
-        environment_path = environment_dict[hips_object["_environment_name"]]
+        environment_path = environment_dict[environment_name]
 
         module_logger().debug('Set environment path to %s' % environment_path)
         hips_object["_environment_path"] = environment_path
@@ -97,6 +98,8 @@ def set_environment_path(hips_object):
         return environment_path
     else:
         message = 'Could not find environment!'
+        module_logger().error(message)
+        message = f'Could not find environment {environment_name}!'
         module_logger().error(message)
         raise RuntimeError(message)
 
