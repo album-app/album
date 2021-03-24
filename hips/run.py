@@ -1,10 +1,10 @@
 import argparse
-import logging
 import os
 import sys
 import tempfile
 
 import hips
+from utils import hips_logging
 from utils.environment import set_environment_path, set_environment_name, run_in_environment
 from utils.hips_resolve import resolve_hips
 from utils.hips_script import create_script
@@ -16,7 +16,7 @@ from utils.hips_script import create_script
 # ToDo: solutions should not run in hips.yml for comp. reasons. Maybe check that?
 
 
-module_logger = logging.getLogger('hips')
+module_logger = hips_logging.get_active_logger
 
 
 def run(args):
@@ -26,7 +26,7 @@ def run(args):
         __run_steps(active_hips)
     else:
         __run_single_step(active_hips, sys.argv)
-    module_logger.info(f"Successfully ran {hips.get_active_hips()['name']}.")
+    module_logger().info(f"Successfully ran {hips.get_active_hips()['name']}.")
     hips.pop_active_hips()
 
 
@@ -59,7 +59,8 @@ def __parse_args(active_hips):
         def __call__(self, parser, namespace, values, option_string=None):
             active_hips.get_arg(self.dest)['action'](values)
 
-    [parser.add_argument("--" + element["name"], action=FileAction) for element in active_hips["args"]]
+    for element in active_hips["args"]:
+        parser.add_argument("--" + element["name"], action=FileAction)
     parser.parse_known_args(args=sys.argv)
 
 
@@ -127,7 +128,7 @@ def __load_and_run_single_step(step):
     active_hips = hips.load_and_push_hips(hips_script)
     step_args = __get_args(step)
     __run_single_step(active_hips, step_args)
-    module_logger.info(f"Successfully ran {hips.get_active_hips()['name']}.")
+    module_logger().info(f"Successfully ran {hips.get_active_hips()['name']}.")
     hips.pop_active_hips()
 
 
