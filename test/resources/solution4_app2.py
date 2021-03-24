@@ -12,20 +12,20 @@ def hips_init():
 def hips_run():
     global args
     file = open(args.get("file"), "a")
-    file.write("s2_run\n")
+    file.write("solution4_app2_run\n")
     file.close()
 
 
 def hips_close():
     global args
     file = open(args.get("file"), "a")
-    file.write("s2_close\n")
+    file.write("solution4_app2_close\n")
     file.close()
 
 
 hips.setup(
     group="group",
-    name="s2",
+    name="solution4_app2",
     version="0.1.0",
     format_version="0.3.0",
     timestamp="",
@@ -42,7 +42,7 @@ hips.setup(
     min_hips_version="0.1.0",
     tested_hips_version="0.1.0",
     args=[{
-        "name": "file_s2",
+        "name": "file_solution4_app2",
         "default": "",
         "description": "",
         "action": lambda path: args.update({"file": path})
@@ -51,11 +51,11 @@ hips.setup(
     run=hips_run,
     close=hips_close,
     parent={
-        'name': 's2_app',
+        'name': 'app2',
         'args': [
             {
-                "name": "s2_app_param",
-                "value": "s2_app_param_value"
+                "name": "app2_param",
+                "value": "app2_param_value"
             }
         ]
     })

@@ -11,7 +11,7 @@ def hips_init():
 
 hips.setup(
     group="group",
-    name="s3_steps",
+    name="hips_with_steps",
     version="0.1.0",
     format_version="0.3.0",
     timestamp="",
@@ -35,35 +35,35 @@ hips.setup(
     }],
     init=hips_init,
     steps=[{
-        'name': 's2',
+        'name': 'solution1_app1',
         'args': [
             {
                 "name": "file",
                 "value": lambda: args.get("file")
             }, {
-                "name": "file_s2",
+                "name": "file_solution1_app1",
                 "value": lambda: args.get("file")
             }, {
-                "name": "s2_app_param",
-                "value": lambda: "s2_app_param_value"
+                "name": "app1_param",
+                "value": lambda: "app1_param_value"
             }
         ]
     }, {
-        'name': 's3',
+        'name': 'solution2_app1',
         'args': [
             {
                 "name": "file",
                 "value": lambda: args.get("file")
             }, {
-                "name": "file_s3",
+                "name": "file_solution2_app1",
                 "value": lambda: args.get("file")
             }, {
-                "name": "s2_app_param",
-                "value": lambda: "s2_app_param_other_value"
+                "name": "app1_param",
+                "value": lambda: "app1_param_other_value"
             }
         ]
     }, {
-        'name': 's3_noparent',
+        'name': 'solution3_noparent',
         'args': [
             {
                 "name": "file",

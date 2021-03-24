@@ -10,25 +10,20 @@ def hips_init():
 
 
 def hips_run():
-    global args
     file = open(args.get("file"), "a")
-    file.write("s2_app_run\n")
-    file.write(f"s2_app_param={args.get('s2_app_param')}\n")
+    file.write("solution3_noparent_run\n")
     file.close()
-    pass
 
 
 def hips_close():
-    global args
     file = open(args.get("file"), "a")
-    file.write("s2_app_close\n")
+    file.write("solution3_noparent_close\n")
     file.close()
-    pass
 
 
 hips.setup(
     group="group",
-    name="s2_app",
+    name="solution3_noparent",
     version="0.1.0",
     format_version="0.3.0",
     timestamp="",
@@ -49,16 +44,11 @@ hips.setup(
         "default": "",
         "description": "",
         "action": lambda path: args.update({"file": path})
-    }, {
-        "name": "s2_app_param",
-        "default": "",
-        "description": "",
-        "action": lambda path: args.update({"s2_app_param": path})
     }],
     init=hips_init,
     run=hips_run,
     close=hips_close,
     dependencies={
-        'environment_name': 's2_app'
+        'environment_name': 'solution3_noparent'
     })
 
