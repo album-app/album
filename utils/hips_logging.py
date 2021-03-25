@@ -83,29 +83,36 @@ def configure_logging(loglevel, name):
     """
     # create logger
     logger = logging.getLogger(name)
-    logger.setLevel(loglevel.name)
 
-    # create console handler and set level to debug
-    # ToDo: different handlers necessary? e.g. logging additional into a file?
-    ch = logging.StreamHandler()
-    ch.setLevel(loglevel.name)
+    if not logger.hasHandlers():
+        logger.setLevel(loglevel.name)
 
-    # create formatter
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        # create console handler and set level to debug
+        # ToDo: different handlers necessary? e.g. logging additional into a file?
+        ch = logging.StreamHandler()
+        ch.setLevel(loglevel.name)
 
-    # add formatter to ch
-    ch.setFormatter(formatter)
+        # create formatter
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    # add ch to logger
-    logger.addHandler(ch)
+        # add formatter to ch
+        ch.setFormatter(formatter)
 
-    # push logger
-    push_active_logger(logger)
+        # add ch to logger
+        logger.addHandler(ch)
+
+        # push logger
+        push_active_logger(logger)
 
     return logger
 
 
-def set_loglevel(loglevel, name):
+def get_loglevel_name():
+    logger = get_active_logger()
+    return logging.getLevelName(logger.level)
+
+
+def set_loglevel(loglevel):
     """ Sets logLevel for a logger with a certain name for ALL available handlers.
 
     Args:
@@ -116,14 +123,14 @@ def set_loglevel(loglevel, name):
 
     """
     # logger loglevel
-    logger = logging.getLogger(name)
-    logger.debug('Set loglevel to %s...' % loglevel.name)
+    active_logger = get_active_logger()
+    active_logger.debug('Set loglevel to %s...' % loglevel.name)
 
-    logger.setLevel(loglevel.name)
+    active_logger.setLevel(loglevel.name)
 
     # set handler loglevel
-    for handler in logger.handlers:
-        handler_name = handler.stream.name if hasattr(handler.stream, name) else "default handler"
+    for handler in active_logger.handlers:
+        handler_name = handler.stream.name if hasattr(handler.stream, active_logger.name) else "default handler"
 
-        logger.debug('Set loglevel for handler %s to %s...' % (handler_name, loglevel.name))
+        active_logger.debug('Set loglevel for handler %s to %s...' % (handler_name, loglevel.name))
         handler.setLevel(loglevel.name)

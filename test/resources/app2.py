@@ -15,6 +15,7 @@ def hips_run():
     file.write("app2_run\n")
     file.write(f"app2_param={args.get('app2_param')}\n")
     file.close()
+    print("app2_run")
     pass
 
 
@@ -23,6 +24,7 @@ def hips_close():
     file = open(args.get("file"), "a")
     file.write("app2_close\n")
     file.close()
+    print("app2_close")
     pass
 
 

@@ -178,8 +178,6 @@ def run_in_environment(environment_path, script):
         environment_path, 'python', script_name
     ]
 
-    module_logger().debug('Running solution with subprocess command: %s...' % " ".join(subprocess_args))
-
     subcommand.run(subprocess_args)
 
     fp.close()

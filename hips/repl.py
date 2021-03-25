@@ -1,5 +1,8 @@
 from hips import get_active_hips, hips_debug
 from utils.environment import run_in_environment, set_environment_name
+from utils import hips_logging
+
+module_logger = hips_logging.get_active_logger
 
 
 def repl(args):
@@ -11,7 +14,7 @@ def repl(args):
     hips = get_active_hips()
 
     if hips_debug():
-        print('hips loaded locally: ' + str(hips))
+        module_logger().debug('hips loaded locally: ' + str(hips))
 
     # Get environment name
     environment_name = set_environment_name(hips)

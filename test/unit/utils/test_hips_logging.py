@@ -14,6 +14,9 @@ def helper_test_configure_logging(logger):
 
 class TestHipsLogging(unittest.TestCase):
 
+    def tearDown(self) -> None:
+        pop_active_logger()
+
     def setUp(self):
         # all hips logging levels
         self.loglevels = [LogLevel(0), LogLevel(1)]
@@ -49,7 +52,7 @@ class TestHipsLogging(unittest.TestCase):
         self.assertEqual(handler_levels, [init_level.name] * len(handler_levels))
 
         # switch level and check if OK for logger and all logger.handler
-        set_loglevel(to_level, "test")
+        set_loglevel(to_level)
 
         self.assertTrue(logging.getLevelName(logger.level) == to_level.name)
 

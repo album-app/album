@@ -9,6 +9,10 @@ import yaml
 from acora import AcoraBuilder
 from xdg import xdg_cache_home
 
+from utils import hips_logging
+
+module_logger = hips_logging.get_active_logger
+
 
 # ToDo: use the paths in public API
 def hips_cache_home():
@@ -58,5 +62,5 @@ def search(args):
         match_score[package['name']] = score
 
     sorted_results = sorted(match_score.items(), key=operator.itemgetter(1))
-    print('Search results for "%s"' % search_args.keywords)
-    print(sorted_results)
+    module_logger().info('Search results for "%s"' % search_args.keywords)
+    module_logger().info(sorted_results)

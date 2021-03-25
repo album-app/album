@@ -13,12 +13,14 @@ def hips_run():
     file = open(args.get("file"), "a")
     file.write("solution2_app1_run\n")
     file.close()
+    print("solution2_app1_run")
 
 
 def hips_close():
     file = open(args.get("file"), "a")
     file.write("solution2_app1_close\n")
     file.close()
+    print("solution2_app1_close")
 
 
 hips.setup(

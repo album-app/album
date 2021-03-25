@@ -6,6 +6,7 @@ import tempfile
 import hips
 from utils import hips_logging
 from utils.environment import set_environment_path, set_environment_name, run_in_environment
+from utils.hips_logging import LogLevel
 from utils.hips_resolve import resolve_hips
 from utils.hips_script import create_script
 
@@ -38,7 +39,7 @@ def __run_steps(active_hips):
 
     # iterate over steps and run them
     steps = active_hips["steps"]
-    print(f"Executing {len(steps)} steps..")
+    module_logger().info("Executing %s steps.." % len(steps))
     for step in steps:
         if type(step) is list:
             __run_as_group(step)
@@ -96,7 +97,7 @@ def __handle_step_with_parent(active_hips_step, args, same_app_hips):
     # check if parent is already active
     parent_script = resolve_hips(active_hips_step["parent"])
     new_parent = True
-    if same_app_hips is not None:
+    if same_app_hips:
         if parent_script != same_app_hips["script"]:
             # this step's parent is different then the currently active parent app, run previous app first
             __run_same_app_hips(same_app_hips)
@@ -128,7 +129,7 @@ def __load_and_run_single_step(step):
     active_hips = hips.load_and_push_hips(hips_script)
     step_args = __get_args(step)
     __run_single_step(active_hips, step_args)
-    module_logger().info(f"Successfully ran {hips.get_active_hips()['name']}.")
+    module_logger().info("Successfully ran %s." % hips.get_active_hips()['name'])
     hips.pop_active_hips()
 
 
@@ -144,6 +145,15 @@ def __run_single_step(active_hips, args):
         __handle_standalone_hips(active_hips, args)
 
 
+def __run_in_environment_with_own_logger(active_hips, script):
+    """Pushes a new logger to the stack before running the solution and pops it afterwards."""
+    hips_logging.configure_logging(
+        LogLevel(hips_logging.to_loglevel(hips_logging.get_loglevel_name())), active_hips['name']
+    )
+    run_in_environment(active_hips["_environment_path"], script)
+    hips_logging.pop_active_logger()
+
+
 def __handle_standalone_hips(active_hips, args):
     """Run loaded HIPS with given arguments and no parent HIPS app"""
     set_environment_name(active_hips)
@@ -152,7 +162,7 @@ def __handle_standalone_hips(active_hips, args):
     if hasattr(active_hips, "close"):
         script_inset += "\nhips.get_active_hips().close()\n"
     script = create_script(active_hips, script_inset, args)
-    run_in_environment(active_hips["_environment_path"], script)
+    __run_in_environment_with_own_logger(active_hips, script)
 
 
 def __handle_hips_with_parent(parent_hips, parent_args, child_hips_list):
@@ -171,7 +181,7 @@ def __handle_hips_with_parent(parent_hips, parent_args, child_hips_list):
     script_list.extend(child_scripts)
     script_list.append(script_parent_close)
     script = __append_scripts(*script_list)
-    run_in_environment(parent_hips["_environment_path"], script)
+    __run_in_environment_with_own_logger(parent_hips, script)
 
 
 def __create_scripts(child_hips_list):

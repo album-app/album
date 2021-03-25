@@ -92,11 +92,11 @@ def download_if_not_exists(active_hips, url, file_name):
     download_dir = get_cache_path_downloads(active_hips)
     download_path = download_dir.joinpath(file_name)
     if download_path.exists():
-        print(f"Found cache of {url}: {download_path}")
+        module_logger().info(f"Found cache of {url}: {download_path}")
         return download_path
     if not download_dir.exists():
         download_dir.mkdir(parents=True)
-    print(f"Downloading {url} to {download_path}")
+    module_logger().info(f"Downloading {url} to {download_path}")
     downloaded_obj = requests.get(url)
 
     with open(str(download_path), "wb") as file:
@@ -115,7 +115,7 @@ def extract_tar(in_tar, out_dir):
     out_path = Path(out_dir)
     if not out_path.exists():
         out_path.mkdir(parents=True)
-    print(f"Extracting {in_tar} to {out_dir}")
+    module_logger().info(f"Extracting {in_tar} to {out_dir}")
     my_tar = tarfile.open(in_tar)
     my_tar.extractall(out_dir)
     my_tar.close()

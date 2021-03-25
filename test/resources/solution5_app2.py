@@ -14,6 +14,7 @@ def hips_run():
     file = open(args.get("file"), "a")
     file.write("solution5_app2_run\n")
     file.close()
+    print("solution5_app2_run")
 
 
 def hips_close():
@@ -21,6 +22,7 @@ def hips_close():
     file = open(args.get("file"), "a")
     file.write("solution5_app2_close\n")
     file.close()
+    print("solution5_app2_close")
 
 
 hips.setup(
