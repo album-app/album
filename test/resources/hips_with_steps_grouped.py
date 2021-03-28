@@ -66,6 +66,15 @@ hips.setup(
                 ]
             },
             {
+                'name': 'solution3_noparent',
+                'args': [
+                    {
+                        "name": "file",
+                        "value": lambda: args.get("file")
+                    }
+                ]
+            },
+            {
                 'name': 'solution4_app2',
                 'args': [
                     {

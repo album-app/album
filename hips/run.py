@@ -40,7 +40,8 @@ def __run_steps(active_hips):
     # iterate over steps and run them
     steps = active_hips["steps"]
     module_logger().info("Executing %s steps.." % len(steps))
-    for step in steps:
+    for i, step in enumerate(steps):
+        module_logger().info(f"Running step {i+1} / {len(steps)}: {step}")
         if type(step) is list:
             __run_as_group(step)
         else:
@@ -83,10 +84,15 @@ def __run_as_group(step):
         else:
             # step has no parent
             if same_app_hips is not None:
-                # run previously collected hips belonging to the same apps first
+                # reorder hips stack - store newly loaded hips, run previously collected hips belonging to the same
+                # app first, then pop newly loaded hips again
+                new_hips = hips.pop_active_hips()
                 __run_same_app_hips(same_app_hips)
+                hips.push_active_hips(new_hips)
                 same_app_hips = None
             __run_single_step(active_hips, step_args)
+            module_logger().info(f"Successfully ran {hips.get_active_hips()['name']}.")
+            hips.pop_active_hips()
     if same_app_hips is not None:
         # run previously collected hips belonging to the same app
         __run_same_app_hips(same_app_hips)
@@ -106,8 +112,11 @@ def __handle_step_with_parent(active_hips_step, args, same_app_hips):
             # this step can be executed jointly with previous steps depending on the same app
             new_parent = False
     if new_parent:
+        # reorder hips stack - push app first, then child
+        first_child = hips.pop_active_hips()
         same_app_hips = {"parent_hips": hips.load_and_push_hips(parent_script), "script": parent_script,
                          "child_hips_list": []}
+        hips.push_active_hips(first_child)
     # get arguments for this step
     parent_args, child_args = __resolve_args(same_app_hips["parent_hips"], active_hips_step["parent"], args)
     if new_parent:
@@ -119,8 +128,18 @@ def __handle_step_with_parent(active_hips_step, args, same_app_hips):
 
 def __run_same_app_hips(same_app_hips):
     """Run multiple HIPS sharing a common parent app on the same app instance"""
+    hips_str = ', '.join(item[0]['name'] for item in same_app_hips['child_hips_list'])
+    module_logger().info(f"Running HIPS on parent app {same_app_hips['parent_hips']['name']}: {hips_str}")
     __handle_hips_with_parent(same_app_hips["parent_hips"], same_app_hips["parent_args"],
                               same_app_hips["child_hips_list"])
+    for item in reversed(same_app_hips['child_hips_list']):
+        child_hips = item[0]
+        assert(child_hips['name'] == hips.get_active_hips()['name'])
+        module_logger().info(f"Successfully ran {hips.get_active_hips()['name']}.")
+        hips.pop_active_hips()
+    assert(same_app_hips['parent_hips']['name'] == hips.get_active_hips()['name'])
+    module_logger().info(f"Successfully ran {hips.get_active_hips()['name']}.")
+    hips.pop_active_hips()
 
 
 def __load_and_run_single_step(step):

@@ -5,6 +5,7 @@ import unittest.mock
 from pathlib import Path
 from unittest.mock import patch
 
+import hips
 from hips import cmdline
 
 
@@ -24,6 +25,7 @@ class TestHIPSCommandLine(unittest.TestCase):
     def test_run(self):
         sys.argv = ["", "run", get_test_solution_path()]
         self.assertIsNone(cmdline.main())
+        self.assertIsNone(hips.get_active_hips())
 
     @patch('hips.run.resolve_hips')
     @patch('hips.run.set_environment_name')
@@ -34,13 +36,13 @@ class TestHIPSCommandLine(unittest.TestCase):
         sys.argv = ["", "run", get_test_solution_path("solution1_app1.py"), "--file", fp.name, "--file_solution1_app1", fp.name, "--app1_param", "value1"]
         self.assertIsNone(cmdline.main())
         log = open(fp.name, "r").read().strip().split("\n")
-        print(log)
         self.assertEqual(5, len(log))
         self.assertEqual("app1_run", log[0])
         self.assertEqual("app1_param=value1", log[1])
         self.assertEqual("solution1_app1_run", log[2])
         self.assertEqual("solution1_app1_close", log[3])
         self.assertEqual("app1_close", log[4])
+        self.assertIsNone(hips.get_active_hips())
 
     @patch('hips.run.resolve_hips')
     @patch('hips.run.set_environment_name')
@@ -51,7 +53,6 @@ class TestHIPSCommandLine(unittest.TestCase):
         sys.argv = ["", "run", get_test_solution_path("hips_with_steps.py"), "--file", fp.name, "--file_solution1_app1", fp.name]
         self.assertIsNone(cmdline.main())
         log = open(fp.name, "r").read().strip().split("\n")
-        print(log)
         self.assertEqual(12, len(log))
         self.assertEqual("app1_run", log[0])
         self.assertEqual("app1_param=app1_param_value", log[1])
@@ -65,6 +66,7 @@ class TestHIPSCommandLine(unittest.TestCase):
         self.assertEqual("app1_close", log[9])
         self.assertEqual("solution3_noparent_run", log[10])
         self.assertEqual("solution3_noparent_close", log[11])
+        self.assertIsNone(hips.get_active_hips())
 
     @patch('hips.run.resolve_hips')
     @patch('hips.run.set_environment_name')
@@ -75,8 +77,7 @@ class TestHIPSCommandLine(unittest.TestCase):
         sys.argv = ["", "run", get_test_solution_path("hips_with_steps_grouped.py"), "--file", fp.name, "--file_solution1_app1", fp.name]
         self.assertIsNone(cmdline.main())
         log = open(fp.name, "r").read().strip().split("\n")
-        print(log)
-        self.assertEqual(16, len(log))
+        self.assertEqual(18, len(log))
         self.assertEqual("app1_run", log[0])
         self.assertEqual("app1_param=app1_param_value", log[1])
         self.assertEqual("solution1_app1_run", log[2])
@@ -84,15 +85,18 @@ class TestHIPSCommandLine(unittest.TestCase):
         self.assertEqual("solution2_app1_run", log[4])
         self.assertEqual("solution2_app1_close", log[5])
         self.assertEqual("app1_close", log[6])
-        self.assertEqual("app2_run", log[7])
-        self.assertEqual("app2_param=app2_param_value", log[8])
-        self.assertEqual("solution4_app2_run", log[9])
-        self.assertEqual("solution4_app2_close", log[10])
-        self.assertEqual("solution5_app2_run", log[11])
-        self.assertEqual("solution5_app2_close", log[12])
-        self.assertEqual("app2_close", log[13])
-        self.assertEqual("solution3_noparent_run", log[14])
-        self.assertEqual("solution3_noparent_close", log[15])
+        self.assertEqual("solution3_noparent_run", log[7])
+        self.assertEqual("solution3_noparent_close", log[8])
+        self.assertEqual("app2_run", log[9])
+        self.assertEqual("app2_param=app2_param_value", log[10])
+        self.assertEqual("solution4_app2_run", log[11])
+        self.assertEqual("solution4_app2_close", log[12])
+        self.assertEqual("solution5_app2_run", log[13])
+        self.assertEqual("solution5_app2_close", log[14])
+        self.assertEqual("app2_close", log[15])
+        self.assertEqual("solution3_noparent_run", log[16])
+        self.assertEqual("solution3_noparent_close", log[17])
+        self.assertIsNone(hips.get_active_hips())
 
     # def test_deploy(self):
     #     sys.argv = ["", "deploy", get_dummy_solution_path()]
@@ -116,7 +120,6 @@ class TestHIPSCommandLine(unittest.TestCase):
 
     def __resolve_hips(self, hips_dependency):
         path = get_test_solution_path(hips_dependency['name'] + ".py")
-        print(f"resolving path for {hips_dependency} to {path}")
         return path
 
     def __set_environment_name(self, hips_dependency):
