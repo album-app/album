@@ -1,5 +1,7 @@
 import json
+import os
 import sys
+import tempfile
 from argparse import ArgumentError
 
 from utils import hips_logging
@@ -114,3 +116,51 @@ class {class_name}(argparse.Action):
 def __create_class_name(name):
     class_name = '%sAction' % name.capitalize()
     return class_name
+
+
+def create_hips_with_parent_script(parent_hips, parent_args, child_hips_list, init_script):
+    """Create script for running a parent HIPS, then running HIPS depending on it, and then closing the parent HIPS."""
+    script_parent = create_script(parent_hips,
+                                  init_script + "\nhips.get_active_hips().run()\n",
+                                  parent_args)
+    child_scripts = __create_scripts(child_hips_list)
+    script_parent_close = ""
+    if hasattr(parent_hips, "close"):
+        script_parent_close += "\nhips.get_active_hips().close()\n"
+    script_parent_close += "\nhips.pop_active_hips()\n"
+    script_list = [script_parent]
+    script_list.extend(child_scripts)
+    script_list.append(script_parent_close)
+    script = __append_scripts(*script_list)
+    return script
+
+
+def __create_scripts(child_hips_list):
+    """Create scripts for a list of HIPs, each entry in `child_hips_list` consists of the loaded HIPS and it's
+    arguments """
+    child_scripts = []
+    for child_hips in child_hips_list:
+        active_hips = child_hips[0]
+        child_args = child_hips[1]
+        script = "\nhips.notify_active_hips_started(subprocess=True)\n"
+        script += "\nhips.get_active_hips().run()\n"
+        if hasattr(active_hips, "close"):
+            script += "\nhips.get_active_hips().close()\n"
+        script += "\nhips.notify_active_hips_finished(subprocess=True)\n"
+        script += "\nhips.pop_active_hips()\n"
+        child_scripts.append(create_script(active_hips, script, child_args))
+    return child_scripts
+
+
+def __append_scripts(*scripts):
+    """Create script running multiple scripts in a row"""
+    res = ""
+    for script in scripts:
+        fp = tempfile.NamedTemporaryFile(mode='w+', delete=False)
+        fp.write(script)
+        fp.flush()
+        os.fsync(fp)
+        script_name = fp.name
+        res += f"\nexec(open('{script_name}').read())\n"
+        fp.close()
+    return res
