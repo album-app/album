@@ -70,5 +70,5 @@ hips.setup(
                 "value": lambda: args.get("file")
             }
         ]
-    }])
-
+    }]
+)

@@ -131,3 +131,31 @@ def load_and_push_hips(path):
     active_hips.script = hips_script
     module_logger().debug('hips loaded locally: %s' % str(active_hips))
     return active_hips
+
+
+def notify_hips_started(active_hips, subprocess=False):
+    msg = f"Started {active_hips['name']}.."
+    if subprocess:
+        print(msg)
+    else:
+        module_logger().info(msg)
+
+
+def notify_active_hips_started(subprocess=False):
+    notify_hips_started(get_active_hips(), subprocess)
+
+
+def notify_active_hips_finished(subprocess=False):
+    msg = f"Successfully ran {get_active_hips()['name']}."
+    if subprocess:
+        print(msg)
+    else:
+        module_logger().info(msg)
+
+
+def notify_active_hips_progress(message, current_step, max_steps, subprocess=False):
+    msg = f"{message} {current_step} / {max_steps}"
+    if subprocess:
+        print(msg)
+    else:
+        module_logger().info(msg)

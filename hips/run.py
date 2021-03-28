@@ -6,6 +6,7 @@ import tempfile
 import hips
 from utils import hips_logging
 from utils.environment import set_environment_path, set_environment_name, run_in_environment
+from utils.event import Event
 from utils.hips_logging import LogLevel
 from utils.hips_resolve import resolve_hips
 from utils.hips_script import create_script
@@ -27,8 +28,7 @@ def run(args):
         __run_steps(active_hips)
     else:
         __run_single_step(active_hips, sys.argv)
-    module_logger().info(f"Successfully ran {hips.get_active_hips()['name']}.")
-    hips.pop_active_hips()
+    __finish_active_hips()
 
 
 def __run_steps(active_hips):
@@ -41,11 +41,12 @@ def __run_steps(active_hips):
     steps = active_hips["steps"]
     module_logger().info("Executing %s steps.." % len(steps))
     for i, step in enumerate(steps):
-        module_logger().info(f"Running step {i+1} / {len(steps)}: {step}")
+        hips.notify_active_hips_progress('Step progress', i, len(steps))
         if type(step) is list:
             __run_as_group(step)
         else:
             __load_and_run_single_step(step)
+    hips.notify_active_hips_progress('Step progress', len(steps), len(steps))
 
 
 def __parse_args(active_hips):
@@ -91,8 +92,7 @@ def __run_as_group(step):
                 hips.push_active_hips(new_hips)
                 same_app_hips = None
             __run_single_step(active_hips, step_args)
-            module_logger().info(f"Successfully ran {hips.get_active_hips()['name']}.")
-            hips.pop_active_hips()
+            __finish_active_hips()
     if same_app_hips is not None:
         # run previously collected hips belonging to the same app
         __run_same_app_hips(same_app_hips)
@@ -132,13 +132,10 @@ def __run_same_app_hips(same_app_hips):
     module_logger().info(f"Running HIPS on parent app {same_app_hips['parent_hips']['name']}: {hips_str}")
     __handle_hips_with_parent(same_app_hips["parent_hips"], same_app_hips["parent_args"],
                               same_app_hips["child_hips_list"])
-    for item in reversed(same_app_hips['child_hips_list']):
-        child_hips = item[0]
-        assert(child_hips['name'] == hips.get_active_hips()['name'])
-        module_logger().info(f"Successfully ran {hips.get_active_hips()['name']}.")
-        hips.pop_active_hips()
-    assert(same_app_hips['parent_hips']['name'] == hips.get_active_hips()['name'])
-    module_logger().info(f"Successfully ran {hips.get_active_hips()['name']}.")
+
+
+def __finish_active_hips():
+    hips.notify_active_hips_finished()
     hips.pop_active_hips()
 
 
@@ -148,8 +145,7 @@ def __load_and_run_single_step(step):
     active_hips = hips.load_and_push_hips(hips_script)
     step_args = __get_args(step)
     __run_single_step(active_hips, step_args)
-    module_logger().info("Successfully ran %s." % hips.get_active_hips()['name'])
-    hips.pop_active_hips()
+    __finish_active_hips()
 
 
 def __run_single_step(active_hips, args):
@@ -159,13 +155,14 @@ def __run_single_step(active_hips, args):
         parent_hips = hips.load_and_push_hips(parent_script)
         parent_args, child_args = __resolve_args(parent_hips, active_hips["parent"], args)
         __handle_hips_with_parent(parent_hips, parent_args, [[active_hips, child_args]])
-        hips.pop_active_hips()
+        __finish_active_hips()
     else:
         __handle_standalone_hips(active_hips, args)
 
 
 def __run_in_environment_with_own_logger(active_hips, script):
     """Pushes a new logger to the stack before running the solution and pops it afterwards."""
+    hips.notify_hips_started(active_hips)
     hips_logging.configure_logging(
         LogLevel(hips_logging.to_loglevel(hips_logging.get_loglevel_name())), active_hips['name']
     )
@@ -188,6 +185,23 @@ def __handle_hips_with_parent(parent_hips, parent_args, child_hips_list):
     """Run one or multiple loaded HIPS with given arguments depending on a HIPS app"""
     set_environment_name(parent_hips)
     set_environment_path(parent_hips)
+    script = __create_hips_with_parent_script(parent_hips, parent_args, child_hips_list)
+    __run_in_environment_with_own_logger(parent_hips, script)
+    __finish_hips_with_parent(parent_hips, child_hips_list)
+
+
+def __finish_hips_with_parent(parent_hips, child_hips_list):
+    """Finish both children and common parent HIPS"""
+    for item in reversed(child_hips_list):
+        child_hips = item[0]
+        assert (child_hips['name'] == hips.get_active_hips()['name'])
+        hips.pop_active_hips()
+    assert (parent_hips['name'] == hips.get_active_hips()['name'])
+    __finish_active_hips()
+
+
+def __create_hips_with_parent_script(parent_hips, parent_args, child_hips_list):
+    """Create script for running a parent HIPS, then running HIPS depending on it, and then closing the parent HIPS."""
     script_parent = create_script(parent_hips,
                                   "\nhips.get_active_hips().run()\n",
                                   parent_args)
@@ -200,7 +214,7 @@ def __handle_hips_with_parent(parent_hips, parent_args, child_hips_list):
     script_list.extend(child_scripts)
     script_list.append(script_parent_close)
     script = __append_scripts(*script_list)
-    __run_in_environment_with_own_logger(parent_hips, script)
+    return script
 
 
 def __create_scripts(child_hips_list):
@@ -210,14 +224,13 @@ def __create_scripts(child_hips_list):
     for child_hips in child_hips_list:
         active_hips = child_hips[0]
         child_args = child_hips[1]
-        run_active_hips_string = "\nhips.get_active_hips().run()\n"
+        script = "\nhips.notify_active_hips_started(subprocess=True)\n"
+        script += "\nhips.get_active_hips().run()\n"
         if hasattr(active_hips, "close"):
-            run_active_hips_string += "\nhips.get_active_hips().close()\n"
-        run_active_hips_string += "\nhips.pop_active_hips()\n"
-        script_main = create_script(active_hips,
-                                    run_active_hips_string,
-                                    child_args)
-        child_scripts.append(script_main)
+            script += "\nhips.get_active_hips().close()\n"
+        script += "\nhips.notify_active_hips_finished(subprocess=True)\n"
+        script += "\nhips.pop_active_hips()\n"
+        child_scripts.append(create_script(active_hips, script, child_args))
     return child_scripts
 
 

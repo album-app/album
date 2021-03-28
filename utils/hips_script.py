@@ -34,9 +34,7 @@ def create_script(hips_object, custom_code, argv):
     module_logger().debug("Add sys.argv arguments to runtime script: %s" % argv_string)
     script += "sys.argv = json.loads('%s')\n" % json.dumps(argv)
     script += hips_object['script']
-    script += "\nprint('Initializing HIPS: ' + hips.get_active_hips()['name'])\n"
     script += "\nhips.get_active_hips().init()\n"
-    script += "\nprint('Running HIPS: ' + hips.get_active_hips()['name'])\n"
     args = hips_object['args']
     script = __append_arguments(args, hips_object, script)
     script += custom_code
