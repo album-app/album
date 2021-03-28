@@ -29,7 +29,10 @@ def pop_active_logger():
     global _active_logger
 
     if len(_active_logger) > 0:
-        return _active_logger.pop(0)
+        logger = _active_logger.pop(0)
+        while logger.hasHandlers():
+            logger.removeHandler(logger.handlers[0])
+        return logger
     else:
         return logging.getLogger()  # root logger
 
