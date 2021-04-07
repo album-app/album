@@ -12,7 +12,9 @@ from hips import cmdline
 class TestHIPSCommandLine(unittest.TestCase):
 
     def setUp(self):
-        pass
+        # make sure no active hips are somehow configured!
+        while hips.get_active_hips() is not None:
+            hips.pop_active_hips()
 
     def test_install(self):
         sys.argv = ["", "install", get_test_solution_path()]
@@ -128,7 +130,7 @@ class TestHIPSCommandLine(unittest.TestCase):
 
 def get_test_solution_path(solution_file="dummysolution.py"):
     current_path = Path(os.path.dirname(os.path.realpath(__file__)))
-    path = current_path / ".." / "resources" / solution_file
+    path = current_path.joinpath("..", "resources", solution_file)
     return str(path)
 
 

@@ -2,12 +2,16 @@ import os
 
 from xdg import xdg_cache_home
 
-import utils.git_operations
-from hips_ci_tools.ci_utils import _get_ci_deploy_values, _retrieve_solution_file, \
-    _zenodo_upload, _retrieve_yml_file, _zenodo_get_deposit, _get_metadata_from_yml, _write_metadata_to_yml, \
+import hips_utils.operations.file_operations
+import hips_utils.operations.git_operations
+from ci.ci_utils import _get_ci_deploy_values, _retrieve_solution_file, \
+    _zenodo_upload, _retrieve_yml_file, _zenodo_get_deposit, _get_entry_from_yml, _add_dict_entry_to_yml, \
     _yaml_to_md, _get_ssh_url, _get_ci_git_config_values
-from utils import hips_logging, file_operations
-from utils.git_operations import _checkout_branch, _add_files_commit_and_push
+from hips.hips_base import HipsDefaultValues
+from hips_utils import hips_logging
+from hips_utils.hips_catalog import CatalogIndex
+from hips_utils.operations.git_operations import _checkout_branch, _add_files_commit_and_push
+from hips_utils.operations.file_operations import get_dict_from_yml
 
 module_logger = hips_logging.get_active_logger
 
@@ -44,7 +48,7 @@ def ci_pre_release():
 
     catalog_path = xdg_cache_home().joinpath(catalog_name)
 
-    repo = utils.git_operations.download_repository(source_url, catalog_path)
+    repo = hips_utils.operations.git_operations.download_repository(source_url, catalog_path)
 
     # configure git
     user_name, user_email = _get_ci_git_config_values()
@@ -80,8 +84,8 @@ def pre_release(git_repo_path, branch_name):
     yml_file = _retrieve_yml_file(head)
 
     # get metadata from yml_file
-    deposit_id = _get_metadata_from_yml(yml_file, "deposit_id")
-    solution_name = _get_metadata_from_yml(yml_file, "name")
+    deposit_id = _get_entry_from_yml(yml_file, "deposit_id")
+    solution_name = _get_entry_from_yml(yml_file, "name")
 
     # get the solution file to release
     solution_file = _retrieve_solution_file(head)
@@ -91,15 +95,15 @@ def pre_release(git_repo_path, branch_name):
 
     # alter the files in the merge request to have the DOI
     # Todo: really necessary? It is hacky...
-    solution_file = file_operations.set_zenodo_metadata_in_solutionfile(
+    solution_file = hips_utils.operations.file_operations.set_zenodo_metadata_in_solutionfile(
         solution_file,
         deposit.metadata.prereserve_doi["doi"],
         deposit.id
     )
 
     # include doi and ID in yml
-    _write_metadata_to_yml(yml_file, "doi", deposit.metadata.prereserve_doi["doi"])
-    _write_metadata_to_yml(yml_file, "deposit_id", deposit.id)
+    _add_dict_entry_to_yml(yml_file, "doi", deposit.metadata.prereserve_doi["doi"])
+    _add_dict_entry_to_yml(yml_file, "deposit_id", deposit.id)
 
     # create md file from yml file
     md_path = os.path.join(git_repo_path, "_solutions", "%s.md" % solution_name)
@@ -108,10 +112,16 @@ def pre_release(git_repo_path, branch_name):
     # zenodo upload solution but not publish
     _zenodo_upload(deposit, solution_file)
 
+    # update catalog index
+    catalog_file = os.path.join(git_repo_path, HipsDefaultValues.catalog_index_file_name.value)
+    catalog_index = CatalogIndex(catalog_file)
+    catalog_index.update_index(get_dict_from_yml(yml_file))
+    catalog_index.save_catalog_index()
+
     # push changes to catalog, do not trigger pipeline
     commit_mssg = "CI updated %s" % solution_name
     _add_files_commit_and_push(
-        head, [yml_file, md_path, solution_file], commit_mssg, dry_run=False, trigger_pipeline=False
+        head, [yml_file, md_path, solution_file, catalog_file], commit_mssg, dry_run=False, trigger_pipeline=False
     )
 
     return True

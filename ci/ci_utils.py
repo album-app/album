@@ -3,8 +3,8 @@ from urllib.parse import urlparse
 
 import yaml
 
-from utils import hips_logging, zenodo_api
-from utils.git_operations import _retrieve_single_file_from_head
+from hips_utils import hips_logging, zenodo_api
+from hips_utils.operations.git_operations import _retrieve_single_file_from_head
 
 # user defined variables:
 ci_user_name = "CI_USER_NAME"
@@ -190,19 +190,19 @@ def _parse_solution_name_from_file_path(solution_file):
 
 
 # ToDo: write tests
-def _get_metadata_from_yml(yml_file, metadata):
+def _get_entry_from_yml(yml_file, entry_name):
     """Reads out metadata of a yml file"""
     with open(yml_file, 'r') as yml_f:
         d = yaml.safe_load(yml_f)
 
     try:
-        return d[metadata]
+        return d[entry_name]
     except KeyError:
         return None
 
 
 # ToDo: write tests
-def _write_metadata_to_yml(yml_file, metadata, value):
+def _add_dict_entry_to_yml(yml_file, metadata, value):
     """Writes metadata in a yml file"""
     with open(yml_file, 'r') as yml_f:
         d = yaml.safe_load(yml_f)

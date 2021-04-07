@@ -270,6 +270,10 @@ class ZenodoFile(ZenodoEntry):
         self.type = self._get_attribute(entry_dict, "type")
         self.links = self._get_attribute(entry_dict, "links")
 
+    # todo: write tests
+    def get_download_link(self):
+        return self.links["self"]
+
 
 class ZenodoDeposit(ZenodoEntry):
     """The Zenodo Deposit class."""
@@ -663,12 +667,15 @@ class ZenodoRecordStats(ZenodoEntry):
         self.volume = self._get_attribute(entry_dict, "volume")
 
 
+class ZenodoDefaultUrl(Enum):
+    sandbox_url = 'https://sandbox.zenodo.org/'
+    url = 'https://zenodo.org/'
+
+
 class ZenodoAPI:
     """
     Zenodo API. Querying the ZenodoAPI.
     """
-
-    # base_url = 'https://sandbox.zenodo.org/'
 
     def __init__(self, base_url, access_token):
         """Inits the object given a base_url and an access_token.
@@ -787,6 +794,7 @@ class ZenodoAPI:
 
     # ############# Records #############
 
+    # todo: write tests
     def records_get(self,
                     record_id=None,
                     q="",
@@ -826,4 +834,11 @@ class ZenodoAPI:
 
         response_dict = self.validate_response(r, ResponseStatus.OK)
 
-        return ZenodoRecord(response_dict, self.base_url, self.params["access_token"])
+        record_list = []
+        if isinstance(response_dict, list):
+            for record_dict in response_dict:
+                record_list.append(ZenodoRecord(record_dict, self.base_url, self.params["access_token"]))
+        else:
+            record_list.append(ZenodoRecord(response_dict, self.base_url, self.params["access_token"]))
+
+        return record_list

@@ -4,8 +4,8 @@ import unittest
 
 from requests import Response
 
-from test.unit.test_common import TestUtilsCommon
-from utils.zenodo_api import *
+from test.unit.test_common import TestZenodoCommon
+from hips_utils.zenodo_api import *
 
 
 class TestZenodoEntry(unittest.TestCase):
@@ -20,7 +20,7 @@ class TestZenodoEntry(unittest.TestCase):
         self.assertTrue(test_entry_1.to_dict() == {})
 
 
-class TestZenodoDeposit(TestUtilsCommon):
+class TestZenodoDeposit(TestZenodoCommon):
 
     def setUp(self):
         self.init_dict = {
@@ -149,7 +149,7 @@ class TestZenodoRecord(unittest.TestCase):
         pass
 
 
-class TestZenodoAPI(TestUtilsCommon):
+class TestZenodoAPI(TestZenodoCommon):
 
     def setUp(self):
         pass
@@ -207,12 +207,12 @@ class TestZenodoAPI(TestUtilsCommon):
 
         title = "unit_test_solution.py"
 
-        deposit = self.zenodoAPI.deposit_create_with_prereserve_doi(title)
+        self.test_deposit2 = self.zenodoAPI.deposit_create_with_prereserve_doi(title)
 
-        self.assertIsNot(deposit.id, "", "ID empty string!")
-        self.assertIsNot(deposit.metadata.prereserve_doi["doi"], "", "doi empty string!")
-        self.assertIsNotNone(deposit.id, "ID of deposit not set!")
-        self.assertIsNotNone(deposit.metadata.prereserve_doi["doi"], "doi of deposit not set!")
+        self.assertIsNot(self.test_deposit2.id, "", "ID empty string!")
+        self.assertIsNot(self.test_deposit2.metadata.prereserve_doi["doi"], "", "doi empty string!")
+        self.assertIsNotNone(self.test_deposit2.id, "ID of deposit not set!")
+        self.assertIsNotNone(self.test_deposit2.metadata.prereserve_doi["doi"], "doi of deposit not set!")
 
 
 if __name__ == '__main__':

@@ -10,7 +10,7 @@ from hips.repl import repl
 from hips.run import run
 from hips.search import search
 from hips.tutorial import tutorial
-from utils import hips_logging
+from hips_utils import hips_logging
 
 module_logger = hips_logging.get_active_logger
 

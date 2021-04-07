@@ -2,11 +2,11 @@ import argparse
 import sys
 
 import hips
-from utils import hips_logging
-from utils.environment import set_environment_path, set_environment_name, run_in_environment
-from utils.hips_logging import LogLevel
-from utils.hips_resolve import resolve_hips
-from utils.hips_script import create_script, create_hips_with_parent_script
+from hips_utils import hips_logging
+from hips_utils.environment import set_environment_path, set_environment_name, run_in_environment
+from hips_utils.hips_logging import LogLevel
+from hips_utils.hips_resolve import resolve_hips
+from hips_utils.hips_script import create_script, create_hips_with_parent_script
 
 # ToDo: environment purge method
 # ToDo: reusable versioned environments?
@@ -142,6 +142,8 @@ class HIPSRunner:
         active_hips = hips.load_and_push_hips(hips_script)
         step_args = self.__get_args(step)
         self.__run_single_step(active_hips, step_args)
+        module_logger().info("Finished running %s." % hips.get_active_hips()['name'])
+        hips.pop_active_hips()
 
     def __run_single_step(self, active_hips, args):
         """Run loaded HIPS with given arguments"""

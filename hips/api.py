@@ -2,26 +2,27 @@ import os
 from pathlib import Path
 
 import requests
-from xdg import xdg_data_home, xdg_data_dirs
+from xdg import xdg_data_home, xdg_data_dirs, xdg_config_home
 
-import utils.git_operations
-from utils import hips_logging
-from utils.git_operations import download_repository
+from hips.hips_base import HipsDefaultValues
+from hips_utils import hips_logging
+from hips_utils.operations.git_operations import download_repository
 
 module_logger = hips_logging.get_active_logger
 
 
+def get_configuration_file_path():
+    """Get the path to the HIPS runtime configuration file."""
+    return xdg_config_home().joinpath(HipsDefaultValues.hips_config_file_name.value)
+
+
 def get_base_cache_path():
-    """
-
-    Returns: Path to local HIPS cache directory
-
-    """
+    """Get path to local HIPS cache directory"""
     return xdg_data_home().joinpath("hips")
 
 
 def get_cache_path_hips(active_hips):
-    """
+    """Get the cache path of the active hips
 
     Args:
         active_hips: The HIPS object
@@ -36,7 +37,7 @@ def get_cache_path_hips(active_hips):
 
 
 def get_cache_path_app(active_hips):
-    """
+    """Get the app cache path of the active hips
 
     Args:
         active_hips: The HIPS object
@@ -51,7 +52,7 @@ def get_cache_path_app(active_hips):
 
 
 def get_cache_path_downloads(active_hips):
-    """
+    """Get the cache path of anything a hips downloads.
 
     Args:
         active_hips: The HIPS object
@@ -66,7 +67,7 @@ def get_cache_path_downloads(active_hips):
 
 
 def get_cache_path_catalog(catalog_id):
-    """
+    """Get the cache path to the catalog with a certain ID.
 
     Args:
         catalog_id: The ID of the HIPS catalog
@@ -78,8 +79,7 @@ def get_cache_path_catalog(catalog_id):
 
 
 def download_if_not_exists(active_hips, url, file_name):
-    """
-    Downloads resource if not already cached and returns local resource path.
+    """Downloads resource if not already cached and returns local resource path.
 
     Args:
         active_hips: The HIPS object the download belongs to
@@ -136,52 +136,40 @@ def _extract_catalog_name(catalog_repo):
     return name
 
 
-def download_hips_catalog(active_hips):
-    """Downloads the catalog specified in hips object.
+def download_hips_repository(active_hips):
+    """Downloads the repository specified in a hips object, returns repository_path on success.
+
+    Additionally changes pythons working directory to the repository_path.
 
     Args:
         active_hips:
             The hips object.
 
     Returns:
-        The catalog repository as Repo object
-
-    """
-    catalog_url = active_hips['catalog']
-    catalog_name = _extract_catalog_name(catalog_url)  # only the folder name of the local catalog git repo
-    module_logger().debug("Donwload catalog %s to the name %s" % (catalog_url, catalog_name))
-
-    #ToDo: replace name with id
-    catalog_path = get_cache_path_catalog(catalog_name)
-
-    repo = utils.git_operations.download_repository(catalog_url, catalog_path)
-
-    return repo
-
-
-def download_hips_repository(hips_object):
-    """Downloads the repository specified in a hips object, returns repository_path on success.
-
-    Additionally changes pythons working directory to the repository_path.
-
-    Args:
-        hips_object:
-            The hips object.
-
-    Returns:
         The directory of the git directory.
 
     """
-    download_path = xdg_data_dirs()[0].joinpath(hips_object['name'])
+    download_path = get_cache_path_hips(active_hips).joinpath(active_hips["name"])
 
-    repo = download_repository(hips_object['git_repo'], download_path)
+    repo = download_repository(active_hips['git_repo'], download_path)
 
     repository_path = repo.working_tree_dir
 
     # set the repository path
-    hips_object["_repository_path"] = repository_path
+    active_hips["_repository_path"] = repository_path
 
     # set python workdir
     os.chdir(repository_path)
 
     return repository_path
+
+
+# ToDo: write tests
+def chdir_repository(active_hips):
+    repo_path = get_cache_path_hips(active_hips).joinpath(active_hips["name"])
+
+    # assumes repo is up to date!
+    if repo_path.joinpath(".git").exists():
+        os.chdir(str(repo_path))
+    else:
+        raise FileNotFoundError("Could not identify %s as repository. Aborting..." % repo_path)

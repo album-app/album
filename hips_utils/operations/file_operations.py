@@ -1,10 +1,12 @@
 import os
 import re
 import shutil
+from pathlib import Path
 
+import yaml
 from xdg import xdg_cache_home
 
-from utils import hips_logging
+from hips_utils import hips_logging
 
 module_logger = hips_logging.get_active_logger
 
@@ -17,6 +19,12 @@ class FileOperationError(Exception):
         self.long_message = long_message
 
 
+#def auto_format(file):
+#    """Autformats file to pep8 standard."""
+#    fixed_file = autopep8.fix_file(file)
+#    return fixed_file
+
+
 def get_line_indent(line):
     """Returns the line indent of a line."""
     return int(len(re.findall('^[ ]*', line)[0])/4)
@@ -25,12 +33,6 @@ def get_line_indent(line):
 def indent_to_space(indent: int):
     """Returns the right number of spaces belonging to an indent"""
     return ''.join([' ']*4*indent)
-
-
-#def auto_format(file):
-#    """Autformats file to pep8 standard."""
-#    fixed_file = autopep8.fix_file(file)
-#    return fixed_file
 
 
 def is_comment(line):
@@ -206,3 +208,40 @@ def set_zenodo_metadata_in_solutionfile(file, doi, deposit_id):
     shutil.copy(str(new_file_path), file)
 
     return file
+
+
+def get_dict_from_yml(yml_file):
+    with open(yml_file, 'r') as yml_f:
+        d = yaml.safe_load(yml_f)
+
+    return d
+
+
+def write_dict_to_yml(yml_file, d):
+    with open(yml_file, 'w+') as yml_f:
+        yml_f.write(yaml.dump(d, Dumper=yaml.Dumper))
+
+    return True
+
+
+def create_empty_file_recursively(path_to_file):
+    p = Path(path_to_file)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.touch(exist_ok=True)
+
+    return True
+
+
+def create_path_recursively(path):
+    p = Path(path)
+    p.mkdir(parents=True, exist_ok=True)
+
+    return True
+
+
+def copy(path_from, path_to):
+    path_from = Path(path_from)
+    path_to = Path(path_to)
+    create_path_recursively(path_to.parent)
+
+    shutil.copy(path_from, path_to)

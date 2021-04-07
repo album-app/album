@@ -1,8 +1,9 @@
-import utils.git_operations
-from hips_ci_tools.ci_utils import _get_ci_deploy_values, _retrieve_solution_file, \
+import hips_utils.operations.file_operations
+import hips_utils.operations.git_operations
+from ci.ci_utils import _get_ci_deploy_values, _retrieve_solution_file, \
     _zenodo_get_deposit
-from utils import hips_logging, file_operations
-from utils.git_operations import _checkout_branch
+from hips_utils import hips_logging
+from hips_utils.operations.git_operations import _checkout_branch
 
 module_logger = hips_logging.get_active_logger
 
@@ -14,7 +15,7 @@ def ci_release():
         raise RuntimeError("CI Routine only works for a merge request within the same project!")
 
     module_logger().info("Download catalog \"%s\" from %s..." % (catalog_name, source_url))
-    repo = utils.git_operations.download_repository(source_url, catalog_name)
+    repo = hips_utils.operations.git_operations.download_repository(source_url, catalog_name)
 
     module_logger().info("Branch name: %s" % branch_name)
 
@@ -39,7 +40,8 @@ def release(git_repo_path, branch_name):
 
     # get the solution file to deploy
     solution_file = _retrieve_solution_file(head)
-    deposit_id = file_operations.get_zenodo_metadata(solution_file, "deposit_id")
+    # todo: get this from yaml or index!
+    deposit_id = hips_utils.operations.file_operations.get_zenodo_metadata(solution_file, "deposit_id")
 
     # retrieve the deposit from the id
     deposit = _zenodo_get_deposit(solution_file, deposit_id)

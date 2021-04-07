@@ -3,9 +3,9 @@ import os
 import yaml
 
 from hips import get_active_hips, load_and_push_hips
-from hips.public_api import download_hips_catalog
-from utils import hips_logging
-from utils.git_operations import _add_files_commit_and_push, _copy_solution_to_repository, __create_new_head
+from hips_utils import hips_logging
+from hips_utils.operations.git_operations import _add_files_commit_and_push, _copy_solution_to_repository, \
+    __create_new_head
 
 module_logger = hips_logging.get_active_logger
 
@@ -16,18 +16,27 @@ deploy_keys = [
 ]
 
 
-def _hips_deploy_dict(active_hips):
+def get_hips_deploy_dict(active_hips):
     """Return a dictionary with the relevant deployment key/values for a given hips."""
     d = {}
 
     for k in deploy_keys:
         d[k] = active_hips[k]
 
-    return d
+    return _remove_action_from_args(d)
+
+
+def _remove_action_from_args(hips_dict):
+    for arg in hips_dict["args"]:
+        if isinstance(arg, dict):
+            if "action" in arg.keys():
+                arg.pop("action")
+
+    return hips_dict
 
 
 def _create_yaml_file_in_repo(repo, active_hips):
-    """Creates a Markdown file in the given repo for the given solution
+    """Creates a Markdown file in the given repo for the given solution.
 
     Args:
         repo:
@@ -39,9 +48,7 @@ def _create_yaml_file_in_repo(repo, active_hips):
         The Path to the created markdown file.
 
     """
-    d = _hips_deploy_dict(active_hips)
-    module_logger().debug('Create yaml file from solution...')
-    yaml_str = yaml.dump(d, Dumper=yaml.Dumper)
+    yaml_str = _create_yml_string(active_hips)
     yaml_path = os.path.join(repo.working_tree_dir, "catalog", "%s%s" % (active_hips['name'], ".yml"))
 
     module_logger().info('writing to: %s' % yaml_path)
@@ -49,6 +56,14 @@ def _create_yaml_file_in_repo(repo, active_hips):
         f.write(yaml_str)
 
     return yaml_path
+
+
+# Todo: write tests
+def _create_yml_string(active_hips):
+    """Creates the yaml string with all relevant information"""
+    d = get_hips_deploy_dict(active_hips)
+    module_logger().debug('Create yaml file from solution...')
+    return yaml.dump(d, Dumper=yaml.Dumper)
 
 
 # Todo: write tests
@@ -80,6 +95,7 @@ def _create_hips_merge_request(repo, file_paths, active_hips, dry_run=False):
     _add_files_commit_and_push(new_head, file_paths, commit_mssg, dry_run)
 
 
+# Todo: write tests
 def deploy(args):
     """Function corresponding to the `deploy` subcommand of `hips`.
 
@@ -87,13 +103,19 @@ def deploy(args):
     including the markdown and solution file.
 
     """
+    # if imported at the beginning creates a circular dependency!
+    from hips_utils.hips_configuration import HipsConfiguration
+
+    hips_config = HipsConfiguration()
+
     load_and_push_hips(args.path)
     active_hips = get_active_hips()
 
     # run installation of new solution file in debug mode
     # Todo: call the installation routine
 
-    repo = download_hips_catalog(active_hips)
+    default_deploy_catalog = hips_config.get_default_deployment_catalog()
+    repo = default_deploy_catalog.download()
 
     # copy script to repository
     solution_file = _copy_solution_to_repository(args.path, repo, active_hips)

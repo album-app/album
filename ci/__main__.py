@@ -1,13 +1,13 @@
 from argparse import ArgumentParser
 
-from hips_ci_tools import ci_release, ci_pre_release
-from utils import hips_logging
+from ci import release, pre_release
+from hips_utils import hips_logging
 
 module_logger = hips_logging.get_active_logger
 
 entry_point_map = {
-    'ci_pre_release': ci_pre_release.ci_pre_release,
-    'ci_release': ci_release.ci_release
+    'ci_pre_release': pre_release.ci_pre_release,
+    'ci_release': release.ci_release
 }
 
 

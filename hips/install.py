@@ -1,10 +1,11 @@
 import sys
 
 import hips
-from utils import subcommand, hips_logging
-from utils.environment import create_or_update_environment, run_in_environment
-from utils.hips_resolve import resolve_hips
-from utils.hips_script import create_script
+from hips_utils import subcommand, hips_logging
+from hips_utils.environment import create_or_update_environment, run_in_environment
+from hips_utils.hips_configuration import HipsConfiguration
+from hips_utils.hips_resolve import resolve_hips
+from hips_utils.hips_script import create_script
 
 module_logger = hips_logging.get_active_logger
 
@@ -20,11 +21,19 @@ def install(args):
     __handle_dependencies(active_hips)
     __handle_parent(active_hips)
     __execute_install_routine(active_hips)
+    # todo: add to catalog where hips was resolved (or trash catalog if not resolved)
+    __add_to_local_catalog(active_hips)
 
     # ToDo: install helper - methods (pip install) (git-download) (java-dependcies)
 
     module_logger().info('Installed %s' % active_hips['name'])
     hips.pop_active_hips()
+
+
+def __add_to_local_catalog(active_hips):
+    """Adds the installation to the local catalog to be cached for running"""
+    hips_config = HipsConfiguration()
+    hips_config.local_catalog.add_to_index(active_hips)
 
 
 def __execute_install_routine(active_hips):
@@ -47,8 +56,9 @@ def __handle_dependencies(active_hips):
 
 def __install_hips(hips_dependency):
     """Calls `install` for a HIPS declared in a dependency block"""
-    hips_script = resolve_hips(hips_dependency)
-    subcommand.run("python -m hips install " + hips_script)
+    hips_script = resolve_hips(hips_dependency)["path"]
+    # todo: why don't we call "install" directly? Why a new process?
+    subcommand.run("python -m hips install " + hips_script + " --log=%s" % hips_logging.LogLevel(hips.hips_debug()).name)
 
 
 def __handle_parent(active_hips):

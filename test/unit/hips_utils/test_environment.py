@@ -6,8 +6,9 @@ from unittest.mock import patch
 from xdg import xdg_cache_home
 
 import hips
+import hips.hips_base
 from test.unit.test_common import TestHipsCommon
-from utils.environment import parse_environment_name_from_yaml, download_environment_yaml, set_environment_name
+from hips_utils.environment import parse_environment_name_from_yaml, download_environment_yaml, set_environment_name
 
 
 class TestEnvironment(TestHipsCommon):
@@ -17,40 +18,13 @@ class TestEnvironment(TestHipsCommon):
         # self.something_all_tests_use = some_value
         pass
 
-    @patch('utils.environment.set_environment_name', return_value="hips")
-    def test_download_environment_yaml(self, _):
-
-        # hips with valid url
-        self.attrs = {
-            "dependencies": {
-                # ToDo: replace with our environment file once repo is public
-                "environment_file": "https://raw.githubusercontent.com/MouseLand/cellpose/master/environment.yml",
-            }
-        }
-        hips_valid_environment_file = hips.Hips(self.attrs)
-
-        # hips with faulty url
-        self.attrs = {
-            "dependencies": {
-                "environment_file": "faulty_url",
-            }
-        }
-        hips_faulty_environment_file = hips.Hips(self.attrs)
-
-        # case valid url
-        r_valid = download_environment_yaml(hips_valid_environment_file)
-        self.assertTrue(r_valid == xdg_cache_home().joinpath("environment_file.yml"), "File was not downloaded!")
-
-        # case faulty url
-        self.assertRaises(ValueError, download_environment_yaml, hips_faulty_environment_file)
-
-    @patch('utils.environment.download_environment_yaml', return_value="test.yml")
-    @patch('utils.environment.parse_environment_name_from_yaml', return_value="test")
-    @patch('pathlib.Path.exists')
+    @patch('hips_utils.environment.download_resource', return_value="test.yml")
+    @patch('hips_utils.environment.parse_environment_name_from_yaml', return_value="test")
+    @patch('hips_utils.environment.Path.exists')
     def test_set_environment_name(self, _, __, path_exists):
 
         # hips with no dependency -> hips_full
-        hips_no_deps = hips.Hips(self.attrs)
+        hips_no_deps = hips.hips_base.HipsClass(self.attrs)
 
         # hips with environment_name
         self.attrs = {
@@ -59,7 +33,7 @@ class TestEnvironment(TestHipsCommon):
             }
         }
 
-        hips_environment_name = hips.Hips(self.attrs)
+        hips_environment_name = hips.hips_base.HipsClass(self.attrs)
 
         # hips with environment file
         self.attrs = {
@@ -67,7 +41,7 @@ class TestEnvironment(TestHipsCommon):
                 "environment_file": "test.yaml"
             }
         }
-        hips_environment_file = hips.Hips(self.attrs)
+        hips_environment_file = hips.hips_base.HipsClass(self.attrs)
 
         # hips with environment url
         self.attrs = {
@@ -75,7 +49,7 @@ class TestEnvironment(TestHipsCommon):
                 "environment_file": "fake_url"
             }
         }
-        hips_environment_url = hips.Hips(self.attrs)
+        hips_environment_url = hips.hips_base.HipsClass(self.attrs)
 
         self.assertTrue(set_environment_name(hips_no_deps) == "hips_full",
                         "hips_no_deps: Environment name wrong!")

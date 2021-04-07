@@ -18,10 +18,11 @@ class TestHipsInstall(TestHipsCommon):
         setup(**vars(self.attrs))
         return hips.get_active_hips()
 
+    @patch('hips.install.__add_to_local_catalog', return_value=True)
     @patch('hips.load_and_push_hips')
     @patch('hips.install.run_in_environment')
     @patch('hips.install.create_script')
-    def test_install(self, _, run_in_environment_mock, load_mock):
+    def test_install(self, _, run_in_environment_mock, load_mock, __):
         # setup mocks
         load_mock.side_effect = self.__install_hips
 
