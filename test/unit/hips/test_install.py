@@ -3,6 +3,7 @@ from argparse import Namespace
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import hips
 from hips import setup
 from hips.install import install
 from test.unit.test_common import TestHipsCommon
@@ -15,7 +16,7 @@ class TestHipsInstall(TestHipsCommon):
 
     def __install_hips(self, _):
         setup(**vars(self.attrs))
-        pass
+        return hips.get_active_hips()
 
     @patch('hips.load_and_push_hips')
     @patch('hips.install.run_in_environment')

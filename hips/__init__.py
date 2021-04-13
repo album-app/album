@@ -27,7 +27,7 @@ class Hips:
                       'long_description', 'git_repo', 'dependencies',
                       'timestamp', 'format_version', 'authors', 'cite', 'tags',
                       'documentation', 'covers', 'sample_inputs',
-                      'sample_outputs', 'doi', 'catalog')
+                      'sample_outputs', 'doi', 'catalog', 'parent', 'steps', 'close')
 
     private_setup_keywords = ('_environment_name', '_environment_path',
                               '_repository_path', '_script')
@@ -96,6 +96,14 @@ def push_active_hips(hips_object):
     _active_hips.insert(0, hips_object)
 
 
+def get_parent_hips():
+    """Return the parent HIPS of the currently active HIPS."""
+    global _active_hips
+    if len(_active_hips) > 1:
+        return _active_hips[1]
+    return None
+
+
 def get_active_hips():
     """Return the currently active HIPS, which is defined globally."""
     global _active_hips
@@ -116,8 +124,38 @@ def pop_active_hips():
 
 def load_and_push_hips(path):
     """Load hips script"""
-    module_logger().debug('Load hips...')
+    module_logger().debug(f'Loading HIPS from {path}...')
     hips_script = open(path).read()
     exec(hips_script)
-    get_active_hips().script = hips_script
-    module_logger().debug('hips loaded locally: %s' % str(get_active_hips()))
+    active_hips = get_active_hips()
+    active_hips.script = hips_script
+    module_logger().debug('hips loaded locally: %s' % str(active_hips))
+    return active_hips
+
+
+def notify_hips_started(active_hips, subprocess=False):
+    msg = f"Started {active_hips['name']}.."
+    if subprocess:
+        print(msg)
+    else:
+        module_logger().info(msg)
+
+
+def notify_active_hips_started(subprocess=False):
+    notify_hips_started(get_active_hips(), subprocess)
+
+
+def notify_active_hips_finished(subprocess=False):
+    msg = f"Successfully ran {get_active_hips()['name']}."
+    if subprocess:
+        print(msg)
+    else:
+        module_logger().info(msg)
+
+
+def notify_active_hips_progress(message, current_step, max_steps, subprocess=False):
+    msg = f"{message} {current_step} / {max_steps}"
+    if subprocess:
+        print(msg)
+    else:
+        module_logger().info(msg)

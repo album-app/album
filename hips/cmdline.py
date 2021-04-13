@@ -30,7 +30,7 @@ def main():
 
 def __handle_args(args, parser):
     """Handles all arguments provided after the hips command."""
-    hips_logging.set_loglevel(args[0].log, 'hips')
+    hips_logging.set_loglevel(args[0].log)
     __run_subcommand(args, parser)
 
 
@@ -48,7 +48,7 @@ def __run_subcommand(args, parser):
 
 def __retrieve_logger():
     """Retrieves the default hips logger."""
-    hips_logging.configure_logging(hips_logging.LogLevel(hips_debug()), 'hips')
+    hips_logging.configure_logging(hips_logging.LogLevel(hips_debug()), 'hips_core')
 
 
 def create_parser():
@@ -90,7 +90,7 @@ class __HIPSParser(ArgumentParser):
             required=False,
             help='Logging level for your hips command. Choose between %s' %
                  ", ".join([loglevel.name for loglevel in hips_logging.LogLevel]),
-            default=hips_logging.LogLevel.INFO,
+            default=hips_logging.LogLevel(hips_debug()),
             type=(lambda choice: hips_logging.to_loglevel(choice)),
         )
         return parent_parser

@@ -2,8 +2,10 @@ def resolve_hips(hips_dependency):
     """Resolves a hips id and returns a path to the solution file."""
     # TODO properly implement this - i.e. match with zenodo
     catalog = "/home/random/Development/hips/repos/hips-catalog"
-    if hips_dependency["group"] == "ida-mdc" and hips_dependency["name"] == "blender":
+    if hips_dependency["group"] == "ida-mdc" and hips_dependency["name"] == "app-blender":
         return "%s/solutions/blender.py" % catalog
+    if hips_dependency["group"] == "ida-mdc" and hips_dependency["name"] == "sciview":
+        return "%s/solutions/sciview.py" % catalog
     if hips_dependency["group"] == "ida-mdc" and hips_dependency["name"] == "sciview-volume-rendering":
         return "%s/solutions/sciview_volume_rendering.py" % catalog
     if hips_dependency["group"] == "ida-mdc" and hips_dependency["name"] == "sciview-labels-to-mesh":

@@ -87,9 +87,10 @@ def set_environment_path(hips_object):
         RuntimeError: When the environment could not be found.
     """
     environment_dict = get_environment_dict()
-    if hips_object["_environment_name"] in environment_dict.keys():
+    environment_name = hips_object["_environment_name"]
+    if environment_name in environment_dict.keys():
 
-        environment_path = environment_dict[hips_object["_environment_name"]]
+        environment_path = environment_dict[environment_name]
 
         module_logger().debug('Set environment path to %s' % environment_path)
         hips_object["_environment_path"] = environment_path
@@ -97,6 +98,8 @@ def set_environment_path(hips_object):
         return environment_path
     else:
         message = 'Could not find environment!'
+        module_logger().error(message)
+        message = f'Could not find environment {environment_name}!'
         module_logger().error(message)
         raise RuntimeError(message)
 
@@ -144,17 +147,16 @@ def download_environment_yaml(active_hips):
     return environment_file
 
 
-def run_in_environment(active_hips, script):
+def run_in_environment(environment_path, script):
     """Runs the solution in the target environment
 
     Args:
-        active_hips:
-            The hips to run.
+        environment_path:
+            The name of the environment path to run the script in.
         script:
             The script calling the solution
     """
-    module_logger().debug('run_in_environment: %s...' %
-                        active_hips["_environment_path"])
+    module_logger().debug('run_in_environment: %s...' % environment_path)
 
     # Use an environment path and a temporary file to store the script
     if hips.hips_debug():
@@ -172,18 +174,15 @@ def run_in_environment(active_hips, script):
     script_name = fp.name
 
     subprocess_args = [
-        'conda', 'run', '--no-capture-output', '--prefix',
-        active_hips["_environment_path"], 'python', script_name
+        'conda', 'run', '--no-capture-output', '--live-stream', '--prefix',
+        environment_path, 'python', script_name
     ]
-
-    module_logger().debug('Running solution with subprocess command: %s...' % " ".join(subprocess_args))
 
     subcommand.run(subprocess_args)
 
     fp.close()
 
 
-# ToDo: decide where to put create_environment method
 def create_or_update_environment(hips_object):
     """Creates environment a solution runs in.
 
@@ -243,11 +242,9 @@ def install_hips_in_environment(hips_object):
     module_logger().debug(
         'Install hips in target environment with subprocess: %s...' %
         " ".join(subprocess_args))
-    # TODO use util.subcommand
-    subprocess.run(subprocess_args)
+    subcommand.run(subprocess_args)
 
 
-# ToDo: decide where to put environment_exists method
 def environment_exists(environment_name):
     """Checks whether an environment already exists or not.
 
