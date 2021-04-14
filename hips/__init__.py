@@ -69,7 +69,7 @@ def load_and_push_hips(path):
 
 
 def notify_hips_started(active_hips, subprocess=False):
-    msg = f"Started {active_hips['name']}.."
+    msg = "Started %s..." % active_hips['name']
     if subprocess:
         print(msg)
     else:
@@ -81,7 +81,7 @@ def notify_active_hips_started(subprocess=False):
 
 
 def notify_active_hips_finished(subprocess=False):
-    msg = f"Successfully ran {get_active_hips()['name']}."
+    msg = "Finished running %s." % get_active_hips()['name']
     if subprocess:
         print(msg)
     else:
@@ -89,7 +89,7 @@ def notify_active_hips_finished(subprocess=False):
 
 
 def notify_active_hips_progress(message, current_step, max_steps, subprocess=False):
-    msg = f"{message} {current_step} / {max_steps}"
+    msg = "%s %s / %s" % (message, current_step, max_steps)
     if subprocess:
         print(msg)
     else:

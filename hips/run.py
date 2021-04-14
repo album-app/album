@@ -132,18 +132,12 @@ class HIPSRunner:
         self.__handle_hips_with_parent(same_app_hips["parent_hips"], same_app_hips["parent_args"],
                                        same_app_hips["child_hips_list"])
 
-    def __finish_active_hips(self):
-        hips.notify_active_hips_finished()
-        hips.pop_active_hips()
-
     def __load_and_run_single_step(self, step):
         """Load and run a single HIPS (sharing no app instance with other HIPS)"""
         hips_script = resolve_hips(step)
         active_hips = hips.load_and_push_hips(hips_script)
         step_args = self.__get_args(step)
         self.__run_single_step(active_hips, step_args)
-        module_logger().info("Finished running %s." % hips.get_active_hips()['name'])
-        hips.pop_active_hips()
 
     def __run_single_step(self, active_hips, args):
         """Run loaded HIPS with given arguments"""
@@ -157,16 +151,6 @@ class HIPSRunner:
             self.__handle_hips_with_parent(parent_hips, parent_args, [[active_hips, child_args]])
         else:
             self.__handle_standalone_hips(active_hips, args)
-
-    @staticmethod
-    def __run_in_environment_with_own_logger(active_hips, script):
-        """Pushes a new logger to the stack before running the solution and pops it afterwards."""
-        hips.notify_hips_started(active_hips)
-        hips_logging.configure_logging(
-            LogLevel(hips_logging.to_loglevel(hips_logging.get_loglevel_name())), active_hips['name']
-        )
-        run_in_environment(active_hips["_environment_path"], script)
-        hips_logging.pop_active_logger()
 
     def __handle_standalone_hips(self, active_hips, args):
         """Run loaded HIPS with given arguments and no parent HIPS app"""
@@ -196,6 +180,21 @@ class HIPSRunner:
             hips.pop_active_hips()
         assert (parent_hips['name'] == hips.get_active_hips()['name'])
         self.__finish_active_hips()
+
+    @staticmethod
+    def __finish_active_hips():
+        hips.notify_active_hips_finished()
+        hips.pop_active_hips()
+
+    @staticmethod
+    def __run_in_environment_with_own_logger(active_hips, script):
+        """Pushes a new logger to the stack before running the solution and pops it afterwards."""
+        hips.notify_hips_started(active_hips)
+        hips_logging.configure_logging(
+            LogLevel(hips_logging.to_loglevel(hips_logging.get_loglevel_name())), active_hips['name']
+        )
+        run_in_environment(active_hips["_environment_path"], script)
+        hips_logging.pop_active_logger()
 
     @staticmethod
     def __get_args(step):
