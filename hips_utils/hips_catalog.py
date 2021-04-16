@@ -248,6 +248,7 @@ class Catalog:
                 raise RuntimeError("Solution already exists in Index! Aborting...")
 
         self.catalog_index.update_index(node_attrs)
+        self.catalog_index.save_catalog_index()
 
     def visualize(self):
         self.catalog_index.visualize()
