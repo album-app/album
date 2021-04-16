@@ -1,5 +1,5 @@
 import hips
-from utils import hips_logging
+from hips_utils import hips_logging
 
 module_logger = hips_logging.get_active_logger
 

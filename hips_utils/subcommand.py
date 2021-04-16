@@ -1,6 +1,6 @@
 import subprocess
 
-from utils import hips_logging
+from hips_utils import hips_logging
 
 module_logger = hips_logging.get_active_logger
 
@@ -21,4 +21,7 @@ def run(command):
           "Return code: %(ret_code)s Error message: %(err_msg)s"
           % {"ret_code": process.returncode, "err_msg": err}
           )
+    if err:
+        module_logger().warning("An error was catched that is not treated as stop condition: \n"
+                                "\t %s" % err)
     return process.returncode, out, err

@@ -4,17 +4,18 @@ import unittest
 from xdg import xdg_cache_home
 
 import hips
-import hips.public_api
+import hips.hips_base
+import hips.api
 from hips import deploy
 from test.unit.test_common import TestGitCommon
-from utils.zenodo_api import ZenodoAPI
+from hips_utils.zenodo_api import ZenodoAPI
 
 
 class TestHipsDeploy(TestGitCommon):
     def setUp(self) -> None:
         self.zenodoAPI = ZenodoAPI('url', 'access_token')
 
-    def test__hips_deploy_dict(self):
+    def test_get_hips_deploy_dict(self):
 
         # base keys
         attrs_dict_result = {}
@@ -30,9 +31,9 @@ class TestHipsDeploy(TestGitCommon):
         attrs_dict = {**attrs_dict_result, **attrs_dict_additional}
         assert len(attrs_dict) == len(attrs_dict_additional) + len(attrs_dict_result)
 
-        active_hips = hips.Hips(attrs_dict)
+        active_hips = hips.hips_base.HipsClass(attrs_dict)
 
-        self.assertEqual(deploy._hips_deploy_dict(active_hips), attrs_dict_result)
+        self.assertEqual(deploy.get_hips_deploy_dict(active_hips), attrs_dict_result)
 
     def test__create_yaml_in_repo_file(self):
 
@@ -41,7 +42,7 @@ class TestHipsDeploy(TestGitCommon):
         for idx, key in enumerate(deploy.deploy_keys):
             attrs_dict[key] = str(idx)
         attrs_dict["name"] = "test_solution_name"
-        active_hips = hips.Hips(attrs_dict)
+        active_hips = hips.hips_base.HipsClass(attrs_dict)
 
         # paths
         basepath = xdg_cache_home().joinpath("testGitRepo")

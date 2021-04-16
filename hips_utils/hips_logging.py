@@ -3,7 +3,7 @@ from enum import IntEnum, unique
 
 
 """
-Global variable for tracking the currently active logger. Do not use this 
+Global variable for tracking the currently active logger. Do not use this
 directly instead use get_active_logger()
 """
 global _active_logger

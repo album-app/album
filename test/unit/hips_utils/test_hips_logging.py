@@ -1,7 +1,7 @@
 
 import unittest
 
-from utils.hips_logging import *
+from hips_utils.hips_logging import *
 
 
 def helper_test_configure_logging(logger):

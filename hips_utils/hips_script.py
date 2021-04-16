@@ -4,7 +4,7 @@ import sys
 import tempfile
 from argparse import ArgumentError
 
-from utils import hips_logging
+from hips_utils import hips_logging
 
 module_logger = hips_logging.get_active_logger
 

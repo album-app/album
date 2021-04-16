@@ -1,6 +1,6 @@
 from hips import get_active_hips, hips_debug
-from utils.environment import run_in_environment, set_environment_name
-from utils import hips_logging
+from hips_utils.environment import run_in_environment, set_environment_name
+from hips_utils import hips_logging
 
 module_logger = hips_logging.get_active_logger
 

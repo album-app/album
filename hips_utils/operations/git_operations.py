@@ -4,7 +4,7 @@ from pathlib import Path
 
 import git
 
-from utils import hips_logging
+from hips_utils import hips_logging
 
 module_logger = hips_logging.get_active_logger
 
@@ -163,9 +163,9 @@ def _copy_solution_to_repository(path, repo, active_hips):
     return abs_path_solution_file
 
 
-# todo: make non private and test
 def __create_new_head(repo, name):
     """Force creates a new head of a given name in a repository and returns the head."""
+    # todo: make non private and test
 
     if name in repo.heads:
         git.Head.delete(repo, name, force=True)
@@ -189,6 +189,7 @@ def download_repository(repo_url, git_folder_path):
         The repository object
 
     """
+    git_folder_path = Path(git_folder_path)
     Path.mkdir(git_folder_path, parents=True, exist_ok=True)
 
     # update existing repo or clone new repo

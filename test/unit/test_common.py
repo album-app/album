@@ -6,7 +6,7 @@ import git
 
 from xdg import xdg_cache_home
 
-from utils.zenodo_api import ZenodoAPI
+from hips_utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 
 
 class TestHipsCommon(unittest.TestCase):
@@ -29,20 +29,20 @@ class TestHipsCommon(unittest.TestCase):
         self.attrs = {}
 
 
-class TestUtilsCommon(unittest.TestCase):
+class TestZenodoCommon(unittest.TestCase):
     """Base class for all Unittests including the ZenodoAPI"""
 
     access_token_environment_name = 'ZENODO_ACCESS_TOKEN'
-    base_url = 'https://sandbox.zenodo.org/'
+    base_url = ZenodoDefaultUrl.sandbox_url.value
 
     @classmethod
     def setUpClass(cls):
         """On inherited classes, run our `setUp` method"""
-        if cls is not TestUtilsCommon and cls.setUp is not TestUtilsCommon.setUp:
+        if cls is not TestZenodoCommon and cls.setUp is not TestZenodoCommon.setUp:
             orig_set_up = cls.setUp
 
             def set_up_override(self, *args, **kwargs):
-                TestUtilsCommon.setUp(self)
+                TestZenodoCommon.setUp(self)
                 return orig_set_up(self, *args, **kwargs)
 
             cls.setUp = set_up_override
@@ -66,6 +66,8 @@ class TestUtilsCommon(unittest.TestCase):
 
     def tearDown(self):
         assert self.test_deposit.delete()
+        if hasattr(self, "test_deposit2"):
+            assert self.test_deposit2.delete()
 
 
 class TestGitCommon(TestHipsCommon):
