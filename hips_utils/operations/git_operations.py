@@ -189,6 +189,7 @@ def download_repository(repo_url, git_folder_path):
         The repository object
 
     """
+    git_folder_path = Path(git_folder_path)
     Path.mkdir(git_folder_path, parents=True, exist_ok=True)
 
     # update existing repo or clone new repo

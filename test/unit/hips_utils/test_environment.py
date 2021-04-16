@@ -3,12 +3,10 @@ import tempfile
 import unittest.suite
 from unittest.mock import patch
 
-from xdg import xdg_cache_home
-
 import hips
 import hips.hips_base
+from hips_utils.environment import parse_environment_name_from_yaml, set_environment_name
 from test.unit.test_common import TestHipsCommon
-from hips_utils.environment import parse_environment_name_from_yaml, download_environment_yaml, set_environment_name
 
 
 class TestEnvironment(TestHipsCommon):
@@ -18,11 +16,10 @@ class TestEnvironment(TestHipsCommon):
         # self.something_all_tests_use = some_value
         pass
 
-    @patch('hips_utils.environment.download_resource', return_value="test.yml")
     @patch('hips_utils.environment.parse_environment_name_from_yaml', return_value="test")
+    @patch('hips_utils.environment._handle_environment_file', return_value="yaml_path")
     @patch('hips_utils.environment.Path.exists')
-    def test_set_environment_name(self, _, __, path_exists):
-
+    def test_set_environment_name(self, path_exists, _, __):
         # hips with no dependency -> hips_full
         hips_no_deps = hips.hips_base.HipsClass(self.attrs)
 
@@ -51,19 +48,19 @@ class TestEnvironment(TestHipsCommon):
         }
         hips_environment_url = hips.hips_base.HipsClass(self.attrs)
 
-        self.assertTrue(set_environment_name(hips_no_deps) == "hips_full",
-                        "hips_no_deps: Environment name wrong!")
+        self.assertEqual("hips_full", set_environment_name(hips_no_deps),
+                         "hips_no_deps: Environment name wrong!")
 
-        self.assertTrue(set_environment_name(hips_environment_name) == "test_name",
-                        "hips_environment_name: Environment name wrong!")
+        self.assertEqual("test_name", set_environment_name(hips_environment_name),
+                         "hips_environment_name: Environment name wrong!")
 
         path_exists.return_value = True
-        self.assertTrue(set_environment_name(hips_environment_file) == "test",
-                        "hips_environment_file: Environment name wrong!")
+        self.assertEqual("test", set_environment_name(hips_environment_file),
+                         "hips_environment_file: Environment name wrong!")
 
         path_exists.return_value = False  # ToDo: this is not working properly. Idk why?!?
-        self.assertTrue(set_environment_name(hips_environment_url) == "test",
-                        "hips_environment_url: Environment name wrong!")
+        self.assertEqual("test", set_environment_name(hips_environment_url),
+                         "hips_environment_url: Environment name wrong!")
 
     def test_parse_environment_name_from_yaml(self):
         test_yaml = tempfile.NamedTemporaryFile(mode='w+')

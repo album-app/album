@@ -22,9 +22,11 @@ class TestHipsInstall(TestHipsCommon):
     @patch('hips.load_and_push_hips')
     @patch('hips.install.run_in_environment')
     @patch('hips.install.create_script')
-    def test_install(self, _, run_in_environment_mock, load_mock, __):
+    @patch('hips.install.resolve_from_str')
+    def test_install(self, resolve_mock, _, run_in_environment_mock, load_mock, __):
         # setup mocks
         load_mock.side_effect = self.__install_hips
+        resolve_mock.side_effect = [{"path": "", "catalog": ""}]
 
         # setup fake hips
         self.attrs = Namespace(

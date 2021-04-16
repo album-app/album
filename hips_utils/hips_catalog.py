@@ -65,7 +65,7 @@ class Catalog:
         tree_leaf_node = self.catalog_index.resolve_hips_by_name_version_and_group(name, version, group)
 
         if tree_leaf_node:
-            path_to_solution = self.get_solution_cache_path(group, name, version)
+            path_to_solution = self.get_solution_cache_file(group, name, version)
 
             if not path_to_solution.is_file():
                 if self.is_local:
@@ -93,7 +93,7 @@ class Catalog:
         tree_leaf_node = self.catalog_index.resolve_hips_by_doi(doi)
 
         if tree_leaf_node:
-            path_to_solution = self.get_doi_cache_path(doi)
+            path_to_solution = self.get_doi_cache_file(doi)
 
             # file already cached
             if path_to_solution.is_file():
@@ -144,12 +144,16 @@ class Catalog:
             "version": tree_leaf_node["solution_version"],
         }
 
+    def get_solution_cache_file(self, group, name, version):
+        """Gets the cache file of a solution given its group, name and version."""
+        return self.get_solution_cache_path(group, name, version).joinpath("%s%s" % (name, ".py"))
+
     def get_solution_cache_path(self, group, name, version):
-        """Gets the cache path of the solution given its group, name and version."""
+        """Gets the cache path of a solution given its group, name and version."""
         return self.path.joinpath(self.gnv_solution_prefix, group, name, version)
 
-    def get_doi_cache_path(self, doi):
-        """Gets the cache path of the solution given a doi."""
+    def get_doi_cache_file(self, doi):
+        """Gets the cache path of a solution given a doi."""
         return self.path.joinpath(self.doi_solution_prefix, doi)
 
     # todo: write tests
@@ -172,7 +176,7 @@ class Catalog:
 
         url = record.files[solution_name].get_download_link()
 
-        download_resource(url, self.path.joinpath(self.doi_solution_prefix, doi))
+        download_resource(url, self.get_doi_cache_file(doi))
 
         return self.path.joinpath(self.doi_solution_prefix, doi)
 
@@ -221,16 +225,27 @@ class Catalog:
         self.catalog_index = CatalogIndex(self.id, self.index_path)
         return True
 
-    def add_to_index(self, active_hips):
+    def add_to_index(self, active_hips, force_overwrite=False):
         node_attrs = get_hips_deploy_dict(active_hips)
 
         if hasattr(active_hips, "doi"):
             node_attrs["doi"] = getattr(active_hips, "doi")
             if self.catalog_index.resolve_hips_by_doi(node_attrs["doi"]) is not None:
-                raise RuntimeError("DOI already exists in Index! Aborting...")
+                if force_overwrite:
+                    module_logger().warning("Soltion already exists! Overwriting...")
+                else:
+                    raise RuntimeError("DOI already exists in Index! Aborting...")
 
         if hasattr(active_hips, "deposit_id"):
             node_attrs["deposit_id"] = getattr(active_hips, "deposit_id")
+
+        if self.catalog_index.resolve_hips_by_name_version_and_group(
+                node_attrs["name"], node_attrs["version"], node_attrs["group"]
+        ) is not None:
+            if force_overwrite:
+                module_logger().warning("Soltion already exists! Overwriting...")
+            else:
+                raise RuntimeError("Solution already exists in Index! Aborting...")
 
         self.catalog_index.update_index(node_attrs)
 

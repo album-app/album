@@ -26,7 +26,7 @@ class TestFileOperations(unittest.TestCase):
 
     def set_dummy_solution_path(self):
         current_path = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
-        self.dummysolution = str(current_path.joinpath("..", "..", "..", "resources", "dummysolution.py"))
+        self.dummysolution = str(current_path.joinpath("..", "..", "..", "resources", "solution0_dummy.py"))
 
     def test_get_zenodo_metadata(self):
         doi = get_zenodo_metadata(self.dummysolution, "doi")
@@ -67,7 +67,7 @@ class TestFileOperations(unittest.TestCase):
             self.assertIn("    doi=\"\",\n", l)
             self.assertIn("    deposit_id=\"\",\n", l)
 
-        new_file_path = str(xdg_cache_home().joinpath("dummysolution_tmp.py"))
+        new_file_path = str(xdg_cache_home().joinpath("solution0_dummy_tmp.py"))
 
         with open(new_file_path) as f:
             l = f.readlines()

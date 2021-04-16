@@ -36,6 +36,8 @@ def download_resource(url, path):
         for chunk in r:
             f.write(chunk)
 
+    return path
+
 
 # todo: write tests
 def _request_get(url):

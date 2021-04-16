@@ -38,7 +38,7 @@ class TestCommandLine(unittest.TestCase):
 
     def test_run_non_existing_file(self):
         sys.argv = ["", "run", "test/path"]
-        with self.assertRaises(FileNotFoundError):
+        with self.assertRaises(ValueError):
             cmdline.main()
 
     def test_create_parser(self):

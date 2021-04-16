@@ -14,7 +14,7 @@ class TestCiUtils(TestGitCommon):
         self.zenodoAPI = ZenodoAPI('url', 'access_token')
 
         current_path = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
-        self.dummysolution = str(current_path.joinpath("..", "..", "resources", "dummysolution.py"))
+        self.dummysolution = str(current_path.joinpath("..", "..", "resources", "solution0_dummy.py"))
 
     def test__parse_solution_name_from_file(self):
 
@@ -100,7 +100,7 @@ class TestCiUtils(TestGitCommon):
                                                               get_zenodo_mock):
         deposit_expectation = ZenodoDeposit(
             {"files": [
-                ZenodoFile({"filename": "dummysolution.py", "id": 1}).__dict__
+                ZenodoFile({"filename": "solution0_dummy.py", "id": 1}).__dict__
             ]},
             'yet_another_url',
             'access_token'
@@ -151,7 +151,7 @@ class TestCiUtils(TestGitCommon):
     def test__zenodo_get_deposit_valid_id_unpublished_with_file_no_doi(self, deposit_get_id_mock, get_zenodo_mock):
         deposit_expectation = ZenodoDeposit(
             {"files": [
-                ZenodoFile({"filename": "dummysolution.py", "id": 1}).__dict__
+                ZenodoFile({"filename": "solution0_dummy.py", "id": 1}).__dict__
             ]},
             'yet_another_url',
             'access_token'
@@ -176,7 +176,7 @@ class TestCiUtils(TestGitCommon):
     def test__zenodo_get_deposit_valid_id_unpublished_with_file_and_doi(self, deposit_get_id_mock, get_zenodo_mock):
         deposit_expectation = ZenodoDeposit(
             {"files": [
-                ZenodoFile({"filename": "dummysolution.py", "id": 2}).__dict__
+                ZenodoFile({"filename": "solution0_dummy.py", "id": 2}).__dict__
             ],
                 "metadata": ZenodoMetadata({"prereserve_doi": {"doi": "the_real_doi"}}).__dict__,
                 "doi": "wrong_doi"
@@ -204,7 +204,7 @@ class TestCiUtils(TestGitCommon):
     def test__zenodo_upload_file_exists(self, create_file_mock, update_file_mock):
         deposit_expectation = ZenodoDeposit(
             {"files": [
-                ZenodoFile({"filename": "dummysolution.py", "id": 2}).__dict__
+                ZenodoFile({"filename": "solution0_dummy.py", "id": 2}).__dict__
             ],
                 "metadata": ZenodoMetadata({"prereserve_doi": {"doi": "the_real_doi"}}).__dict__,
                 "doi": "wrong_doi"
@@ -216,7 +216,7 @@ class TestCiUtils(TestGitCommon):
         ci_utils._zenodo_upload(deposit_expectation, self.dummysolution)
 
         create_file_mock.assert_not_called()
-        update_file_mock.assert_called_once_with("dummysolution.py", self.dummysolution)
+        update_file_mock.assert_called_once_with("solution0_dummy.py", self.dummysolution)
 
     @patch('ci.ci_utils.zenodo_api.ZenodoDeposit.update_file', return_value=True)
     @patch('ci.ci_utils.zenodo_api.ZenodoDeposit.create_file', return_value=True)

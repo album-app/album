@@ -83,13 +83,13 @@ class TestHipsCatalog(TestHipsCommon):
         self.populate_index()
         self.assertEqual(len(self.catalog), 10)
 
-    @patch('hips_utils.hips_catalog.Catalog.get_doi_cache_path')
-    def test_add_to_index_doi_already_present(self, get_solution_cache_path_mock):
+    @patch('hips_utils.hips_catalog.Catalog.get_doi_cache_file')
+    def test_add_to_index_doi_already_present(self, get_solution_cache_path_file):
         self.populate_index()
         self.assertEqual(len(self.catalog), 10)
 
         tmp_file = tempfile.NamedTemporaryFile()
-        get_solution_cache_path_mock.side_effect = [Path(tmp_file.name)]
+        get_solution_cache_path_file.side_effect = [Path(tmp_file.name)]
 
         hips = HipsClass({})
 
@@ -103,53 +103,85 @@ class TestHipsCatalog(TestHipsCommon):
         with self.assertRaises(RuntimeError):
             self.catalog.add_to_index(hips)
 
-    @patch('hips_utils.hips_catalog.Catalog.get_solution_cache_path')
-    def test_resolve(self, get_solution_cache_path_mock):
+    @patch('hips_utils.hips_catalog.Catalog.get_doi_cache_file')
+    def test_add_to_index_solution_already_present_no_overwrite(self, get_solution_cache_file_mock):
+        self.populate_index()
+        self.assertEqual(len(self.catalog), 10)
+
+        tmp_file = tempfile.NamedTemporaryFile()
+        get_solution_cache_file_mock.side_effect = [Path(tmp_file.name)]
+
+        hips = HipsClass({})
+
+        for key in deploy_keys:
+            setattr(hips, key, "%s%s" % (key, str(0)))  # already existend solution
+
+        with self.assertRaises(RuntimeError):
+            self.catalog.add_to_index(hips)
+
+    @patch('hips_utils.hips_catalog.Catalog.get_doi_cache_file')
+    def test_add_to_index_solution_already_present_overwrite(self, get_solution_cache_file_mock):
+        self.populate_index()
+        self.assertEqual(len(self.catalog), 10)
+
+        tmp_file = tempfile.NamedTemporaryFile()
+        get_solution_cache_file_mock.side_effect = [Path(tmp_file.name)]
+
+        hips = HipsClass({})
+
+        for key in deploy_keys:
+            setattr(hips, key, "%s%s" % (key, str(0)))  # already existend solution
+
+        self.catalog.add_to_index(hips, force_overwrite=True)
+        self.assertEqual(len(self.catalog), 10)
+
+    @patch('hips_utils.hips_catalog.Catalog.get_solution_cache_file')
+    def test_resolve(self, get_solution_cache_file_mock):
         self.populate_index()
         tmp_file = tempfile.NamedTemporaryFile()
-        get_solution_cache_path_mock.side_effect = [Path(tmp_file.name)]
+        get_solution_cache_file_mock.side_effect = [Path(tmp_file.name)]
 
         search_result = self.catalog.resolve("group0", "name0", "version0")
 
         self.assertEqual(search_result, Path(tmp_file.name))
 
-    @patch('hips_utils.hips_catalog.Catalog.get_solution_cache_path')
-    def test_resolve_in_index_but_no_file(self, get_solution_cache_path_mock):
+    @patch('hips_utils.hips_catalog.Catalog.get_solution_cache_file')
+    def test_resolve_in_index_but_no_file(self, get_solution_cache_file_mock):
         self.populate_index()
-        get_solution_cache_path_mock.side_effect = [Path("pathDoesNotExist")]
+        get_solution_cache_file_mock.side_effect = [Path("pathDoesNotExist")]
 
         with self.assertRaises(FileNotFoundError):
             self.catalog.resolve("group0", "name0", "version0")
 
-    @patch('hips_utils.hips_catalog.Catalog.get_solution_cache_path')
+    @patch('hips_utils.hips_catalog.Catalog.get_solution_cache_file')
     @patch('hips_utils.hips_catalog.Catalog.download_solution_via_doi', return_value=True)
-    def test_resolve_download_by_doi_if_present(self, download_doi_solution_mock, get_solution_cache_path_mock):
+    def test_resolve_download_by_doi_if_present(self, download_doi_solution_mock, get_solution_cache_file_mock):
         self.populate_index()
         self.catalog.is_local = False
         tempfile.NamedTemporaryFile()
-        get_solution_cache_path_mock.side_effect = [Path("pathDoesNotExist")]
+        get_solution_cache_file_mock.side_effect = [Path("pathDoesNotExist")]
 
         search_result = self.catalog.resolve("group0", "name0", "version0")
         download_doi_solution_mock.assert_called_once()
 
         self.assertEqual(search_result, Path("pathDoesNotExist"))
 
-    @patch('hips_utils.hips_catalog.Catalog.get_doi_cache_path')
-    def test_resolve_doi(self, get_solution_cache_path_mock):
+    @patch('hips_utils.hips_catalog.Catalog.get_doi_cache_file')
+    def test_resolve_doi(self, get_doi_cache_file_mock):
         self.populate_index()
         tmp_file = tempfile.NamedTemporaryFile()
-        get_solution_cache_path_mock.side_effect = [Path(tmp_file.name)]
+        get_doi_cache_file_mock.side_effect = [Path(tmp_file.name)]
 
         search_result = self.catalog.resolve_doi("doi0")
 
         self.assertEqual(search_result, Path(tmp_file.name))
 
-    @patch('hips_utils.hips_catalog.Catalog.get_doi_cache_path')
+    @patch('hips_utils.hips_catalog.Catalog.get_doi_cache_file')
     @patch('hips_utils.hips_catalog.Catalog.download_solution_via_doi')
-    def test_resolve_doi_not_cached(self, download_doi_solution_mock, get_solution_cache_path_mock):
+    def test_resolve_doi_not_cached(self, download_doi_solution_mock, get_solution_cache_file_mock):
         self.populate_index()
         tmp_file = tempfile.NamedTemporaryFile()
-        get_solution_cache_path_mock.side_effect = [Path("pathDoesNotExist")]
+        get_solution_cache_file_mock.side_effect = [Path("pathDoesNotExist")]
 
         download_doi_solution_mock.side_effect = [Path(tmp_file.name)]
 
@@ -225,9 +257,9 @@ class TestHipsCatalog(TestHipsCommon):
             self.catalog.path.joinpath(self.catalog.gnv_solution_prefix, "g", "n", "v")
         )
 
-    def test_get_doi_cache_path(self):
+    def test_get_doi_cache_file(self):
         self.assertEqual(
-            self.catalog.get_doi_cache_path("d"), self.catalog.path.joinpath(self.catalog.doi_solution_prefix, "d")
+            self.catalog.get_doi_cache_file("d"), self.catalog.path.joinpath(self.catalog.doi_solution_prefix, "d")
         )
 
 
