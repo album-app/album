@@ -32,8 +32,9 @@ class HIPSRunner:
         resolve = resolve_from_str(args.path)
 
         if not self.__is_in_catalog(resolve["catalog"]):
-            # todo: install the solution and continue on success
-            raise RuntimeError("Please install solution first!")
+            if not (resolve['path'].is_file() and resolve['path'].stat().st_size > 0):
+                # todo: install the solution and continue on success
+                raise RuntimeError("Please install solution first!")
 
         active_hips = hips.load_and_push_hips(resolve["path"])
 
