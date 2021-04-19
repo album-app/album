@@ -3,7 +3,7 @@ from pathlib import Path
 
 import anytree
 from anytree import RenderTree, Node
-from anytree.exporter import JsonExporter
+from anytree.exporter import JsonExporter, DictExporter
 from anytree.importer import JsonImporter
 
 from hips.deploy import get_hips_deploy_dict
@@ -446,10 +446,11 @@ class CatalogIndex:
     def get_leaves_dict_list(self):
         """Get a list of the dictionary of all leaves in the index."""
         leaves = self.catalog_index.leaves
+        dict_exporter = DictExporter()
         leaves_dict_list = []
         for leaf in leaves:
             if leaf.depth == 3:  # only add depth 3 nodes (these are solution nodes)
-                leaf_dict = leaf.__dict__
+                leaf_dict = dict_exporter.export(leaf)
                 leaves_dict_list.append(leaf_dict)
         return leaves_dict_list
 
