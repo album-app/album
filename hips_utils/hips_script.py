@@ -30,7 +30,13 @@ def create_script(hips_object, custom_code, argv):
     script = ("import sys\n"
               "import json\n"
               "import argparse\n"
-              "from hips import get_active_hips\n")
+              "from hips import get_active_hips\n"
+              "from hips_utils.hips_logging import configure_logging, LogLevel, get_active_logger\n"
+              "module_logger = get_active_logger\n")
+    # create logging
+    script += "configure_logging(%s, \"%s\", sys.stdout," % (
+        hips_logging.to_loglevel(hips_logging.get_loglevel_name()), hips_object['name']
+    ) + "\"" + r"%(levelname)s - %(message)s" + "\")\n"
     # This could have an issue with nested quotes
     argv_string = ", ".join(argv)
     module_logger().debug("Add sys.argv arguments to runtime script: %s" % argv_string)

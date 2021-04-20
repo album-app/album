@@ -412,7 +412,7 @@ class CatalogIndex:
         # adds a new version to the solution node
         solution_node_version = anytree.Node(version, parent=solution_node_name, **node_attrs)
 
-        module_logger().info("Added solution %s with version %s in group %s to the index..." % (name, group, version))
+        module_logger().info("Added solution %s with version %s in group %s to the index..." % (name, version, group))
 
         return solution_node_version
 

@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import tempfile
@@ -66,55 +67,73 @@ def set_environment_name(active_hips):
     return environment_name
 
 
-def set_environment_path(hips_object):
+def set_environment_path(active_hips):
     """Sets the hips attribute and returns the full environment path.
 
     Args:
-        hips_object:
+        active_hips:
             The hips object to create a solution for.
 
     Raises:
         RuntimeError: When the environment could not be found.
     """
     environment_dict = get_environment_dict()
-    environment_name = hips_object["_environment_name"]
+    environment_name = active_hips["_environment_name"]
     if environment_name in environment_dict.keys():
 
         environment_path = environment_dict[environment_name]
 
         module_logger().debug('Set environment path to %s' % environment_path)
-        hips_object["_environment_path"] = environment_path
+        active_hips["_environment_path"] = environment_path
 
         return environment_path
     else:
         raise RuntimeError('Could not find environment!')
 
 
-# ToDo: maybe find a nice way than extracting stuff from some console output?
-#  The current solution might be highly risky...
 def get_environment_dict():
     """Returns the conda environments available for the conda installation."""
     environment_dict = dict()
 
-    # remove empty lines and preceded information
-    def _split_and_clean(line_str):
-        return None if line_str == '' or line_str.startswith(
-            '#') else line_str.replace('\r', '').split(' ')
-
     # list environments via conda info command - Note: conda.cli.python_api support missing
     module_logger().debug('List available conda environments...')
-    output = subprocess.check_output(['conda', 'info', '--envs']).decode("utf-8")
-    lines = output.split("\n")
+    output = subprocess.check_output(['conda', 'info', '--json']).decode("utf-8")
+    conda_info = json.loads(output)
 
-    # extract name and path
-    module_logger().debug('Parse conda info output...')
-    for line in lines:
-        parsed_line = _split_and_clean(line)
-        if parsed_line:
-            # name is first split in line, path last
-            environment_dict[parsed_line[0]] = parsed_line[-1]
+    for env in conda_info["envs"]:
+        environment_dict[os.path.basename(env)] = env
 
     return environment_dict
+
+
+# todo: write tests
+def is_installed(environment_path, package_name, min_package_version=None):
+
+    subprocess_args = [
+        'conda', 'list', '--json', '--prefix', environment_path,
+    ]
+    output = subprocess.check_output(subprocess_args).decode("utf-8")
+    conda_list = json.loads(output)
+
+    for package in conda_list:
+        if package["name"] == package_name:
+            if min_package_version:
+                if package["version"] == min_package_version:
+                    module_logger().debug('Package %s:%s is installed...' % (package_name, min_package_version))
+                    return True
+                if package["version"] < min_package_version:
+                    module_logger().debug('Package %s:%s is installed. Requirements not set! Reinstalling...'
+                                          % (package_name, package["version"]))
+                    return False
+                if package["version"] > min_package_version:
+                    module_logger().debug('Package %s:%s is installed. Version should be compatible...'
+                                          % (package_name, package["version"]))
+                    return True
+            else:
+                module_logger().debug('Package %s:%s is installed...' % (package_name, package["version"]))
+                return True
+
+    return False
 
 
 def _handle_environment_file(env_file, active_hips):
@@ -168,8 +187,8 @@ def run_in_environment(environment_path, script):
     script_name = fp.name
 
     subprocess_args = [
-        'conda', 'run', '--no-capture-output', '--live-stream', '--prefix',
-        environment_path, 'python', script_name
+        str(Path(environment_path).joinpath("bin", "python")),
+        script_name
     ]
 
     subcommand.run(subprocess_args)
@@ -216,20 +235,23 @@ def create_or_update_environment(active_hips):
 
 
 # ToDo: use explicit versioning of hips
-def install_hips_in_environment(hips_object):
+def install_hips_in_environment(active_hips):
     """Installs the hips dependency in the environment
 
     Args:
-        hips_object:
+        active_hips:
             The hips object to create a solution for.
     """
-    environment_path = hips_object["_environment_path"]
-    subprocess_args = [
-        'conda', 'run', '--no-capture-output', '--prefix', environment_path,
-        'pip', 'install', 'git+https://gitlab.com/ida-mdc/hips.git'
-    ]
-    module_logger().debug('Install hips in target environment with subprocess: %s...' % " ".join(subprocess_args))
-    subcommand.run(subprocess_args)
+    environment_path = active_hips["_environment_path"]
+
+    if not is_installed(environment_path, "hips", active_hips["min_hips_version"]):
+
+        subprocess_args = [
+            'conda', 'run', '--no-capture-output', '--prefix', environment_path,
+            'pip', 'install', 'git+https://gitlab.com/ida-mdc/hips.git'
+        ]
+        module_logger().debug('Installing hips in target environment...')
+        subcommand.run(subprocess_args)
 
 
 def environment_exists(environment_name):
@@ -244,3 +266,51 @@ def environment_exists(environment_name):
     """
     environment_dict = get_environment_dict()
     return True if environment_name in environment_dict.keys() else False
+
+
+# todo: write tests
+def get_active_environment_path():
+    """Returns the environment form the active hips."""
+    subprocess_args = [
+        'conda', 'info', '--json'
+    ]
+    output = subprocess.check_output(subprocess_args).decode("utf-8")
+    conda_list = json.loads(output)
+
+    return conda_list["active_prefix"]
+
+
+# ToDo: write tests
+def pip_install(module, version=None, environment_name=None):
+    """Installs the given module int the an environment.
+
+    Either this environment is given by name, or the current active
+    environment is taken.
+
+    Args:
+        module:
+            Either a path to a git or a package name.
+        version:
+            The version of the package to install. Must left unspecified if module points to a git.
+        environment_name:
+            The environment name to install the package to. The currently active one if none specified.
+
+    """
+    if environment_name:
+        try:
+            environment_path = get_environment_dict()[environment_name]
+        except KeyError as e:
+            raise RuntimeError("Environment name %s not found! Aborting..." % environment_name) from e
+    else:
+        environment_path = get_active_environment_path()
+
+    if version:
+        module = "==".join([module, version])
+
+    subprocess_args = [
+        'conda', 'run', '--no-capture-output', '--prefix',
+        environment_path, 'pip', 'install', '--force-reinstall',  module
+    ]
+
+    module_logger().debug("Installing %s in environment %s..." % (module, environment_path))
+    subcommand.run(subprocess_args)

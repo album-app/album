@@ -55,6 +55,7 @@ def resolve_from_str(str_input: str):
             if not p:
                 raise ValueError("Invalid input format! Try <doi>:<prefix>/<suffix> or <prefix>/<suffix> or "
                                  "<group>:<name>:<version> or point to a valid file! Aborting...")
+        module_logger().debug("Parsed %s from the input... " % p)
         return resolve_hips(p)
 
 
@@ -71,7 +72,7 @@ def get_gnv_from_input(str_input: str):
 
 
 def get_doi_from_input(str_input: str):
-    s = re.search('^(^doi:)?([^:]*\/[^:]*)$', str_input)
+    s = re.search('^(^doi:)?([^:\/]*\/[^:\/]*)$', str_input)
     if s:
         return {
             "doi": s.group(2)

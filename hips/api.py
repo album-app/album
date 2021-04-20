@@ -2,25 +2,30 @@ import os
 from pathlib import Path
 
 import requests
-from xdg import xdg_data_home, xdg_data_dirs, xdg_config_home
+
+
+from xdg import xdg_data_home, xdg_config_home
 
 from hips.hips_base import HipsDefaultValues
-from hips_utils import hips_logging
+from hips_utils import hips_logging, subcommand
 from hips_utils.operations.git_operations import download_repository
 
 module_logger = hips_logging.get_active_logger
 
 
+# todo: move to smth else and wirte a wrapper here. Causing circular dependency import errors!
 def get_configuration_file_path():
     """Get the path to the HIPS runtime configuration file."""
     return xdg_config_home().joinpath(HipsDefaultValues.hips_config_file_name.value)
 
 
+# todo: move to smth else and wirte a wrapper here. Causing circular dependency import errors!
 def get_base_cache_path():
     """Get path to local HIPS cache directory"""
     return xdg_data_home().joinpath("hips")
 
 
+# todo: move to smth else and wirte a wrapper here. Causing circular dependency import errors!
 def get_cache_path_hips(active_hips):
     """Get the cache path of the active hips
 
@@ -36,6 +41,7 @@ def get_cache_path_hips(active_hips):
         return get_base_cache_path().joinpath("solutions", "local", active_hips["group"], active_hips["name"], active_hips["version"])
 
 
+# todo: move to smth else and wirte a wrapper here. Causing circular dependency import errors!
 def get_cache_path_app(active_hips):
     """Get the app cache path of the active hips
 
@@ -51,6 +57,7 @@ def get_cache_path_app(active_hips):
         return get_base_cache_path().joinpath("apps", "local", active_hips["group"], active_hips["name"], active_hips["version"])
 
 
+# todo: move to smth else and wirte a wrapper here. Causing circular dependency import errors!
 def get_cache_path_downloads(active_hips):
     """Get the cache path of anything a hips downloads.
 
@@ -66,6 +73,7 @@ def get_cache_path_downloads(active_hips):
         return get_base_cache_path().joinpath("downloads", "local", active_hips["group"], active_hips["name"], active_hips["version"])
 
 
+# todo: move to smth else and wirte a wrapper here. Causing circular dependency import errors!
 def get_cache_path_catalog(catalog_id):
     """Get the cache path to the catalog with a certain ID.
 
@@ -173,3 +181,24 @@ def chdir_repository(active_hips):
         os.chdir(str(repo_path))
     else:
         raise FileNotFoundError("Could not identify %s as repository. Aborting..." % repo_path)
+
+
+def install_package(module, environment_name, version=None):
+    from hips_utils.environment import pip_install
+    pip_install(module, version=version, environment_name=environment_name)
+
+
+def run_as_executable(cmd, args):
+    from hips import get_active_hips
+    from hips_utils.environment import set_environment_name, set_environment_path
+
+    active_hips = get_active_hips()
+    set_environment_name(active_hips)
+    environment_path = Path(set_environment_path(active_hips))
+
+    executable_path = environment_path.joinpath("bin", cmd)
+    cmd = [
+        str(executable_path)
+    ] + args
+
+    subcommand.run(cmd)
