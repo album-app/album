@@ -64,7 +64,6 @@ def load_and_push_hips(path):
     exec(hips_script)
     active_hips = get_active_hips()
     active_hips.script = hips_script
-    module_logger().debug('hips loaded locally: %s' % str(active_hips))
     return active_hips
 
 

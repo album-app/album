@@ -3,6 +3,7 @@ import sys
 import hips
 from hips_utils import subcommand, hips_logging
 from hips_utils.environment import create_or_update_environment, run_in_environment
+from hips_utils.hips_logging import LogLevel
 from hips_utils.hips_resolve import resolve_hips, resolve_from_str, get_configuration
 from hips_utils.hips_script import create_script
 
@@ -24,7 +25,8 @@ def install(args):
     __handle_dependencies(active_hips)
     __handle_parent(active_hips)
     __execute_install_routine(active_hips)
-    if not resolve["catalog"]:
+
+    if not resolve["catalog"]:  # case where a solution file is directly given
         __add_to_local_catalog(active_hips)
 
     module_logger().info('Installed %s' % active_hips['name'])
@@ -40,9 +42,14 @@ def __add_to_local_catalog(active_hips):
 def __execute_install_routine(active_hips):
     """Run install routine of hips if specified"""
     if hasattr(active_hips, 'install') and callable(active_hips['install']):
-        module_logger().debug('Calling install routine specified in solution...')
+        module_logger().debug('Creating install script...')
         script = create_script(active_hips, "\nhips.get_active_hips().install()\n", sys.argv)
+        module_logger().debug('Calling install routine specified in solution...')
+        hips_logging.configure_logging(
+            LogLevel(hips_logging.to_loglevel(hips_logging.get_loglevel_name())), active_hips['name']
+        )
         run_in_environment(active_hips["_environment_path"], script)
+        hips_logging.pop_active_logger()
 
 
 def __handle_dependencies(active_hips):
@@ -59,7 +66,7 @@ def __install_hips(hips_dependency):
     """Calls `install` for a HIPS declared in a dependency block"""
     hips_script = resolve_hips(hips_dependency)["path"]
     # todo: why don't we call "install" directly? Why a new process?
-    subcommand.run("python -m hips install " + hips_script + " --log=%s" % hips_logging.LogLevel(hips.hips_debug()).name)
+    subcommand.run("python -m hips install " + hips_script + " --log=%s" % hips_logging.get_loglevel_name())
 
 
 def __handle_parent(active_hips):

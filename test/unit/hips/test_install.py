@@ -32,6 +32,7 @@ class TestHipsInstall(TestHipsCommon):
         self.attrs = Namespace(
             path="",
             name="",
+            min_hips_version="",
             dependencies={'environment_name': 'hips'},
             install=Mock()
         )

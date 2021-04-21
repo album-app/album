@@ -1,3 +1,4 @@
+import io
 import logging
 from enum import IntEnum, unique
 
@@ -47,6 +48,7 @@ class LogLevel(IntEnum):
     """
     DEBUG = 1
     INFO = 0
+    WARNING = 2
 
 
 def to_loglevel(value):
@@ -71,10 +73,14 @@ def to_loglevel(value):
         raise err
 
 
-def configure_logging(loglevel, name):
+def configure_logging(loglevel, name, stream_handler=None, formatter_string=None):
     """Configures a logger with a certain name and loglevel.
 
     Args:
+        stream_handler:
+            Optional. A stream handler to configure logging for
+        formatter_string:
+            A formatter string.
         loglevel:
             The Loglevel to use. Either DEBUG or INFO.
         name:
@@ -90,13 +96,20 @@ def configure_logging(loglevel, name):
     if not logger.hasHandlers():
         logger.setLevel(loglevel.name)
 
+        # create formatter
+        if not formatter_string:
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        else:
+            formatter = logging.Formatter(formatter_string)
+
         # create console handler and set level to debug
         # ToDo: different handlers necessary? e.g. logging additional into a file?
-        ch = logging.StreamHandler()
-        ch.setLevel(loglevel.name)
+        if not stream_handler:
+            ch = logging.StreamHandler()
+        else:
+            ch = logging.StreamHandler(stream_handler)
 
-        # create formatter
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        ch.setLevel(loglevel.name)
 
         # add formatter to ch
         ch.setFormatter(formatter)
@@ -137,3 +150,27 @@ def set_loglevel(loglevel):
 
         active_logger.debug('Set loglevel for handler %s to %s...' % (handler_name, loglevel.name))
         handler.setLevel(loglevel.name)
+
+
+class LogfileBuffer(io.StringIO):
+
+    def __init__(self):
+        super().__init__()
+        self.module_logger = get_active_logger
+
+    def write(self, s: str) -> int:
+        split_output = s.split("-")
+        message = "-".join(split_output[1:]).strip()
+
+        level = split_output[0].strip()
+
+        if LogLevel.INFO.name == level:
+            self.module_logger().info(message)
+        elif LogLevel.DEBUG.name == level:
+            self.module_logger().debug(message)
+        elif LogLevel.WARNING.name == level:
+            self.module_logger().warning(message)
+        else:  # message not from the hips framework (e.g. print, or further subprocess)
+            self.module_logger().info(s.strip())
+
+        return 1
