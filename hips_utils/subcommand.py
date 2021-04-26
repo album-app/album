@@ -18,6 +18,8 @@ def run(command):
         (_, exit_status) = pexpect.run(
          " ".join(command), logfile=LogfileBuffer(), withexitstatus=1, timeout=None, encoding='utf-8'
         )
+        if exit_status != 0:
+            raise RuntimeError("Command failed due to reasons above!")
     else:
         log = LogfileBuffer()
         process = subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True)

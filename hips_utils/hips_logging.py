@@ -2,7 +2,6 @@ import io
 import logging
 from enum import IntEnum, unique
 
-
 """
 Global variable for tracking the currently active logger. Do not use this
 directly instead use get_active_logger()
@@ -159,6 +158,7 @@ class LogfileBuffer(io.StringIO):
         self.module_logger = get_active_logger
 
     def write(self, s: str) -> int:
+        s = self.tabulate_multi_lines(s)
         split_output = s.split("-")
         message = "-".join(split_output[1:]).strip()
 
@@ -171,6 +171,14 @@ class LogfileBuffer(io.StringIO):
         elif LogLevel.WARNING.name == level:
             self.module_logger().warning(message)
         else:  # message not from the hips framework (e.g. print, or further subprocess)
-            self.module_logger().info(s.strip())
+            self.module_logger().info(s)
 
         return 1
+
+    @staticmethod
+    def tabulate_multi_lines(s: str, indent=2):
+        split_s = s.split("\n")
+        r = split_s[0].strip() + "\n"
+        for l in split_s[1:]:
+            r = r + "".join(["\t"]*indent) + l.strip()
+        return r
