@@ -108,7 +108,6 @@ def get_environment_dict():
 
 # todo: write tests
 def is_installed(environment_path, package_name, min_package_version=None):
-
     subprocess_args = [
         'conda', 'list', '--json', '--prefix', environment_path,
     ]
@@ -186,9 +185,10 @@ def run_in_environment(environment_path, script):
 
     script_name = fp.name
 
+    # conda run necessary to correctly initialize python
     subprocess_args = [
-        str(Path(environment_path).joinpath("bin", "python")),
-        script_name
+        'conda', 'run', '--no-capture-output', '--prefix',
+        environment_path, 'python', script_name
     ]
 
     subcommand.run(subprocess_args)
@@ -216,12 +216,20 @@ def create_or_update_environment(active_hips):
 
         module_logger().debug('Environment file %s in hips dependencies...' % env_file)
 
-        subprocess_args = ['conda', 'env', 'create', '-f', str(env_file)]
-        subcommand.run(subprocess_args)
+        subprocess_args = ['conda', 'env', 'create', '-q', '-f', str(env_file)]
+        try:
+            subcommand.run(subprocess_args)
+        except RuntimeError as e:
+            # cleanup after failed installation
+            if environment_exists(environment_name):
+                module_logger().debug('Cleanup failed installation...')
+                subprocess_args = ['conda', 'env', 'remove', '-q', '-n', environment_name]
+                subcommand.run(subprocess_args)
+            raise RuntimeError("Command failed due to reasons above!") from e
 
     else:
         module_logger().debug('No environment specified in hips dependencies. Taking %s environment...' % 'hips_full')
-        subprocess_args = ['conda', 'env', 'create', '-f', 'hips_full.yml']  # ToDo: get rid of hardcoded stuff
+        subprocess_args = ['conda', 'env', 'create', '-q', '-f', 'hips_full.yml']  # ToDo: get rid of hardcoded stuff
 
         subcommand.run(subprocess_args)
 
@@ -245,13 +253,7 @@ def install_hips_in_environment(active_hips):
     environment_path = active_hips["_environment_path"]
 
     if not is_installed(environment_path, "hips", active_hips["min_hips_version"]):
-
-        subprocess_args = [
-            'conda', 'run', '--no-capture-output', '--prefix', environment_path,
-            'pip', 'install', 'git+https://gitlab.com/ida-mdc/hips.git'
-        ]
-        module_logger().debug('Installing hips in target environment...')
-        subcommand.run(subprocess_args)
+        pip_install('git+https://gitlab.com/ida-mdc/hips.git', environment_path=environment_path)
 
 
 def environment_exists(environment_name):
@@ -281,7 +283,7 @@ def get_active_environment_path():
 
 
 # ToDo: write tests
-def pip_install(module, version=None, environment_name=None):
+def pip_install(module, version=None, environment_name=None, environment_path=None):
     """Installs the given module int the an environment.
 
     Either this environment is given by name, or the current active
@@ -294,22 +296,26 @@ def pip_install(module, version=None, environment_name=None):
             The version of the package to install. Must left unspecified if module points to a git.
         environment_name:
             The environment name to install the package to. The currently active one if none specified.
+        environment_path:
+            The environment path to install the package to. Ignores environment_name parameter when set.
 
     """
-    if environment_name:
-        try:
-            environment_path = get_environment_dict()[environment_name]
-        except KeyError as e:
-            raise RuntimeError("Environment name %s not found! Aborting..." % environment_name) from e
-    else:
-        environment_path = get_active_environment_path()
+    if not environment_path:
+        if environment_name:
+            try:
+                environment_path = get_environment_dict()[environment_name]
+            except KeyError as e:
+                raise RuntimeError("Environment name %s not found! Aborting..." % environment_name) from e
+        else:
+            environment_path = get_active_environment_path()
 
     if version:
         module = "==".join([module, version])
 
+    # conda run necessary to correctly initialize pip
     subprocess_args = [
         'conda', 'run', '--no-capture-output', '--prefix',
-        environment_path, 'pip', 'install', '--force-reinstall',  module
+        environment_path, 'pip', 'install', '-q', '--force-reinstall', module
     ]
 
     module_logger().debug("Installing %s in environment %s..." % (module, environment_path))
