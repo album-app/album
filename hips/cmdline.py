@@ -1,18 +1,18 @@
 import argparse
 import sys
 
-from hips import hips_debug
-from hips.containerize import containerize
-from hips.deploy import deploy
-from hips.install import install
-from hips.remove import remove
-from hips.repl import repl
-from hips.run import run
-from hips.search import search
-from hips.tutorial import tutorial
-from hips_utils import hips_logging
+from hips.core import hips_debug
+from hips.core.deploy import deploy
+from hips.core.install import install
+from hips.core.repl import repl
+from hips.core.containerize import containerize
+from hips.core.tutorial import tutorial
+from hips.core.remove import remove
+from hips.core.run import run
+from hips.core.search import search
+from hips.core.model import logging
 
-module_logger = hips_logging.get_active_logger
+module_logger = logging.get_active_logger
 
 
 def main():
@@ -30,7 +30,7 @@ def main():
 
 def __handle_args(args, parser):
     """Handles all arguments provided after the hips command."""
-    hips_logging.set_loglevel(args[0].log)
+    logging.set_loglevel(args[0].log)
     __run_subcommand(args, parser)
 
 
@@ -48,7 +48,7 @@ def __run_subcommand(args, parser):
 
 def __retrieve_logger():
     """Retrieves the default hips logger."""
-    hips_logging.configure_logging(hips_logging.LogLevel(hips_debug()), 'hips_core')
+    logging.configure_logging(logging.LogLevel(hips_debug()), 'hips_core')
 
 
 def create_parser():
@@ -89,9 +89,9 @@ class __HIPSParser(ArgumentParser):
             '--log',
             required=False,
             help='Logging level for your hips command. Choose between %s' %
-                 ", ".join([loglevel.name for loglevel in hips_logging.LogLevel]),
-            default=hips_logging.LogLevel(hips_debug()),
-            type=(lambda choice: hips_logging.to_loglevel(choice)),
+                 ", ".join([loglevel.name for loglevel in logging.LogLevel]),
+            default=logging.LogLevel(hips_debug()),
+            type=(lambda choice: logging.to_loglevel(choice)),
         )
         return parent_parser
 

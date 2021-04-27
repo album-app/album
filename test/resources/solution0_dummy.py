@@ -1,4 +1,4 @@
-import hips
+from hips.core import setup
 
 
 def hips_init():
@@ -8,7 +8,7 @@ def hips_init():
 def hips_run():
     pass
 
-hips.setup(
+setup(
     group="group",
     name="name",
     title="name",

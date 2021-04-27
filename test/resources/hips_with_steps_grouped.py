@@ -1,4 +1,4 @@
-import hips
+from hips.core import setup
 
 global args
 
@@ -9,7 +9,7 @@ def hips_init():
     pass
 
 
-hips.setup(
+setup(
     group="group",
     name="hips_with_steps_grouped",
     title="hips with steps grouped",

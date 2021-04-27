@@ -1,4 +1,4 @@
-import hips
+from hips.core import setup
 
 global args
 
@@ -26,7 +26,7 @@ def hips_close():
     pass
 
 
-hips.setup(
+setup(
     group="group",
     name="app2",
     title="app two",

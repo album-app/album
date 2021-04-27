@@ -7,10 +7,10 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-import hips
-from hips import cmdline
-from hips_utils.hips_configuration import HipsConfiguration
-from hips_utils.hips_logging import push_active_logger
+import hips.core as hips
+from hips.cmdline import main
+from hips.core.model.configuration import HipsConfiguration
+from hips.core.model.logging import push_active_logger
 
 
 class TestHIPSCommandLine(unittest.TestCase):
@@ -23,7 +23,7 @@ class TestHIPSCommandLine(unittest.TestCase):
         while hips.get_active_hips() is not None:
             hips.pop_active_hips()
 
-    @patch('hips.install.get_configuration')
+    @patch('hips.core.install.get_configuration')
     def test_install(self, get_conf_mock):
         test_catalog_dir = tempfile.TemporaryDirectory()
 
@@ -39,27 +39,27 @@ class TestHIPSCommandLine(unittest.TestCase):
         self.assertEqual(len(config.local_catalog), 0)
 
         sys.argv = ["", "install", str(get_test_solution_path())]
-        self.assertIsNone(cmdline.main())
+        self.assertIsNone(main())
 
         self.assertEqual(len(config.local_catalog), 1)
 
     def test_install_no_solution(self):
         sys.argv = ["", "install"]
         with self.assertRaises(SystemExit) as e:
-            cmdline.main()
+            main()
         self.assertEqual(SystemExit(2).code, e.exception.code)
 
     def test_search_no_keyword(self):
         sys.argv = ["", "search"]
         with self.assertRaises(SystemExit) as e:
-            cmdline.main()
+            main()
         self.assertEqual(SystemExit(2).code, e.exception.code)
 
     def test_search_emtpy_index(self):
         sys.argv = ["", "search", "keyword"]
-        self.assertIsNone(cmdline.main())
+        self.assertIsNone(main())
 
-    @patch('hips_utils.hips_resolve.get_configuration')
+    @patch('hips.core.model.resolve.get_configuration')
     @patch('hips.cmdline.__retrieve_logger')
     def test_search_filled_index(self, logger_mock, get_conf_mock):
         # configure additional log output for checking
@@ -77,23 +77,23 @@ class TestHIPSCommandLine(unittest.TestCase):
 
         # define and run search
         sys.argv = ["", "search", "keyword1"]
-        self.assertIsNone(cmdline.main())
+        self.assertIsNone(main())
 
         # check output to have found the solution behind keyword1
         self.assertIn('catalog_local_ida-mdc_solution0_dummy_0.1.0', captured_output.getvalue())
 
-    @patch('hips.run.resolve_from_str')
+    @patch('hips.core.run.resolve_from_str')
     def test_run(self, res_from_str_mock):
         sys.argv = ["", "run", get_test_solution_path()]
 
         res_from_str_mock.side_effect = [{"path": get_test_solution_path(), "catalog": "aCatalog"}]
 
-        self.assertIsNone(cmdline.main())
+        self.assertIsNone(main())
         self.assertIsNone(hips.get_active_hips())
 
-    @patch('hips.run.resolve_from_str')
-    @patch('hips.run.resolve_hips')
-    @patch('hips.run.set_environment_name')
+    @patch('hips.core.run.resolve_from_str')
+    @patch('hips.core.run.resolve_hips')
+    @patch('hips.core.run.set_environment_name')
     def test_run_with_parent(self, environment_name_mock, resolve_mock, res_from_str_mock):
         resolve_mock.side_effect = self.__resolve_hips
         environment_name_mock.side_effect = self.__set_environment_name
@@ -102,7 +102,7 @@ class TestHIPSCommandLine(unittest.TestCase):
         fp = tempfile.NamedTemporaryFile(mode='w+', delete=False)
         sys.argv = ["", "run", get_test_solution_path("solution1_app1.py"), "--file", fp.name, "--file_solution1_app1",
                     fp.name, "--app1_param", "value1"]
-        self.assertIsNone(cmdline.main())
+        self.assertIsNone(main())
         with open(fp.name, "r") as f:
             log = f.read().strip().split("\n")
             self.assertEqual(5, len(log))
@@ -113,9 +113,9 @@ class TestHIPSCommandLine(unittest.TestCase):
             self.assertEqual("app1_close", log[4])
             self.assertIsNone(hips.get_active_hips())
 
-    @patch('hips.run.resolve_from_str')
-    @patch('hips.run.resolve_hips')
-    @patch('hips.run.set_environment_name')
+    @patch('hips.core.run.resolve_from_str')
+    @patch('hips.core.run.resolve_hips')
+    @patch('hips.core.run.set_environment_name')
     def test_run_with_steps(self, run_environment_mock, run_resolve_mock, res_from_str_mock):
         run_resolve_mock.side_effect = self.__resolve_hips
         run_environment_mock.side_effect = self.__set_environment_name
@@ -124,7 +124,7 @@ class TestHIPSCommandLine(unittest.TestCase):
         fp = tempfile.NamedTemporaryFile(mode='w+', delete=False)
         sys.argv = ["", "run", get_test_solution_path("hips_with_steps.py"), "--file", fp.name, "--file_solution1_app1",
                     fp.name]
-        self.assertIsNone(cmdline.main())
+        self.assertIsNone(main())
         with open(fp.name, "r") as f:
             log = f.read().strip().split("\n")
             self.assertEqual(12, len(log))
@@ -142,9 +142,9 @@ class TestHIPSCommandLine(unittest.TestCase):
             self.assertEqual("solution3_noparent_close", log[11])
             self.assertIsNone(hips.get_active_hips())
 
-    @patch('hips.run.resolve_from_str')
-    @patch('hips.run.resolve_hips')
-    @patch('hips.run.set_environment_name')
+    @patch('hips.core.run.resolve_from_str')
+    @patch('hips.core.run.resolve_hips')
+    @patch('hips.core.run.set_environment_name')
     def test_run_with_grouped_steps(self, run_environment_mock, run_resolve_mock, res_from_str_mock):
         run_resolve_mock.side_effect = self.__resolve_hips
         run_environment_mock.side_effect = self.__set_environment_name
@@ -155,7 +155,7 @@ class TestHIPSCommandLine(unittest.TestCase):
         fp = tempfile.NamedTemporaryFile(mode='w+', delete=False)
         sys.argv = ["", "run", get_test_solution_path("hips_with_steps_grouped.py"), "--file", fp.name,
                     "--file_solution1_app1", fp.name]
-        self.assertIsNone(cmdline.main())
+        self.assertIsNone(main())
         with open(fp.name, "r") as f:
             log = f.read().strip().split("\n")
             self.assertEqual(18, len(log))
@@ -185,7 +185,7 @@ class TestHIPSCommandLine(unittest.TestCase):
 
     def test_tutorial(self):
         sys.argv = ["", "tutorial", get_test_solution_path()]
-        self.assertIsNone(cmdline.main())
+        self.assertIsNone(main())
 
     # def test_repl(self):
     #     sys.argv = ["", "repl", get_dummy_solution_path()]
@@ -193,11 +193,11 @@ class TestHIPSCommandLine(unittest.TestCase):
 
     def test_containerize(self):
         sys.argv = ["", "containerize", get_test_solution_path()]
-        self.assertIsNone(cmdline.main())
+        self.assertIsNone(main())
 
     def test_remove(self):
         sys.argv = ["", "remove", get_test_solution_path()]
-        self.assertIsNone(cmdline.main())
+        self.assertIsNone(main())
 
     def __resolve_hips(self, hips_dependency):
         path = get_test_solution_path(hips_dependency['name'] + ".py")

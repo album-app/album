@@ -1,4 +1,4 @@
-import hips
+from hips.core import setup
 
 global args
 
@@ -21,7 +21,7 @@ def hips_close():
     file.close()
 
 
-hips.setup(
+setup(
     group="group",
     name="solution3_noparent",
     title="solution three, no parent",

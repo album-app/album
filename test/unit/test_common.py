@@ -6,7 +6,7 @@ import git
 
 from xdg import xdg_cache_home
 
-from hips_utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
+from hips.ci.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 
 
 class TestHipsCommon(unittest.TestCase):
