@@ -69,7 +69,7 @@ class Catalog:
 
             if not path_to_solution.is_file():
                 if self.is_local:
-                    raise FileNotFoundError("Could resolve the solution, but file could not be found!"
+                    raise FileNotFoundError(f"Could resolve the solution, but file {path_to_solution} could not be found!"
                                             " Please reinstall the solution!")
                 if hasattr(tree_leaf_node, "doi"):
                     self.download_solution_via_doi(getattr(tree_leaf_node, "doi"), name)
