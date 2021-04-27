@@ -11,6 +11,7 @@ def hips_run():
 hips.setup(
     group="group",
     name="name",
+    title="name",
     version="0.1.0",
     doi="",
     deposit_id="",

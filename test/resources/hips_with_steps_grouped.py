@@ -12,6 +12,7 @@ def hips_init():
 hips.setup(
     group="group",
     name="hips_with_steps_grouped",
+    title="hips with steps grouped",
     version="0.1.0",
     format_version="0.3.0",
     timestamp="",

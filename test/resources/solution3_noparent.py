@@ -24,6 +24,7 @@ def hips_close():
 hips.setup(
     group="group",
     name="solution3_noparent",
+    title="solution three, no parent",
     version="0.1.0",
     format_version="0.3.0",
     timestamp="",
