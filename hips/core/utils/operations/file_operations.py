@@ -250,3 +250,13 @@ def copy(path_from, path_to):
     create_path_recursively(path_to.parent)
 
     shutil.copy(path_from, path_to)
+
+
+def copy_in_file(file_content, file_path):
+    file_path = Path(file_path)
+    create_path_recursively(file_path.parent)
+    if file_path.is_file():
+        file_path.unlink()
+    with open(file_path, "w") as script_file:
+        script_file.write(file_content)
+    return file_path

@@ -1,4 +1,3 @@
-import os
 import sys
 
 from hips.core import load_and_push_hips, pop_active_hips
@@ -7,6 +6,7 @@ from hips.core.model import logging
 from hips.core.model.environment import create_or_update_environment, run_in_environment
 from hips.core.model.logging import LogLevel
 from hips.core.model.resolve import resolve_hips, resolve_from_str, get_configuration
+from hips.core.utils.operations.file_operations import copy_in_file
 from hips.core.utils.script import create_script
 
 module_logger = logging.get_active_logger
@@ -35,25 +35,12 @@ def install(args):
     pop_active_hips()
 
 
-def __copy_file(file_content, new_path):
-    if not new_path.parent.exists():
-        new_path.parent.mkdir(parents=True)
-    if new_path.exists():
-        os.remove(new_path)
-    script_file = open(new_path, "w")
-    script_file.write(file_content)
-    script_file.close()
-    pass
-
-
 def __add_to_local_catalog(active_hips):
     """Force adds the installation to the local catalog to be cached for running"""
     hips_config = get_configuration()
     hips_config.local_catalog.add_to_index(active_hips, force_overwrite=True)
-    tree_leaf_node = hips_config.local_catalog.catalog_index.resolve_hips_by_name_version_and_group(active_hips.name, active_hips.version, active_hips.group)
-    if tree_leaf_node:
-        local_catalog_path = hips_config.local_catalog.get_solution_cache_file(active_hips.group, active_hips.name, active_hips.version)
-        __copy_file(active_hips.script, local_catalog_path)
+    local_catalog_path = hips_config.local_catalog.get_solution_cache_file(active_hips.group, active_hips.name, active_hips.version)
+    copy_in_file(active_hips.script, local_catalog_path)
 
 
 def __execute_install_routine(active_hips):
