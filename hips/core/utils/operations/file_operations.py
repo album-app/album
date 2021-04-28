@@ -147,11 +147,11 @@ def get_zenodo_metadata(file, metadata):
                     else:
                         raise FileOperationError("Retrieving doi failed. ",
                                                  "Retrieving doi failed! File wrongly formatted? "
-                                                 "Detected line '{}' after \"hips.setup(\" initiation.".format(line))
+                                                 "Detected line '{}' after \"setup(\" initiation.".format(line))
 
 
 def set_zenodo_metadata_in_solutionfile(file, doi, deposit_id):
-    module_logger().debug("Set doi %s and deposit_id: %s in file %s" % (doi, deposit_id, file))
+    module_logger().debug("Set doi %s and deposit_id: %s in file %s..." % (doi, deposit_id, file))
 
     solution_name, solution_ext = os.path.splitext(os.path.basename(file))
     solution_name_full = solution_name + "_tmp" + solution_ext
@@ -201,7 +201,7 @@ def set_zenodo_metadata_in_solutionfile(file, doi, deposit_id):
                         os.remove(str(new_file_path))
                         raise FileOperationError("Writing doi failed. ",
                                                  "Writing doi failed! File wrongly formatted? "
-                                                 "Detected line '{}' after \"hips.setup(\" initiation.".format(line))
+                                                 "Detected line '{}' after \"setup(\" initiation.".format(line))
 
     new_file.close()
 

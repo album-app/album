@@ -45,5 +45,5 @@ def search(args):
                 match_score[unique_id] = score
 
     sorted_results = sorted(match_score.items(), key=operator.itemgetter(1))
-    module_logger().info('Search results for "%s"' % search_args.keywords)
+    module_logger().info('Search results for "%s"...' % search_args.keywords)
     module_logger().info(sorted_results)

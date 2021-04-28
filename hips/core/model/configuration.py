@@ -144,7 +144,7 @@ class HipsConfiguration:
         if not config_file_dict:
             config_file_dict = self.config_file_dict
 
-        module_logger().debug("Configuration looks like: %s" % config_file_dict)
+        module_logger().debug("Configuration looks like: %s..." % config_file_dict)
 
         # make sure path to configuration file exists before creating configuration file
         create_path_recursively(self.config_file_path.parent)
@@ -180,7 +180,7 @@ class HipsConfiguration:
         catalogs = []
 
         for catalog in cs:
-            module_logger().debug("Try to initialize the following catalog: %s" % catalog)
+            module_logger().debug("Try to initialize the following catalog: %s..." % catalog)
 
             id = extract_catalog_name(catalog)
             src = None

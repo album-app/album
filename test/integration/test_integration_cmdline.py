@@ -13,6 +13,8 @@ from hips.core.model.configuration import HipsConfiguration
 from hips.core.model.logging import push_active_logger
 
 
+# ToDo: CREATE AN INSTALL INTEGRATIONTEST
+
 class TestHIPSCommandLine(unittest.TestCase):
     test_config = """catalogs:
     - https://gitlab.com/ida-mdc/hips-catalog.git

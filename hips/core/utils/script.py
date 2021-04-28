@@ -38,7 +38,7 @@ def create_script(hips_object, custom_code, argv):
     ) + "\"" + r"%(levelname)s - %(message)s" + "\")\n"
     # This could have an issue with nested quotes
     argv_string = ", ".join(argv)
-    module_logger().debug("Add sys.argv arguments to runtime script: %s" % argv_string)
+    module_logger().debug("Add sys.argv arguments to runtime script: %s..." % argv_string)
     script += "sys.argv = json.loads('%s')\n" % json.dumps(argv)
     script += hips_object['script']
     script += "\nget_active_hips().init()\n"

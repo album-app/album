@@ -31,7 +31,7 @@ def _checkout_branch(git_repo_path, branch_name):
     module_logger().debug("Repository found in %s..." % git_repo_path)
 
     try:  # checkout branch locally
-        module_logger().debug("Found the following branches locally: \n %s " % "\n".join([h.name for h in repo.heads]))
+        module_logger().debug("Found the following branches locally: \n %s..." % "\n".join([h.name for h in repo.heads]))
         head = repo.heads[branch_name]
         return head
     except IndexError as e:
@@ -67,8 +67,8 @@ def _retrieve_single_file_from_head(head, pattern):
 
     """
     parent = head.commit.parents[0] if head.commit.parents else None
-    module_logger().debug("Found head commit: %s" % parent)
-    module_logger().debug("Summary message: %s" % parent.summary)
+    module_logger().debug("Found head commit: %s..." % parent)
+    module_logger().debug("Summary message: %s..." % parent.summary)
 
     if not parent:
         raise RuntimeError("Cannot execute diff since there is only a single commit!")
@@ -77,9 +77,9 @@ def _retrieve_single_file_from_head(head, pattern):
 
     abs_path_solution_file = []
     for file in diff:
-        module_logger().debug("Found file in commit diff to parent: %s " % file.a_path)
+        module_logger().debug("Found file in commit diff to parent: %s..." % file.a_path)
         if file.a_path.startswith(pattern):
-            module_logger().debug("Found file matching pattern %s: %s " % (pattern, file.a_path))
+            module_logger().debug("Found file matching pattern %s: %s..." % (pattern, file.a_path))
             abs_path_solution_file.append(os.path.join(head.repo.working_tree_dir, file.a_path))
 
     if not abs_path_solution_file:
@@ -194,7 +194,7 @@ def download_repository(repo_url, git_folder_path):
 
     # update existing repo or clone new repo
     if Path.exists(git_folder_path.joinpath(".git")):
-        module_logger().info("Found existing repository in %s. Trying to update." % git_folder_path)
+        module_logger().info("Found existing repository in %s. Trying to update..." % git_folder_path)
 
         repo = git.Repo(git_folder_path)
 

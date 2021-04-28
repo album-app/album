@@ -39,9 +39,9 @@ class HIPSRunner:
         active_hips = load_and_push_hips(resolve["path"])
 
         if not resolve["catalog"]:
-            module_logger().debug('hips loaded locally: %s' % str(active_hips))
+            module_logger().debug('hips loaded locally: %s...' % str(active_hips))
         else:
-            module_logger().debug('hips loaded from catalog: %s' % str(active_hips))
+            module_logger().debug('hips loaded from catalog: %s...' % str(active_hips))
 
         if hasattr(active_hips, "steps"):
             self.__run_steps(active_hips)
@@ -142,7 +142,7 @@ class HIPSRunner:
     def __run_same_app_hips(self, same_app_hips):
         """Run multiple HIPS sharing a common parent app on the same app instance"""
         hips_str = ', '.join(item[0]['name'] for item in same_app_hips['child_hips_list'])
-        module_logger().info(f"Running HIPS on parent app {same_app_hips['parent_hips']['name']}: {hips_str}")
+        module_logger().info(f"Running HIPS on parent app {same_app_hips['parent_hips']['name']}: {hips_str}...")
         self.__handle_hips_with_parent(same_app_hips["parent_hips"], same_app_hips["parent_args"],
                                        same_app_hips["child_hips_list"])
 

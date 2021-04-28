@@ -51,7 +51,7 @@ def _create_yaml_file_in_repo(repo, active_hips):
     yaml_str = _create_yml_string(active_hips)
     yaml_path = os.path.join(repo.working_tree_dir, "catalog", "%s%s" % (active_hips['name'], ".yml"))
 
-    module_logger().info('writing to: %s' % yaml_path)
+    module_logger().info('writing to: %s...' % yaml_path)
     with open(yaml_path, 'w') as f:
         f.write(yaml_str)
 

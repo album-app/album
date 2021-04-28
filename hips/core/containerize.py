@@ -9,5 +9,5 @@ def containerize(args):
     """Function corresponding to the `containerize` subcommand of `hips`."""
     # Load HIPS
     active_hips = load_and_push_hips(args.path)
-    module_logger().info('This would containerize: %s' % active_hips['name'])
+    module_logger().info('This would containerize: %s...' % active_hips['name'])
     pop_active_hips()
