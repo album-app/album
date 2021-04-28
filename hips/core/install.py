@@ -5,7 +5,7 @@ from hips.core.utils import subcommand
 from hips.core.model import logging
 from hips.core.model.environment import create_or_update_environment, run_in_environment
 from hips.core.model.logging import LogLevel
-from hips.core.model.resolve import resolve_hips, resolve_from_str, get_configuration
+from hips.core.model.configuration import resolve_hips, resolve_from_str, get_configuration
 from hips.core.utils.operations.file_operations import copy_in_file
 from hips.core.utils.script import create_script
 
@@ -19,9 +19,9 @@ def install(args):
     active_hips = load_and_push_hips(resolve["path"])
 
     if not resolve["catalog"]:
-        module_logger().debug('hips loaded locally: %s' % str(active_hips))
+        module_logger().debug('hips loaded locally: %s...' % str(active_hips))
     else:
-        module_logger().debug('hips loaded from catalog %s: %s' % (resolve["catalog"].id, str(active_hips)))
+        module_logger().debug('hips loaded from catalog %s: %s...' % (resolve["catalog"].id, str(active_hips)))
 
     create_or_update_environment(active_hips)
     __handle_dependencies(active_hips)
@@ -31,7 +31,7 @@ def install(args):
     if not resolve["catalog"] or resolve["catalog"].is_local:  # case where a solution file is directly given
         __add_to_local_catalog(active_hips)
 
-    module_logger().info('Installed %s' % active_hips['name'])
+    module_logger().info('Installed %s!' % active_hips['name'])
     pop_active_hips()
 
 
@@ -47,7 +47,7 @@ def __execute_install_routine(active_hips):
     """Run install routine of hips if specified"""
     if hasattr(active_hips, 'install') and callable(active_hips['install']):
         module_logger().debug('Creating install script...')
-        script = create_script(active_hips, "\nhips.get_active_hips().install()\n", sys.argv)
+        script = create_script(active_hips, "\nget_active_hips().install()\n", sys.argv)
         module_logger().debug('Calling install routine specified in solution...')
         logging.configure_logging(
             LogLevel(logging.to_loglevel(logging.get_loglevel_name())), active_hips['name']

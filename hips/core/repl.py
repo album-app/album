@@ -14,7 +14,7 @@ def repl(args):
     hips = get_active_hips()
 
     if hips_debug():
-        module_logger().debug('hips loaded locally: ' + str(hips))
+        module_logger().debug('hips loaded locally: %s...' % str(hips))
 
     # Get environment name
     environment_name = set_environment_name(hips)

@@ -56,7 +56,7 @@ def _get_ssh_url():
 
     ssh_url = 'git@%s:%s' % (parsed_url.netloc, project_path)
 
-    module_logger().debug("Set remote URL to %s" % ssh_url)
+    module_logger().debug("Set remote URL to %s..." % ssh_url)
 
     return ssh_url
 
@@ -77,10 +77,10 @@ def _zenodo_upload(deposit, solution_file):
     _, solution_name_full = _parse_solution_name_from_file_path(solution_file)
 
     if solution_name_full in deposit.files:  # File does exist
-        module_logger().debug("Update solution file %s to Zenodo deposit with id %s" % (solution_name_full, deposit.id))
+        module_logger().debug("Update solution file %s to Zenodo deposit with id %s..." % (solution_name_full, deposit.id))
         deposit.update_file(solution_name_full, solution_file)
     else:
-        module_logger().debug("Create solution file %s in Zenodo deposit with id %s" % (solution_name_full, deposit.id))
+        module_logger().debug("Create solution file %s in Zenodo deposit with id %s..." % (solution_name_full, deposit.id))
         deposit.create_file(solution_file)
 
     return deposit
@@ -165,7 +165,7 @@ def _retrieve_yml_file(head):
 def get_os_environment_value(env_name):
     """ Reads out the given environment value from the environment variable given."""
     try:
-        module_logger().debug("Fetching environment variable named %s" % env_name)
+        module_logger().debug("Fetching environment variable named %s..." % env_name)
         return os.environ[env_name]
     except KeyError:
         raise KeyError("Environment variable %s not set!" % env_name)
@@ -185,7 +185,7 @@ def _parse_solution_name_from_file_path(solution_file):
     solution_name, solution_ext = os.path.splitext(os.path.basename(solution_file))
     solution_name_full = solution_name + solution_ext
 
-    module_logger().debug("Solution file named: %s " % solution_name_full)
+    module_logger().debug("Solution file named: %s..." % solution_name_full)
 
     return solution_name, solution_name_full
 

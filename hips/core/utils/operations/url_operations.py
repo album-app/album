@@ -23,7 +23,7 @@ def is_downloadable(url):
 # todo: write tests
 def download_resource(url, path):
     """Downloads a resource given its url."""
-    module_logger().debug("Download url %s to %s" % (url, path))
+    module_logger().debug("Download url %s to %s..." % (url, path))
 
     path = Path(path)
 

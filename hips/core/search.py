@@ -5,7 +5,7 @@ from functools import reduce
 from acora import AcoraBuilder
 
 from hips.core.model import logging
-from hips.core.model.resolve import get_search_index
+from hips.core.model.configuration import get_search_index
 
 module_logger = logging.get_active_logger
 
@@ -45,5 +45,5 @@ def search(args):
                 match_score[unique_id] = score
 
     sorted_results = sorted(match_score.items(), key=operator.itemgetter(1))
-    module_logger().info('Search results for "%s"' % search_args.keywords)
+    module_logger().info('Search results for "%s"...' % search_args.keywords)
     module_logger().info(sorted_results)

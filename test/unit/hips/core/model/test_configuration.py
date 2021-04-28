@@ -184,6 +184,46 @@ class TestConfigurationClass(TestHipsCommon):
 
         self.assertEqual(r, self.config.catalogs[0])
 
+    @unittest.skip("Needs to be implemented!")
+    def test_resolve(self):
+        # ToDo: implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_resolve_hips_dependency(self):
+        # ToDo: implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_resolve_from_str(self):
+        # ToDo: implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_get_gnv_from_input(self):
+        # ToDo: implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_get_doi_from_input(self):
+        # ToDo: implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_get_search_index(self):
+        # ToDo: implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_get_installed_solutions(self):
+        # ToDo: implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_get_configuration(self):
+        # ToDo: implement
+        pass
+
 
 if __name__ == '__main__':
     unittest.main()

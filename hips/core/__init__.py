@@ -1,7 +1,7 @@
 from hips.core.model.hips_base import HipsClass
 from hips.core.model import logging
 
-DEBUG = False
+DEBUG = True
 module_logger = logging.get_active_logger
 
 

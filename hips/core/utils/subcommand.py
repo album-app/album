@@ -26,7 +26,7 @@ def run(command):
 
     """
 
-    module_logger().info('Running command: %s' % " ".join(command))
+    module_logger().info('Running command: %s...' % " ".join(command))
     exit_status = 1
 
     operation_system = sys.platform

@@ -84,7 +84,7 @@ def set_environment_path(active_hips):
 
         environment_path = environment_dict[environment_name]
 
-        module_logger().debug('Set environment path to %s' % environment_path)
+        module_logger().debug('Set environment path to %s...' % environment_path)
         active_hips["_environment_path"] = environment_path
 
         return environment_path

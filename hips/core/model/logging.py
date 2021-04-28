@@ -179,10 +179,10 @@ class LogfileBuffer(io.StringIO):
 
     @staticmethod
     def tabulate_multi_lines(s: str, indent=2):
-        split_s = s.split("\n")
+        split_s = s.strip().split("\n")
         r = split_s[0].strip()
         if len(split_s) > 1:
             r = r + "\n"
             for l in split_s[1:]:
-                r = r + "".join(["\t"]*indent) + l.strip()
-        return r
+                r = r + "".join(["\t"]*indent) + l.strip() + "\n"
+        return r.strip()

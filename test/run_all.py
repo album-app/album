@@ -31,7 +31,6 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_configuration))
     suite.addTests(loader.loadTestsFromModule(test_environment))
     suite.addTests(loader.loadTestsFromModule(test_logging))
-    suite.addTests(loader.loadTestsFromModule(test_resolve))
 
     # hips.core.utils
     suite.addTests(loader.loadTestsFromModule(test_script))
