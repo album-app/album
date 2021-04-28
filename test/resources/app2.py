@@ -29,6 +29,7 @@ def hips_close():
 hips.setup(
     group="group",
     name="app2",
+    title="app two",
     version="0.1.0",
     format_version="0.3.0",
     timestamp="",
