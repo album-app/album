@@ -4,7 +4,6 @@ import sys
 from hips.core import *
 from hips.core.model import logging
 from hips.core.model.configuration import HipsCatalogConfiguration
-from hips.core.model.environment import set_environment_path, set_environment_name, run_in_environment
 from hips.core.model.logging import LogLevel
 from hips.core.utils.script import create_script, create_hips_with_parent_script
 
@@ -169,8 +168,6 @@ class HIPSRunner:
 
     def __handle_standalone_hips(self, active_hips, args):
         """Run loaded HIPS with given arguments and no parent HIPS app"""
-        set_environment_name(active_hips)
-        set_environment_path(active_hips)
         script_inset = self.init_script
         script_inset += "\nget_active_hips().run()"
         if hasattr(active_hips, "close"):
@@ -181,8 +178,6 @@ class HIPSRunner:
 
     def __handle_hips_with_parent(self, parent_hips, parent_args, child_hips_list):
         """Run one or multiple loaded HIPS with given arguments depending on a HIPS app"""
-        set_environment_name(parent_hips)
-        set_environment_path(parent_hips)
         script = create_hips_with_parent_script(parent_hips, parent_args, child_hips_list, self.init_script)
         self.__run_in_environment_with_own_logger(parent_hips, script)
         self.__finish_hips_with_parent(parent_hips, child_hips_list)
@@ -212,7 +207,7 @@ class HIPSRunner:
         logging.configure_logging(
             LogLevel(logging.to_loglevel(logging.get_loglevel_name())), active_hips['name']
         )
-        run_in_environment(active_hips["_environment_path"], script)
+        active_hips.environment.run_script(script)
         logging.pop_active_logger()
 
     @staticmethod

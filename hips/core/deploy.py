@@ -9,30 +9,8 @@ from hips.core.utils.operations.git_operations import _add_files_commit_and_push
 
 module_logger = logging.get_active_logger
 
-deploy_keys = [
-    'group', 'name', 'description', 'version', 'format_version', 'tested_hips_version',
-    'min_hips_version', 'license', 'git_repo', 'authors', 'cite', 'tags', 'documentation',
-    'covers', 'sample_inputs', 'sample_outputs', 'args', 'title'
-]
 
 
-def get_hips_deploy_dict(active_hips):
-    """Return a dictionary with the relevant deployment key/values for a given hips."""
-    d = {}
-
-    for k in deploy_keys:
-        d[k] = active_hips[k]
-
-    return _remove_action_from_args(d)
-
-
-def _remove_action_from_args(hips_dict):
-    for arg in hips_dict["args"]:
-        if isinstance(arg, dict):
-            if "action" in arg.keys():
-                arg.pop("action")
-
-    return hips_dict
 
 
 def _create_yaml_file_in_repo(repo, active_hips):
@@ -61,7 +39,7 @@ def _create_yaml_file_in_repo(repo, active_hips):
 # Todo: write tests
 def _create_yml_string(active_hips):
     """Creates the yaml string with all relevant information"""
-    d = get_hips_deploy_dict(active_hips)
+    d = active_hips.get_hips_deploy_dict()
     module_logger().debug('Create yaml file from solution...')
     return yaml.dump(d, Dumper=yaml.Dumper)
 
@@ -104,7 +82,7 @@ def deploy(args):
 
     """
     # if imported at the beginning creates a circular dependency!
-    from hips.core import HipsConfiguration
+    from hips.core.model.configuration import HipsConfiguration
 
     hips_config = HipsConfiguration()
 

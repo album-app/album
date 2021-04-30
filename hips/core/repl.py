@@ -1,5 +1,5 @@
-from hips.core import get_active_hips, hips_debug
-from hips.core.model.environment import run_in_environment, set_environment_name
+from hips.core import get_active_hips
+from hips.core.model.logging import hips_debug
 from hips.core.model import logging
 
 module_logger = logging.get_active_logger
@@ -17,7 +17,7 @@ def repl(args):
         module_logger().debug('hips loaded locally: %s...' % str(hips))
 
     # Get environment name
-    environment_name = set_environment_name(hips)
+    environment_name = hips.environment_name
 
     script = """from code import InteractiveConsole
 """
@@ -33,4 +33,4 @@ console = InteractiveConsole(locals={
                              filename="<console>")
 console.interact()
 """
-    run_in_environment(environment_name, script)
+    hips.run_script(script)

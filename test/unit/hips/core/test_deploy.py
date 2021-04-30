@@ -3,6 +3,8 @@ import unittest
 
 from xdg import xdg_cache_home
 
+import hips.core
+import hips.core.model.hips_base
 from test.unit.test_common import TestGitCommon
 from hips.core.model.hips_base import HipsClass
 import hips.core.deploy as deploy
@@ -17,7 +19,7 @@ class TestHipsDeploy(TestGitCommon):
 
         # base keys
         attrs_dict_result = {}
-        for idx, key in enumerate(deploy.deploy_keys):
+        for idx, key in enumerate(hips.core.deploy_keys):
             attrs_dict_result[key] = str(idx)
 
         # additional values
@@ -31,13 +33,13 @@ class TestHipsDeploy(TestGitCommon):
 
         active_hips = HipsClass(attrs_dict)
 
-        self.assertEqual(deploy.get_hips_deploy_dict(active_hips), attrs_dict_result)
+        self.assertEqual(hips.core.get_hips_deploy_dict(active_hips), attrs_dict_result)
 
     def test__create_yaml_in_repo_file(self):
 
         # create hips
         attrs_dict = {}
-        for idx, key in enumerate(deploy.deploy_keys):
+        for idx, key in enumerate(hips.core.deploy_keys):
             attrs_dict[key] = str(idx)
         attrs_dict["name"] = "test_solution_name"
         active_hips = HipsClass(attrs_dict)

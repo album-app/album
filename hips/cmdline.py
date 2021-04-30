@@ -1,7 +1,7 @@
 import argparse
 import sys
 
-from hips.core import hips_debug
+from hips.core.model.logging import hips_debug
 from hips.core.deploy import deploy
 from hips.core.install import install
 from hips.core.repl import repl

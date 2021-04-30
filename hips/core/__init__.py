@@ -4,11 +4,6 @@ from hips.core.model import logging
 DEBUG = True
 module_logger = logging.get_active_logger
 
-
-def hips_debug():
-    return True
-
-
 """
 Global variable for tracking the currently active HIPS. Do not use this 
 directly instead use get_active_hips()

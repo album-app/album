@@ -186,3 +186,7 @@ class LogfileBuffer(io.StringIO):
             for l in split_s[1:]:
                 r = r + "".join(["\t"]*indent) + l.strip() + "\n"
         return r.strip()
+
+
+def hips_debug():
+    return True

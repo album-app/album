@@ -8,7 +8,7 @@ from pathlib import Path
 from anytree import Node
 
 from hips.core.model.hips_base import HipsClass
-from hips.core.deploy import deploy_keys
+from hips.core import deploy_keys
 from hips.core.model.configuration import HipsDefaultValues
 from hips.core.model.catalog import Catalog, CatalogIndex
 from test.unit.test_common import TestHipsCommon

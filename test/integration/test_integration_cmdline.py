@@ -95,7 +95,7 @@ class TestHIPSCommandLine(unittest.TestCase):
 
     @patch('hips.core.run.HipsCatalogConfiguration.resolve_from_str')
     @patch('hips.core.run.HipsCatalogConfiguration.resolve_hips_dependency')
-    @patch('hips.core.run.set_environment_name')
+    @patch('hips.core.model.environment.Environment.get_env_name')
     def test_run_with_parent(self, environment_name_mock, resolve_mock, res_from_str_mock):
         resolve_mock.side_effect = self.__resolve_hips
         environment_name_mock.side_effect = self.__set_environment_name
@@ -117,7 +117,7 @@ class TestHIPSCommandLine(unittest.TestCase):
 
     @patch('hips.core.run.HipsCatalogConfiguration.resolve_from_str')
     @patch('hips.core.run.HipsCatalogConfiguration.resolve_hips_dependency')
-    @patch('hips.core.run.set_environment_name')
+    @patch('hips.core.model.environment.Environment.get_env_name')
     def test_run_with_steps(self, run_environment_mock, run_resolve_mock, res_from_str_mock):
         run_resolve_mock.side_effect = self.__resolve_hips
         run_environment_mock.side_effect = self.__set_environment_name
@@ -146,7 +146,7 @@ class TestHIPSCommandLine(unittest.TestCase):
 
     @patch('hips.core.run.HipsCatalogConfiguration.resolve_from_str')
     @patch('hips.core.run.HipsCatalogConfiguration.resolve_hips_dependency')
-    @patch('hips.core.run.set_environment_name')
+    @patch('hips.core.model.environment.Environment.get_env_name')
     def test_run_with_grouped_steps(self, run_environment_mock, run_resolve_mock, res_from_str_mock):
         run_resolve_mock.side_effect = self.__resolve_hips
         run_environment_mock.side_effect = self.__set_environment_name
@@ -205,8 +205,8 @@ class TestHIPSCommandLine(unittest.TestCase):
         path = get_test_solution_path(hips_dependency['name'] + ".py")
         return {"path": path}
 
-    def __set_environment_name(self, hips_dependency):
-        hips_dependency['_environment_name'] = 'hips'
+    def __set_environment_name(self, _):
+        return 'hips'
 
 
 def get_test_solution_path(solution_file="solution0_dummy.py"):

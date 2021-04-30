@@ -9,7 +9,6 @@ from anytree.importer import JsonImporter
 from hips.ci.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from hips.core.utils.operations.git_operations import download_repository
 from hips.core.model import logging
-from hips.core.deploy import get_hips_deploy_dict
 from hips.core.utils.operations.url_operations import download_resource
 
 module_logger = logging.get_active_logger
@@ -239,7 +238,7 @@ class Catalog:
 
     def add_to_index(self, active_hips, force_overwrite=False):
         """Adds an active hips_object to the index."""
-        node_attrs = get_hips_deploy_dict(active_hips)
+        node_attrs = active_hips.get_hips_deploy_dict()
 
         if hasattr(active_hips, "doi"):
             node_attrs["doi"] = getattr(active_hips, "doi")
