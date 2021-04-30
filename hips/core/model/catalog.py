@@ -6,7 +6,6 @@ from anytree import RenderTree, Node
 from anytree.exporter import JsonExporter, DictExporter
 from anytree.importer import JsonImporter
 
-from hips.core.model.hips_base import HipsDefaultValues
 from hips.ci.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from hips.core.utils.operations.git_operations import download_repository
 from hips.core.model import logging
@@ -19,6 +18,7 @@ module_logger = logging.get_active_logger
 # todo: how to do that efficiently? Download the whole catalog? Or only the index and then the corresp.
 #  solutions whenever they are used?
 def get_index_src(src):
+    from hips.core.model.configuration import HipsDefaultValues
     """Gets the download link for an index."""
     # todo: replace "new_catalog_structure" branch with "main"... although "main" is also hardcoded! :(
     return src.strip("git").strip(".") + "/-/raw/new_catalog_structure/%s" \
@@ -41,6 +41,7 @@ class Catalog:
     gnv_solution_prefix = "solutions"
 
     def __init__(self, catalog_id, path, src=None):
+        from hips.core.model.configuration import HipsDefaultValues
         self.id = catalog_id
         self.src = src
         self.catalog_index = None

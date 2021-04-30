@@ -1,8 +1,9 @@
 import os
 from pathlib import Path
 
+from hips.core.model.configuration import HipsConfiguration
+
 from hips.core.model import logging
-from hips.core.model.configuration import get_cache_path_hips
 
 from hips.core.utils import subcommand
 
@@ -18,7 +19,8 @@ def chdir_repository(active_hips):
             The HIP-solution class object.
 
     """
-    repo_path = get_cache_path_hips(active_hips).joinpath(active_hips["name"])
+    configuration = HipsConfiguration()
+    repo_path = configuration.get_cache_path_hips(active_hips).joinpath(active_hips["name"])
 
     # assumes repo is up to date!
     if repo_path.joinpath(".git").exists():

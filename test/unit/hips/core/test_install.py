@@ -22,7 +22,7 @@ class TestHipsInstall(TestHipsCommon):
     @patch('hips.core.install.load_and_push_hips')
     @patch('hips.core.install.run_in_environment')
     @patch('hips.core.install.create_script')
-    @patch('hips.core.install.resolve_from_str')
+    @patch('hips.core.search.HipsCatalogConfiguration.resolve_from_str')
     def test_install(self, resolve_mock, _, run_in_environment_mock, load_mock, __):
         # setup mocks
         load_mock.side_effect = self.__install_hips

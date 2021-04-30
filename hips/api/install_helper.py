@@ -2,8 +2,8 @@ import os
 from pathlib import Path
 
 import requests
+from hips.core.model.configuration import HipsConfiguration
 
-from hips.core.model.configuration import get_cache_path_hips, get_cache_path_downloads
 from hips.core.model import logging
 from hips.core.utils.operations.git_operations import download_repository
 
@@ -21,7 +21,8 @@ def download_if_not_exists(active_hips, url, file_name):
     Returns: The path to the downloaded resource
 
     """
-    download_dir = get_cache_path_downloads(active_hips)
+    configuration = HipsConfiguration()
+    download_dir = configuration.get_cache_path_downloads(active_hips)
     download_path = download_dir.joinpath(file_name)
     if download_path.exists():
         module_logger().info(f"Found cache of {url}: {download_path}...")

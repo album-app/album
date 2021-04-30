@@ -5,7 +5,7 @@ from functools import reduce
 from acora import AcoraBuilder
 
 from hips.core.model import logging
-from hips.core.model.configuration import get_search_index
+from hips.core.model.configuration import HipsCatalogConfiguration
 
 module_logger = logging.get_active_logger
 
@@ -27,7 +27,8 @@ def search(args):
     builder.update(search_args.keywords)
     searcher = builder.build()
 
-    search_index = get_search_index()
+    catalog_configuration = HipsCatalogConfiguration()
+    search_index = catalog_configuration.get_search_index()
     match_score = {}
     for catalog_id, catalog_leaves in search_index.items():
         for solution in catalog_leaves:

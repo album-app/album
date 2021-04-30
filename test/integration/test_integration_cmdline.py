@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import hips.core as hips
 from hips.cmdline import main
-from hips.core.model.configuration import HipsConfiguration
+from hips.core.model.configuration import HipsCatalogConfiguration
 from hips.core.model.logging import push_active_logger
 
 
@@ -25,7 +25,7 @@ class TestHIPSCommandLine(unittest.TestCase):
         while hips.get_active_hips() is not None:
             hips.pop_active_hips()
 
-    @patch('hips.core.install.get_configuration')
+    @patch('hips.core.install.HipsCatalogConfiguration')
     def test_install(self, get_conf_mock):
         test_catalog_dir = tempfile.TemporaryDirectory()
 
@@ -34,9 +34,9 @@ class TestHIPSCommandLine(unittest.TestCase):
             self.test_config += "- " + test_catalog_dir.name
             f.writelines(self.test_config)
 
-        config = HipsConfiguration(test_config.name)
+        config = HipsCatalogConfiguration(test_config.name)
 
-        get_conf_mock.side_effect = [config]
+        get_conf_mock.side_effect = [config, config, config]
 
         self.assertEqual(len(config.local_catalog), 0)
 
@@ -61,7 +61,7 @@ class TestHIPSCommandLine(unittest.TestCase):
         sys.argv = ["", "search", "keyword"]
         self.assertIsNone(main())
 
-    @patch('hips.core.model.resolve.get_configuration')
+    @patch('hips.core.search.HipsCatalogConfiguration')
     @patch('hips.cmdline.__retrieve_logger')
     def test_search_filled_index(self, logger_mock, get_conf_mock):
         # configure additional log output for checking
@@ -74,7 +74,7 @@ class TestHIPSCommandLine(unittest.TestCase):
             f.writelines(self.test_config)
 
         # use config in test resources with relative path to a local catalog
-        config = HipsConfiguration(test_config.name)
+        config = HipsCatalogConfiguration(test_config.name)
         get_conf_mock.side_effect = [config]
 
         # define and run search
@@ -84,7 +84,7 @@ class TestHIPSCommandLine(unittest.TestCase):
         # check output to have found the solution behind keyword1
         self.assertIn('catalog_local_ida-mdc_solution0_dummy_0.1.0', captured_output.getvalue())
 
-    @patch('hips.core.run.resolve_from_str')
+    @patch('hips.core.run.HipsCatalogConfiguration.resolve_from_str')
     def test_run(self, res_from_str_mock):
         sys.argv = ["", "run", get_test_solution_path()]
 
@@ -93,8 +93,8 @@ class TestHIPSCommandLine(unittest.TestCase):
         self.assertIsNone(main())
         self.assertIsNone(hips.get_active_hips())
 
-    @patch('hips.core.run.resolve_from_str')
-    @patch('hips.core.run.resolve_hips')
+    @patch('hips.core.run.HipsCatalogConfiguration.resolve_from_str')
+    @patch('hips.core.run.HipsCatalogConfiguration.resolve_hips_dependency')
     @patch('hips.core.run.set_environment_name')
     def test_run_with_parent(self, environment_name_mock, resolve_mock, res_from_str_mock):
         resolve_mock.side_effect = self.__resolve_hips
@@ -115,8 +115,8 @@ class TestHIPSCommandLine(unittest.TestCase):
             self.assertEqual("app1_close", log[4])
             self.assertIsNone(hips.get_active_hips())
 
-    @patch('hips.core.run.resolve_from_str')
-    @patch('hips.core.run.resolve_hips')
+    @patch('hips.core.run.HipsCatalogConfiguration.resolve_from_str')
+    @patch('hips.core.run.HipsCatalogConfiguration.resolve_hips_dependency')
     @patch('hips.core.run.set_environment_name')
     def test_run_with_steps(self, run_environment_mock, run_resolve_mock, res_from_str_mock):
         run_resolve_mock.side_effect = self.__resolve_hips
@@ -144,8 +144,8 @@ class TestHIPSCommandLine(unittest.TestCase):
             self.assertEqual("solution3_noparent_close", log[11])
             self.assertIsNone(hips.get_active_hips())
 
-    @patch('hips.core.run.resolve_from_str')
-    @patch('hips.core.run.resolve_hips')
+    @patch('hips.core.run.HipsCatalogConfiguration.resolve_from_str')
+    @patch('hips.core.run.HipsCatalogConfiguration.resolve_hips_dependency')
     @patch('hips.core.run.set_environment_name')
     def test_run_with_grouped_steps(self, run_environment_mock, run_resolve_mock, res_from_str_mock):
         run_resolve_mock.side_effect = self.__resolve_hips

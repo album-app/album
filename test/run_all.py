@@ -6,7 +6,7 @@ from test.unit.hips.api import test_run_helper
 from test.unit.hips.ci import test_zenodo_api
 from test.unit.hips.core import test_search, test__init__, test_install, test_run, test_deploy, test_cmdline
 from test.unit.hips.core.utils import test_script
-from test.unit.hips.core.model import test_catalog, test_environment, test_logging, test_configuration, test_resolve
+from test.unit.hips.core.model import test_catalog, test_environment, test_logging, test_configuration
 from test.unit.hips.core.utils.operations import test_url_operations, test_file_operations, test_git_operations
 
 
@@ -45,7 +45,7 @@ def main():
     # hips.ci
 
     # hips.ci.utils
-    suite.addTests(loader.loadTestsFromModule(test_zenodo_api))
+    #suite.addTests(loader.loadTestsFromModule(test_zenodo_api))
 
     # ### integration
     suite.addTests(loader.loadTestsFromModule(test_integration_cmdline))

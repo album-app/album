@@ -2,9 +2,9 @@ import os
 import threading
 from pathlib import Path
 
-from hips.core import hips
-from hips import core
+from hips import core as hips
 from hips.api import install_helper
+from hips.core.model.configuration import HipsConfiguration
 from hips.core.utils import subcommand
 
 path_download_macos = "https://download.blender.org/release/Blender2.83/blender-2.83.13-macOS.dmg"
@@ -19,9 +19,10 @@ def install():
 
 
 def __install_linux():
+    configuration = HipsConfiguration()
     active_hips = hips.get_active_hips()
     download_path = install_helper.download_if_not_exists(active_hips, path_download_linux, download_name_linux)
-    app_path = core.configuration.get_cache_path_app(active_hips)
+    app_path = configuration.get_cache_path_app(active_hips)
     install_helper.extract_tar(download_path, app_path)
 
 
@@ -31,8 +32,9 @@ def run_with_server():
 
 
 def __run_linux():
+    configuration = HipsConfiguration()
     active_hips = hips.get_active_hips()
-    blender_path = f"{core.configuration.get_cache_path_app(active_hips)}/{path_run_linux}"
+    blender_path = f"{configuration.get_cache_path_app(active_hips)}/{path_run_linux}"
     dir_path = os.path.dirname(os.path.realpath(__file__))
     threading.Thread(target=lambda blender_path, dir_path: {
         subcommand.run([blender_path, "--python", str(Path(dir_path).joinpath("server.py"))])

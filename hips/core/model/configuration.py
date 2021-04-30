@@ -1,136 +1,159 @@
 import os
 import re
+from enum import unique, Enum
 from pathlib import Path
 
 import validators
 from xdg import xdg_config_home, xdg_data_home
 
-from hips.core.model.hips_base import HipsDefaultValues
 from hips.core.model import logging
 from hips.core.model.catalog import Catalog
-from hips.core.model.resolve import module_logger
 from hips.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, create_path_recursively
 
 module_logger = logging.get_active_logger
 
 
-def get_configuration_file_path():
-    """Get the path to the HIPS runtime configuration file."""
-    return xdg_config_home().joinpath(HipsDefaultValues.hips_config_file_name.value)
+@unique
+class HipsDefaultValues(Enum):
+    """Add a entry here to initialize default attributes for a hips object.
 
-
-def get_base_cache_path():
-    """Get path to local HIPS cache directory"""
-    return xdg_data_home().joinpath("hips")
-
-
-def get_cache_path_hips(active_hips):
-    """Get the cache path of the active hips
-
-    Args:
-        active_hips: The HIPS object
-
-    Returns: Path to local cache of a HIPS
-
-    """
-    if hasattr(active_hips, "doi"):
-        return get_base_cache_path().joinpath("solutions", "doi", active_hips["doi"])
-    else:
-        return get_base_cache_path().joinpath("solutions", "local", active_hips["group"], active_hips["name"], active_hips["version"])
-
-
-def get_cache_path_app(active_hips):
-    """Get the app cache path of the active hips
-
-    Args:
-        active_hips: The HIPS object
-
-    Returns: Path to local cache of any apps belonging to a HIPS
-
-    """
-    if hasattr(active_hips, "doi"):
-        return get_base_cache_path().joinpath("apps", "doi", active_hips["doi"])
-    else:
-        return get_base_cache_path().joinpath("apps", "local", active_hips["group"], active_hips["name"], active_hips["version"])
-
-
-def get_cache_path_downloads(active_hips):
-    """Get the cache path of anything a hips downloads.
-
-    Args:
-        active_hips: The HIPS object
-
-    Returns: Path to local cache of any download files belonging to a HIPS
-
-    """
-    if hasattr(active_hips, "doi"):
-        return get_base_cache_path().joinpath("downloads", "doi", active_hips["doi"])
-    else:
-        return get_base_cache_path().joinpath("downloads", "local", active_hips["group"], active_hips["name"], active_hips["version"])
-
-
-def get_cache_path_catalog(catalog_id):
-    """Get the cache path to the catalog with a certain ID.
-
-    Args:
-        catalog_id: The ID of the HIPS catalog
-
-    Returns: Path to local cache of a catalog identified by the ID
-
-    """
-    return get_base_cache_path().joinpath("catalogs", catalog_id)
-
-
-def extract_catalog_name(catalog_repo):
-    """Extracts a basename from a repository URL.
-
-    Args:
-        catalog_repo:
-            The repository URL or ssh string of the catalog.
-
-    Returns:
-        The basename of the repository
-
-    """
-    name, _ = os.path.splitext(os.path.basename(catalog_repo))
-    return name
-
-
-def create_default_hips_configuration():
-    """Creates the default hips configuration dictionary which will be written in the hips configuration yaml file."""
-    config_file_dict = {
-        "catalogs": create_default_catalog_configuration(),
-        # here more defaults can follow
-    }
-
-    return config_file_dict
-
-
-def create_default_catalog_configuration():
-    """Returns the default catalog configuration."""
-    return [
-        str(get_cache_path_catalog(HipsDefaultValues.local_catalog_name.value)),
-        HipsDefaultValues.catalog.value,
-    ]
+     Takes the Enum name as attribute name and the Enum value as default value.
+     """
+    catalog = 'https://gitlab.com/ida-mdc/hips-catalog.git'
+    local_catalog_name = 'catalog_local'
+    catalog_index_file_name = 'catalog_index'
+    hips_config_file_name = '.hips-config'
+    cache_path_solution_prefix = "solutions"
+    cache_path_app_prefix = "apps"
+    cache_path_download_prefix = "downloads"
 
 
 class HipsConfiguration:
+
+    def __init__(self, base_cache_path=None, configuration_file_path=None):
+        if base_cache_path:
+            self.base_cache_path = Path(base_cache_path)
+        else:
+            self.base_cache_path = xdg_data_home().joinpath("hips")
+        if configuration_file_path:
+            self.configuration_file_path = Path(configuration_file_path)
+        else:
+            self.configuration_file_path = xdg_config_home().joinpath(HipsDefaultValues.hips_config_file_name.value)
+
+    @property
+    def base_cache_path(self):
+        return self._base_cache_path
+
+    @base_cache_path.setter
+    def base_cache_path(self, value):
+        self._base_cache_path = value
+        self.cache_path_solution = self.base_cache_path.joinpath(HipsDefaultValues.cache_path_solution_prefix.value)
+        self.cache_path_app = self.base_cache_path.joinpath(HipsDefaultValues.cache_path_app_prefix.value)
+        self.cache_path_download = self.base_cache_path.joinpath(HipsDefaultValues.cache_path_download_prefix.value)
+
+    def get_cache_path_hips(self, active_hips):
+        """Get the cache path of the active hips
+
+        Args:
+            active_hips: The HIPS object
+
+        Returns: Path to local cache of a HIPS
+
+        """
+        if hasattr(active_hips, "doi"):
+            return self.cache_path_solution.joinpath("doi", active_hips["doi"])
+        else:
+            return self.cache_path_solution.joinpath("local", active_hips["group"], active_hips["name"], active_hips["version"])
+
+    def get_cache_path_app(self, active_hips):
+        """Get the app cache path of the active hips
+
+        Args:
+            active_hips: The HIPS object
+
+        Returns: Path to local cache of any apps belonging to a HIPS
+
+        """
+        if hasattr(active_hips, "doi"):
+            return self.cache_path_app.joinpath("doi", active_hips["doi"])
+        else:
+            return self.cache_path_app.joinpath("local", active_hips["group"], active_hips["name"], active_hips["version"])
+
+    def get_cache_path_downloads(self, active_hips):
+        """Get the cache path of anything a hips downloads.
+
+        Args:
+            active_hips: The HIPS object
+
+        Returns: Path to local cache of any download files belonging to a HIPS
+
+        """
+        if hasattr(active_hips, "doi"):
+            return self.cache_path_download.joinpath("doi", active_hips["doi"])
+        else:
+            return self.cache_path_download.joinpath("local", active_hips["group"], active_hips["name"], active_hips["version"])
+
+    def get_cache_path_catalog(self, catalog_id):
+        """Get the cache path to the catalog with a certain ID.
+
+        Args:
+            catalog_id: The ID of the HIPS catalog
+
+        Returns: Path to local cache of a catalog identified by the ID
+
+        """
+        return self.base_cache_path.joinpath("catalogs", catalog_id)
+
+    def get_default_hips_configuration(self):
+        """Creates the default hips configuration dict which will be written in the hips configuration yaml file."""
+        config_file_dict = {
+            "catalogs": self.get_default_catalog_configuration(),
+            # here more defaults can follow
+        }
+
+        return config_file_dict
+
+    def get_default_catalog_configuration(self):
+        """Returns the default catalog configuration."""
+        return [
+            str(self.get_cache_path_catalog(HipsDefaultValues.local_catalog_name.value)),
+            HipsDefaultValues.catalog.value,
+        ]
+
+    @staticmethod
+    def extract_catalog_name(catalog_repo):
+        """Extracts a basename from a repository URL.
+
+        Args:
+            catalog_repo:
+                The repository URL or ssh string of the catalog.
+
+        Returns:
+            The basename of the repository
+
+        """
+        name, _ = os.path.splitext(os.path.basename(catalog_repo))
+        return name
+
+
+class HipsCatalogConfiguration:
     """The Hips Configuration class. Also holds the catalogs specified in the configuration."""
+
+    configuration = HipsConfiguration()
 
     def __init__(self, config_file=None):
         if config_file:
             self.config_file_path = Path(config_file)
         else:
-            self.config_file_path = get_configuration_file_path()
+            self.config_file_path = self.configuration.configuration_file_path
         self.config_file_dict = self._load_hips_configuration()
         self.catalogs = self._get_catalogs()
         self.local_catalog = self._get_local_catalog()
 
-    @staticmethod
-    def _create_default_configuration():
+    def _create_default_configuration(self):
         """Creates the default configuration. Returns the corresponding dictionary"""
         module_logger().info("Creating default configuration...")
-        config_file_dict = create_default_hips_configuration()
+        config_file_dict = self.configuration.get_default_hips_configuration()
         return config_file_dict
 
     def get_default_deployment_catalog(self):
@@ -184,14 +207,14 @@ class HipsConfiguration:
         for catalog in cs:
             module_logger().debug("Try to initialize the following catalog: %s..." % catalog)
 
-            id = extract_catalog_name(catalog)
+            id = self.configuration.extract_catalog_name(catalog)
             src = None
             path = catalog
 
             # if entry is a valid url, we set the default path
             if validators.url(catalog):
                 src = catalog
-                path = get_cache_path_catalog(id)
+                path = self.configuration.get_cache_path_catalog(id)
 
             catalogs.append(Catalog(catalog_id=id, path=path, src=src))
 

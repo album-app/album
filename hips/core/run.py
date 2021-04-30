@@ -3,7 +3,7 @@ import sys
 
 from hips.core import *
 from hips.core.model import logging
-from hips.core.model.configuration import HipsConfiguration
+from hips.core.model.configuration import HipsCatalogConfiguration
 from hips.core.model.environment import set_environment_path, set_environment_name, run_in_environment
 from hips.core.model.logging import LogLevel
 from hips.core.utils.script import create_script, create_hips_with_parent_script
@@ -26,11 +26,11 @@ def run(args):
 class HIPSRunner:
 
     init_script = ""
-    configuration = HipsConfiguration()
+    catalog_configuration = HipsCatalogConfiguration()
 
     def run(self, args):
         """Function corresponding to the `run` subcommand of `hips`."""
-        resolve = self.configuration.resolve_from_str(args.path)
+        resolve = self.catalog_configuration.resolve_from_str(args.path)
 
         if not self.__is_in_catalog(resolve["catalog"]):
             if not (resolve['path'].is_file() and resolve['path'].stat().st_size > 0):
@@ -91,7 +91,7 @@ class HIPSRunner:
         same_app_hips = None
         # iterate over steps
         for sub_step in step:
-            hips_script = self.configuration.resolve_hips_dependency(sub_step)["path"]
+            hips_script = self.catalog_configuration.resolve_hips_dependency(sub_step)["path"]
             active_hips = load_and_push_hips(hips_script)
             step_args = self.__get_args(sub_step)
             # check if step has parent
@@ -116,7 +116,7 @@ class HIPSRunner:
     def __handle_step_with_parent(self, active_hips_step, args, same_app_hips):
         """Handle step with parent in a group of steps"""
         # check if parent is already active
-        parent_script = self.configuration.resolve_hips_dependency(active_hips_step["parent"])["path"]
+        parent_script = self.catalog_configuration.resolve_hips_dependency(active_hips_step["parent"])["path"]
         new_parent = True
         if same_app_hips:
             if parent_script != same_app_hips["script"]:
@@ -149,7 +149,7 @@ class HIPSRunner:
 
     def __load_and_run_single_step(self, step):
         """Load and run a single HIPS (sharing no app instance with other HIPS)"""
-        hips_script = self.configuration.resolve_hips_dependency(step)["path"]
+        hips_script = self.catalog_configuration.resolve_hips_dependency(step)["path"]
         active_hips = load_and_push_hips(hips_script)
         step_args = self.__get_args(step)
         self.__run_single_step(active_hips, step_args)
@@ -157,7 +157,7 @@ class HIPSRunner:
     def __run_single_step(self, active_hips, args):
         """Run loaded HIPS with given arguments"""
         if hasattr(active_hips, "parent"):
-            parent_script = self.configuration.resolve_hips_dependency(active_hips["parent"])["path"]
+            parent_script = self.catalog_configuration.resolve_hips_dependency(active_hips["parent"])["path"]
             # reorder hips stack - first parent, then child
             child = pop_active_hips()
             parent_hips = load_and_push_hips(parent_script)

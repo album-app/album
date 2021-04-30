@@ -1,20 +1,6 @@
-from enum import unique, Enum
-
 from hips.core.model import logging
 
 module_logger = logging.get_active_logger
-
-
-@unique
-class HipsDefaultValues(Enum):
-    """Add a entry here to initialize default attributes for a hips object.
-
-     Takes the Enum name as attribute name and the Enum value as default value.
-     """
-    catalog = 'https://gitlab.com/ida-mdc/hips-catalog.git'
-    local_catalog_name = 'catalog_local'
-    catalog_index_file_name = 'catalog_index'
-    hips_config_file_name = '.hips-config'
 
 
 class HipsClass:

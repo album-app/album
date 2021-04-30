@@ -10,7 +10,7 @@ import yaml
 from xdg import xdg_cache_home
 
 from hips.core import hips_debug
-from hips.core.model.configuration import get_cache_path_hips
+from hips.core.model.configuration import HipsConfiguration
 from hips.core.utils import subcommand
 from hips.core.model import logging
 from hips.core.utils.operations.file_operations import create_path_recursively, copy
@@ -138,7 +138,8 @@ def is_installed(environment_path, package_name, min_package_version=None):
 
 def get_environment_file(env_file, active_hips):
     """Handles the environment file dependency. Returns path to the file. Either downloads file or parses from stream"""
-    yaml_path = get_cache_path_hips(active_hips).joinpath("%s%s" % (active_hips["name"], ".yml"))
+    configuration = HipsConfiguration()
+    yaml_path = configuration.get_cache_path_hips(active_hips).joinpath("%s%s" % (active_hips["name"], ".yml"))
     create_path_recursively(yaml_path.parent)
 
     if isinstance(env_file, str):

@@ -1,11 +1,11 @@
 import sys
 
 from hips.core import load_and_push_hips, pop_active_hips
+from hips.core.model.configuration import HipsCatalogConfiguration
 from hips.core.utils import subcommand
 from hips.core.model import logging
 from hips.core.model.environment import create_or_update_environment, run_in_environment
 from hips.core.model.logging import LogLevel
-from hips.core.model.configuration import resolve_hips, resolve_from_str, get_configuration
 from hips.core.utils.operations.file_operations import copy_in_file
 from hips.core.utils.script import create_script
 
@@ -15,7 +15,9 @@ module_logger = logging.get_active_logger
 def install(args):
     """Function corresponding to the `install` subcommand of `hips`."""
     # Load HIPS
-    resolve = resolve_from_str(args.path)
+    catalog_configuration = HipsCatalogConfiguration()
+
+    resolve = catalog_configuration.resolve_from_str(args.path)
     active_hips = load_and_push_hips(resolve["path"])
 
     if not resolve["catalog"]:
@@ -37,9 +39,9 @@ def install(args):
 
 def __add_to_local_catalog(active_hips):
     """Force adds the installation to the local catalog to be cached for running"""
-    hips_config = get_configuration()
-    hips_config.local_catalog.add_to_index(active_hips, force_overwrite=True)
-    local_catalog_path = hips_config.local_catalog.get_solution_cache_file(active_hips.group, active_hips.name, active_hips.version)
+    catalog_configuration = HipsCatalogConfiguration()
+    catalog_configuration.local_catalog.add_to_index(active_hips, force_overwrite=True)
+    local_catalog_path = catalog_configuration.local_catalog.get_solution_cache_file(active_hips.group, active_hips.name, active_hips.version)
     copy_in_file(active_hips.script, local_catalog_path)
 
 
@@ -68,7 +70,8 @@ def __handle_dependencies(active_hips):
 
 def __install_hips(hips_dependency):
     """Calls `install` for a HIPS declared in a dependency block"""
-    hips_script = resolve_hips(hips_dependency)["path"]
+    catalog_configuration = HipsCatalogConfiguration()
+    hips_script = catalog_configuration.resolve_hips_dependency(hips_dependency)["path"]
     # todo: why don't we call "install" directly? Why a new process?
     subcommand.run(["python",  "-m", "hips", "install", str(hips_script), " --log=%s" % logging.get_loglevel_name()])
 

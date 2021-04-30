@@ -8,58 +8,49 @@ import yaml
 
 import hips.core.model.configuration as configuration
 from hips.core.model.hips_base import HipsClass
-from hips.core.model.hips_base import HipsDefaultValues
 from test.unit.test_common import TestHipsCommon
 
 
-class TestConfiguration(unittest.TestCase):
+class TestHipsConfiguration(unittest.TestCase):
 
-    @staticmethod
-    def get_config_test_path():
-        return Path(tempfile.gettempdir()).joinpath("ch")
+    def setUp(self) -> None:
+        self.tmp_dir = tempfile.TemporaryDirectory()
+        self.conf = configuration.HipsConfiguration(
+            base_cache_path=Path(self.tmp_dir.name).joinpath("hips"), configuration_file_path=self.tmp_dir.name
+        )
 
-    @staticmethod
-    def get_data_test_path():
-        return Path(tempfile.gettempdir()).joinpath("data")
+    def tearDown(self) -> None:
+        self.tmp_dir.cleanup()
 
-    def test_get_base_cache_path(self):
-        root = configuration.get_base_cache_path()
-        self.assertIsNotNone(root)
-        self.assertNotEqual("", root)
+    def test_get_cache_path_hips(self):
 
-    @patch('hips.core.model.configuration.xdg_config_home')
-    @patch('hips.core.model.configuration.xdg_data_home')
-    def test_get_cache_path_hips(self, data_home_mock, config_home_mock):
-        data_home_mock.side_effect = self.get_data_test_path
-        config_home_mock.side_effect = self.get_config_test_path
+        root = Path(self.tmp_dir.name).joinpath("hips")
 
-        root = self.get_data_test_path().joinpath("hips")
+        path = self.conf.configuration_file_path.joinpath(".hips-config")
+        self.assertEqual(Path(self.tmp_dir.name).joinpath(configuration.HipsDefaultValues.hips_config_file_name.value), path)
 
-        path = configuration.get_configuration_file_path()
-        self.assertEqual(self.get_config_test_path().joinpath(HipsDefaultValues.hips_config_file_name.value), path)
-
-        path = configuration.get_cache_path_hips(
+        path = self.conf.get_cache_path_hips(
             HipsClass({"name": "myname", "group": "mygroup", "version": "myversion"}))
         self.assertEqual(root.joinpath("solutions/local/mygroup/myname/myversion"), path)
 
-        path = configuration.get_cache_path_hips(HipsClass({"doi": "mydoi"}))
+        path = self.conf.get_cache_path_hips(HipsClass({"doi": "mydoi"}))
         self.assertEqual(root.joinpath("solutions/doi/mydoi"), path)
 
-        path = configuration.get_cache_path_downloads(
+        path = self.conf.get_cache_path_downloads(
             HipsClass({"name": "myname", "group": "mygroup", "version": "myversion"}))
         self.assertEqual(root.joinpath("downloads/local/mygroup/myname/myversion"), path)
 
-        path = configuration.get_cache_path_downloads(HipsClass({"doi": "mydoi"}))
+        path = self.conf.get_cache_path_downloads(HipsClass({"doi": "mydoi"}))
         self.assertEqual(root.joinpath("downloads/doi/mydoi"), path)
 
-        path = configuration.get_cache_path_catalog("mycatalog")
+        path = self.conf.get_cache_path_catalog("mycatalog")
         self.assertEqual(root.joinpath("catalogs/mycatalog"), path)
 
-        path = configuration.get_cache_path_app(
+        path = self.conf.get_cache_path_app(
             HipsClass({"name": "myname", "group": "mygroup", "version": "myversion"}))
         self.assertEqual(root.joinpath("apps", "local", "mygroup", "myname", "myversion"), path)
 
-        path = configuration.get_cache_path_app(HipsClass({"doi": "mydoi"}))
+        path = self.conf.get_cache_path_app(HipsClass({"doi": "mydoi"}))
         self.assertEqual(root.joinpath("apps", "doi", "mydoi"), path)
 
     def test_extract_catalog_name(self):
@@ -69,20 +60,20 @@ class TestConfiguration(unittest.TestCase):
 
         active_hips = HipsClass(self.attrs)
 
-        self.assertEqual(configuration.extract_catalog_name(active_hips["catalog"]), "hips-catalog")
+        self.assertEqual(self.conf.extract_catalog_name(active_hips["catalog"]), "hips-catalog")
 
     @unittest.skip("Needs to be implemented!")
-    def test_create_default_hips_configuration(self):
+    def test_get_default_hips_configuration(self):
         # ToDo: implement
         pass
 
     @unittest.skip("Needs to be implemented!")
-    def test_create_default_catalog_configuration(self):
+    def test_get_default_catalog_configuration(self):
         # ToDo: implement
         pass
 
 
-class TestConfigurationClass(TestHipsCommon):
+class TestHipsCatalogConfiguration(TestHipsCommon):
 
     def setUp(self):
         self.tmp_dir = Path(tempfile.gettempdir())
@@ -90,7 +81,7 @@ class TestConfigurationClass(TestHipsCommon):
         with open(self.config_file,  "w+") as f:
             f.write("""catalogs: [%s]""" % str(self.tmp_dir.joinpath("catalogs", "test_catalog")))
 
-        self.config = configuration.HipsConfiguration(self.tmp_dir.joinpath("config_file"))
+        self.config = configuration.HipsCatalogConfiguration(self.tmp_dir.joinpath("config_file"))
 
     def tearDown(self) -> None:
         try:
@@ -141,8 +132,8 @@ class TestConfigurationClass(TestHipsCommon):
 
         get_dict_mock.assert_called_once()
 
-    @patch('hips.core.model.configuration.HipsConfiguration._create_default_configuration', return_value="Called")
-    @patch('hips.core.model.configuration.HipsConfiguration.save', return_value=None)
+    @patch('hips.core.model.configuration.HipsCatalogConfiguration._create_default_configuration', return_value="Called")
+    @patch('hips.core.model.configuration.HipsCatalogConfiguration.save', return_value=None)
     def test__load_hips_configuration_no_file(self, save_mock, _create_default_mock):
 
         self.config.config_file_path = Path("doesNotExist")
@@ -153,7 +144,7 @@ class TestConfigurationClass(TestHipsCommon):
 
         self.assertEqual(r, "Called")
 
-    @patch('hips.core.model.configuration.create_default_hips_configuration', return_value="Called")
+    @patch('hips.core.model.configuration.HipsConfiguration.get_default_hips_configuration', return_value="Called")
     def test__create_default_configuration(self, create_default_mock):
 
         r = self.config._create_default_configuration()
