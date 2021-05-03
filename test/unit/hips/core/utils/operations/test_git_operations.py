@@ -2,6 +2,7 @@ import os
 import shutil
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from xdg import xdg_cache_home
 
@@ -64,7 +65,8 @@ class TestGitOperations(TestGitCommon):
 
         self.assertTrue("Pattern not found!" in str(context.exception))
 
-    def test__add_files_commit_and_push(self):
+    @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={})
+    def test__add_files_commit_and_push(self, _):
         attrs_dict = {"name": "test_solution_name"}
         active_hips = HipsClass(attrs_dict)
 
@@ -90,9 +92,10 @@ class TestGitOperations(TestGitCommon):
         # correct branch checked out
         self.assertEqual(self.repo.active_branch.name, "test_solution_name")
 
-    def test__add_files_commit_and_push_no_diff(self):
+    @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={})
+    def test__add_files_commit_and_push_no_diff(self, _):
         attrs_dict = {"name": "test_solution_name"}
-        active_hips = HipsClass(attrs_dict)
+        HipsClass(attrs_dict)
 
         file = self.create_tmp_repo(commit_solution_file=False)
 
@@ -102,7 +105,8 @@ class TestGitOperations(TestGitCommon):
         with self.assertRaises(RuntimeError):
             hips.core.utils.operations.git_operations._add_files_commit_and_push(new_head, [file], "a_wonderful_cmt_msg", dry_run=True)
 
-    def test__copy_solution_to_repository(self):
+    @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={})
+    def test__copy_solution_to_repository(self, _):
         attrs_dict = {"name": "test_solution_name"}
         active_hips = HipsClass(attrs_dict)
 
@@ -116,7 +120,8 @@ class TestGitOperations(TestGitCommon):
             os.path.join(str(self.repo.working_tree_dir), "solutions", "test_solution_name.py")
         ))
 
-    def test_download_repository(self):
+    @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={})
+    def test_download_repository(self, _):
         # clean
         shutil.rmtree(xdg_cache_home().joinpath("test"), ignore_errors=True)
 

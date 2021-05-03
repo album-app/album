@@ -115,8 +115,8 @@ def pre_release(git_repo_path, branch_name):
     # update catalog index
     catalog_file = os.path.join(git_repo_path, HipsDefaultValues.catalog_index_file_name.value)
     catalog_index = CatalogIndex(catalog_file)
-    catalog_index.update_index(get_dict_from_yml(yml_file))
-    catalog_index.save_catalog_index()
+    catalog_index.update(get_dict_from_yml(yml_file))
+    catalog_index.save()
 
     # push changes to catalog, do not trigger pipeline
     commit_mssg = "CI updated %s" % solution_name

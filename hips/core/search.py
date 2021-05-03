@@ -11,7 +11,7 @@ module_logger = logging.get_active_logger
 
 
 def search(args):
-    HipsSearcher().search(args.keywprds)
+    HipsSearcher().search(args.keywords)
 
 
 class HipsSearcher:

@@ -82,7 +82,11 @@ class TestZenodoDeposit(TestZenodoCommon):
         pass
 
     def test_create_file(self):
-        file = tempfile.NamedTemporaryFile(mode='w+')
+        # file is not allowed to end with "_" character for reasons. This solution is ugly but works...
+        while True:
+            file = tempfile.NamedTemporaryFile(mode='w+')
+            if not file.name.endswith("_"):
+                break
         file.write('test')
         file.flush()
         os.fsync(file)
@@ -94,7 +98,11 @@ class TestZenodoDeposit(TestZenodoCommon):
         file.close()
 
     def test_delete_file(self):
-        file = tempfile.NamedTemporaryFile(mode='w+')
+        # file is not allowed to end with "_" character for reasons. This solution is ugly but works...
+        while True:
+            file = tempfile.NamedTemporaryFile(mode='w+')
+            if not file.name.endswith("_"):
+                break
         file.write('test')
         file.flush()
         os.fsync(file)
@@ -112,7 +120,11 @@ class TestZenodoDeposit(TestZenodoCommon):
         self.assertEqual(len(self.test_deposit.files), 0)
 
     def test_update_file(self):
-        file = tempfile.NamedTemporaryFile(mode='w+')
+        # file is not allowed to end with "_" character for reasons. This solution is ugly but works...
+        while True:
+            file = tempfile.NamedTemporaryFile(mode='w+')
+            if not file.name.endswith("_"):
+                break
         file_name = os.path.basename(file.name)
         file.write('test')
         file.flush()

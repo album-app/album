@@ -1,127 +1,239 @@
-import os
+import io
 import tempfile
 import unittest.suite
+from pathlib import Path
 from unittest.mock import patch
 
-from hips.core.model.environment import parse_environment_name_from_yaml, set_environment_name
+from hips.core.model.environment import Environment, Conda
 from test.unit.test_common import TestHipsCommon
-from hips.core.model.hips_base import HipsClass
 
 
 class TestEnvironment(TestHipsCommon):
 
     def setUp(self):
         """Setup things necessary for all tests of this class"""
-        # self.something_all_tests_use = some_value
+        self.environment = Environment({})
+        self.environment.name = "test"
+
         pass
 
-    @patch('hips.core.model.environment.parse_environment_name_from_yaml', return_value="test")
-    @patch('hips.core.model.environment.get_environment_file', return_value="yaml_path")
-    @patch('hips.core.model.environment.Path.exists')
-    def test_set_environment_name(self, path_exists, _, __):
-        # hips with no dependency -> hips_full
-        hips_no_deps = HipsClass(self.attrs)
+    @patch('hips.core.model.environment.Environment.get_env_file', return_value="Called")
+    @patch('hips.core.model.environment.Environment.get_env_name', return_value="Called")
+    def test_init_(self, get_env_file_mock, get_env_name_mock):
+        e = Environment({"dependencies": None})
 
-        # hips with environment_name
-        self.attrs = {
-            "dependencies": {
-                "environment_name": "test_name"
-            }
-        }
+        get_env_file_mock.assert_called_once()
+        get_env_name_mock.assert_called_once()
 
-        hips_environment_name = HipsClass(self.attrs)
+        self.assertIsNotNone(e.configuration)
 
-        # hips with environment file
-        self.attrs = {
-            "dependencies": {
-                "environment_file": "test.yaml"
-            }
-        }
-        hips_environment_file = HipsClass(self.attrs)
+    @patch('hips.core.model.environment.Environment.create_or_update_env', return_value="Called")
+    @patch('hips.core.model.environment.Environment.get_env_path', return_value="Called")
+    @patch('hips.core.model.environment.Environment.install_hips', return_value="Called")
+    def test_install(self, is_inst_mock, get_env_path_mock, create_mock):
+        self.environment.install("TestVersion")
 
-        # hips with environment url
-        self.attrs = {
-            "dependencies": {
-                "environment_file": "fake_url"
-            }
-        }
-        hips_environment_url = HipsClass(self.attrs)
+        create_mock.assert_called_once()
+        get_env_path_mock.assert_called_once()
+        is_inst_mock.assert_called_once_with("TestVersion")
 
-        self.assertEqual("hips_full", set_environment_name(hips_no_deps),
-                         "hips_no_deps: Environment name wrong!")
+    def test_get_env_file_no_deps(self):
+        self.assertIsNone(self.environment.get_env_file({}))
 
-        self.assertEqual("test_name", set_environment_name(hips_environment_name),
-                         "hips_environment_name: Environment name wrong!")
+    def test_get_env_file_empty_deps(self):
+        self.assertIsNone(self.environment.get_env_file({"dependencies": None}))
 
-        path_exists.return_value = True
-        self.assertEqual("test", set_environment_name(hips_environment_file),
-                         "hips_environment_file: Environment name wrong!")
+    @patch('hips.core.model.environment.create_path_recursively', return_value="createdPath")
+    @patch('hips.core.model.environment.HipsConfiguration.get_cache_path_hips', return_value=Path("aPath"))
+    def test_get_env_file_invalid_file(self, _, create_path_mock):
+        with self.assertRaises(RuntimeError) as context:
+            self.environment.get_env_file({"name": "test", "dependencies": {"environment_file": "env_file"}})
+            self.assertIn("No valid environment name", str(context.exception))
 
-        path_exists.return_value = False  # ToDo: this is not working properly. Idk why?!?
-        self.assertEqual("test", set_environment_name(hips_environment_url),
-                         "hips_environment_url: Environment name wrong!")
+        create_path_mock.assert_called_once()
 
-    def test_parse_environment_name_from_yaml(self):
-        test_yaml = tempfile.NamedTemporaryFile(mode='w+')
-        test_yaml.write("""
-name: test_environment
-dependencies:
-    - test_dependency
-""")
-        test_yaml.flush()
-        os.fsync(test_yaml)
-        self.assertTrue(parse_environment_name_from_yaml(test_yaml.name) == "test_environment",
-                        "Environment name parsing went wrong!")
+    @patch('hips.core.model.environment.copy', return_value="copiedPath")
+    @patch('hips.core.model.environment.create_path_recursively', return_value="createdPath")
+    @patch('hips.core.model.environment.HipsConfiguration.get_cache_path_hips', return_value=Path("aPath"))
+    def test_get_env_file_valid_file(self, _, create_path_mock, copy_mock):
+        with tempfile.NamedTemporaryFile() as tmp_file:
+            with open(tmp_file.name, "w") as f:
+                f.write("test")
 
-    @unittest.skip("Needs to be implemented!")
-    def test_run_in_environment(self):
-        # ToDo: implement
-        pass
+            r = self.environment.get_env_file({"name": "test", "dependencies": {"environment_file": tmp_file.name}})
 
-    @unittest.skip("Needs to be implemented!")
-    def test_set_environment_path(self):
-        # ToDo: implement
-        pass
+            self.assertEqual(Path("aPath").joinpath("test.yml"), r)
 
-    @unittest.skip("Needs to be implemented!")
-    def get_environment_dict(self):
-        # ToDo: implement
-        pass
+            create_path_mock.assert_called_once()
+            copy_mock.assert_called_once()
 
-    @unittest.skip("Needs to be implemented!")
+    @patch('hips.core.model.environment.download_resource', return_value="donwloadedResource")
+    @patch('hips.core.model.environment.create_path_recursively', return_value="createdPath")
+    @patch('hips.core.model.environment.HipsConfiguration.get_cache_path_hips', return_value=Path("aPath"))
+    def test_get_env_file_valid_url(self, _, create_path_mock, download_mock):
+        url = "http://test.de"
+
+        r = self.environment.get_env_file({"name": "test", "dependencies": {"environment_file": url}})
+
+        self.assertEqual("donwloadedResource", r)
+
+        create_path_mock.assert_called_once()
+        download_mock.assert_called_once_with(url, Path("aPath").joinpath("test.yml"))
+
+    @patch('hips.core.model.environment.create_path_recursively', return_value="createdPath")
+    @patch('hips.core.model.environment.HipsConfiguration.get_cache_path_hips')
+    def test_get_env_file_valid_StringIO(self, get_path_mock, create_path_mock):
+        get_path_mock.return_value = Path(tempfile.gettempdir())
+
+        string_io = io.StringIO("""testStringIo""")
+
+        r = self.environment.get_env_file({"name": "test", "dependencies": {"environment_file": string_io}})
+
+        self.assertEqual(Path(tempfile.gettempdir()).joinpath("test.yml"), r)
+
+        with open(Path(tempfile.gettempdir()).joinpath("test.yml"), "r") as f:
+            lines = f.readlines()
+
+        self.assertEqual(lines[0], "testStringIo")
+
+        create_path_mock.assert_called_once()
+
+    def test_get_env_name_no_deps(self):
+        self.assertEqual(self.environment.get_env_name({}), 'hips')
+
+    def test_get_env_name_invalid_deps(self):
+        with self.assertRaises(RuntimeError):
+            self.assertEqual(self.environment.get_env_name({"dependencies": "None"}), 'hips')
+
+    def test_get_env_name_name_given(self):
+        self.assertEqual(self.environment.get_env_name({"dependencies": {"environment_name": "test"}}), 'test')
+
+    @patch('hips.core.model.environment.Environment.get_env_name_from_yaml', return_value="TheParsedName")
+    def test_get_env_name_file_given(self, get_env_name_mock):
+        self.assertEqual(self.environment.get_env_name({"dependencies": {"environment_file": "test"}}), 'TheParsedName')
+
+        get_env_name_mock.assert_called_once()
+
+    def test_get_env_name_from_yaml(self):
+        with tempfile.NamedTemporaryFile() as tmp_file:
+            with open(tmp_file.name, "w") as f:
+                f.write("name: TestName")
+
+            self.environment.yaml_file = Path(tmp_file.name)
+
+            self.assertEqual(self.environment.get_env_name_from_yaml(), "TestName")
+
+    def test_get_env_path(self):
+        Conda.create_environment("test")
+        self.assertIn("test", self.environment.get_env_path())
+
+    def test_get_env_path_invalid_env(self):
+        self.assertFalse(Conda.environment_exists("NotExistingEnv"))
+        self.environment.name = "NotExistingEnv"
+        with self.assertRaises(RuntimeError):
+            self.environment.get_env_path()
+
+    def test_init_env_path_None(self):
+        self.assertFalse(Conda.environment_exists("NotExistingEnv"))
+        self.environment.name = "NotExistingEnv"
+
+        self.assertIsNone(self.environment.init_env_path())
+
+    def test_init_env_path(self):
+        Conda.create_environment("test")
+
+        self.assertIn("test", self.environment.init_env_path())
+
     def test_is_installed(self):
+        Conda.create_environment("test")
+        path = Conda.get_environment_dict()["test"]
+        self.environment.path = path
+
+        self.assertTrue(self.environment.is_installed("python"))
+        self.assertFalse(self.environment.is_installed("python", "500.1"))
+        self.assertTrue(self.environment.is_installed("python", "2.7"))
+
+    @patch('hips.core.model.environment.Conda.run_script', return_value="ranScript")
+    def test_run_script(self, conda_run_mock):
+        script = "print(\"test\")"
+
+        self.environment.path = "notNone"
+
+        self.environment.run_script(script)
+        conda_run_mock.assert_called_once()
+
+    @patch('hips.core.model.environment.Conda.run_script', return_value="ranScript")
+    def test_run_script_no_path(self, conda_run_mock):
+        script = "print(\"test\")"
+
+        self.environment.path = None
+
+        with self.assertRaises(EnvironmentError):
+            self.environment.run_script(script)
+        conda_run_mock.assert_not_called()
+
+    @patch('hips.core.model.environment.Environment.update')
+    @patch('hips.core.model.environment.Environment.create')
+    def test_create_or_update_env_no_env(self, create_mock, update_mock):
+        Conda.remove_environment("test")
+        self.assertFalse(Conda.environment_exists("test"))
+
+        self.environment.create_or_update_env()
+        create_mock.assert_called_once()
+        update_mock.assert_not_called()
+
+    @patch('hips.core.model.environment.Environment.update')
+    @patch('hips.core.model.environment.Environment.create')
+    def test_create_or_update_env_env_present(self, create_mock, update_mock):
+        Conda.create_environment("test")
+
+        self.environment.create_or_update_env()
+        update_mock.assert_called_once()
+        create_mock.assert_not_called()
+
+    @unittest.skip("Needs to be implemented!")
+    def test_update(self):
         # ToDo: implement
         pass
 
-    @unittest.skip("Needs to be implemented!")
-    def test_get_environment_file(self):
-        # ToDo: implement
-        pass
+    @patch('hips.core.model.environment.Conda.create_environment')
+    @patch('hips.core.model.environment.Conda.create_environment_from_file')
+    def test_create_valid_yaml(self, create_environment_from_file_mock, create_environment_mock):
+        self.environment.yaml_file = Path("aPath")
 
-    @unittest.skip("Needs to be implemented!")
-    def test_create_or_update_environment(self):
-        # ToDo: implement
-        pass
+        self.environment.create()
 
-    @unittest.skip("Needs to be implemented!")
-    def test_install_hips_in_environment(self):
-        # ToDo: implement
-        pass
+        create_environment_from_file_mock.assert_called_once_with(Path("aPath"), "test")
+        create_environment_mock.assert_not_called()
 
-    @unittest.skip("Needs to be implemented!")
-    def test_environment_exists(self):
-        # ToDo: implement
-        pass
+    @patch('hips.core.model.environment.Conda.create_environment')
+    @patch('hips.core.model.environment.Conda.create_environment_from_file')
+    def test_create_no_yaml(self, create_environment_from_file_mock, create_environment_mock):
+        self.environment.create()
 
-    @unittest.skip("Needs to be implemented!")
-    def test_get_active_environment_path(self):
-        # ToDo: implement
-        pass
+        create_environment_mock.assert_called_once_with("test")
+        create_environment_from_file_mock.assert_not_called()
 
-    @unittest.skip("Needs to be implemented!")
-    def test_pip_install(self):
-        # ToDo: implement
-        pass
+    @patch('hips.core.model.environment.Environment.pip_install')
+    @patch('hips.core.model.environment.Environment.is_installed', return_value=False)
+    def test_install_hips(self, is_installed_mock, pip_install_mock):
+        self.environment.install_hips(None)
+
+        is_installed_mock.assert_called_once_with("hips", None)
+        pip_install_mock.assert_called_once_with('git+https://gitlab.com/ida-mdc/hips.git')
+
+    @patch('hips.core.model.environment.Conda.pip_install')
+    def test_pip_install(self, conda_install_mock):
+        self.environment.path = "aPath"
+        self.environment.pip_install("test", "testVersion")
+
+        conda_install_mock.assert_called_once_with("aPath", "test==testVersion")
+
+    @patch('hips.core.model.environment.Conda.remove_environment')
+    def test_remove(self, remove_mock):
+        self.environment.remove()
+
+        remove_mock.assert_called_once_with("test")
 
 
 if __name__ == '__main__':

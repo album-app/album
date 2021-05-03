@@ -10,7 +10,7 @@ import yaml
 from xdg import xdg_cache_home
 
 from hips.core.model import logging
-from hips.core.model.configuration import HipsConfiguration
+from hips.core.model.configuration import HipsConfiguration, HipsDefaultValues
 from hips.core.model.logging import hips_debug
 from hips.core.utils import subcommand
 from hips.core.utils.operations.file_operations import create_path_recursively, copy
@@ -47,6 +47,12 @@ class Conda:
         environment_dict = Conda.get_environment_dict()
         return True if environment_name in environment_dict.keys() else False
 
+    @staticmethod
+    def get_active_environment_name():
+        """Returns the environment form the active hips."""
+        conda_list = Conda.get_info()
+        return conda_list["active_prefix_name"]
+
     # todo: write tests
     @staticmethod
     def get_active_environment_path():
@@ -56,10 +62,14 @@ class Conda:
 
     @staticmethod
     def remove_environment(environment_name):
+        if Conda.get_active_environment_name() == environment_name:
+            module_logger().warning("Cannot remove active environment! Skipping...")
+            return
+
         subprocess_args = [
-            'conda', 'remove', '--all', '-q', '-n', environment_name
+            'conda', 'remove', '--all', '--json', '-q', '-n', environment_name
         ]
-        subprocess.run(subprocess_args)
+        subcommand.run(subprocess_args, log_output=False)
 
     @staticmethod
     def get_info():
@@ -79,10 +89,13 @@ class Conda:
 
     @staticmethod
     def create_environment_from_file(yaml_path, environment_name):
-        subprocess_args = ['conda', 'env', 'create', '-q', '-f', str(yaml_path)]
+        if Conda.environment_exists(environment_name):
+            Conda.remove_environment(environment_name)
+
+        subprocess_args = ['conda', 'env', 'create', '--json', '-q', '-f', str(yaml_path)]
 
         try:
-            subcommand.run(subprocess_args)
+            subcommand.run(subprocess_args, log_output=False)
         except RuntimeError as e:
             # cleanup after failed installation
             if Conda.environment_exists(environment_name):
@@ -92,10 +105,13 @@ class Conda:
 
     @staticmethod
     def create_environment(environment_name):
-        subprocess_args = ['conda', 'create', '-q', '-n', environment_name, 'python', 'pip']
+        if Conda.environment_exists(environment_name):
+            Conda.remove_environment(environment_name)
+
+        subprocess_args = ['conda', 'create', '--json', '-q', '-n', environment_name, 'python', 'pip']
 
         try:
-            subcommand.run(subprocess_args)
+            subcommand.run(subprocess_args, log_output=False)
         except RuntimeError as e:
             # cleanup after failed installation
             if Conda.environment_exists(environment_name):
@@ -122,29 +138,26 @@ class Conda:
 
 class Environment:
     configuration = HipsConfiguration()
-    yaml_file = ""
-    name = ""
-    path = ""
 
-    def __init__(self, active_hips):
-        self.yaml_file = self.get_env_file(active_hips)
-        self.name = self.get_env_name(active_hips)
+    def __init__(self, active_hips_dict):
+        self.yaml_file = self.get_env_file(active_hips_dict)
+        self.name = self.get_env_name(active_hips_dict)
+        self.path = self.init_env_path()
 
     def install(self, min_hips_version=None):
-        """Creates or updates an anvironment and installs hips in the target environment."""
+        """Creates or updates an an environment and installs hips in the target environment."""
         self.create_or_update_env()
         self.path = self.get_env_path()
 
         self.install_hips(min_hips_version)
 
-    def get_env_file(self, active_hips):
-        """Sets the yaml_path attribute."""
-        if 'dependencies' in dir(active_hips):
-            if 'environment_file' in active_hips.dependencies:
-                env_file = active_hips.dependencies['environment_file']
+    def get_env_file(self, active_hips_dict):
+        if 'dependencies' in active_hips_dict and active_hips_dict['dependencies'] is not None:
+            if 'environment_file' in active_hips_dict['dependencies']:
+                env_file = active_hips_dict['dependencies']['environment_file']
 
-                yaml_path = self.configuration.get_cache_path_hips(active_hips).joinpath(
-                    "%s%s" % (active_hips.name, ".yml"))
+                yaml_path = self.configuration.get_cache_path_hips(active_hips_dict).joinpath(
+                    "%s%s" % (active_hips_dict["name"], ".yml"))
                 create_path_recursively(yaml_path.parent)
 
                 if isinstance(env_file, str):
@@ -168,26 +181,26 @@ class Environment:
             return None
         return None
 
-    def get_env_name(self, active_hips):
-        if hasattr(active_hips, "dependencies"):
-            if 'environment_name' in active_hips.dependencies:
-                environment_name = active_hips.dependencies['environment_name']
+    def get_env_name(self, active_hips_dict):
+        if 'dependencies' in active_hips_dict and active_hips_dict['dependencies'] is not None:
+            if 'environment_name' in active_hips_dict['dependencies']:
+                environment_name = active_hips_dict['dependencies']['environment_name']
                 module_logger().debug('Environment name explicit given as: %s...' % environment_name)
                 return environment_name
 
-            elif 'environment_file' in active_hips.dependencies:
-                environment_name = self.get_environment_name_from_yaml()
+            elif 'environment_file' in active_hips_dict['dependencies']:
+                environment_name = self.get_env_name_from_yaml()
                 module_logger().debug('Extracted following name from file: %s...' %
                                       environment_name)
                 return environment_name
             else:
                 raise RuntimeError('No valid environment name or file specified! Don\'t know where to run solution!')
         else:
-            environment_name = 'hips'
+            environment_name = HipsDefaultValues.default_environment.value
             module_logger().debug('Environment name not given. Assume solution can be run in: %s...' % environment_name)
             return environment_name
 
-    def get_environment_name_from_yaml(self):
+    def get_env_name_from_yaml(self):
         """Reads out the "name" keywords from the environment yaml file
 
         Returns:
@@ -201,7 +214,7 @@ class Environment:
             env = yaml.load(f, Loader=yaml.FullLoader)
         return env['name']
 
-    def get_env_path(self):
+    def init_env_path(self):
         environment_dict = Conda.get_environment_dict()
         if self.name in environment_dict.keys():
             environment_path = environment_dict[self.name]
@@ -209,9 +222,14 @@ class Environment:
 
             return environment_path
         else:
-            raise RuntimeError('Could not find environment!')
+            return None
 
-    # todo: write tests
+    def get_env_path(self):
+        env_path = self.init_env_path()
+        if not env_path:
+            raise RuntimeError('Could not find environment!')
+        return env_path
+
     def is_installed(self, package_name, min_package_version=None):
         conda_list = Conda.list_environment(self.path)
 
@@ -242,6 +260,9 @@ class Environment:
             script:
                 The script calling the solution
         """
+        if not self.path:
+            raise EnvironmentError("Environment not proper configured. Is the solution installed?")
+
         module_logger().debug('run_in_environment: %s...' % self.path)
 
         # Use an environment path and a temporary file to store the script
@@ -280,12 +301,7 @@ class Environment:
 
     # ToDo: use explicit versioning of hips
     def install_hips(self, min_hips_version=None):
-        """Installs the hips dependency in the environment
-
-        Args:
-            active_hips:
-                The hips object to create a solution for.
-        """
+        """Installs the hips dependency in the environment"""
 
         if not self.is_installed("hips", min_hips_version):
             self.pip_install('git+https://gitlab.com/ida-mdc/hips.git')

@@ -26,6 +26,7 @@ class HipsDefaultValues(Enum):
     cache_path_solution_prefix = "solutions"
     cache_path_app_prefix = "apps"
     cache_path_download_prefix = "downloads"
+    default_environment = "hips"
 
 
 class HipsConfiguration:

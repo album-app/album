@@ -2,6 +2,7 @@
 import unittest
 
 from hips.core.model.logging import *
+from test.unit.test_common import TestHipsCommon
 
 
 def helper_test_configure_logging(logger):
@@ -60,18 +61,20 @@ class TestLogging(unittest.TestCase):
         self.assertEqual(handler_levels, [to_level.name] * len(handler_levels))
 
 
-# ToDo: write tests
-class TestLogfileBuffer(unittest.TestCase):
+class TestLogfileBuffer(TestHipsCommon):
 
-    @unittest.skip("Needs to be implemented!")
     def test_write(self):
-        # ToDo: implement
-        pass
 
-    @unittest.skip("Needs to be implemented!")
-    def test_tabulate_multi_lines(self):
-        # ToDo: implement
-        pass
+        self.assertIsNotNone(get_active_logger())
+
+        log_buffer = LogfileBuffer()
+        log_buffer.write("WARNING - message\n over \n several \n lines")
+
+        logs = self.get_logs()
+        self.assertIn("WARNING - message", logs[0])
+        self.assertEqual("\t\tover", logs[1])
+        self.assertEqual("\t\tseveral", logs[2])
+        self.assertEqual("\t\tlines", logs[3])
 
 
 if __name__ == '__main__':

@@ -1,18 +1,15 @@
 import shutil
 import tempfile
 import unittest.mock
-from unittest.mock import patch
-
 from pathlib import Path
+from unittest.mock import patch
 
 from anytree import Node
 
-from hips.core.model.hips_base import HipsClass
-from hips.core import deploy_keys
-from hips.core.model.configuration import HipsDefaultValues
 from hips.core.model.catalog import Catalog, CatalogIndex
+from hips.core.model.configuration import HipsDefaultValues
+from hips.core.model.hips_base import HipsClass
 from test.unit.test_common import TestHipsCommon
-
 
 sample_index = """{
   "children": [
@@ -45,10 +42,12 @@ class TestCatalog(TestHipsCommon):
 
     def populate_index(self):
         for i in range(0, 10):
-            hips = HipsClass({})
+            d = {}
 
-            for key in deploy_keys:
-                setattr(hips, key, "%s%s" % (key, str(i)))
+            for key in HipsClass.deploy_keys:
+                d[key] = "%s%s" % (key, str(i))
+
+            hips = HipsClass(d)
 
             # set a doi
             setattr(hips, "doi", "doi%s" % str(i))
@@ -56,7 +55,7 @@ class TestCatalog(TestHipsCommon):
             # set a deposit ID
             setattr(hips, "deposit_id", "deposit_id%s" % str(i))
 
-            self.catalog.add_to_index(hips)
+            self.catalog.add(hips)
 
     def setUp(self):
         self.tmp_dir = tempfile.gettempdir()
@@ -76,63 +75,108 @@ class TestCatalog(TestHipsCommon):
         self.assertIsNone(new_catalog.src)
         self.assertTrue(new_catalog.is_local)
         self.assertEqual(new_catalog.id, "test")
-        self.assertEqual(str(new_catalog.catalog_index.catalog_index), str(Node("test", **{"version": "0.1.0"})))
+        self.assertEqual(str(new_catalog.catalog_index.index), str(Node("test", **{"version": "0.1.0"})))
 
     # Actually rather an integration test
-    def test_add_to_index_and_len(self):
+    def test_add_and_len(self):
         self.populate_index()
         self.assertEqual(len(self.catalog), 10)
 
     @patch('hips.core.model.catalog.Catalog.get_doi_cache_file')
-    def test_add_to_index_doi_already_present(self, get_solution_cache_path_file):
+    def test_add_doi_already_present(self, get_solution_cache_path_file):
         self.populate_index()
         self.assertEqual(len(self.catalog), 10)
 
         tmp_file = tempfile.NamedTemporaryFile()
         get_solution_cache_path_file.side_effect = [Path(tmp_file.name)]
 
-        hips = HipsClass({})
+        d = {}
+        for key in HipsClass.deploy_keys:
+            d[key] = "%s%s" % (key, "new")
 
-        for key in deploy_keys:
-            setattr(hips, key, "%s%s" % (key, "new"))
+        hips = HipsClass(d)
 
         # this doi is already in index
         setattr(hips, "doi", "doi1")
         self.assertIsNotNone(self.catalog.resolve_doi("doi1"))
 
         with self.assertRaises(RuntimeError):
-            self.catalog.add_to_index(hips)
+            self.catalog.add(hips)
 
     @patch('hips.core.model.catalog.Catalog.get_doi_cache_file')
-    def test_add_to_index_solution_already_present_no_overwrite(self, get_solution_cache_file_mock):
+    def test_add_solution_already_present_no_overwrite(self, get_solution_cache_file_mock):
         self.populate_index()
         self.assertEqual(len(self.catalog), 10)
 
         tmp_file = tempfile.NamedTemporaryFile()
         get_solution_cache_file_mock.side_effect = [Path(tmp_file.name)]
 
-        hips = HipsClass({})
+        d = {}
+        for key in HipsClass.deploy_keys:
+            d[key] = "%s%s" % (key, "0")
 
-        for key in deploy_keys:
-            setattr(hips, key, "%s%s" % (key, str(0)))  # already existend solution
+        hips = HipsClass(d)
 
         with self.assertRaises(RuntimeError):
-            self.catalog.add_to_index(hips)
+            self.catalog.add(hips)
 
     @patch('hips.core.model.catalog.Catalog.get_doi_cache_file')
-    def test_add_to_index_solution_already_present_overwrite(self, get_solution_cache_file_mock):
+    def test_add_solution_already_present_overwrite(self, get_solution_cache_file_mock):
         self.populate_index()
         self.assertEqual(len(self.catalog), 10)
 
         tmp_file = tempfile.NamedTemporaryFile()
         get_solution_cache_file_mock.side_effect = [Path(tmp_file.name)]
 
-        hips = HipsClass({})
+        d = {}
+        for key in HipsClass.deploy_keys:
+            d[key] = "%s%s" % (key, "0")
 
-        for key in deploy_keys:
-            setattr(hips, key, "%s%s" % (key, str(0)))  # already existend solution
+        hips = HipsClass(d)
 
-        self.catalog.add_to_index(hips, force_overwrite=True)
+        self.catalog.add(hips, force_overwrite=True)
+        self.assertEqual(len(self.catalog), 10)
+
+    def test_remove(self):
+        self.populate_index()
+        self.assertEqual(len(self.catalog), 10)
+
+        d = {}
+        for key in HipsClass.deploy_keys:
+            d[key] = "%s%s" % (key, "0")
+
+        hips = HipsClass(d)
+
+        self.catalog.remove(hips)
+        self.assertEqual(len(self.catalog), 9)
+
+    def test_remove_not_installed(self):
+        self.populate_index()
+        self.assertEqual(len(self.catalog), 10)
+
+        d = {}
+        for key in HipsClass.deploy_keys:
+            d[key] = "%s%s" % (key, "new")
+
+        hips = HipsClass(d)
+
+        self.catalog.remove(hips)
+        self.assertIn("WARNING - Solution not installed!", self.get_logs()[-1])
+        self.assertEqual(len(self.catalog), 10)
+
+    def test_remove_not_local(self):
+        self.populate_index()
+        self.assertEqual(len(self.catalog), 10)
+
+        d = {}
+        for key in HipsClass.deploy_keys:
+            d[key] = "%s%s" % (key, "0")
+
+        hips = HipsClass(d)
+
+        self.catalog.is_local = False
+        self.catalog.remove(hips)
+        self.assertIn("WARNING - Cannot remove entries", self.get_logs()[-1])
         self.assertEqual(len(self.catalog), 10)
 
     @patch('hips.core.model.catalog.Catalog.get_solution_cache_file')
@@ -259,7 +303,7 @@ class TestCatalog(TestHipsCommon):
         )
 
     @unittest.skip("Needs to be implemented!")
-    def list_installed(self):
+    def test_list_installed(self):
         # ToDo: implement
         pass
 
@@ -340,31 +384,31 @@ class TestHipsCatalogIndex(TestHipsCommon):
         # ToDo: implement
         pass
 
-    def test_load_catalog_index_from_disk(self):
+    def test_load(self):
         self.assertEqual(len(self.cs_index), 1)
-        self.cs_index.load_catalog_index_from_disk(self.cs_file_index_empty)
+        self.cs_index.load(self.cs_file_index_empty)
         self.assertEqual(len(self.cs_index), 0)
 
-    def test_load_catalog_index_from_disk_empty_file(self):
+    def test_load_empty_file(self):
         self.assertEqual(len(self.cs_index), 1)
-        self.cs_index.load_catalog_index_from_disk(self.cs_file_empty)
+        self.cs_index.load(self.cs_file_empty)
         self.assertEqual(len(self.cs_index), 1)
 
-    def test_update_index(self):
+    def test_update(self):
         node_attrs = {"name": "myname", "group": "mygroup", "version": "myversion"}
 
-        self.cs_index.load_catalog_index_from_disk(self.cs_file_index_empty)
+        self.cs_index.load(self.cs_file_index_empty)
         self.assertEqual(len(self.cs_index), 0)
-        self.cs_index.update_index(node_attrs)
+        self.cs_index.update(node_attrs)
         self.assertEqual(len(self.cs_index), 1)
 
         self.assertIsNotNone(self.cs_index._find_node_by_name_version_and_group(
-            self.cs_index.catalog_index, "myname", "myversion", "mygroup")
+            self.cs_index.index, "myname", "myversion", "mygroup")
         )
 
-    def test_update_index_overwrite_old(self):
+    def test_update_overwrite_old(self):
         res = self.cs_index._find_node_by_name_version_and_group(
-            self.cs_index.catalog_index, "testName", "testVersion", "testGroup"
+            self.cs_index.index, "testName", "testVersion", "testGroup"
         )
         self.assertIsNotNone(res)
         self.assertFalse(hasattr(res, "newAttr"))
@@ -372,42 +416,42 @@ class TestHipsCatalogIndex(TestHipsCommon):
 
         # updated version
         node_attrs = {"name": "testName", "group": "testGroup", "version": "testVersion", "newAttr": "newAttrVal"}
-        self.cs_index.update_index(node_attrs)
+        self.cs_index.update(node_attrs)
 
         # check changes
         self.assertEqual(len(self.cs_index), 1)
         res = self.cs_index._find_node_by_name_version_and_group(
-            self.cs_index.catalog_index, "testName", "testVersion", "testGroup"
+            self.cs_index.index, "testName", "testVersion", "testGroup"
         )
         self.assertIsNotNone(res)
         self.assertEqual(res.newAttr, "newAttrVal")
 
-    def test_update_index_add_version(self):
+    def test_update_add_version(self):
         res = self.cs_index._find_node_by_name_version_and_group(
-            self.cs_index.catalog_index, "testName", "testVersion", "testGroup"
+            self.cs_index.index, "testName", "testVersion", "testGroup"
         )
         self.assertIsNotNone(res)
         self.assertEqual(len(self.cs_index), 1)
 
         # updated version
         node_attrs = {"name": "testName", "group": "testGroup", "version": "testVersion2"}
-        self.cs_index.update_index(node_attrs)
+        self.cs_index.update(node_attrs)
 
         # check
         self.assertEqual(len(self.cs_index), 2)
         self.assertIsNotNone(self.cs_index._find_node_by_name_version_and_group(
-            self.cs_index.catalog_index, "testName", "testVersion", "testGroup"
+            self.cs_index.index, "testName", "testVersion", "testGroup"
         ))
         self.assertIsNotNone(self.cs_index._find_node_by_name_version_and_group(
-            self.cs_index.catalog_index, "testName", "testVersion2", "testGroup"
+            self.cs_index.index, "testName", "testVersion2", "testGroup"
         ))
 
-    def test_save_catalog_index(self):
+    def test_save(self):
         self.assertTrue(self.cs_file_empty.stat().st_size == 0)
-        self.cs_index.save_catalog_index(self.cs_file_empty)
+        self.cs_index.save(self.cs_file_empty)
         self.assertTrue(self.cs_file_empty.stat().st_size > 0)
 
-        self.cs_index.load_catalog_index_from_disk(self.cs_file_empty)
+        self.cs_index.load(self.cs_file_empty)
         self.assertEqual(len(self.cs_index), 1)
 
     def test_get_leaves_dict_list(self):
@@ -451,9 +495,8 @@ class TestHipsCatalogIndex(TestHipsCommon):
     @patch('hips.core.model.catalog.RenderTree', return_value="")
     def test_visualize(self, rt_mock):
         self.cs_index.visualize()
-        rt_mock.assert_called_once_with(self.cs_index.catalog_index)
+        rt_mock.assert_called_once_with(self.cs_index.index)
 
 
 if __name__ == '__main__':
     unittest.main()
-

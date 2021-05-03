@@ -45,7 +45,7 @@ def main():
     # hips.ci
 
     # hips.ci.utils
-    #suite.addTests(loader.loadTestsFromModule(test_zenodo_api))
+    suite.addTests(loader.loadTestsFromModule(test_zenodo_api))
 
     # ### integration
     suite.addTests(loader.loadTestsFromModule(test_integration_cmdline))

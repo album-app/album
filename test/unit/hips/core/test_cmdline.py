@@ -47,7 +47,7 @@ class TestCommandLine(unittest.TestCase):
         parser = cmdline.create_parser()
 
         # check parsing of subcommands
-        self.assertSubcommandParsed(parser, "search", search)
+        self.assertSubcommandParsed(parser, "search", search, "keyword")
         self.assertSubcommandWithFileArgParsed(parser, "run", run)
         self.assertSubcommandWithFileArgParsed(parser, "deploy", deploy)
         self.assertSubcommandWithFileArgParsed(parser, "repl", repl)
@@ -61,8 +61,10 @@ class TestCommandLine(unittest.TestCase):
         args = parser.parse_known_args()
         self.assertEqual(["--input", "/other/path"], args[1])
 
-    def assertSubcommandParsed(self, parser, name, method):
+    def assertSubcommandParsed(self, parser, name, method, arguments=None):
         sys.argv = ["", name]
+        if arguments:
+            sys.argv = sys.argv + [arguments]
         args = parser.parse_known_args()
         self.assertEqual(method, args[0].func)
 

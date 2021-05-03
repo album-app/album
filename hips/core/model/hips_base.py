@@ -1,3 +1,4 @@
+import copy
 from hips.core.model import logging
 from hips.core.model.environment import Environment
 
@@ -18,7 +19,8 @@ class HipsClass:
         d = {}
 
         for k in HipsClass.deploy_keys:
-            d[k] = self.__dict__[k]
+            # deepcopy necessary. Else original hips object will loose "action" attributes in its arguments
+            d[k] = copy.deepcopy(self.__dict__[k])
 
         return self._remove_action_from_args(d)
 
@@ -61,7 +63,7 @@ class HipsClass:
         for private_attr in self.private_setup_keywords:
             setattr(self, private_attr, "")
 
-        self.environment = Environment(self)
+        self.environment = Environment(self.get_hips_deploy_dict())
 
     def __str__(self, indent=2):
         s = '\n'

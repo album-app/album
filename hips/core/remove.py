@@ -13,13 +13,11 @@ def remove(args):
 
 class HipsRemover:
     catalog_configuration = HipsCatalogConfiguration()
-    active_hips = None
-    rm_dep = False
-    path = None
 
     def __init__(self, path, rm_dep):
         self.path = path
         self.rm_dep = rm_dep
+        self.active_hips = None
 
     def remove(self):
         resolve = self.catalog_configuration.resolve_from_str(self.path)
@@ -29,17 +27,21 @@ class HipsRemover:
             # check if solution pointing to a path is installed...
             resolve = self.catalog_configuration.resolve(self.active_hips.get_hips_deploy_dict())
 
-            if not resolve["catalog"]:
+            if not resolve or not resolve["catalog"]:
                 raise IndexError("Solution points to a local file which has not been installed yet. "
-                                 "Please point to an installation from the catalog. "
+                                 "Please point to an installation from the catalog or install the solution. "
                                  "Aborting...")
 
         if self.rm_dep:
             self.remove_dependencies()
 
         self.active_hips.environment.remove()
+
         path = self.catalog_configuration.configuration.get_cache_path_hips(self.active_hips)
         shutil.rmtree(path, ignore_errors=True)
+
+        if resolve["catalog"].is_local:
+            resolve["catalog"].remove(self.active_hips)
 
         pop_active_hips()
 

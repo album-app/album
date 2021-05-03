@@ -4,13 +4,11 @@ import yaml
 
 from hips.core import get_active_hips, load_and_push_hips
 from hips.core.model import logging
+from hips.core.model.configuration import HipsConfiguration, HipsCatalogConfiguration
 from hips.core.utils.operations.git_operations import _add_files_commit_and_push, _copy_solution_to_repository, \
     __create_new_head
 
 module_logger = logging.get_active_logger
-
-
-
 
 
 def _create_yaml_file_in_repo(repo, active_hips):
@@ -81,10 +79,7 @@ def deploy(args):
     including the markdown and solution file.
 
     """
-    # if imported at the beginning creates a circular dependency!
-    from hips.core.model.configuration import HipsConfiguration
-
-    hips_config = HipsConfiguration()
+    hips_catalog_config = HipsCatalogConfiguration()
 
     load_and_push_hips(args.path)
     active_hips = get_active_hips()
@@ -92,7 +87,7 @@ def deploy(args):
     # run installation of new solution file in debug mode
     # Todo: call the installation routine
 
-    default_deploy_catalog = hips_config.get_default_deployment_catalog()
+    default_deploy_catalog = hips_catalog_config.get_default_deployment_catalog()
     repo = default_deploy_catalog.download()
 
     # copy script to repository

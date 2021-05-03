@@ -1,4 +1,5 @@
 import unittest.suite
+from unittest.mock import patch
 
 import hips.core as hips
 from test.unit.test_common import TestHipsCommon
@@ -10,7 +11,8 @@ class TestHipsInit(TestHipsCommon):
         # self.something_all_tests_use = some_value
         pass
 
-    def test_setup(self):
+    @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={"name": "myname"})
+    def test_setup(self, _):
         get_active_hips = hips.get_active_hips()
         self.assertIsNone(get_active_hips)
         self.attrs = {

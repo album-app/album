@@ -7,8 +7,8 @@ from anytree.exporter import JsonExporter, DictExporter
 from anytree.importer import JsonImporter
 
 from hips.ci.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
-from hips.core.utils.operations.git_operations import download_repository
 from hips.core.model import logging
+from hips.core.utils.operations.git_operations import download_repository
 from hips.core.utils.operations.url_operations import download_resource
 
 module_logger = logging.get_active_logger
@@ -72,8 +72,9 @@ class Catalog:
 
             if not path_to_solution.is_file():
                 if self.is_local:
-                    raise FileNotFoundError(f"Could resolve the solution, but file {path_to_solution} could not be found!"
-                                            " Please reinstall the solution!")
+                    raise FileNotFoundError(
+                        "Could resolve the solution, but file %s could not be found!"
+                        " Please reinstall the solution!" % path_to_solution)
                 if hasattr(tree_leaf_node, "doi"):
                     self.download_solution_via_doi(getattr(tree_leaf_node, "doi"), name)
                 else:
@@ -236,7 +237,7 @@ class Catalog:
         self.catalog_index = CatalogIndex(self.id, self.index_path)
         return True
 
-    def add_to_index(self, active_hips, force_overwrite=False):
+    def add(self, active_hips, force_overwrite=False):
         """Adds an active hips_object to the index."""
         node_attrs = active_hips.get_hips_deploy_dict()
 
@@ -259,8 +260,23 @@ class Catalog:
             else:
                 raise RuntimeError("Solution already exists in Index! Aborting...")
 
-        self.catalog_index.update_index(node_attrs)
-        self.catalog_index.save_catalog_index()
+        self.catalog_index.update(node_attrs)
+        self.catalog_index.save()
+
+    def remove(self, active_hips):
+        if self.is_local:
+            node_attrs = active_hips.get_hips_deploy_dict()
+
+            node = self.catalog_index.resolve_hips_by_name_version_and_group(
+                node_attrs["name"], node_attrs["version"], node_attrs["group"]
+            )
+            if node:
+                node.parent = None
+                self.catalog_index.save()
+            else:
+                module_logger().warning("Solution not installed! Doing nothing...")
+        else:
+            module_logger().warning("Cannot remove entries from a remote catalog! Doing nothing...")
 
     def visualize(self):
         """Visualizes the catalog on the command line"""
@@ -294,12 +310,12 @@ class CatalogIndex:
 
     def __init__(self, name, path, index=None):
 
-        self.catalog_index_path = Path(path)
-        self.catalog_index = Node(name, **{"version": "0.1.0"})
+        self.path = Path(path)
+        self.index = Node(name, **{"version": "0.1.0"})
         if index:
-            self.catalog_index = index
+            self.index = index
         else:
-            self.load_catalog_index_from_disk(path)
+            self.load(path)
 
     @staticmethod
     def _find_node_by_name(search_start_node, name, maxlevel=None):
@@ -369,7 +385,7 @@ class CatalogIndex:
 
         return node_attrs, group, name, version
 
-    def load_catalog_index_from_disk(self, index_file_path):
+    def load(self, index_file_path):
         """Loads the catalog index from disk.
 
         Args:
@@ -377,22 +393,22 @@ class CatalogIndex:
                 The path to the index file of the catalog.
 
         """
-        self.catalog_index_path = Path(index_file_path)
+        self.path = Path(index_file_path)
 
-        if self.catalog_index_path.is_file():
-            if self.catalog_index_path.stat().st_size > 0:
+        if self.path.is_file():
+            if self.path.stat().st_size > 0:
                 importer = JsonImporter()
                 with open(index_file_path) as json_file:
-                    self.catalog_index = importer.read(json_file)
+                    self.index = importer.read(json_file)
             else:
                 module_logger().warning("File contains no content!")
         else:
             Path(index_file_path).parent.mkdir(parents=True, exist_ok=True)
             Path(index_file_path).touch()
 
-        return self.catalog_index
+        return self.index
 
-    def update_index(self, node_attrs):
+    def update(self, node_attrs):
         """Updates a catalog to include a solution as a node with the attributes given.
          Updates exiting nodes if node already present in tree.
 
@@ -406,10 +422,10 @@ class CatalogIndex:
         """
         node_attrs, group, name, version = self.__set_group_name_version(node_attrs)
 
-        group_node = self._find_node_by_name(self.catalog_index, group, maxlevel=2)
+        group_node = self._find_node_by_name(self.index, group, maxlevel=2)
         if not group_node:
             module_logger().debug("Group %s not yet in index, adding..." % group)
-            group_node = anytree.Node(group, parent=self.catalog_index)
+            group_node = anytree.Node(group, parent=self.index)
 
         solution_node_name = self._find_node_by_name(group_node, name, maxlevel=2)  # starting to search from group node
         if not solution_node_name:
@@ -429,7 +445,7 @@ class CatalogIndex:
 
         return solution_node_version
 
-    def save_catalog_index(self, path=None):
+    def save(self, path=None):
         """Saves a catalog to disk. Saves it to a certain path if given. If none given default path is taken.
 
         Args:
@@ -438,27 +454,27 @@ class CatalogIndex:
 
         """
         if path:
-            self.catalog_index_path = Path(path)
+            self.path = Path(path)
 
-        module_logger().info("Saving index to path: %s..." % self.catalog_index_path)
+        module_logger().info("Saving index to path: %s..." % self.path)
 
         exporter = JsonExporter(indent=2, sort_keys=True)
-        with open(self.catalog_index_path, 'w+') as f:
-            f.write(exporter.export(self.catalog_index))
+        with open(self.path, 'w+') as f:
+            f.write(exporter.export(self.index))
 
     def visualize(self):
         """Shows the index content on the command line."""
-        if self.catalog_index is None:
+        if self.index is None:
             module_logger().info("Empty catalog!")
             print("Empty catalog")
         else:
-            for pre, _, node in RenderTree(self.catalog_index):
+            for pre, _, node in RenderTree(self.index):
                 module_logger().info("%s%s" % (pre, node.name))
                 print("%s%s" % (pre, node.name))
 
     def get_leaves_dict_list(self):
         """Get a list of the dictionary of all leaves in the index."""
-        leaves = self.catalog_index.leaves
+        leaves = self.index.leaves
         dict_exporter = DictExporter()
         leaves_dict_list = []
         for leaf in leaves:
@@ -479,7 +495,7 @@ class CatalogIndex:
 
         """
         search_result_list = []
-        for groups in self.catalog_index.children:
+        for groups in self.index.children:
             search_result = self._find_node_by_name(groups, name)
 
             if search_result:
@@ -499,7 +515,7 @@ class CatalogIndex:
 
     # untested
     def resolve_hips_by_name_and_group(self, name, group):
-        search_result = self._find_node_by_name_and_group(self.catalog_index, name, group, maxlevel=2)
+        search_result = self._find_node_by_name_and_group(self.index, name, group, maxlevel=2)
 
         if search_result:
             if len(search_result.children) > 1:
@@ -511,7 +527,7 @@ class CatalogIndex:
     # untested
     def resolve_hips_by_name_and_version(self, name, version):
         search_result_list = []
-        for groups in self.catalog_index.children:
+        for groups in self.index.children:
             # search result in a grp must be unique
             search_result = self._find_node_by_name_and_version(groups, name, version)
             if search_result:
@@ -528,7 +544,7 @@ class CatalogIndex:
 
     def resolve_hips_by_name_version_and_group(self, name, version, group):
         # result is unique hips leaf node
-        node = self._find_node_by_name_version_and_group(self.catalog_index, name, version, group)
+        node = self._find_node_by_name_version_and_group(self.index, name, version, group)
         if node:
             if node.is_leaf:
                 return node
@@ -538,7 +554,7 @@ class CatalogIndex:
 
     def resolve_hips_by_doi(self, doi):
         # result is unique hips leaf node
-        nodes = self._find_all_nodes_by_attribute(self.catalog_index, doi, 'doi')
+        nodes = self._find_all_nodes_by_attribute(self.index, doi, 'doi')
 
         if nodes:
             if len(nodes) > 1:
@@ -552,7 +568,7 @@ class CatalogIndex:
         return None
 
     def __len__(self):
-        leaves = self.catalog_index.leaves
+        leaves = self.index.leaves
         count = 0
         for leaf in leaves:
             if leaf.depth == 3:  # only add depth 3 nodes (these are solution nodes)

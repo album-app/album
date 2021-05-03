@@ -154,6 +154,7 @@ def set_loglevel(loglevel):
 
 class LogfileBuffer(io.StringIO):
     """Class for logging in a subprocess. Logs to the current active logger."""
+
     def __init__(self):
         super().__init__()
         self.module_logger = get_active_logger
@@ -184,9 +185,9 @@ class LogfileBuffer(io.StringIO):
         if len(split_s) > 1:
             r = r + "\n"
             for l in split_s[1:]:
-                r = r + "".join(["\t"]*indent) + l.strip() + "\n"
+                r = r + "".join(["\t"] * indent) + l.strip() + "\n"
         return r.strip()
 
 
 def hips_debug():
-    return True
+    return False

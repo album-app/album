@@ -22,7 +22,8 @@ class TestHipsConfiguration(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp_dir.cleanup()
 
-    def test_get_cache_path_hips(self):
+    @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={})
+    def test_get_cache_path_hips(self, _):
 
         root = Path(self.tmp_dir.name).joinpath("hips")
 
@@ -54,13 +55,9 @@ class TestHipsConfiguration(unittest.TestCase):
         self.assertEqual(root.joinpath("apps", "doi", "mydoi"), path)
 
     def test_extract_catalog_name(self):
-        self.attrs = {
-            "catalog": "https://gitlab.com/ida-mdc/hips-catalog.ext"
-        }
+        catalog_name = "https://gitlab.com/ida-mdc/hips-catalog.ext"
 
-        active_hips = HipsClass(self.attrs)
-
-        self.assertEqual(self.conf.extract_catalog_name(active_hips["catalog"]), "hips-catalog")
+        self.assertEqual(self.conf.extract_catalog_name(catalog_name), "hips-catalog")
 
     @unittest.skip("Needs to be implemented!")
     def test_get_default_hips_configuration(self):

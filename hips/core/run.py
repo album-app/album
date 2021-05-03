@@ -94,7 +94,7 @@ class HIPSRunner:
             active_hips = load_and_push_hips(hips_script)
             step_args = self.__get_args(sub_step)
             # check if step has parent
-            if hasattr(active_hips, "parent"):
+            if hasattr(active_hips, "parent") and active_hips["parent"] is not None:
                 # depending on the parent app, either attach to list of hips belonging to the same app
                 # .. or run previous collection of hips and start a new collection of matching hips
                 same_app_hips = self.__handle_step_with_parent(active_hips, step_args, same_app_hips)
@@ -155,7 +155,7 @@ class HIPSRunner:
 
     def __run_single_step(self, active_hips, args):
         """Run loaded HIPS with given arguments"""
-        if hasattr(active_hips, "parent"):
+        if hasattr(active_hips, "parent") and active_hips["parent"] is not None:
             parent_script = self.catalog_configuration.resolve_hips_dependency(active_hips["parent"])["path"]
             # reorder hips stack - first parent, then child
             child = pop_active_hips()

@@ -47,7 +47,7 @@ class HipsInstaller:
 
     def add_to_local_catalog(self):
         """Force adds the installation to the local catalog to be cached for running"""
-        self.catalog_configuration.local_catalog.add_to_index(self.active_hips, force_overwrite=True)
+        self.catalog_configuration.local_catalog.add(self.active_hips, force_overwrite=True)
         local_catalog_path = self.catalog_configuration.local_catalog.get_solution_cache_file(
             self.active_hips.group, self.active_hips.name, self.active_hips.version
         )
