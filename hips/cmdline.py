@@ -59,14 +59,22 @@ def create_parser():
     parser.create_hips_file_command_parser('repl', repl, 'get an interactive repl for a HIP Solution')
     parser.create_hips_file_command_parser('deploy', deploy, 'deploy a HIP Solution')
     parser.create_hips_file_command_parser('install', install, 'install a HIP Solution')
-    parser.create_hips_file_command_parser('remove', remove, 'remove a HIP Solution')
-    parser.create_hips_file_command_parser('containerize', containerize, 'create a Singularity container for a HIP Solution')
+    p = parser.create_hips_file_command_parser('remove', remove, 'remove a HIP Solution')
+    p.add_argument('--remove-deps',
+                   required=False,
+                   help='Boolean to additionally remove all hips dependencies. Choose between %s' %
+                        ", ".join([str(True), str(False)]),
+                   default=False,
+                   type=(lambda choice: bool(choice)))
+    parser.create_hips_file_command_parser('containerize', containerize,
+                                           'create a Singularity container for a HIP Solution')
     parser.create_hips_file_command_parser('tutorial', tutorial, 'run a tutorial for a HIP Solution')
     return parser.parser
 
 
 class ArgumentParser(argparse.ArgumentParser):
     """Override default error method of all parsers to show help of subcommand"""
+
     def error(self, message):
         self.print_help()
         self.exit(2, '%s: error: %s\n' % (self.prog, message))

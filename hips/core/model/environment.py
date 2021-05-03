@@ -122,18 +122,18 @@ class Conda:
 
 class Environment:
     configuration = HipsConfiguration()
-    yaml_path = ""
-    environment_name = ""
-    environment_path = ""
+    yaml_file = ""
+    name = ""
+    path = ""
 
     def __init__(self, active_hips):
-        self.yaml_path = self.get_env_file(active_hips)
-        self.environment_name = self.get_env_name(active_hips)
+        self.yaml_file = self.get_env_file(active_hips)
+        self.name = self.get_env_name(active_hips)
 
     def install(self, min_hips_version=None):
         """Creates or updates an anvironment and installs hips in the target environment."""
         self.create_or_update_env()
-        self.environment_path = self.get_env_path()
+        self.path = self.get_env_path()
 
         self.install_hips(min_hips_version)
 
@@ -194,17 +194,17 @@ class Environment:
             The name of the environment.
 
         """
-        module_logger().debug('Parsing environment name form yaml: %s...' % self.yaml_path)
+        module_logger().debug('Parsing environment name form yaml: %s...' % self.yaml_file)
 
-        with open(self.yaml_path) as f:
+        with open(self.yaml_file) as f:
             # todo: use safe_load to avoid code injection
             env = yaml.load(f, Loader=yaml.FullLoader)
         return env['name']
 
     def get_env_path(self):
         environment_dict = Conda.get_environment_dict()
-        if self.environment_name in environment_dict.keys():
-            environment_path = environment_dict[self.environment_name]
+        if self.name in environment_dict.keys():
+            environment_path = environment_dict[self.name]
             module_logger().debug('Set environment path to %s...' % environment_path)
 
             return environment_path
@@ -213,7 +213,7 @@ class Environment:
 
     # todo: write tests
     def is_installed(self, package_name, min_package_version=None):
-        conda_list = Conda.list_environment(self.environment_path)
+        conda_list = Conda.list_environment(self.path)
 
         for package in conda_list:
             if package["name"] == package_name:
@@ -242,7 +242,7 @@ class Environment:
             script:
                 The script calling the solution
         """
-        module_logger().debug('run_in_environment: %s...' % self.environment_path)
+        module_logger().debug('run_in_environment: %s...' % self.path)
 
         # Use an environment path and a temporary file to store the script
         if hips_debug():
@@ -256,27 +256,27 @@ class Environment:
         fp.flush()
         os.fsync(fp)
 
-        Conda.run_script(self.environment_path, fp.name)
+        Conda.run_script(self.path, fp.name)
 
         fp.close()
 
     def create_or_update_env(self):
-        if Conda.environment_exists(self.environment_name):
+        if Conda.environment_exists(self.name):
             self.update()
         else:
             self.create()
 
     def update(self):
-        module_logger().debug('Update environment %s...' % self.environment_name)
+        module_logger().debug('Update environment %s...' % self.name)
         pass  # ToDo: implement
 
     def create(self):
         """Creates environment a solution runs in."""
-        if self.yaml_path:
-            Conda.create_environment_from_file(self.yaml_path, self.environment_name)
+        if self.yaml_file:
+            Conda.create_environment_from_file(self.yaml_file, self.name)
         else:
             module_logger().warning("No yaml file specified. Creating Environment without dependencies!")
-            Conda.create_environment(self.environment_name)
+            Conda.create_environment(self.name)
 
     # ToDo: use explicit versioning of hips
     def install_hips(self, min_hips_version=None):
@@ -306,6 +306,9 @@ class Environment:
         if version:
             module = "==".join([module, version])
 
-        module_logger().debug("Installing %s in environment %s..." % (module, self.environment_path))
+        module_logger().debug("Installing %s in environment %s..." % (module, self.path))
 
-        Conda.pip_install(self.environment_path, module)
+        Conda.pip_install(self.path, module)
+
+    def remove(self):
+        Conda.remove_environment(self.name)

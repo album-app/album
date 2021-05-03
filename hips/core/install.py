@@ -38,7 +38,7 @@ class HipsInstaller:
 
         # execute installation routine
         self.execute_install_routine()
-    
+
         if not resolve["catalog"] or resolve["catalog"].is_local:  # case where a solution file is directly given
             self.add_to_local_catalog()
 
