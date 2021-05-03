@@ -10,6 +10,7 @@ from unittest.mock import patch
 import hips.core as hips
 from hips.cmdline import main
 from hips.core.model.configuration import HipsCatalogConfiguration
+from hips.core.model.environment import Conda
 from hips.core.model.logging import push_active_logger
 
 
@@ -24,6 +25,13 @@ class TestHIPSCommandLine(unittest.TestCase):
         # make sure no active hips are somehow configured!
         while hips.get_active_hips() is not None:
             hips.pop_active_hips()
+
+    def tearDown(self) -> None:
+        # clean all environments specified in test-resources
+        for e in ["app1", "app3", "solution3_noparent", "solution4_app2",
+                  "solution5_app2", "solution2_app1", "solution1_app1"]:
+            if Conda.environment_exists(e):
+                Conda.remove_environment(e)
 
     @patch('hips.core.install.HipsCatalogConfiguration')
     def test_install(self, get_conf_mock):

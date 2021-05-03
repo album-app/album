@@ -41,6 +41,10 @@ class HipsClass:
 
     private_setup_keywords = ('_repository_path', '_script')
 
+    # default values
+    dependencies = None
+    parent = None
+
     def __init__(self, attrs=None):
         """sets object attributes in setup_keywords
 

@@ -26,10 +26,7 @@ class Conda:
         """Returns the conda environments available for the conda installation."""
         environment_dict = dict()
 
-        # list environments via conda info command - Note: conda.cli.python_api support missing
-        module_logger().debug('List available conda environments...')
-        output = subprocess.check_output(['conda', 'info', '--json']).decode("utf-8")
-        conda_info = json.loads(output)
+        conda_info = Conda.get_info()
 
         for env in conda_info["envs"]:
             environment_dict[os.path.basename(env)] = env
@@ -54,24 +51,76 @@ class Conda:
     @staticmethod
     def get_active_environment_path():
         """Returns the environment form the active hips."""
-        subprocess_args = [
-            'conda', 'info', '--json'
-        ]
-        output = subprocess.check_output(subprocess_args).decode("utf-8")
-        conda_list = json.loads(output)
-
+        conda_list = Conda.get_info()
         return conda_list["active_prefix"]
 
     @staticmethod
     def remove_environment(environment_name):
         subprocess_args = [
-            'conda', 'remove', '--json', '--all', '-q', '-n', environment_name
+            'conda', 'remove', '--all', '-q', '-n', environment_name
         ]
         subprocess.run(subprocess_args)
 
+    @staticmethod
+    def get_info():
+        subprocess_args = [
+            'conda', 'info', '--json'
+        ]
+        output = subprocess.check_output(subprocess_args).decode("utf-8")
+        return json.loads(output)
+
+    @staticmethod
+    def list_environment(environment_path):
+        subprocess_args = [
+            'conda', 'list', '--json', '--prefix', environment_path,
+        ]
+        output = subprocess.check_output(subprocess_args).decode("utf-8")
+        return json.loads(output)
+
+    @staticmethod
+    def create_environment_from_file(yaml_path, environment_name):
+        subprocess_args = ['conda', 'env', 'create', '-q', '-f', str(yaml_path)]
+
+        try:
+            subcommand.run(subprocess_args)
+        except RuntimeError as e:
+            # cleanup after failed installation
+            if Conda.environment_exists(environment_name):
+                module_logger().debug('Cleanup failed installation...')
+                Conda.remove_environment(environment_name)
+            raise RuntimeError("Command failed due to reasons above!") from e
+
+    @staticmethod
+    def create_environment(environment_name):
+        subprocess_args = ['conda', 'create', '-q', '-n', environment_name, 'python', 'pip']
+
+        try:
+            subcommand.run(subprocess_args)
+        except RuntimeError as e:
+            # cleanup after failed installation
+            if Conda.environment_exists(environment_name):
+                module_logger().debug('Cleanup failed installation...')
+                Conda.remove_environment(environment_name)
+            raise RuntimeError("Command failed due to reasons above!") from e
+
+    @staticmethod
+    def pip_install(environment_path, module):
+        subprocess_args = [
+            'conda', 'run', '--no-capture-output', '--prefix',
+            environment_path, 'pip', 'install', '-q', '--force-reinstall', module
+        ]
+        subcommand.run(subprocess_args)
+
+    @staticmethod
+    def run_script(environment_path, script_name):
+        subprocess_args = [
+            'conda', 'run', '--no-capture-output', '--prefix',
+            environment_path, 'python', script_name
+        ]
+        subcommand.run(subprocess_args)
+
 
 class Environment:
-
     configuration = HipsConfiguration()
     yaml_path = ""
     environment_name = ""
@@ -80,10 +129,13 @@ class Environment:
     def __init__(self, active_hips):
         self.yaml_path = self.get_env_file(active_hips)
         self.environment_name = self.get_env_name(active_hips)
-        self.create_or_update(active_hips)
+
+    def install(self, min_hips_version=None):
+        """Creates or updates an anvironment and installs hips in the target environment."""
+        self.create_or_update_env()
         self.environment_path = self.get_env_path()
 
-        self.install_hips(active_hips)
+        self.install_hips(min_hips_version)
 
     def get_env_file(self, active_hips):
         """Sets the yaml_path attribute."""
@@ -131,10 +183,8 @@ class Environment:
             else:
                 raise RuntimeError('No valid environment name or file specified! Don\'t know where to run solution!')
         else:
-            environment_name = 'hips_full'
-            module_logger().debug(
-                'Environment name not given. Assume solution can be run in: %s...'
-                % environment_name)
+            environment_name = 'hips'
+            module_logger().debug('Environment name not given. Assume solution can be run in: %s...' % environment_name)
             return environment_name
 
     def get_environment_name_from_yaml(self):
@@ -143,8 +193,6 @@ class Environment:
         Returns:
             The name of the environment.
 
-        Raises:
-            RuntimeError: When no valid environment file or name in hips dependency specified.
         """
         module_logger().debug('Parsing environment name form yaml: %s...' % self.yaml_path)
 
@@ -165,12 +213,7 @@ class Environment:
 
     # todo: write tests
     def is_installed(self, package_name, min_package_version=None):
-        # todo: to conda class
-        subprocess_args = [
-            'conda', 'list', '--json', '--prefix', self.environment_path,
-        ]
-        output = subprocess.check_output(subprocess_args).decode("utf-8")
-        conda_list = json.loads(output)
+        conda_list = Conda.list_environment(self.environment_path)
 
         for package in conda_list:
             if package["name"] == package_name:
@@ -213,19 +256,11 @@ class Environment:
         fp.flush()
         os.fsync(fp)
 
-        script_name = fp.name
-
-        # conda run necessary to correctly initialize python
-        subprocess_args = [
-            'conda', 'run', '--no-capture-output', '--prefix',
-            self.environment_path, 'python', script_name
-        ]
-
-        subcommand.run(subprocess_args)
+        Conda.run_script(self.environment_path, fp.name)
 
         fp.close()
 
-    def create_or_update(self, active_hips):
+    def create_or_update_env(self):
         if Conda.environment_exists(self.environment_name):
             self.update()
         else:
@@ -236,29 +271,15 @@ class Environment:
         pass  # ToDo: implement
 
     def create(self):
-        """Creates environment a solution runs in.
-
-        Returns:
-            The complete environment path.
-        """
+        """Creates environment a solution runs in."""
         if self.yaml_path:
-            subprocess_args = ['conda', 'env', 'create', '--json', '-q', '-f', str(self.yaml_path)]
+            Conda.create_environment_from_file(self.yaml_path, self.environment_name)
         else:
             module_logger().warning("No yaml file specified. Creating Environment without dependencies!")
-            subprocess_args = ['conda', 'create', '--json', '-q', '-n', self.environment_name, 'python', 'pip']
-
-        try:
-            subcommand.run(subprocess_args)
-        except RuntimeError as e:
-            # cleanup after failed installation
-            if Conda.environment_exists(self.environment_name):
-                module_logger().debug('Cleanup failed installation...')
-                subprocess_args = ['conda', 'env', 'remove', '-q', '-n', self.environment_name]
-                subcommand.run(subprocess_args)
-            raise RuntimeError("Command failed due to reasons above!") from e
+            Conda.create_environment(self.environment_name)
 
     # ToDo: use explicit versioning of hips
-    def install_hips(self, active_hips):
+    def install_hips(self, min_hips_version=None):
         """Installs the hips dependency in the environment
 
         Args:
@@ -266,10 +287,9 @@ class Environment:
                 The hips object to create a solution for.
         """
 
-        if not self.is_installed("hips", active_hips.min_hips_version):
+        if not self.is_installed("hips", min_hips_version):
             self.pip_install('git+https://gitlab.com/ida-mdc/hips.git')
 
-    # ToDo: write tests
     def pip_install(self, module, version=None):
         """Installs the given module int the an environment.
 
@@ -286,11 +306,6 @@ class Environment:
         if version:
             module = "==".join([module, version])
 
-        # conda run necessary to correctly initialize pip
-        subprocess_args = [
-            'conda', 'run', '--no-capture-output', '--prefix',
-            self.environment_path, 'pip', 'install', '-q', '--force-reinstall', module
-        ]
-
         module_logger().debug("Installing %s in environment %s..." % (module, self.environment_path))
-        subcommand.run(subprocess_args)
+
+        Conda.pip_install(self.environment_path, module)
