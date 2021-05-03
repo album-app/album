@@ -54,7 +54,11 @@ def __retrieve_logger():
 def create_parser():
     """Creates a parser for all known hips arguments."""
     parser = __HIPSParser()
-    parser.create_command_parser('search', search, 'search for a HIP Solution using keywords')
+    p = parser.create_command_parser('search', search, 'search for a HIP Solution using keywords')
+    p.add_argument('keywords',
+                   type=str,
+                   nargs='+',
+                   help='Search keywords')
     parser.create_hips_file_command_parser('run', run, 'run a HIP Solution')
     parser.create_hips_file_command_parser('repl', repl, 'get an interactive repl for a HIP Solution')
     parser.create_hips_file_command_parser('deploy', deploy, 'deploy a HIP Solution')
