@@ -1,7 +1,6 @@
 from hips.core.model.hips_base import HipsClass
 from hips.core.model import logging
 
-DEBUG = True
 module_logger = logging.get_active_logger
 
 """
@@ -62,29 +61,12 @@ def load_and_push_hips(path):
     return active_hips
 
 
-def notify_hips_started(active_hips, subprocess=False):
-    msg = "Started %s..." % active_hips['name']
-    if subprocess:
-        print(msg)
-    else:
-        module_logger().info(msg)
-
-
-def notify_active_hips_started(subprocess=False):
-    notify_hips_started(get_active_hips(), subprocess)
-
-
-def notify_active_hips_finished(subprocess=False):
-    msg = "Finished running %s." % get_active_hips()['name']
-    if subprocess:
-        print(msg)
-    else:
-        module_logger().info(msg)
-
-
-def notify_active_hips_progress(message, current_step, max_steps, subprocess=False):
-    msg = "%s %s / %s" % (message, current_step, max_steps)
-    if subprocess:
-        print(msg)
-    else:
-        module_logger().info(msg)
+def load(path):
+    module_logger().debug(f'Loading HIPS from {path}...')
+    with open(path, "r") as f:
+        hips_script = f.read()
+    exec(hips_script)
+    active_hips = get_active_hips()
+    active_hips.script = hips_script
+    pop_active_hips()
+    return active_hips

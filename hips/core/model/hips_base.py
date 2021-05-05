@@ -75,7 +75,9 @@ class HipsClass:
         return s
 
     def __getitem__(self, k):
-        return getattr(self, k)
+        if hasattr(self, k):
+            return getattr(self, k)
+        return None
 
     def __setitem__(self, key, value):
         if key in self.private_setup_keywords:

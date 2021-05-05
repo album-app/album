@@ -23,7 +23,6 @@ def run(args):
 
 
 class HIPSRunner:
-
     init_script = ""
     catalog_configuration = HipsCatalogConfiguration()
 
@@ -36,35 +35,38 @@ class HIPSRunner:
                 # todo: install the solution and continue on success
                 raise RuntimeError("Please install solution first!")
 
-        active_hips = load_and_push_hips(resolve["path"])
+        active_hips = load(resolve["path"])
 
         if not resolve["catalog"]:
             module_logger().debug('hips loaded locally: %s...' % str(active_hips))
         else:
             module_logger().debug('hips loaded from catalog: %s...' % str(active_hips))
 
-        if hasattr(active_hips, "steps"):
-            self.__run_steps(active_hips)
-        else:
-            self.__run_single_step(active_hips, sys.argv)
+        self._run(active_hips)
 
-    def __run_steps(self, active_hips):
+    def _run(self, active_hips):
         """Run an already loaded HIPS which consists of multiple steps (= other HIPS)."""
-        # a step base hips is first initialized in the hips environment to be able to harvest it's arguments
-        active_hips.init()
-        self.__parse_args(active_hips)
+        module_logger().info("Starting running \"%s\"" % active_hips["name"])
 
-        # iterate over steps and run them
         steps = active_hips["steps"]
-        module_logger().info("Executing %s steps.." % len(steps))
-        for i, step in enumerate(steps):
-            notify_active_hips_progress('Step progress', i, len(steps))
-            if type(step) is list:
-                self.__run_as_group(step)
-            else:
-                self.__load_and_run_single_step(step)
-        notify_active_hips_progress('Step progress', len(steps), len(steps))
-        self.__finish_active_hips()
+        if steps:
+            # a step base hips is first initialized in the hips environment to be able to harvest it's arguments
+            active_hips.init()
+            self.__parse_args(active_hips)
+            module_logger().info("Executing %s steps.." % len(steps))
+
+            # iterate over steps and run them
+            for i, step in enumerate(steps):
+                module_logger().info("Step progress %s / %s" % (i, len(steps)))
+                if type(step) is list:
+                    self.run_steps(step)
+                else:
+                    self.run_steps([step])
+            module_logger().info("Step progress %s / %s" % (len(steps), len(steps)))
+        else:
+            self.run_single_step(active_hips, sys.argv)
+
+        module_logger().info("Finished running \"%s\"" % active_hips["name"])
 
     def __parse_args(self, active_hips):
         """Parse arguments of loaded HIPS."""
@@ -83,130 +85,162 @@ class HIPSRunner:
             parser.add_argument("--" + element["name"], action=FileAction)
         parser.parse_known_args(args=sys.argv)
 
-    def __run_as_group(self, step):
-        """Run a step consisting of multiple substeps - this is used to call HIPS running on the same HIPS app without
-        closing the app in between. """
-        # dictionary to store successive hips depending on the same app until jointly running them
-        same_app_hips = None
-        # iterate over steps
-        for sub_step in step:
-            hips_script = self.catalog_configuration.resolve_hips_dependency(sub_step)["path"]
-            active_hips = load_and_push_hips(hips_script)
-            step_args = self.__get_args(sub_step)
-            # check if step has parent
-            if hasattr(active_hips, "parent") and active_hips["parent"] is not None:
-                # depending on the parent app, either attach to list of hips belonging to the same app
-                # .. or run previous collection of hips and start a new collection of matching hips
-                same_app_hips = self.__handle_step_with_parent(active_hips, step_args, same_app_hips)
+    @staticmethod
+    def empty_queue():
+        return {
+            "parent_script_path": None,
+            "steps_hips": [],
+            "steps": []
+        }
+
+    def run_and_empty_queue(self, q):
+        if q["parent_script_path"]:
+            self.run_hips_collection(q)
+        return self.empty_queue()
+
+    def run_steps(self, steps):
+        same_parent_steps = self.empty_queue()
+        for step in steps:
+            module_logger().debug('resolving step \"%s\"...' % step["name"])
+            sub_step_path = self.catalog_configuration.resolve_hips_dependency(step)["path"]
+            step_hips = load(sub_step_path)
+            if step_hips["parent"]:  # collect steps as long as they have the same parent, then run them collectively
+                current_parent_script_path = self.catalog_configuration.resolve_hips_dependency(step_hips["parent"])[
+                    "path"]
+
+                if same_parent_steps["parent_script_path"] and \
+                        same_parent_steps["parent_script_path"] != current_parent_script_path:
+                    self.run_hips_collection(same_parent_steps)
+                    # set new parent
+                    same_parent_steps["parent_script_path"] = current_parent_script_path
+                    # overwrite old steps
+                    same_parent_steps["steps_hips"] = [step_hips]
+                    same_parent_steps["steps"] = [step]
+                else:  # same or new parent
+                    module_logger().debug('Pushed step \"%s\" in queue...' % step["name"])
+                    # set parent
+                    same_parent_steps["parent_script_path"] = current_parent_script_path
+                    # append another step to the steps already having the same parent
+                    same_parent_steps["steps_hips"].append(step_hips)
+                    same_parent_steps["steps"].append(step)
             else:
-                # step has no parent
-                if same_app_hips is not None:
-                    # reorder hips stack - store newly loaded hips, run previously collected hips belonging to the same
-                    # app first, then pop newly loaded hips again
-                    new_hips = pop_active_hips()
-                    self. __run_same_app_hips(same_app_hips)
-                    push_active_hips(new_hips)
-                    same_app_hips = None
-                self.__run_single_step(active_hips, step_args)
-        if same_app_hips is not None:
-            # run previously collected hips belonging to the same app
-            self.__run_same_app_hips(same_app_hips)
+                # empty the queue first
+                same_parent_steps = self.run_and_empty_queue(same_parent_steps)
+                # simply run this step
+                step_args = self.__get_args(step)  # arguments in the description of the step
+                self.run_single_step(step_hips, step_args)
+        # empty queue if necessary
+        self.run_and_empty_queue(same_parent_steps)
 
-    def __handle_step_with_parent(self, active_hips_step, args, same_app_hips):
-        """Handle step with parent in a group of steps"""
-        # check if parent is already active
-        parent_script = self.catalog_configuration.resolve_hips_dependency(active_hips_step["parent"])["path"]
-        new_parent = True
-        if same_app_hips:
-            if parent_script != same_app_hips["script"]:
-                # this step's parent is different then the currently active parent app, run previous app first
-                self.__run_same_app_hips(same_app_hips)
-                same_app_hips = None
-            else:
-                # this step can be executed jointly with previous steps depending on the same app
-                new_parent = False
-        if new_parent:
-            # reorder hips stack - push app first, then child
-            first_child = pop_active_hips()
-            same_app_hips = {"parent_hips": load_and_push_hips(parent_script), "script": parent_script,
-                             "child_hips_list": []}
-            push_active_hips(first_child)
-        # get arguments for this step
-        parent_args, child_args = self.__resolve_args(same_app_hips["parent_hips"], active_hips_step["parent"], args)
-        if new_parent:
-            # TODO not sure how the parent's arguments should actually be set. we need more use cases to improve this
-            same_app_hips["parent_args"] = parent_args
-        same_app_hips["child_hips_list"].append([active_hips_step, child_args])
-        return same_app_hips
+    def run_hips_collection(self, same_parent_steps):  # run_same_app_hips
+        # load parent & steps
+        parent_hips = load(same_parent_steps["parent_script_path"])
+        steps_hips = same_parent_steps["steps_hips"]
+        steps = same_parent_steps["steps"]
 
-    def __run_same_app_hips(self, same_app_hips):
-        """Run multiple HIPS sharing a common parent app on the same app instance"""
-        hips_str = ', '.join(item[0]['name'] for item in same_app_hips['child_hips_list'])
-        module_logger().info(f"Running HIPS on parent app {same_app_hips['parent_hips']['name']}: {hips_str}...")
-        self.__handle_hips_with_parent(same_app_hips["parent_hips"], same_app_hips["parent_args"],
-                                       same_app_hips["child_hips_list"])
+        # info
+        module_logger().debug(
+            'Running queue (%s) with parent \"%s\"...' % (", ".join(
+                [s["name"] for s in steps_hips]), parent_hips["name"]
+            )
+        )
 
-    def __load_and_run_single_step(self, step):
-        """Load and run a single HIPS (sharing no app instance with other HIPS)"""
-        hips_script = self.catalog_configuration.resolve_hips_dependency(step)["path"]
-        active_hips = load_and_push_hips(hips_script)
-        step_args = self.__get_args(step)
-        self.__run_single_step(active_hips, step_args)
+        # handle arguments
+        parsed_parent_args, parsed_steps_args_list = self.resolve_args(parent_hips, steps_hips, steps)
 
-    def __run_single_step(self, active_hips, args):
+        # create script
+        script = create_hips_with_parent_script(parent_hips, parsed_parent_args, steps_hips, parsed_steps_args_list,
+                                                self.init_script)
+        # now run
+        self.__run_in_environment_with_own_logger(parent_hips, script)
+
+    def resolve_args(self, parent_hips, steps_hips, steps, args=None):
+        args = [] if args is None else args
+        parsed_parent_args = None
+        parsed_steps_args_list = []
+
+        module_logger().debug('Parsing arguments...')
+
+        # iterate over all steps and parse arguments together
+        for idx, step_hips in enumerate(steps_hips):
+            step_parser = argparse.ArgumentParser()
+
+            # the step hips object
+            step = steps[idx]
+
+            if step:  # case steps argument resolving
+                step_args = self.__get_args(step)
+            else:  # case single step hips
+                step_args = args
+
+            # add parent arguments to the step hips object arguments
+            if 'args' in step_hips["parent"]:
+                for param in step_hips["parent"]["args"]:
+                    step_args.insert(0, f"--{param['name']}={str(param['value'])}")
+
+            # add parent arguments
+            [step_parser.add_argument("--" + element["name"]) for element in parent_hips["args"]]
+
+            # parse all known arguments
+            args_known, args_unknown = step_parser.parse_known_args(step_args)
+
+            # only set parents args if not already set
+            if not parsed_parent_args:
+                parsed_parent_args = [""]
+                parsed_parent_args.extend(
+                    ["--" + arg_name + "=" + getattr(args_known, arg_name) for arg_name in vars(args_known)])
+                module_logger().debug(
+                    'For step \"%s\" set parent arguments to %s...' % (step_hips["name"], parsed_parent_args)
+                )
+
+            # args_unknown are step args
+            parsed_steps_args_list.append(args_unknown)
+            module_logger().debug('For step \"%s\" set step arguments to %s...' % (step_hips["name"], args_unknown))
+
+        return parsed_parent_args, parsed_steps_args_list
+
+    def run_single_step(self, active_hips, args):
         """Run loaded HIPS with given arguments"""
-        if hasattr(active_hips, "parent") and active_hips["parent"] is not None:
+        if active_hips["parent"]:
+            module_logger().debug('Found parent solution \"%s\"...' % active_hips["parent"]["name"])
             parent_script = self.catalog_configuration.resolve_hips_dependency(active_hips["parent"])["path"]
-            # reorder hips stack - first parent, then child
-            child = pop_active_hips()
-            parent_hips = load_and_push_hips(parent_script)
-            push_active_hips(child)
-            parent_args, child_args = self.__resolve_args(parent_hips, active_hips["parent"], args)
-            self.__handle_hips_with_parent(parent_hips, parent_args, [[active_hips, child_args]])
+            parent_hips = load(parent_script)
+            parent_args, active_hips_args = self.resolve_args(parent_hips, [active_hips], [None], args)
+            self.run_steps_with_parent(parent_hips, parent_args, [active_hips], active_hips_args)
         else:
-            self.__handle_standalone_hips(active_hips, args)
+            self.run_single_step_standalone(active_hips, args)
 
-    def __handle_standalone_hips(self, active_hips, args):
+    def run_single_step_standalone(self, active_hips, args):
         """Run loaded HIPS with given arguments and no parent HIPS app"""
+        module_logger().debug('Running standalone step \"%s\"...' % active_hips["name"])
         script_inset = self.init_script
         script_inset += "\nget_active_hips().run()"
         if hasattr(active_hips, "close"):
             script_inset += "\nget_active_hips().close()\n"
         script = create_script(active_hips, script_inset, args)
         self.__run_in_environment_with_own_logger(active_hips, script)
-        self.__finish_active_hips()
 
-    def __handle_hips_with_parent(self, parent_hips, parent_args, child_hips_list):
+    def run_steps_with_parent(self, parent_hips, parent_args, hips_list, hips_args_list):
         """Run one or multiple loaded HIPS with given arguments depending on a HIPS app"""
-        script = create_hips_with_parent_script(parent_hips, parent_args, child_hips_list, self.init_script)
+        module_logger().debug(
+            'Running step(s) (%s) under parent \"%s\"...' % (
+                ", ".join([h["name"] for h in hips_list]), parent_hips["name"]
+            )
+        )
+        script = create_hips_with_parent_script(parent_hips, parent_args, hips_list, hips_args_list, self.init_script)
         self.__run_in_environment_with_own_logger(parent_hips, script)
-        self.__finish_hips_with_parent(parent_hips, child_hips_list)
-
-    def __finish_hips_with_parent(self, parent_hips, child_hips_list):
-        """Finish both children and common parent HIPS"""
-        for item in reversed(child_hips_list):
-            child_hips = item[0]
-            assert (child_hips['name'] == get_active_hips()['name'])
-            pop_active_hips()
-        assert (parent_hips['name'] == get_active_hips()['name'])
-        self.__finish_active_hips()
 
     @staticmethod
     def __is_in_catalog(catalog):
         return True if catalog else False
 
     @staticmethod
-    def __finish_active_hips():
-        notify_active_hips_finished()
-        pop_active_hips()
-
-    @staticmethod
     def __run_in_environment_with_own_logger(active_hips, script):
         """Pushes a new logger to the stack before running the solution and pops it afterwards."""
-        notify_hips_started(active_hips)
         logging.configure_logging(
             LogLevel(logging.to_loglevel(logging.get_loglevel_name())), active_hips['name']
         )
+        module_logger().info("Starting solution \"%s\"..." % active_hips['name'])
         active_hips.environment.run_script(script)
         logging.pop_active_logger()
 
@@ -218,19 +252,3 @@ class HIPSRunner:
             for param in step["args"]:
                 argv.append(f"--{param['name']}={str(param['value']())}")
         return argv
-
-    @staticmethod
-    def __resolve_args(parent_hips, parent_description, args):
-        """Ugly method to first collect arguments in the parent block of a HIPS, join them with the arguments given in
-        `args` and then parse them based on the arguments defined in `parent_hips`. It returns both the arguments
-        matching `parent_hips` as well as a list of unknown arguments. """
-        if 'args' in parent_description:
-            parent_args = parent_description["args"]
-            for param in parent_args:
-                args.insert(0, f"--{param['name']}={str(param['value'])}")
-        parser = argparse.ArgumentParser()
-        [parser.add_argument("--" + element["name"]) for element in parent_hips["args"]]
-        args_known, args_unknown = parser.parse_known_args(args)
-        args_parent = [""]
-        args_parent.extend(["--" + element + "=" + getattr(args_known, element) for element in vars(args_known)])
-        return args_parent, args_unknown

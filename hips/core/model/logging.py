@@ -1,5 +1,6 @@
 import io
 import logging
+import re
 from enum import IntEnum, unique
 
 """
@@ -8,6 +9,8 @@ directly instead use get_active_logger()
 """
 global _active_logger
 _active_logger = []
+
+DEBUG = False
 
 
 def push_active_logger(logger):
@@ -155,25 +158,36 @@ def set_loglevel(loglevel):
 class LogfileBuffer(io.StringIO):
     """Class for logging in a subprocess. Logs to the current active logger."""
 
-    def __init__(self):
+    def __init__(self, message_formatter=None):
         super().__init__()
         self.module_logger = get_active_logger
+        self.message_formatter = message_formatter
 
     def write(self, s: str) -> int:
         s = self.tabulate_multi_lines(s)
-        split_output = s.split("-")
-        # todo: better parsing here! Use regex!
-        message = "-".join(split_output[1:]).strip()
 
-        level = split_output[0].strip()
+        r = re.search('^([^-]+) - ([^-]+) - ((?:.|\n)+)', s)
+        if r:
+            name = r.group(1)
+            level = r.group(2)
+            message = r.group(3)
 
-        if LogLevel.INFO.name == level:
-            self.module_logger().info(message)
-        elif LogLevel.DEBUG.name == level:
-            self.module_logger().debug(message)
-        elif LogLevel.WARNING.name == level:
-            self.module_logger().warning(message)
-        else:  # message not from the hips framework (e.g. print, or further subprocess)
+            if self.message_formatter and callable(self.message_formatter):
+                message = self.message_formatter(message)
+
+            old_name = self.module_logger().name
+            self.module_logger().name = name
+
+            if LogLevel.INFO.name == level:
+                self.module_logger().info(message)
+            elif LogLevel.DEBUG.name == level:
+                self.module_logger().debug(message)
+            elif LogLevel.WARNING.name == level:
+                self.module_logger().warning(message)
+
+            self.module_logger().name = old_name
+
+        else:  # unknown message not using print or logging.
             self.module_logger().info(s)
 
         return 1
@@ -190,4 +204,4 @@ class LogfileBuffer(io.StringIO):
 
 
 def hips_debug():
-    return False
+    return DEBUG

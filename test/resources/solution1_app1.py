@@ -14,6 +14,7 @@ def hips_run():
     file = open(args.get("file"), "a")
     file.write("solution1_app1_run\n")
     file.close()
+    print("A nice log run message!")
 
 
 def hips_close():
@@ -21,6 +22,7 @@ def hips_close():
     file = open(args.get("file"), "a")
     file.write("solution1_app1_close\n")
     file.close()
+    print("A nice log close message!")
 
 
 setup(

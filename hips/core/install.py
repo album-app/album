@@ -55,7 +55,7 @@ class HipsInstaller:
 
     def execute_install_routine(self):
         """Run install routine of hips if specified"""
-        if hasattr(self.active_hips, 'install') and callable(self.active_hips['install']):
+        if self.active_hips['install'] and callable(self.active_hips['install']):
             module_logger().debug('Creating install script...')
             script = create_script(self.active_hips, "\nget_active_hips().install()\n", sys.argv)
             module_logger().debug('Calling install routine specified in solution...')

@@ -424,24 +424,26 @@ class CatalogIndex:
 
         group_node = self._find_node_by_name(self.index, group, maxlevel=2)
         if not group_node:
-            module_logger().debug("Group %s not yet in index, adding..." % group)
+            module_logger().debug("Group \"%s\" not yet in index, adding..." % group)
             group_node = anytree.Node(group, parent=self.index)
 
         solution_node_name = self._find_node_by_name(group_node, name, maxlevel=2)  # starting to search from group node
         if not solution_node_name:
-            module_logger().debug("Solution %s not yet in index, adding..." % name)
+            module_logger().debug("Solution \"%s\" not yet in index, adding..." % name)
             solution_node_name = anytree.Node(name, parent=group_node)
 
         solution_node_version = self._find_node_by_name(solution_node_name, version, maxlevel=2)
         if solution_node_version:  # check if there is already such a version
-            module_logger().debug("Solution %s with version %s in group %s already exists. Updating..." %
+            module_logger().debug("Solution \"%s\" with version \"%s\" in group \"%s\" already exists. Updating..." %
                                   (name, group, version))
             solution_node_version.parent = None  # remove from tree
 
         # adds a new version to the solution node
         solution_node_version = anytree.Node(version, parent=solution_node_name, **node_attrs)
 
-        module_logger().info("Added solution %s with version %s in group %s to the index..." % (name, version, group))
+        module_logger().info(
+            "Added solution \"%s\" with version \"%s\" in group \"%s\" to the index..." % (name, version, group)
+        )
 
         return solution_node_version
 

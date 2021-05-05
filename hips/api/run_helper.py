@@ -1,10 +1,7 @@
 import os
-from pathlib import Path
-
-from hips.core.model.configuration import HipsConfiguration
 
 from hips.core.model import logging
-
+from hips.core.model.configuration import HipsConfiguration
 from hips.core.utils import subcommand
 
 module_logger = logging.get_active_logger
@@ -41,13 +38,10 @@ def run_as_executable(cmd, args):
 
     """
     from hips.core import get_active_hips
-    from hips.core.model.environment import set_environment_name, set_environment_path
 
     active_hips = get_active_hips()
-    set_environment_name(active_hips)
-    environment_path = Path(set_environment_path(active_hips))
 
-    executable_path = environment_path.joinpath("bin", cmd)
+    executable_path = active_hips.environment.path.joinpath("bin", cmd)
     cmd = [
         str(executable_path)
     ] + args

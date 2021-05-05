@@ -12,10 +12,14 @@ module_logger = logging.get_active_logger
 
 # todo: class SubcommandRun?
 
-def run(command, log_output=True):
+def run(command, log_output=True, message_formatter=None):
     """Runs a command in a subprocess thereby logging its output.
 
     Args:
+        log_output:
+            Indicates whether to log the output of the subprocess or not.
+        message_formatter:
+            Possibility to parse a lambda to format the message in a certain way.
         command:
             The command to run.
 
@@ -24,14 +28,14 @@ def run(command, log_output=True):
 
     Raises:
         RuntimeError:
-            When exit-status not 0.
+            When exit-status of subprocess is not 0.
 
     """
 
     module_logger().info('Running command: %s...' % " ".join(command))
     exit_status = 1
 
-    log = LogfileBuffer()
+    log = LogfileBuffer(message_formatter)
     if not log_output:
         log = io.StringIO()
 

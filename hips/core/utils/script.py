@@ -33,9 +33,10 @@ def create_script(hips_object, custom_code, argv):
               "from hips.core.model.logging import configure_logging, LogLevel, get_active_logger\n"
               "module_logger = get_active_logger\n")
     # create logging
-    script += "configure_logging(%s, \"%s\", sys.stdout," % (
+    script += "configure_logging(%s, \"%s\", sys.stdout, " % (
         logging.to_loglevel(logging.get_loglevel_name()), hips_object['name']
-    ) + "\"" + r"%(levelname)s - %(message)s" + "\")\n"
+    ) + "\"" + r"%(name)s - %(levelname)s - %(message)s" + "\")\n"
+    script += "print = module_logger().info\n"
     # This could have an issue with nested quotes
     argv_string = ", ".join(argv)
     module_logger().debug("Add sys.argv arguments to runtime script: %s..." % argv_string)
@@ -123,12 +124,12 @@ def __create_class_name(name):
     return class_name
 
 
-def create_hips_with_parent_script(parent_hips, parent_args, child_hips_list, init_script):
+def create_hips_with_parent_script(parent_hips, parent_args, child_hips_list, child_args, init_script):
     """Create script for running a parent HIPS, then running HIPS depending on it, and then closing the parent HIPS."""
     script_parent = create_script(parent_hips,
                                   init_script + "\nget_active_hips().run()\n",
                                   parent_args)
-    child_scripts = __create_scripts(child_hips_list)
+    child_scripts = __create_scripts(child_hips_list, child_args)
     script_parent_close = ""
     if hasattr(parent_hips, "close"):
         script_parent_close += "\nget_active_hips().close()\n"
@@ -140,20 +141,19 @@ def create_hips_with_parent_script(parent_hips, parent_args, child_hips_list, in
     return script
 
 
-def __create_scripts(child_hips_list):
+def __create_scripts(child_hips_list, child_args):
     """Create scripts for a list of HIPs, each entry in `child_hips_list` consists of the loaded HIPS and it's
     arguments """
     child_scripts = []
-    for child_hips in child_hips_list:
-        active_hips = child_hips[0]
-        child_args = child_hips[1]
-        script = "\nnotify_active_hips_started(subprocess=True)\n"
+    for idx, active_hips in enumerate(child_hips_list):
+        child_arg = child_args[idx]
+        script = "\nmodule_logger().info(\"Started %s\")\n" % active_hips["name"]
         script += "\nget_active_hips().run()\n"
         if hasattr(active_hips, "close"):
             script += "\nget_active_hips().close()\n"
-        script += "\nnotify_active_hips_finished(subprocess=True)\n"
+        script += "\nmodule_logger().info(\"Finished %s\")\n" % active_hips["name"]
         script += "\npop_active_hips()\n"
-        child_scripts.append(create_script(active_hips, script, child_args))
+        child_scripts.append(create_script(active_hips, script, child_arg))
     return child_scripts
 
 

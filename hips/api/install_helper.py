@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 
 import requests
+from hips.core import get_active_hips
+
 from hips.core.model.configuration import HipsConfiguration
 
 from hips.core.model import logging
@@ -55,6 +57,7 @@ def extract_tar(in_tar, out_dir):
     my_tar.close()
 
 
+# todo: write test
 def download_hips_repository(active_hips):
     """Downloads the repository specified in a hips object, returns repository_path on success.
 
@@ -68,7 +71,8 @@ def download_hips_repository(active_hips):
         The directory of the git directory.
 
     """
-    download_path = get_cache_path_hips(active_hips).joinpath(active_hips["name"])
+    config = HipsConfiguration()
+    download_path = config.get_cache_path_hips(active_hips).joinpath(active_hips["name"])
 
     repo = download_repository(active_hips['git_repo'], download_path)
 
@@ -84,17 +88,15 @@ def download_hips_repository(active_hips):
 
 
 # todo: write test
-def install_package(module, environment_name, version=None):
+def install_package(module, version=None):
     """Installs a package in an environment.
 
     Args:
         module:
             The module name or a git like link. (e.g. "git+..." pip installation)
-        environment_name:
-            The name of the environment.
         version:
             The version of the package. If none, give, current latest is taken.
 
     """
-    from hips.core import pip_install
-    pip_install(module, version=version, environment_name=environment_name)
+    active_hips = get_active_hips()
+    active_hips.environment.pip_install(module, version=version)
