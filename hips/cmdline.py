@@ -1,18 +1,18 @@
 import argparse
 import sys
 
-from hips import hips_debug
-from hips.containerize import containerize
-from hips.deploy import deploy
-from hips.install import install
-from hips.remove import remove
-from hips.repl import repl
-from hips.run import run
-from hips.search import search
-from hips.tutorial import tutorial
-from hips_utils import hips_logging
+from hips.core.model.logging import hips_debug
+from hips.core.deploy import deploy
+from hips.core.install import install
+from hips.core.repl import repl
+from hips.core.containerize import containerize
+from hips.core.tutorial import tutorial
+from hips.core.remove import remove
+from hips.core.run import run
+from hips.core.search import search
+from hips.core.model import logging
 
-module_logger = hips_logging.get_active_logger
+module_logger = logging.get_active_logger
 
 
 def main():
@@ -30,7 +30,7 @@ def main():
 
 def __handle_args(args, parser):
     """Handles all arguments provided after the hips command."""
-    hips_logging.set_loglevel(args[0].log)
+    logging.set_loglevel(args[0].log)
     __run_subcommand(args, parser)
 
 
@@ -48,25 +48,37 @@ def __run_subcommand(args, parser):
 
 def __retrieve_logger():
     """Retrieves the default hips logger."""
-    hips_logging.configure_logging(hips_logging.LogLevel(hips_debug()), 'hips_core')
+    logging.configure_logging(logging.LogLevel(hips_debug()), 'hips_core')
 
 
 def create_parser():
     """Creates a parser for all known hips arguments."""
     parser = __HIPSParser()
-    parser.create_command_parser('search', search, 'search for a HIP Solution using keywords')
+    p = parser.create_command_parser('search', search, 'search for a HIP Solution using keywords')
+    p.add_argument('keywords',
+                   type=str,
+                   nargs='+',
+                   help='Search keywords')
     parser.create_hips_file_command_parser('run', run, 'run a HIP Solution')
     parser.create_hips_file_command_parser('repl', repl, 'get an interactive repl for a HIP Solution')
     parser.create_hips_file_command_parser('deploy', deploy, 'deploy a HIP Solution')
     parser.create_hips_file_command_parser('install', install, 'install a HIP Solution')
-    parser.create_hips_file_command_parser('remove', remove, 'remove a HIP Solution')
-    parser.create_hips_file_command_parser('containerize', containerize, 'create a Singularity container for a HIP Solution')
+    p = parser.create_hips_file_command_parser('remove', remove, 'remove a HIP Solution')
+    p.add_argument('--remove-deps',
+                   required=False,
+                   help='Boolean to additionally remove all hips dependencies. Choose between %s' %
+                        ", ".join([str(True), str(False)]),
+                   default=False,
+                   type=(lambda choice: bool(choice)))
+    parser.create_hips_file_command_parser('containerize', containerize,
+                                           'create a Singularity container for a HIP Solution')
     parser.create_hips_file_command_parser('tutorial', tutorial, 'run a tutorial for a HIP Solution')
     return parser.parser
 
 
 class ArgumentParser(argparse.ArgumentParser):
     """Override default error method of all parsers to show help of subcommand"""
+
     def error(self, message):
         self.print_help()
         self.exit(2, '%s: error: %s\n' % (self.prog, message))
@@ -89,9 +101,9 @@ class __HIPSParser(ArgumentParser):
             '--log',
             required=False,
             help='Logging level for your hips command. Choose between %s' %
-                 ", ".join([loglevel.name for loglevel in hips_logging.LogLevel]),
-            default=hips_logging.LogLevel(hips_debug()),
-            type=(lambda choice: hips_logging.to_loglevel(choice)),
+                 ", ".join([loglevel.name for loglevel in logging.LogLevel]),
+            default=logging.LogLevel(hips_debug()),
+            type=(lambda choice: logging.to_loglevel(choice)),
         )
         return parent_parser
 

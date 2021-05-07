@@ -1,12 +1,16 @@
+import logging
 import tempfile
 import shutil
 import unittest
 import os
+from io import StringIO
+
 import git
 
 from xdg import xdg_cache_home
 
-from hips_utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
+from hips.ci.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
+from hips.core.model.logging import push_active_logger, pop_active_logger
 
 
 class TestHipsCommon(unittest.TestCase):
@@ -27,9 +31,31 @@ class TestHipsCommon(unittest.TestCase):
     def setUp(self):
         """Could initialize default values for each test class. use `_<name>` to skip property setting."""
         self.attrs = {}
+        self.configure_test_logging(StringIO())
+
+    def tearDown(self) -> None:
+        pop_active_logger()
+
+    def configure_test_logging(self, stream_handler):
+        self.logger = logging.getLogger("unitTest")
+
+        if not self.logger.hasHandlers():
+            self.logger.setLevel('INFO')
+            ch = logging.StreamHandler(stream_handler)
+            ch.setLevel('INFO')
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            ch.setFormatter(formatter)
+            self.logger.addHandler(ch)
+            push_active_logger(self.logger)
+
+    def get_logs(self):
+        logs = self.logger.handlers[0].stream.getvalue()
+        logs = logs.strip()
+        return logs.split("\n")
 
 
-class TestZenodoCommon(unittest.TestCase):
+
+class TestZenodoCommon(TestHipsCommon):
     """Base class for all Unittests including the ZenodoAPI"""
 
     access_token_environment_name = 'ZENODO_ACCESS_TOKEN'

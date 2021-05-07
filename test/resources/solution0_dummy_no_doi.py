@@ -13,8 +13,7 @@ setup(
     name="name",
     title="name",
     version="0.1.0",
-    doi="",
-    deposit_id="",
+
     format_version="0.3.0",
     timestamp="",
     description="",

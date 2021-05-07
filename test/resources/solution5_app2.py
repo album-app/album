@@ -1,4 +1,4 @@
-import hips
+from hips.core import setup
 
 global args
 
@@ -23,7 +23,7 @@ def hips_close():
     file.close()
 
 
-hips.setup(
+setup(
     group="group",
     name="solution5_app2",
     title="solution five on app two",
