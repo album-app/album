@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import shutil
@@ -222,6 +223,16 @@ def write_dict_to_yml(yml_file, d):
     """Writes a dictionary to a file in yml format."""
     with open(yml_file, 'w+') as yml_f:
         yml_f.write(yaml.dump(d, Dumper=yaml.Dumper))
+
+    return True
+
+
+def write_dict_to_json(json_file, d):
+    json_file = Path(json_file)
+    create_path_recursively(json_file.parent)
+
+    with open(json_file, 'w+') as json_f:
+        json_f.write(json.dumps(d))
 
     return True
 

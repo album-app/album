@@ -8,6 +8,7 @@ from anytree.importer import JsonImporter
 
 from hips.ci.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from hips.core.model import logging
+from hips.core.utils.operations.file_operations import write_dict_to_json
 from hips.core.utils.operations.git_operations import download_repository
 from hips.core.utils.operations.url_operations import download_resource
 
@@ -356,7 +357,7 @@ class CatalogIndex:
 
     @staticmethod
     def _find_all_nodes_by_attribute(search_start_node, attribute_value, attribute_name):
-        """Searches for all node having a certain attribute value of a given attribute name. 
+        """Searches for all node having a certain attribute value of a given attribute name.
         Starts searching at a node given"""
 
         return anytree.search.findall_by_attr(search_start_node, value=attribute_value, name=attribute_name)
@@ -568,6 +569,15 @@ class CatalogIndex:
             else:
                 raise RuntimeError("Index is broken. Ambiguous results! Please refresh index!")
         return None
+
+    def export(self, path, export_format="JSON"):
+        path = Path(path)
+        leaves_dict = self.get_leaves_dict_list()
+
+        if export_format == "JSON":
+            write_dict_to_json(path, leaves_dict)
+        else:
+            raise RuntimeError("Unsupported format \"%s\"" % export_format)
 
     def __len__(self):
         leaves = self.index.leaves

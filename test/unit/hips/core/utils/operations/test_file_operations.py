@@ -1,3 +1,4 @@
+import json
 import os
 import pathlib
 import shutil
@@ -9,7 +10,7 @@ from xdg import xdg_cache_home
 
 from hips.core.utils.operations.file_operations import FileOperationError, get_zenodo_metadata, \
     set_zenodo_metadata_in_solutionfile, get_dict_from_yml, write_dict_to_yml, create_empty_file_recursively, \
-    create_path_recursively
+    create_path_recursively, write_dict_to_json
 
 
 class TestFileOperations(unittest.TestCase):
@@ -113,6 +114,18 @@ class TestFileOperations(unittest.TestCase):
         d = {"test": [1, 2, 3]}
         write_dict_to_yml(tmp_yml_file, d)
         self.assertTrue(tmp_yml_file.stat().st_size > 0)
+
+    def test_write_dict_to_json(self):
+        self.tearDown()
+        # named "yaml" here because tearDown() deletes it automatically, but that does not matter here
+        tmp_json_file = pathlib.Path(tempfile.gettempdir()).joinpath("test_yaml")
+        tmp_json_file.touch()
+        self.assertEqual(tmp_json_file.stat().st_size, 0)
+        d = {"test": [1, 2, 3]}
+        write_dict_to_json(tmp_json_file, d)
+        self.assertTrue(tmp_json_file.stat().st_size > 0)
+        d_loaded = json.load(open(tmp_json_file))
+        self.assertEqual(d_loaded, d)
 
     def test_create_empty_file_recursively(self):
         tmp_dir = pathlib.Path(tempfile.gettempdir())

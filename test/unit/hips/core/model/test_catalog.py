@@ -1,9 +1,11 @@
+import json
 import shutil
 import tempfile
 import unittest.mock
 from pathlib import Path
 from unittest.mock import patch
 
+import yaml
 from anytree import Node
 
 from hips.core.model.catalog import Catalog, CatalogIndex
@@ -491,6 +493,14 @@ class TestHipsCatalogIndex(TestHipsCommon):
         with self.assertRaises(RuntimeError) as context:
             self.cs_index.resolve_hips_by_doi("doi0")
             self.assertIn("Found several results", str(context.exception))
+
+    def test_export_json(self):
+        self.setUp()
+        with tempfile.NamedTemporaryFile() as f:
+            self.cs_index.export(f.name, export_format="JSON")
+            export_file = open(f.name).readlines()[0]
+
+            self.assertEqual(json.dumps(self.cs_index.get_leaves_dict_list()), export_file)
 
     @patch('hips.core.model.catalog.RenderTree', return_value="")
     def test_visualize(self, rt_mock):
