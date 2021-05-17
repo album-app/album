@@ -11,12 +11,13 @@ class TestHipsInit(TestHipsCommon):
         # self.something_all_tests_use = some_value
         pass
 
-    @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={"name": "myname"})
-    def test_setup(self, _):
+    def test_setup(self):
         get_active_hips = hips.get_active_hips()
         self.assertIsNone(get_active_hips)
         self.attrs = {
-            "name": "myname"
+            "name": "myname",
+            "group": "mygroup",
+            "version": "myversion"
         }
         self.assertIsNone(hips.setup(**self.attrs))
         active_hips = hips.get_active_hips()

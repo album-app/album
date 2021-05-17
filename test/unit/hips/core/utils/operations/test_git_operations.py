@@ -35,14 +35,16 @@ class TestGitOperations(TestGitCommon):
     def test__retrieve_single_file(self):
         file = self.create_tmp_repo()
 
-        file_of_commit = hips.core.utils.operations.git_operations._retrieve_single_file_from_head(self.repo.heads["master"], "solutions/")
+        file_of_commit = hips.core.utils.operations.git_operations._retrieve_single_file_from_head(
+            self.repo.heads["master"], "solutions/")
 
         self.assertEqual(file, file_of_commit)
 
     def test__retrieve_single_file_from_head_branch(self):
         tmp_file = self.create_tmp_repo(create_test_branch=True)
 
-        file_of_commit = hips.core.utils.operations.git_operations._retrieve_single_file_from_head(self.repo.heads["test_branch"], "solutions/")
+        file_of_commit = hips.core.utils.operations.git_operations._retrieve_single_file_from_head(
+            self.repo.heads["test_branch"], "solutions/")
 
         self.assertEqual(tmp_file, file_of_commit)
 
@@ -56,7 +58,8 @@ class TestGitOperations(TestGitCommon):
         self.repo.git.commit('-m', 'message', '--no-verify')
 
         with self.assertRaises(RuntimeError) as context:
-            hips.core.utils.operations.git_operations._retrieve_single_file_from_head(self.repo.heads["master"], "solutions/")
+            hips.core.utils.operations.git_operations._retrieve_single_file_from_head(self.repo.heads["master"],
+                                                                                      "solutions/")
 
         self.assertTrue("Pattern found too many times!" in str(context.exception))
 
@@ -64,7 +67,8 @@ class TestGitOperations(TestGitCommon):
         self.create_tmp_repo(commit_solution_file=False)
 
         with self.assertRaises(RuntimeError) as context:
-            hips.core.utils.operations.git_operations._retrieve_single_file_from_head(self.repo.heads["master"], "solutions/")
+            hips.core.utils.operations.git_operations._retrieve_single_file_from_head(self.repo.heads["master"],
+                                                                                      "solutions/")
 
         self.assertTrue("Pattern not found!" in str(context.exception))
 
@@ -90,7 +94,8 @@ class TestGitOperations(TestGitCommon):
 
         commit_mssg = "Adding new/updated %s" % active_hips["name"]
 
-        hips.core.utils.operations.git_operations.add_files_commit_and_push(new_head, [tmp_file_in_repo], commit_mssg, dry_run=True)
+        hips.core.utils.operations.git_operations.add_files_commit_and_push(new_head, [tmp_file_in_repo], commit_mssg,
+                                                                            dry_run=True)
 
         # new branch created
         self.assertTrue("test_solution_name" in self.repo.branches)
@@ -105,7 +110,11 @@ class TestGitOperations(TestGitCommon):
 
     @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={})
     def test_add_files_commit_and_push_no_diff(self, _):
-        attrs_dict = {"name": "test_solution_name"}
+        attrs_dict = {
+            "name": "test_solution_name",
+            "group": "mygroup",
+            "version": "myversion"
+        }
         HipsClass(attrs_dict)
 
         file = self.create_tmp_repo(commit_solution_file=False)
@@ -114,7 +123,8 @@ class TestGitOperations(TestGitCommon):
         new_head.checkout()
 
         with self.assertRaises(RuntimeError):
-            hips.core.utils.operations.git_operations.add_files_commit_and_push(new_head, [file], "a_wonderful_cmt_msg", dry_run=True)
+            hips.core.utils.operations.git_operations.add_files_commit_and_push(new_head, [file], "a_wonderful_cmt_msg",
+                                                                                dry_run=True)
 
     @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={})
     def test_download_repository(self, _):
@@ -124,12 +134,15 @@ class TestGitOperations(TestGitCommon):
         # create hips
         self.attrs = {
             "git_repo": "https://github.com/rmccue/test-repository.git",
-            "name": "test"
+            "name": "test",
+            "group": "mygroup",
+            "version": "myversion"
         }
         hips_with_git_repo = HipsClass(self.attrs)
 
         # run
-        hips.core.utils.operations.git_operations.download_repository(hips_with_git_repo["git_repo"], xdg_cache_home().joinpath("test"))
+        hips.core.utils.operations.git_operations.download_repository(hips_with_git_repo["git_repo"],
+                                                                      xdg_cache_home().joinpath("test"))
 
         # check
         self.assertIn("test", os.listdir(str(xdg_cache_home())), "Download failed!")
@@ -139,7 +152,7 @@ class TestGitOperations(TestGitCommon):
         # checkout old version of repo
 
         # run again
-        #ips.public_api.download_hips_repository(hips_with_git_repo)
+        # ips.public_api.download_hips_repository(hips_with_git_repo)
 
         # assert that repo has been updated to head!
 

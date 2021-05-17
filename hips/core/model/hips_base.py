@@ -1,5 +1,7 @@
 import copy
+
 from hips.core.model import logging
+from hips.core.model.configuration import HipsConfiguration
 from hips.core.model.environment import Environment
 
 module_logger = logging.get_active_logger
@@ -63,7 +65,9 @@ class HipsClass:
         for private_attr in self.private_setup_keywords:
             setattr(self, private_attr, "")
 
-        self.environment = Environment(self.get_hips_deploy_dict())
+        self.environment = Environment(
+            self.dependencies, self["name"],  HipsConfiguration().get_cache_path_hips(self)
+        )
 
     def __str__(self, indent=2):
         s = '\n'
