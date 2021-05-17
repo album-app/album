@@ -12,14 +12,28 @@ def remove(args):
 
 
 class HipsRemover:
-    catalog_configuration = HipsCatalogConfiguration()
+    catalog_configuration = None
 
     def __init__(self, path, rm_dep):
+        self.catalog_configuration = HipsCatalogConfiguration()
+
         self.path = path
         self.rm_dep = rm_dep
         self.active_hips = None
 
     def remove(self):
+        # ToDo: only delete from catalog if the solution is nowhere needed any more
+        # Todo: some kind of dependency solving in the catalog. Both ways for resolving
+        # if c is going to be deleted - check if c is installed
+        # if d is going to be deleted - delete c if possible (no other things installed which depend on c)
+        #
+        # a
+        # ├── b
+        # │   └── d <- dependency to c
+        # └── c <- d depended on c
+        # what if solutions depend oon solutions from a different catalog?
+        # -> ignore this dependency then?
+
         resolve = self.catalog_configuration.resolve_from_str(self.path)
         self.active_hips = load_and_push_hips(resolve["path"])
 
@@ -53,6 +67,8 @@ class HipsRemover:
             if 'hips' in self.active_hips.dependencies:
                 args = self.active_hips.dependencies['hips']
                 for hips_dependency in args:
+                    # ToDo: need to search through all installed installations if there is another dependency of what
+                    #  we are going to delete... otherwise there will nasty resolving errors during runtime
                     hips_dependency_path = self.catalog_configuration.resolve_hips_dependency(hips_dependency)["path"]
                     remove(hips_dependency_path)
 

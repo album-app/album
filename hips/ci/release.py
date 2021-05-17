@@ -3,7 +3,8 @@ import hips.core.utils.operations.git_operations
 from hips.ci.ci_utils import _get_ci_deploy_values, _retrieve_solution_file, \
     _zenodo_get_deposit
 from hips.core.model import logging
-from hips.core.utils.operations.git_operations import _checkout_branch
+from hips.core.utils.operations.file_operations import get_zenodo_metadata
+from hips.core.utils.operations.git_operations import checkout_branch
 
 module_logger = logging.get_active_logger
 
@@ -36,12 +37,12 @@ def release(git_repo_path, branch_name):
 
     """
     # checkout branch
-    head = _checkout_branch(git_repo_path, branch_name)
+    head = checkout_branch(git_repo_path, branch_name)
 
     # get the solution file to deploy
     solution_file = _retrieve_solution_file(head)
     # todo: get this from yaml or index!
-    deposit_id = hips.core.utils.operations.file_operations.get_zenodo_metadata(solution_file, "deposit_id")
+    deposit_id = get_zenodo_metadata(solution_file, "deposit_id")
 
     # retrieve the deposit from the id
     deposit = _zenodo_get_deposit(solution_file, deposit_id)

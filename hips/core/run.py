@@ -1,7 +1,7 @@
 import argparse
 import sys
 
-from hips.core import *
+from hips.core import load
 from hips.core.model import logging
 from hips.core.model.configuration import HipsCatalogConfiguration
 from hips.core.model.logging import LogLevel
@@ -19,18 +19,21 @@ module_logger = logging.get_active_logger
 
 
 def run(args):
-    HIPSRunner().run(args)
+    HipsRunner().run(args)
 
 
-class HIPSRunner:
+class HipsRunner:
     init_script = ""
-    catalog_configuration = HipsCatalogConfiguration()
+    catalog_configuration = None
+
+    def __init__(self):
+        self.catalog_configuration = HipsCatalogConfiguration()
 
     def run(self, args):
         """Function corresponding to the `run` subcommand of `hips`."""
         resolve = self.catalog_configuration.resolve_from_str(args.path)
 
-        if not self.__is_in_catalog(resolve["catalog"]):
+        if not resolve["catalog"]:
             if not (resolve['path'].is_file() and resolve['path'].stat().st_size > 0):
                 # todo: install the solution and continue on success
                 raise RuntimeError("Please install solution first!")
@@ -127,7 +130,7 @@ class HIPSRunner:
                 # empty the queue first
                 same_parent_steps = self.run_and_empty_queue(same_parent_steps)
                 # simply run this step
-                step_args = self.__get_args(step)  # arguments in the description of the step
+                step_args = self._get_args(step)  # arguments in the description of the step
                 self.run_single_step(step_hips, step_args)
         # empty queue if necessary
         self.run_and_empty_queue(same_parent_steps)
@@ -152,7 +155,7 @@ class HIPSRunner:
         script = create_hips_with_parent_script(parent_hips, parsed_parent_args, steps_hips, parsed_steps_args_list,
                                                 self.init_script)
         # now run
-        self.__run_in_environment_with_own_logger(parent_hips, script)
+        self._run_in_environment_with_own_logger(parent_hips, script)
 
     def resolve_args(self, parent_hips, steps_hips, steps, args=None):
         args = [] if args is None else args
@@ -165,11 +168,11 @@ class HIPSRunner:
         for idx, step_hips in enumerate(steps_hips):
             step_parser = argparse.ArgumentParser()
 
-            # the step hips object
+            # the steps description
             step = steps[idx]
 
             if step:  # case steps argument resolving
-                step_args = self.__get_args(step)
+                step_args = self._get_args(step)
             else:  # case single step hips
                 step_args = args
 
@@ -218,7 +221,7 @@ class HIPSRunner:
         if hasattr(active_hips, "close"):
             script_inset += "\nget_active_hips().close()\n"
         script = create_script(active_hips, script_inset, args)
-        self.__run_in_environment_with_own_logger(active_hips, script)
+        self._run_in_environment_with_own_logger(active_hips, script)
 
     def run_steps_with_parent(self, parent_hips, parent_args, hips_list, hips_args_list):
         """Run one or multiple loaded HIPS with given arguments depending on a HIPS app"""
@@ -228,14 +231,10 @@ class HIPSRunner:
             )
         )
         script = create_hips_with_parent_script(parent_hips, parent_args, hips_list, hips_args_list, self.init_script)
-        self.__run_in_environment_with_own_logger(parent_hips, script)
+        self._run_in_environment_with_own_logger(parent_hips, script)
 
     @staticmethod
-    def __is_in_catalog(catalog):
-        return True if catalog else False
-
-    @staticmethod
-    def __run_in_environment_with_own_logger(active_hips, script):
+    def _run_in_environment_with_own_logger(active_hips, script):
         """Pushes a new logger to the stack before running the solution and pops it afterwards."""
         logging.configure_logging(
             LogLevel(logging.to_loglevel(logging.get_loglevel_name())), active_hips['name']
@@ -245,7 +244,7 @@ class HIPSRunner:
         logging.pop_active_logger()
 
     @staticmethod
-    def __get_args(step):
+    def _get_args(step):
         """Parse callable arguments belonging to a step into a list of strings"""
         argv = [""]
         if 'args' in step:

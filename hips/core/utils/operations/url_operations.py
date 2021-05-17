@@ -28,7 +28,7 @@ def download_resource(url, path):
     path = Path(path)
 
     if not is_downloadable(url):
-        raise AssertionError("Resource not downloadable!")
+        raise AssertionError("Resource \"%s\" not downloadable!" % url)
 
     r = _request_get(url)
 
@@ -46,6 +46,6 @@ def _request_get(url):
     r = requests.get(url, allow_redirects=True, stream=True)
 
     if r.status_code != ResponseStatus.OK.value:
-        raise ConnectionError("Could not download resource!")
+        raise ConnectionError("Could not connect to resource %s!" % url)
 
     return r

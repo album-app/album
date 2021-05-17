@@ -2,30 +2,33 @@ import os
 import shutil
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from xdg import xdg_cache_home
 
 import hips.core
+import hips.core.deploy
 import hips.core.utils.operations.git_operations
 from hips.core.model.hips_base import HipsClass
+from hips.core.utils.operations.file_operations import copy
 from test.unit.test_common import TestGitCommon
 
 
 class TestGitOperations(TestGitCommon):
 
-    def test__checkout_branch(self):
+    def test_checkout_branch(self):
         self.create_tmp_repo(create_test_branch=True)
 
-        head = hips.core.utils.operations.git_operations._checkout_branch(str(self.repo.working_tree_dir), "test_branch")
+        head = hips.core.utils.operations.git_operations.checkout_branch(str(self.repo.working_tree_dir), "test_branch")
 
         self.assertTrue(head == self.repo.heads["test_branch"])
 
-    def test__checkout_branch_no_branch(self):
+    def test_checkout_branch_no_branch(self):
         self.create_tmp_repo(commit_solution_file=False)
 
         with self.assertRaises(IndexError) as context:
-            hips.core.utils.operations.git_operations._checkout_branch(str(self.repo.working_tree_dir), "NoValidBranch")
+            hips.core.utils.operations.git_operations.checkout_branch(str(self.repo.working_tree_dir), "NoValidBranch")
 
         self.assertTrue("Branch NoValidBranch not in repository!" in str(context.exception))
 
@@ -66,8 +69,8 @@ class TestGitOperations(TestGitCommon):
         self.assertTrue("Pattern not found!" in str(context.exception))
 
     @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={})
-    def test__add_files_commit_and_push(self, _):
-        attrs_dict = {"name": "test_solution_name"}
+    def test_add_files_commit_and_push(self, _):
+        attrs_dict = {"name": "test_solution_name", "group": "test_solution_group", "version": "test_solution_version"}
         active_hips = HipsClass(attrs_dict)
 
         tmp_file = tempfile.NamedTemporaryFile()
@@ -76,10 +79,18 @@ class TestGitOperations(TestGitCommon):
         new_head.ref = self.repo.heads["master"]
         new_head.checkout()
 
-        tmp_file_in_repo = hips.core.utils.operations.git_operations._copy_solution_to_repository(tmp_file.name, self.repo, active_hips)
+        tmp_file_in_repo = Path(self.repo.working_tree_dir).joinpath(
+            "solutions",
+            active_hips['group'],
+            active_hips["name"],
+            active_hips["version"],
+            "%s%s" % (active_hips['name'], ".py")
+        )
+        copy(tmp_file.name, tmp_file_in_repo)
+
         commit_mssg = "Adding new/updated %s" % active_hips["name"]
 
-        hips.core.utils.operations.git_operations._add_files_commit_and_push(new_head, [tmp_file_in_repo], commit_mssg, dry_run=True)
+        hips.core.utils.operations.git_operations.add_files_commit_and_push(new_head, [tmp_file_in_repo], commit_mssg, dry_run=True)
 
         # new branch created
         self.assertTrue("test_solution_name" in self.repo.branches)
@@ -93,7 +104,7 @@ class TestGitOperations(TestGitCommon):
         self.assertEqual(self.repo.active_branch.name, "test_solution_name")
 
     @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={})
-    def test__add_files_commit_and_push_no_diff(self, _):
+    def test_add_files_commit_and_push_no_diff(self, _):
         attrs_dict = {"name": "test_solution_name"}
         HipsClass(attrs_dict)
 
@@ -103,22 +114,7 @@ class TestGitOperations(TestGitCommon):
         new_head.checkout()
 
         with self.assertRaises(RuntimeError):
-            hips.core.utils.operations.git_operations._add_files_commit_and_push(new_head, [file], "a_wonderful_cmt_msg", dry_run=True)
-
-    @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={})
-    def test__copy_solution_to_repository(self, _):
-        attrs_dict = {"name": "test_solution_name"}
-        active_hips = HipsClass(attrs_dict)
-
-        self.create_tmp_repo()
-
-        tmp_file = tempfile.NamedTemporaryFile()
-
-        hips.core.utils.operations.git_operations._copy_solution_to_repository(tmp_file.name, self.repo, active_hips)
-
-        self.assertTrue(os.path.isfile(
-            os.path.join(str(self.repo.working_tree_dir), "solutions", "test_solution_name.py")
-        ))
+            hips.core.utils.operations.git_operations.add_files_commit_and_push(new_head, [file], "a_wonderful_cmt_msg", dry_run=True)
 
     @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={})
     def test_download_repository(self, _):

@@ -269,17 +269,21 @@ class TestCatalog(TestHipsCommon):
 
     def test_refresh_index_broken_src(self):
         self.catalog.src = "http://google.com/doesNotExist.ico"
+        self.catalog.is_local = False
+
         self.assertFalse(self.catalog.refresh_index())
 
     def test_download_index(self):
         self.assertEqual(self.catalog.index_path.stat().st_size, 0)
         # todo: replace me
-        self.catalog.src = "https://gitlab.com/ida-mdc/hips-catalog/-/raw/new_catalog_structure/catalog_index?inline=false"
+        self.catalog.src = "https://gitlab.com/ida-mdc/hips-catalog/-/raw/main/catalog_index?inline=false"
+        self.catalog.is_local = False
         self.catalog.download_index()
         self.assertNotEqual(self.catalog.index_path.stat().st_size, 0)
 
     def test_download_index_not_downloadable(self):
         self.catalog.src = "http://google.com/doesNotExist.ico"
+        self.catalog.is_local = False
 
         with self.assertRaises(AssertionError):
             self.catalog.download_index()
@@ -289,6 +293,7 @@ class TestCatalog(TestHipsCommon):
 
         get_index_mock.side_effect = [self.catalog.src]
         self.catalog.src = "https://www.google.com/favicon.ico"
+        self.catalog.is_local = False
 
         with self.assertRaises(ValueError):
             self.catalog.download_index()

@@ -31,7 +31,7 @@ def _get_ci_deploy_values():
     target_url = get_os_environment_value(ci_mr_target_url)
     source_url = get_os_environment_value(ci_mr_source_url)
 
-    module_logger().debug("Read out the folowing variabels and their values:\n"
+    module_logger().debug("Read out the following variables and their values:\n"
                           "\t - branch name:  %s\n"
                           "\t - catalog name: %s\n"
                           "\t - target url: %s\n"
@@ -77,10 +77,14 @@ def _zenodo_upload(deposit, solution_file):
     _, solution_name_full = _parse_solution_name_from_file_path(solution_file)
 
     if solution_name_full in deposit.files:  # File does exist
-        module_logger().debug("Update solution file %s to Zenodo deposit with id %s..." % (solution_name_full, deposit.id))
+        module_logger().debug(
+            "Update solution file %s to Zenodo deposit with id %s..." % (solution_name_full, deposit.id)
+        )
         deposit.update_file(solution_name_full, solution_file)
     else:
-        module_logger().debug("Create solution file %s in Zenodo deposit with id %s..." % (solution_name_full, deposit.id))
+        module_logger().debug(
+            "Create solution file %s in Zenodo deposit with id %s..." % (solution_name_full, deposit.id)
+        )
         deposit.create_file(solution_file)
 
     return deposit
@@ -221,7 +225,3 @@ def _yaml_to_md(yml_file, md_file):
 
     with open(md_file, 'w+') as md_f:
         md_f.write("---\n" + yaml.dump(d, Dumper=yaml.Dumper) + "\n---")
-
-
-
-
