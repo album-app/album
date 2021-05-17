@@ -10,7 +10,7 @@ import yaml
 from xdg import xdg_cache_home
 
 from hips.core.model import logging
-from hips.core.model.configuration import HipsConfiguration, HipsDefaultValues
+from hips.core.model.configuration import HipsDefaultValues
 from hips.core.model.logging import hips_debug
 from hips.core.utils import subcommand
 from hips.core.utils.operations.file_operations import create_path_recursively, copy
@@ -137,11 +137,22 @@ class Conda:
 
 
 class Environment:
-    configuration = HipsConfiguration()
 
-    def __init__(self, active_hips_dict):
-        self.yaml_file = self.get_env_file(active_hips_dict)
-        self.name = self.get_env_name(active_hips_dict)
+    def __init__(self, dependencies_dict, cache_name, cache_path):
+        """Init routine
+
+        Args:
+            dependencies_dict:
+                Can be None or hold the entries a) "environment_file" b) "environment_name"
+            cache_name:
+                name prefix for all files to cache
+            cache_path:
+                cache path
+        """
+        self.cache_path = Path(cache_path)
+        self.cache_name = cache_name
+        self.yaml_file = self.get_env_file(dependencies_dict)
+        self.name = self.get_env_name(dependencies_dict)
         self.path = self.init_env_path()
 
     def install(self, min_hips_version=None):
@@ -151,13 +162,13 @@ class Environment:
 
         self.install_hips(min_hips_version)
 
-    def get_env_file(self, active_hips_dict):
-        if 'dependencies' in active_hips_dict and active_hips_dict['dependencies'] is not None:
-            if 'environment_file' in active_hips_dict['dependencies']:
-                env_file = active_hips_dict['dependencies']['environment_file']
+    def get_env_file(self, dependencies_dict):
+        if dependencies_dict:
+            if 'environment_file' in dependencies_dict:
+                env_file = dependencies_dict['environment_file']
 
-                yaml_path = self.configuration.get_cache_path_hips(active_hips_dict).joinpath(
-                    "%s%s" % (active_hips_dict["name"], ".yml"))
+                yaml_path = self.cache_path.joinpath(
+                    "%s%s" % (self.cache_name, ".yml"))
                 create_path_recursively(yaml_path.parent)
 
                 if isinstance(env_file, str):
@@ -181,14 +192,14 @@ class Environment:
             return None
         return None
 
-    def get_env_name(self, active_hips_dict):
-        if 'dependencies' in active_hips_dict and active_hips_dict['dependencies'] is not None:
-            if 'environment_name' in active_hips_dict['dependencies']:
-                environment_name = active_hips_dict['dependencies']['environment_name']
+    def get_env_name(self, dependencies_dict):
+        if dependencies_dict:
+            if 'environment_name' in dependencies_dict:
+                environment_name = dependencies_dict['environment_name']
                 module_logger().debug('Environment name explicit given as: %s...' % environment_name)
                 return environment_name
 
-            elif 'environment_file' in active_hips_dict['dependencies']:
+            elif 'environment_file' in dependencies_dict:
                 environment_name = self.get_env_name_from_yaml()
                 module_logger().debug('Extracted following name from file: %s...' %
                                       environment_name)
@@ -220,7 +231,7 @@ class Environment:
             environment_path = environment_dict[self.name]
             module_logger().debug('Set environment path to %s...' % environment_path)
 
-            return environment_path
+            return Path(environment_path)
         else:
             return None
 
@@ -231,7 +242,7 @@ class Environment:
         return env_path
 
     def is_installed(self, package_name, min_package_version=None):
-        conda_list = Conda.list_environment(self.path)
+        conda_list = Conda.list_environment(str(self.path))
 
         for package in conda_list:
             if package["name"] == package_name:
@@ -261,9 +272,9 @@ class Environment:
                 The script calling the solution
         """
         if not self.path:
-            raise EnvironmentError("Environment not proper configured. Is the solution installed?")
+            raise EnvironmentError("Environment \"%s\" not proper configured. Is the solution installed?" % self.name)
 
-        module_logger().debug('run_in_environment: %s...' % self.path)
+        module_logger().debug('run_in_environment: %s...' % str(self.path))
 
         # Use an environment path and a temporary file to store the script
         if hips_debug():
@@ -277,7 +288,7 @@ class Environment:
         fp.flush()
         os.fsync(fp)
 
-        Conda.run_script(self.path, fp.name)
+        Conda.run_script(str(self.path), fp.name)
 
         fp.close()
 
@@ -322,9 +333,9 @@ class Environment:
         if version:
             module = "==".join([module, version])
 
-        module_logger().debug("Installing %s in environment %s..." % (module, self.path))
+        module_logger().debug("Installing %s in environment %s..." % (module, str(self.path)))
 
-        Conda.pip_install(self.path, module)
+        Conda.pip_install(str(self.path), module)
 
     def remove(self):
         Conda.remove_environment(self.name)

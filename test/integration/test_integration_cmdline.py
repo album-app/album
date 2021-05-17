@@ -29,8 +29,7 @@ class TestHIPSCommandLine(unittest.TestCase):
 
     def tearDown(self) -> None:
         # clean all environments specified in test-resources
-        for e in ["app1", "app3", "solution3_noparent", "solution4_app2",
-                  "solution5_app2", "solution2_app1", "solution1_app1"]:
+        for e in ["app1", "app2", "solution3_noparent"]:
             if Conda.environment_exists(e):
                 Conda.remove_environment(e)
 
@@ -146,7 +145,7 @@ class TestHIPSCommandLine(unittest.TestCase):
     @patch('hips.core.run.HipsCatalogConfiguration.resolve_from_str')
     def test_run(self, res_from_str_mock):
         # create test environment
-        Environment({}).install()
+        Environment(None, "unusedCacheName", "unusedCachePath").install()
 
         sys.argv = ["", "run", get_test_solution_path()]
 
@@ -159,7 +158,10 @@ class TestHIPSCommandLine(unittest.TestCase):
     @patch('hips.core.run.HipsCatalogConfiguration.resolve_hips_dependency')
     def test_run_with_parent(self, resolve_mock, res_from_str_mock):
         # create test environment
-        Environment({}).install()
+        Environment(None, "unusedCacheName", "unusedCachePath").install()
+
+        # create app environment
+        Environment({'environment_name': "app1"}, "unusedCacheName", "unusedCachePath").install()
 
         resolve_mock.side_effect = self.__resolve_hips
         res_from_str_mock.side_effect = [{"path": get_test_solution_path("solution1_app1.py"), "catalog": "aCatalog"}]
@@ -182,7 +184,13 @@ class TestHIPSCommandLine(unittest.TestCase):
     @patch('hips.core.run.HipsCatalogConfiguration.resolve_hips_dependency')
     def test_run_with_steps(self, run_resolve_mock, res_from_str_mock):
         # create test environment
-        Environment({}).install()
+        Environment(None, "unusedCacheName", "unusedCachePath").install()
+
+        # create app environment
+        Environment({'environment_name': "app1"}, "unusedCacheName", "unusedCachePath").install()
+
+        # create solution3_noparent environment
+        Environment({'environment_name': "solution3_noparent"}, "unusedCacheName", "unusedCachePath").install()
 
         run_resolve_mock.side_effect = self.__resolve_hips
         res_from_str_mock.side_effect = [{"path": get_test_solution_path("hips_with_steps.py"), "catalog": "aCatalog"}]
@@ -212,7 +220,15 @@ class TestHIPSCommandLine(unittest.TestCase):
     @patch('hips.core.run.HipsCatalogConfiguration.resolve_hips_dependency')
     def test_run_with_grouped_steps(self, run_resolve_mock, res_from_str_mock):
         # create test environment
-        Environment({}).install()
+        Environment(None, "unusedCacheName", "unusedCachePath").install()
+
+        # create app environment
+        Environment({'environment_name': "app1"}, "unusedCacheName", "unusedCachePath").install()
+        Environment({'environment_name': "app2"}, "unusedCacheName", "unusedCachePath").install()
+
+        # create solution3_noparent environment
+        Environment({'environment_name': "solution3_noparent"}, "unusedCacheName", "unusedCachePath").install()
+
 
         run_resolve_mock.side_effect = self.__resolve_hips
         res_from_str_mock.side_effect = [
