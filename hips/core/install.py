@@ -1,6 +1,6 @@
 import sys
 
-from hips.core import load_and_push_hips, pop_active_hips
+from hips.core import load
 from hips.core.model import logging
 from hips.core.model.configuration import HipsCatalogConfiguration
 from hips.core.model.logging import LogLevel
@@ -16,14 +16,17 @@ def install(args):
 
 class HipsInstaller:
 
-    catalog_configuration = HipsCatalogConfiguration()
+    catalog_configuration = None
     active_hips = None
+
+    def __init__(self):
+        self.catalog_configuration = HipsCatalogConfiguration()
 
     def install(self, args):
         """Function corresponding to the `install` subcommand of `hips`."""
         # Load HIPS
         resolve = self.catalog_configuration.resolve_from_str(args.path)
-        self.active_hips = load_and_push_hips(resolve["path"])
+        self.active_hips = load(resolve["path"])
 
         if not resolve["catalog"]:
             module_logger().debug('hips loaded locally: %s...' % str(self.active_hips))
@@ -43,7 +46,6 @@ class HipsInstaller:
             self.add_to_local_catalog()
 
         module_logger().info('Installed %s!' % self.active_hips['name'])
-        pop_active_hips()
 
     def add_to_local_catalog(self):
         """Force adds the installation to the local catalog to be cached for running"""
@@ -82,4 +84,3 @@ class HipsInstaller:
         hips_script_path = self.catalog_configuration.resolve_hips_dependency(hips_dependency)["path"]
         # recursive installation call
         install(hips_script_path)
-

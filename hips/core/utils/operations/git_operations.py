@@ -1,5 +1,4 @@
 import os
-import shutil
 from pathlib import Path
 
 import git
@@ -9,7 +8,7 @@ from hips.core.model import logging
 module_logger = logging.get_active_logger
 
 
-def _checkout_branch(git_repo_path, branch_name):
+def checkout_branch(git_repo_path, branch_name):
     """Checks out a branch on a repository.
 
     First, local refs are taken, then refs pointing to origin.
@@ -90,7 +89,7 @@ def _retrieve_single_file_from_head(head, pattern):
     return abs_path_solution_file[0]
 
 
-def _add_files_commit_and_push(head, file_paths, commit_message, dry_run=False, trigger_pipeline=True):
+def add_files_commit_and_push(head, file_paths, commit_message, dry_run=False, trigger_pipeline=True):
     """Adds files in a given path to a git head and commits.
 
     Args:
@@ -141,31 +140,9 @@ def _add_files_commit_and_push(head, file_paths, commit_message, dry_run=False, 
         raise RuntimeError("Diff shows no changes to the repository. Aborting...")
 
 
-def _copy_solution_to_repository(path, repo, active_hips):
-    """Copys a solution outside the catalog repository to the correct path inside the catalog repository.
-
-    Args:
-        path:
-            The solution file.
-        repo:
-            The catalog repository.
-        active_hips:
-            The active hips object.
-
-    Returns:
-        The path to the solution file in the correct folder inside the catalog repository.
-
-    """
-    abs_path_solution_file = os.path.join(repo.working_tree_dir, "solutions", "%s%s" % (active_hips['name'], ".py"))
-    module_logger().debug("Copying %s to %s..." % (path, abs_path_solution_file))
-    shutil.copy(path, abs_path_solution_file)
-
-    return abs_path_solution_file
-
-
-def __create_new_head(repo, name):
+# todo: write test
+def create_new_head(repo, name):
     """Force creates a new head of a given name in a repository and returns the head."""
-    # todo: make non private and test
 
     if name in repo.heads:
         git.Head.delete(repo, name, force=True)

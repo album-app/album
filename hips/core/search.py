@@ -15,7 +15,10 @@ def search(args):
 
 
 class HipsSearcher:
-    catalog_configuration = HipsCatalogConfiguration()
+    catalog_configuration = None
+
+    def __init__(self):
+        self.catalog_configuration = HipsCatalogConfiguration()
 
     def search(self, keywords):
         """Function corresponding to the `search` subcommand of `hips`.

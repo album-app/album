@@ -21,7 +21,7 @@ def get_index_src(src):
     from hips.core.model.configuration import HipsDefaultValues
     """Gets the download link for an index."""
     # todo: replace "new_catalog_structure" branch with "main"... although "main" is also hardcoded! :(
-    return src.strip("git").strip(".") + "/-/raw/new_catalog_structure/%s" \
+    return src.strip("git").strip(".") + "/-/raw/main/%s" \
            % HipsDefaultValues.catalog_index_file_name.value
 
 
@@ -29,7 +29,7 @@ def get_index_src(src):
 def get_solution_src(src, grp, name, version):
     """Gets the download link for a solution in an index."""
     # todo: replace "new_catalog_structure" branch with "main"... although "main" is also hardcoded! :(
-    return src.strip("git").strip(".") + "/-/raw/new_catalog_structure/solutions/%s/%s/%s/%s.py" \
+    return src.strip("git").strip(".") + "/-/raw/main/solutions/%s/%s/%s/%s.py" \
            % (grp, name, version, name)
 
 
@@ -298,9 +298,14 @@ class Catalog:
     def download(self):
         """Downloads the whole catalog. Used for deployment."""
         module_logger().debug("Download catalog %s to the path %s..." % (self.id, str(self.path)))
-        repo = download_repository(self.src, str(self.path))
 
-        return repo
+        if not self.is_local:
+            repo = download_repository(self.src, str(self.path))
+
+            return repo
+
+        module_logger().warning("Cannot download a local catalog! Skipping...")
+        return None
 
     def __len__(self):
         return len(self.catalog_index)

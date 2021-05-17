@@ -4,17 +4,27 @@ import shutil
 import unittest
 import os
 from io import StringIO
+from pathlib import Path
+from unittest.mock import patch
 
 import git
 
 from xdg import xdg_cache_home
 
 from hips.ci.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
+from hips.core import HipsClass
+from hips.core.model.configuration import HipsCatalogConfiguration
 from hips.core.model.logging import push_active_logger, pop_active_logger
 
 
 class TestHipsCommon(unittest.TestCase):
     """Base class for all Unittest using a hips object"""
+
+    test_config_init = """catalogs:
+    - https://gitlab.com/ida-mdc/hips-catalog.git
+    """
+    test_tmp_dir = None
+    test_config_file = None
 
     @classmethod
     def setUpClass(cls):
@@ -36,6 +46,12 @@ class TestHipsCommon(unittest.TestCase):
     def tearDown(self) -> None:
         pop_active_logger()
 
+        if self.test_config_file:
+            Path(self.test_config_file.name).unlink()
+
+        if self.test_tmp_dir:
+            self.test_tmp_dir.cleanup()
+
     def configure_test_logging(self, stream_handler):
         self.logger = logging.getLogger("unitTest")
 
@@ -53,6 +69,26 @@ class TestHipsCommon(unittest.TestCase):
         logs = logs.strip()
         return logs.split("\n")
 
+    @patch('hips.core.model.catalog.Catalog.refresh_index', return_value=None)
+    def create_test_config(self, _):
+        self.test_config_file = tempfile.NamedTemporaryFile(delete=False)
+        self.test_tmp_dir = tempfile.TemporaryDirectory()
+        self.config = None
+        with open(self.test_config_file.name, "w") as f:
+            self.test_config_init += "- " + self.test_tmp_dir.name
+            f.writelines(self.test_config_init)
+
+        self.config = HipsCatalogConfiguration(self.test_config_file.name)
+
+        self.assertEqual(len(self.config.local_catalog), 0)
+
+    @patch('hips.core.model.environment.Environment.__init__', return_value=None)
+    @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict')
+    def create_test_hips_no_env(self, deploy_dict_mock, _):
+        deploy_dict_mock.return_value = {"name": "tsn", "group": "tsg", "version": "tsv"}
+        self.active_hips = HipsClass(deploy_dict_mock.return_value)
+        self.active_hips.init = lambda: None
+        self.active_hips.args = []
 
 
 class TestZenodoCommon(TestHipsCommon):
@@ -94,6 +130,7 @@ class TestZenodoCommon(TestHipsCommon):
         assert self.test_deposit.delete()
         if hasattr(self, "test_deposit2"):
             assert self.test_deposit2.delete()
+        super().tearDown()
 
 
 class TestGitCommon(TestHipsCommon):
@@ -118,6 +155,7 @@ class TestGitCommon(TestHipsCommon):
     def tearDown(self) -> None:
         basepath = xdg_cache_home().joinpath("testGitRepo")
         shutil.rmtree(basepath, ignore_errors=True)
+        super().tearDown()
 
     def create_tmp_repo(self, commit_solution_file=True, create_test_branch=False):
         basepath = xdg_cache_home().joinpath("testGitRepo")
@@ -145,7 +183,7 @@ class TestGitCommon(TestHipsCommon):
             )
             repo.index.add([os.path.join("solutions", os.path.basename(tmp_file.name))])
         else:
-            tmp_file = tempfile.NamedTemporaryFile(dir=str(repo.working_tree_dir))
+            tmp_file = tempfile.NamedTemporaryFile(dir=str(repo.working_tree_dir), delete=False)
             repo.index.add([os.path.basename(tmp_file.name)])
 
         repo.git.commit('-m', "added %s " % tmp_file.name, '--no-verify')
