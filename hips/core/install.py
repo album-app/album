@@ -64,13 +64,13 @@ class HipsInstaller:
             logging.configure_logging(
                 LogLevel(logging.to_loglevel(logging.get_loglevel_name())), self.active_hips['name']
             )
-            self.active_hips.run_script(script)
+            self.active_hips.environment.run_script(script)
             logging.pop_active_logger()
 
     def install_dependencies(self):
         """Handle dependencies in hips dependency block"""
 
-        if self.active_hips.dependencies:
+        if self.active_hips.dependencies:  # todo: check if that is necessary any more
             if 'hips' in self.active_hips.dependencies:
                 args = self.active_hips.dependencies['hips']
                 for hips_dependency in args:
