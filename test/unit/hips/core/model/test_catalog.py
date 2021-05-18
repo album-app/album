@@ -5,7 +5,6 @@ import unittest.mock
 from pathlib import Path
 from unittest.mock import patch
 
-import yaml
 from anytree import Node
 
 from hips.core.model.catalog import Catalog, CatalogIndex
@@ -40,24 +39,30 @@ empty_index = """{
 }"""
 
 
+def populate_index(catalog):
+    for i in range(0, 10):
+        d = {}
+
+        for key in HipsClass.deploy_keys:
+            d[key] = "%s%s" % (key, str(i))
+
+        hips = HipsClass(d)
+
+        # set a doi
+        setattr(hips, "doi", "doi%s" % str(i))
+
+        # set a deposit ID
+        setattr(hips, "deposit_id", "deposit_id%s" % str(i))
+
+        catalog.add(hips)
+
+    return catalog
+
+
 class TestCatalog(TestHipsCommon):
 
     def populate_index(self):
-        for i in range(0, 10):
-            d = {}
-
-            for key in HipsClass.deploy_keys:
-                d[key] = "%s%s" % (key, str(i))
-
-            hips = HipsClass(d)
-
-            # set a doi
-            setattr(hips, "doi", "doi%s" % str(i))
-
-            # set a deposit ID
-            setattr(hips, "deposit_id", "deposit_id%s" % str(i))
-
-            self.catalog.add(hips)
+        self.catalog = populate_index(self.catalog)
 
     def setUp(self):
         self.tmp_dir = tempfile.gettempdir()

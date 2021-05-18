@@ -2,6 +2,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import yaml
@@ -24,11 +25,11 @@ class TestHipsConfiguration(unittest.TestCase):
 
     @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={})
     def test_get_cache_path_hips(self, _):
-
         root = Path(self.tmp_dir.name).joinpath("hips")
 
         path = self.conf.configuration_file_path.joinpath(".hips-config")
-        self.assertEqual(Path(self.tmp_dir.name).joinpath(configuration.HipsDefaultValues.hips_config_file_name.value), path)
+        self.assertEqual(Path(self.tmp_dir.name).joinpath(configuration.HipsDefaultValues.hips_config_file_name.value),
+                         path)
 
         path = self.conf.get_cache_path_hips(
             HipsClass({"name": "myname", "group": "mygroup", "version": "myversion"}))
@@ -75,8 +76,15 @@ class TestHipsCatalogConfiguration(TestHipsCommon):
     def setUp(self):
         self.tmp_dir = Path(tempfile.gettempdir())
         self.config_file = self.tmp_dir.joinpath("config_file")
-        with open(self.config_file,  "w+") as f:
-            f.write("""catalogs: [%s]""" % str(self.tmp_dir.joinpath("catalogs", "test_catalog")))
+        with open(self.config_file, "w+") as f:
+            f.write(
+                """catalogs: \n- %s\n- %s\n- %s""" %
+                (
+                    str(self.tmp_dir.joinpath("catalogs", "test_catalog")),
+                    str("https://gitlab.com/ida-mdc/hips-catalog.git"),
+                    str(self.tmp_dir.joinpath("catalogs", "test_catalog2"))
+                )
+            )
 
         self.config = configuration.HipsCatalogConfiguration(self.tmp_dir.joinpath("config_file"))
 
@@ -129,7 +137,8 @@ class TestHipsCatalogConfiguration(TestHipsCommon):
 
         get_dict_mock.assert_called_once()
 
-    @patch('hips.core.model.configuration.HipsCatalogConfiguration._create_default_configuration', return_value="Called")
+    @patch('hips.core.model.configuration.HipsCatalogConfiguration._create_default_configuration',
+           return_value="Called")
     @patch('hips.core.model.configuration.HipsCatalogConfiguration.save', return_value=None)
     def test__load_hips_configuration_no_file(self, save_mock, _create_default_mock):
 
@@ -172,52 +181,200 @@ class TestHipsCatalogConfiguration(TestHipsCommon):
 
         self.assertEqual(r, self.config.catalogs[0])
 
-    @unittest.skip("Needs to be implemented!")
-    def test_resolve(self):
-        # ToDo: implement
-        pass
+    @patch('hips.core.model.catalog.Catalog.resolve_doi', return_value=None)
+    @patch('hips.core.model.catalog.Catalog.resolve', return_value=None)
+    def test_resolve_no_doi(self, catalog_resolve_mock, catalog_resolve_doi_mock):
+        hips_attr = dict()
+        hips_attr["group"] = "group"
+        hips_attr["name"] = "name"
+        hips_attr["version"] = "version"
 
-    @unittest.skip("Needs to be implemented!")
-    def test_resolve_hips_dependency(self):
-        # ToDo: implement
-        pass
+        r = self.config.resolve(hips_attr)
 
-    @unittest.skip("Needs to be implemented!")
-    def test_resolve_from_str(self):
-        # ToDo: implement
-        pass
+        self.assertIsNone(r)
+        self.assertEqual(3, catalog_resolve_mock.call_count)
+        catalog_resolve_doi_mock.assert_not_called()
 
-    @unittest.skip("Needs to be implemented!")
+    @patch('hips.core.model.catalog.Catalog.resolve_doi', return_value=None)
+    @patch('hips.core.model.catalog.Catalog.resolve', return_value=None)
+    def test_resolve_with_doi(self, catalog_resolve_mock, catalog_resolve_doi_mock):
+        hips_attr = dict()
+        hips_attr["group"] = "group"
+        hips_attr["name"] = "name"
+        hips_attr["version"] = "version"
+        hips_attr["doi"] = "aNiceDoi"
+
+        r = self.config.resolve(hips_attr)
+
+        self.assertIsNone(r)
+        self.assertEqual(3, catalog_resolve_doi_mock.call_count)
+        catalog_resolve_mock.assert_not_called()
+
+    @patch('hips.core.model.catalog.Catalog.resolve_doi', return_value=None)
+    @patch('hips.core.model.catalog.Catalog.resolve', return_value="pathToSolutionFile")
+    def test_resolve_found_first_catalog(self, catalog_resolve_mock, catalog_resolve_doi_mock):
+        hips_attr = dict()
+        hips_attr["group"] = "group"
+        hips_attr["name"] = "name"
+        hips_attr["version"] = "version"
+
+        r = self.config.resolve(hips_attr)
+
+        self.assertEqual({"path": "pathToSolutionFile", "catalog": self.config.catalogs[0]}, r)
+        self.assertEqual(1, catalog_resolve_mock.call_count)
+        catalog_resolve_doi_mock.assert_not_called()
+
+    def test_resolve_hips_dependency_raise_error(self):
+
+        # mocks
+        resolve_mock = MagicMock(return_value=None)
+        self.config.resolve = resolve_mock
+
+        with self.assertRaises(ValueError):
+            r = self.config.resolve_hips_dependency(dict())
+
+        self.assertIsNone(r)
+        resolve_mock.assert_called_once()
+
+    def test_resolve_hips_dependency_found(self):
+        # mocks
+        resolve_mock = MagicMock(return_value={"something"})
+        self.config.resolve = resolve_mock
+
+        r = self.config.resolve_hips_dependency(dict())
+
+        self.assertEqual({"something"}, r)
+        resolve_mock.assert_called_once()
+
+    def test_resolve_from_str_valid_file(self):
+        # mocks
+        get_doi_from_input = MagicMock(return_value=None)
+        get_gnv_from_input = MagicMock(return_value=None)
+        resolve_hips_dependency = MagicMock(return_value=None)
+
+        self.config.get_doi_from_input = get_doi_from_input
+        self.config.get_doi_from_input = get_gnv_from_input
+        self.config.get_doi_from_input = resolve_hips_dependency
+
+        with tempfile.NamedTemporaryFile() as f:
+            r = self.config.resolve_from_str(f.name)
+
+            self.assertEqual({"path": Path(f.name), "catalog": None}, r)
+
+        get_doi_from_input.assert_not_called()
+        get_gnv_from_input.assert_not_called()
+        resolve_hips_dependency.assert_not_called()
+
+    def test_resolve_from_str_wrong_input(self):
+        # mocks
+        get_doi_from_input = MagicMock(return_value=None)
+        get_gnv_from_input = MagicMock(return_value=None)
+        resolve_hips_dependency = MagicMock(return_value=None)
+
+        self.config.get_doi_from_input = get_doi_from_input
+        self.config.get_gnv_from_input = get_gnv_from_input
+        self.config.resolve_hips_dependency = resolve_hips_dependency
+
+        with self.assertRaises(ValueError):
+            self.config.resolve_from_str("aVeryStupidInput")
+
+        get_doi_from_input.assert_called_once()
+        get_gnv_from_input.assert_called_once()
+        resolve_hips_dependency.assert_not_called()
+
+    def test_resolve_from_str_doi_input(self):
+        # mocks
+        get_doi_from_input = MagicMock(return_value="doi")
+        get_gnv_from_input = MagicMock(return_value=None)
+        resolve_hips_dependency = MagicMock(return_value="solvedDoi")
+
+        self.config.get_doi_from_input = get_doi_from_input
+        self.config.get_gnv_from_input = get_gnv_from_input
+        self.config.resolve_hips_dependency = resolve_hips_dependency
+
+        r = self.config.resolve_from_str("doi_input")
+
+        self.assertEqual("solvedDoi", r)
+        get_doi_from_input.assert_called_once()
+        get_gnv_from_input.assert_not_called()
+        resolve_hips_dependency.assert_called_once_with("doi")
+
+    def test_resolve_from_str_gnv_input(self):
+        # mocks
+        get_doi_from_input = MagicMock(return_value=None)
+        get_gnv_from_input = MagicMock(return_value="gnv")
+        resolve_hips_dependency = MagicMock(return_value="solvedGnv")
+
+        self.config.get_doi_from_input = get_doi_from_input
+        self.config.get_gnv_from_input = get_gnv_from_input
+        self.config.resolve_hips_dependency = resolve_hips_dependency
+
+        r = self.config.resolve_from_str("gnv_input")
+
+        self.assertEqual("solvedGnv", r)
+
+        get_doi_from_input.assert_called_once()
+        get_gnv_from_input.assert_called_once()
+        resolve_hips_dependency.assert_called_once_with("gnv")
+
     def test_get_gnv_from_input(self):
-        # ToDo: implement
-        pass
+        solution = {
+            "group": "grp",
+            "name": "name",
+            "version": "version"
+        }
 
-    @unittest.skip("Needs to be implemented!")
+        self.assertEqual(solution, self.config.get_gnv_from_input("grp:name:version"))
+        self.assertIsNone(self.config.get_gnv_from_input("grp:name"))
+        self.assertIsNone(self.config.get_gnv_from_input("grp:version"))
+        self.assertIsNone(self.config.get_gnv_from_input("grp:name:version:uselessInput"))
+        self.assertIsNone(self.config.get_gnv_from_input("uselessInput"))
+        self.assertIsNone(self.config.get_gnv_from_input("::"))
+        self.assertIsNone(self.config.get_gnv_from_input("doi:prefix/suffix"))
+
     def test_get_doi_from_input(self):
-        # ToDo: implement
-        pass
+        solution = {
+            "doi": "prefix/suffix",
+        }
+        self.assertEqual(solution, self.config.get_doi_from_input("doi:prefix/suffix"))
+        self.assertEqual(solution, self.config.get_doi_from_input("prefix/suffix"))
+        self.assertIsNone(self.config.get_doi_from_input("prefixOnly"))
+        self.assertIsNone(self.config.get_doi_from_input("doi:"))
+        self.assertIsNone(self.config.get_doi_from_input(":"))
+        self.assertIsNone(self.config.get_doi_from_input("grp:name:version"))
 
-    @unittest.skip("Needs to be implemented!")
     def test_get_search_index(self):
-        # ToDo: implement
-        pass
+        # mock
+        get_leaves_dict_list = MagicMock(return_value=["someLeafs"])
+        for c in self.config.catalogs:
+            c.catalog_index.get_leaves_dict_list = get_leaves_dict_list
 
-    @unittest.skip("Needs to be implemented!")
+        r = self.config.get_search_index()
+
+        self.assertEqual({
+            "test_catalog": ["someLeafs"],
+            "hips-catalog": ["someLeafs"],
+            "test_catalog2": ["someLeafs"],
+        }, r)
+
+        self.assertEqual(3, get_leaves_dict_list.call_count)
+
     def test_get_installed_solutions(self):
-        # ToDo: implement
-        pass
+        # mock
+        list_installed = MagicMock(return_value=["someInstalledSolutions"])
+        for c in self.config.catalogs:
+            c.list_installed = list_installed
 
-    @unittest.skip("Needs to be implemented!")
-    def test_get_configuration(self):
-        # ToDo: implement
-        pass
+        r = self.config.get_installed_solutions()
+
+        self.assertEqual({
+            "test_catalog": ["someInstalledSolutions"],
+            "hips-catalog": ["someInstalledSolutions"],
+            "test_catalog2": ["someInstalledSolutions"],
+        }, r)
+
+        self.assertEqual(3, list_installed.call_count)
 
 
 if __name__ == '__main__':
     unittest.main()
-
-
-
-
-
-
