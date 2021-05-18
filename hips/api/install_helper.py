@@ -78,9 +78,6 @@ def download_hips_repository(active_hips):
 
     repository_path = repo.working_tree_dir
 
-    # set the repository path
-    active_hips["_repository_path"] = repository_path
-
     # set python workdir
     os.chdir(repository_path)
 
