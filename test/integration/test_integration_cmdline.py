@@ -5,8 +5,8 @@ import tempfile
 import unittest.mock
 from io import StringIO
 from pathlib import Path
-from unittest.mock import patch
 from unittest.mock import PropertyMock
+from unittest.mock import patch
 
 import hips.core as hips
 from hips.cmdline import main
@@ -14,8 +14,6 @@ from hips.core.model.configuration import HipsCatalogConfiguration
 from hips.core.model.environment import Conda, Environment
 from hips.core.model.logging import push_active_logger
 
-
-# ToDo: CREATE AN INSTALL INTEGRATIONTEST
 
 class TestHIPSCommandLine(unittest.TestCase):
     test_config = """catalogs:
@@ -27,11 +25,15 @@ class TestHIPSCommandLine(unittest.TestCase):
         while hips.get_active_hips() is not None:
             hips.pop_active_hips()
 
+        self.tmp_dir = tempfile.TemporaryDirectory()
+
     def tearDown(self) -> None:
         # clean all environments specified in test-resources
         for e in ["app1", "app2", "solution3_noparent"]:
             if Conda.environment_exists(e):
                 Conda.remove_environment(e)
+
+        self.tmp_dir.cleanup()
 
     # ### CONTAINERIZE ###
 
@@ -49,9 +51,8 @@ class TestHIPSCommandLine(unittest.TestCase):
 
     def test_install(self):
         with tempfile.NamedTemporaryFile() as test_config:
-            test_catalog_dir = tempfile.TemporaryDirectory()
             with open(test_config.name, "w") as f:
-                self.test_config += "- " + test_catalog_dir.name
+                self.test_config += "- " + self.tmp_dir.name
                 f.writelines(self.test_config)
 
             config = HipsCatalogConfiguration(test_config.name)
@@ -86,46 +87,45 @@ class TestHIPSCommandLine(unittest.TestCase):
         captured_output = StringIO()
         logger_mock.side_effect = [configure_test_logging(captured_output)]
 
-        with tempfile.TemporaryDirectory() as test_catalog_dir:
-            test_config = tempfile.NamedTemporaryFile()
+        test_config = tempfile.NamedTemporaryFile()
 
-            with open(test_config.name, "w") as f:
-                self.test_config += "- " + test_catalog_dir
-                f.writelines(self.test_config)
+        with open(test_config.name, "w") as f:
+            self.test_config += "- " + self.tmp_dir.name
+            f.writelines(self.test_config)
 
-            # temporary catalog from a temporary config
-            config = HipsCatalogConfiguration(test_config.name)
+        # temporary catalog from a temporary config
+        config = HipsCatalogConfiguration(test_config.name)
 
-            # resolving should return the relative path to the solution0_dummy resource file
-            res_from_str_mock.return_value = {
-                "path": get_test_solution_path("solution0_dummy_no_doi.py"), "catalog": config.local_catalog
-            }
+        # resolving should return the relative path to the solution0_dummy resource file
+        res_from_str_mock.return_value = {
+            "path": get_test_solution_path("solution0_dummy_no_doi.py"), "catalog": config.local_catalog
+        }
 
-            self.assertEqual(len(config.local_catalog), 0)
-            # manually add the solution0_dummy to the tmp-index
-            config.local_catalog.catalog_index.update({
-                "group": "group",
-                "name": "name",
-                "version": "0.1.0",
-            })
-            self.assertEqual(len(config.local_catalog), 1)
+        self.assertEqual(len(config.local_catalog), 0)
+        # manually add the solution0_dummy to the tmp-index
+        config.local_catalog.catalog_index.update({
+            "group": "group",
+            "name": "name",
+            "version": "0.1.0",
+        })
+        self.assertEqual(len(config.local_catalog), 1)
 
-            sys.argv = ["", "remove", get_test_solution_path()]
+        sys.argv = ["", "remove", get_test_solution_path()]
 
-            # overwrite the catalog_configuration attribute from the HipsRemover object to take our fake config
-            with patch('hips.core.remove.HipsRemover.catalog_configuration', new_callable=PropertyMock) as p_mock:
-                p_mock.return_value = config
-                self.assertIsNone(main())
+        # overwrite the catalog_configuration attribute from the HipsRemover object to take our fake config
+        with patch('hips.core.remove.HipsRemover.catalog_configuration', new_callable=PropertyMock) as p_mock:
+            p_mock.return_value = config
+            self.assertIsNone(main())
 
-            # assert that solution is removed from the catalog
-            self.assertIn("Removed name", captured_output.getvalue())
-            self.assertEqual(0, len(config.local_catalog))
+        # assert that solution is removed from the catalog
+        self.assertIn("Removed name", captured_output.getvalue())
+        self.assertEqual(0, len(config.local_catalog))
 
-            # assert that the correct path is deleted
-            rmtree_mock.assert_called_once_with(
-                config.configuration.cache_path_solution.joinpath("local", "group", "name", "0.1.0"),
-                ignore_errors=True
-            )
+        # assert that the correct path is deleted
+        rmtree_mock.assert_called_once_with(
+            config.configuration.cache_path_solution.joinpath("local", "group", "name", "0.1.0"),
+            ignore_errors=True
+        )
 
     def test_remove_solution_not_installed(self):
         sys.argv = ["", "remove", get_test_solution_path()]
@@ -228,7 +228,6 @@ class TestHIPSCommandLine(unittest.TestCase):
 
         # create solution3_noparent environment
         Environment({'environment_name': "solution3_noparent"}, "unusedCacheName", "unusedCachePath").install()
-
 
         run_resolve_mock.side_effect = self.__resolve_hips
         res_from_str_mock.side_effect = [

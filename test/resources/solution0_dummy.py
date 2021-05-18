@@ -29,7 +29,14 @@ setup(
     sample_outputs=[],
     min_hips_version="0.1.0",
     tested_hips_version="0.1.0",
-    args=[],
+    args=[
+        {
+            "name": "testArg1",
+            "description": "testArg1Description",
+            "default": lambda: "Useless callable",
+            "action": lambda p: p
+        }
+    ],
     init=hips_init,
     run=hips_run,
     dependencies={

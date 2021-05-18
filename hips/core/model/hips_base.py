@@ -10,6 +10,8 @@ module_logger = logging.get_active_logger
 class HipsClass:
     """Encapsulates a HIPS."""
 
+    # CAUTION: deploy_keys also used for resolving. Make sure keys do not contain callable values.
+    # If they do, add "to_string" method for @get_hips_deploy_dict. Example see @_remove_action_from_args.
     deploy_keys = [
         'group', 'name', 'description', 'version', 'format_version', 'tested_hips_version',
         'min_hips_version', 'license', 'git_repo', 'authors', 'cite', 'tags', 'documentation',
@@ -30,9 +32,10 @@ class HipsClass:
     def _remove_action_from_args(hips_dict):
         for arg in hips_dict["args"]:
             if isinstance(arg, dict):
-                if "action" in arg.keys():
-                    arg.pop("action")
-
+                # iterate and remove callable values
+                for key in arg.keys():
+                    if callable(arg[key]):
+                        arg[key] = "%s_function" % key
         return hips_dict
 
     setup_keywords = ('group', 'name', 'version', 'description', 'url', 'license',
@@ -42,8 +45,6 @@ class HipsClass:
                       'timestamp', 'format_version', 'authors', 'cite', 'tags',
                       'documentation', 'covers', 'sample_inputs',
                       'sample_outputs', 'doi', 'catalog', 'parent', 'steps', 'close', 'title')
-
-    private_setup_keywords = ('_repository_path', '_script')
 
     # default values
     dependencies = None
@@ -60,10 +61,6 @@ class HipsClass:
         for attr in self.setup_keywords:
             if attr in attrs:
                 setattr(self, attr, attrs[attr])
-
-        # Attributes only available in the hips environment.
-        for private_attr in self.private_setup_keywords:
-            setattr(self, private_attr, "")
 
         self.environment = Environment(
             self.dependencies, self["name"],  HipsConfiguration().get_cache_path_hips(self)
