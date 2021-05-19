@@ -155,18 +155,12 @@ class TestZenodoDeposit(TestZenodoCommon):
 
 class TestZenodoRecord(unittest.TestCase):
 
-    def setUp(self):
-        pass
-
     @unittest.skip("Needs to be implemented!")
     def test_print_stats(self):
         pass
 
 
 class TestZenodoAPI(TestZenodoCommon):
-
-    def setUp(self):
-        pass
 
     def test_validate_response(self):
         response = Response()

@@ -54,16 +54,15 @@ class TestEnvironment(TestHipsCommon):
     @patch('hips.core.model.environment.copy', return_value="copiedPath")
     @patch('hips.core.model.environment.create_path_recursively', return_value="createdPath")
     def test_get_env_file_valid_file(self, create_path_mock, copy_mock):
-        with tempfile.NamedTemporaryFile() as tmp_file:
-            with open(tmp_file.name, "w") as f:
-                f.write("test")
+        with open(self.closed_tmp_file.name, mode="w") as tmp_file:
+            tmp_file.write("test")
 
-            r = self.environment.get_env_file({"environment_file": tmp_file.name})
+        r = self.environment.get_env_file({"environment_file": self.closed_tmp_file.name})
 
-            self.assertEqual(Path("aPath").joinpath("test.yml"), r)
+        self.assertEqual(Path("aPath").joinpath("test.yml"), r)
 
-            create_path_mock.assert_called_once()
-            copy_mock.assert_called_once()
+        create_path_mock.assert_called_once()
+        copy_mock.assert_called_once()
 
     @patch('hips.core.model.environment.download_resource', return_value="donwloadedResource")
     @patch('hips.core.model.environment.create_path_recursively', return_value="createdPath")
@@ -111,13 +110,12 @@ class TestEnvironment(TestHipsCommon):
         get_env_name_mock.assert_called_once()
 
     def test_get_env_name_from_yaml(self):
-        with tempfile.NamedTemporaryFile() as tmp_file:
-            with open(tmp_file.name, "w") as f:
-                f.write("name: TestName")
+        with open(self.closed_tmp_file.name, "w") as tmp_file:
+            tmp_file.write("name: TestName")
 
-            self.environment.yaml_file = Path(tmp_file.name)
+        self.environment.yaml_file = Path(self.closed_tmp_file.name)
 
-            self.assertEqual(self.environment.get_env_name_from_yaml(), "TestName")
+        self.assertEqual(self.environment.get_env_name_from_yaml(), "TestName")
 
     def test_get_env_path(self):
         Conda.create_environment("test")

@@ -1,6 +1,6 @@
 import json
 import os
-import subprocess
+import sys
 import tempfile
 from io import StringIO
 from pathlib import Path
@@ -66,9 +66,16 @@ class Conda:
             module_logger().warning("Cannot remove active environment! Skipping...")
             return
 
-        subprocess_args = [
-            'conda', 'remove', '--all', '--json', '-q', '-n', environment_name
-        ]
+        if sys.platform == 'win32' or sys.platform == 'cygwin':
+            # quiet option not supported in windows
+            subprocess_args = [
+                'conda', 'remove', '--all', '--json', '-n', environment_name
+            ]
+        else:
+            subprocess_args = [
+                'conda', 'remove', '--all', '--json', '-q', '-n', environment_name
+            ]
+
         subcommand.run(subprocess_args, log_output=False)
 
     @staticmethod
@@ -76,7 +83,7 @@ class Conda:
         subprocess_args = [
             'conda', 'info', '--json'
         ]
-        output = subprocess.check_output(subprocess_args).decode("utf-8")
+        output = subcommand.check_output(subprocess_args)
         return json.loads(output)
 
     @staticmethod
@@ -84,7 +91,7 @@ class Conda:
         subprocess_args = [
             'conda', 'list', '--json', '--prefix', environment_path,
         ]
-        output = subprocess.check_output(subprocess_args).decode("utf-8")
+        output = subcommand.check_output(subprocess_args)
         return json.loads(output)
 
     @staticmethod
@@ -92,7 +99,11 @@ class Conda:
         if Conda.environment_exists(environment_name):
             Conda.remove_environment(environment_name)
 
-        subprocess_args = ['conda', 'env', 'create', '--json', '-q', '-f', str(yaml_path)]
+        if sys.platform == 'win32' or sys.platform == 'cygwin':
+            # quiet option not supported in windows
+            subprocess_args = ['conda', 'env', 'create', '--json', '-f', str(yaml_path)]
+        else:
+            subprocess_args = ['conda', 'env', 'create', '--json', '-q', '-f', str(yaml_path)]
 
         try:
             subcommand.run(subprocess_args, log_output=False)
@@ -108,7 +119,11 @@ class Conda:
         if Conda.environment_exists(environment_name):
             Conda.remove_environment(environment_name)
 
-        subprocess_args = ['conda', 'create', '--json', '-q', '-n', environment_name, 'python', 'pip']
+        if sys.platform == 'win32' or sys.platform == 'cygwin':
+            # quiet option not supported in windows
+            subprocess_args = ['conda', 'create', '--json', '-n', environment_name, 'python', 'pip']
+        else:
+            subprocess_args = ['conda', 'create', '--json', '-q', '-n', environment_name, 'python', 'pip']
 
         try:
             subcommand.run(subprocess_args, log_output=False)
@@ -121,18 +136,41 @@ class Conda:
 
     @staticmethod
     def pip_install(environment_path, module):
-        subprocess_args = [
-            'conda', 'run', '--no-capture-output', '--prefix',
-            environment_path, 'pip', 'install', '-q', '--force-reinstall', module
-        ]
+        if sys.platform == 'win32' or sys.platform == 'cygwin':
+            # quiet option not supported in windows
+            # NOTE: WHEN USING 'CONDA RUN' THE CORRECT ENVIRONMENT GETS TEMPORARY ACTIVATED,
+            # BUT THE PATH POINTS TO THE WRONG PYTHON (conda base folder python) BECAUSE THE CONDA BASE PATH
+            # COMES FIRST IN ENVIRONMENT VARIABLE "%PATH%". THUS, FULL PATH IS NECESSARY TO CALL
+            # THE CORRECT PYTHON OR PIP! ToDo: keep track of this!
+            subprocess_args = [
+                'conda', 'run', '--no-capture-output', '--prefix',
+                environment_path, str(Path(environment_path).joinpath('Scripts', 'pip')),
+                'install', '--force-reinstall', module
+            ]
+        else:
+            subprocess_args = [
+                'conda', 'run', '--no-capture-output', '--prefix',
+                environment_path, 'pip', 'install', '-q', '--force-reinstall', module
+            ]
+
         subcommand.run(subprocess_args)
 
     @staticmethod
     def run_script(environment_path, script_name):
-        subprocess_args = [
-            'conda', 'run', '--no-capture-output', '--prefix',
-            environment_path, 'python', script_name
-        ]
+        if sys.platform == 'win32' or sys.platform == 'cygwin':
+            # NOTE: WHEN USING 'CONDA RUN' THE CORRECT ENVIRONMENT GETS TEMPORARY ACTIVATED,
+            # BUT THE PATH POINTS TO THE WRONG PYTHON (conda base folder python) BECAUSE THE CONDA BASE PATH
+            # COMES FIRST IN ENVIRONMENT VARIABLE "%PATH%". THUS, FULL PATH IS NECESSARY TO CALL
+            # THE CORRECT PYTHON OR PIP! ToDo: keep track of this!
+            subprocess_args = [
+                'conda', 'run', '--no-capture-output', '--prefix',
+                environment_path, str(Path(environment_path).joinpath('python')), script_name
+            ]
+        else:
+            subprocess_args = [
+                'conda', 'run', '--no-capture-output', '--prefix',
+                environment_path, 'python', script_name
+            ]
         subcommand.run(subprocess_args)
 
 
@@ -281,16 +319,17 @@ class Environment:
             fp = open(str(xdg_cache_home().joinpath('hips_test.py')), 'w')
             module_logger().debug("Executable file in: %s..." % str(xdg_cache_home().joinpath('hips_test.py')))
         else:
-            fp = tempfile.NamedTemporaryFile(mode='w+')
+            fp = tempfile.NamedTemporaryFile(mode='w+', delete=False)
             module_logger().debug('Executable file in: %s...' % fp.name)
 
         fp.write(script)
         fp.flush()
         os.fsync(fp)
+        fp.close()
 
         Conda.run_script(str(self.path), fp.name)
 
-        fp.close()
+        Path(fp.name).unlink()
 
     def create_or_update_env(self):
         if Conda.environment_exists(self.name):

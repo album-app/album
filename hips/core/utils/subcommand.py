@@ -40,7 +40,7 @@ def run(command, log_output=True, message_formatter=None):
         log = io.StringIO()
 
     operation_system = sys.platform
-    if operation_system != 'win32' or operation_system != 'cygwin':
+    if operation_system == 'linux' or operation_system == 'darwin':
         (_, exit_status) = pexpect.run(
             " ".join(command), logfile=log, withexitstatus=1, timeout=None, encoding='utf-8'
         )
@@ -48,7 +48,9 @@ def run(command, log_output=True, message_formatter=None):
             module_logger().error(log.getvalue())
             raise RuntimeError("Command failed due to reasons above!")
     else:
-        process = subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True)
+        process = subprocess.Popen(
+            command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True, shell=True
+        )
         while True:
             if process.poll() is not None:
                 break
@@ -72,3 +74,13 @@ def run(command, log_output=True, message_formatter=None):
             exit_status = process.returncode
 
     return exit_status
+
+
+def check_output(command):
+    operation_system = sys.platform
+
+    shell = False
+    if operation_system == 'win32' or operation_system == 'cygwin':
+        shell = True
+
+    return subprocess.check_output(command, shell=shell).decode("utf-8")

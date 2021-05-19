@@ -12,16 +12,15 @@ from hips.core.model.hips_base import HipsClass
 from test.unit.test_common import TestHipsCommon
 
 
-class TestHipsConfiguration(unittest.TestCase):
+class TestHipsConfiguration(TestHipsCommon):
 
     def setUp(self) -> None:
-        self.tmp_dir = tempfile.TemporaryDirectory()
         self.conf = configuration.HipsConfiguration(
             base_cache_path=Path(self.tmp_dir.name).joinpath("hips"), configuration_file_path=self.tmp_dir.name
         )
 
     def tearDown(self) -> None:
-        self.tmp_dir.cleanup()
+        super().tearDown()
 
     @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={})
     def test_get_cache_path_hips(self, _):
@@ -74,30 +73,22 @@ class TestHipsConfiguration(unittest.TestCase):
 class TestHipsCatalogConfiguration(TestHipsCommon):
 
     def setUp(self):
-        self.tmp_dir = Path(tempfile.gettempdir())
-        self.config_file = self.tmp_dir.joinpath("config_file")
+        self.config_file = Path(self.tmp_dir.name).joinpath("config_file")
         with open(self.config_file, "w+") as f:
             f.write(
                 """catalogs: \n- %s\n- %s\n- %s""" %
                 (
-                    str(self.tmp_dir.joinpath("catalogs", "test_catalog")),
+                    str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog")),
                     str("https://gitlab.com/ida-mdc/hips-catalog.git"),
-                    str(self.tmp_dir.joinpath("catalogs", "test_catalog2"))
+                    str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog2"))
                 )
             )
 
-        self.config = configuration.HipsCatalogConfiguration(self.tmp_dir.joinpath("config_file"))
-
-    def tearDown(self) -> None:
-        try:
-            Path(self.tmp_dir).joinpath("config_file").unlink()
-        except FileNotFoundError:
-            pass
-        shutil.rmtree(Path(self.tmp_dir).joinpath("catalogs"), ignore_errors=True)
+        self.config = configuration.HipsCatalogConfiguration(Path(self.tmp_dir.name).joinpath("config_file"))
 
     def test__init__(self):
         self.assertTrue(self.config_file.is_file())
-        self.assertEqual(len(self.config.catalogs), 1)
+        self.assertEqual(len(self.config.catalogs), 3)
         with open(self.config_file, "r") as f:
             self.assertEqual(self.config.config_file_dict, yaml.safe_load(f))
         self.assertEqual(self.config.local_catalog, self.config.catalogs[0])
@@ -108,17 +99,20 @@ class TestHipsCatalogConfiguration(TestHipsCommon):
         self.assertEqual(c.id, "test_catalog")
 
     def test_get_default_deployment_catalog_no_catalog(self):
+        for c in self.config.catalogs:
+            c.is_local = True
+
         self.assertIsNone(self.config.get_default_deployment_catalog())
 
     def test_save(self):
         self.config.config_file_dict = {
-            "catalogs": [str(self.tmp_dir.joinpath("catalogs", "test_catalog_save"))]
+            "catalogs": [str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog_save"))]
         }
         self.config.save()
         with open(self.config_file, "r") as f:
             self.assertEqual(
                 yaml.safe_load(f),
-                yaml.safe_load("{'catalogs': ['%s']}" % str(self.tmp_dir.joinpath("catalogs", "test_catalog_save")))
+                yaml.safe_load("{'catalogs': ['%s']}" % str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog_save")))
             )
 
     @patch('hips.core.model.configuration.get_dict_from_yml', return_value={""})
@@ -168,10 +162,11 @@ class TestHipsCatalogConfiguration(TestHipsCommon):
     def test__get_catalogs(self):
         c = self.config._get_catalogs()
 
-        self.assertEqual(len(c), 1)
+        self.assertEqual(len(c), 3)
 
     def test__get_local_catalog_no_catalog(self):
-        self.config.catalogs[0].is_local = False
+        for c in self.config.catalogs:
+            c.is_local = False
 
         with self.assertRaises(RuntimeError):
             self.config._get_local_catalog()
@@ -232,8 +227,8 @@ class TestHipsCatalogConfiguration(TestHipsCommon):
 
         with self.assertRaises(ValueError):
             r = self.config.resolve_hips_dependency(dict())
+            self.assertIsNone(r)
 
-        self.assertIsNone(r)
         resolve_mock.assert_called_once()
 
     def test_resolve_hips_dependency_found(self):

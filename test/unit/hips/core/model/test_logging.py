@@ -63,6 +63,9 @@ class TestLogging(unittest.TestCase):
 
 class TestLogfileBuffer(TestHipsCommon):
 
+    def tearDown(self) -> None:
+        super().tearDown()
+
     def test_write(self):
 
         self.assertIsNotNone(get_active_logger())

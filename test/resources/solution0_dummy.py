@@ -8,6 +8,11 @@ def hips_init():
 def hips_run():
     pass
 
+
+def hips_install():
+    pass
+
+
 setup(
     group="group",
     name="name",
@@ -39,6 +44,7 @@ setup(
     ],
     init=hips_init,
     run=hips_run,
+    install=hips_install,
     dependencies={
         'environment_name': 'hips'
     })

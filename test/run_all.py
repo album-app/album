@@ -3,7 +3,7 @@ import unittest
 from test.integration import test_integration_cmdline
 from test.unit.hips.api import test_install_helper
 from test.unit.hips.api import test_run_helper
-from test.unit.hips.ci import test_zenodo_api
+from test.unit.hips.ci import test_zenodo_api, test_ci_utils
 from test.unit.hips.core import test_search, test__init__, test_install, test_run, test_deploy, test_cmdline
 from test.unit.hips.core.utils import test_script
 from test.unit.hips.core.model import test_catalog, test_environment, test_logging, test_configuration
@@ -43,8 +43,7 @@ def main():
     # extensions
 
     # hips.ci
-
-    # hips.ci.utils
+    suite.addTests(loader.loadTestsFromModule(test_ci_utils))
     suite.addTests(loader.loadTestsFromModule(test_zenodo_api))
 
     # ### integration
