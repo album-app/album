@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import sys
 import tempfile
 from io import StringIO
@@ -34,6 +35,12 @@ class Conda:
         return environment_dict
 
     @staticmethod
+    def get_base_environment_path():
+        conda_info = Conda.get_info()
+        # first entry treated as base
+        return conda_info["envs"][0]
+
+    @staticmethod
     def environment_exists(environment_name):
         """Checks whether an environment already exists or not.
 
@@ -66,6 +73,12 @@ class Conda:
             module_logger().warning("Cannot remove active environment! Skipping...")
             return
 
+        if not Conda.environment_exists(environment_name):
+            module_logger().warning("Environment does not exist! Skipping...")
+            return
+
+        environment_path = Path(Conda.get_environment_dict()[environment_name])
+
         if sys.platform == 'win32' or sys.platform == 'cygwin':
             # quiet option not supported in windows
             subprocess_args = [
@@ -77,6 +90,8 @@ class Conda:
             ]
 
         subcommand.run(subprocess_args, log_output=False)
+
+        shutil.rmtree(environment_path, ignore_errors=True)
 
     @staticmethod
     def get_info():
@@ -95,9 +110,31 @@ class Conda:
         return json.loads(output)
 
     @staticmethod
+    def is_installed(environment_path, module, version=None):
+        res = Conda.list_environment(environment_path)
+        for entry in res:
+            if entry["name"] == module:
+                if version:
+                    if entry["version"] == version:
+                        return True
+                else:
+                    return True
+        return False
+
+    @staticmethod
     def create_environment_from_file(yaml_path, environment_name):
         if Conda.environment_exists(environment_name):
             Conda.remove_environment(environment_name)
+
+        Conda.prepare_disk(environment_name)
+
+        if not (str(yaml_path).endswith(".yml") or str(yaml_path).endswith(".yaml")):
+            raise NameError("File needs to be a yml or yaml file!")
+
+        yaml_path = Path(yaml_path)
+
+        if not (yaml_path.is_file() and yaml_path.stat().st_size > 0):
+            raise ValueError("File not a valid yml file!")
 
         if sys.platform == 'win32' or sys.platform == 'cygwin':
             # quiet option not supported in windows
@@ -118,6 +155,8 @@ class Conda:
     def create_environment(environment_name):
         if Conda.environment_exists(environment_name):
             Conda.remove_environment(environment_name)
+
+        Conda.prepare_disk(environment_name)
 
         if sys.platform == 'win32' or sys.platform == 'cygwin':
             # quiet option not supported in windows
@@ -172,6 +211,13 @@ class Conda:
                 environment_path, 'python', script_name
             ]
         subcommand.run(subprocess_args)
+
+    @staticmethod
+    def prepare_disk(environment_name):
+        base = Conda.get_base_environment_path()
+        # ToDo: this can be wrong. Need to check conda options to find the environment creation configuration.
+        candidate_environment_path = Path(base).joinpath("envs", environment_name)
+        shutil.rmtree(candidate_environment_path, ignore_errors=True)
 
 
 class Environment:

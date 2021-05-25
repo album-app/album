@@ -1,6 +1,11 @@
 import io
+import sys
+import queue
+import signal
 import subprocess
 import sys
+import threading
+from queue import Queue
 
 import pexpect
 
@@ -10,7 +15,61 @@ from hips.core.model.logging import LogfileBuffer
 module_logger = logging.get_active_logger
 
 
-# todo: class SubcommandRun?
+class SaveThreadWithReturn:
+
+    def __init__(self, action, action2=None, timeout=1, timeout2=5):
+        if not callable(action):
+            raise ValueError("Action needs to be callable!")
+
+        if action2:
+            if not callable(action2):
+                raise ValueError("Action2 needs to be callable if set!")
+        else:
+            action2 = self.stop
+
+        self.que = Queue()
+        self.action = action
+        self.action2 = action2
+        self.timeout = timeout
+        self.timeout2 = timeout2
+        self.errors = False
+        self.thread = None
+        self.thread_id = -1
+
+    def run(self):
+        self.thread = threading.Thread(target=lambda: self.que.put(self.action()))
+        self.thread.daemon = True  # important for the main python to be able to finish
+        self.thread.start()
+        self.thread.join(self.timeout)
+
+        if self.thread.is_alive():
+            self.action2()
+            self.thread.join(self.timeout2)
+            if self.thread.is_alive():
+                self._stop_routine()
+
+        r = None
+
+        try:
+            r = self.que.get_nowait()
+        except queue.Empty:
+            self._stop_routine()
+
+        return r
+
+    def _stop_routine(self):
+        self.thread_id = self.thread.ident
+        self.errors = True
+        self.stop()
+        return None
+
+    def stop(self):
+        if sys.platform == 'win32' or sys.platform == 'cygwin':
+            # there is no easy way to send a signal from one thread to another...
+            pass
+        else:
+            signal.pthread_kill(self.thread_id, signal.SIGKILL)
+
 
 def run(command, log_output=True, message_formatter=None):
     """Runs a command in a subprocess thereby logging its output.
@@ -49,16 +108,48 @@ def run(command, log_output=True, message_formatter=None):
             raise RuntimeError("Command failed due to reasons above!")
     else:
         process = subprocess.Popen(
-            command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True, shell=True
+            command,
+            stdin=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            universal_newlines=True,
+            shell=True
         )
-        while True:
-            if process.poll() is not None:
-                break
-            output = process.stdout.readline()
-            if output and isinstance(log, LogfileBuffer):
-                log.write(output)
 
-        out, err = process.communicate()
+        save_communicate = True
+
+        poll = SaveThreadWithReturn(process.poll, lambda: process.stdin.write("y".encode('utf-8')))
+        read_message = SaveThreadWithReturn(process.stdout.readlines)
+
+        while True:
+            # runs poll in a thread catching timeout errors
+            r = poll.run()
+            if poll.errors:
+                save_communicate = False
+                break
+            if r or isinstance(process.returncode, int):
+                break
+
+            # read message in a thread to catch timeout errors
+            output = read_message.run()
+            if read_message.errors:
+                save_communicate = False
+                break
+
+            # log message
+            if output:
+                for message in output:
+                    log.write(message)
+
+        if save_communicate:
+            _, err = process.communicate()
+        else:
+            process.terminate()
+            raise TimeoutError(
+                "Process poll timed out. Process terminated. Last messages from the process: %s"
+                % log.getvalue()
+            )
+
         if process.returncode:
             raise Exception(
                 "Return code: %(ret_code)s Error message: %(err_msg)s"
@@ -69,7 +160,6 @@ def run(command, log_output=True, message_formatter=None):
             module_logger().warning(
                 "An error was caught that is not treated as stop condition for the hips framework: \n"
                 "\t %s" % err)
-            [x.flush() for x in module_logger().handlers]
 
             exit_status = process.returncode
 
