@@ -4,11 +4,13 @@ import sys
 from hips.core.model.logging import hips_debug
 from hips.core.deploy import deploy
 from hips.core.install import install
+from hips.core.remove_catalog import remove_catalog
 from hips.core.repl import repl
 from hips.core.containerize import containerize
 from hips.core.tutorial import tutorial
 from hips.core.remove import remove
 from hips.core.run import run
+from hips.core.add_catalog import add_catalog
 from hips.core.search import search
 from hips.core.model import logging
 
@@ -73,6 +75,8 @@ def create_parser():
     parser.create_hips_file_command_parser('containerize', containerize,
                                            'create a Singularity container for a HIP Solution')
     parser.create_hips_file_command_parser('tutorial', tutorial, 'run a tutorial for a HIP Solution')
+    parser.create_hips_file_command_parser('add-catalog', add_catalog, 'add a catalog to your local HIPS configuration file')
+    parser.create_hips_file_command_parser('remove-catalog', remove_catalog, 'remove a catalog from your local HIPS configuration file')
     return parser.parser
 
 

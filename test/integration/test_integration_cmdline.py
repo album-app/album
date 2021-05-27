@@ -304,6 +304,25 @@ class TestHIPSCommandLine(unittest.TestCase):
         sys.argv = ["", "tutorial", get_test_solution_path()]
         self.assertIsNone(main())
 
+    # ### ADD AND REMOVE CATALOG ###
+
+    def test_add_remove_catalog(self):
+        catalog_configuration = HipsCatalogConfiguration()
+        self.assertIsNotNone(catalog_configuration)
+        initial_catalogs = catalog_configuration.config_file_dict["catalogs"]
+        self.assertIsNotNone(initial_catalogs)
+        initial_len = len(initial_catalogs)
+        somedir = "/tmp/somedir"
+        sys.argv = ["", "add-catalog", somedir]
+        self.assertIsNone(main())
+        catalogs = HipsCatalogConfiguration().config_file_dict["catalogs"]
+        self.assertEquals(initial_len+1, len(catalogs))
+        self.assertEquals(somedir, catalogs[len(catalogs)-1])
+        sys.argv = ["", "remove-catalog", somedir]
+        self.assertIsNone(main())
+        catalogs = HipsCatalogConfiguration().config_file_dict["catalogs"]
+        self.assertEquals(initial_catalogs, catalogs)
+
     @staticmethod
     def __resolve_hips(hips_dependency):
         path = get_test_solution_path(hips_dependency['name'] + ".py")
