@@ -1,5 +1,4 @@
 import io
-import sys
 import queue
 import signal
 import subprocess
@@ -118,8 +117,13 @@ def run(command, log_output=True, message_formatter=None):
 
         save_communicate = True
 
-        poll = SaveThreadWithReturn(process.poll, lambda: process.stdin.write("y".encode('utf-8')))
-        read_message = SaveThreadWithReturn(process.stdout.readlines)
+        poll = SaveThreadWithReturn(process.poll)
+        read_message = SaveThreadWithReturn(
+            process.stdout.readline,
+            lambda: process.stdin.write("\r\n"),  # after 60 seconds of no feedback try to send a linebreak
+            timeout=60,
+            timeout2=60
+        )
 
         while True:
             # runs poll in a thread catching timeout errors
@@ -138,28 +142,29 @@ def run(command, log_output=True, message_formatter=None):
 
             # log message
             if output:
-                for message in output:
-                    log.write(message)
+                log.write(output)
 
+        # cmd not frozen and it is save to communicate
         if save_communicate:
             _, err = process.communicate()
-        else:
+        else:  # cmd frozen
             process.terminate()
             raise TimeoutError(
-                "Process poll timed out. Process terminated. Last messages from the process: %s"
+                "Process timed out. Process shut down. Last messages from the process: %s"
                 % log.getvalue()
             )
 
+        # cmd failed
         if process.returncode:
-            raise Exception(
+            raise RuntimeError(
                 "Return code: %(ret_code)s Error message: %(err_msg)s"
                 % {"ret_code": process.returncode, "err_msg": err}
             )
+
+        # cmd passed but with errors
         if err:
-            module_logger().warning(log.getvalue())
             module_logger().warning(
-                "An error was caught that is not treated as stop condition for the hips framework: \n"
-                "\t %s" % err)
+                "Process terminated but reported the following error or warning: \n\t %s" % err)
 
             exit_status = process.returncode
 

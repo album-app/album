@@ -147,6 +147,23 @@ class TestConda(TestHipsCommon):
         Conda.remove_environment("iDoNotExist")
         run_mock.assert_called_once()
 
+    def test_cmd_available(self):
+        Conda.create_environment("unit-test")
+        p = Conda.get_environment_dict()["unit-test"]
+
+        self.assertFalse(Conda.cmd_available(p, "hips"))
+        self.assertTrue(Conda.cmd_available(p, "conda"))
+
+    def test_conda_install(self):
+        Conda.create_environment("unit-test")
+        p = Conda.get_environment_dict()["unit-test"]
+
+        self.assertFalse(Conda.is_installed(p, "perl"))
+
+        Conda.conda_install(p, "perl")
+
+        self.assertTrue(Conda.is_installed(p, "perl"))
+
 
 class TestEnvironment(TestHipsCommon):
 
