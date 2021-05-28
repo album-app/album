@@ -250,23 +250,28 @@ class HipsCatalogConfiguration:
 
         return catalog_indices_dict
 
-    def resolve(self, hips_attr):
+    def resolve(self, hips_attr, download=True):
+        file_not_found = None
         # resolve in order of catalogs specified in config file
         for catalog in self.catalogs:
 
             # update if necessary and possible
-            if not catalog.is_local:
+            if not catalog.is_local and download:
                 catalog.refresh_index()
 
             # resolve via doi
             if "doi" in hips_attr.keys():
-                path_to_solution = catalog.resolve_doi(hips_attr["doi"])
+                path_to_solution = catalog.resolve_doi(hips_attr["doi"], download)
             else:  # resolve via group, name, version
                 group = hips_attr["group"]
                 name = hips_attr["name"]
                 version = hips_attr["version"]
 
-                path_to_solution = catalog.resolve(group, name, version)
+                try:
+                    path_to_solution = catalog.resolve(group, name, version, download)
+                except FileNotFoundError as e:
+                    file_not_found = e
+                    continue
 
             if not path_to_solution:
                 continue
@@ -276,19 +281,23 @@ class HipsCatalogConfiguration:
                 "catalog": catalog
             }
 
+        # only raise FileNotFound if not installed from any of the configured catalogs
+        if file_not_found:
+            raise file_not_found
+
         return None
 
-    def resolve_hips_dependency(self, hips_dependency):
+    def resolve_hips_dependency(self, hips_dependency, download=True):
         """Resolves the hips and returns the path to the solution.py file on the current system."""
 
-        r = self.resolve(hips_dependency)
+        r = self.resolve(hips_dependency, download)
 
         if not r:
             raise ValueError("Could not resolve hip dependency! %s" % hips_dependency)
 
         return r
 
-    def resolve_from_str(self, str_input: str):
+    def resolve_from_str(self, str_input: str, download=True):
         """Resolves an command line input if in valid format."""
         p = Path(str_input)
         if p.is_file():
@@ -304,7 +313,7 @@ class HipsCatalogConfiguration:
                     raise ValueError("Invalid input format! Try <doi>:<prefix>/<suffix> or <prefix>/<suffix> or "
                                      "<group>:<name>:<version> or point to a valid file! Aborting...")
             module_logger().debug("Parsed %s from the input... " % p)
-            return self.resolve_hips_dependency(p)
+            return self.resolve_hips_dependency(p, download)
 
     def get_installed_solutions(self):
         """Returns all installed solutions by configured dictionary."""

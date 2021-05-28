@@ -328,7 +328,7 @@ class TestHIPSCommandLine(unittest.TestCase):
         self.assertEquals(initial_catalogs, catalogs)
 
     @staticmethod
-    def __resolve_hips(hips_dependency):
+    def __resolve_hips(hips_dependency, download=False):
         path = get_test_solution_path(hips_dependency['name'] + ".py")
         return {"path": path}
 

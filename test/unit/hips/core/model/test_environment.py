@@ -151,8 +151,8 @@ class TestConda(TestHipsCommon):
         Conda.create_environment("unit-test")
         p = Conda.get_environment_dict()["unit-test"]
 
-        self.assertFalse(Conda.cmd_available(p, "hips"))
-        self.assertTrue(Conda.cmd_available(p, "conda"))
+        self.assertFalse(Conda.cmd_available(p, ["hips"]))
+        self.assertTrue(Conda.cmd_available(p, ["conda"]))
 
     def test_conda_install(self):
         Conda.create_environment("unit-test")

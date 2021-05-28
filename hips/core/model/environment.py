@@ -190,8 +190,8 @@ class Conda:
     def cmd_available(environment_path, cmd):
         subprocess_args = [
             'conda', 'run', '--no-capture-output', '--prefix',
-            environment_path, cmd
-        ]
+            environment_path
+        ] + cmd
         try:
             subcommand.run(subprocess_args, log_output=False)
         except RuntimeError:
@@ -378,7 +378,7 @@ class Environment:
     # ToDo: use explicit versioning of hips
     def install_hips(self, min_hips_version=None):
         """Installs the hips dependency in the environment"""
-        if not Conda.cmd_available(str(self.path), "git"):
+        if not Conda.cmd_available(str(self.path), ["git", "--version"]):
             Conda.conda_install(str(self.path), "git")
 
         if not self.is_installed("hips", min_hips_version):

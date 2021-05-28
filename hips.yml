@@ -6,3 +6,5 @@ dependencies:
   - python=3.6
   - pip
   - git
+  - pip:
+      - git+https://gitlab.com/ida-mdc/hips.git

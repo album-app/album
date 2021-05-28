@@ -222,6 +222,18 @@ class TestCatalog(TestHipsCommon):
 
         self.assertEqual(search_result, Path("pathDoesNotExist"))
 
+    @patch('hips.core.model.catalog.Catalog.get_solution_cache_file')
+    @patch('hips.core.model.catalog.Catalog.download_solution_via_doi', return_value=True)
+    def test_resolve_not_download_by_doi_on_flag(self, download_doi_solution_mock, get_solution_cache_file_mock):
+        self.populate_index()
+        self.catalog.is_local = False
+        get_solution_cache_file_mock.side_effect = [Path("pathDoesNotExist")]
+
+        with self.assertRaises(FileNotFoundError):
+            self.catalog.resolve("group0", "name0", "version0", download=False)
+
+        download_doi_solution_mock.assert_not_called()
+
     @patch('hips.core.model.catalog.Catalog.get_doi_cache_file')
     def test_resolve_doi(self, get_doi_cache_file_mock):
         self.populate_index()
@@ -243,6 +255,19 @@ class TestCatalog(TestHipsCommon):
 
         download_doi_solution_mock.assert_called_once()
         self.assertEqual(search_result, Path(self.closed_tmp_file.name))
+
+    @patch('hips.core.model.catalog.Catalog.get_doi_cache_file')
+    @patch('hips.core.model.catalog.Catalog.download_solution_via_doi')
+    def test_resolve_doi_not_cached_no_download(self, download_doi_solution_mock, get_solution_cache_file_mock):
+        self.populate_index()
+        get_solution_cache_file_mock.side_effect = [Path("pathDoesNotExist")]
+
+        download_doi_solution_mock.side_effect = [Path(self.closed_tmp_file.name)]
+
+        with self.assertRaises(FileNotFoundError):
+            self.catalog.resolve_doi("doi0", download=False)
+
+        download_doi_solution_mock.assert_not_called()
 
     @unittest.skip("tested in hips_catalog.CatalogIndex.visualize")
     def test_visualize(self):
