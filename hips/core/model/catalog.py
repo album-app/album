@@ -52,7 +52,7 @@ class Catalog:
         # initialize the index
         self.load_index()
 
-    def resolve(self, group, name, version):
+    def resolve(self, group, name, version, download=True):
         """ Resolves a hips in the catalog and returning the absolute path to the solution file.
 
         Args:
@@ -62,6 +62,9 @@ class Catalog:
                 The name of the solution
             version:
                 The version of the solution
+            download:
+                Case True: downloads the solution if not already cached.
+                Case False: raises FileNotFoundError if not cached
 
         Returns: the path to the solution file.
 
@@ -72,7 +75,7 @@ class Catalog:
             path_to_solution = self.get_solution_cache_file(group, name, version)
 
             if not path_to_solution.is_file():
-                if self.is_local:
+                if self.is_local or not download:
                     raise FileNotFoundError(
                         "Could resolve the solution, but file %s could not be found!"
                         " Please reinstall the solution!" % path_to_solution)
@@ -85,12 +88,16 @@ class Catalog:
 
         return None  # could not resolve
 
-    def resolve_doi(self, doi):
+    def resolve_doi(self, doi, download=True):
         """Resolves a hips via doi. Returns the absolute path to the solution.
 
         Args:
             doi:
                 The doi of the solution
+            download:
+                Case True: downloads the solution if not already cached.
+                Case False: raises FileNotFoundError if not cached
+
 
         Returns:
             Absolute path to the solution file.
@@ -103,6 +110,10 @@ class Catalog:
             # file already cached
             if path_to_solution.is_file():
                 return path_to_solution
+            elif not download:
+                raise FileNotFoundError(
+                    "Could resolve the solution, but file %s could not be found!"
+                    " Please reinstall the solution!" % path_to_solution)
             else:
                 return self.download_solution_via_doi(doi, getattr(tree_leaf_node, "doi"))
 

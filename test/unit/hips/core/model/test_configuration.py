@@ -292,7 +292,7 @@ class TestHipsCatalogConfiguration(TestHipsCommon):
         self.assertEqual("solvedDoi", r)
         get_doi_from_input.assert_called_once()
         get_gnv_from_input.assert_not_called()
-        resolve_hips_dependency.assert_called_once_with("doi")
+        resolve_hips_dependency.assert_called_once_with("doi", True)
 
     def test_resolve_from_str_gnv_input(self):
         # mocks
@@ -310,7 +310,7 @@ class TestHipsCatalogConfiguration(TestHipsCommon):
 
         get_doi_from_input.assert_called_once()
         get_gnv_from_input.assert_called_once()
-        resolve_hips_dependency.assert_called_once_with("gnv")
+        resolve_hips_dependency.assert_called_once_with("gnv", True)
 
     def test_get_gnv_from_input(self):
         solution = {

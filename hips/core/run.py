@@ -31,7 +31,7 @@ class HipsRunner:
 
     def run(self, args):
         """Function corresponding to the `run` subcommand of `hips`."""
-        resolve = self.catalog_configuration.resolve_from_str(args.path)
+        resolve = self.catalog_configuration.resolve_from_str(args.path, download=False)
 
         if not resolve["catalog"]:
             if not (resolve['path'].is_file() and resolve['path'].stat().st_size > 0):
@@ -105,11 +105,12 @@ class HipsRunner:
         same_parent_steps = self.empty_queue()
         for step in steps:
             module_logger().debug('resolving step \"%s\"...' % step["name"])
-            sub_step_path = self.catalog_configuration.resolve_hips_dependency(step)["path"]
+            sub_step_path = self.catalog_configuration.resolve_hips_dependency(step, download=False)["path"]
             step_hips = load(sub_step_path)
             if step_hips["parent"]:  # collect steps as long as they have the same parent, then run them collectively
-                current_parent_script_path = self.catalog_configuration.resolve_hips_dependency(step_hips["parent"])[
-                    "path"]
+                current_parent_script_path = self.catalog_configuration.resolve_hips_dependency(
+                    step_hips["parent"], download=False
+                )["path"]
 
                 if same_parent_steps["parent_script_path"] and \
                         same_parent_steps["parent_script_path"] != current_parent_script_path:
@@ -206,7 +207,9 @@ class HipsRunner:
         """Run loaded HIPS with given arguments"""
         if active_hips["parent"]:
             module_logger().debug('Found parent solution \"%s\"...' % active_hips["parent"]["name"])
-            parent_script = self.catalog_configuration.resolve_hips_dependency(active_hips["parent"])["path"]
+            parent_script = self.catalog_configuration.resolve_hips_dependency(
+                active_hips["parent"], download=False
+            )["path"]
             parent_hips = load(parent_script)
             parent_args, active_hips_args = self.resolve_args(parent_hips, [active_hips], [None], args)
             self.run_steps_with_parent(parent_hips, parent_args, [active_hips], active_hips_args)

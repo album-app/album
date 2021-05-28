@@ -34,12 +34,12 @@ class HipsRemover:
         # what if solutions depend oon solutions from a different catalog?
         # -> ignore this dependency then?
 
-        resolve = self.catalog_configuration.resolve_from_str(self.path)
+        resolve = self.catalog_configuration.resolve_from_str(self.path, download=False)
         self.active_hips = load(resolve["path"])
 
         if not resolve["catalog"]:
             # check if solution pointing to a path is installed...
-            resolve = self.catalog_configuration.resolve(self.active_hips.get_hips_deploy_dict())
+            resolve = self.catalog_configuration.resolve(self.active_hips.get_hips_deploy_dict(), download=False)
 
             if not resolve or not resolve["catalog"]:
                 raise IndexError("Solution points to a local file which has not been installed yet. "
@@ -69,9 +69,13 @@ class HipsRemover:
                 for hips_dependency in args:
                     # ToDo: need to search through all installed installations if there is another dependency of what
                     #  we are going to delete... otherwise there will nasty resolving errors during runtime
-                    hips_dependency_path = self.catalog_configuration.resolve_hips_dependency(hips_dependency)["path"]
+                    hips_dependency_path = self.catalog_configuration.resolve_hips_dependency(
+                        hips_dependency, download=False
+                    )["path"]
                     remove(hips_dependency_path)
 
         if self.active_hips.parent:
-            hips_parent_path = self.catalog_configuration.resolve_hips_dependency(self.active_hips.parent)["path"]
+            hips_parent_path = self.catalog_configuration.resolve_hips_dependency(
+                self.active_hips.parent, download=False
+            )["path"]
             remove(hips_parent_path)
