@@ -197,8 +197,9 @@ class Catalog:
     def download_solution(self, group, name, version):
         """Downloads a solution from the catalog to the local resource."""
         url = get_solution_src(self.src, group, name, version)
-        download_resource(url, self.path.joinpath(self.gnv_solution_prefix, group, name, version))
-        return self.path.joinpath(self.gnv_solution_prefix, group, name, version)
+        solution_path = self.path.joinpath(self.gnv_solution_prefix, group, name, version).joinpath("%s%s" % (name, ".py"))
+        download_resource(url, solution_path)
+        return solution_path
 
     def load_index(self):
         """Loads the index from file or src. If a file and src exists routine tries to update the index."""
