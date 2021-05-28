@@ -1,6 +1,6 @@
 import json
 import os
-import subprocess
+import sys
 import tempfile
 from io import StringIO
 from pathlib import Path
@@ -32,6 +32,12 @@ class Conda:
             environment_dict[os.path.basename(env)] = env
 
         return environment_dict
+
+    @staticmethod
+    def get_base_environment_path():
+        conda_info = Conda.get_info()
+
+        return conda_info["envs_dirs"][0]
 
     @staticmethod
     def environment_exists(environment_name):
@@ -66,9 +72,14 @@ class Conda:
             module_logger().warning("Cannot remove active environment! Skipping...")
             return
 
+        if not Conda.environment_exists(environment_name):
+            module_logger().warning("Environment does not exist! Skipping...")
+            return
+
         subprocess_args = [
-            'conda', 'remove', '--all', '--json', '-q', '-n', environment_name
+            'conda', 'remove', '--all', '-y', '--json', '-n', environment_name
         ]
+
         subcommand.run(subprocess_args, log_output=False)
 
     @staticmethod
@@ -76,7 +87,7 @@ class Conda:
         subprocess_args = [
             'conda', 'info', '--json'
         ]
-        output = subprocess.check_output(subprocess_args).decode("utf-8")
+        output = subcommand.check_output(subprocess_args)
         return json.loads(output)
 
     @staticmethod
@@ -84,15 +95,35 @@ class Conda:
         subprocess_args = [
             'conda', 'list', '--json', '--prefix', environment_path,
         ]
-        output = subprocess.check_output(subprocess_args).decode("utf-8")
+        output = subcommand.check_output(subprocess_args)
         return json.loads(output)
+
+    @staticmethod
+    def is_installed(environment_path, module, version=None):
+        res = Conda.list_environment(environment_path)
+        for entry in res:
+            if entry["name"] == module:
+                if version:
+                    if entry["version"] == version:
+                        return True
+                else:
+                    return True
+        return False
 
     @staticmethod
     def create_environment_from_file(yaml_path, environment_name):
         if Conda.environment_exists(environment_name):
             Conda.remove_environment(environment_name)
 
-        subprocess_args = ['conda', 'env', 'create', '--json', '-q', '-f', str(yaml_path)]
+        if not (str(yaml_path).endswith(".yml") or str(yaml_path).endswith(".yaml")):
+            raise NameError("File needs to be a yml or yaml file!")
+
+        yaml_path = Path(yaml_path)
+
+        if not (yaml_path.is_file() and yaml_path.stat().st_size > 0):
+            raise ValueError("File not a valid yml file!")
+
+        subprocess_args = ['conda', 'env', 'create', '--json', '-f', str(yaml_path)]
 
         try:
             subcommand.run(subprocess_args, log_output=False)
@@ -108,7 +139,7 @@ class Conda:
         if Conda.environment_exists(environment_name):
             Conda.remove_environment(environment_name)
 
-        subprocess_args = ['conda', 'create', '--json', '-q', '-n', environment_name, 'python', 'pip']
+        subprocess_args = ['conda', 'create', '--json', '-y', '-n', environment_name, 'python', 'pip']
 
         try:
             subcommand.run(subprocess_args, log_output=False)
@@ -123,17 +154,50 @@ class Conda:
     def pip_install(environment_path, module):
         subprocess_args = [
             'conda', 'run', '--no-capture-output', '--prefix',
-            environment_path, 'pip', 'install', '-q', '--force-reinstall', module
+            environment_path, 'pip', 'install', '--force-reinstall', module
         ]
-        subcommand.run(subprocess_args)
+
+        subcommand.run(subprocess_args, log_output=False)
+
+    @staticmethod
+    def conda_install(environment_path, module):
+        subprocess_args = [
+            'conda', 'run', '--no-capture-output', '--prefix',
+            environment_path, 'conda', 'install', '-y', module
+        ]
+
+        subcommand.run(subprocess_args, log_output=False)
 
     @staticmethod
     def run_script(environment_path, script_name):
+        if sys.platform == 'win32' or sys.platform == 'cygwin':
+            # NOTE: WHEN USING 'CONDA RUN' THE CORRECT ENVIRONMENT GETS TEMPORARY ACTIVATED,
+            # BUT THE PATH POINTS TO THE WRONG PYTHON (conda base folder python) BECAUSE THE CONDA BASE PATH
+            # COMES FIRST IN ENVIRONMENT VARIABLE "%PATH%". THUS, FULL PATH IS NECESSARY TO CALL
+            # THE CORRECT PYTHON OR PIP! ToDo: keep track of this!
+            subprocess_args = [
+                'conda', 'run', '--no-capture-output', '--prefix',
+                environment_path, str(Path(environment_path).joinpath('python')), script_name
+            ]
+        else:
+            subprocess_args = [
+                'conda', 'run', '--no-capture-output', '--prefix',
+                environment_path, 'python', script_name
+            ]
+        subcommand.run(subprocess_args)
+
+    @staticmethod
+    def cmd_available(environment_path, cmd):
         subprocess_args = [
             'conda', 'run', '--no-capture-output', '--prefix',
-            environment_path, 'python', script_name
+            environment_path, cmd
         ]
-        subcommand.run(subprocess_args)
+        try:
+            subcommand.run(subprocess_args, log_output=False)
+        except RuntimeError:
+            return False
+
+        return True
 
 
 class Environment:
@@ -281,16 +345,17 @@ class Environment:
             fp = open(str(xdg_cache_home().joinpath('hips_test.py')), 'w')
             module_logger().debug("Executable file in: %s..." % str(xdg_cache_home().joinpath('hips_test.py')))
         else:
-            fp = tempfile.NamedTemporaryFile(mode='w+')
+            fp = tempfile.NamedTemporaryFile(mode='w+', delete=False)
             module_logger().debug('Executable file in: %s...' % fp.name)
 
         fp.write(script)
         fp.flush()
         os.fsync(fp)
+        fp.close()
 
         Conda.run_script(str(self.path), fp.name)
 
-        fp.close()
+        Path(fp.name).unlink()
 
     def create_or_update_env(self):
         if Conda.environment_exists(self.name):
@@ -313,6 +378,8 @@ class Environment:
     # ToDo: use explicit versioning of hips
     def install_hips(self, min_hips_version=None):
         """Installs the hips dependency in the environment"""
+        if not Conda.cmd_available(str(self.path), "git"):
+            Conda.conda_install(str(self.path), "git")
 
         if not self.is_installed("hips", min_hips_version):
             self.pip_install('git+https://gitlab.com/ida-mdc/hips.git')

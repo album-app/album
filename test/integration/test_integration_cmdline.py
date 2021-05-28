@@ -5,6 +5,7 @@ import tempfile
 import unittest.mock
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 from unittest.mock import PropertyMock
 from unittest.mock import patch
 
@@ -15,6 +16,8 @@ from hips.core.model.environment import Conda, Environment
 from hips.core.model.logging import push_active_logger
 
 
+# ToDo: CREATE AN INSTALL INTEGRATIONTEST
+
 class TestHIPSCommandLine(unittest.TestCase):
     test_config = """catalogs:
     - https://gitlab.com/ida-mdc/hips-catalog.git
@@ -24,8 +27,9 @@ class TestHIPSCommandLine(unittest.TestCase):
         # make sure no active hips are somehow configured!
         while hips.get_active_hips() is not None:
             hips.pop_active_hips()
-
         self.tmp_dir = tempfile.TemporaryDirectory()
+        self.closed_tmp_file = tempfile.NamedTemporaryFile(delete=False)
+        self.closed_tmp_file.close()
 
     def tearDown(self) -> None:
         # clean all environments specified in test-resources
@@ -33,6 +37,7 @@ class TestHIPSCommandLine(unittest.TestCase):
             if Conda.environment_exists(e):
                 Conda.remove_environment(e)
 
+        Path(self.closed_tmp_file.name).unlink()
         self.tmp_dir.cleanup()
 
     # ### CONTAINERIZE ###
@@ -50,22 +55,21 @@ class TestHIPSCommandLine(unittest.TestCase):
     # ### INSTALL ###
 
     def test_install(self):
-        with tempfile.NamedTemporaryFile() as test_config:
-            with open(test_config.name, "w") as f:
-                self.test_config += "- " + self.tmp_dir.name
-                f.writelines(self.test_config)
+        self.test_config += "- " + self.tmp_dir.name
+        with open(self.closed_tmp_file.name, mode="w") as f:
+            f.writelines(self.test_config)
 
-            config = HipsCatalogConfiguration(test_config.name)
+        config = HipsCatalogConfiguration(self.closed_tmp_file.name)
 
-            self.assertEqual(len(config.local_catalog), 0)
+        self.assertEqual(len(config.local_catalog), 0)
 
-            sys.argv = ["", "install", str(get_test_solution_path())]
+        sys.argv = ["", "install", str(get_test_solution_path())]
 
-            with patch('hips.core.install.HipsInstaller.catalog_configuration', new_callable=PropertyMock) as p_mock:
-                p_mock.return_value = config
-                self.assertIsNone(main())
+        with patch('hips.core.install.HipsInstaller.catalog_configuration', new_callable=PropertyMock) as p_mock:
+            p_mock.return_value = config
+            self.assertIsNone(main())
 
-            self.assertEqual(len(config.local_catalog), 1)
+        self.assertEqual(len(config.local_catalog), 1)
 
     @unittest.skip("Needs to be implemented!")
     def test_install_with_dependencies(self):
@@ -87,14 +91,12 @@ class TestHIPSCommandLine(unittest.TestCase):
         captured_output = StringIO()
         logger_mock.side_effect = [configure_test_logging(captured_output)]
 
-        test_config = tempfile.NamedTemporaryFile()
-
-        with open(test_config.name, "w") as f:
-            self.test_config += "- " + self.tmp_dir.name
+        self.test_config += "- " + self.tmp_dir.name
+        with open(self.closed_tmp_file.name, "w") as f:
             f.writelines(self.test_config)
 
         # temporary catalog from a temporary config
-        config = HipsCatalogConfiguration(test_config.name)
+        config = HipsCatalogConfiguration(self.closed_tmp_file.name)
 
         # resolving should return the relative path to the solution0_dummy resource file
         res_from_str_mock.return_value = {
@@ -170,6 +172,7 @@ class TestHIPSCommandLine(unittest.TestCase):
         sys.argv = ["", "run", get_test_solution_path("solution1_app1.py"), "--file", fp.name, "--file_solution1_app1",
                     fp.name, "--app1_param", "value1"]
         self.assertIsNone(main())
+        fp.close()
         with open(fp.name, "r") as f:
             log = f.read().strip().split("\n")
             self.assertEqual(5, len(log))
@@ -199,6 +202,7 @@ class TestHIPSCommandLine(unittest.TestCase):
         sys.argv = ["", "run", get_test_solution_path("hips_with_steps.py"), "--file", fp.name, "--file_solution1_app1",
                     fp.name]
         self.assertIsNone(main())
+        fp.close()
         with open(fp.name, "r") as f:
             log = f.read().strip().split("\n")
             self.assertEqual(12, len(log))
@@ -238,6 +242,7 @@ class TestHIPSCommandLine(unittest.TestCase):
         sys.argv = ["", "run", get_test_solution_path("hips_with_steps_grouped.py"), "--file", fp.name,
                     "--file_solution1_app1", fp.name]
         self.assertIsNone(main())
+        fp.close()
         with open(fp.name, "r") as f:
             log = f.read().strip().split("\n")
             self.assertEqual(18, len(log))
@@ -280,13 +285,12 @@ class TestHIPSCommandLine(unittest.TestCase):
         captured_output = StringIO()
         logger_mock.side_effect = [configure_test_logging(captured_output)]
 
-        test_config = tempfile.NamedTemporaryFile(delete=False)
-        with open(test_config.name, "w") as f:
-            self.test_config += "- " + str(Path(get_test_solution_path("")).joinpath("catalog_local"))
+        self.test_config += "- " + str(Path(get_test_solution_path("")).joinpath("catalog_local"))
+        with open(self.closed_tmp_file.name, mode="w") as f:
             f.writelines(self.test_config)
 
         # use config in test resources with relative path to a local catalog
-        config = HipsCatalogConfiguration(test_config.name)
+        config = HipsCatalogConfiguration(self.closed_tmp_file.name)
         get_search_index_mock.return_value = {
             config.local_catalog.id: config.local_catalog.catalog_index.get_leaves_dict_list()
         }

@@ -42,6 +42,9 @@ class TestHipsCommon(unittest.TestCase):
         """Could initialize default values for each test class. use `_<name>` to skip property setting."""
         self.attrs = {}
         self.configure_test_logging(StringIO())
+        self.tmp_dir = tempfile.TemporaryDirectory()
+        self.closed_tmp_file = tempfile.NamedTemporaryFile(delete=False)
+        self.closed_tmp_file.close()
 
     def tearDown(self) -> None:
         pop_active_logger()
@@ -51,6 +54,9 @@ class TestHipsCommon(unittest.TestCase):
 
         if self.test_tmp_dir:
             self.test_tmp_dir.cleanup()
+
+        Path(self.closed_tmp_file.name).unlink()
+        self.tmp_dir.cleanup()
 
     def configure_test_logging(self, stream_handler):
         self.logger = logging.getLogger("unitTest")
@@ -71,12 +77,11 @@ class TestHipsCommon(unittest.TestCase):
 
     @patch('hips.core.model.catalog.Catalog.refresh_index', return_value=None)
     def create_test_config(self, _):
-        self.test_config_file = tempfile.NamedTemporaryFile(delete=False)
-        self.test_tmp_dir = tempfile.TemporaryDirectory()
+        self.test_config_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
         self.config = None
-        with open(self.test_config_file.name, "w") as f:
-            self.test_config_init += "- " + self.test_tmp_dir.name
-            f.writelines(self.test_config_init)
+        self.test_config_init += "- " + self.tmp_dir.name
+        self.test_config_file.writelines(self.test_config_init)
+        self.test_config_file.close()
 
         self.config = HipsCatalogConfiguration(self.test_config_file.name)
 
@@ -126,6 +131,8 @@ class TestZenodoCommon(TestHipsCommon):
         self.zenodoAPI = ZenodoAPI(self.base_url, self.access_token)
         self.test_deposit = self.zenodoAPI.deposit_create()
 
+        super().setUp()
+
     def tearDown(self):
         assert self.test_deposit.delete()
         if hasattr(self, "test_deposit2"):
@@ -149,8 +156,7 @@ class TestGitCommon(TestHipsCommon):
             cls.setUp = set_up_override
 
     def setUp(self):
-        """Could initialize default values for each test class. use `_<name>` to skip property setting."""
-        self.attrs = {}
+        super().setUp()
 
     def tearDown(self) -> None:
         basepath = xdg_cache_home().joinpath("testGitRepo")

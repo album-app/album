@@ -1,6 +1,6 @@
 import shutil
 
-from hips.core import load_and_push_hips, pop_active_hips
+from hips.core import load, pop_active_hips
 from hips.core.model import logging
 from hips.core.model.configuration import HipsCatalogConfiguration
 
@@ -35,7 +35,7 @@ class HipsRemover:
         # -> ignore this dependency then?
 
         resolve = self.catalog_configuration.resolve_from_str(self.path)
-        self.active_hips = load_and_push_hips(resolve["path"])
+        self.active_hips = load(resolve["path"])
 
         if not resolve["catalog"]:
             # check if solution pointing to a path is installed...

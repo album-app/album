@@ -64,7 +64,8 @@ class HipsConfiguration:
         if hasattr(active_hips, "doi"):
             return self.cache_path_solution.joinpath("doi", active_hips["doi"])
         else:
-            return self.cache_path_solution.joinpath("local", active_hips["group"], active_hips["name"], active_hips["version"])
+            return self.cache_path_solution.joinpath("local", active_hips["group"], active_hips["name"],
+                                                     active_hips["version"])
 
     def get_cache_path_app(self, active_hips):
         """Get the app cache path of the active hips
@@ -78,7 +79,8 @@ class HipsConfiguration:
         if hasattr(active_hips, "doi"):
             return self.cache_path_app.joinpath("doi", active_hips["doi"])
         else:
-            return self.cache_path_app.joinpath("local", active_hips["group"], active_hips["name"], active_hips["version"])
+            return self.cache_path_app.joinpath("local", active_hips["group"], active_hips["name"],
+                                                active_hips["version"])
 
     def get_cache_path_downloads(self, active_hips):
         """Get the cache path of anything a hips downloads.
@@ -92,7 +94,8 @@ class HipsConfiguration:
         if hasattr(active_hips, "doi"):
             return self.cache_path_download.joinpath("doi", active_hips["doi"])
         else:
-            return self.cache_path_download.joinpath("local", active_hips["group"], active_hips["name"], active_hips["version"])
+            return self.cache_path_download.joinpath("local", active_hips["group"], active_hips["name"],
+                                                     active_hips["version"])
 
     def get_cache_path_catalog(self, catalog_id):
         """Get the cache path to the catalog with a certain ID.
@@ -282,6 +285,8 @@ class HipsCatalogConfiguration:
 
         if not r:
             raise ValueError("Could not resolve hip dependency! %s" % hips_dependency)
+
+        return r
 
     def resolve_from_str(self, str_input: str):
         """Resolves an command line input if in valid format."""

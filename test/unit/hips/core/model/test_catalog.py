@@ -5,7 +5,6 @@ import unittest.mock
 from pathlib import Path
 from unittest.mock import patch
 
-import yaml
 from anytree import Node
 
 from hips.core.model.catalog import Catalog, CatalogIndex
@@ -40,9 +39,30 @@ empty_index = """{
 }"""
 
 
+def populate_index(catalog):
+    for i in range(0, 10):
+        d = {}
+
+        for key in HipsClass.deploy_keys:
+            d[key] = "%s%s" % (key, str(i))
+
+        hips = HipsClass(d)
+
+        # set a doi
+        setattr(hips, "doi", "doi%s" % str(i))
+
+        # set a deposit ID
+        setattr(hips, "deposit_id", "deposit_id%s" % str(i))
+
+        catalog.add(hips)
+
+    return catalog
+
+
 class TestCatalog(TestHipsCommon):
 
-    def populate_index(self):
+    @patch('hips.core.model.hips_base.Environment.__init__', return_value=None)
+    def populate_index(self, _):
         for i in range(0, 10):
             d = {}
 
@@ -60,20 +80,15 @@ class TestCatalog(TestHipsCommon):
             self.catalog.add(hips)
 
     def setUp(self):
-        self.tmp_dir = tempfile.gettempdir()
-        self.catalog = Catalog("test", Path(self.tmp_dir).joinpath("testRepo"))
+        self.catalog = Catalog("test", Path(self.tmp_dir.name).joinpath("testRepo"))
 
     def tearDown(self) -> None:
-        try:
-            Path(self.tmp_dir).joinpath(HipsDefaultValues.catalog_index_file_name.value).unlink()
-        except FileNotFoundError:
-            pass
-        shutil.rmtree(Path(self.tmp_dir).joinpath("testRepo"), ignore_errors=True)
+        super().tearDown()
 
     # Actually rather an integration test
     def test__init__(self):
         new_catalog = self.catalog
-        self.assertEqual(new_catalog.path, Path(self.tmp_dir).joinpath("testRepo"))
+        self.assertEqual(new_catalog.path, Path(self.tmp_dir.name).joinpath("testRepo"))
         self.assertIsNone(new_catalog.src)
         self.assertTrue(new_catalog.is_local)
         self.assertEqual(new_catalog.id, "test")
@@ -89,8 +104,7 @@ class TestCatalog(TestHipsCommon):
         self.populate_index()
         self.assertEqual(len(self.catalog), 10)
 
-        tmp_file = tempfile.NamedTemporaryFile()
-        get_solution_cache_path_file.side_effect = [Path(tmp_file.name)]
+        get_solution_cache_path_file.side_effect = [Path(self.closed_tmp_file.name)]
 
         d = {}
         for key in HipsClass.deploy_keys:
@@ -110,8 +124,7 @@ class TestCatalog(TestHipsCommon):
         self.populate_index()
         self.assertEqual(len(self.catalog), 10)
 
-        tmp_file = tempfile.NamedTemporaryFile()
-        get_solution_cache_file_mock.side_effect = [Path(tmp_file.name)]
+        get_solution_cache_file_mock.side_effect = [Path(self.closed_tmp_file.name)]
 
         d = {}
         for key in HipsClass.deploy_keys:
@@ -127,8 +140,7 @@ class TestCatalog(TestHipsCommon):
         self.populate_index()
         self.assertEqual(len(self.catalog), 10)
 
-        tmp_file = tempfile.NamedTemporaryFile()
-        get_solution_cache_file_mock.side_effect = [Path(tmp_file.name)]
+        get_solution_cache_file_mock.side_effect = [Path(self.closed_tmp_file.name)]
 
         d = {}
         for key in HipsClass.deploy_keys:
@@ -184,12 +196,11 @@ class TestCatalog(TestHipsCommon):
     @patch('hips.core.model.catalog.Catalog.get_solution_cache_file')
     def test_resolve(self, get_solution_cache_file_mock):
         self.populate_index()
-        tmp_file = tempfile.NamedTemporaryFile()
-        get_solution_cache_file_mock.side_effect = [Path(tmp_file.name)]
+        get_solution_cache_file_mock.side_effect = [Path(self.closed_tmp_file.name)]
 
         search_result = self.catalog.resolve("group0", "name0", "version0")
 
-        self.assertEqual(search_result, Path(tmp_file.name))
+        self.assertEqual(search_result, Path(self.closed_tmp_file.name))
 
     @patch('hips.core.model.catalog.Catalog.get_solution_cache_file')
     def test_resolve_in_index_but_no_file(self, get_solution_cache_file_mock):
@@ -204,7 +215,6 @@ class TestCatalog(TestHipsCommon):
     def test_resolve_download_by_doi_if_present(self, download_doi_solution_mock, get_solution_cache_file_mock):
         self.populate_index()
         self.catalog.is_local = False
-        tempfile.NamedTemporaryFile()
         get_solution_cache_file_mock.side_effect = [Path("pathDoesNotExist")]
 
         search_result = self.catalog.resolve("group0", "name0", "version0")
@@ -215,26 +225,24 @@ class TestCatalog(TestHipsCommon):
     @patch('hips.core.model.catalog.Catalog.get_doi_cache_file')
     def test_resolve_doi(self, get_doi_cache_file_mock):
         self.populate_index()
-        tmp_file = tempfile.NamedTemporaryFile()
-        get_doi_cache_file_mock.side_effect = [Path(tmp_file.name)]
+        get_doi_cache_file_mock.side_effect = [Path(self.closed_tmp_file.name)]
 
         search_result = self.catalog.resolve_doi("doi0")
 
-        self.assertEqual(search_result, Path(tmp_file.name))
+        self.assertEqual(search_result, Path(self.closed_tmp_file.name))
 
     @patch('hips.core.model.catalog.Catalog.get_doi_cache_file')
     @patch('hips.core.model.catalog.Catalog.download_solution_via_doi')
     def test_resolve_doi_not_cached(self, download_doi_solution_mock, get_solution_cache_file_mock):
         self.populate_index()
-        tmp_file = tempfile.NamedTemporaryFile()
         get_solution_cache_file_mock.side_effect = [Path("pathDoesNotExist")]
 
-        download_doi_solution_mock.side_effect = [Path(tmp_file.name)]
+        download_doi_solution_mock.side_effect = [Path(self.closed_tmp_file.name)]
 
         search_result = self.catalog.resolve_doi("doi0")
 
         download_doi_solution_mock.assert_called_once()
-        self.assertEqual(search_result, Path(tmp_file.name))
+        self.assertEqual(search_result, Path(self.closed_tmp_file.name))
 
     @unittest.skip("tested in hips_catalog.CatalogIndex.visualize")
     def test_visualize(self):
@@ -243,7 +251,7 @@ class TestCatalog(TestHipsCommon):
     def test_load_index(self):
         self.populate_index()
 
-        cs_file = Path(self.tmp_dir).joinpath(HipsDefaultValues.catalog_index_file_name.value)
+        cs_file = Path(self.tmp_dir.name).joinpath(HipsDefaultValues.catalog_index_file_name.value)
         with open(cs_file, "w+") as f:
             f.write(sample_index)
 
@@ -253,7 +261,7 @@ class TestCatalog(TestHipsCommon):
         self.assertTrue(len(self.catalog) == 1)  # now is the "new" catalog
 
     def test_refresh_index(self):
-        cs_file = Path(self.tmp_dir).joinpath(HipsDefaultValues.catalog_index_file_name.value)
+        cs_file = Path(self.tmp_dir.name).joinpath(HipsDefaultValues.catalog_index_file_name.value)
         with open(cs_file, "w+") as f:
             f.write(empty_index)
 
@@ -351,32 +359,26 @@ class TestCatalog(TestHipsCommon):
 
 class TestHipsCatalogIndex(TestHipsCommon):
     def setUp(self):
-        self.tmp_dir = tempfile.gettempdir()
 
         # fill index file
-        cs_file = Path(self.tmp_dir).joinpath(HipsDefaultValues.catalog_index_file_name.value)
+        cs_file = Path(self.tmp_dir.name).joinpath(HipsDefaultValues.catalog_index_file_name.value)
         with open(cs_file, "w+") as f:
             f.write(sample_index)
         self.cs_file = cs_file
 
         # fill empty_index file
-        self.cs_file_index_empty = Path(self.tmp_dir).joinpath("empty_index_file")
+        self.cs_file_index_empty = Path(self.tmp_dir.name).joinpath("empty_index_file")
         with open(self.cs_file_index_empty, "w+") as f:
             f.write(empty_index)
 
         # fill emtpy_file
-        self.cs_file_empty = Path(self.tmp_dir).joinpath("empty_file")
+        self.cs_file_empty = Path(self.tmp_dir.name).joinpath("empty_file")
         self.cs_file_empty.touch()
 
         self.cs_index = CatalogIndex("test", self.cs_file)
 
     def tearDown(self) -> None:
-        try:
-            Path(self.tmp_dir).joinpath(HipsDefaultValues.catalog_index_file_name.value).unlink()
-            Path(self.tmp_dir).joinpath("empty_index_file").unlink()
-            Path(self.tmp_dir).joinpath("empty_file").unlink()
-        except FileNotFoundError:
-            pass
+        super().tearDown()
 
     def test__init__(self):
         self.assertEqual(len(self.cs_index), 1)
@@ -500,12 +502,10 @@ class TestHipsCatalogIndex(TestHipsCommon):
             self.assertIn("Found several results", str(context.exception))
 
     def test_export_json(self):
-        self.setUp()
-        with tempfile.NamedTemporaryFile() as f:
-            self.cs_index.export(f.name, export_format="JSON")
-            export_file = open(f.name).readlines()[0]
+        self.cs_index.export(self.closed_tmp_file.name, export_format="JSON")
+        export_file = open(self.closed_tmp_file.name).readlines()[0]
 
-            self.assertEqual(json.dumps(self.cs_index.get_leaves_dict_list()), export_file)
+        self.assertEqual(json.dumps(self.cs_index.get_leaves_dict_list()), export_file)
 
     @patch('hips.core.model.catalog.RenderTree', return_value="")
     def test_visualize(self, rt_mock):

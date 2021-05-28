@@ -6,18 +6,18 @@ import unittest
 from pathlib import Path
 
 from hips.core.utils.operations.url_operations import is_downloadable, download_resource, _request_get
+from test.unit.test_common import TestHipsCommon
 
 
-class TestUrlOperations(unittest.TestCase):
+class TestUrlOperations(TestHipsCommon):
 
     def setUp(self) -> None:
-        self.tmp_dir = tempfile.TemporaryDirectory()
         self.downloadable_url = "https://www.google.com/favicon.ico"
         self.html_url = "https://gitlab.com/"
         self.wrong_url = "https://www.google.com/favicon.i"
 
     def tearDown(self) -> None:
-        self.tmp_dir.cleanup()
+        super().tearDown()
 
     def test_is_downloadable_true(self):
         self.assertTrue(is_downloadable(self.downloadable_url))

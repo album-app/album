@@ -11,19 +11,16 @@ from xdg import xdg_cache_home
 from hips.core.utils.operations.file_operations import FileOperationError, get_zenodo_metadata, \
     set_zenodo_metadata_in_solutionfile, get_dict_from_yml, write_dict_to_yml, create_empty_file_recursively, \
     create_path_recursively, write_dict_to_json
+from test.unit.test_common import TestHipsCommon
 
 
-class TestFileOperations(unittest.TestCase):
+class TestFileOperations(TestHipsCommon):
 
     def setUp(self):
         self.set_dummy_solution_path()
 
     def tearDown(self) -> None:
-        try:
-            pathlib.Path(tempfile.gettempdir()).joinpath("test_yaml").unlink()
-        except FileNotFoundError:
-            pass
-        shutil.rmtree(pathlib.Path(tempfile.gettempdir()).joinpath("test_folder"), ignore_errors=True)
+        super().tearDown()
 
     def set_dummy_solution_path(self):
         current_path = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
@@ -34,70 +31,59 @@ class TestFileOperations(unittest.TestCase):
         self.assertEqual("", doi)
 
     def test_get_zenodo_metadata_wrong_format(self):
-        file = tempfile.NamedTemporaryFile(mode='w+', delete=False)
 
-        with open(self.dummysolution) as d:
-            l = d.readlines()
-            file.writelines([x.replace(" ", "") for x in l])
-        file.close()
+        with open(self.closed_tmp_file.name, mode="w") as file:
+            with open(self.dummysolution) as d:
+                lines = d.readlines()
+                file.writelines([x.replace(" ", "") for x in lines])
 
         with self.assertRaises(FileOperationError):
-            get_zenodo_metadata(file.name, "doi")
-
-        os.remove(file.name)
+            get_zenodo_metadata(self.closed_tmp_file.name, "doi")
 
     def test_get_zenodo_metadata_no_doi(self):
-        file = tempfile.NamedTemporaryFile(mode='w+', delete=False)
+        with open(self.closed_tmp_file.name, mode="w") as file:
+            with open(self.dummysolution) as d:
+                lines = d.readlines()
+                lines.remove("    doi=\"\",\n")
+                file.writelines(lines)
 
-        with open(self.dummysolution) as d:
-            l = d.readlines()
-            l.remove("    doi=\"\",\n")
-            file.writelines(l)
-        file.close()
-
-        self.assertIsNone(get_zenodo_metadata(file.name, "doi"))
-
-        os.remove(file.name)
+        self.assertIsNone(get_zenodo_metadata(self.closed_tmp_file.name, "doi"))
 
     @patch('hips.core.utils.operations.file_operations.shutil.copy', return_value=True)
     def test_set_zenodo_metadata_in_solutionfile(self, shutil_mock):
         file_path = set_zenodo_metadata_in_solutionfile(self.dummysolution, "theDoi", "theID")
 
         with open(file_path) as f:
-            l = f.readlines()
-            self.assertIn("    doi=\"\",\n", l)
-            self.assertIn("    deposit_id=\"\",\n", l)
+            lines = f.readlines()
+            self.assertIn("    doi=\"\",\n", lines)
+            self.assertIn("    deposit_id=\"\",\n", lines)
 
+        # needs to be this path - see @set_zenodo_metadata_in_solutionfile
         new_file_path = str(xdg_cache_home().joinpath("solution0_dummy_tmp.py"))
 
         with open(new_file_path) as f:
-            l = f.readlines()
-            self.assertIn("    doi=\"theDoi\",\n", l)
-            self.assertNotIn("    doi=\"\",\n", l)
-            self.assertIn("    deposit_id=\"theID\",\n", l)
-            self.assertNotIn("    deposit_id=\"\",\n", l)
+            lines = f.readlines()
+            self.assertIn("    doi=\"theDoi\",\n", lines)
+            self.assertNotIn("    doi=\"\",\n", lines)
+            self.assertIn("    deposit_id=\"theID\",\n", lines)
+            self.assertNotIn("    deposit_id=\"\",\n", lines)
 
         shutil_mock.assert_called_once()
 
-        os.remove(new_file_path)
-
     @patch('hips.core.utils.operations.file_operations.shutil.copy', return_value=True)
     def test_set_zenodo_metadata_in_solutionfile_wrong_format(self, shutil_mock):
-        file = tempfile.NamedTemporaryFile(mode='w+', delete=False)
-
-        with open(self.dummysolution) as d:
-            l = d.readlines()
-            file.writelines([x.replace(" ", "") for x in l])
-        file.close()
+        with open(self.closed_tmp_file.name, mode="w") as file:
+            with open(self.dummysolution) as d:
+                lines = d.readlines()
+                file.writelines([x.replace(" ", "") for x in lines])
 
         with self.assertRaises(FileOperationError):
-            set_zenodo_metadata_in_solutionfile(file.name, "theDoi", "theID")
+            set_zenodo_metadata_in_solutionfile(self.closed_tmp_file.name, "theDoi", "theID")
 
         shutil_mock.assert_not_called()
-        os.remove(file.name)
 
     def test_get_dict_from_yml(self):
-        tmp_folder = pathlib.Path(tempfile.gettempdir())
+        tmp_folder = pathlib.Path(self.tmp_dir.name)
 
         tmp_yml_file = tmp_folder.joinpath("test_yaml")
         with open(tmp_yml_file, "w+") as f:
@@ -107,8 +93,7 @@ class TestFileOperations(unittest.TestCase):
         self.assertEqual(d, {"test": [1, 2, 3]})
 
     def test_write_dict_to_yml(self):
-        self.tearDown()
-        tmp_yml_file = pathlib.Path(tempfile.gettempdir()).joinpath("test_yaml")
+        tmp_yml_file = pathlib.Path(self.tmp_dir.name).joinpath("test_yaml")
         tmp_yml_file.touch()
         self.assertEqual(tmp_yml_file.stat().st_size, 0)
         d = {"test": [1, 2, 3]}
@@ -116,9 +101,8 @@ class TestFileOperations(unittest.TestCase):
         self.assertTrue(tmp_yml_file.stat().st_size > 0)
 
     def test_write_dict_to_json(self):
-        self.tearDown()
         # named "yaml" here because tearDown() deletes it automatically, but that does not matter here
-        tmp_json_file = pathlib.Path(tempfile.gettempdir()).joinpath("test_yaml")
+        tmp_json_file = pathlib.Path(self.tmp_dir.name).joinpath("test_yaml")
         tmp_json_file.touch()
         self.assertEqual(tmp_json_file.stat().st_size, 0)
         d = {"test": [1, 2, 3]}
@@ -128,8 +112,7 @@ class TestFileOperations(unittest.TestCase):
         self.assertEqual(d_loaded, d)
 
     def test_create_empty_file_recursively(self):
-        tmp_dir = pathlib.Path(tempfile.gettempdir())
-        tmp_file = tmp_dir.joinpath("test_folder", "new_folder", "t.txt")
+        tmp_file = pathlib.Path(self.tmp_dir.name).joinpath("test_folder", "new_folder", "t.txt")
 
         create_empty_file_recursively(tmp_file)
 
@@ -138,7 +121,7 @@ class TestFileOperations(unittest.TestCase):
         self.assertEqual(tmp_file.stat().st_size, 0)
 
     def test_create_empty_file_recursively_no_overwrite(self):
-        tmp_dir = pathlib.Path(tempfile.gettempdir())
+        tmp_dir = pathlib.Path(self.tmp_dir.name)
         tmp_file = tmp_dir.joinpath("test_folder", "new_folder", "t.txt")
 
         self.test_create_empty_file_recursively()
@@ -155,7 +138,7 @@ class TestFileOperations(unittest.TestCase):
         self.assertNotEqual(tmp_file.stat().st_size, 0)
 
     def test_create_path_recursively(self):
-        tmp_dir = pathlib.Path(tempfile.gettempdir())
+        tmp_dir = pathlib.Path(self.tmp_dir.name)
         tmp_folder = tmp_dir.joinpath("test_folder", "new_folder")
 
         self.assertFalse(tmp_folder.is_dir())

@@ -11,6 +11,9 @@ class TestHipsInit(TestHipsCommon):
         # self.something_all_tests_use = some_value
         pass
 
+    def tearDown(self) -> None:
+        super().tearDown()
+
     def test_setup(self):
         get_active_hips = hips.get_active_hips()
         self.assertIsNone(get_active_hips)

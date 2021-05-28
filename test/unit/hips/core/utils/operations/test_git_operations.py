@@ -17,6 +17,9 @@ from test.unit.test_common import TestGitCommon
 
 class TestGitOperations(TestGitCommon):
 
+    def tearDown(self) -> None:
+        super().tearDown()
+
     def test_checkout_branch(self):
         self.create_tmp_repo(create_test_branch=True)
 
@@ -36,7 +39,7 @@ class TestGitOperations(TestGitCommon):
         file = self.create_tmp_repo()
 
         file_of_commit = hips.core.utils.operations.git_operations._retrieve_single_file_from_head(
-            self.repo.heads["master"], "solutions/")
+            self.repo.heads["master"], "solutions")
 
         self.assertEqual(file, file_of_commit)
 
@@ -44,7 +47,7 @@ class TestGitOperations(TestGitCommon):
         tmp_file = self.create_tmp_repo(create_test_branch=True)
 
         file_of_commit = hips.core.utils.operations.git_operations._retrieve_single_file_from_head(
-            self.repo.heads["test_branch"], "solutions/")
+            self.repo.heads["test_branch"], "solutions")
 
         self.assertEqual(tmp_file, file_of_commit)
 
@@ -59,7 +62,7 @@ class TestGitOperations(TestGitCommon):
 
         with self.assertRaises(RuntimeError) as context:
             hips.core.utils.operations.git_operations._retrieve_single_file_from_head(self.repo.heads["master"],
-                                                                                      "solutions/")
+                                                                                      "solutions")
 
         self.assertTrue("Pattern found too many times!" in str(context.exception))
 
@@ -68,7 +71,7 @@ class TestGitOperations(TestGitCommon):
 
         with self.assertRaises(RuntimeError) as context:
             hips.core.utils.operations.git_operations._retrieve_single_file_from_head(self.repo.heads["master"],
-                                                                                      "solutions/")
+                                                                                      "solutions")
 
         self.assertTrue("Pattern not found!" in str(context.exception))
 

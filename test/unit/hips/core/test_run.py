@@ -20,6 +20,9 @@ class TestHipsRun(TestHipsCommon):
             self.hips_runner = HipsRunner()
             init_mock.assert_called_once()
 
+    def tearDown(self) -> None:
+        super().tearDown()
+
     @patch('hips.core.run.load')
     @patch('hips.core.run.HipsRunner._run', return_value=None)
     def test_run(self, run_mock, load_mock):
@@ -29,19 +32,18 @@ class TestHipsRun(TestHipsCommon):
 
         load_mock.return_value = self.active_hips
 
-        tmp_file = tempfile.NamedTemporaryFile()
-        with open(tmp_file.name, 'w') as f:
+        with open(self.closed_tmp_file.name, mode="w") as f:
             f.write("A valid solution file!")
 
         # overwrite resolving with mock
-        resolve_from_str = MagicMock(return_value={"path": Path(tmp_file.name), "catalog": None})
+        resolve_from_str = MagicMock(return_value={"path": Path(self.closed_tmp_file.name), "catalog": None})
         self.config.resolve_from_str = resolve_from_str
 
         self.hips_runner.catalog_configuration = self.config
-        self.hips_runner.run(Args(tmp_file.name))
+        self.hips_runner.run(Args(self.closed_tmp_file.name))
 
         run_mock.assert_called_once_with(self.active_hips)
-        load_mock.assert_called_once_with(Path(tmp_file.name))
+        load_mock.assert_called_once_with(Path(self.closed_tmp_file.name))
 
     @patch('hips.core.run.HipsRunner.run_single_step', return_value=None)
     @patch('hips.core.run.HipsRunner.run_steps', return_value=None)
@@ -73,12 +75,11 @@ class TestHipsRun(TestHipsCommon):
     def test_run_steps_single_step(self, run_single_step_mock, load_mock):
         steps = [{"name": "Step1"}]
 
-        tmp_file = tempfile.NamedTemporaryFile()
-        with open(tmp_file.name, 'w') as f:
+        with open(self.closed_tmp_file.name, mode="w") as f:
             f.write("A valid solution file!")
 
         # overwrite resolving with mock
-        resolve_hips_dependency = MagicMock(return_value={"path": tmp_file.name, "catalog": None})
+        resolve_hips_dependency = MagicMock(return_value={"path": self.closed_tmp_file.name, "catalog": None})
         self.config.resolve_hips_dependency = resolve_hips_dependency
 
         load_mock.return_value = self.active_hips
@@ -88,7 +89,7 @@ class TestHipsRun(TestHipsCommon):
         self.hips_runner.run_steps(steps)
 
         run_single_step_mock.assert_called_once_with(self.active_hips, [""])
-        load_mock.assert_called_once_with(tmp_file.name)
+        load_mock.assert_called_once_with(self.closed_tmp_file.name)
 
     @patch('hips.core.run.HipsRunner.run_and_empty_queue', return_value=None)
     @patch('hips.core.run.load')
@@ -97,12 +98,11 @@ class TestHipsRun(TestHipsCommon):
         steps = [{"name": "Step1", "parent": "aParent"}]
         self.active_hips.parent = "aParent"
 
-        tmp_file = tempfile.NamedTemporaryFile()
-        with open(tmp_file.name, 'w') as f:
+        with open(self.closed_tmp_file.name, mode="w") as f:
             f.write("A valid solution file!")
 
         # overwrite resolving with mock
-        resolve_hips_dependency = MagicMock(return_value={"path": tmp_file.name, "catalog": None})
+        resolve_hips_dependency = MagicMock(return_value={"path": self.closed_tmp_file.name, "catalog": None})
         self.config.resolve_hips_dependency = resolve_hips_dependency
 
         load_mock.return_value = self.active_hips
@@ -111,9 +111,9 @@ class TestHipsRun(TestHipsCommon):
 
         self.hips_runner.run_steps(steps)
 
-        load_mock.assert_called_once_with(tmp_file.name)
+        load_mock.assert_called_once_with(self.closed_tmp_file.name)
         run_and_empty_queue_mock.assert_called_once_with({
-            "parent_script_path": tmp_file.name,
+            "parent_script_path": self.closed_tmp_file.name,
             "steps_hips": [self.active_hips],
             "steps": [steps[0]]
         })
@@ -126,12 +126,11 @@ class TestHipsRun(TestHipsCommon):
         steps = [{"name": "Step1", "parent": "aParent"}, {"name": "Step2", "parent": "aParent"}]
         self.active_hips.parent = "sameParent"
 
-        tmp_file = tempfile.NamedTemporaryFile()
-        with open(tmp_file.name, 'w') as f:
+        with open(self.closed_tmp_file.name, mode="w") as f:
             f.write("A valid solution file!")
 
         # overwrite resolving with mock
-        resolve_hips_dependency = MagicMock(return_value={"path": tmp_file.name, "catalog": None})
+        resolve_hips_dependency = MagicMock(return_value={"path": self.closed_tmp_file.name, "catalog": None})
         self.config.resolve_hips_dependency = resolve_hips_dependency
 
         load_mock.return_value = self.active_hips
@@ -140,9 +139,9 @@ class TestHipsRun(TestHipsCommon):
 
         self.hips_runner.run_steps(steps)
 
-        load_mock.assert_has_calls([call(tmp_file.name), call(tmp_file.name)])
+        load_mock.assert_has_calls([call(self.closed_tmp_file.name), call(self.closed_tmp_file.name)])
         run_and_empty_queue_mock.assert_called_once_with({
-            "parent_script_path": tmp_file.name,
+            "parent_script_path": self.closed_tmp_file.name,
             "steps_hips": [self.active_hips, self.active_hips],
             "steps": [steps[0], steps[1]]
         })

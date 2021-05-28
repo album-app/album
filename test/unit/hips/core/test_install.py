@@ -16,6 +16,9 @@ class TestHipsInstaller(TestHipsCommon):
             self.hips_installer = HipsInstaller()
             init_mock.assert_called_once()
 
+    def tearDown(self) -> None:
+        super().tearDown()
+
     @patch('hips.core.install.load')
     def test_install(self, load_mock):
         class Args:
