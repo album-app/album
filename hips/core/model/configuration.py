@@ -297,6 +297,21 @@ class HipsCatalogConfiguration:
 
         return r
 
+    def resolve_directly(self, catalog_id, group, name, version, download=True):
+        for catalog in self.catalogs:
+            if catalog.id == catalog_id:
+                # update if necessary and possible
+                if not catalog.is_local:
+                    catalog.refresh_index()
+                path_to_solution = catalog.resolve(group, name, version, download)
+                if not path_to_solution:
+                    return None
+                return {
+                    "path": path_to_solution,
+                    "catalog": catalog
+                }
+        return None
+
     def resolve_from_str(self, str_input: str, download=True):
         """Resolves an command line input if in valid format."""
         p = Path(str_input)
