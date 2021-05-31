@@ -152,18 +152,29 @@ class Conda:
 
     @staticmethod
     def pip_install(environment_path, module):
-        subprocess_args = [
-            'conda', 'run', '--no-capture-output', '--prefix',
-            environment_path, 'pip', 'install', '--force-reinstall', module
-        ]
+        if sys.platform == 'win32' or sys.platform == 'cygwin':
+            # NOTE: WHEN USING 'CONDA RUN' THE CORRECT ENVIRONMENT GETS TEMPORARY ACTIVATED,
+            # BUT THE PATH POINTS TO THE WRONG PIP (conda base folder + Scripts + pip) BECAUSE THE CONDA BASE PATH
+            # COMES FIRST IN ENVIRONMENT VARIABLE "%PATH%". THUS, FULL PATH IS NECESSARY TO CALL
+            # THE CORRECT PYTHON OR PIP! ToDo: keep track of this!
+            subprocess_args = [
+                'conda', 'run', '--no-capture-output', '--prefix',
+                environment_path, str(Path(environment_path).joinpath('Scripts', 'pip')), 'install',
+                '--no-warn-conflicts', module
+            ]
+        else:
+            subprocess_args = [
+                'conda', 'run', '--no-capture-output', '--prefix',
+                environment_path, 'pip', 'install', '--no-warn-conflicts', module
+            ]
 
         subcommand.run(subprocess_args, log_output=False)
 
     @staticmethod
     def conda_install(environment_path, module):
         subprocess_args = [
-            'conda', 'run', '--no-capture-output', '--prefix',
-            environment_path, 'conda', 'install', '-y', module
+            'conda', 'install', '--prefix',
+            environment_path, '-y', module
         ]
 
         subcommand.run(subprocess_args, log_output=False)

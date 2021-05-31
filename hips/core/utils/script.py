@@ -40,7 +40,7 @@ def create_script(hips_object, custom_code, argv):
     # This could have an issue with nested quotes
     argv_string = ", ".join(argv)
     module_logger().debug("Add sys.argv arguments to runtime script: %s..." % argv_string)
-    script += "sys.argv = json.loads('%s')\n" % json.dumps(argv)
+    script += "sys.argv = json.loads(r'%s')\n" % json.dumps(argv)
     script += hips_object['script']
     script += "\nget_active_hips().init()\n"
     args = hips_object['args']
@@ -165,7 +165,6 @@ def __append_scripts(*scripts):
         fp.write(script)
         fp.flush()
         os.fsync(fp)
-        script_name = fp.name
-        res += f"\nexec(open('{script_name}').read())\n"
+        res += "\nexec(open(r\'%s\').read())\n" % fp.name
         fp.close()
     return res
