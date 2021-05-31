@@ -24,12 +24,14 @@ class TestCommandLine(unittest.TestCase):
 
     @patch('hips.cmdline.__run_subcommand', return_value=True)
     def test_run(self, _):
-        fd, path = tempfile.mkstemp()
+        fp = tempfile.NamedTemporaryFile(mode='w+', delete=False)
+        fp.close()
+
         try:
-            sys.argv = ["", "run", path]
+            sys.argv = ["", "run", fp.name]
             self.assertIsNone(cmdline.main())
         finally:
-            os.remove(path)
+            os.remove(fp.name)
 
     def test_run_no_args(self):
         sys.argv = ["", "run"]
