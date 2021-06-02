@@ -165,7 +165,20 @@ class HipsCatalogConfiguration:
         for catalog in self.catalogs:
             if not catalog.is_local:
                 return catalog
-        return None
+        raise LookupError("No local catalog configured! Doing nothing...")
+
+    def get_deployment_catalog(self, catalog_dict):
+        """Returns first catalog which is not local. This is used as default deployment catalog."""
+        for catalog in self.catalogs:
+            if not catalog.is_local and catalog.src == catalog_dict["url"]:
+                return catalog
+        raise LookupError("Catalog with URL \"%s\" not configured!" % catalog_dict["url"])
+
+    def get_catalog_by_id(self, cat_id):
+        for catalog in self.catalogs:
+            if catalog.id == cat_id:
+                return catalog
+        raise LookupError("Catalog with ID \"%s\" not configured!" % cat_id)
 
     def save(self, config_file_dict=None):
         """Saves the configuration dictionary to disk. Uses the file path specified in the HipsConfiguration object."""

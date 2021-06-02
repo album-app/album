@@ -102,7 +102,19 @@ class TestHipsCatalogConfiguration(TestHipsCommon):
         for c in self.config.catalogs:
             c.is_local = True
 
-        self.assertIsNone(self.config.get_default_deployment_catalog())
+        with self.assertRaises(LookupError):
+            self.config.get_default_deployment_catalog()
+
+    def test_get_deployment_catalog(self):
+        self.config.catalogs[0].is_local = False
+        self.config.catalogs[0].src = "myurl"
+        c = self.config.get_deployment_catalog({"url": "myurl"})
+        self.assertEqual(c.id, "test_catalog")
+
+    def test_get_catalog_by_id(self):
+        expected_id = self.config.catalogs[0].id
+
+        self.assertEqual(expected_id, self.config.get_catalog_by_id(expected_id).id)
 
     def test_save(self):
         self.config.config_file_dict = {

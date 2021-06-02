@@ -43,7 +43,7 @@ class TestHipsDeploy(TestGitCommon):
 
         hips_deploy._create_hips_merge_request([self.closed_tmp_file.name], dry_run=True)
 
-        git_mock.assert_called_once_with(self.repo.heads[1], [self.closed_tmp_file.name], "Adding new/updated tsg_tsn_tsv", True)
+        git_mock.assert_called_once_with(self.repo.heads[1], [self.closed_tmp_file.name], "Adding new/updated tsg_tsn_tsv", True, True)
 
     @patch('hips.core.deploy.HipsDeploy.__init__', return_value=None)
     @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict')
@@ -87,8 +87,9 @@ class TestHipsDeploy(TestGitCommon):
         hips_deploy.catalog_configuration = self.config
         hips_deploy.repo = self.repo
         hips_deploy.active_hips = self.active_hips
+        hips_deploy.path = self.closed_tmp_file.name
 
-        hips_deploy._copy_solution_to_repository(self.closed_tmp_file.name)
+        hips_deploy._copy_solution_to_repository()
 
         self.assertTrue(os.path.isfile(
             os.path.join(str(self.repo.working_tree_dir), "solutions", "tsg", "tsn", "tsv", "tsn.py")
