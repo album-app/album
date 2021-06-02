@@ -306,14 +306,20 @@ class HipsCatalogConfiguration:
                 "catalog": None
             }
         else:
-            p = self.get_doi_from_input(str_input)
-            if not p:
-                p = self.get_gnv_from_input(str_input)
+            if self.is_url(str_input):
+                return {
+                    "path": self.download(str_input),
+                    "catalog": None
+                }
+            else :
+                p = self.get_doi_from_input(str_input)
                 if not p:
-                    raise ValueError("Invalid input format! Try <doi>:<prefix>/<suffix> or <prefix>/<suffix> or "
-                                     "<group>:<name>:<version> or point to a valid file! Aborting...")
-            module_logger().debug("Parsed %s from the input... " % p)
-            return self.resolve_hips_dependency(p, download)
+                    p = self.get_gnv_from_input(str_input)
+                    if not p:
+                        raise ValueError("Invalid input format! Try <doi>:<prefix>/<suffix> or <prefix>/<suffix> or "
+                                         "<group>:<name>:<version> or point to a valid file! Aborting...")
+                module_logger().debug("Parsed %s from the input... " % p)
+                return self.resolve_hips_dependency(p, download)
 
     def get_installed_solutions(self):
         """Returns all installed solutions by configured dictionary."""
@@ -346,3 +352,24 @@ class HipsCatalogConfiguration:
                 "doi": s.group(2)
             }
         return None
+
+    @staticmethod
+    def is_url(str_input: str):
+        url_regex = re.compile(
+            r'^(?:http|ftp)s?://'  # http:// or https://
+            r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # domain...
+            r'localhost|'  # localhost...
+            r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # ...or ip
+            r'(?::\d+)?'  # optional port
+            r'(?:/?|[/?]\S+)$', re.IGNORECASE)
+        return re.match(url_regex, str_input) is not None
+
+    @staticmethod
+    def download(str_input):
+        import urllib.request
+        import shutil
+        import tempfile
+        new_file, file_name = tempfile.mkstemp()
+        with urllib.request.urlopen(str_input) as response, open(file_name, 'wb') as out_file:
+            shutil.copyfileobj(response, out_file)
+        return Path(file_name)
