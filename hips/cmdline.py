@@ -7,6 +7,7 @@ from hips.core.install import install
 from hips.core.remove_catalog import remove_catalog
 from hips.core.repl import repl
 from hips.core.containerize import containerize
+from hips.core.server import start_server
 from hips.core.tutorial import tutorial
 from hips.core.remove import remove
 from hips.core.run import run
@@ -77,6 +78,11 @@ def create_parser():
     parser.create_hips_file_command_parser('tutorial', tutorial, 'run a tutorial for a HIP Solution')
     parser.create_hips_file_command_parser('add-catalog', add_catalog, 'add a catalog to your local HIPS configuration file')
     parser.create_hips_file_command_parser('remove-catalog', remove_catalog, 'remove a catalog from your local HIPS configuration file')
+    p = parser.create_command_parser('server', start_server, 'start a HIPS server')
+    p.add_argument('port',
+                   type=int,
+                   default=8080,
+                   help='Port')
     return parser.parser
 
 
