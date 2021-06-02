@@ -12,7 +12,7 @@ module_logger = logging.get_active_logger
 
 
 def deploy(args):
-    HipsDeploy().deploy(args)
+    HipsDeploy(args.path, args.catalog, args.dry_run, args.trigger_pipeline).deploy()
 
 
 class HipsDeploy:
@@ -20,43 +20,55 @@ class HipsDeploy:
     active_hips = None
     repo = None
 
-    def __init__(self):
+    def __init__(self, path, catalog, dry_run, trigger_pipeline):
         self.catalog_configuration = HipsCatalogConfiguration()
+        self.path = path
+        self.catalog = catalog
+        self.dry_run = dry_run
+        self.trigger_pipeline = trigger_pipeline
 
     # Todo: write tests
-    def deploy(self, args):
+    def deploy(self):
         """Function corresponding to the `deploy` subcommand of `hips`.
 
         Generates the yml for a hips and creates a merge request to the catalog only
         including the markdown and solution file.
 
         """
-        self.active_hips = load(args.path)
+        self.active_hips = load(self.path)
 
         # run installation of new solution file in debug mode
-        # Todo: call the installation routine
+        # Todo: call the installation routine?
 
-        default_deploy_catalog = self.catalog_configuration.get_default_deployment_catalog()
+        if self.catalog:
+            self.catalog = self.catalog_configuration.get_catalog_by_id(self.catalog)
+        elif self.active_hips["deploy"] and self.active_hips["deploy"]["catalog"]:
+            self.catalog = self.catalog_configuration.get_deployment_catalog(
+                self.active_hips["deploy"]["catalog"]
+            )
+        else:
+            self.catalog = self.catalog_configuration.get_default_deployment_catalog()
 
-        if not default_deploy_catalog:
-            LookupError("No deployment catalog configured! Please configure a non-local catalog. Doing nothing...")
-            return 2
+        if not self.catalog.is_local:
+            self.repo = self.catalog.download()
 
-        self.repo = default_deploy_catalog.download()
-
-        # copy script to repository
-        solution_file = self._copy_solution_to_repository(args.path)
+        # copy script to repository or catalog
+        if self.catalog.is_local:
+            solution_file = self._copy_solution_in_catalog()
+        else:
+            solution_file = self._copy_solution_to_repository()
 
         # create solution yml file
-        yml_file = self._create_yaml_file_in_repo()
+        if not self.catalog.is_local:
+            yml_file = self._create_yaml_file_in_repo()
 
-        # create merge request
-        self._create_hips_merge_request([yml_file, solution_file])
+            # create merge request
+            self._create_hips_merge_request([yml_file, solution_file], self.dry_run, self.trigger_pipeline)
 
     def retrieve_head_name(self):
         return "_".join([self.active_hips["group"], self.active_hips["name"], self.active_hips["version"]])
 
-    def _create_hips_merge_request(self, file_paths, dry_run=False):
+    def _create_hips_merge_request(self, file_paths, dry_run=False, trigger_pipeline=True):
         """Creates a merge request to the catalog repository for the hips object.
 
         Commits first the files given in the call, but will not include anything else than that.
@@ -78,7 +90,7 @@ class HipsDeploy:
 
         commit_msg = "Adding new/updated %s" % self.retrieve_head_name()
 
-        add_files_commit_and_push(new_head, file_paths, commit_msg, dry_run)
+        add_files_commit_and_push(new_head, file_paths, commit_msg, dry_run, trigger_pipeline)
 
     def _create_yaml_file_in_repo(self):
         """Creates a Markdown file in the given repo for the given solution.
@@ -115,25 +127,30 @@ class HipsDeploy:
         module_logger().debug('Create yaml file from solution...')
         return yaml.dump(d, Dumper=yaml.Dumper)
 
-    def _copy_solution_to_repository(self, path):
+    def _copy_solution_to_repository(self):
         """Copies a solution outside the catalog repository to the correct path inside the catalog repository.
-
-        Args:
-            path:
-                The solution file.
 
         Returns:
             The path to the solution file in the correct folder inside the catalog repository.
 
         """
         abs_path_solution_file = Path(self.repo.working_tree_dir).joinpath(
-            "solutions",
+            "solutions",  # todo: replace with default value!
             self.active_hips['group'],
             self.active_hips["name"],
             self.active_hips["version"],
             "%s%s" % (self.active_hips['name'], ".py")
         )
-        module_logger().debug("Copying %s to %s..." % (path, abs_path_solution_file))
-        copy(path, abs_path_solution_file)
+        module_logger().debug("Copying %s to %s..." % (self.path, abs_path_solution_file))
+        copy(self.path, abs_path_solution_file)
+
+        return abs_path_solution_file
+
+    def _copy_solution_in_catalog(self):
+        abs_path_solution_file = self.catalog.get_solution_cache_file(
+            self.active_hips.group, self.active_hips.name, self.active_hips.version
+        )
+        module_logger().debug("Copying %s to %s..." % (self.path, abs_path_solution_file))
+        copy(self.path, abs_path_solution_file)
 
         return abs_path_solution_file
