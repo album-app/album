@@ -9,11 +9,9 @@ from unittest.mock import patch
 
 import git
 
-from xdg import xdg_cache_home
-
 from hips.ci.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from hips.core import HipsClass
-from hips.core.model.configuration import HipsCatalogConfiguration
+from hips.core.model.configuration import HipsCatalogConfiguration, HipsDefaultValues
 from hips.core.model.logging import push_active_logger, pop_active_logger
 
 
@@ -159,12 +157,12 @@ class TestGitCommon(TestHipsCommon):
         super().setUp()
 
     def tearDown(self) -> None:
-        basepath = xdg_cache_home().joinpath("testGitRepo")
+        basepath = HipsDefaultValues.app_cache_dir.value.joinpath("testGitRepo")
         shutil.rmtree(basepath, ignore_errors=True)
         super().tearDown()
 
     def create_tmp_repo(self, commit_solution_file=True, create_test_branch=False):
-        basepath = xdg_cache_home().joinpath("testGitRepo")
+        basepath = HipsDefaultValues.app_cache_dir.value.joinpath("testGitRepo")
         shutil.rmtree(basepath, ignore_errors=True)
 
         repo = git.Repo.init(path=basepath)

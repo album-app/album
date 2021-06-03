@@ -5,9 +5,9 @@ import shutil
 from pathlib import Path
 
 import yaml
-from xdg import xdg_cache_home
 
 from hips.core.model import logging
+from hips.core.model.default_values import HipsDefaultValues
 
 module_logger = logging.get_active_logger
 
@@ -157,7 +157,7 @@ def set_zenodo_metadata_in_solutionfile(file, doi, deposit_id):
     solution_name, solution_ext = os.path.splitext(os.path.basename(file))
     solution_name_full = solution_name + "_tmp" + solution_ext
 
-    new_file_path = xdg_cache_home().joinpath(solution_name_full)
+    new_file_path = HipsDefaultValues.app_cache_dir.value.joinpath(solution_name_full)
     new_file = new_file_path.open('w+')
 
     with open(file, 'r') as f:

@@ -5,11 +5,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from xdg import xdg_cache_home
-
 import hips.core
 import hips.core.deploy
 import hips.core.utils.operations.git_operations
+from hips.core.model.configuration import HipsDefaultValues
 from hips.core.model.hips_base import HipsClass
 from hips.core.utils.operations.file_operations import copy
 from test.unit.test_common import TestGitCommon
@@ -132,7 +131,7 @@ class TestGitOperations(TestGitCommon):
     @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={})
     def test_download_repository(self, _):
         # clean
-        shutil.rmtree(xdg_cache_home().joinpath("test"), ignore_errors=True)
+        shutil.rmtree(HipsDefaultValues.app_cache_dir.value.joinpath("test"), ignore_errors=True)
 
         # create hips
         self.attrs = {
@@ -145,10 +144,10 @@ class TestGitOperations(TestGitCommon):
 
         # run
         hips.core.utils.operations.git_operations.download_repository(hips_with_git_repo["git_repo"],
-                                                                      xdg_cache_home().joinpath("test"))
+                                                                      HipsDefaultValues.app_cache_dir.value.joinpath("test"))
 
         # check
-        self.assertIn("test", os.listdir(str(xdg_cache_home())), "Download failed!")
+        self.assertIn("test", os.listdir(str(HipsDefaultValues.app_cache_dir.value)), "Download failed!")
 
         # ToDo: finish test writing
 
