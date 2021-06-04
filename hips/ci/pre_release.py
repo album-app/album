@@ -1,8 +1,6 @@
 import os
 from pathlib import Path
 
-from xdg import xdg_cache_home
-
 import hips.core.utils.operations.git_operations
 from hips.ci.ci_utils import _get_ci_deploy_values, _retrieve_solution_file, \
     _zenodo_upload, _retrieve_yml_file, _zenodo_get_deposit, _get_entry_from_yml, _add_dict_entry_to_yml, \
@@ -46,7 +44,7 @@ def ci_pre_release():
 
     module_logger().info("Download catalog \"%s\" from %s..." % (catalog_name, source_url))
 
-    catalog_path = xdg_cache_home().joinpath(catalog_name)
+    catalog_path = HipsDefaultValues.app_cache_dir.value.joinpath(catalog_name)
 
     repo = hips.core.utils.operations.git_operations.download_repository(source_url, catalog_path)
 

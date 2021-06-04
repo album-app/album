@@ -1,32 +1,15 @@
 import os
 import re
-from enum import unique, Enum
 from pathlib import Path
 
 import validators
-from xdg import xdg_config_home, xdg_data_home
 
 from hips.core.model import logging
 from hips.core.model.catalog import Catalog
+from hips.core.model.default_values import HipsDefaultValues
 from hips.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, create_path_recursively
 
 module_logger = logging.get_active_logger
-
-
-@unique
-class HipsDefaultValues(Enum):
-    """Add a entry here to initialize default attributes for a hips object.
-
-     Takes the Enum name as attribute name and the Enum value as default value.
-     """
-    catalog = os.getenv('HIPS_DEFAULT_CATALOG', 'https://gitlab.com/ida-mdc/hips-catalog.git')
-    local_catalog_name = 'catalog_local'
-    catalog_index_file_name = 'catalog_index'
-    hips_config_file_name = '.hips-config'
-    cache_path_solution_prefix = "solutions"
-    cache_path_app_prefix = "apps"
-    cache_path_download_prefix = "downloads"
-    default_environment = "hips"
 
 
 class HipsConfiguration:
@@ -35,11 +18,11 @@ class HipsConfiguration:
         if base_cache_path:
             self.base_cache_path = Path(base_cache_path)
         else:
-            self.base_cache_path = xdg_data_home().joinpath("hips")
+            self.base_cache_path = HipsDefaultValues.app_data_dir.value
         if configuration_file_path:
             self.configuration_file_path = Path(configuration_file_path)
         else:
-            self.configuration_file_path = xdg_config_home().joinpath(HipsDefaultValues.hips_config_file_name.value)
+            self.configuration_file_path = HipsDefaultValues.app_config_dir.value.joinpath(HipsDefaultValues.hips_config_file_name.value)
 
     @property
     def base_cache_path(self):

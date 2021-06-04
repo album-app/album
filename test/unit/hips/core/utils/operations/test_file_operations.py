@@ -1,13 +1,10 @@
 import json
 import os
 import pathlib
-import shutil
-import tempfile
 import unittest.mock
 from unittest.mock import patch
 
-from xdg import xdg_cache_home
-
+from hips.core.model.configuration import HipsDefaultValues
 from hips.core.utils.operations.file_operations import FileOperationError, get_zenodo_metadata, \
     set_zenodo_metadata_in_solutionfile, get_dict_from_yml, write_dict_to_yml, create_empty_file_recursively, \
     create_path_recursively, write_dict_to_json
@@ -59,7 +56,7 @@ class TestFileOperations(TestHipsCommon):
             self.assertIn("    deposit_id=\"\",\n", lines)
 
         # needs to be this path - see @set_zenodo_metadata_in_solutionfile
-        new_file_path = str(xdg_cache_home().joinpath("solution0_dummy_tmp.py"))
+        new_file_path = str(HipsDefaultValues.app_cache_dir.value.joinpath("solution0_dummy_tmp.py"))
 
         with open(new_file_path) as f:
             lines = f.readlines()

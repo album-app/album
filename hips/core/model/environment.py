@@ -7,7 +7,6 @@ from pathlib import Path
 
 import validators
 import yaml
-from xdg import xdg_cache_home
 
 from hips.core.model import logging
 from hips.core.model.configuration import HipsDefaultValues
@@ -353,8 +352,8 @@ class Environment:
 
         # Use an environment path and a temporary file to store the script
         if hips_debug():
-            fp = open(str(xdg_cache_home().joinpath('hips_test.py')), 'w')
-            module_logger().debug("Executable file in: %s..." % str(xdg_cache_home().joinpath('hips_test.py')))
+            fp = open(str(HipsDefaultValues.app_cache_dir.value.joinpath('hips_test.py')), 'w')
+            module_logger().debug("Executable file in: %s..." % str(HipsDefaultValues.app_cache_dir.value.joinpath('hips_test.py')))
         else:
             fp = tempfile.NamedTemporaryFile(mode='w+', delete=False)
             module_logger().debug('Executable file in: %s...' % fp.name)
