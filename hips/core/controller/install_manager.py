@@ -1,7 +1,7 @@
 import sys
 
 from hips.core import load
-from hips.core.model.catalog_configuration import HipsCatalogConfiguration
+from hips.core.model.catalog_configuration import HipsCatalogCollection
 from hips.core.utils.operations.file_operations import copy_in_file
 from hips.core.utils.script import create_script
 from hips_runner import logging
@@ -15,7 +15,7 @@ class InstallManager:
     active_hips = None
 
     def __init__(self):
-        self.catalog_configuration = HipsCatalogConfiguration()
+        self.catalog_configuration = HipsCatalogCollection()
 
     def install(self, path):
         """Function corresponding to the `install` subcommand of `hips`."""

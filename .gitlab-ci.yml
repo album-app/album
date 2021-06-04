@@ -1,15 +1,5 @@
-# This file is a template, and might need editing before it works on your project.
-# Official language image. Look for the different tagged releases at:
-# https://hub.docker.com/r/library/python/tags/
-image: continuumio/miniconda3:4.9.2
-
-# Change pip's cache directory to be inside the project directory since we can
-# only cache local items.
 variables:
-#  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-  CONDA_ENV_NAME: hips
-  CONDA_PREFIX: /opt/conda
-  PREFIX: $CONDA_PREFIX/envs/$CONDA_ENV_NAME
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
 # Pip's cache doesn't store the python packages
 # https://pip.pypa.io/en/stable/reference/pip_install/#caching
@@ -18,47 +8,135 @@ variables:
 # them in a virtualenv and cache it as well.
 cache:
   paths:
-#    - .cache/pip
+    - .cache/pip
 #    - venv/
 #    - miniconda.sh
-    - ${CONDA_PREFIX}/pkgs/*.tar.bz2
-    - ${CONDA_PREFIX}/pkgs/urls.txt
-    
+#    - ${CONDA_PREFIX}/pkgs/*.tar.bz2
+#    - ${CONDA_PREFIX}/pkgs/urls.txt
 
-before_script:
-  - python -V  # Print out python version for debugging
-  - pwd
-  - which python
-  - conda env create -f hips.yml
-  - conda init bash
-  - source ~/.bashrc
-  - conda activate hips
-  - which python  
-  - pwd
-  - ls ${CONDA_PREFIX}
-  - ls /opt
-  - conda activate hips
-  - python -V
-  - pip list
-  - pip install .  # Need an installed hips for all stages
-  - pip list
 
 stages:
   - build
   - test
 
 cmdline:
+  image: continuumio/miniconda3:4.9.2
+  variables:
+    #  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+    CONDA_ENV_NAME: hips
+    CONDA_PREFIX: /opt/conda
+    PREFIX: $CONDA_PREFIX/envs/$CONDA_ENV_NAME
+  before_script:
+    - python -V  # Print out python version for debugging
+    - pwd
+    - which python
+    - conda env create -f hips.yml
+    - conda init bash
+    - source ~/.bashrc
+    - conda activate hips
+    - which python
+    - pwd
+    - ls ${CONDA_PREFIX}
+    - ls /opt
+    - conda activate hips
+    - python -V
+    - pip list
+    - pip install .  # Need an installed hips for all stages
+    - pip list
   stage: build
   script:
     - python -m hips run -h
     # here more cmdline could follow
 
-unit tests:
+unit tests linux:
+  image: continuumio/miniconda3:4.9.2
+  variables:
+    #  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+    CONDA_ENV_NAME: hips
+    CONDA_PREFIX: /opt/conda
+    PREFIX: $CONDA_PREFIX/envs/$CONDA_ENV_NAME
+  before_script:
+    - python -V  # Print out python version for debugging
+    - pwd
+    - which python
+    - conda env create -f hips.yml
+    - conda init bash
+    - source ~/.bashrc
+    - conda activate hips
+    - which python
+    - pwd
+    - ls ${CONDA_PREFIX}
+    - ls /opt
+    - conda activate hips
+    - python -V
+    - pip list
+    - pip install .  # Need an installed hips for all stages
+    - pip list
   stage: test
   script:
     - python -m unittest test/unit/run_all_unit.py
 
-integration tests:
+integration tests linux:
+  image: continuumio/miniconda3:4.9.2
+  variables:
+    #  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+    CONDA_ENV_NAME: hips
+    CONDA_PREFIX: /opt/conda
+    PREFIX: $CONDA_PREFIX/envs/$CONDA_ENV_NAME
+  before_script:
+    - python -V  # Print out python version for debugging
+    - pwd
+    - which python
+    - conda env create -f hips.yml
+    - conda init bash
+    - source ~/.bashrc
+    - conda activate hips
+    - which python
+    - pwd
+    - ls ${CONDA_PREFIX}
+    - ls /opt
+    - conda activate hips
+    - python -V
+    - pip list
+    - pip install .  # Need an installed hips for all stages
+    - pip list
   stage: test
   script:
     - python -m unittest test/integration/run_all_integration.py
+
+unit tests windows:
+  before_script:
+    - 'echo $pwd'
+    - 'if(-Not (Test-Path .\download)) {New-Item -ItemType Directory -Force -Path .\download}'
+    - '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12'
+    - 'if(-Not (Test-Path .\download\miniconda3.exe)) {Invoke-WebRequest -UseBasicParsing -Uri "https://repo.anaconda.com/miniconda/Miniconda3-py39_4.9.2-Windows-x86_64.exe" -OutFile .\download\miniconda3.exe}'
+    - 'Start-Process .\download\miniconda3.exe -argumentlist "/InstallationType=JustMe /S /D=$pwd\miniconda" -wait'
+    - '$env:PATH += ";$pwd\miniconda\condabin"'
+    - '$env:PATH'
+    - 'conda init'
+    - 'cmd'
+  tags:
+    - windows
+  variables:
+    ErrorActionPreference: STOP
+  stage: test
+  script:
+    - '$cmnd = powershell.exe -command {conda env create -f hips.yml 2>&1 | Write-Host; conda activate hips 2>&1 | Write-Host; python -m unittest test\integration\run_all_unit.py 2>&1 | Write-Host}'
+
+integration tests windows:
+  before_script:
+    - 'echo $pwd'
+    - 'if(-Not (Test-Path .\download)) {New-Item -ItemType Directory -Force -Path .\download}'
+    - '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12'
+    - 'if(-Not (Test-Path .\download\miniconda3.exe)) {Invoke-WebRequest -UseBasicParsing -Uri "https://repo.anaconda.com/miniconda/Miniconda3-py39_4.9.2-Windows-x86_64.exe" -OutFile .\download\miniconda3.exe}'
+    - 'Start-Process .\download\miniconda3.exe -argumentlist "/InstallationType=JustMe /S /D=$pwd\miniconda" -wait'
+    - '$env:PATH += ";$pwd\miniconda\condabin"'
+    - '$env:PATH'
+    - 'conda init'
+  tags:
+    - windows
+  variables:
+    ErrorActionPreference: STOP
+  stage: test
+  script:
+    - '$cmnd = powershell.exe -command {conda env create -f hips.yml 2>&1 | Write-Host; conda activate hips 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration.py 2>&1 | Write-Host}'

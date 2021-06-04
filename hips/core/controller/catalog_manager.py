@@ -1,4 +1,4 @@
-from hips.core.model.catalog_configuration import HipsCatalogConfiguration
+from hips.core.model.catalog_configuration import HipsCatalogCollection
 from hips_runner import logging
 
 module_logger = logging.get_active_logger
@@ -16,7 +16,7 @@ class CatalogManager:
     catalog_configuration = None
 
     def __init__(self):
-        self.catalog_configuration = HipsCatalogConfiguration()
+        self.catalog_configuration = HipsCatalogCollection()
 
     def add(self, path):
         """ Adds a catalog to the configuration."""
