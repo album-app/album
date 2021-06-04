@@ -42,6 +42,17 @@ class HipsServer(threading.Thread):
         def hello_world():
             return {"message": "Hello World"}
 
+        @app.route("/config")
+        def get_config():
+            return {
+                "hips_config_path": str(self.catalog_configuration.config_file_path),
+                "hips_config": self.catalog_configuration.config_file_dict,
+                "cache_base": str(self.catalog_configuration.configuration.base_cache_path),
+                "cache_catalogs": str(self.catalog_configuration.configuration.cache_path_solution),
+                "cache_apps": str(self.catalog_configuration.configuration.cache_path_app),
+                "cache_downloads": str(self.catalog_configuration.configuration.cache_path_download)
+            }
+
         @app.route("/index")
         def get_index():
             return self.catalog_configuration.get_search_index()
