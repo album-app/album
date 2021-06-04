@@ -1,5 +1,5 @@
 from hips.core import load_and_push_hips, pop_active_hips
-from hips.core.model import logging
+from hips_runner import logging
 
 module_logger = logging.get_active_logger
 

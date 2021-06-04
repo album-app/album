@@ -2,7 +2,7 @@ from pathlib import Path
 
 import requests
 
-from hips.core.model import logging
+from hips_runner import logging
 from hips.core.utils.operations.file_operations import create_path_recursively
 from hips.ci.zenodo_api import ResponseStatus
 

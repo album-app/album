@@ -3,7 +3,8 @@ import os
 import tempfile
 from argparse import ArgumentError
 
-from hips.core.model import logging
+from hips.core.model.configuration import HipsConfiguration
+from hips_runner import logging
 
 module_logger = logging.get_active_logger
 
@@ -29,8 +30,8 @@ def create_script(hips_object, custom_code, argv):
     script = ("import sys\n"
               "import json\n"
               "import argparse\n"
-              "from hips.core import *\n"
-              "from hips.core.model.logging import configure_logging, LogLevel, get_active_logger\n"
+              "from hips_runner import *\n"
+              "from hips_runner.logging import configure_logging, LogLevel, get_active_logger\n"
               "module_logger = get_active_logger\n")
     # create logging
     script += "configure_logging(%s, \"%s\", sys.stdout, " % (
@@ -41,11 +42,28 @@ def create_script(hips_object, custom_code, argv):
     argv_string = ", ".join(argv)
     module_logger().debug("Add sys.argv arguments to runtime script: %s..." % argv_string)
     script += "sys.argv = json.loads(r'%s')\n" % json.dumps(argv)
+
+    # add the hips script
     script += hips_object['script']
     script += "\nget_active_hips().init()\n"
+
+    # API access
+    script = __api_access(hips_object, script)
+
     args = hips_object['args']
     script = __append_arguments(args, hips_object, script)
     script += custom_code
+    return script
+
+
+def __api_access(active_hips, script):
+    script += "hips_runner_init("
+    script += "environment_cache_path=\"%s\", " % str(active_hips.environment.cache_path)
+    script += "environment_path=\"%s\", " % str(active_hips.environment.path)
+    script += "environment_name=\"%s\", " % str(active_hips.environment.path)
+    script += "download_cache_path=\"%s\"" % str(HipsConfiguration().get_cache_path_downloads(active_hips))
+    script += ")"
+
     return script
 
 

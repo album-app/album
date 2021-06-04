@@ -1,4 +1,4 @@
-from hips.core.model import logging
+from hips_runner import logging
 from hips.core.model.server import HipsServer
 
 module_logger = logging.get_active_logger

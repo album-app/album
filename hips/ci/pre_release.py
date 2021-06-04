@@ -1,15 +1,14 @@
-import os
 from pathlib import Path
 
 import hips.core.utils.operations.git_operations
 from hips.ci.ci_utils import _get_ci_deploy_values, _retrieve_solution_file, \
     _zenodo_upload, _retrieve_yml_file, _zenodo_get_deposit, _get_entry_from_yml, _add_dict_entry_to_yml, \
     _get_ssh_url, _get_ci_git_config_values
-from hips.core.model import logging
 from hips.core.model.catalog import CatalogIndex
-from hips.core.model.configuration import HipsDefaultValues
+from hips.core.model.default_values import HipsDefaultValues
 from hips.core.utils.operations.file_operations import get_dict_from_yml
 from hips.core.utils.operations.git_operations import checkout_branch, add_files_commit_and_push
+from hips_runner import logging
 
 module_logger = logging.get_active_logger
 

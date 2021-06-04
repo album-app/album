@@ -1,19 +1,21 @@
 import argparse
 import sys
 
-from hips.core.model.logging import hips_debug
+from hips.core.catalog import add_catalog
+from hips.core.catalog import remove_catalog
+from hips.core.containerize import containerize
 from hips.core.deploy import deploy
 from hips.core.install import install
-from hips.core.remove_catalog import remove_catalog
+from hips.core.remove import remove
 from hips.core.repl import repl
 from hips.core.containerize import containerize
 from hips.core.server import start_server
-from hips.core.tutorial import tutorial
 from hips.core.remove import remove
 from hips.core.run import run
-from hips.core.add_catalog import add_catalog
 from hips.core.search import search
-from hips.core.model import logging
+from hips.core.tutorial import tutorial
+from hips_runner import logging
+from hips_runner.logging import hips_debug
 
 module_logger = logging.get_active_logger
 

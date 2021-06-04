@@ -2,9 +2,9 @@ from argparse import ArgumentParser
 
 from hips.ci import pre_release
 from hips.ci import release
-from hips.core.model import logging
+from hips_runner.logging import get_active_logger, configure_logging, LogLevel
 
-module_logger = logging.get_active_logger
+module_logger = get_active_logger
 
 entry_point_map = {
     'ci_pre_release': pre_release.ci_pre_release,
@@ -14,7 +14,7 @@ entry_point_map = {
 
 def __retrieve_logger():
     """Retrieves the default hips logger."""
-    logging.configure_logging(logging.LogLevel.DEBUG, 'hips_ci')
+    configure_logging(LogLevel.DEBUG, 'hips_ci')
 
 
 def create_parser():

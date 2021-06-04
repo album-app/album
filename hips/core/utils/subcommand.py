@@ -8,8 +8,8 @@ from queue import Queue
 
 import pexpect
 
-from hips.core.model import logging
-from hips.core.model.logging import LogfileBuffer
+from hips_runner import logging
+from hips_runner.logging import LogfileBuffer
 
 module_logger = logging.get_active_logger
 

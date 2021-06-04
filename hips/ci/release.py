@@ -1,10 +1,9 @@
-from hips import core
 import hips.core.utils.operations.git_operations
 from hips.ci.ci_utils import _get_ci_deploy_values, _retrieve_solution_file, \
     _zenodo_get_deposit
-from hips.core.model import logging
 from hips.core.utils.operations.file_operations import get_zenodo_metadata
 from hips.core.utils.operations.git_operations import checkout_branch
+from hips_runner import logging
 
 module_logger = logging.get_active_logger
 

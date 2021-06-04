@@ -3,7 +3,7 @@ from pathlib import Path
 
 import git
 
-from hips.core.model import logging
+from hips_runner import logging
 
 module_logger = logging.get_active_logger
 

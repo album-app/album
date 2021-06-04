@@ -7,10 +7,11 @@ from anytree.exporter import JsonExporter, DictExporter
 from anytree.importer import JsonImporter
 
 from hips.ci.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
-from hips.core.model import logging
+from hips.core.model.default_values import HipsDefaultValues
 from hips.core.utils.operations.file_operations import write_dict_to_json
 from hips.core.utils.operations.git_operations import download_repository
 from hips.core.utils.operations.url_operations import download_resource
+from hips_runner import logging
 
 module_logger = logging.get_active_logger
 
@@ -18,7 +19,6 @@ module_logger = logging.get_active_logger
 # todo: how to do that efficiently? Download the whole catalog? Or only the index and then the corresp.
 #  solutions whenever they are used?
 def get_index_src(src):
-    from hips.core.model.configuration import HipsDefaultValues
     """Gets the download link for an index."""
     # todo: replace "new_catalog_structure" branch with "main"... although "main" is also hardcoded! :(
     return src.strip("git").strip(".") + "/-/raw/main/%s" \
@@ -34,14 +34,46 @@ def get_solution_src(src, grp, name, version):
 
 
 class Catalog:
-    """Class handling a Catalog."""
+    """Class handling a Catalog.
+
+    A Hips catalog contains solution files. These files are python scripts which can be interpreted by the hips
+    framework and implement a routine for solving a problem of any kind. The Catalog has an index where the solution
+    files and its metadata are stored in a hierarchical way. This class brings all the functionality to resolve, add,
+    remove solutions from a Catalog, wheras resolving refers to the act of looking up, if a solution exists in the
+    catalog. A catalog can be local or remote. If the catalog is remote, solutions cannot be
+    added or removed to/from it. (see deploy for context)
+
+    Attributes:
+        id:
+            The ID of the catalog. Usually a string. Can be compared to a name.
+        src:
+            The online src of the catalog. Usually a gitlab/github link. If none set the catalog is local.
+        catalog_index:
+            The Index object of the catalog. A tree like structure.
+        is_local:
+            Boolean indicating whether the catalog is remote or local.
+        path:
+            The path to the catalog on the disk.
+        index_path:
+            The path to the catalog index on the disk. Relative to the path attribute.
+
+    """
 
     # default prefix how to organize solutions. gnv = Group Name Version folder structure.
     doi_solution_prefix = "doi_solutions"
     gnv_solution_prefix = "solutions"
 
     def __init__(self, catalog_id, path, src=None):
-        from hips.core.model.configuration import HipsDefaultValues
+        """Init routine.
+
+        Args:
+            catalog_id:
+                The ID of the catalog.
+            path:
+                The absolute path to the catalog.
+            src:
+                The source of the catalog (Default: None)
+        """
         self.id = catalog_id
         self.src = src
         self.catalog_index = None
@@ -53,7 +85,7 @@ class Catalog:
         self.load_index()
 
     def resolve(self, group, name, version, download=True):
-        """ Resolves a hips in the catalog and returning the absolute path to the solution file.
+        """Resolves (also: finds, looks up) a hips in the catalog and returning the absolute path to the solution file.
 
         Args:
             group:
@@ -65,6 +97,7 @@ class Catalog:
             download:
                 Case True: downloads the solution if not already cached.
                 Case False: raises FileNotFoundError if not cached
+                (Default: True)
 
         Returns: the path to the solution file.
 
@@ -97,10 +130,14 @@ class Catalog:
             download:
                 Case True: downloads the solution if not already cached.
                 Case False: raises FileNotFoundError if not cached
-
+                (Default: True)
 
         Returns:
             Absolute path to the solution file.
+
+        Raises:
+            FileNotFoundError: If download=False and resolved solution is not already cached.
+
         """
         tree_leaf_node = self.catalog_index.resolve_hips_by_doi(doi)
 
@@ -147,7 +184,23 @@ class Catalog:
         return installed_solutions
 
     def get_grp_name_version_from_file_structure(self, grp_dir, solution_dir, version_dir):
-        """Resolves a solution via its group, name, version and returns their values as a dictionary."""
+        """Resolves a solution via its group, name, version and returns their values as a dictionary.
+
+        Args:
+            grp_dir:
+                The absolute path of the group directory
+            solution_dir:
+                The absolute path of the solution directory
+            version_dir:
+                The absolute path of the version directory
+
+        Returns:
+            dict holding the metadata of the solution which is supposed to live in the catalog.
+
+        Raises:
+             RuntimeError if the solution cannot be found in the catalog, although the folder structure for it exists.
+
+        """
         tree_leaf_node = self.catalog_index.resolve_hips_by_name_version_and_group(grp_dir, solution_dir, version_dir)
         if not tree_leaf_node:
             raise RuntimeError("Folder structure is broken! Could not resolve solution %s in index!" % solution_dir)
@@ -158,7 +211,21 @@ class Catalog:
         }
 
     def doi_to_grp_name_version(self, doi):
-        """Resolves a solution via its DOI and returns a dictionary of their group, name, version."""
+        """Resolves a solution via its DOI and returns a dictionary of their group, name, version.
+
+        Args:
+            doi:
+                The DOI of the solution
+
+        Returns:
+            dict holding group, name, version metadata information of the solution.
+
+        Raises:
+             RuntimeError if the solution cannot be found in the catalog,
+             although the DOI folder structure for it exists.
+
+        """
+
         tree_leaf_node = self.catalog_index.resolve_hips_by_doi(doi)
         if not tree_leaf_node:
             raise RuntimeError("Folder structure is broken! Could not resolve doi %s in index!" % doi)
@@ -169,20 +236,70 @@ class Catalog:
         }
 
     def get_solution_cache_file(self, group, name, version):
-        """Gets the cache file of a solution given its group, name and version."""
+        """Gets the cache file of a solution given its group, name and version.
+
+        Args:
+            group:
+                The group affiliation of the solution.
+            name:
+                The name of the solution.
+            version:
+                The version of the solution.
+
+        Returns:
+            The absolute path to the solution.py cache file.
+
+        """
         return self.get_solution_cache_path(group, name, version).joinpath("%s%s" % (name, ".py"))
 
     def get_solution_cache_path(self, group, name, version):
-        """Gets the cache path of a solution given its group, name and version."""
+        """Gets the cache path of a solution given its group, name and version.
+
+        Args:
+            group:
+                The group affiliation of the solution.
+            name:
+                The name of the solution.
+            version:
+                The version of the solution.
+
+        Returns:
+            The absolute path to the cache folder of the solution.
+
+        """
         return self.path.joinpath(self.gnv_solution_prefix, group, name, version)
 
     def get_doi_cache_file(self, doi):
-        """Gets the cache path of a solution given a doi."""
+        """Gets the cache path of a solution given a doi.
+
+        Args:
+            doi:
+                The DOI of the solution.
+
+        Returns:
+            The absolute path to the DOI solution file
+
+        """
         return self.path.joinpath(self.doi_solution_prefix, doi)
 
     # todo: write tests
     def download_solution_via_doi(self, doi, solution_name):
-        """Downloads the solution via its doi."""
+        """Downloads the solution via its doi.
+
+        Args:
+            doi:
+                The DOI of the solution.
+            solution_name:
+                The name of the solution
+
+        Returns:
+            The absolute path of the downloaded solution.
+
+        Raises:
+            RuntimeError if the solution cannot be found in the online resource
+                         if the DOI is not unique.
+
+        """
         # Todo: replace with non-sandbox version
         zenodo_api = ZenodoAPI(ZenodoDefaultUrl.sandbox_url.value, None)
 
@@ -206,7 +323,20 @@ class Catalog:
 
     # todo: write tests
     def download_solution(self, group, name, version):
-        """Downloads a solution from the catalog to the local resource."""
+        """Downloads a solution from the catalog to the local resource.
+
+        Args:
+            group:
+                The group affiliation of the solution.
+            name:
+                The name of the solution.
+            version:
+                The version of the solution.
+
+        Returns:
+            The absolute path of the downloaded solution.
+
+        """
         url = get_solution_src(self.src, group, name, version)
         solution_path = self.path.joinpath(self.gnv_solution_prefix, group, name, version).joinpath("%s%s" % (name, ".py"))
         download_resource(url, solution_path)
@@ -251,7 +381,20 @@ class Catalog:
         return True
 
     def add(self, active_hips, force_overwrite=False):
-        """Adds an active hips_object to the index."""
+        """Adds an active hips_object to the index.
+
+        Args:
+            active_hips:
+                The active hips object (also: solution object, see HipsClass) to add to the catalog.
+            force_overwrite:
+                When True forces adding a solution which already exists in the catalog. Only valid for solutions without
+                DOI. (Default: False)
+
+        Raises:
+            RuntimeError when the DOI metadata information of a hips object already exists in the catalog.
+                         when the solution already exists and force_overwrite is False.
+
+        """
         node_attrs = active_hips.get_hips_deploy_dict()
 
         if hasattr(active_hips, "doi"):
@@ -277,6 +420,13 @@ class Catalog:
         self.catalog_index.save()
 
     def remove(self, active_hips):
+        """Removes a solution from a catalog. Only for local catalogs.
+
+        Args:
+            active_hips:
+                The active hips object (also: solution object, see HipsClass) to remove from the catalog.
+
+        """
         if self.is_local:
             node_attrs = active_hips.get_hips_deploy_dict()
 
@@ -308,7 +458,7 @@ class Catalog:
                 raise ValueError("Wrong index format!") from e
 
     def download(self):
-        """Downloads the whole catalog. Used for deployment."""
+        """Downloads the whole catalog from its source. Used for deployment."""
         module_logger().debug("Download catalog %s to the path %s..." % (self.id, str(self.path)))
 
         if not self.is_local:
@@ -324,10 +474,28 @@ class Catalog:
 
 
 class CatalogIndex:
-    """Class handling the Index of a catalog. Holds a tree with information on every solution in the catalog."""
+    """Class handling the Index of a catalog. Holds a tree with meta information on every solution in the catalog.
+
+    Attributes:
+        path:
+            The absolute path to the index file.
+        index:
+            The index itself.
+
+    """
 
     def __init__(self, name, path, index=None):
+        """Init routine.
 
+        Args:
+            name:
+                The name of the catalog.
+            path:
+                The path to the index file.
+            index:
+                The index itself. If None will be loaded from path. (Default: None)
+
+        """
         self.path = Path(path)
         self.index = Node(name, **{"version": "0.1.0"})
         if index:
@@ -337,7 +505,7 @@ class CatalogIndex:
 
     @staticmethod
     def _find_node_by_name(search_start_node, name, maxlevel=None):
-        """Searches for a node with a given name. Starts searching at a node given"""
+        """Searches for a node with a given name. Starts searching at a node given."""
         if maxlevel:
             return anytree.search.find(search_start_node, filter_=lambda node: node.name == name, maxlevel=maxlevel)
         else:
@@ -345,12 +513,12 @@ class CatalogIndex:
 
     @staticmethod
     def _find_all_nodes_by_name(search_start_node, name):
-        """Searches for all node with a given name. Starts searching at a node given"""
+        """Searches for all node with a given name. Starts searching at a node given."""
         return anytree.search.findall(search_start_node, filter_=lambda node: node.name == name)
 
     @staticmethod
     def _find_node_by_name_and_version(search_start_node, name, version, maxlevel=None):
-        """Searches for a node with a given name and version. Starts searching at a node given"""
+        """Searches for a node with a given name and version. Starts searching at a node given."""
         solution_node_name = CatalogIndex._find_node_by_name(search_start_node, name, maxlevel)
         if not solution_node_name:
             return None
@@ -358,7 +526,7 @@ class CatalogIndex:
 
     @staticmethod
     def _find_node_by_name_and_group(search_start_node, name, group, maxlevel=None):
-        """Searches for a node with a given name and group. Starts searching at a node given"""
+        """Searches for a node with a given name and group. Starts searching at a node given."""
         group_node = CatalogIndex._find_node_by_name(search_start_node, group, maxlevel)
         if not group_node:
             return None
@@ -435,7 +603,7 @@ class CatalogIndex:
                 The dictionary holding the solution attributes. Must hold group, name, version.
 
         Returns:
-            The new node in the index
+            The new node in the index.
 
         """
         node_attrs, group, name, version = self.__set_group_name_version(node_attrs)
@@ -493,7 +661,12 @@ class CatalogIndex:
                 print("%s%s" % (pre, node.name))
 
     def get_leaves_dict_list(self):
-        """Get a list of the dictionary of all leaves in the index."""
+        """Get a list of the dictionary of all leaves in the index.
+
+        Returns:
+                all leaves of the catalog index.
+
+        """
         leaves = self.index.leaves
         dict_exporter = DictExporter()
         leaves_dict_list = []
@@ -505,15 +678,6 @@ class CatalogIndex:
 
     # untested
     def resolve_hips_by_name(self, name):
-        """Resolves a hips by its name
-
-        Args:
-            name:
-                The name of the hips
-
-        Returns:
-
-        """
         search_result_list = []
         for groups in self.index.children:
             search_result = self._find_node_by_name(groups, name)
@@ -563,6 +727,23 @@ class CatalogIndex:
         return search_result_list[0]
 
     def resolve_hips_by_name_version_and_group(self, name, version, group):
+        """Resolves a solution by its name, version and group.
+
+        Args:
+            group:
+                The group affiliation of the solution.
+            name:
+                The name of the solution.
+            version:
+                The version of the solution.
+
+        Returns:
+            None or a node if found.
+
+        Raises:
+             RuntimeError of the node found is not a leaf.
+
+        """
         # result is unique hips leaf node
         node = self._find_node_by_name_version_and_group(self.index, name, version, group)
         if node:
@@ -573,6 +754,20 @@ class CatalogIndex:
         return None
 
     def resolve_hips_by_doi(self, doi):
+        """Resolves a solution by its DOI.
+
+        Args:
+            doi:
+                The doi to resolve for.
+
+        Returns:
+            None or a node if any found.
+
+        Raises:
+            RuntimeError if the DOI was found more than once.
+                         if the node found is not a leaf
+
+        """
         # result is unique hips leaf node
         nodes = self._find_all_nodes_by_attribute(self.index, doi, 'doi')
 
@@ -588,6 +783,18 @@ class CatalogIndex:
         return None
 
     def export(self, path, export_format="JSON"):
+        """Exports the index tree to disk.
+
+        Args:
+            path:
+                The path to store the export to.
+            export_format:
+                The format to save to. Choose from ["JSON"]. (Default: JSON)
+
+        Raises:
+            RuntimeError if the format is not supported.
+
+        """
         path = Path(path)
         leaves_dict = self.get_leaves_dict_list()
 

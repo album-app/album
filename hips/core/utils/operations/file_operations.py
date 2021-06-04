@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 
-from hips.core.model import logging
+from hips_runner import logging
 from hips.core.model.default_values import HipsDefaultValues
 
 module_logger = logging.get_active_logger

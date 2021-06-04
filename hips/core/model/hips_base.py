@@ -1,14 +1,15 @@
 import copy
 
-from hips.core.model import logging
 from hips.core.model.configuration import HipsConfiguration
 from hips.core.model.environment import Environment
+from hips_runner import logging
+from hips_runner import HipsRunner
 
 module_logger = logging.get_active_logger
 
 
-class HipsClass:
-    """Encapsulates a HIPS."""
+class HipsClass(HipsRunner):
+    """Extension of a HIPS-runner HIPS class."""
 
     # CAUTION: deploy_keys also used for resolving. Make sure keys do not contain callable values.
     # If they do, add "to_string" method for @get_hips_deploy_dict. Example see @_remove_action_from_args.
@@ -38,17 +39,7 @@ class HipsClass:
                         arg[key] = "%s_function" % key
         return hips_dict
 
-    setup_keywords = ('group', 'name', 'version', 'description', 'url', 'license',
-                      'min_hips_version', 'tested_hips_version', 'args',
-                      'init', 'run', 'install', 'author', 'author_email',
-                      'long_description', 'git_repo', 'dependencies',
-                      'timestamp', 'format_version', 'authors', 'cite', 'tags',
-                      'documentation', 'covers', 'sample_inputs',
-                      'sample_outputs', 'doi', 'catalog', 'parent', 'steps', 'close', 'title')
-
-    # default values
-    dependencies = None
-    parent = None
+    # setup- and API-keywords in the hips_runner
 
     def __init__(self, attrs=None):
         """sets object attributes in setup_keywords
@@ -58,31 +49,14 @@ class HipsClass:
                 Dictionary containing the attributes.
         """
         # Attributes from the solution.py
-        for attr in self.setup_keywords:
-            if attr in attrs:
-                setattr(self, attr, attrs[attr])
+        super().__init__(attrs)
 
         self.environment = Environment(
             self.dependencies, self["name"],  HipsConfiguration().get_cache_path_hips(self)
         )
 
-    def __str__(self, indent=2):
-        s = '\n'
-        for attr in self.setup_keywords:
-            if attr in dir(self):
-                for ident in range(0, indent):
-                    s += '\t'
-                s += (attr + ':\t' + str(getattr(self, attr))) + '\n'
-        return s
-
-    def __getitem__(self, k):
-        if hasattr(self, k):
-            return getattr(self, k)
-        return None
-
     def __setitem__(self, key, value):
-        if key in self.private_setup_keywords:
-            setattr(self, key, value)
+        setattr(self, key, value)
 
     def get_arg(self, k):
         """Get a specific named argument for this hips if it exists."""

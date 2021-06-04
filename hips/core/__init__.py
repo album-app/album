@@ -1,5 +1,7 @@
+import sys
+
 from hips.core.model.hips_base import HipsClass
-from hips.core.model import logging
+from hips_runner import logging
 
 module_logger = logging.get_active_logger
 
@@ -11,11 +13,15 @@ global _active_hips
 _active_hips = []
 
 
-def setup(**attrs):
+def setup_hips(**attrs):
     """This configures a HIPS to for use by the main HIPS tool."""
     global _active_hips
     next_hips = HipsClass(attrs)
     push_active_hips(next_hips)
+
+
+# overwrite hips_runner setup with this setup
+sys.modules['hips_runner'].setup = setup_hips
 
 
 def push_active_hips(hips_object):

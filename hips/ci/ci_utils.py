@@ -4,8 +4,8 @@ from urllib.parse import urlparse
 import yaml
 
 from hips.ci import zenodo_api
-from hips.core.model import logging
 from hips.core.utils.operations.git_operations import _retrieve_single_file_from_head
+from hips_runner import logging
 
 # user defined variables:
 ci_user_name = "CI_USER_NAME"
