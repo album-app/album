@@ -1,6 +1,6 @@
 from hips.core import get_active_hips
-from hips.core.model.logging import hips_debug
-from hips.core.model import logging
+from hips_runner import logging
+from hips_runner.logging import hips_debug
 
 module_logger = logging.get_active_logger
 

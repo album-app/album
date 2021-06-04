@@ -56,4 +56,9 @@ cmdline:
 unit tests:
   stage: test
   script:
-    - python -m unittest test/run_all.py
+    - python -m unittest test/unit/run_all_unit.py
+
+integration tests:
+  stage: test
+  script:
+    - python -m unittest test/integration/run_all_integration.py

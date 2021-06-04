@@ -1,4 +1,4 @@
-from hips.core import setup
+from hips_runner import setup
 
 
 def hips_init():

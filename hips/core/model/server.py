@@ -4,11 +4,12 @@ import threading
 from flask import Flask
 from flask import request
 
-from hips.core.model.configuration import HipsCatalogConfiguration
+from hips.core.concept.singleton import Singleton
+from hips.core.model.catalog_configuration import HipsCatalogConfiguration
 from hips.core.utils import subcommand
 
 
-class HipsServer(threading.Thread):
+class HipsServer(threading.Thread, metaclass=Singleton):
     running = False
     port = 5476
     catalog_configuration = None

@@ -1,8 +1,8 @@
 import logging
-import tempfile
-import shutil
-import unittest
 import os
+import shutil
+import tempfile
+import unittest
 from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
@@ -11,8 +11,9 @@ import git
 
 from hips.ci.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from hips.core import HipsClass
-from hips.core.model.configuration import HipsCatalogConfiguration, HipsDefaultValues
-from hips.core.model.logging import push_active_logger, pop_active_logger
+from hips.core.model.catalog_configuration import HipsCatalogConfiguration
+from hips.core.model.default_values import HipsDefaultValues
+from hips_runner.logging import push_active_logger, pop_active_logger
 
 
 class TestHipsCommon(unittest.TestCase):
@@ -81,6 +82,7 @@ class TestHipsCommon(unittest.TestCase):
         self.test_config_file.writelines(self.test_config_init)
         self.test_config_file.close()
 
+        HipsCatalogConfiguration.instance = None  # lever out concept
         self.config = HipsCatalogConfiguration(self.test_config_file.name)
 
         self.assertEqual(len(self.config.local_catalog), 0)
