@@ -1,11 +1,10 @@
 import os
-from enum import Enum, unique
+from enum import Enum
 from pathlib import Path
 
 from appdirs import user_data_dir, user_cache_dir, user_config_dir
 
 
-@unique
 class HipsDefaultValues(Enum):
     """Add a entry here to initialize default attributes for a hips object.
 
