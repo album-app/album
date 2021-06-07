@@ -118,7 +118,7 @@ class TestConda(TestHipsCommon):
         p = Conda.get_environment_dict()["unit-test"]
         self.assertIsNotNone(p)
 
-        # check if python NOT installed
+        # check if package NOT installed
         self.assertFalse(Conda.is_installed(p, "anytree"))
 
         Conda.pip_install(p, "anytree")

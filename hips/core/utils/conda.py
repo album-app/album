@@ -222,13 +222,13 @@ class Conda:
             # THE CORRECT PYTHON OR PIP! ToDo: keep track of this!
             subprocess_args = [
                 'conda', 'run', '--no-capture-output', '--prefix',
-                environment_path, str(Path(environment_path).joinpath('Scripts', 'pip')), 'install',
+                environment_path, str(Path(environment_path).joinpath('python')), '-m', 'pip', 'install',
                 '--no-warn-conflicts', module
             ]
         else:
             subprocess_args = [
                 'conda', 'run', '--no-capture-output', '--prefix',
-                environment_path, 'pip', 'install', '--no-warn-conflicts', module
+                environment_path, 'python', '-m', 'pip', 'install', '--no-warn-conflicts', module
             ]
 
         subcommand.run(subprocess_args, log_output=False)

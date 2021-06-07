@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import tempfile
 from argparse import ArgumentError
 
@@ -7,6 +8,7 @@ from hips.core.model.configuration import HipsConfiguration
 from hips_runner import logging
 
 module_logger = logging.get_active_logger
+enc = sys.getfilesystemencoding()
 
 
 def create_script(hips_object, custom_code, argv):
@@ -58,10 +60,12 @@ def create_script(hips_object, custom_code, argv):
 
 def __api_access(active_hips, script):
     script += "hips_runner_init("
-    script += "environment_cache_path=\"%s\", " % str(active_hips.environment.cache_path)
-    script += "environment_path=\"%s\", " % str(active_hips.environment.path)
-    script += "environment_name=\"%s\", " % str(active_hips.environment.path)
-    script += "download_cache_path=\"%s\"" % str(HipsConfiguration().get_cache_path_downloads(active_hips))
+    script += "environment_cache_path=\"" + "{}".format(str(active_hips.environment.cache_path).encode(enc)) + "\", "
+    script += "environment_path=\"" + "{}".format(str(active_hips.environment.path).encode(enc)) + "\", "
+    script += "environment_name=\"" + "{}".format(str(active_hips.environment.name).encode(enc)) + "\", "
+    script += "download_cache_path=\"" + "{}".format(
+        str(HipsConfiguration().get_cache_path_downloads(active_hips)).encode(enc)
+    ) + "\""
     script += ")"
 
     return script

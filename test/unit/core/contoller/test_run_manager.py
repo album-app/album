@@ -288,7 +288,6 @@ class TestRunManager(TestHipsCommon):
     def test_run_single_step(self, load_mock):
         self.active_hips["parent"] = {"name": "aNiceParent"}
 
-        self.create_test_config()
         self.hips_runner.catalog_configuration = self.config
 
         # mocks

@@ -114,14 +114,13 @@ unit tests windows:
     - '$env:PATH += ";$pwd\miniconda\condabin"'
     - '$env:PATH'
     - 'conda init'
-    - 'cmd'
   tags:
     - windows
   variables:
     ErrorActionPreference: STOP
   stage: test
   script:
-    - '$cmnd = powershell.exe -command {conda env create -f hips.yml 2>&1 | Write-Host; conda activate hips 2>&1 | Write-Host; python -m unittest test\integration\run_all_unit.py 2>&1 | Write-Host}'
+    - '$cmnd = powershell.exe -command {conda env create -f hips.yml 2>&1 | Write-Host; conda activate hips 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit.py 2>&1 | Write-Host}'
 
 integration tests windows:
   before_script:
