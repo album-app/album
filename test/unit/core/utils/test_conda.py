@@ -160,3 +160,7 @@ class TestConda(TestHipsCommon):
         Conda.conda_install(p, "perl")
 
         self.assertTrue(Conda.is_installed(p, "perl"))
+
+
+if __name__ == '__main__':
+    unittest.main()

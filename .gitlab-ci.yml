@@ -117,10 +117,11 @@ unit tests windows:
   tags:
     - windows
   variables:
-    ErrorActionPreference: STOP
+    ErrorActionPreference: Continue
   stage: test
   script:
-    - '$cmnd = powershell.exe -command {conda env create -f hips.yml 2>&1 | Write-Host; conda activate hips 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit.py 2>&1 | Write-Host}'
+    - '$cmnd = powershell.exe -command {conda env create -f hips.yml 2>&1 | Write-Host; conda activate hips 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit.py 2>&1 | Write-Host; exit(0)}'
+    - 'if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}'
 
 integration tests windows:
   before_script:
@@ -135,7 +136,8 @@ integration tests windows:
   tags:
     - windows
   variables:
-    ErrorActionPreference: STOP
+    ErrorActionPreference: Continue
   stage: test
   script:
-    - '$cmnd = powershell.exe -command {conda env create -f hips.yml 2>&1 | Write-Host; conda activate hips 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration.py 2>&1 | Write-Host}'
+    - '$cmnd = powershell.exe -command {conda env create -f hips.yml 2>&1 | Write-Host; conda activate hips 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration.py 2>&1 | Write-Host; exit(0) }'
+    - 'if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}'
