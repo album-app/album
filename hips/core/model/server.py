@@ -61,7 +61,13 @@ class HipsServer(threading.Thread, metaclass=Singleton):
         @app.route('/<catalog>/<group>/<name>/<version>/run')
         def run(catalog, group, name, version):
             args_json = request.get_json()
-            threading.Thread(target=self.__launch_hips, args=[catalog, group, name, version, args_json], daemon=False).start()
+            threading.Thread(target=self.__run_hips_command, args=[catalog, group, name, version, "run", args_json], daemon=False).start()
+            return {}
+
+        @app.route('/<catalog>/<group>/<name>/<version>/install')
+        def install(catalog, group, name, version):
+            args_json = request.get_json()
+            threading.Thread(target=self.__run_hips_command, args=[catalog, group, name, version, "install", args_json], daemon=False).start()
             return {}
 
         @app.route('/shutdown', methods=['GET'])
@@ -74,7 +80,7 @@ class HipsServer(threading.Thread, metaclass=Singleton):
 
         app.run(port=self.port)
 
-    def __launch_hips(self, catalog, group, name, version, args_json):
+    def __run_hips_command(self, catalog, group, name, version, command, args_json):
         args = ""
         if args_json:
             request_data = json.loads(args_json)
@@ -87,7 +93,7 @@ class HipsServer(threading.Thread, metaclass=Singleton):
             name=name,
             version=version
         )['path'])
-        command_args = ["hips", "run", hips_path]
+        command_args = ["hips", command, hips_path]
         for arg in args:
             command_args.append(f"--{arg}")
             command_args.append(f"{args[arg]}")
