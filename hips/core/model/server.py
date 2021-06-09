@@ -1,4 +1,5 @@
 import json
+import sys
 import threading
 
 from flask import Flask
@@ -6,7 +7,10 @@ from flask import request
 
 from hips.core.concept.singleton import Singleton
 from hips.core.model.catalog_configuration import HipsCatalogCollection
-from hips.core.utils import subcommand
+from hips.core.run import run
+from hips_runner import logging
+
+module_logger = logging.get_active_logger
 
 
 class HipsServer(threading.Thread, metaclass=Singleton):
@@ -86,19 +90,32 @@ class HipsServer(threading.Thread, metaclass=Singleton):
             request_data = json.loads(args_json)
             for key in request_data:
                 args += f"--{key}={str(request_data[key])} "
-        print(args)
-        hips_path = str(self.catalog_configuration.resolve_directly(
-            catalog_id=catalog,
-            group=group,
-            name=name,
-            version=version
-        )['path'])
-        command_args = ["hips", command, hips_path]
+        module_logger().info(args)
+        solution = self.catalog_configuration.resolve_directly(catalog_id=catalog, group=group, name=name,
+                                                               version=version)
+        if solution is None:
+            module_logger().error(f"Solution not found: {catalog}:{group}:{name}:{version}")
+            return
+        hips_path = str(solution['path'])
+        command_args = [hips_path]
         for arg in args:
             command_args.append(f"--{arg}")
             command_args.append(f"{args[arg]}")
-        print("launching " + str(command_args))
-        subcommand.run(command_args)
+        module_logger().info("launching " + str(command_args))
+        thread = threading.Thread(target=self.__run_hips_thread, args=(hips_path, command, command_args))
+        thread.start()
+        # subcommand.run(command_args)
+
+    @staticmethod
+    def __run_hips_thread(hips_path, command, command_args):
+        if command == "run":
+            sys.argv = command_args
+            run(Dict({"path": hips_path}))
+
+
+class Dict(object):
+    def __init__(self, d):
+        self.__dict__ = d
 
 
 
