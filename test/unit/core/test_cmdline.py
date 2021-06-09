@@ -57,6 +57,7 @@ class TestCommandLine(unittest.TestCase):
         self.assertSubcommandWithFileArgParsed(parser, "remove", remove)
         self.assertSubcommandWithFileArgParsed(parser, "containerize", containerize)
         self.assertSubcommandWithFileArgParsed(parser, "tutorial", tutorial)
+        # todo: update me
 
         # check parsing of additional arguments
         sys.argv = ["", "run", "test/path", "--input", "/other/path"]

@@ -1,143 +1,132 @@
-variables:
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+# CI Routine for the HIPS framework.
 
-# Pip's cache doesn't store the python packages
-# https://pip.pypa.io/en/stable/reference/pip_install/#caching
+
+#----------------------------
+# templates
+#----------------------------
+
+# Windows base template
 #
-# If you want to also cache the installed packages, you have to install
-# them in a virtualenv and cache it as well.
-cache:
-  paths:
-    - .cache/pip
-#    - venv/
-#    - miniconda.sh
-#    - ${CONDA_PREFIX}/pkgs/*.tar.bz2
-#    - ${CONDA_PREFIX}/pkgs/urls.txt
+# Downloads conda executable in <current_working_directory>\downloads if executable not present.
+# Installs conda in >current_working_directory>\miniconda if conda not already installed.
+# Runs conda initialization and configuration.
+#
+# NOTE: Apparently there is no output for commands split over several lines...
+.windows_base_template:
+  before_script:
+    - 'echo "We are in path: $pwd "'
+    - 'echo "conda URL:  $env:MINICONDA_URL "'
+    - 'if(-Not (Test-Path .\download)) {echo "Cache download not found! Creating..."; New-Item -ItemType Directory -Force -Path .\download} else { echo ".\download cache found! with content:"; Get-ChildItem -Path .\download}'                                                                                                                                                # create cache dir
+    - '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12'                                                                                                                                                                                                                                                                                          # set Security download protocol to avoid https errors
+    - 'if(Test-Path .\download\miniconda_url.txt) {echo "found previous miniconda url information. Extracting information..."; $miniconda_cache_url = try {Get-Content -Path .\download\miniconda_url.txt -errorAction Stop} catch {echo "None"}; echo "Cached minconda executable: $miniconda_cache_url"} else { echo ".\download\miniconda_url.txt does not exist!"}'          # read url from cache
+    - 'if($miniconda_cache_url -ne $env:MINICONDA_URL) {echo "Cached URL not equal to given URL. Removing executable..."; Remove-Item -Path .\download\miniconda3.exe -Force; $force_install = "true"; echo "Force installation triggered!"} else { echo "No force installation necessary!"}'                                                                                    # check if url changed - if yes, remove cache and mark conda reinstall
+    - 'if(-Not (Test-Path .\download\miniconda3.exe)) {echo "Downloading miniconda executable..."; Invoke-WebRequest -UseBasicParsing -Uri $env:MINICONDA_URL -OutFile .\download\miniconda3.exe} else {echo "Executable found in .\download\miniconda3.exe. Reusing..."}'                                                                                                       # download the miniconda windows executable
+    - 'echo $env:MINICONDA_URL | Out-File -FilePath .\download\miniconda_url.txt'                                                                                                                                                                                                                                                                                                # cache version information
+    - 'Get-ChildItem -Path .\download'                                                                                                                                                                                                                                                                                                                                           # show download folder content
+    - '$env:PATH += ";$pwd\miniconda\condabin"'                                                                                                                                                                                                                                                                                                                                  # set path information
+    - '$conda_available = try {Get-Command "Get-CondaEnvironment" -errorAction Stop} catch {$null}'                                                                                                                                                                                                                                                                              # check if conda cmnd already available
+    - 'if($force_install -eq "true") {$conda_available = $null}'                                                                                                                                                                                                                                                                                                                 # mark conda reinstall
+    - 'if($conda_available -eq $null) {echo "conda cmnd not available! Will install in $pwd\miniconda..."; Start-Process .\download\miniconda3.exe -argumentlist "/InstallationType=JustMe /S /D=$pwd\miniconda" -wait} else {echo "Skip downloading!..."}'
+    - 'echo "Environment path: $env:PATH"'
+    - 'conda init'
+    - 'conda config --set notify_outdated_conda false'
+  tags:
+    - windows
+  variables:
+    ErrorActionPreference: Continue  # not working properly
+    MINICONDA_URL: https://repo.anaconda.com/miniconda/Miniconda3-py39_4.9.2-Windows-x86_64.exe
+  cache:
+    key: one-key-to-rule-them-all-windows
+    paths:
+      - .cache\pip
+      - .\download
+      - .\miniconda
 
+# Linux base template
+#
+# Uses a docker image where conda is already installed.
+# Creates a hips environment.
+#
+.linux_base_template:
+  image: continuumio/miniconda3:4.9.2
+  before_script:
+    - python -V  # Print out python version for debugging
+    - pwd
+    - which python
+    - conda env create -f hips.yml  # sets up environment including hips installation
+    - conda init bash
+    - source ~/.bashrc
+    - conda activate hips
+    - which python
+    - pwd
+    - ls ${CONDA_PREFIX}
+    - ls /opt
+    - conda activate hips
+    - python -V
+    - pip list
+  variables:
+    PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
+    CONDA_ENV_NAME: hips
+    CONDA_PREFIX: /opt/conda
+    PREFIX: $CONDA_PREFIX/envs/$CONDA_ENV_NAME
+  cache:
+    key: one-key-to-rule-them-all-linux
+    paths:
+      - ${CONDA_PREFIX}/pkgs/*.tar.bz2
+      - ${CONDA_PREFIX}/pkgs/urls.txt
+      - ${PIP_CACHE_DIR}
+
+#----------------------------
+# stages
+#----------------------------
 
 stages:
   - build
   - test
 
-cmdline:
-  image: continuumio/miniconda3:4.9.2
-  variables:
-    #  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-    CONDA_ENV_NAME: hips
-    CONDA_PREFIX: /opt/conda
-    PREFIX: $CONDA_PREFIX/envs/$CONDA_ENV_NAME
-  before_script:
-    - python -V  # Print out python version for debugging
-    - pwd
-    - which python
-    - conda env create -f hips.yml
-    - conda init bash
-    - source ~/.bashrc
-    - conda activate hips
-    - which python
-    - pwd
-    - ls ${CONDA_PREFIX}
-    - ls /opt
-    - conda activate hips
-    - python -V
-    - pip list
-    - pip install .  # Need an installed hips for all stages
-    - pip list
+
+#----------------------------
+# jobs
+#----------------------------
+
+cmdline linux:
+  extends: .linux_base_template
   stage: build
   script:
+    - python -m hips -h
     - python -m hips run -h
-    # here more cmdline could follow
+    - python -m hips install -h
+    - python -m hips deploy -h
+    - python -m hips remove -h
+    - python -m hips repl -h
+    - python -m hips containerize -h
+    - python -m hips server -h
+    - python -m hips add-catalog -h
+    - python -m hips remove-catalog -h
+    - python -m hips tutorial -h
 
 unit tests linux:
-  image: continuumio/miniconda3:4.9.2
-  variables:
-    #  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-    CONDA_ENV_NAME: hips
-    CONDA_PREFIX: /opt/conda
-    PREFIX: $CONDA_PREFIX/envs/$CONDA_ENV_NAME
-  before_script:
-    - python -V  # Print out python version for debugging
-    - pwd
-    - which python
-    - conda env create -f hips.yml
-    - conda init bash
-    - source ~/.bashrc
-    - conda activate hips
-    - which python
-    - pwd
-    - ls ${CONDA_PREFIX}
-    - ls /opt
-    - conda activate hips
-    - python -V
-    - pip list
-    - pip install .  # Need an installed hips for all stages
-    - pip list
+  extends: .linux_base_template
   stage: test
   script:
     - python -m unittest test/unit/run_all_unit.py
 
 integration tests linux:
-  image: continuumio/miniconda3:4.9.2
-  variables:
-    #  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-    CONDA_ENV_NAME: hips
-    CONDA_PREFIX: /opt/conda
-    PREFIX: $CONDA_PREFIX/envs/$CONDA_ENV_NAME
-  before_script:
-    - python -V  # Print out python version for debugging
-    - pwd
-    - which python
-    - conda env create -f hips.yml
-    - conda init bash
-    - source ~/.bashrc
-    - conda activate hips
-    - which python
-    - pwd
-    - ls ${CONDA_PREFIX}
-    - ls /opt
-    - conda activate hips
-    - python -V
-    - pip list
-    - pip install .  # Need an installed hips for all stages
-    - pip list
+  extends: .linux_base_template
   stage: test
   script:
     - python -m unittest test/integration/run_all_integration.py
 
 unit tests windows:
-  before_script:
-    - 'echo $pwd'
-    - 'if(-Not (Test-Path .\download)) {New-Item -ItemType Directory -Force -Path .\download}'
-    - '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12'
-    - 'if(-Not (Test-Path .\download\miniconda3.exe)) {Invoke-WebRequest -UseBasicParsing -Uri "https://repo.anaconda.com/miniconda/Miniconda3-py39_4.9.2-Windows-x86_64.exe" -OutFile .\download\miniconda3.exe}'
-    - 'Start-Process .\download\miniconda3.exe -argumentlist "/InstallationType=JustMe /S /D=$pwd\miniconda" -wait'
-    - '$env:PATH += ";$pwd\miniconda\condabin"'
-    - '$env:PATH'
-    - 'conda init'
-  tags:
-    - windows
-  variables:
-    ErrorActionPreference: Continue
+  extends: .windows_base_template
   stage: test
   script:
     - '$cmnd = powershell.exe -command {conda env create -f hips.yml 2>&1 | Write-Host; conda activate hips 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit.py 2>&1 | Write-Host; exit(0)}'
     - 'if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}'
 
 integration tests windows:
-  before_script:
-    - 'echo $pwd'
-    - 'if(-Not (Test-Path .\download)) {New-Item -ItemType Directory -Force -Path .\download}'
-    - '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12'
-    - 'if(-Not (Test-Path .\download\miniconda3.exe)) {Invoke-WebRequest -UseBasicParsing -Uri "https://repo.anaconda.com/miniconda/Miniconda3-py39_4.9.2-Windows-x86_64.exe" -OutFile .\download\miniconda3.exe}'
-    - 'Start-Process .\download\miniconda3.exe -argumentlist "/InstallationType=JustMe /S /D=$pwd\miniconda" -wait'
-    - '$env:PATH += ";$pwd\miniconda\condabin"'
-    - '$env:PATH'
-    - 'conda init'
-  tags:
-    - windows
-  variables:
-    ErrorActionPreference: Continue
+  extends: .windows_base_template
   stage: test
   script:
-    - '$cmnd = powershell.exe -command {conda env create -f hips.yml 2>&1 | Write-Host; conda activate hips 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration.py 2>&1 | Write-Host; exit(0) }'
+    - '$cmnd = powershell.exe -command {conda env create -f hips.yml 2>&1 | Write-Host; conda activate hips 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration.py 2>&1 | Write-Host; exit(0)}'
     - 'if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}'
