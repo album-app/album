@@ -1,15 +1,15 @@
 import json
 import sys
 import threading
-from multiprocessing import Process, Lock
+from multiprocessing import Process
 
 from flask import Flask
 from flask import request
-from hips.core.install import install
 
 from hips.core.concept.singleton import Singleton
+from hips.core.controller.install_manager import InstallManager
+from hips.core.controller.run_manager import RunManager
 from hips.core.model.catalog_configuration import HipsCatalogCollection
-from hips.core.run import run
 from hips_runner import logging
 
 module_logger = logging.get_active_logger
@@ -86,6 +86,13 @@ class HipsServer(threading.Thread, metaclass=Singleton):
 
         app.run(port=self.port)
 
+    def __run_hips_thread(self, hips_path, command, command_args):
+        sys.argv = str(command_args).split(" ")
+        if command == "install":
+            InstallManager().install(hips_path)
+        if command == "run":
+            RunManager().run(hips_path)
+
     def __run_hips_command(self, catalog, group, name, version, command, args_json):
         args = ""
         if args_json:
@@ -99,26 +106,16 @@ class HipsServer(threading.Thread, metaclass=Singleton):
             module_logger().error(f"Solution not found: {catalog}:{group}:{name}:{version}")
             return
         hips_path = str(solution['path'])
-        command_args = [hips_path]
+        command_args = str(hips_path)
         for arg in args:
-            command_args.append(f"--{arg}")
-            command_args.append(f"{args[arg]}")
-        module_logger().info("launching " + str(command_args))
-        Process(target=self.__run_hips_thread, args=(hips_path, command, command_args)).start()
-        # self.__run_hips_thread(hips_path, command, command_args)
-
-    @staticmethod
-    def __run_hips_thread(hips_path, command, command_args):
-        sys.argv = command_args
-        if command == "install":
-            install(Dict({"path": hips_path}))
-        if command == "run":
-            run(Dict({"path": hips_path}))
+            command_args += f" --{arg} {getattr(args, arg)}"
+        module_logger().info("launching " + command_args)
+        # FIXME this should run in a thread, but produces a PicklingError on Windows
+        # Process(target=self.__run_hips_thread, args=(hips_path, command, command_args)).start()
+        self.__run_hips_thread(hips_path, command, command_args)
 
 
-class Dict(object):
-    def __init__(self, d):
-        self.__dict__ = d
+
 
 
 
