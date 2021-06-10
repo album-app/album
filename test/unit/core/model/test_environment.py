@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from hips.core.model.environment import Environment
-from hips.core.utils.conda import Conda
 from test.unit.test_common import TestHipsCommon
 
 
@@ -119,7 +118,7 @@ class TestEnvironment(TestHipsCommon):
 
         self.assertEqual(self.environment.get_env_name_from_yaml(), "TestName")
 
-    @patch('hips.core.utils.conda.Conda.get_environment_dict')
+    @patch('hips.core.controller.conda_manager.CondaManager.get_environment_dict')
     def test_get_env_path(self, ged_mock):
         ged_mock.return_value = {
             "unit-test": Path("aPath").joinpath("unit-test"),
@@ -129,18 +128,18 @@ class TestEnvironment(TestHipsCommon):
         self.assertIn(str(Path("aPath").joinpath("unit-test")), str(self.environment.get_env_path()))
 
     def test_get_env_path_invalid_env(self):
-        self.assertFalse(Conda.environment_exists("NotExistingEnv"))
+        self.assertFalse(self.environment.conda.environment_exists("NotExistingEnv"))
         self.environment.name = "NotExistingEnv"
         with self.assertRaises(RuntimeError):
             self.environment.get_env_path()
 
     def test_init_env_path_None(self):
-        self.assertFalse(Conda.environment_exists("NotExistingEnv"))
+        self.assertFalse(self.environment.conda.environment_exists("NotExistingEnv"))
         self.environment.name = "NotExistingEnv"
 
         self.assertIsNone(self.environment.init_env_path())
 
-    @patch('hips.core.utils.conda.Conda.get_environment_dict')
+    @patch('hips.core.controller.conda_manager.CondaManager.get_environment_dict')
     def test_init_env_path(self, ged_mock):
         ged_mock.return_value = {
             "unit-test": Path("aPath").joinpath("unit-test"),
@@ -149,7 +148,7 @@ class TestEnvironment(TestHipsCommon):
 
         self.assertIn("test", str(self.environment.init_env_path()))
 
-    @patch('hips.core.utils.conda.Conda.list_environment')
+    @patch('hips.core.controller.conda_manager.CondaManager.list_environment')
     def test_is_installed(self, list_environment_mock):
         list_environment_mock.return_value = json.loads(
             """[
@@ -171,7 +170,7 @@ class TestEnvironment(TestHipsCommon):
         self.assertFalse(self.environment.is_installed("python", "500.1"))
         self.assertTrue(self.environment.is_installed("python", "2.7"))
 
-    @patch('hips.core.utils.conda.Conda.run_script', return_value="ranScript")
+    @patch('hips.core.controller.conda_manager.CondaManager.run_script', return_value="ranScript")
     def test_run_script(self, conda_run_mock):
         script = "print(\"unit-test\")"
 
@@ -180,7 +179,7 @@ class TestEnvironment(TestHipsCommon):
         self.environment.run_script(script)
         conda_run_mock.assert_called_once()
 
-    @patch('hips.core.utils.conda.Conda.run_script', return_value="ranScript")
+    @patch('hips.core.controller.conda_manager.CondaManager.run_script', return_value="ranScript")
     def test_run_script_no_path(self, conda_run_mock):
         script = "print(\"unit-test\")"
 
@@ -199,7 +198,7 @@ class TestEnvironment(TestHipsCommon):
 
     @patch('hips.core.model.environment.Environment.update')
     @patch('hips.core.model.environment.Environment.create')
-    @patch('hips.core.utils.conda.Conda.environment_exists')
+    @patch('hips.core.controller.conda_manager.CondaManager.environment_exists')
     def test_create_or_update_env_env_present(self, ex_env_mock, create_mock, update_mock):
         ex_env_mock.return_value = True
 
@@ -212,8 +211,8 @@ class TestEnvironment(TestHipsCommon):
         # ToDo: implement
         pass
 
-    @patch('hips.core.utils.conda.Conda.create_environment')
-    @patch('hips.core.utils.conda.Conda.create_environment_from_file')
+    @patch('hips.core.controller.conda_manager.CondaManager.create_environment')
+    @patch('hips.core.controller.conda_manager.CondaManager.create_environment_from_file')
     def test_create_valid_yaml(self, create_environment_from_file_mock, create_environment_mock):
         self.environment.yaml_file = Path("aPath")
 
@@ -222,15 +221,15 @@ class TestEnvironment(TestHipsCommon):
         create_environment_from_file_mock.assert_called_once_with(Path("aPath"), "unit-test")
         create_environment_mock.assert_not_called()
 
-    @patch('hips.core.utils.conda.Conda.create_environment')
-    @patch('hips.core.utils.conda.Conda.create_environment_from_file')
+    @patch('hips.core.controller.conda_manager.CondaManager.create_environment')
+    @patch('hips.core.controller.conda_manager.CondaManager.create_environment_from_file')
     def test_create_no_yaml(self, create_environment_from_file_mock, create_environment_mock):
         self.environment.create()
 
         create_environment_mock.assert_called_once_with("unit-test")
         create_environment_from_file_mock.assert_not_called()
 
-    @patch('hips.core.utils.conda.Conda.cmd_available', return_value=True)
+    @patch('hips.core.controller.conda_manager.CondaManager.cmd_available', return_value=True)
     @patch('hips.core.model.environment.Environment.pip_install')
     @patch('hips.core.model.environment.Environment.is_installed', return_value=False)
     def test_install_hips(self, is_installed_mock, pip_install_mock, cmd_available):
@@ -240,14 +239,14 @@ class TestEnvironment(TestHipsCommon):
         is_installed_mock.assert_called_once_with("hips-runner", None)
         pip_install_mock.assert_called_once_with('git+https://gitlab.com/ida-mdc/hips-runner.git')
 
-    @patch('hips.core.utils.conda.Conda.pip_install')
+    @patch('hips.core.controller.conda_manager.CondaManager.pip_install')
     def test_pip_install(self, conda_install_mock):
         self.environment.path = "aPath"
         self.environment.pip_install("test", "testVersion")
 
         conda_install_mock.assert_called_once_with("aPath", "test==testVersion")
 
-    @patch('hips.core.utils.conda.Conda.remove_environment')
+    @patch('hips.core.controller.conda_manager.CondaManager.remove_environment')
     def test_remove(self, remove_mock):
         self.environment.remove()
 

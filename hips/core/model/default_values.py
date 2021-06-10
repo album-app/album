@@ -11,6 +11,8 @@ class HipsDefaultValues(Enum):
      Takes the Enum name as attribute name and the Enum value as default value.
      """
     catalog = os.getenv('HIPS_DEFAULT_CATALOG', 'https://gitlab.com/ida-mdc/hips-catalog.git')
+    conda_default_executable = "conda"
+    conda_path = os.getenv('HIPS_CONDA_PATH', conda_default_executable)
     local_catalog_name = 'catalog_local'
     catalog_index_file_name = 'catalog_index'
     hips_config_file_name = '.hips-config'

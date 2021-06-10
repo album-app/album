@@ -10,9 +10,9 @@ from unittest.mock import patch
 
 import hips.core as hips
 from hips.cmdline import main
+from hips.core.controller.conda_manager import CondaManager
 from hips.core.model.catalog_configuration import HipsCatalogCollection
 from hips.core.model.environment import Environment
-from hips.core.utils.conda import Conda
 from hips_runner.logging import push_active_logger
 
 
@@ -34,8 +34,8 @@ class TestHIPSCommandLine(unittest.TestCase):
     def tearDown(self) -> None:
         # clean all environments specified in test-resources
         for e in ["app1", "app2", "solution3_noparent"]:
-            if Conda.environment_exists(e):
-                Conda.remove_environment(e)
+            if CondaManager().environment_exists(e):
+                CondaManager().remove_environment(e)
 
         Path(self.closed_tmp_file.name).unlink()
         self.tmp_dir.cleanup()

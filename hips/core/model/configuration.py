@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 from hips.core.concept.singleton import Singleton
@@ -20,6 +21,19 @@ class HipsConfiguration(metaclass=Singleton):
         else:
             self.configuration_file_path = HipsDefaultValues.app_config_dir.value.joinpath(
                 HipsDefaultValues.hips_config_file_name.value)
+        conda_path = HipsDefaultValues.conda_path.value
+        if conda_path is not HipsDefaultValues.conda_default_executable.value:
+            self.conda_executable = self.__build_conda_executable(conda_path)
+        else:
+            self.conda_executable = conda_path
+
+    @staticmethod
+    def __build_conda_executable(conda_path):
+        operation_system = sys.platform
+        if operation_system == 'linux' or operation_system == 'darwin':
+            return str(Path(conda_path).joinpath("bin").joinpath("conda"))
+        else:
+            return str(Path(conda_path).joinpath("Scripts").joinpath("conda.exe"))
 
     @property
     def base_cache_path(self):
@@ -31,6 +45,14 @@ class HipsConfiguration(metaclass=Singleton):
         self.cache_path_solution = self.base_cache_path.joinpath(HipsDefaultValues.cache_path_solution_prefix.value)
         self.cache_path_app = self.base_cache_path.joinpath(HipsDefaultValues.cache_path_app_prefix.value)
         self.cache_path_download = self.base_cache_path.joinpath(HipsDefaultValues.cache_path_download_prefix.value)
+
+    @property
+    def conda_executable(self):
+        return self._conda_executable
+
+    @conda_executable.setter
+    def conda_executable(self, value):
+        self._conda_executable = value
 
     def get_cache_path_hips(self, active_hips):
         """Get the cache path of the active hips
