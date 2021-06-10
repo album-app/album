@@ -1,9 +1,11 @@
 import json
 import sys
 import threading
+from multiprocessing import Process, Lock
 
 from flask import Flask
 from flask import request
+from hips.core.install import install
 
 from hips.core.concept.singleton import Singleton
 from hips.core.model.catalog_configuration import HipsCatalogCollection
@@ -102,14 +104,15 @@ class HipsServer(threading.Thread, metaclass=Singleton):
             command_args.append(f"--{arg}")
             command_args.append(f"{args[arg]}")
         module_logger().info("launching " + str(command_args))
-        thread = threading.Thread(target=self.__run_hips_thread, args=(hips_path, command, command_args))
-        thread.start()
-        # subcommand.run(command_args)
+        Process(target=self.__run_hips_thread, args=(hips_path, command, command_args)).start()
+        # self.__run_hips_thread(hips_path, command, command_args)
 
     @staticmethod
     def __run_hips_thread(hips_path, command, command_args):
+        sys.argv = command_args
+        if command == "install":
+            install(Dict({"path": hips_path}))
         if command == "run":
-            sys.argv = command_args
             run(Dict({"path": hips_path}))
 
 
