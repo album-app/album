@@ -1,12 +1,18 @@
 import json
+import sys
 import threading
+from multiprocessing import Process
 
 from flask import Flask
 from flask import request
 
 from hips.core.concept.singleton import Singleton
+from hips.core.controller.install_manager import InstallManager
+from hips.core.controller.run_manager import RunManager
 from hips.core.model.catalog_configuration import HipsCatalogCollection
-from hips.core.utils import subcommand
+from hips_runner import logging
+
+module_logger = logging.get_active_logger
 
 
 class HipsServer(threading.Thread, metaclass=Singleton):
@@ -61,7 +67,13 @@ class HipsServer(threading.Thread, metaclass=Singleton):
         @app.route('/<catalog>/<group>/<name>/<version>/run')
         def run(catalog, group, name, version):
             args_json = request.get_json()
-            threading.Thread(target=self.__launch_hips, args=[catalog, group, name, version, args_json], daemon=False).start()
+            threading.Thread(target=self.__run_hips_command, args=[catalog, group, name, version, "run", args_json], daemon=False).start()
+            return {}
+
+        @app.route('/<catalog>/<group>/<name>/<version>/install')
+        def install(catalog, group, name, version):
+            args_json = request.get_json()
+            threading.Thread(target=self.__run_hips_command, args=[catalog, group, name, version, "install", args_json], daemon=False).start()
             return {}
 
         @app.route('/shutdown', methods=['GET'])
@@ -74,25 +86,36 @@ class HipsServer(threading.Thread, metaclass=Singleton):
 
         app.run(port=self.port)
 
-    def __launch_hips(self, catalog, group, name, version, args_json):
+    def __run_hips_thread(self, hips_path, command, command_args):
+        sys.argv = str(command_args).split(" ")
+        if command == "install":
+            InstallManager().install(hips_path)
+        if command == "run":
+            RunManager().run(hips_path)
+
+    def __run_hips_command(self, catalog, group, name, version, command, args_json):
         args = ""
         if args_json:
             request_data = json.loads(args_json)
             for key in request_data:
                 args += f"--{key}={str(request_data[key])} "
-        print(args)
-        hips_path = str(self.catalog_configuration.resolve_directly(
-            catalog_id=catalog,
-            group=group,
-            name=name,
-            version=version
-        )['path'])
-        command_args = ["hips", "run", hips_path]
+        module_logger().info(args)
+        solution = self.catalog_configuration.resolve_directly(catalog_id=catalog, group=group, name=name,
+                                                               version=version)
+        if solution is None:
+            module_logger().error(f"Solution not found: {catalog}:{group}:{name}:{version}")
+            return
+        hips_path = str(solution['path'])
+        command_args = str(hips_path)
         for arg in args:
-            command_args.append(f"--{arg}")
-            command_args.append(f"{args[arg]}")
-        print("launching " + str(command_args))
-        subcommand.run(command_args)
+            command_args += f" --{arg} {getattr(args, arg)}"
+        module_logger().info("launching " + command_args)
+        # FIXME this should run in a thread, but produces a PicklingError on Windows
+        # Process(target=self.__run_hips_thread, args=(hips_path, command, command_args)).start()
+        self.__run_hips_thread(hips_path, command, command_args)
+
+
+
 
 
 

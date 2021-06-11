@@ -6,8 +6,8 @@ from pathlib import Path
 import validators
 import yaml
 
+from hips.core.controller.conda_manager import CondaManager
 from hips.core.model.default_values import HipsDefaultValues
-from hips.core.utils.conda import Conda
 from hips.core.utils.operations.file_operations import create_path_recursively, copy
 from hips.core.utils.operations.url_operations import download_resource
 from hips_runner import logging
@@ -29,6 +29,7 @@ class Environment:
             cache_path:
                 cache path
         """
+        self.conda = CondaManager()
         self.cache_path = Path(cache_path)
         self.cache_name = cache_name
         self.yaml_file = self.get_env_file(dependencies_dict)
@@ -106,7 +107,7 @@ class Environment:
         return env['name']
 
     def init_env_path(self):
-        environment_dict = Conda.get_environment_dict()
+        environment_dict = self.conda.get_environment_dict()
         if self.name in environment_dict.keys():
             environment_path = environment_dict[self.name]
             module_logger().debug('Set environment path to %s...' % environment_path)
@@ -122,7 +123,7 @@ class Environment:
         return env_path
 
     def is_installed(self, package_name, min_package_version=None):
-        conda_list = Conda.list_environment(str(self.path))
+        conda_list = self.conda.list_environment(str(self.path))
 
         for package in conda_list:
             if package["name"] == package_name:
@@ -169,12 +170,12 @@ class Environment:
         os.fsync(fp)
         fp.close()
 
-        Conda.run_script(str(self.path), fp.name)
+        self.conda.run_script(str(self.path), fp.name)
 
         Path(fp.name).unlink()
 
     def create_or_update_env(self):
-        if Conda.environment_exists(self.name):
+        if self.conda.environment_exists(self.name):
             self.update()
         else:
             self.create()
@@ -186,16 +187,16 @@ class Environment:
     def create(self):
         """Creates environment a solution runs in."""
         if self.yaml_file:
-            Conda.create_environment_from_file(self.yaml_file, self.name)
+            self.conda.create_environment_from_file(self.yaml_file, self.name)
         else:
             module_logger().warning("No yaml file specified. Creating Environment without dependencies!")
-            Conda.create_environment(self.name)
+            self.conda.create_environment(self.name)
 
     # ToDo: use explicit versioning of hips
     def install_hips(self, min_hips_version=None):
         """Installs the hips dependency in the environment"""
-        if not Conda.cmd_available(str(self.path), ["git", "--version"]):
-            Conda.conda_install(str(self.path), "git")
+        if not self.conda.cmd_available(str(self.path), ["git", "--version"]):
+            self.conda.conda_install(str(self.path), "git")
 
         if not self.is_installed("hips-runner", min_hips_version):
             self.pip_install('git+https://gitlab.com/ida-mdc/hips-runner.git')
@@ -218,7 +219,7 @@ class Environment:
 
         module_logger().debug("Installing %s in environment %s..." % (module, str(self.path)))
 
-        Conda.pip_install(str(self.path), module)
+        self.conda.pip_install(str(self.path), module)
 
     def remove(self):
-        Conda.remove_environment(self.name)
+        self.conda.remove_environment(self.name)

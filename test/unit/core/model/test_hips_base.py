@@ -4,14 +4,14 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-from hips.core.utils.conda import Conda
+from hips.core.controller.conda_manager import CondaManager
 from hips.core.model.hips_base import HipsClass
 
 
 class TestHipsBase(unittest.TestCase):
 
     def tearDown(self) -> None:
-        Conda.remove_environment("unit-test-env")
+        CondaManager().remove_environment("unit-test-env")
 
     test_environment_yml = StringIO("""name: unit-test-env
 channels:
