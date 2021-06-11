@@ -82,7 +82,7 @@ class Conda:
             return
 
         subprocess_args = [
-            'conda', 'remove', '--all', '-y', '--json', '-n', environment_name
+            'conda', 'env', 'remove', '-y', '--json', '-n', environment_name
         ]
 
         subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
