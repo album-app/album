@@ -5,7 +5,7 @@ from flask import Flask
 from flask import request
 
 from hips.core.concept.singleton import Singleton
-from hips.core.model.catalog_configuration import HipsCatalogConfiguration
+from hips.core.model.catalog_configuration import HipsCatalogCollection
 from hips.core.utils import subcommand
 
 
@@ -16,7 +16,7 @@ class HipsServer(threading.Thread, metaclass=Singleton):
 
     def __init__(self, port):
 
-        self.catalog_configuration = HipsCatalogConfiguration()
+        self.catalog_configuration = HipsCatalogCollection()
         self.port = port
 
         threading.Thread.__init__(self)

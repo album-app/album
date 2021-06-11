@@ -6,11 +6,11 @@ from unittest.mock import patch
 
 import yaml
 
-from hips.core.model.catalog_configuration import HipsCatalogConfiguration
+from hips.core.model.catalog_configuration import HipsCatalogCollection
 from test.unit.test_common import TestHipsCommon
 
 
-class TestHipsCatalogConfiguration(TestHipsCommon):
+class TestHipsCatalogCollection(TestHipsCommon):
 
     def setUp(self):
         self.config_file = Path(self.tmp_dir.name).joinpath("config_file")
@@ -23,8 +23,8 @@ class TestHipsCatalogConfiguration(TestHipsCommon):
                     str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog2"))
                 )
             )
-        HipsCatalogConfiguration.instance = None  # lever out concept
-        self.config = HipsCatalogConfiguration(Path(self.tmp_dir.name).joinpath("config_file"))
+        HipsCatalogCollection.instance = None  # lever out concept
+        self.config = HipsCatalogCollection(Path(self.tmp_dir.name).joinpath("config_file"))
 
     def test__init__(self):
         self.assertTrue(self.config_file.is_file())
@@ -84,9 +84,9 @@ class TestHipsCatalogConfiguration(TestHipsCommon):
 
         get_dict_mock.assert_called_once()
 
-    @patch('hips.core.model.catalog_configuration.HipsCatalogConfiguration._create_default_configuration',
+    @patch('hips.core.model.catalog_configuration.HipsCatalogCollection._create_default_configuration',
            return_value="Called")
-    @patch('hips.core.model.catalog_configuration.HipsCatalogConfiguration.save', return_value=None)
+    @patch('hips.core.model.catalog_configuration.HipsCatalogCollection.save', return_value=None)
     def test__load_hips_configuration_no_file(self, save_mock, _create_default_mock):
 
         self.config.config_file_path = Path("doesNotExist")

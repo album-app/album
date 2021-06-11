@@ -3,7 +3,7 @@ from pathlib import Path
 import yaml
 
 from hips.core import load
-from hips.core.model.catalog_configuration import HipsCatalogConfiguration
+from hips.core.model.catalog_configuration import HipsCatalogCollection
 from hips.core.utils.operations.file_operations import create_path_recursively, copy
 from hips.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push
 
@@ -18,7 +18,7 @@ class DeployManager:
     repo = None
 
     def __init__(self):
-        self.catalog_configuration = HipsCatalogConfiguration()
+        self.catalog_configuration = HipsCatalogCollection()
         self._catalog = None
 
     # Todo: write tests

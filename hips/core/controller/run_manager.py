@@ -2,7 +2,7 @@ import argparse
 import sys
 
 from hips.core import load
-from hips.core.model.catalog_configuration import HipsCatalogConfiguration
+from hips.core.model.catalog_configuration import HipsCatalogCollection
 from hips.core.utils.script import create_script, create_hips_with_parent_script
 from hips_runner import logging
 from hips_runner.logging import LogLevel
@@ -15,7 +15,7 @@ class RunManager:
     catalog_configuration = None
 
     def __init__(self):
-        self.catalog_configuration = HipsCatalogConfiguration()
+        self.catalog_configuration = HipsCatalogCollection()
 
     def run(self, path):
         """Function corresponding to the `run` subcommand of `hips`."""

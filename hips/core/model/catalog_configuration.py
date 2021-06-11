@@ -13,7 +13,7 @@ from hips_runner import logging
 module_logger = logging.get_active_logger
 
 
-class HipsCatalogConfiguration(metaclass=Singleton):
+class HipsCatalogCollection(metaclass=Singleton):
     """The Hips Configuration class. Also holds the catalogs specified in the configuration."""
 
     configuration = HipsConfiguration()

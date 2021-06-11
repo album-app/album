@@ -53,8 +53,12 @@ class TestGitOperations(TestGitCommon):
     def test__retrieve_single_file_from_head_too_many_files(self):
         self.create_tmp_repo()
 
-        tmp_file_1 = tempfile.NamedTemporaryFile(dir=os.path.join(str(self.repo.working_tree_dir), "solutions"))
-        tmp_file_2 = tempfile.NamedTemporaryFile(dir=os.path.join(str(self.repo.working_tree_dir), "solutions"))
+        tmp_file_1 = tempfile.NamedTemporaryFile(dir=os.path.join(str(self.repo.working_tree_dir), "solutions"),
+                                                 delete=False)
+        tmp_file_2 = tempfile.NamedTemporaryFile(dir=os.path.join(str(self.repo.working_tree_dir), "solutions"),
+                                                 delete=False)
+        tmp_file_1.close()
+        tmp_file_2.close()
 
         self.repo.index.add([tmp_file_1.name, tmp_file_2.name])
         self.repo.git.commit('-m', 'message', '--no-verify')
@@ -79,7 +83,9 @@ class TestGitOperations(TestGitCommon):
         attrs_dict = {"name": "test_solution_name", "group": "test_solution_group", "version": "test_solution_version"}
         active_hips = HipsClass(attrs_dict)
 
-        tmp_file = tempfile.NamedTemporaryFile()
+        tmp_file = tempfile.NamedTemporaryFile(delete=False)
+        tmp_file.close()
+
         self.create_tmp_repo()
         new_head = self.repo.create_head("test_solution_name")
         new_head.ref = self.repo.heads["master"]
@@ -144,7 +150,8 @@ class TestGitOperations(TestGitCommon):
 
         # run
         hips.core.utils.operations.git_operations.download_repository(hips_with_git_repo["git_repo"],
-                                                                      HipsDefaultValues.app_cache_dir.value.joinpath("test"))
+                                                                      HipsDefaultValues.app_cache_dir.value.joinpath(
+                                                                          "test"))
 
         # check
         self.assertIn("test", os.listdir(str(HipsDefaultValues.app_cache_dir.value)), "Download failed!")

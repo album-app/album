@@ -76,10 +76,13 @@ def _retrieve_single_file_from_head(head, pattern):
 
     abs_path_solution_file = []
     for file in diff:
-        module_logger().debug("Found file in commit diff to parent: %s..." % file.a_path)
-        if file.a_path.startswith(pattern):
-            module_logger().debug("Found file matching pattern %s: %s..." % (pattern, file.a_path))
-            abs_path_solution_file.append(os.path.join(head.repo.working_tree_dir, file.a_path))
+        # unfortunately git on windows internally uses linux-separator as path separator.
+        # Paths therefore might have the wrong separator.
+        path = file.b_path.replace('/', os.path.sep)
+        module_logger().debug("Found file in commit diff to parent: %s..." % path)
+        if path.startswith(pattern):
+            module_logger().debug("Found file matching pattern %s: %s..." % (pattern, path))
+            abs_path_solution_file.append(os.path.join(head.repo.working_tree_dir, path))
 
     if not abs_path_solution_file:
         raise RuntimeError("Illegal merge request! Pattern not found! Aborting...")

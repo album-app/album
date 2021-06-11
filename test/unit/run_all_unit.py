@@ -50,13 +50,15 @@ def main():
 
     # hips.ci
     suite.addTests(loader.loadTestsFromModule(test_ci_utils))
-    #suite.addTests(loader.loadTestsFromModule(test_zenodo_api))
+    # suite.addTests(loader.loadTestsFromModule(test_zenodo_api))
 
     runner = unittest.TextTestRunner(verbosity=3)
     result = runner.run(suite)
     if result.wasSuccessful():
+        print("Success")
         exit(0)
     else:
+        print("Failed")
         exit(1)
 
 

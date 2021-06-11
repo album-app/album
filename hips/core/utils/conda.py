@@ -59,12 +59,18 @@ class Conda:
         return conda_list["active_prefix"]
 
     @staticmethod
-    def remove_environment(environment_name):
+    def remove_environment(environment_name, timeout1=60, timeout2=120):
         """Removes an environment given its name. Does nothing when environment does not exist.
 
         Args:
             environment_name:
                 The name of the environment to remove
+            timeout1:
+                Timeout in seconds, after which a rescue operation (linebreak input) is send to the
+                process running the operation. Timeout is resets each time a feedback is passed to the main process.
+            timeout2:
+                Timeout in seconds after timeout1 passed, after which the process behind the
+                operation is declared dead. Timeout is resets each time a feedback is passed to the main process.
 
         """
         if Conda.get_active_environment_name() == environment_name:
@@ -76,10 +82,10 @@ class Conda:
             return
 
         subprocess_args = [
-            'conda', 'remove', '--all', '-y', '--json', '-n', environment_name
+            'conda', 'env', 'remove', '-y', '--json', '-n', environment_name
         ]
 
-        subcommand.run(subprocess_args, log_output=False)
+        subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
 
     @staticmethod
     def get_info():
@@ -137,7 +143,7 @@ class Conda:
         return False
 
     @staticmethod
-    def create_environment_from_file(yaml_path, environment_name):
+    def create_environment_from_file(yaml_path, environment_name, timeout1=60, timeout2=120):
         """Creates a conda environment given a path to a yaml file and its name.
 
         Args:
@@ -145,6 +151,12 @@ class Conda:
                 The path to the file.
             environment_name:
                 The name of the environment. Must be the same as specified in the yml file.
+            timeout1:
+                Timeout in seconds, after which a rescue operation (linebreak input) is send to the
+                process running the operation. Timeout is resets each time a feedback is passed to the main process.
+            timeout2:
+                Timeout in seconds after timeout1 passed, after which the process behind the
+                operation is declared dead. Timeout is resets each time a feedback is passed to the main process.
 
         Raises:
             NameError:
@@ -169,7 +181,7 @@ class Conda:
         subprocess_args = ['conda', 'env', 'create', '--json', '-f', str(yaml_path)]
 
         try:
-            subcommand.run(subprocess_args, log_output=False)
+            subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
         except RuntimeError as e:
             # cleanup after failed installation
             if Conda.environment_exists(environment_name):
@@ -178,13 +190,18 @@ class Conda:
             raise RuntimeError("Command failed due to reasons above!") from e
 
     @staticmethod
-    def create_environment(environment_name):
+    def create_environment(environment_name, timeout1=60, timeout2=120):
         """Creates a conda environment with python (latest version) installed.
 
         Args:
             environment_name:
                 The desired environment name.
-
+            timeout1:
+                Timeout in seconds, after which a rescue operation (linebreak input) is send to the
+                process running the operation. Timeout is resets each time a feedback is passed to the main process.
+            timeout2:
+                Timeout in seconds after timeout1 passed, after which the process behind the
+                operation is declared dead. Timeout is resets each time a feedback is passed to the main process.
         Raises:
             RuntimeError:
                 When the environment could not be created due to whatever reasons.
@@ -196,7 +213,7 @@ class Conda:
         subprocess_args = ['conda', 'create', '--json', '-y', '-n', environment_name, 'python', 'pip']
 
         try:
-            subcommand.run(subprocess_args, log_output=False)
+            subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
         except RuntimeError as e:
             # cleanup after failed installation
             if Conda.environment_exists(environment_name):
@@ -205,7 +222,7 @@ class Conda:
             raise RuntimeError("Command failed due to reasons above!") from e
 
     @staticmethod
-    def pip_install(environment_path, module):
+    def pip_install(environment_path, module, timeout1=60, timeout2=120):
         """Installs a package in the given environment via pip.
 
         Args:
@@ -213,7 +230,12 @@ class Conda:
                 The prefix path of the environment to install the package to.
             module:
                 The module or package name.
-
+            timeout1:
+                Timeout in seconds, after which a rescue operation (linebreak input) is send to the
+                process running the operation. Timeout is resets each time a feedback is passed to the main process.
+            timeout2:
+                Timeout in seconds after timeout1 passed, after which the process behind the
+                operation is declared dead. Timeout is resets each time a feedback is passed to the main process.
         """
         if sys.platform == 'win32' or sys.platform == 'cygwin':
             # NOTE: WHEN USING 'CONDA RUN' THE CORRECT ENVIRONMENT GETS TEMPORARY ACTIVATED,
@@ -222,19 +244,19 @@ class Conda:
             # THE CORRECT PYTHON OR PIP! ToDo: keep track of this!
             subprocess_args = [
                 'conda', 'run', '--no-capture-output', '--prefix',
-                environment_path, str(Path(environment_path).joinpath('Scripts', 'pip')), 'install',
+                environment_path, str(Path(environment_path).joinpath('python')), '-m', 'pip', 'install',
                 '--no-warn-conflicts', module
             ]
         else:
             subprocess_args = [
                 'conda', 'run', '--no-capture-output', '--prefix',
-                environment_path, 'pip', 'install', '--no-warn-conflicts', module
+                environment_path, 'python', '-m', 'pip', 'install', '--no-warn-conflicts', module
             ]
 
-        subcommand.run(subprocess_args, log_output=False)
+        subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
 
     @staticmethod
-    def conda_install(environment_path, module):
+    def conda_install(environment_path, module, timeout1=60, timeout2=120):
         """Installs a package in the given environment via conda.
 
         Args:
@@ -242,6 +264,12 @@ class Conda:
                 The prefix path of the environment to install the package to.
             module:
                 The module or package name.
+            timeout1:
+                Timeout in seconds, after which a rescue operation (linebreak input) is send to the
+                process running the operation. Timeout is resets each time a feedback is passed to the main process.
+            timeout2:
+                Timeout in seconds after timeout1 passed, after which the process behind the
+                operation is declared dead. Timeout is resets each time a feedback is passed to the main process.
 
         """
         subprocess_args = [
@@ -249,10 +277,10 @@ class Conda:
             environment_path, '-y', module
         ]
 
-        subcommand.run(subprocess_args, log_output=False)
+        subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
 
     @staticmethod
-    def run_script(environment_path, script_full_path):
+    def run_script(environment_path, script_full_path, timeout1=60, timeout2=120):
         """Runs a script in the given environment.
 
         Args:
@@ -260,7 +288,12 @@ class Conda:
                 The prefix path of the environment to install the package to.
             script_full_path:
                 The full path to the script to run.
-        Returns:
+            timeout1:
+                Timeout in seconds, after which a rescue operation (linebreak input) is send to the
+                process running the operation. Timeout is resets each time a feedback is passed to the main process.
+            timeout2:
+                Timeout in seconds after timeout1 passed, after which the process behind the
+                operation is declared dead. Timeout is resets each time a feedback is passed to the main process.
 
         """
         if sys.platform == 'win32' or sys.platform == 'cygwin':
@@ -277,7 +310,7 @@ class Conda:
                 'conda', 'run', '--no-capture-output', '--prefix',
                 environment_path, 'python', script_full_path
             ]
-        subcommand.run(subprocess_args)
+        subcommand.run(subprocess_args, timeout1=timeout1, timeout2=timeout2)
 
     @staticmethod
     def cmd_available(environment_path, cmd):
@@ -298,7 +331,7 @@ class Conda:
                               environment_path
                           ] + cmd
         try:
-            subcommand.run(subprocess_args, log_output=False)
+            subcommand.run(subprocess_args, log_output=False, timeout1=10, timeout2=10)
         except RuntimeError:
             return False
 

@@ -1,5 +1,5 @@
 import os
-from enum import Enum, unique
+from enum import Enum
 from pathlib import Path
 
 from appdirs import user_data_dir, user_cache_dir, user_config_dir

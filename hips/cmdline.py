@@ -8,11 +8,9 @@ from hips.core.deploy import deploy
 from hips.core.install import install
 from hips.core.remove import remove
 from hips.core.repl import repl
-from hips.core.containerize import containerize
-from hips.core.server import start_server
-from hips.core.remove import remove
 from hips.core.run import run
 from hips.core.search import search
+from hips.core.server import start_server
 from hips.core.tutorial import tutorial
 from hips_runner import logging
 from hips_runner.logging import hips_debug
@@ -142,7 +140,7 @@ class __HIPSParser(ArgumentParser):
     def __create_hips_parser(self):
         """Creates the main parser for the hip framework."""
         parser = ArgumentParser(
-            add_help=False,
+            add_help=True,
             description='Helmholtz Imaging Platform (HIP) Solutions framework for running, building,'
                         ' and deploying generalized imaging solutions',
             parents=[self.parent_parser]

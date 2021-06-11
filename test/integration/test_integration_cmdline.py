@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import hips.core as hips
 from hips.cmdline import main
-from hips.core.model.catalog_configuration import HipsCatalogConfiguration
+from hips.core.model.catalog_configuration import HipsCatalogCollection
 from hips.core.model.environment import Environment
 from hips.core.utils.conda import Conda
 from hips_runner.logging import push_active_logger
@@ -59,8 +59,8 @@ class TestHIPSCommandLine(unittest.TestCase):
         with open(self.closed_tmp_file.name, mode="w") as f:
             f.writelines(self.test_config)
 
-        HipsCatalogConfiguration.instance = None  # lever out concept
-        config = HipsCatalogConfiguration(self.closed_tmp_file.name)
+        HipsCatalogCollection.instance = None  # lever out concept
+        config = HipsCatalogCollection(self.closed_tmp_file.name)
 
         self.assertEqual(len(config.local_catalog), 0)
 
@@ -87,7 +87,7 @@ class TestHIPSCommandLine(unittest.TestCase):
     # ### REMOVE ###
 
     @patch('hips.core.controller.remove_manager.shutil.rmtree')
-    @patch('hips.core.controller.remove_manager.HipsCatalogConfiguration.resolve_from_str')
+    @patch('hips.core.controller.remove_manager.HipsCatalogCollection.resolve_from_str')
     @patch('hips.cmdline.__retrieve_logger')
     def test_remove(self, logger_mock, res_from_str_mock, rmtree_mock):
         captured_output = StringIO()
@@ -98,8 +98,8 @@ class TestHIPSCommandLine(unittest.TestCase):
             f.writelines(self.test_config)
 
         # temporary catalog from a temporary config
-        HipsCatalogConfiguration.instance = None  # lever out concept
-        config = HipsCatalogConfiguration(self.closed_tmp_file.name)
+        HipsCatalogCollection.instance = None  # lever out concept
+        config = HipsCatalogCollection(self.closed_tmp_file.name)
 
         # resolving should return the relative path to the solution0_dummy resource file
         res_from_str_mock.return_value = {
@@ -148,7 +148,7 @@ class TestHIPSCommandLine(unittest.TestCase):
 
     # ### RUN ###
 
-    @patch('hips.core.controller.run_manager.HipsCatalogConfiguration.resolve_from_str')
+    @patch('hips.core.controller.run_manager.HipsCatalogCollection.resolve_from_str')
     def test_run(self, res_from_str_mock):
         # create test environment
         Environment(None, "unusedCacheName", "unusedCachePath").install()
@@ -160,8 +160,8 @@ class TestHIPSCommandLine(unittest.TestCase):
         self.assertIsNone(main())
         self.assertIsNone(hips.get_active_hips())
 
-    @patch('hips.core.controller.run_manager.HipsCatalogConfiguration.resolve_from_str')
-    @patch('hips.core.controller.run_manager.HipsCatalogConfiguration.resolve_hips_dependency')
+    @patch('hips.core.controller.run_manager.HipsCatalogCollection.resolve_from_str')
+    @patch('hips.core.controller.run_manager.HipsCatalogCollection.resolve_hips_dependency')
     def test_run_with_parent(self, resolve_mock, res_from_str_mock):
         # create test environment
         Environment(None, "unusedCacheName", "unusedCachePath").install()
@@ -187,8 +187,8 @@ class TestHIPSCommandLine(unittest.TestCase):
             self.assertEqual("app1_close", log[4])
             self.assertIsNone(hips.get_active_hips())
 
-    @patch('hips.core.controller.run_manager.HipsCatalogConfiguration.resolve_from_str')
-    @patch('hips.core.controller.run_manager.HipsCatalogConfiguration.resolve_hips_dependency')
+    @patch('hips.core.controller.run_manager.HipsCatalogCollection.resolve_from_str')
+    @patch('hips.core.controller.run_manager.HipsCatalogCollection.resolve_hips_dependency')
     def test_run_with_steps(self, run_resolve_mock, res_from_str_mock):
         # create test environment
         Environment(None, "unusedCacheName", "unusedCachePath").install()
@@ -224,8 +224,8 @@ class TestHIPSCommandLine(unittest.TestCase):
             self.assertEqual("solution3_noparent_close", log[11])
             self.assertIsNone(hips.get_active_hips())
 
-    @patch('hips.core.controller.run_manager.HipsCatalogConfiguration.resolve_from_str')
-    @patch('hips.core.controller.run_manager.HipsCatalogConfiguration.resolve_hips_dependency')
+    @patch('hips.core.controller.run_manager.HipsCatalogCollection.resolve_from_str')
+    @patch('hips.core.controller.run_manager.HipsCatalogCollection.resolve_hips_dependency')
     def test_run_with_grouped_steps(self, run_resolve_mock, res_from_str_mock):
         # create test environment
         Environment(None, "unusedCacheName", "unusedCachePath").install()
@@ -282,7 +282,7 @@ class TestHIPSCommandLine(unittest.TestCase):
         sys.argv = ["", "search", "keyword"]
         self.assertIsNone(main())
 
-    @patch('hips.core.controller.search_manager.HipsCatalogConfiguration.get_search_index')
+    @patch('hips.core.controller.search_manager.HipsCatalogCollection.get_search_index')
     @patch('hips.cmdline.__retrieve_logger')
     def test_search_filled_index(self, logger_mock, get_search_index_mock):
         # configure additional log output for checking
@@ -294,8 +294,8 @@ class TestHIPSCommandLine(unittest.TestCase):
             f.writelines(self.test_config)
 
         # use config in test resources with relative path to a local catalog
-        HipsCatalogConfiguration.instance = None  # lever out concept
-        config = HipsCatalogConfiguration(self.closed_tmp_file.name)
+        HipsCatalogCollection.instance = None  # lever out concept
+        config = HipsCatalogCollection(self.closed_tmp_file.name)
         get_search_index_mock.return_value = {
             config.local_catalog.id: config.local_catalog.catalog_index.get_leaves_dict_list()
         }
@@ -316,7 +316,7 @@ class TestHIPSCommandLine(unittest.TestCase):
     # ### ADD AND REMOVE CATALOG ###
 
     def test_add_remove_catalog(self):
-        catalog_configuration = HipsCatalogConfiguration()
+        catalog_configuration = HipsCatalogCollection()
         self.assertIsNotNone(catalog_configuration)
         initial_catalogs = catalog_configuration.config_file_dict["catalogs"]
         self.assertIsNotNone(initial_catalogs)
@@ -324,12 +324,12 @@ class TestHIPSCommandLine(unittest.TestCase):
         somedir = "/tmp/somedir"
         sys.argv = ["", "add-catalog", somedir]
         self.assertIsNone(main())
-        catalogs = HipsCatalogConfiguration().config_file_dict["catalogs"]
+        catalogs = HipsCatalogCollection().config_file_dict["catalogs"]
         self.assertEqual(initial_len + 1, len(catalogs))
         self.assertEqual(somedir, catalogs[len(catalogs) - 1])
         sys.argv = ["", "remove-catalog", somedir]
         self.assertIsNone(main())
-        catalogs = HipsCatalogConfiguration().config_file_dict["catalogs"]
+        catalogs = HipsCatalogCollection().config_file_dict["catalogs"]
         self.assertEqual(initial_catalogs, catalogs)
 
     @staticmethod

@@ -70,7 +70,7 @@ class SaveThreadWithReturn:
             signal.pthread_kill(self.thread_id, signal.SIGKILL)
 
 
-def run(command, log_output=True, message_formatter=None):
+def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=120):
     """Runs a command in a subprocess thereby logging its output.
 
     Args:
@@ -80,6 +80,14 @@ def run(command, log_output=True, message_formatter=None):
             Possibility to parse a lambda to format the message in a certain way.
         command:
             The command to run.
+        timeout1:
+            The timeout in seconds after which a rescue operation (enter) is send to the process.
+            Timeout resets when subprocess gives feedback to the main process.
+            WindowsOS option only. Default: 60s
+        timeout2:
+            The timeout in seconds after timout 1 has unsuccessfully passed, after which the process is declared dead.
+            Timeout resets when subprocess gives feedback to the main process.
+            WindowsOS option only. Default: 120s
 
     Returns:
         Exit status of the subprocess.
@@ -100,7 +108,7 @@ def run(command, log_output=True, message_formatter=None):
     operation_system = sys.platform
     if operation_system == 'linux' or operation_system == 'darwin':
         (_, exit_status) = pexpect.run(
-            " ".join(command), logfile=log, withexitstatus=1, timeout=None, encoding='utf-8'
+            " ".join(command), logfile=log, withexitstatus=1, timeout=None, encoding=sys.getfilesystemencoding()
         )
         if exit_status != 0:
             module_logger().error(log.getvalue())
@@ -112,6 +120,7 @@ def run(command, log_output=True, message_formatter=None):
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
             universal_newlines=True,
+            bufsize=1,  # line buffered
             shell=True
         )
 
@@ -121,8 +130,8 @@ def run(command, log_output=True, message_formatter=None):
         read_message = SaveThreadWithReturn(
             process.stdout.readline,
             lambda: process.stdin.write("\r\n"),  # after 60 seconds of no feedback try to send a linebreak
-            timeout=60,
-            timeout2=60
+            timeout=timeout1,
+            timeout2=timeout2
         )
 
         while True:
@@ -158,7 +167,7 @@ def run(command, log_output=True, message_formatter=None):
         if process.returncode:
             raise RuntimeError(
                 "Return code: %(ret_code)s Error message: %(err_msg)s"
-                % {"ret_code": process.returncode, "err_msg": err}
+                % {"ret_code": process.returncode, "err_msg": log.getvalue()}
             )
 
         # cmd passed but with errors
