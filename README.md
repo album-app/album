@@ -1,5 +1,7 @@
 # hips
 
+Documentation: [https://hips-docs.readthedocs.io/en/latest/](https://hips-docs.readthedocs.io/en/latest/)
+
 Example usage:
 
 `conda env create -f environment.yaml`
