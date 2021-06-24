@@ -11,7 +11,7 @@ Welcome to hips's documentation!
    :caption: Contents:
 
 
-The IDA-MDC solution repository is available here: [https://solutions.capture-knowledge.org/](https://solutions.capture-knowledge.org/)
+The IDA-MDC solution repository is available here: https://solutions.capture-knowledge.org/ <https://solutions.capture-knowledge.org/>
 
 
 Indices and tables
