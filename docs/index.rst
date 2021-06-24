@@ -15,6 +15,8 @@ The IDA-MDC solution repository is available here: https://solutions.capture-kno
 
 For installation instructions, see :ref:`installation-instructions`.
 
+For usage instructions, see :ref:`usage-instructions`.
+
 For the solution development guide, see :ref:`solution-development`.
 
 For the development guide (for developing the hips framework itself), see :ref:`development-guide`.
