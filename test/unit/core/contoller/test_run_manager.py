@@ -1,6 +1,7 @@
 import unittest
 from copy import deepcopy
 from pathlib import Path
+from queue import Queue
 from unittest.mock import MagicMock, call
 from unittest.mock import patch
 
@@ -16,11 +17,14 @@ class TestRunManager(TestHipsCommon):
         self.create_test_hips_no_env()
 
         with patch.object(RunManager, '__init__', return_value=None) as init_mock:
+            RunManager.instance = None
             self.hips_runner = RunManager()
+            self.hips_runner.init_script = ""
             init_mock.assert_called_once()
 
     def tearDown(self) -> None:
         super().tearDown()
+        RunManager.instance = None
 
     @patch('hips.core.controller.run_manager.load')
     def test_run(self, load_mock):
@@ -31,173 +35,355 @@ class TestRunManager(TestHipsCommon):
             f.write("A valid solution file!")
 
         resolve_from_str = MagicMock(return_value={"path": Path(self.closed_tmp_file.name), "catalog": None})
-        self.config.resolve_from_str = resolve_from_str
+        self.test_catalog_collection.resolve_from_str = resolve_from_str
 
         _run = MagicMock(return_value=None)
         self.hips_runner._run = _run
 
-        self.hips_runner.catalog_configuration = self.config
+        self.hips_runner.catalog_collection = self.test_catalog_collection
 
         # test
         self.hips_runner.run(self.closed_tmp_file.name)
 
         # assert
-        _run.assert_called_once_with(self.active_hips)
+        _run.assert_called_once_with(self.active_hips, False)
         load_mock.assert_called_once_with(Path(self.closed_tmp_file.name))
 
-    def test__run_steps_list(self):
+    def test__run(self):
+        # mocks
+        build_queue = MagicMock(return_value=None)
+        self.hips_runner.build_queue = build_queue
+
+        run_queue = MagicMock(return_value=None)
+        self.hips_runner.run_queue = run_queue
+
+        # call
+        self.hips_runner._run(self.active_hips, False)
+
+        # assert
+        build_queue.assert_called_once()
+        run_queue.assert_called_once()
+
+    def test_build_queue_steps_list(self):
         self.active_hips.steps = [["step1A", "step1B"], "step2"]
 
         # mocks
-        run_single_step = MagicMock(return_value=None)
-        self.hips_runner.run_single_step = run_single_step
+        build_steps_queue = MagicMock(return_value=None)
+        self.hips_runner.build_steps_queue = build_steps_queue
 
-        run_steps = MagicMock(return_value=None)
-        self.hips_runner.run_steps = run_steps
+        run_queue = MagicMock(return_value=None)
+        self.hips_runner.run_queue = run_queue
 
-        self.hips_runner.catalog_configuration = self.config
+        create_hips_run_with_parent_script_standalone = MagicMock(return_value=None)
+        self.hips_runner.create_hips_run_with_parent_script_standalone = create_hips_run_with_parent_script_standalone
 
-        self.hips_runner._run(self.active_hips)
+        create_hips_run_script_standalone = MagicMock(return_value=None)
+        self.hips_runner.create_hips_run_script_standalone = create_hips_run_script_standalone
 
-        self.assertEqual(2, run_steps.call_count)
-        run_steps.assert_has_calls([call(["step1A", "step1B"]), call(["step2"])])
+        self.hips_runner.catalog_collection = self.test_catalog_collection
 
-        run_single_step.assert_not_called()
+        # call
+        que = Queue()
+        self.hips_runner.build_queue(self.active_hips, que, False)
 
-    def test__run_steps_single(self):
-        self.hips_runner.catalog_configuration = self.config
+        # assert
+        self.assertEqual(2, build_steps_queue.call_count)
 
+        run_queue.assert_not_called()
+        create_hips_run_with_parent_script_standalone.assert_not_called()
+        create_hips_run_script_standalone.assert_not_called()
+
+    def test_build_queue_steps_single(self):
         # mocks
-        run_single_step = MagicMock(return_value=None)
-        self.hips_runner.run_single_step = run_single_step
+        build_steps_queue = MagicMock(return_value=None)
+        self.hips_runner.build_steps_queue = build_steps_queue
 
-        run_steps = MagicMock(return_value=None)
-        self.hips_runner.run_steps = run_steps
+        run_queue = MagicMock(return_value=None)
+        self.hips_runner.run_queue = run_queue
 
-        self.hips_runner._run(self.active_hips)
+        create_hips_run_with_parent_script_standalone = MagicMock(return_value=None)
+        self.hips_runner.create_hips_run_with_parent_script_standalone = create_hips_run_with_parent_script_standalone
 
-        run_steps.assert_not_called()
+        create_hips_run_script_standalone = MagicMock(return_value=None)
+        self.hips_runner.create_hips_run_script_standalone = create_hips_run_script_standalone
 
-        run_single_step.assert_called_once()
+        self.hips_runner.catalog_collection = self.test_catalog_collection
 
-    @patch('hips.core.controller.run_manager.load')
-    def test_run_steps_single_step(self, load_mock):
-        steps = [{"name": "Step1"}]
+        # call
+        que = Queue()
+        self.hips_runner.build_queue(self.active_hips, que, False)
 
+        # assert
+        build_steps_queue.assert_not_called()
+        run_queue.assert_not_called()
+        create_hips_run_with_parent_script_standalone.assert_not_called()
+        create_hips_run_script_standalone.assert_called_once()
+
+    def test_run_queue_empty(self):
         # mocks
-        run_single_step = MagicMock(return_value=None)
-        self.hips_runner.run_single_step = run_single_step
-
-        with open(self.closed_tmp_file.name, mode="w") as f:
-            f.write("A valid solution file!")
-
-        # overwrite resolving with mock
-        resolve_hips_dependency = MagicMock(return_value={"path": self.closed_tmp_file.name, "catalog": None})
-        self.config.resolve_hips_dependency = resolve_hips_dependency
-
-        load_mock.return_value = self.active_hips
-
-        self.hips_runner.catalog_configuration = self.config
-
-        self.hips_runner.run_steps(steps)
-
-        run_single_step.assert_called_once_with(self.active_hips, [""])
-        load_mock.assert_called_once_with(self.closed_tmp_file.name)
-
-    @patch('hips.core.controller.run_manager.load')
-    def test_run_steps_parent(self, load_mock):
-        steps = [{"name": "Step1", "parent": "aParent"}]
-        self.active_hips.parent = "aParent"
-
-        # mocks
-        run_single_step = MagicMock(return_value=None)
-        self.hips_runner.run_single_step = run_single_step
-
-        run_and_empty_queue = MagicMock(return_value=None)
-        self.hips_runner.run_and_empty_queue = run_and_empty_queue
-
-        with open(self.closed_tmp_file.name, mode="w") as f:
-            f.write("A valid solution file!")
-
-        # overwrite resolving with mock
-        resolve_hips_dependency = MagicMock(return_value={"path": self.closed_tmp_file.name, "catalog": None})
-        self.config.resolve_hips_dependency = resolve_hips_dependency
-
-        load_mock.return_value = self.active_hips
-
-        self.hips_runner.catalog_configuration = self.config
-
-        self.hips_runner.run_steps(steps)
-
-        load_mock.assert_called_once_with(self.closed_tmp_file.name)
-        run_and_empty_queue.assert_called_once_with({
-            "parent_script_path": self.closed_tmp_file.name,
-            "steps_hips": [self.active_hips],
-            "steps": [steps[0]]
-        })
-        run_single_step.assert_not_called()
-
-    @patch('hips.core.controller.run_manager.load')
-    def test_run_steps_parents(self, load_mock):
-        steps = [{"name": "Step1", "parent": "aParent"}, {"name": "Step2", "parent": "aParent"}]
-        self.active_hips.parent = "sameParent"
-
-        # mocks
-        run_single_step = MagicMock(return_value=None)
-        self.hips_runner.run_single_step = run_single_step
-
-        run_and_empty_queue = MagicMock(return_value=None)
-        self.hips_runner.run_and_empty_queue = run_and_empty_queue
-
-        with open(self.closed_tmp_file.name, mode="w") as f:
-            f.write("A valid solution file!")
-
-        # overwrite resolving with mock
-        resolve_hips_dependency = MagicMock(return_value={"path": self.closed_tmp_file.name, "catalog": None})
-        self.config.resolve_hips_dependency = resolve_hips_dependency
-
-        load_mock.return_value = self.active_hips
-
-        self.hips_runner.catalog_configuration = self.config
-
-        self.hips_runner.run_steps(steps)
-
-        load_mock.assert_has_calls([call(self.closed_tmp_file.name), call(self.closed_tmp_file.name)])
-        run_and_empty_queue.assert_called_once_with({
-            "parent_script_path": self.closed_tmp_file.name,
-            "steps_hips": [self.active_hips, self.active_hips],
-            "steps": [steps[0], steps[1]]
-        })
-        run_single_step.assert_not_called()
-
-    @patch('hips.core.controller.run_manager.create_hips_with_parent_script', return_value=None)
-    @patch('hips.core.controller.run_manager.load')
-    def test_run_hips_collection(self, load_mock, create_script_mock):
-        # mocks
-        same_parent_steps = {
-            "parent_script_path": "aPath",
-            "steps_hips": [self.active_hips, self.active_hips],
-            "steps": [[{"1": 1}], {"2": 2}]
-        }
-        load_mock.return_value = self.active_hips
-
-        resolve_args = MagicMock(return_value=["argsParent", "argsChild"])
-        self.hips_runner.resolve_args = resolve_args
-
         _run_in_environment_with_own_logger = MagicMock(return_value=None)
         self.hips_runner._run_in_environment_with_own_logger = _run_in_environment_with_own_logger
 
-        # test
-        self.hips_runner.run_hips_collection(same_parent_steps)
+        # call
+        que = Queue()
+        self.hips_runner.run_queue(que)
 
         # assert
-        _run_in_environment_with_own_logger.assert_called_once_with(self.active_hips, None)
-        resolve_args.assert_called_once_with(
-            self.active_hips,
-            same_parent_steps["steps_hips"],
-            same_parent_steps["steps"]
+        _run_in_environment_with_own_logger.assert_not_called()
+        self.assertIn("Currently nothing more to run!", self.captured_output.getvalue())
+
+    def test_run_queue(self):
+        # mocks
+        _run_in_environment_with_own_logger = MagicMock(return_value=None)
+        self.hips_runner._run_in_environment_with_own_logger = _run_in_environment_with_own_logger
+
+        # call
+        que = Queue()
+        que.put([self.active_hips, ["test"]])
+        que.put([self.active_hips, ["test2"]])
+        self.hips_runner.run_queue(que)
+
+        # assert
+        self.assertEqual(2, _run_in_environment_with_own_logger.call_count)
+        self.assertIn("Currently nothing more to run!", self.captured_output.getvalue())
+
+    @patch('hips.core.controller.run_manager.load')
+    def test_build_steps_queue_no_parent(self, load_mock):
+        # mock
+        load_mock.return_value = self.active_hips
+
+        resolve_hips_dependency = MagicMock(return_value={"path": "aPath"})
+        self.test_catalog_collection.resolve_hips_dependency = resolve_hips_dependency
+
+        create_hips_run_collection_script = MagicMock(return_value="runScriptCollection")
+        self.hips_runner.create_hips_run_collection_script = create_hips_run_collection_script
+
+        create_hips_run_script_standalone = MagicMock(return_value="runScriptStandalone")
+        self.hips_runner.create_hips_run_script_standalone = create_hips_run_script_standalone
+
+        _get_args = MagicMock(return_value=None)
+        self.hips_runner._get_args = _get_args
+
+        run_queue = MagicMock(return_value=None)
+        self.hips_runner.run_queue = run_queue
+
+        # call
+        self.hips_runner.catalog_collection = self.test_catalog_collection
+        que = Queue()
+        steps = [{"name": "Step1", },
+                 {"name": "Step2", }]
+
+        self.hips_runner.build_steps_queue(que, steps, False)
+
+        # assert
+        self.assertEqual(2, resolve_hips_dependency.call_count)  # 2 times resolved
+        self.assertEqual(2, _get_args.call_count)  # 2 times arguments resolved
+        self.assertEqual(2, create_hips_run_script_standalone.call_count)  # 2 times standalone script created
+        create_hips_run_collection_script.assert_not_called()
+        run_queue.assert_not_called()
+
+        # result
+        res_que = Queue()
+        res_que.put("runScriptStandalone")
+        res_que.put("runScriptStandalone")
+
+        self.assertEqual(res_que.qsize(), que.qsize())
+        self.assertEqual(res_que.get(), que.get(block=False))
+        self.assertEqual(res_que.get(), que.get(block=False))
+
+    @patch('hips.core.controller.run_manager.load')
+    def test_build_steps_queue_parent(self, load_mock):
+        self.active_hips.parent = "aParent"
+
+        # mock
+        load_mock.return_value = self.active_hips
+
+        resolve_hips_dependency = MagicMock(return_value={"path": "aPath"})
+        self.test_catalog_collection.resolve_hips_dependency = resolve_hips_dependency
+
+        create_hips_run_collection_script = MagicMock(return_value="runScriptCollection")
+        self.hips_runner.create_hips_run_collection_script = create_hips_run_collection_script
+
+        create_hips_run_script_standalone = MagicMock(return_value="runScriptStandalone")
+        self.hips_runner.create_hips_run_script_standalone = create_hips_run_script_standalone
+
+        _get_args = MagicMock(return_value=None)
+        self.hips_runner._get_args = _get_args
+
+        run_queue = MagicMock(return_value=None)
+        self.hips_runner.run_queue = run_queue
+
+        # call
+        self.hips_runner.catalog_collection = self.test_catalog_collection
+        que = Queue()
+        steps = [{"name": "Step1", },
+                 {"name": "Step2", }]
+
+        self.hips_runner.build_steps_queue(que, steps, False)
+
+        # assert
+        self.assertEqual(4, resolve_hips_dependency.call_count)  # 4 times resolved, 2 times step, 2 times step parent
+        self.assertEqual(0, _get_args.call_count)  # 0 times arguments resolved
+        self.assertEqual(0, create_hips_run_script_standalone.call_count)  # 0 times standalone script created
+        create_hips_run_collection_script.assert_called_once_with({
+            "parent_script_path": "aPath",
+            "steps_hips": [self.active_hips, self.active_hips],
+            "steps": steps
+        })
+        run_queue.assert_not_called()
+
+        # result
+        res_que = Queue()
+        res_que.put("runScriptCollection")
+
+        self.assertEqual(res_que.qsize(), que.qsize())
+        self.assertEqual(res_que.get(), que.get(block=False))
+
+    @patch('hips.core.controller.run_manager.load')
+    def test_build_steps_queue_run_immediately(self, load_mock):
+        # mock
+        load_mock.return_value = self.active_hips
+
+        resolve_hips_dependency = MagicMock(return_value={"path": "aPath"})
+        self.test_catalog_collection.resolve_hips_dependency = resolve_hips_dependency
+
+        create_hips_run_collection_script = MagicMock(return_value="runScriptCollection")
+        self.hips_runner.create_hips_run_collection_script = create_hips_run_collection_script
+
+        create_hips_run_script_standalone = MagicMock(return_value="runScriptStandalone")
+        self.hips_runner.create_hips_run_script_standalone = create_hips_run_script_standalone
+
+        _get_args = MagicMock(return_value=None)
+        self.hips_runner._get_args = _get_args
+
+        run_queue = MagicMock(return_value=None)
+        self.hips_runner.run_queue = run_queue
+
+        # call
+        self.hips_runner.catalog_collection = self.test_catalog_collection
+        que = Queue()
+        steps = [{"name": "Step1", }]
+
+        self.hips_runner.build_steps_queue(que, steps, True)
+
+        # assert
+        self.assertEqual(1, resolve_hips_dependency.call_count)  # 1 times resolved
+        self.assertEqual(1, _get_args.call_count)  # 1 times arguments resolved
+        self.assertEqual(1, create_hips_run_script_standalone.call_count)  # 1 times standalone script created
+        create_hips_run_collection_script.assert_not_called()
+        self.assertEqual(2, run_queue.call_count)  # once to immediately run, once to clear que
+
+    @patch('hips.core.controller.run_manager.create_script', return_value=None)
+    def test_create_hips_run_script_standalone_no_run(self, create_script_mock):
+        with self.assertRaises(ValueError):
+            self.hips_runner.create_hips_run_script_standalone(self.active_hips, [])
+
+        create_script_mock.assert_not_called()
+
+    @patch('hips.core.controller.run_manager.create_script', return_value="aScript")
+    def test_create_hips_run_script_standalone(self, create_script_mock):
+        self.active_hips.run = print
+
+        r = self.hips_runner.create_hips_run_script_standalone(self.active_hips, [])
+
+        self.assertEqual([self.active_hips, ["aScript"]], r)
+        create_script_mock.assert_called_once_with(self.active_hips, "\nget_active_hips().run()\n", [])
+
+    @patch('hips.core.controller.run_manager.create_script', return_value="aScript")
+    def test_create_hips_run_script_standalone_run_and_close(self, create_script_mock):
+        self.active_hips.run = print
+        self.active_hips.close = print
+
+        r = self.hips_runner.create_hips_run_script_standalone(self.active_hips, [])
+
+        self.assertEqual([self.active_hips, ["aScript"]], r)
+        create_script_mock.assert_called_once_with(
+            self.active_hips, "\nget_active_hips().run()\n\nget_active_hips().close()\n", []
         )
-        create_script_mock.assert_called_once()
+
+    @patch('hips.core.controller.run_manager.load')
+    def test_create_hips_run_with_parent_script_standalone(self, load_mock):
+        self.active_hips.parent = {"name": "aParent"}
+
+        # mock
+        load_mock.return_value = self.active_hips
+
+        resolve_hips_dependency = MagicMock(return_value={"path": "aPath"})
+        self.test_catalog_collection.resolve_hips_dependency = resolve_hips_dependency
+
+        create_hips_run_with_parent_scrip = MagicMock(return_value="aScript")
+        self.hips_runner.create_hips_run_with_parent_scrip = create_hips_run_with_parent_scrip
+
+        resolve_args = MagicMock(return_value=["parent_args", "active_hips_args"])
+        self.hips_runner.resolve_args = resolve_args
+
+        # call
+        self.hips_runner.catalog_collection = self.test_catalog_collection
+        r = self.hips_runner.create_hips_run_with_parent_script_standalone(self.active_hips, [])
+
+        # assert
+        resolve_args.assert_called_once_with(self.active_hips, [self.active_hips], [None], [])
+        create_hips_run_with_parent_scrip.assert_called_once_with(
+            self.active_hips, "parent_args", [self.active_hips], "active_hips_args"
+        )
+
+        # result
+        self.assertEqual([self.active_hips, "aScript"], r)
+
+    @patch('hips.core.controller.run_manager.load')
+    def test_create_hips_run_collection_script(self, load_mock):
+        # mock
+        load_mock.return_value = self.active_hips
+
+        resolve_args = MagicMock(return_value=["parent_args", "active_hips_args"])
+        self.hips_runner.resolve_args = resolve_args
+
+        create_hips_run_with_parent_scrip = MagicMock(return_value="aScript")
+        self.hips_runner.create_hips_run_with_parent_scrip = create_hips_run_with_parent_scrip
+
+        # prepare
+        self.active_hips.parent = {"name": "aParent"}
+        p = {
+            "parent_script_path": "aPathToaParent",
+            "steps_hips": [self.active_hips, self.active_hips],
+            "steps": ["step1", "step2"]
+        }
+
+        # call
+        r = self.hips_runner.create_hips_run_collection_script(p)
+
+        # assert
+        resolve_args.assert_called_once_with(self.active_hips, [self.active_hips, self.active_hips], ["step1", "step2"])
+        create_hips_run_with_parent_scrip.assert_called_once_with(
+            self.active_hips, "parent_args", [self.active_hips, self.active_hips], "active_hips_args"
+        )
+
+        # result
+        self.assertEqual([self.active_hips, "aScript"], r)
+
+    @patch('hips.core.controller.run_manager.create_script')
+    def test_create_hips_run_with_parent_scrip(self, create_script_mock):
+        create_script_mock.side_effect = ["script_paretn", "script_child_1", "script_child_2"]
+
+        r = self.hips_runner.create_hips_run_with_parent_scrip(
+            self.active_hips, [], [self.active_hips, self.active_hips], [[], []]
+        )
+
+        # assert
+        calls = [
+            call(self.active_hips, "\nget_active_hips().run()\n", []),
+            call(self.active_hips,
+                 "\nmodule_logger().info(\"Started tsn\")\n\nget_active_hips().run()\n\nmodule_logger().info(\"Finished tsn\")\n\npop_active_hips()\n",
+                 []),
+            call(self.active_hips,
+                 "\nmodule_logger().info(\"Started tsn\")\n\nget_active_hips().run()\n\nmodule_logger().info(\"Finished tsn\")\n\npop_active_hips()\n",
+                 []),
+        ]
+        self.assertEqual(3, create_script_mock.call_count)
+        create_script_mock.assert_has_calls(calls)
+
+        # result
+        self.assertEqual(["script_paretn", "script_child_1", "script_child_2", "\npop_active_hips()\n"], r)
 
     def test_resolve_args(self):
         # the arguments of the steps hip solution for each step
@@ -284,63 +470,12 @@ class TestRunManager(TestHipsCommon):
         self.assertEqual(['', '--parent_arg1=parent_arg1_value', '--parent_arg2=parent_arg2_value'], parsed_parent_args)
         self.assertEqual([['', '--s1_arg1=s1_arg1_value'], ['', '--s2_arg1=s2_arg1_value']], parsed_steps_args_list)
 
-    @patch('hips.core.controller.run_manager.load')
-    def test_run_single_step(self, load_mock):
-        self.active_hips["parent"] = {"name": "aNiceParent"}
-
-        self.hips_runner.catalog_configuration = self.config
-
-        # mocks
-        resolve_args = MagicMock(return_value=["argsParent", "argsChild"])
-        self.hips_runner.resolve_args = resolve_args
-
-        run_steps_with_parent = MagicMock(return_value=None)
-        self.hips_runner.run_steps_with_parent = run_steps_with_parent
-
-        run_single_step_standalone = MagicMock(return_value=None)
-        self.hips_runner.run_single_step_standalone = run_single_step_standalone
-
-        resolve_hips_dependency = MagicMock(return_value={"path": "aPath", "catalog": None})
-        self.config.resolve_hips_dependency = resolve_hips_dependency
-
-        # test
-        self.hips_runner.run_single_step(self.active_hips, None)
-
-        # assert
-        run_single_step_standalone.assert_not_called()
-        run_steps_with_parent.assert_called_once()
-        load_mock.assert_called_once()
-        resolve_args.assert_called_once()
-
-    def test_run_single_step_parent(self):
-        # mocks
-        run_steps_with_parent = MagicMock(return_value=None)
-        self.hips_runner.run_steps_with_parent = run_steps_with_parent
-
-        run_single_step_standalone = MagicMock(return_value=None)
-        self.hips_runner.run_single_step_standalone = run_single_step_standalone
-
-        # test
-        self.hips_runner.run_single_step(self.active_hips, None)
-
-        # assert
-        run_single_step_standalone.assert_called_once()
-        run_steps_with_parent.assert_not_called()
-
-    @unittest.skip("Script like routine. Testing unnecessary!")
-    def test_run_single_step_standalone(self):
-        pass
-
-    @unittest.skip("Script like routine. Testing unnecessary!")
-    def test_run_steps_with_parent(self):
-        pass
-
     @patch('hips_runner.logging.configure_logging', return_value=None)
     @patch('hips_runner.logging.pop_active_logger', return_value=None)
     def test__run_in_environment_with_own_logger(self, pop_mock, conf_mock):
         class TestEnvironment:
             @staticmethod
-            def run_script(script):
+            def run_scripts(script):
                 return script
 
         self.active_hips.environment = TestEnvironment()

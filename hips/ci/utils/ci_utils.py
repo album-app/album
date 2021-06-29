@@ -1,58 +1,17 @@
 import os
 from urllib.parse import urlparse
 
-import yaml
-
 from hips.ci import zenodo_api
-from hips.core.utils.operations.git_operations import _retrieve_single_file_from_head
+from hips.ci.utils.deploy_environment import get_ci_zenodo_values
+from hips.core.model.default_values import HipsDefaultValues
+from hips.core.utils.operations.git_operations import retrieve_single_file_from_head
 from hips_runner import logging
-
-# user defined variables:
-ci_user_name = "CI_USER_NAME"
-ci_user_email = "CI_USER_EMAIL"
-ci_zenodo_access_token = 'ZENODO_ACCESS_TOKEN'
-ci_zenodo_base_url = 'ZENODO_BASE_URL'
-
-# basic CI variables
-ci_target_catalog_name = "CI_PROJECT_NAME"
-ci_mr_target_url = "CI_MERGE_REQUEST_PROJECT_URL"
-ci_mr_source_url = "CI_MERGE_REQUEST_SOURCE_PROJECT_URL"
-ci_source_branch_name = "CI_MERGE_REQUEST_SOURCE_BRANCH_NAME"
-ci_project_path = "CI_PROJECT_PATH"
-ci_server_url = "CI_SERVER_URL"
 
 module_logger = logging.get_active_logger
 
 
-def _get_ci_deploy_values():
-    """Reads out the environment variables for CI routines"""
-    branch_name = get_os_environment_value(ci_source_branch_name)
-    catalog_name = get_os_environment_value(ci_target_catalog_name)
-    target_url = get_os_environment_value(ci_mr_target_url)
-    source_url = get_os_environment_value(ci_mr_source_url)
-
-    module_logger().debug("Read out the following variables and their values:\n"
-                          "\t - branch name:  %s\n"
-                          "\t - catalog name: %s\n"
-                          "\t - target url: %s\n"
-                          "\t - source url: %s" % (branch_name, catalog_name, target_url, source_url))
-
-    return [branch_name, catalog_name, target_url, source_url]
-
-
-def _get_ci_git_config_values():
-    user_name = get_os_environment_value(ci_user_name)
-    user_email = get_os_environment_value(ci_user_email)
-
-    module_logger().debug("User: %s ; Email: %s" % (user_name, user_email))
-
-    return [user_name, user_email]
-
-
-def _get_ssh_url():
-    project_path = get_os_environment_value(ci_project_path)
-    server_url = get_os_environment_value(ci_server_url)
-    parsed_url = urlparse(server_url)
+def get_ssh_url(project_path, server_http_url):
+    parsed_url = urlparse(server_http_url)
 
     ssh_url = 'git@%s:%s' % (parsed_url.netloc, project_path)
 
@@ -61,7 +20,7 @@ def _get_ssh_url():
     return ssh_url
 
 
-def _zenodo_upload(deposit, solution_file):
+def zenodo_upload(deposit, solution_file):
     """ Uploads a solution file to a ZenodoDeposit. Expects the deposit to be writable. (e.g. unpublished)
 
     Args:
@@ -90,12 +49,12 @@ def _zenodo_upload(deposit, solution_file):
     return deposit
 
 
-def _zenodo_get_deposit(solution_name, solution_file, deposit_id):
+def zenodo_get_deposit(solution_name, solution_file, deposit_id):
     """Querys zenodo to get the deposit of the solution_file. Creates an empty deposit if no deposit exists.
 
     Args:
         solution_file:
-            The solution file to receive the deposit of.
+            The solution file to receive the deposit from.
         deposit_id:
             The deposit ID of the deposit the solution file lives in.
 
@@ -114,7 +73,7 @@ def _zenodo_get_deposit(solution_name, solution_file, deposit_id):
     """
     _, solution_file_name_full = _parse_solution_name_from_file_path(solution_file)
 
-    query = __get_zenodo_api()
+    query = get_zenodo_api()
 
     if deposit_id:  # case deposit already exists
         module_logger().debug("ID given. Searching for already published deposit with ID %s..." % deposit_id)
@@ -156,31 +115,24 @@ def _zenodo_get_deposit(solution_name, solution_file, deposit_id):
     return deposit
 
 
-def _retrieve_solution_file(head):
+def retrieve_solution_file_path(head):
     """Get back the solution file in the top commit of the given head."""
-    return _retrieve_single_file_from_head(head, "solutions/")
+    return retrieve_single_file_from_head(head, HipsDefaultValues.cache_path_solution_prefix.value)
 
 
-def _retrieve_yml_file(head):
+def retrieve_yml_file_path(head):
     """Get back the yml file in the top commit of the given head."""
-    return _retrieve_single_file_from_head(head, "catalog/")
+    return retrieve_single_file_from_head(head, HipsDefaultValues.catalog_yaml_prefix.value)
 
 
-def get_os_environment_value(env_name):
-    """ Reads out the given environment value from the environment variable given."""
-    try:
-        module_logger().debug("Fetching environment variable named %s..." % env_name)
-        return os.environ[env_name]
-    except KeyError:
-        raise KeyError("Environment variable %s not set!" % env_name)
-
-
-# ToDo: better environment parsing?
-def __get_zenodo_api():
+def get_zenodo_api():
     """Returns the zenodo connection. Caution: Using values in the environment variables which must be set."""
+
+    zenodo_base_url, zenodo_access_token = get_ci_zenodo_values()
+
     return zenodo_api.ZenodoAPI(
-        get_os_environment_value(ci_zenodo_base_url),
-        get_os_environment_value(ci_zenodo_access_token)
+        zenodo_base_url,
+        zenodo_access_token
     )
 
 
@@ -192,36 +144,3 @@ def _parse_solution_name_from_file_path(solution_file):
     module_logger().debug("Solution file named: %s..." % solution_name_full)
 
     return solution_name, solution_name_full
-
-
-# ToDo: write tests
-def _get_entry_from_yml(yml_file, entry_name):
-    """Reads out metadata of a yml file"""
-    with open(yml_file, 'r') as yml_f:
-        d = yaml.safe_load(yml_f)
-
-    try:
-        return d[entry_name]
-    except KeyError:
-        return None
-
-
-# ToDo: write tests
-def _add_dict_entry_to_yml(yml_file, metadata, value):
-    """Writes metadata in a yml file"""
-    with open(yml_file, 'r') as yml_f:
-        d = yaml.safe_load(yml_f)
-
-    d[metadata] = value
-
-    with open(yml_file, 'w') as yml_f:
-        yml_f.write(yaml.dump(d, Dumper=yaml.Dumper))
-
-
-# ToDo: write tests
-def _yaml_to_md(yml_file, md_file):
-    with open(yml_file, 'r') as yml_f:
-        d = yaml.safe_load(yml_f)
-
-    with open(md_file, 'w+') as md_f:
-        md_f.write("---\n" + yaml.dump(d, Dumper=yaml.Dumper) + "\n---")

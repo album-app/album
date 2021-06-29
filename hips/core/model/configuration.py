@@ -10,17 +10,32 @@ module_logger = logging.get_active_logger
 
 
 class HipsConfiguration(metaclass=Singleton):
+    """Configuration of the HIPS framework installation instance.
+
+    This class manages the cache paths of the HIPS framework installation instance.
+
+    Attributes:
+         base_cache_path:
+            The base path all other cache folder have as parent folder.
+         configuration_file_path:
+            The path to the configuration file holding the catalogs.
+         conda_executable:
+            The conda executable. Either a full path to a conda executable/binary or a command
+
+    """
 
     def __init__(self, base_cache_path=None, configuration_file_path=None):
         if base_cache_path:
             self.base_cache_path = Path(base_cache_path)
         else:
             self.base_cache_path = HipsDefaultValues.app_data_dir.value
+
         if configuration_file_path:
             self.configuration_file_path = Path(configuration_file_path)
         else:
             self.configuration_file_path = HipsDefaultValues.app_config_dir.value.joinpath(
                 HipsDefaultValues.hips_config_file_name.value)
+
         conda_path = HipsDefaultValues.conda_path.value
         if conda_path is not HipsDefaultValues.conda_default_executable.value:
             self.conda_executable = self.__build_conda_executable(conda_path)

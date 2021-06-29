@@ -1,14 +1,15 @@
 from argparse import ArgumentParser
 
-from hips.ci import pre_release
-from hips.ci import release
+from hips.ci.controller.release_manager import ReleaseManager
 from hips_runner.logging import get_active_logger, configure_logging, LogLevel
 
 module_logger = get_active_logger
 
+release_manager = ReleaseManager()
+
 entry_point_map = {
-    'ci_pre_release': pre_release.ci_pre_release,
-    'ci_release': release.ci_release
+    'ci_pre_release': release_manager.pre_release,
+    'ci_release': release_manager.release()
 }
 
 
@@ -24,6 +25,14 @@ def create_parser():
         'ci_routine',
         help='Which ci routine to perform',
         default='ci_pre_release',
+    )
+    parser.add_argument(
+        '--dry-run',
+        required=False,
+        help='Dry-run option. If True, no merge request will be created, only infor is shown. Choose between %s' %
+             ", ".join([str(True), str(False)]),
+        default=False,
+        type=(lambda choice: bool(choice)),
     )
     return parser
 

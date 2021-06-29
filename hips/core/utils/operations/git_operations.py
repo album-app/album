@@ -46,7 +46,7 @@ def checkout_branch(git_repo_path, branch_name):
         raise IndexError("Branch %s not in repository!" % branch_name) from e
 
 
-def _retrieve_single_file_from_head(head, pattern):
+def retrieve_single_file_from_head(head, pattern):
     """Extracts a file with a "startswith" pattern given a branch (or head) of a repository.
 
     Args:
@@ -92,7 +92,8 @@ def _retrieve_single_file_from_head(head, pattern):
     return abs_path_solution_file[0]
 
 
-def add_files_commit_and_push(head, file_paths, commit_message, dry_run=False, trigger_pipeline=True):
+def add_files_commit_and_push(head, file_paths, commit_message, dry_run=False, trigger_pipeline=True,
+                              email=None, username=None):
     """Adds files in a given path to a git head and commits.
 
     Args:
@@ -106,12 +107,19 @@ def add_files_commit_and_push(head, file_paths, commit_message, dry_run=False, t
             Boolean option to switch on dry-run, not doing actual pushing
         trigger_pipeline:
             Boolean option to switch on pipeline triggering after pushing
+        username:
+            The git user to use. (Default: systems git configuration)
+        email:
+            The git email to use. (Default: systems git configuration)
 
     Raises:
         RuntimeError when no files are in the index
 
     """
     repo = head.repo
+
+    if email or username:
+        configure_git(repo, email, username)
 
     if repo.index.diff() or repo.untracked_files:
         module_logger().info('Creating a merge request...')
@@ -141,6 +149,30 @@ def add_files_commit_and_push(head, file_paths, commit_message, dry_run=False, t
             raise
     else:
         raise RuntimeError("Diff shows no changes to the repository. Aborting...")
+
+
+def configure_git(repo, email, username):
+    """Configures email and username to use for git operations for the given repo.
+
+    Args:
+        repo:
+            The repo to configure.
+        email:
+            The email to use.
+        username:
+            The username to use.
+
+    Returns:
+        repo:
+            The configured repository.
+
+    """
+    if username:
+        repo.config_writer().set_value("user", "name", username).release()
+    if email:
+        repo.config_writer().set_value("user", "email", email).release()
+
+    return repo
 
 
 # todo: write test

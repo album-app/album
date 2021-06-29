@@ -157,6 +157,7 @@ class TestZenodoRecord(unittest.TestCase):
 
     @unittest.skip("Needs to be implemented!")
     def test_print_stats(self):
+        # ToDo: implement
         pass
 
 
@@ -209,6 +210,7 @@ class TestZenodoAPI(TestZenodoCommon):
 
     @unittest.skip("Needs to be implemented!")
     def test_records_get(self):
+        # ToDo: implement
         pass
 
     def test_deposit_create_with_prereserve_doi(self):

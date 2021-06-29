@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import yaml
 
-from hips.core.model.catalog_configuration import HipsCatalogCollection
+from hips.core.model.catalog_collection import HipsCatalogCollection
 from test.unit.test_common import TestHipsCommon
 
 
@@ -45,11 +45,18 @@ class TestHipsCatalogCollection(TestHipsCommon):
         with self.assertRaises(LookupError):
             self.config.get_default_deployment_catalog()
 
-    def test_get_deployment_catalog(self):
+    def test_get_catalog_by_url(self):
         self.config.catalogs[0].is_local = False
         self.config.catalogs[0].src = "myurl"
-        c = self.config.get_deployment_catalog({"url": "myurl"})
+        c = self.config.get_catalog_by_url("myurl")
         self.assertEqual(c.id, "test_catalog")
+
+    def test_get_catalog_by_url_local_error(self):
+        self.config.catalogs[0].is_local = True
+        self.config.catalogs[0].src = "myurl"
+
+        with self.assertRaises(ValueError):
+            self.config.get_catalog_by_url("myurl")
 
     def test_get_catalog_by_id(self):
         expected_id = self.config.catalogs[0].id
@@ -68,7 +75,7 @@ class TestHipsCatalogCollection(TestHipsCommon):
                     "{'catalogs': ['%s']}" % str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog_save")))
             )
 
-    @patch('hips.core.model.catalog_configuration.get_dict_from_yml', return_value={""})
+    @patch('hips.core.model.catalog_collection.get_dict_from_yml', return_value={""})
     def test__load_hips_configuration(self, get_dict_mock):
         config_file_dict = self.config._load_hips_configuration()
 
@@ -76,7 +83,7 @@ class TestHipsCatalogCollection(TestHipsCommon):
 
         self.assertEqual(config_file_dict, {""})
 
-    @patch('hips.core.model.catalog_configuration.get_dict_from_yml', return_value={})
+    @patch('hips.core.model.catalog_collection.get_dict_from_yml', return_value={})
     def test__load_hips_configuration_empty_file(self, get_dict_mock):
 
         with self.assertRaises(IOError):
@@ -84,9 +91,9 @@ class TestHipsCatalogCollection(TestHipsCommon):
 
         get_dict_mock.assert_called_once()
 
-    @patch('hips.core.model.catalog_configuration.HipsCatalogCollection._create_default_configuration',
+    @patch('hips.core.model.catalog_collection.HipsCatalogCollection._create_default_configuration',
            return_value="Called")
-    @patch('hips.core.model.catalog_configuration.HipsCatalogCollection.save', return_value=None)
+    @patch('hips.core.model.catalog_collection.HipsCatalogCollection.save', return_value=None)
     def test__load_hips_configuration_no_file(self, save_mock, _create_default_mock):
 
         self.config.config_file_path = Path("doesNotExist")

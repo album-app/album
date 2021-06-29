@@ -13,41 +13,34 @@ class TestInstallManager(TestHipsCommon):
         self.create_test_hips_no_env()
 
         with patch.object(InstallManager, '__init__', return_value=None) as init_mock:
+            InstallManager.instance = None
             self.hips_installer = InstallManager()
             init_mock.assert_called_once()
 
     def tearDown(self) -> None:
         super().tearDown()
+        InstallManager.instance = None
 
     @patch('hips.core.controller.install_manager.load')
     def test_install(self, load_mock):
         # create mocks
-        install = MagicMock(return_value=None)
-        self.active_hips.environment.install = install
-        self.active_hips.min_hips_version = "test"
-
         load_mock.return_value = self.active_hips
 
         resolve_from_str = MagicMock(return_value={"path": "aPath", "catalog": None})
-        self.config.resolve_from_str = resolve_from_str
-
-        install_dependencies = MagicMock(return_value=None)
-        self.hips_installer.install_dependencies = install_dependencies
+        self.test_catalog_collection.resolve_from_str = resolve_from_str
 
         execute_install_routine = MagicMock(return_value=None)
-        self.hips_installer.execute_install_routine = execute_install_routine
+        self.hips_installer._install = execute_install_routine
 
         add_to_local_catalog = MagicMock(return_value=None)
         self.hips_installer.add_to_local_catalog = add_to_local_catalog
 
         # run
-        self.hips_installer.catalog_configuration = self.config
+        self.hips_installer.catalog_collection = self.test_catalog_collection
         self.hips_installer.install("aPath")
 
         # assert
-        install.assert_called_once()
         resolve_from_str.assert_called_once()
-        install_dependencies.assert_called_once()
         execute_install_routine.assert_called_once()
         add_to_local_catalog.assert_called_once()
 
@@ -55,16 +48,15 @@ class TestInstallManager(TestHipsCommon):
     def test_add_to_local_catalog(self, copy_file_mock):
         # create mocks
         add = MagicMock(return_value=None)
-        self.config.local_catalog.add = add
+        self.test_catalog_collection.local_catalog.add = add
 
         get_solution_cache_file = MagicMock(return_value="aPath")
-        self.config.local_catalog.get_solution_cache_file = get_solution_cache_file
+        self.test_catalog_collection.local_catalog.get_solution_cache_file = get_solution_cache_file
 
         # run
         self.active_hips.script = ""  # the script gets read during load()
-        self.hips_installer.active_hips = self.active_hips
-        self.hips_installer.catalog_configuration = self.config
-        self.hips_installer.add_to_local_catalog()
+        self.hips_installer.catalog_collection = self.test_catalog_collection
+        self.hips_installer.add_to_local_catalog(self.active_hips)
 
         # assert
         add.assert_called_once_with(self.active_hips, force_overwrite=True)
@@ -73,51 +65,75 @@ class TestInstallManager(TestHipsCommon):
         )
         copy_file_mock.assert_called_once_with(self.active_hips.script, "aPath")
 
-    def test_execute_install_routine_no_routine(self):
+    def test__install_no_routine(self):
         # mocks
         run_script = MagicMock(return_value="aPath")
-        self.active_hips.environment.run_script = run_script
+        self.active_hips.environment.run_scripts = run_script
+
+        environment_install = MagicMock(return_value=None)
+        self.active_hips.environment.install = environment_install
+        self.active_hips.min_hips_version = "test"
+
+        install_dependencies = MagicMock()
+        self.hips_installer.install_dependencies = install_dependencies
 
         # run
-        self.hips_installer.active_hips = self.active_hips
-        self.hips_installer.catalog_configuration = self.config
+        self.hips_installer.catalog_collection = self.test_catalog_collection
 
-        self.hips_installer.execute_install_routine()
+        self.hips_installer._install(self.active_hips)
 
         # assert
         run_script.assert_not_called()
+        environment_install.assert_called_once()
+        install_dependencies.assert_called_once_with(self.active_hips)
 
     @patch('hips.core.controller.install_manager.create_script', return_value="script")
-    def test_execute_install_routine_call_routine(self, create_script_mock):
+    def test__install_call_routine(self, create_script_mock):
         # mocks
         run_script = MagicMock(return_value="aPath")
-        self.active_hips.environment.run_script = run_script
+        self.active_hips.environment.run_scripts = run_script
+
+        environment_install = MagicMock(return_value=None)
+        self.active_hips.environment.install = environment_install
+        self.active_hips.min_hips_version = "test"
+
+        install_dependencies = MagicMock()
+        self.hips_installer.install_dependencies = install_dependencies
 
         # run
         self.active_hips.install = lambda: "notNone"
-        self.hips_installer.active_hips = self.active_hips
-        self.hips_installer.catalog_configuration = self.config
+        self.hips_installer.catalog_collection = self.test_catalog_collection
 
-        self.hips_installer.execute_install_routine()
+        self.hips_installer._install(self.active_hips)
 
         # assert
         create_script_mock.assert_called_once()
-        run_script.assert_called_once_with("script")
+        run_script.assert_called_once_with(["script"])
+        environment_install.assert_called_once()
+        install_dependencies.assert_called_once_with(self.active_hips)
 
-    def test_execute_install_routine_routine_not_callable(self):
+    def test__install_routine_not_callable(self):
         # mocks
         run_script = MagicMock(return_value="aPath")
-        self.active_hips.environment.run_script = run_script
+        self.active_hips.environment.run_scripts = run_script
+
+        environment_install = MagicMock(return_value=None)
+        self.active_hips.environment.install = environment_install
+        self.active_hips.min_hips_version = "test"
+
+        install_dependencies = MagicMock()
+        self.hips_installer.install_dependencies = install_dependencies
 
         # run
         self.active_hips.install = "notCallableValue"
-        self.hips_installer.active_hips = self.active_hips
-        self.hips_installer.catalog_configuration = self.config
+        self.hips_installer.catalog_collection = self.test_catalog_collection
 
-        self.hips_installer.execute_install_routine()
+        self.hips_installer._install(self.active_hips)
 
         # assert
         run_script.assert_not_called()
+        environment_install.assert_called_once()
+        install_dependencies.assert_called_once_with(self.active_hips)
 
     def test_install_dependencies_no_deps(self):
         # mocks
@@ -125,8 +141,7 @@ class TestInstallManager(TestHipsCommon):
         self.hips_installer.install_dependency = install_dependency
 
         # run
-        self.hips_installer.active_hips = self.active_hips
-        self.hips_installer.install_dependencies()
+        self.hips_installer.install_dependencies(self.active_hips)
 
         # assert
         install_dependency.assert_not_called()
@@ -138,8 +153,7 @@ class TestInstallManager(TestHipsCommon):
 
         # run
         self.active_hips.parent = "someParent"
-        self.hips_installer.active_hips = self.active_hips
-        self.hips_installer.install_dependencies()
+        self.hips_installer.install_dependencies(self.active_hips)
 
         # assert
         install_dependency.assert_called_once_with("someParent")
@@ -147,13 +161,13 @@ class TestInstallManager(TestHipsCommon):
     def test_install_dependency(self):
         # mocks
         resolve_hips_dependency = MagicMock(return_value={"path": "aPath", "catalog": None})
-        self.config.resolve_hips_dependency = resolve_hips_dependency
+        self.test_catalog_collection.resolve_hips_dependency = resolve_hips_dependency
 
         install = MagicMock(return_value=None)
         self.hips_installer.install = install
 
         # run
-        self.hips_installer.catalog_configuration = self.config
+        self.hips_installer.catalog_collection = self.test_catalog_collection
         self.hips_installer.install_dependency("something")
 
         # assert

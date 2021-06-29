@@ -1,4 +1,5 @@
 import json
+import shutil
 from pathlib import Path
 
 import anytree
@@ -8,7 +9,7 @@ from anytree.importer import JsonImporter
 
 from hips.ci.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from hips.core.model.default_values import HipsDefaultValues
-from hips.core.utils.operations.file_operations import write_dict_to_json
+from hips.core.utils.operations.file_operations import write_dict_to_json, remove_warning_on_error
 from hips.core.utils.operations.git_operations import download_repository
 from hips.core.utils.operations.url_operations import download_resource
 from hips_runner import logging
@@ -60,8 +61,8 @@ class Catalog:
     """
 
     # default prefix how to organize solutions. gnv = Group Name Version folder structure.
-    doi_solution_prefix = "doi_solutions"
-    gnv_solution_prefix = "solutions"
+    doi_solution_prefix = HipsDefaultValues.cache_path_doi_solution_prefix.value
+    gnv_solution_prefix = HipsDefaultValues.cache_path_solution_prefix.value
 
     def __init__(self, catalog_id, path, src=None):
         """Init routine.
@@ -181,18 +182,18 @@ class Catalog:
                         )
                     )
 
-        return installed_solutions
+        return sorted(installed_solutions, key=lambda k: k["name"])
 
     def get_grp_name_version_from_file_structure(self, grp_dir, solution_dir, version_dir):
         """Resolves a solution via its group, name, version and returns their values as a dictionary.
 
         Args:
             grp_dir:
-                The absolute path of the group directory
+                The name of the group directory
             solution_dir:
-                The absolute path of the solution directory
+                The name of the solution directory
             version_dir:
-                The absolute path of the version directory
+                The name of the version directory
 
         Returns:
             dict holding the metadata of the solution which is supposed to live in the catalog.
@@ -201,13 +202,13 @@ class Catalog:
              RuntimeError if the solution cannot be found in the catalog, although the folder structure for it exists.
 
         """
-        tree_leaf_node = self.catalog_index.resolve_hips_by_name_version_and_group(grp_dir, solution_dir, version_dir)
+        tree_leaf_node = self.catalog_index.resolve_hips_by_name_version_and_group(solution_dir, version_dir, grp_dir)
         if not tree_leaf_node:
             raise RuntimeError("Folder structure is broken! Could not resolve solution %s in index!" % solution_dir)
         return {
-            "group": tree_leaf_node["solution_group"],
-            "name": tree_leaf_node["solution_name"],
-            "version": tree_leaf_node["solution_version"],
+            "group": tree_leaf_node.solution_group,
+            "name": tree_leaf_node.solution_name,
+            "version": tree_leaf_node.solution_version,
         }
 
     def doi_to_grp_name_version(self, doi):
@@ -230,9 +231,9 @@ class Catalog:
         if not tree_leaf_node:
             raise RuntimeError("Folder structure is broken! Could not resolve doi %s in index!" % doi)
         return {
-            "group": tree_leaf_node["solution_group"],
-            "name": tree_leaf_node["solution_name"],
-            "version": tree_leaf_node["solution_version"],
+            "group": tree_leaf_node.solution_group,
+            "name": tree_leaf_node.solution_name,
+            "version": tree_leaf_node.solution_version,
         }
 
     def get_solution_cache_file(self, group, name, version):
@@ -268,6 +269,23 @@ class Catalog:
 
         """
         return self.path.joinpath(self.gnv_solution_prefix, group, name, version)
+
+    def get_solution_cache_file_suffix(self, group, name, version):
+        """Gets the cache suffix of a solution file given its group, name and version.
+
+        Args:
+            group:
+                The group affiliation of the solution.
+            name:
+                The name of the solution.
+            version:
+                The version of the solution.
+
+        Returns:
+            The absolute path to the cache folder of the solution.
+
+        """
+        return Path("").joinpath(self.gnv_solution_prefix, group, name, version, "%s%s" % (name, ".py"))
 
     def get_doi_cache_file(self, doi):
         """Gets the cache path of a solution given a doi.
@@ -321,7 +339,6 @@ class Catalog:
 
         return self.path.joinpath(self.doi_solution_prefix, doi)
 
-    # todo: write tests
     def download_solution(self, group, name, version):
         """Downloads a solution from the catalog to the local resource.
 
@@ -401,7 +418,7 @@ class Catalog:
             node_attrs["doi"] = getattr(active_hips, "doi")
             if self.catalog_index.resolve_hips_by_doi(node_attrs["doi"]) is not None:
                 if force_overwrite:
-                    module_logger().warning("Soltion already exists! Overwriting...")
+                    module_logger().warning("Solution already exists! Overwriting...")
                 else:
                     raise RuntimeError("DOI already exists in Index! Aborting...")
 
@@ -457,16 +474,33 @@ class Catalog:
             except ValueError as e:
                 raise ValueError("Wrong index format!") from e
 
-    def download(self):
-        """Downloads the whole catalog from its source. Used for deployment."""
-        module_logger().debug("Download catalog %s to the path %s..." % (self.id, str(self.path)))
+    def download(self, path=None, force_download=False):
+        """Downloads the whole catalog from its source. Used for deployment.
+
+        Args:
+            force_download:
+                Boolean, indicates whether to force delete content of path or not
+            path:
+                The path to download to (optional). Catalog path is taken if no path specified.
+
+        Returns:
+            The repository object of the catalog
+
+        """
+        path = Path(path) if path else self.path
+
+        if force_download:
+            remove_warning_on_error(path)
+
+        module_logger().debug("Download catalog %s to the path %s..." % (self.id, str(path)))
 
         if not self.is_local:
-            repo = download_repository(self.src, str(self.path))
+            repo = download_repository(self.src, str(path))
 
             return repo
 
         module_logger().warning("Cannot download a local catalog! Skipping...")
+
         return None
 
     def __len__(self):

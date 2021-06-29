@@ -10,22 +10,23 @@ from test.unit.test_common import TestHipsCommon
 
 
 class TestEnvironment(TestHipsCommon):
+    test_environment_name = "unittest"
 
     def setUp(self):
         """Setup things necessary for all tests of this class"""
-        self.environment = Environment(None, "unit-test", "aPath")
-        self.environment.name = "unit-test"
+        self.environment = Environment(None, self.test_environment_name, "aPath")
+        self.environment.name = self.test_environment_name
 
     @patch('hips.core.model.environment.Environment.get_env_file', return_value="Called")
     @patch('hips.core.model.environment.Environment.get_env_name', return_value="Called")
     def test_init_(self, get_env_file_mock, get_env_name_mock):
-        e = Environment(None, "unit-test", "aPath")
+        e = Environment(None, self.test_environment_name, "aPath")
 
         get_env_file_mock.assert_called_once()
         get_env_name_mock.assert_called_once()
 
         self.assertIsNotNone(e)
-        self.assertEqual("unit-test", e.cache_name)
+        self.assertEqual(self.test_environment_name, e.cache_name)
         self.assertEqual(Path("aPath"), e.cache_path)
 
     @patch('hips.core.model.environment.Environment.create_or_update_env', return_value="Called")
@@ -56,11 +57,11 @@ class TestEnvironment(TestHipsCommon):
     @patch('hips.core.model.environment.create_path_recursively', return_value="createdPath")
     def test_get_env_file_valid_file(self, create_path_mock, copy_mock):
         with open(self.closed_tmp_file.name, mode="w") as tmp_file:
-            tmp_file.write("unit-test")
+            tmp_file.write(self.test_environment_name)
 
         r = self.environment.get_env_file({"environment_file": self.closed_tmp_file.name})
 
-        self.assertEqual(Path("aPath").joinpath("unit-test.yml"), r)
+        self.assertEqual(Path("aPath").joinpath("%s.yml" % self.test_environment_name), r)
 
         create_path_mock.assert_called_once()
         copy_mock.assert_called_once()
@@ -75,7 +76,7 @@ class TestEnvironment(TestHipsCommon):
         self.assertEqual("donwloadedResource", r)
 
         create_path_mock.assert_called_once()
-        download_mock.assert_called_once_with(url, Path("aPath").joinpath("unit-test.yml"))
+        download_mock.assert_called_once_with(url, Path("aPath").joinpath("%s.yml" % self.test_environment_name))
 
     @patch('hips.core.model.environment.create_path_recursively', return_value="createdPath")
     def test_get_env_file_valid_StringIO(self, create_path_mock):
@@ -85,9 +86,9 @@ class TestEnvironment(TestHipsCommon):
 
         r = self.environment.get_env_file({"environment_file": string_io})
 
-        self.assertEqual(Path(tempfile.gettempdir()).joinpath("unit-test.yml"), r)
+        self.assertEqual(Path(tempfile.gettempdir()).joinpath("%s.yml" % self.test_environment_name), r)
 
-        with open(Path(tempfile.gettempdir()).joinpath("unit-test.yml"), "r") as f:
+        with open(Path(tempfile.gettempdir()).joinpath("%s.yml" % self.test_environment_name), "r") as f:
             lines = f.readlines()
 
         self.assertEqual(lines[0], "testStringIo")
@@ -102,11 +103,15 @@ class TestEnvironment(TestHipsCommon):
             self.environment.get_env_name({"not_exist_file": "None"})
 
     def test_get_env_name_name_given(self):
-        self.assertEqual(self.environment.get_env_name({"environment_name": "unit-test"}), 'unit-test')
+        self.assertEqual(
+            self.environment.get_env_name({"environment_name": self.test_environment_name}), self.test_environment_name
+        )
 
     @patch('hips.core.model.environment.Environment.get_env_name_from_yaml', return_value="TheParsedName")
     def test_get_env_name_file_given(self, get_env_name_mock):
-        self.assertEqual(self.environment.get_env_name({"environment_file": "unit-test"}), 'TheParsedName')
+        self.assertEqual(
+            self.environment.get_env_name({"environment_file": self.test_environment_name}), 'TheParsedName'
+        )
 
         get_env_name_mock.assert_called_once()
 
@@ -121,11 +126,11 @@ class TestEnvironment(TestHipsCommon):
     @patch('hips.core.controller.conda_manager.CondaManager.get_environment_dict')
     def test_get_env_path(self, ged_mock):
         ged_mock.return_value = {
-            "unit-test": Path("aPath").joinpath("unit-test"),
+            self.test_environment_name: Path("aPath").joinpath(self.test_environment_name),
             "envName2": Path("anotherPath").joinpath("envName2")
         }
 
-        self.assertIn(str(Path("aPath").joinpath("unit-test")), str(self.environment.get_env_path()))
+        self.assertIn(str(Path("aPath").joinpath(self.test_environment_name)), str(self.environment.get_env_path()))
 
     def test_get_env_path_invalid_env(self):
         self.assertFalse(self.environment.conda.environment_exists("NotExistingEnv"))
@@ -142,7 +147,7 @@ class TestEnvironment(TestHipsCommon):
     @patch('hips.core.controller.conda_manager.CondaManager.get_environment_dict')
     def test_init_env_path(self, ged_mock):
         ged_mock.return_value = {
-            "unit-test": Path("aPath").joinpath("unit-test"),
+            self.test_environment_name: Path("aPath").joinpath(self.test_environment_name),
             "envName2": Path("anotherPath").joinpath("envName2")
         }
 
@@ -172,21 +177,21 @@ class TestEnvironment(TestHipsCommon):
 
     @patch('hips.core.controller.conda_manager.CondaManager.run_script', return_value="ranScript")
     def test_run_script(self, conda_run_mock):
-        script = "print(\"unit-test\")"
+        script = "print(\"%s\")" % self.test_environment_name
 
         self.environment.path = "notNone"
 
-        self.environment.run_script(script)
+        self.environment.run_scripts(script)
         conda_run_mock.assert_called_once()
 
     @patch('hips.core.controller.conda_manager.CondaManager.run_script', return_value="ranScript")
     def test_run_script_no_path(self, conda_run_mock):
-        script = "print(\"unit-test\")"
+        script = "print(\"%s\")" % self.test_environment_name
 
         self.environment.path = None
 
         with self.assertRaises(EnvironmentError):
-            self.environment.run_script(script)
+            self.environment.run_scripts(script)
         conda_run_mock.assert_not_called()
 
     @patch('hips.core.model.environment.Environment.update')
@@ -218,7 +223,7 @@ class TestEnvironment(TestHipsCommon):
 
         self.environment.create()
 
-        create_environment_from_file_mock.assert_called_once_with(Path("aPath"), "unit-test")
+        create_environment_from_file_mock.assert_called_once_with(Path("aPath"), self.test_environment_name)
         create_environment_mock.assert_not_called()
 
     @patch('hips.core.controller.conda_manager.CondaManager.create_environment')
@@ -226,7 +231,7 @@ class TestEnvironment(TestHipsCommon):
     def test_create_no_yaml(self, create_environment_from_file_mock, create_environment_mock):
         self.environment.create()
 
-        create_environment_mock.assert_called_once_with("unit-test")
+        create_environment_mock.assert_called_once_with(self.test_environment_name)
         create_environment_from_file_mock.assert_not_called()
 
     @patch('hips.core.controller.conda_manager.CondaManager.cmd_available', return_value=True)
@@ -250,7 +255,7 @@ class TestEnvironment(TestHipsCommon):
     def test_remove(self, remove_mock):
         self.environment.remove()
 
-        remove_mock.assert_called_once_with("unit-test")
+        remove_mock.assert_called_once_with(self.test_environment_name)
 
 
 if __name__ == '__main__':

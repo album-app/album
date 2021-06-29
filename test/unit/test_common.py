@@ -1,6 +1,5 @@
 import logging
 import os
-import shutil
 import tempfile
 import unittest
 from io import StringIO
@@ -11,8 +10,9 @@ import git
 
 from hips.ci.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from hips.core import HipsClass
-from hips.core.model.catalog_configuration import HipsCatalogCollection
+from hips.core.model.catalog_collection import HipsCatalogCollection
 from hips.core.model.default_values import HipsDefaultValues
+from hips.core.utils.operations.file_operations import remove_warning_on_error
 from hips_runner.logging import push_active_logger, pop_active_logger
 
 
@@ -20,10 +20,9 @@ class TestHipsCommon(unittest.TestCase):
     """Base class for all Unittest using a hips object"""
 
     test_config_init = """catalogs:
-    - https://gitlab.com/ida-mdc/hips-catalog.git
-    """
-    test_tmp_dir = None
-    test_config_file = None
+    - %s
+    """ % HipsDefaultValues.catalog_url.value
+    test_catalog_collection_config_file = None
 
     @classmethod
     def setUpClass(cls):
@@ -40,22 +39,31 @@ class TestHipsCommon(unittest.TestCase):
     def setUp(self):
         """Could initialize default values for each test class. use `_<name>` to skip property setting."""
         self.attrs = {}
-        self.configure_test_logging(StringIO())
+        self.captured_output = StringIO()
+        self.configure_test_logging(self.captured_output)
         self.tmp_dir = tempfile.TemporaryDirectory()
         self.closed_tmp_file = tempfile.NamedTemporaryFile(delete=False)
         self.closed_tmp_file.close()
 
     def tearDown(self) -> None:
-        pop_active_logger()
+        self.captured_output.close()
 
-        if self.test_config_file:
-            Path(self.test_config_file.name).unlink()
+        while True:
+            logger = pop_active_logger()
+            if logger == logging.getLogger():
+                break
 
-        if self.test_tmp_dir:
-            self.test_tmp_dir.cleanup()
+        if self.test_catalog_collection_config_file:
+            Path(self.test_catalog_collection_config_file.name).unlink()
 
         Path(self.closed_tmp_file.name).unlink()
-        self.tmp_dir.cleanup()
+        try:
+            self.tmp_dir.cleanup()
+        except PermissionError:
+            try:
+                remove_warning_on_error(self.tmp_dir.name)
+            except PermissionError:
+                raise
 
     def configure_test_logging(self, stream_handler):
         self.logger = logging.getLogger("unitTest")
@@ -76,16 +84,15 @@ class TestHipsCommon(unittest.TestCase):
 
     @patch('hips.core.model.catalog.Catalog.refresh_index', return_value=None)
     def create_test_config(self, _):
-        self.test_config_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
-        self.config = None
+        self.test_catalog_collection_config_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
         self.test_config_init += "- " + self.tmp_dir.name
-        self.test_config_file.writelines(self.test_config_init)
-        self.test_config_file.close()
+        self.test_catalog_collection_config_file.writelines(self.test_config_init)
+        self.test_catalog_collection_config_file.close()
 
         HipsCatalogCollection.instance = None  # lever out concept
-        self.config = HipsCatalogCollection(self.test_config_file.name)
+        self.test_catalog_collection = HipsCatalogCollection(self.test_catalog_collection_config_file.name)
 
-        self.assertEqual(len(self.config.local_catalog), 0)
+        self.assertEqual(len(self.test_catalog_collection.local_catalog), 0)
 
     @patch('hips.core.model.environment.Environment.__init__', return_value=None)
     @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict')
@@ -143,6 +150,8 @@ class TestZenodoCommon(TestHipsCommon):
 class TestGitCommon(TestHipsCommon):
     """Base class for all Unittest using a hips object"""
 
+    repo = None
+
     @classmethod
     def setUpClass(cls):
         """On inherited classes, run our `setUp` method"""
@@ -159,13 +168,15 @@ class TestGitCommon(TestHipsCommon):
         super().setUp()
 
     def tearDown(self) -> None:
-        basepath = HipsDefaultValues.app_cache_dir.value.joinpath("testGitRepo")
-        shutil.rmtree(basepath, ignore_errors=True)
+        if self.repo:
+            p = self.repo.working_tree_dir
+            del self.repo
+            remove_warning_on_error(p)
+
         super().tearDown()
 
     def create_tmp_repo(self, commit_solution_file=True, create_test_branch=False):
-        basepath = HipsDefaultValues.app_cache_dir.value.joinpath("testGitRepo")
-        shutil.rmtree(basepath, ignore_errors=True)
+        basepath = Path(self.tmp_dir.name).joinpath("testGitRepo")
 
         repo = git.Repo.init(path=basepath)
 
@@ -178,6 +189,7 @@ class TestGitCommon(TestHipsCommon):
             dir=os.path.join(str(repo.working_tree_dir)),
             delete=False
         )
+        init_file.close()
         repo.index.add([os.path.basename(init_file.name)])
         repo.git.commit('-m', "init", '--no-verify')
 
@@ -187,9 +199,11 @@ class TestGitCommon(TestHipsCommon):
                 dir=os.path.join(str(repo.working_tree_dir), "solutions"),
                 delete=False
             )
+            tmp_file.close()
             repo.index.add([os.path.join("solutions", os.path.basename(tmp_file.name))])
         else:
             tmp_file = tempfile.NamedTemporaryFile(dir=str(repo.working_tree_dir), delete=False)
+            tmp_file.close()
             repo.index.add([os.path.basename(tmp_file.name)])
 
         repo.git.commit('-m', "added %s " % tmp_file.name, '--no-verify')
@@ -203,6 +217,7 @@ class TestGitCommon(TestHipsCommon):
             tmp_file = tempfile.NamedTemporaryFile(
                 dir=os.path.join(str(repo.working_tree_dir), "solutions"), delete=False
             )
+            tmp_file.close()
             repo.index.add([tmp_file.name])
             repo.git.commit('-m', "branch added %s " % tmp_file.name, '--no-verify')
 

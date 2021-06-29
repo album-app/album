@@ -2,14 +2,20 @@ import json
 import os
 import re
 import shutil
+import subprocess
+import sys
+import time
 from pathlib import Path
+from hips.core.utils.subcommand import run
+from stat import *
 
 import yaml
 
-from hips_runner import logging
 from hips.core.model.default_values import HipsDefaultValues
+from hips_runner import logging
 
 module_logger = logging.get_active_logger
+enc = sys.getfilesystemencoding()
 
 
 class FileOperationError(Exception):
@@ -20,7 +26,7 @@ class FileOperationError(Exception):
         self.long_message = long_message
 
 
-#def auto_format(file):
+# def auto_format(file):
 #    """Autformats file to pep8 standard."""
 #    fixed_file = autopep8.fix_file(file)
 #    return fixed_file
@@ -28,12 +34,12 @@ class FileOperationError(Exception):
 
 def get_line_indent(line):
     """Returns the line indent of a line."""
-    return int(len(re.findall('^[ ]*', line)[0])/4)
+    return int(len(re.findall('^[ ]*', line)[0]) / 4)
 
 
 def indent_to_space(indent: int):
     """Returns the right number of spaces belonging to an indent"""
-    return ''.join([' ']*4*indent)
+    return ''.join([' '] * 4 * indent)
 
 
 def is_comment(line):
@@ -114,7 +120,6 @@ def extract_argparse(file):
 
 
 def get_zenodo_metadata(file, metadata):
-
     def extract_metadata(l):
         tmp = l.replace(metadata + "=", "").split("#")[0].strip().replace("\"", "")
         if tmp[-1] == ",":
@@ -142,7 +147,7 @@ def get_zenodo_metadata(file, metadata):
                             return deposit_id
                     elif is_comment(line) or is_blank_line(line):  # blank lines or comments are skipped
                         continue
-                    elif hips_setup_indent == get_line_indent(line) and line == ')\n'\
+                    elif hips_setup_indent == get_line_indent(line) and line == ')\n' \
                             or line == indent_to_space(hips_setup_indent + 1) + '})\n':  # hips.setup call finished
                         break
                     else:
@@ -158,6 +163,7 @@ def set_zenodo_metadata_in_solutionfile(file, doi, deposit_id):
     solution_name_full = solution_name + "_tmp" + solution_ext
 
     new_file_path = HipsDefaultValues.app_cache_dir.value.joinpath(solution_name_full)
+    create_path_recursively(new_file_path.parent)
     new_file = new_file_path.open('w+')
 
     with open(file, 'r') as f:
@@ -168,7 +174,7 @@ def set_zenodo_metadata_in_solutionfile(file, doi, deposit_id):
             if not line:
                 break
 
-            # all lines which follow should belong to hips.setup(
+            # all lines which follow should belong to setup(
             if "setup(\n" == line:
                 hips_setup_indent = get_line_indent(line)
 
@@ -193,7 +199,7 @@ def set_zenodo_metadata_in_solutionfile(file, doi, deposit_id):
                         if line.startswith(indent_to_space(hips_setup_indent + 1) + "deposit_id="):  # old deposit_id
                             continue
                         new_file.write(line)
-                    elif hips_setup_indent == get_line_indent(line) and line == ')\n'\
+                    elif hips_setup_indent == get_line_indent(line) and line == ')\n' \
                             or line == indent_to_space(hips_setup_indent + 1) + '})\n':  # hips.setup call finished
                         new_file.write(line)
                         break
@@ -221,13 +227,45 @@ def get_dict_from_yml(yml_file):
 
 def write_dict_to_yml(yml_file, d):
     """Writes a dictionary to a file in yml format."""
+    yml_file = Path(yml_file)
+    create_path_recursively(yml_file.parent)
+
     with open(yml_file, 'w+') as yml_f:
         yml_f.write(yaml.dump(d, Dumper=yaml.Dumper))
 
     return True
 
 
+def get_yml_entry(d, key, allow_none=True):
+    """Receive an entry from a dictionary.
+
+    Args:
+        d:
+            The yml dictionary.
+        key:
+            The key.
+        allow_none:
+            boolean flag indicating whether to allow key to exist or not.
+
+    Returns:
+        The value or None
+
+    Raises:
+        KeyError if allow_none is False and key not found.
+
+    """
+    try:
+        val = d[key]
+    except KeyError:
+        val = None
+        if not allow_none:
+            raise
+
+    return val
+
+
 def write_dict_to_json(json_file, d):
+    """Writes dictionary to JSON file."""
     json_file = Path(json_file)
     create_path_recursively(json_file.parent)
 
@@ -264,6 +302,7 @@ def copy(path_from, path_to):
 
 
 def copy_in_file(file_content, file_path):
+    """Copies a stream content to a file."""
     file_path = Path(file_path)
     create_path_recursively(file_path.parent)
     if file_path.is_file():
@@ -271,3 +310,52 @@ def copy_in_file(file_content, file_path):
     with open(file_path, "w") as script_file:
         script_file.write(file_content)
     return file_path
+
+
+def remove_warning_on_error(path):
+    global brute_force
+    brute_force = False
+
+    def handle_error(f, p_file, __):
+        if sys.platform == 'win32' or sys.platform == 'cygwin':
+            global brute_force
+            brute_force = True
+        else:
+            os.chmod(path, S_IWRITE | S_IREAD | S_IEXEC)
+            for root, dirs, files in os.walk(path):
+                root = Path(root)
+                for d in dirs:
+                    os.chmod(root.joinpath(d), S_IWRITE | S_IREAD | S_IEXEC)
+                for fi in files:
+                    os.chmod(root.joinpath(fi), S_IWRITE | S_IREAD | S_IEXEC)
+            f(p_file)  # call the calling function again on the failing file
+
+    path = Path(path)
+    if path.exists():
+        try:
+            shutil.rmtree(path, onerror=handle_error)
+        except FileNotFoundError as e:
+            module_logger().warning("Could not remove %s! Reason: %s" % (str(path), e.strerror))
+        except PermissionError as e:
+            module_logger().warning("Could not remove %s! Reason: %s" % (str(path), e.strerror))
+        finally:
+            if brute_force:  # windows only
+                module_logger().debug("Trying brute force removal...")
+                cmd = 'cmd.exe /C del /f /s /q \"%s\"' % str(path)
+                try:
+                    run(cmd, timeout1=60, timeout2=6000)
+
+                    try:
+                        i = 0
+                        while path.exists() and i < 10:
+                            i += 1
+                            time.sleep(1)
+                    except PermissionError:
+                        time.sleep(1)
+                        pass
+                except RuntimeError:
+                    module_logger().warning("Could not remove %s with brute force!" % str(path))
+                else:
+                    module_logger().info("Brute force successfully removed %s!" % str(path))
+    else:
+        module_logger().info("No content in %s! Nothing to delete..." % str(path))

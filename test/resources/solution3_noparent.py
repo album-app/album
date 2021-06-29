@@ -1,5 +1,4 @@
 from hips_runner import setup
-
 global args
 
 
