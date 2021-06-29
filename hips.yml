@@ -7,4 +7,4 @@ dependencies:
   - pip
   - git
   - pip:
-      - git+https://gitlab.com/ida-mdc/hips.git
+      - git+https://gitlab.com/ida-mdc/hips.git@solution_testing

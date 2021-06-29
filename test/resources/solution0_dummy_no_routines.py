@@ -1,18 +1,6 @@
 from hips_runner import setup
 
 
-def hips_init():
-    pass
-
-
-def hips_run():
-    pass
-
-
-def hips_install():
-    pass
-
-
 setup(
     group="group",
     name="name",
@@ -42,9 +30,6 @@ setup(
             "action": lambda p: p
         }
     ],
-    init=hips_init,
-    run=hips_run,
-    install=hips_install,
     dependencies={
         'environment_name': 'hips'
     })

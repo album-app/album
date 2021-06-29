@@ -1,16 +1,13 @@
 import os
-import shutil
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-import hips.core
-import hips.core.deploy
-import hips.core.utils.operations.git_operations
+import hips.core.utils.operations.git_operations as git_op
 from hips.core.model.default_values import HipsDefaultValues
 from hips.core.model.hips_base import HipsClass
-from hips.core.utils.operations.file_operations import copy
+from hips.core.utils.operations.file_operations import copy, remove_warning_on_error
 from test.unit.test_common import TestGitCommon
 
 
@@ -22,7 +19,7 @@ class TestGitOperations(TestGitCommon):
     def test_checkout_branch(self):
         self.create_tmp_repo(create_test_branch=True)
 
-        head = hips.core.utils.operations.git_operations.checkout_branch(str(self.repo.working_tree_dir), "test_branch")
+        head = git_op.checkout_branch(str(self.repo.working_tree_dir), "test_branch")
 
         self.assertTrue(head == self.repo.heads["test_branch"])
 
@@ -30,27 +27,27 @@ class TestGitOperations(TestGitCommon):
         self.create_tmp_repo(commit_solution_file=False)
 
         with self.assertRaises(IndexError) as context:
-            hips.core.utils.operations.git_operations.checkout_branch(str(self.repo.working_tree_dir), "NoValidBranch")
+            git_op.checkout_branch(str(self.repo.working_tree_dir), "NoValidBranch")
 
         self.assertTrue("Branch NoValidBranch not in repository!" in str(context.exception))
 
     def test__retrieve_single_file(self):
         file = self.create_tmp_repo()
 
-        file_of_commit = hips.core.utils.operations.git_operations._retrieve_single_file_from_head(
+        file_of_commit = git_op.retrieve_single_file_from_head(
             self.repo.heads["master"], "solutions")
 
         self.assertEqual(file, file_of_commit)
 
-    def test__retrieve_single_file_from_head_branch(self):
+    def test_retrieve_single_file_from_head_branch(self):
         tmp_file = self.create_tmp_repo(create_test_branch=True)
 
-        file_of_commit = hips.core.utils.operations.git_operations._retrieve_single_file_from_head(
+        file_of_commit = git_op.retrieve_single_file_from_head(
             self.repo.heads["test_branch"], "solutions")
 
         self.assertEqual(tmp_file, file_of_commit)
 
-    def test__retrieve_single_file_from_head_too_many_files(self):
+    def test_retrieve_single_file_from_head_too_many_files(self):
         self.create_tmp_repo()
 
         tmp_file_1 = tempfile.NamedTemporaryFile(dir=os.path.join(str(self.repo.working_tree_dir), "solutions"),
@@ -64,17 +61,17 @@ class TestGitOperations(TestGitCommon):
         self.repo.git.commit('-m', 'message', '--no-verify')
 
         with self.assertRaises(RuntimeError) as context:
-            hips.core.utils.operations.git_operations._retrieve_single_file_from_head(self.repo.heads["master"],
-                                                                                      "solutions")
+            git_op.retrieve_single_file_from_head(self.repo.heads["master"],
+                                                  "solutions")
 
         self.assertTrue("Pattern found too many times!" in str(context.exception))
 
-    def test__retrieve_single_file_from_head_no_files(self):
+    def test_retrieve_single_file_from_head_no_files(self):
         self.create_tmp_repo(commit_solution_file=False)
 
         with self.assertRaises(RuntimeError) as context:
-            hips.core.utils.operations.git_operations._retrieve_single_file_from_head(self.repo.heads["master"],
-                                                                                      "solutions")
+            git_op.retrieve_single_file_from_head(self.repo.heads["master"],
+                                                  "solutions")
 
         self.assertTrue("Pattern not found!" in str(context.exception))
 
@@ -102,8 +99,8 @@ class TestGitOperations(TestGitCommon):
 
         commit_mssg = "Adding new/updated %s" % active_hips["name"]
 
-        hips.core.utils.operations.git_operations.add_files_commit_and_push(new_head, [tmp_file_in_repo], commit_mssg,
-                                                                            dry_run=True)
+        git_op.add_files_commit_and_push(new_head, [tmp_file_in_repo], commit_mssg,
+                                         dry_run=True)
 
         # new branch created
         self.assertTrue("test_solution_name" in self.repo.branches)
@@ -131,13 +128,21 @@ class TestGitOperations(TestGitCommon):
         new_head.checkout()
 
         with self.assertRaises(RuntimeError):
-            hips.core.utils.operations.git_operations.add_files_commit_and_push(new_head, [file], "a_wonderful_cmt_msg",
-                                                                                dry_run=True)
+            git_op.add_files_commit_and_push(new_head, [file], "a_wonderful_cmt_msg",
+                                             dry_run=True)
+
+    def test_configure_git(self):
+        self.create_tmp_repo(commit_solution_file=False)
+
+        repo = git_op.configure_git(self.repo, "MyEmail", "MyName")
+
+        self.assertEqual("MyName", repo.config_reader().get_value("user", "name"))
+        self.assertEqual("MyEmail", repo.config_reader().get_value("user", "email"))
 
     @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={})
     def test_download_repository(self, _):
         # clean
-        shutil.rmtree(HipsDefaultValues.app_cache_dir.value.joinpath("test"), ignore_errors=True)
+        remove_warning_on_error(HipsDefaultValues.app_cache_dir.value.joinpath("test"))
 
         # create hips
         self.attrs = {
@@ -149,9 +154,9 @@ class TestGitOperations(TestGitCommon):
         hips_with_git_repo = HipsClass(self.attrs)
 
         # run
-        hips.core.utils.operations.git_operations.download_repository(hips_with_git_repo["git_repo"],
-                                                                      HipsDefaultValues.app_cache_dir.value.joinpath(
-                                                                          "test"))
+        git_op.download_repository(hips_with_git_repo["git_repo"],
+                                   HipsDefaultValues.app_cache_dir.value.joinpath(
+                                       "test"))
 
         # check
         self.assertIn("test", os.listdir(str(HipsDefaultValues.app_cache_dir.value)), "Download failed!")

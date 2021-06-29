@@ -1,6 +1,5 @@
 import json
-import shutil
-import tempfile
+import os
 import unittest.mock
 from pathlib import Path
 from unittest.mock import patch
@@ -39,31 +38,11 @@ empty_index = """{
 }"""
 
 
-def populate_index(catalog):
-    for i in range(0, 10):
-        d = {}
-
-        for key in HipsClass.deploy_keys:
-            d[key] = "%s%s" % (key, str(i))
-
-        hips = HipsClass(d)
-
-        # set a doi
-        setattr(hips, "doi", "doi%s" % str(i))
-
-        # set a deposit ID
-        setattr(hips, "deposit_id", "deposit_id%s" % str(i))
-
-        catalog.add(hips)
-
-    return catalog
-
-
 class TestCatalog(TestHipsCommon):
 
     @patch('hips.core.model.hips_base.Environment.__init__', return_value=None)
-    def populate_index(self, _):
-        for i in range(0, 10):
+    def populate_index(self, _, r=10):
+        for i in range(0, r):
             d = {}
 
             for key in HipsClass.deploy_keys:
@@ -337,45 +316,105 @@ class TestCatalog(TestHipsCommon):
             self.catalog.path.joinpath(self.catalog.gnv_solution_prefix, "g", "n", "v")
         )
 
+    def test_get_solution_cache_file_suffix(self):
+        self.assertEqual(
+            self.catalog.get_solution_cache_file_suffix("g", "n", "v"),
+            Path("").joinpath(HipsDefaultValues.cache_path_solution_prefix.value, "g", "n", "v", "n.py")
+        )
+
     def test_get_doi_cache_file(self):
         self.assertEqual(
             self.catalog.get_doi_cache_file("d"), self.catalog.path.joinpath(self.catalog.doi_solution_prefix, "d")
         )
 
-    @unittest.skip("Needs to be implemented!")
     def test_list_installed(self):
-        # ToDo: implement
-        pass
+        self.populate_index(r=4)
 
-    @unittest.skip("Needs to be implemented!")
+        # create solution files installed via g, n, v
+        for i in range(0, 2):
+            p = self.catalog.get_solution_cache_file("group" + str(i), "name" + str(i), "version" + str(i))
+            p.mkdir(parents=True)
+            p.touch()
+
+        # create solution files installed via doi
+        for i in range(2, 4):
+            p = self.catalog.get_doi_cache_file("doi" + str(i))
+            p.mkdir(parents=True)
+            p.touch()
+
+        r = [
+            {"group": "group0", "name": "name0", "version": "version0"},
+            {"group": "group1", "name": "name1", "version": "version1"},
+            {"group": "group2", "name": "name2", "version": "version2"},
+            {"group": "group3", "name": "name3", "version": "version3"}]
+
+        self.assertEqual(r, self.catalog.list_installed())
+
     def test_get_grp_name_version_from_file_structure(self):
-        # ToDo: implement
-        pass
+        self.populate_index(r=2)
 
-    @unittest.skip("Needs to be implemented!")
+        grp_dir = "group0"
+        solution_dir = "name0"
+        version_dir = "version0"
+
+        node = self.catalog.catalog_index.index.leaves[0]
+        res = {
+            "group": node.solution_group,
+            "name": node.solution_name,
+            "version": node.solution_version,
+        }
+
+        self.assertEqual(res, self.catalog.get_grp_name_version_from_file_structure(grp_dir, solution_dir, version_dir))
+
     def test_doi_to_grp_name_version(self):
-        # ToDo: implement
-        pass
+        self.populate_index(r=2)
 
-    @unittest.skip("Needs to be implemented!")
+        doi = "doi0"
+
+        node = self.catalog.catalog_index.index.leaves[0]
+        res = {
+            "group": node.solution_group,
+            "name": node.solution_name,
+            "version": node.solution_version,
+        }
+
+        self.assertEqual(res, self.catalog.doi_to_grp_name_version(doi))
+
     def test_get_solution_cache_file(self):
-        # ToDo: implement
-        pass
+        res = self.catalog.path.joinpath(HipsDefaultValues.cache_path_solution_prefix.value, "g", "n", "v", "n.py")
+
+        self.assertEqual(res, self.catalog.get_solution_cache_file("g", "n", "v"))
 
     @unittest.skip("Needs to be implemented!")
     def test_download_solution_via_doi(self):
         # ToDo: implement
         pass
 
-    @unittest.skip("Needs to be implemented!")
-    def test_download_solution(self):
-        # ToDo: implement
-        pass
+    @patch("hips.core.model.catalog.download_resource", return_value=None)
+    def test_download_solution(self, dl_mock):
+        self.catalog.src = "NonsenseUrl.git"
 
-    @unittest.skip("Needs to be implemented!")
+        dl_url = "NonsenseUrl" + "/-/raw/main/solutions/g/n/v/n.py"
+        dl_path = self.catalog.path.joinpath(HipsDefaultValues.cache_path_solution_prefix.value, "g", "n", "v", "n.py")
+
+        self.assertEqual(dl_path, self.catalog.download_solution("g", "n", "v"))
+        dl_mock.assert_called_once_with(dl_url, dl_path)
+
     def test_download(self):
-        # ToDo: implement
-        pass
+        self.catalog.src = HipsDefaultValues.catalog_url.value
+        self.catalog.is_local = False
+
+        dl_path = Path(self.tmp_dir.name).joinpath("test")
+
+        # folder already exists with file in it
+        os.mkdir(dl_path)
+        blocking_file = dl_path.joinpath("blocking_file")
+        blocking_file.touch()
+
+        self.catalog.download(dl_path, force_download=True)
+
+        self.assertFalse(blocking_file.exists())
+        self.assertTrue(dl_path.stat().st_size > 0)
 
     @unittest.skip("tested in hips_catalog.CatalogIndex.__len__")
     def test__len__(self):
@@ -384,7 +423,6 @@ class TestCatalog(TestHipsCommon):
 
 class TestHipsCatalogIndex(TestHipsCommon):
     def setUp(self):
-
         # fill index file
         cs_file = Path(self.tmp_dir.name).joinpath(HipsDefaultValues.catalog_index_file_name.value)
         with open(cs_file, "w+") as f:
@@ -413,10 +451,18 @@ class TestHipsCatalogIndex(TestHipsCommon):
 
         self.assertEqual(len(cs_index), 0)
 
-    @unittest.skip("Needs to be implemented!")
     def test__len__(self):
-        # ToDo: implement
-        pass
+        self.assertEqual(len(self.cs_index), 1)
+
+        attrs = {
+            "group": "group0",
+            "name": "name0",
+            "version": "version0"
+        }
+
+        self.cs_index.update(node_attrs=attrs)
+
+        self.assertEqual(len(self.cs_index), 2)
 
     def test_load(self):
         self.assertEqual(len(self.cs_index), 1)

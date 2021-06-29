@@ -17,6 +17,14 @@ module_logger = logging.get_active_logger
 
 
 class Environment:
+    """Class managing an environment a solution lives in.
+
+    Each solution lives in its own environment having different dependencies. These can be libraries, programs, etc.
+    Each environment has its own environment path and is identified by such. Each HIPS environment has to have
+    the hips-runner installed for the hips framework to be able to run the solution in its environment.
+    An environment can be set up by environment file or only by name.
+
+    """
 
     def __init__(self, dependencies_dict, cache_name, cache_path):
         """Init routine
@@ -44,6 +52,19 @@ class Environment:
         self.install_hips(min_hips_version)
 
     def get_env_file(self, dependencies_dict):
+        """Checks how to set up an environment. Returns a path to a valid yaml file.
+
+        Args:
+            dependencies_dict:
+                Dictionary holding the "environment_file" key. Environment file can be:
+                    - url
+                    - path
+                    - stream object
+
+        Returns:
+            Path to a valid yaml file
+
+        """
         if dependencies_dict:
             if 'environment_file' in dependencies_dict:
                 env_file = dependencies_dict['environment_file']
@@ -74,6 +95,16 @@ class Environment:
         return None
 
     def get_env_name(self, dependencies_dict):
+        """
+
+        Args:
+            dependencies_dict:
+                Dictionary holding either the "environment_name" or "environment_file" key.
+
+        Returns:
+            The environment name.
+
+        """
         if dependencies_dict:
             if 'environment_name' in dependencies_dict:
                 environment_name = dependencies_dict['environment_name']
@@ -93,7 +124,7 @@ class Environment:
             return environment_name
 
     def get_env_name_from_yaml(self):
-        """Reads out the "name" keywords from the environment yaml file
+        """Reads out the "name" keywords from the environment yaml file.
 
         Returns:
             The name of the environment.
@@ -107,6 +138,12 @@ class Environment:
         return env['name']
 
     def init_env_path(self):
+        """Sets the environment path from the name of the environment
+
+        Returns:
+            The prefix path of the environment.
+
+        """
         environment_dict = self.conda.get_environment_dict()
         if self.name in environment_dict.keys():
             environment_path = environment_dict[self.name]
@@ -117,12 +154,14 @@ class Environment:
             return None
 
     def get_env_path(self):
+        """Gets the environment path prefix. Raises error if not set """
         env_path = self.init_env_path()
         if not env_path:
             raise RuntimeError('Could not find environment!')
         return env_path
 
     def is_installed(self, package_name, min_package_version=None):
+        """Checks if package is installed in a certain version."""
         conda_list = self.conda.list_environment(str(self.path))
 
         for package in conda_list:
@@ -145,12 +184,12 @@ class Environment:
 
         return False
 
-    def run_script(self, script):
+    def run_scripts(self, scripts):
         """Runs the solution in the target environment
 
         Args:
-            script:
-                The script calling the solution
+            scripts:
+                List of he scripts calling the solution(s)
         """
         if not self.path:
             raise EnvironmentError("Environment \"%s\" not proper configured. Is the solution installed?" % self.name)
@@ -165,6 +204,19 @@ class Environment:
             fp = tempfile.NamedTemporaryFile(mode='w+', delete=False)
             module_logger().debug('Executable file in: %s...' % fp.name)
 
+        # first write scripts to disc, create meta-script to execute them in the order of the list
+        if len(scripts) > 1:
+            script = ""
+            for s in scripts:
+                fp_step = tempfile.NamedTemporaryFile(mode='w+', delete=False)
+                fp_step.write(s)
+                fp_step.flush()
+                os.fsync(fp_step)
+                script += "\nexec(open(r\'%s\').read())\n" % fp_step.name
+                fp_step.close()
+        else:
+            script = scripts[0]
+
         fp.write(script)
         fp.flush()
         os.fsync(fp)
@@ -175,12 +227,14 @@ class Environment:
         Path(fp.name).unlink()
 
     def create_or_update_env(self):
+        """Creates or updates the environment"""
         if self.conda.environment_exists(self.name):
             self.update()
         else:
             self.create()
 
     def update(self):
+        """Updates the environment"""
         module_logger().debug('Update environment %s...' % self.name)
         pass  # ToDo: implement
 
@@ -222,4 +276,5 @@ class Environment:
         self.conda.pip_install(str(self.path), module)
 
     def remove(self):
+        """Removes the environment"""
         self.conda.remove_environment(self.name)

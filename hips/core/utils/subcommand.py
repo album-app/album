@@ -15,6 +15,22 @@ module_logger = logging.get_active_logger
 
 
 class SaveThreadWithReturn:
+    """Class running an action in a python thread. If action runs in timeout, action2 is executed. After timeout 2, the
+    action is terminated.
+
+    Attributes:
+        que:
+            the action queue.
+        action:
+            the action to call
+        action2:
+            action2 to call when action runs in first timeout
+        timeout:
+            time, after which action2 is executed.
+        timeout2:
+            time, after which action is terminated with error
+
+    """
 
     def __init__(self, action, action2=None, timeout=1, timeout2=5):
         if not callable(action):
@@ -36,6 +52,7 @@ class SaveThreadWithReturn:
         self.thread_id = -1
 
     def run(self):
+        """run the thread. Starting the action"""
         self.thread = threading.Thread(target=lambda: self.que.put(self.action()))
         self.thread.daemon = True  # important for the main python to be able to finish
         self.thread.start()
@@ -63,6 +80,7 @@ class SaveThreadWithReturn:
         return None
 
     def stop(self):
+        """Stops the thread."""
         if sys.platform == 'win32' or sys.platform == 'cygwin':
             # there is no easy way to send a signal from one thread to another...
             pass
@@ -165,9 +183,10 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
 
         # cmd failed
         if process.returncode:
+            err_msg = err if err else log.getvalue()
             raise RuntimeError(
-                "Return code: %(ret_code)s Error message: %(err_msg)s"
-                % {"ret_code": process.returncode, "err_msg": log.getvalue()}
+                "{\"ret_code\": %(ret_code)s, \"err_msg\": %(err_msg)s}"
+                % {"ret_code": process.returncode, "err_msg": err_msg}
             )
 
         # cmd passed but with errors
@@ -181,6 +200,7 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
 
 
 def check_output(command):
+    """Runs a command thereby checking its output."""
     operation_system = sys.platform
 
     shell = False

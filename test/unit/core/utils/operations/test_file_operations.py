@@ -2,12 +2,14 @@ import json
 import os
 import pathlib
 import unittest.mock
+from pathlib import Path
+from stat import *
 from unittest.mock import patch
 
 from hips.core.model.default_values import HipsDefaultValues
 from hips.core.utils.operations.file_operations import FileOperationError, get_zenodo_metadata, \
     set_zenodo_metadata_in_solutionfile, get_dict_from_yml, write_dict_to_yml, create_empty_file_recursively, \
-    create_path_recursively, write_dict_to_json
+    create_path_recursively, write_dict_to_json, remove_warning_on_error
 from test.unit.test_common import TestHipsCommon
 
 
@@ -148,6 +150,39 @@ class TestFileOperations(TestHipsCommon):
     def test_copy(self):
         # ToDo: implement
         pass
+
+    def test_remove_warning_on_error_no_folder(self):
+        p = Path(self.tmp_dir.name).joinpath("not_exist")
+
+        remove_warning_on_error(p)
+
+        self.assertIn("No content in ", self.captured_output.getvalue())
+
+    def test_remove_warning_on_error_folder_undeletable(self):
+        p = Path(self.tmp_dir.name).joinpath("folder_in_use")
+
+        create_path_recursively(p)
+
+        f = p.joinpath("strange_file.txt")
+        with open(str(f), 'w+') as fp:
+            fp.write("test\n")
+
+        # make file and folder user-read-only.
+        os.chmod(p, S_IREAD)
+
+        # un-deletable
+        try:
+            skip = True
+            f.unlink()
+        except PermissionError:
+            skip = False
+
+            # no error and folder deleted
+            self.assertIsNone(remove_warning_on_error(p))
+            self.assertFalse(p.exists())
+
+        if skip:
+            self.skipTest("Cannot setup test routine. Unknown reason!")
 
 
 if __name__ == '__main__':

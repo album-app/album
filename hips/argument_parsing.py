@@ -1,17 +1,8 @@
 import argparse
 import sys
 
-from hips.core.catalog import add_catalog
-from hips.core.catalog import remove_catalog
-from hips.core.containerize import containerize
-from hips.core.deploy import deploy
-from hips.core.install import install
-from hips.core.remove import remove
-from hips.core.repl import repl
-from hips.core.run import run
-from hips.core.search import search
-from hips.core.server import start_server
-from hips.core.tutorial import tutorial
+from hips.core.commandline import add_catalog, remove_catalog, containerize, deploy, install, remove, repl, run, search, \
+    start_server, tutorial, test
 from hips_runner import logging
 from hips_runner.logging import hips_debug
 
@@ -20,8 +11,6 @@ module_logger = logging.get_active_logger
 
 def main():
     """Entry points of `hips`."""
-
-    __retrieve_logger()
     parser = create_parser()
 
     # ToDo: clean all hips environments
@@ -49,11 +38,6 @@ def __run_subcommand(args, parser):
     args[0].func(args[0])  # execute entry point function
 
 
-def __retrieve_logger():
-    """Retrieves the default hips logger."""
-    logging.configure_logging(logging.LogLevel(hips_debug()), 'hips_core')
-
-
 def create_parser():
     """Creates a parser for all known hips arguments."""
     parser = __HIPSParser()
@@ -62,7 +46,15 @@ def create_parser():
                    type=str,
                    nargs='+',
                    help='Search keywords')
-    parser.create_hips_file_command_parser('run', run, 'run a HIP Solution')
+    p = parser.create_hips_file_command_parser('run', run, 'run a HIP Solution')
+    p.add_argument('--run-immediately',
+                   required=False,
+                   help='When the solution to run consists of several steps, indicates whether to immediately run '
+                        'a step (True) or to wait for all steps to be prepared to run (False). Choose between %s.'
+                        ' Default is False' %
+                        ", ".join([str(True), str(False)]),
+                   default=False,
+                   type=(lambda choice: bool(choice)))
     parser.create_hips_file_command_parser('repl', repl, 'get an interactive repl for a HIP Solution')
     p = parser.create_hips_file_command_parser('deploy', deploy, 'deploy a HIP Solution')
     p.add_argument('--dry-run',
@@ -84,6 +76,16 @@ def create_parser():
                         ", ".join([str(True), str(False)]),
                    default=True,
                    type=(lambda choice: bool(choice)))
+    p.add_argument('--git-email',
+                   required=False,
+                   help='Email to use for all git operations. '
+                        'If none given, system is required to be proper configured!',
+                   default=None)
+    p.add_argument('--git-name',
+                   required=False,
+                   help='Name to use for all git operations. '
+                        'If none given, system is required to be proper configured!',
+                   default=None)
 
     parser.create_hips_file_command_parser('install', install, 'install a HIP Solution')
     p = parser.create_hips_file_command_parser('remove', remove, 'remove a HIP Solution')
@@ -96,8 +98,13 @@ def create_parser():
     parser.create_hips_file_command_parser('containerize', containerize,
                                            'create a Singularity container for a HIP Solution')
     parser.create_hips_file_command_parser('tutorial', tutorial, 'run a tutorial for a HIP Solution')
-    parser.create_hips_file_command_parser('add-catalog', add_catalog, 'add a catalog to your local HIPS configuration file')
-    parser.create_hips_file_command_parser('remove-catalog', remove_catalog, 'remove a catalog from your local HIPS configuration file')
+    parser.create_hips_file_command_parser('add-catalog',
+                                           add_catalog,
+                                           'add a catalog to your local HIPS configuration file')
+    parser.create_hips_file_command_parser('remove-catalog',
+                                           remove_catalog,
+                                           'remove a catalog from your local HIPS configuration file')
+    parser.create_hips_file_command_parser('test', test, 'execute a solutions test routine.')
     p = parser.create_command_parser('server', start_server, 'start a HIPS server')
     p.add_argument('port',
                    type=int,

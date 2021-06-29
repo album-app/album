@@ -3,19 +3,29 @@ from pathlib import Path
 
 import validators
 
+from hips.core.concept.singleton import Singleton
 # classes and methods
 from hips.core.model.catalog import Catalog
 from hips.core.model.configuration import HipsConfiguration
-from hips.core.concept.singleton import Singleton
-from hips.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, create_path_recursively
+from hips.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml
 from hips_runner import logging
 
 module_logger = logging.get_active_logger
 
 
 class HipsCatalogCollection(metaclass=Singleton):
-    """The Hips Configuration class. Also holds the catalogs specified in the configuration."""
+    """The Hips Catalog Collection class.
 
+    A HIPS framework installation instance can hold arbitrarily many catalogs. This class collects all configured
+    catalogs and is mainly responsible to resolve (look up) solutions in all these catalogs.
+    Additionally, catalogs can be configured via this class.
+
+     Attributes:
+         configuration:
+            The configuration of the hips framework instance.
+
+    """
+    # Singletons
     configuration = HipsConfiguration()
 
     def __init__(self, config_file=None):
@@ -41,14 +51,18 @@ class HipsCatalogCollection(metaclass=Singleton):
                 return catalog
         raise LookupError("No local catalog configured! Doing nothing...")
 
-    def get_deployment_catalog(self, catalog_dict):
+    def get_catalog_by_url(self, url):
         """Returns first catalog which is not local. This is used as default deployment catalog."""
         for catalog in self.catalogs:
-            if not catalog.is_local and catalog.src == catalog_dict["url"]:
-                return catalog
-        raise LookupError("Catalog with URL \"%s\" not configured!" % catalog_dict["url"])
+            if catalog.src == url:
+                if not catalog.is_local:
+                    return catalog
+                else:
+                    raise ValueError("Cannot deploy to the catalog with url %s since it is marked local!" % url)
+        raise LookupError("Catalog with URL \"%s\" not configured!" % url)
 
     def get_catalog_by_id(self, cat_id):
+        """Looks up a catalog by its id and returns it."""
         for catalog in self.catalogs:
             if catalog.id == cat_id:
                 return catalog
@@ -61,9 +75,6 @@ class HipsCatalogCollection(metaclass=Singleton):
             config_file_dict = self.config_file_dict
 
         module_logger().debug("Configuration looks like: %s..." % config_file_dict)
-
-        # make sure path to configuration file exists before creating configuration file
-        create_path_recursively(self.config_file_path.parent)
 
         return write_dict_to_yml(self.config_file_path, config_file_dict)
 
@@ -138,6 +149,19 @@ class HipsCatalogCollection(metaclass=Singleton):
         return catalog_indices_dict
 
     def resolve(self, hips_attr, download=True):
+        """Resolves a dictionary holding solution attributes (group, name, version, etc.) and
+        returns the path to the solution.py file on the current system.
+
+        Args:
+            hips_attr:
+                Dictionary holding the attributes defining a solution (group, name, version are required).
+            download:
+                Boolean to indicate whether to download a solution from the catalog it has been found in or not.
+
+        Returns:
+            Dictionary holding the path to the solution and the catalog the solution has been resolved in.
+
+        """
         file_not_found = None
         # resolve in order of catalogs specified in config file
         for catalog in self.catalogs:
@@ -175,7 +199,8 @@ class HipsCatalogCollection(metaclass=Singleton):
         return None
 
     def resolve_hips_dependency(self, hips_dependency, download=True):
-        """Resolves the hips and returns the path to the solution.py file on the current system."""
+        """Resolves the hips and returns the path to the solution.py file on the current system.
+        Throws error if not resolvable!"""
 
         r = self.resolve(hips_dependency, download)
 
@@ -185,6 +210,24 @@ class HipsCatalogCollection(metaclass=Singleton):
         return r
 
     def resolve_directly(self, catalog_id, group, name, version, download=True):
+        """Resolves a solution given its group, name, version only looking through a specific catalog.
+
+        Args:
+            catalog_id:
+                The catalog to search the solution in.
+            group:
+                The group affiliation of the solution.
+            name:
+                The name of the solution.
+            version:
+                The version of the solution.
+            download:
+                Boolean to indicate whether to download a solution from the catalog it has been found in or not.
+
+        Returns:
+            Dictionary holding the path to the solution and the catalog the solution has been resolved in.
+
+        """
         for catalog in self.catalogs:
             if catalog.id == catalog_id:
                 # update if necessary and possible
@@ -200,7 +243,22 @@ class HipsCatalogCollection(metaclass=Singleton):
         return None
 
     def resolve_from_str(self, str_input: str, download=True):
-        """Resolves an command line input if in valid format."""
+        """Resolves a sring input if in valid format.
+
+        Args:
+            str_input:
+                The string input. Supported formats:
+                    doi:  <doi>:<prefix>/<suffix> or <prefix>/<suffix> of a solution
+                    gnv: <group>:<name>:<version> of a solution
+                    url: any url pointing to a solution file
+                    path: a path to a valid solution file on the disk.
+            download:
+                Boolean to indicate whether to download a solution from the catalog it has been found in or not.
+
+        Returns:
+            Dictionary holding the path to the solution and the catalog the solution has been resolved in.
+
+        """
         p = Path(str_input)
         if p.is_file():
             return {
@@ -213,7 +271,7 @@ class HipsCatalogCollection(metaclass=Singleton):
                     "path": self.download(str_input),
                     "catalog": None
                 }
-            else :
+            else:
                 p = self.get_doi_from_input(str_input)
                 if not p:
                     p = self.get_gnv_from_input(str_input)
@@ -224,7 +282,7 @@ class HipsCatalogCollection(metaclass=Singleton):
                 return self.resolve_hips_dependency(p, download)
 
     def get_installed_solutions(self):
-        """Returns all installed solutions by configured dictionary."""
+        """Returns all installed solutions of all catalogs configured"""
         installed_solutions_dict = {}
         for catalog in self.catalogs:
             module_logger().debug("Get installed solutions from catalog: %s..." % catalog.id)
@@ -257,6 +315,7 @@ class HipsCatalogCollection(metaclass=Singleton):
 
     @staticmethod
     def is_url(str_input: str):
+        """Parses a url."""
         url_regex = re.compile(
             r'^(?:http|ftp)s?://'  # http:// or https://
             r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # domain...
@@ -268,6 +327,7 @@ class HipsCatalogCollection(metaclass=Singleton):
 
     @staticmethod
     def download(str_input):
+        """Downloads a solution file into a temporary file."""
         import urllib.request
         import shutil
         import tempfile

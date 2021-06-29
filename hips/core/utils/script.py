@@ -47,6 +47,8 @@ def create_script(hips_object, custom_code, argv):
 
     # add the hips script
     script += hips_object['script']
+
+    # init routine
     script += "\nget_active_hips().init()\n"
 
     # API access
@@ -66,7 +68,7 @@ def __api_access(active_hips, script):
     script += "download_cache_path=\"" + "{}".format(
         str(HipsConfiguration().get_cache_path_downloads(active_hips)).encode(enc)
     ) + "\""
-    script += ")"
+    script += ")\n"
 
     return script
 
@@ -144,49 +146,3 @@ class {class_name}(argparse.Action):
 def __create_class_name(name):
     class_name = '%sAction' % name.capitalize()
     return class_name
-
-
-def create_hips_with_parent_script(parent_hips, parent_args, child_hips_list, child_args, init_script):
-    """Create script for running a parent HIPS, then running HIPS depending on it, and then closing the parent HIPS."""
-    script_parent = create_script(parent_hips,
-                                  init_script + "\nget_active_hips().run()\n",
-                                  parent_args)
-    child_scripts = __create_scripts(child_hips_list, child_args)
-    script_parent_close = ""
-    if hasattr(parent_hips, "close"):
-        script_parent_close += "\nget_active_hips().close()\n"
-    script_parent_close += "\npop_active_hips()\n"
-    script_list = [script_parent]
-    script_list.extend(child_scripts)
-    script_list.append(script_parent_close)
-    script = __append_scripts(*script_list)
-    return script
-
-
-def __create_scripts(child_hips_list, child_args):
-    """Create scripts for a list of HIPs, each entry in `child_hips_list` consists of the loaded HIPS and it's
-    arguments """
-    child_scripts = []
-    for idx, active_hips in enumerate(child_hips_list):
-        child_arg = child_args[idx]
-        script = "\nmodule_logger().info(\"Started %s\")\n" % active_hips["name"]
-        script += "\nget_active_hips().run()\n"
-        if hasattr(active_hips, "close"):
-            script += "\nget_active_hips().close()\n"
-        script += "\nmodule_logger().info(\"Finished %s\")\n" % active_hips["name"]
-        script += "\npop_active_hips()\n"
-        child_scripts.append(create_script(active_hips, script, child_arg))
-    return child_scripts
-
-
-def __append_scripts(*scripts):
-    """Create script running multiple scripts in a row"""
-    res = ""
-    for script in scripts:
-        fp = tempfile.NamedTemporaryFile(mode='w+', delete=False)
-        fp.write(script)
-        fp.flush()
-        os.fsync(fp)
-        res += "\nexec(open(r\'%s\').read())\n" % fp.name
-        fp.close()
-    return res

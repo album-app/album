@@ -3,19 +3,24 @@ from pathlib import Path
 from unittest.mock import patch
 
 from hips.core.controller.conda_manager import CondaManager
+from hips.core.utils.operations.file_operations import remove_warning_on_error
 from test.unit.test_common import TestHipsCommon
 
 
 class TestCondaManager(TestHipsCommon):
+    test_environment_name = "unittest"
 
     def setUp(self):
         self.conda = CondaManager()
-        pass
 
     def tearDown(self) -> None:
-        if self.conda.environment_exists("unit-test"):
-            self.conda.remove_environment("unit-test")
-            self.assertFalse(self.conda.environment_exists("unit-test"))
+        env_dict = self.conda.get_environment_dict()
+        if self.conda.environment_exists(self.test_environment_name):
+            self.conda.remove_environment(self.test_environment_name)
+            self.assertFalse(self.conda.environment_exists(self.test_environment_name))
+            # try to delete rest of disc content
+            remove_warning_on_error(env_dict[self.test_environment_name])
+        CondaManager.instance = None
         super().tearDown()
 
     @patch('hips.core.controller.conda_manager.CondaManager.get_info')
@@ -46,6 +51,14 @@ class TestCondaManager(TestHipsCommon):
 
         self.assertTrue(self.conda.environment_exists("envName1"))
         self.assertFalse(self.conda.environment_exists("notExitendEnvs"))
+
+    @patch('hips.core.controller.conda_manager.CondaManager.get_environment_dict')
+    def test_get_environment_path(self, ged_mock):
+        ged_mock.return_value = {
+            "envName1": Path("aPath").joinpath("envName1"),
+            "envName2": Path("anotherPath").joinpath("envName2")
+        }
+        self.assertEqual(Path("aPath").joinpath("envName1"), self.conda.get_environment_path("envName1"))
 
     @patch('hips.core.controller.conda_manager.CondaManager.get_info')
     def test_get_active_environment_name(self, ginfo_mock):
@@ -80,43 +93,63 @@ class TestCondaManager(TestHipsCommon):
         self.assertFalse(self.conda.is_installed(p, "thisPackageDoesNotExist"))
 
     def test_create_environment_from_file_valid_file(self):
-        self.assertFalse(self.conda.environment_exists("unit-test"))
-        env_file = """name: unit-test"""
+        self.assertFalse(self.conda.environment_exists(self.test_environment_name))
+        env_file = """name: %s""" % self.test_environment_name
 
         with open(Path(self.tmp_dir.name).joinpath("env_file.yml"), "w") as f:
             f.writelines(env_file)
 
-        self.conda.create_environment_from_file(Path(self.tmp_dir.name).joinpath("env_file.yml"), "unit-test")
+        self.conda.create_environment_from_file(
+            Path(self.tmp_dir.name).joinpath("env_file.yml"), self.test_environment_name
+        )
 
-        self.assertTrue(self.conda.environment_exists("unit-test"))
+        self.assertTrue(self.conda.environment_exists(self.test_environment_name))
 
     def test_create_environment_from_file_invalid(self):
         # wrong file ending
         with self.assertRaises(NameError):
-            self.conda.create_environment_from_file(self.closed_tmp_file.name, "unit-test")
+            self.conda.create_environment_from_file(self.closed_tmp_file.name, self.test_environment_name)
 
     def test_create_environment_from_file_valid_but_empty(self):
-        t = Path(self.tmp_dir.name).joinpath("unit-test.yml")
+        t = Path(self.tmp_dir.name).joinpath("%s.yml" % self.test_environment_name)
         t.touch()
         # no content in file
         with self.assertRaises(ValueError):
-            self.conda.create_environment_from_file(t, "unit-test")
+            self.conda.create_environment_from_file(t, self.test_environment_name)
 
     def test_create_environment(self):
-        self.assertFalse(self.conda.environment_exists("unit-test"))
-        self.conda.create_environment("unit-test")
-        self.assertTrue(self.conda.environment_exists("unit-test"))
+        self.assertFalse(self.conda.environment_exists(self.test_environment_name))
 
-        # check if python & pip installed
-        self.assertTrue(self.conda.is_installed(self.conda.get_environment_dict()["unit-test"], "python"))
-        self.assertTrue(self.conda.is_installed(self.conda.get_environment_dict()["unit-test"], "pip"))
+        skip = False
+
+        try:
+            self.conda.create_environment(self.test_environment_name)
+        except RuntimeError as err:
+            print(err)
+            skip = True
+
+        if not skip:
+            # create it again without force fails
+            with self.assertRaises(FileExistsError):
+                self.conda.create_environment(self.test_environment_name)
+
+            self.assertTrue(self.conda.environment_exists(self.test_environment_name))
+
+            # check if python & pip installed
+            self.assertTrue(
+                self.conda.is_installed(self.conda.get_environment_path(self.test_environment_name), "python")
+            )
+            self.assertTrue(
+                self.conda.is_installed(self.conda.get_environment_dict()[self.test_environment_name], "pip")
+            )
+        else:
+            unittest.skip("WARNING - CONDA ERROR!")
 
     def test_pip_install(self):
-        self.assertFalse(self.conda.environment_exists("unit-test"))
+        if not self.conda.environment_exists(self.test_environment_name):
+            self.conda.create_environment(self.test_environment_name)
 
-        self.conda.create_environment("unit-test")
-
-        p = self.conda.get_environment_dict()["unit-test"]
+        p = self.conda.get_environment_dict()[self.test_environment_name]
         self.assertIsNotNone(p)
 
         # check if package NOT installed
@@ -126,7 +159,7 @@ class TestCondaManager(TestHipsCommon):
 
     def test_run_script(self):
         with open(self.closed_tmp_file.name, "w") as f:
-            f.writelines("print(\"unit-test\")")
+            f.writelines("print(\"%s\")" % self.test_environment_name)
 
         p = self.conda.get_active_environment_path()
 
@@ -138,7 +171,7 @@ class TestCondaManager(TestHipsCommon):
 
     @patch('hips.core.utils.subcommand.run', return_value=True)
     def test_remove_environment_not_exist(self, run_mock):
-        self.conda.create_environment("unit-test")
+        self.conda.create_environment(self.test_environment_name)
         run_mock.assert_called_once()
 
         # run_mock not called again
@@ -146,15 +179,17 @@ class TestCondaManager(TestHipsCommon):
         run_mock.assert_called_once()
 
     def test_cmd_available(self):
-        self.conda.create_environment("unit-test")
-        p = self.conda.get_environment_dict()["unit-test"]
+        if not self.conda.environment_exists(self.test_environment_name):
+            self.conda.create_environment(self.test_environment_name)
+        p = self.conda.get_environment_dict()[self.test_environment_name]
 
         self.assertFalse(self.conda.cmd_available(p, ["hips"]))
         self.assertTrue(self.conda.cmd_available(p, ["conda"]))
 
     def test_conda_install(self):
-        self.conda.create_environment("unit-test")
-        p = self.conda.get_environment_dict()["unit-test"]
+        if not self.conda.environment_exists(self.test_environment_name):
+            self.conda.create_environment(self.test_environment_name)
+        p = self.conda.get_environment_dict()[self.test_environment_name]
 
         self.assertFalse(self.conda.is_installed(p, "perl"))
 

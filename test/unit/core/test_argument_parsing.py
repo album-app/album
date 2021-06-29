@@ -4,52 +4,47 @@ import tempfile
 import unittest.mock
 from unittest.mock import patch
 
-from hips import cmdline
+from hips import argument_parsing
 
 # the functions to call. Caution: do not import as module!
-from hips.core.deploy import deploy
-from hips.core.install import install
-from hips.core.containerize import containerize
-from hips.core.tutorial import tutorial
-from hips.core.remove import remove
-from hips.core.repl import repl
-from hips.core.run import run
-from hips.core.search import search
+from hips.core.commandline import containerize, deploy, install, remove, repl, run, search, tutorial, test, start_server, \
+    add_catalog, remove_catalog
 
 
-class TestCommandLine(unittest.TestCase):
+class TestArgumentParsing(unittest.TestCase):
 
     def setUp(self):
         pass
 
-    @patch('hips.cmdline.__run_subcommand', return_value=True)
+    @patch('hips.argument_parsing.__run_subcommand', return_value=True)
     def test_run(self, _):
         fp = tempfile.NamedTemporaryFile(mode='w+', delete=False)
         fp.close()
 
         try:
             sys.argv = ["", "run", fp.name]
-            self.assertIsNone(cmdline.main())
+            self.assertIsNone(argument_parsing.main())
         finally:
             os.remove(fp.name)
 
     def test_run_no_args(self):
         sys.argv = ["", "run"]
         with self.assertRaises(SystemExit) as e:
-            cmdline.main()
+            argument_parsing.main()
 
         self.assertEqual(e.exception.code, 2)
 
     def test_run_non_existing_file(self):
         sys.argv = ["", "run", "test/path"]
         with self.assertRaises(ValueError):
-            cmdline.main()
+            argument_parsing.main()
 
     def test_create_parser(self):
-        parser = cmdline.create_parser()
+        parser = argument_parsing.create_parser()
 
         # check parsing of subcommands
         self.assertSubcommandParsed(parser, "search", search, "keyword")
+        self.assertSubcommandParsed(parser, "server", start_server, "1234")
         self.assertSubcommandWithFileArgParsed(parser, "run", run)
         self.assertSubcommandWithFileArgParsed(parser, "deploy", deploy)
         self.assertSubcommandWithFileArgParsed(parser, "repl", repl)
@@ -57,7 +52,9 @@ class TestCommandLine(unittest.TestCase):
         self.assertSubcommandWithFileArgParsed(parser, "remove", remove)
         self.assertSubcommandWithFileArgParsed(parser, "containerize", containerize)
         self.assertSubcommandWithFileArgParsed(parser, "tutorial", tutorial)
-        # todo: update me
+        self.assertSubcommandWithFileArgParsed(parser, "test", test)
+        self.assertSubcommandWithFileArgParsed(parser, "add-catalog", add_catalog)
+        self.assertSubcommandWithFileArgParsed(parser, "remove-catalog", remove_catalog)
 
         # check parsing of additional arguments
         sys.argv = ["", "run", "test/path", "--input", "/other/path"]

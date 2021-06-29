@@ -6,17 +6,27 @@ from pathlib import Path
 from hips.core.concept.singleton import Singleton
 from hips.core.model.configuration import HipsConfiguration
 from hips.core.utils import subcommand
+from hips.core.utils.operations.file_operations import remove_warning_on_error
 from hips_runner import logging
 
 module_logger = logging.get_active_logger
 
 
 class CondaManager(metaclass=Singleton):
-    """Class for handling conda environments."""
+    """Class for handling conda environments.
 
-    configuration = HipsConfiguration()
+    The conda class manages the environments a solution is supposed to run in. It provides all features necessary for
+    environment creation, deletion, dependency installation, etc.
 
-    def __init__(self):
+    Notes:
+        An installed \"conda\" program must be available and callable via commandline or powershell.
+
+    """
+    # singletons
+    configuration = None
+
+    def __init__(self, configuration=None):
+        self.configuration = configuration if configuration else HipsConfiguration()
         self.conda_executable = self.configuration.conda_executable
 
     def get_environment_dict(self):
@@ -49,12 +59,24 @@ class CondaManager(metaclass=Singleton):
         environment_dict = self.get_environment_dict()
         return True if environment_name in environment_dict.keys() else False
 
+    def get_environment_path(self, environment_name):
+        """Gets the environment path for a given environment name
+
+        Args:
+            environment_name:
+                The environment name to get the path for.
+
+        Returns:
+            None or the path
+        """
+        environment_dict = self.get_environment_dict()
+        return environment_dict[environment_name] if environment_name in environment_dict.keys() else None
+
     def get_active_environment_name(self):
         """Returns the environment form the active hips."""
         conda_list = self.get_info()
         return conda_list["active_prefix_name"]
 
-    # todo: write tests
     def get_active_environment_path(self):
         """Returns the environment form the active hips."""
         conda_list = self.get_info()
@@ -82,11 +104,16 @@ class CondaManager(metaclass=Singleton):
             module_logger().warning("Environment does not exist! Skipping...")
             return
 
+        path = self.get_environment_path(environment_name)
+
         subprocess_args = [
             self.conda_executable, 'env', 'remove', '-y', '--json', '-n', environment_name
         ]
 
         subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
+
+        # try to remove file content if any but don't fail:
+        remove_warning_on_error(path)
 
     def get_info(self):
         """Get the info of the conda installation on the corresponding system.
@@ -186,7 +213,7 @@ class CondaManager(metaclass=Singleton):
                 self.remove_environment(environment_name)
             raise RuntimeError("Command failed due to reasons above!") from e
 
-    def create_environment(self, environment_name, timeout1=60, timeout2=120):
+    def create_environment(self, environment_name, timeout1=60, timeout2=120, force=False):
         """Creates a conda environment with python (latest version) installed.
 
         Args:
@@ -198,15 +225,23 @@ class CondaManager(metaclass=Singleton):
             timeout2:
                 Timeout in seconds after timeout1 passed, after which the process behind the
                 operation is declared dead. Timeout is resets each time a feedback is passed to the main process.
+            force:
+                If True, force creates the environment by deleting the old one.
         Raises:
             RuntimeError:
                 When the environment could not be created due to whatever reasons.
 
         """
-        if self.environment_exists(environment_name):
+        env_exists = self.environment_exists(environment_name)
+        if force and env_exists:
             self.remove_environment(environment_name)
+        else:
+            if env_exists:
+                raise FileExistsError("Environment already exists!")
 
-        subprocess_args = [self.conda_executable, 'create', '--json', '-y', '-n', environment_name, 'python', 'pip']
+        subprocess_args = [
+            self.conda_executable, 'create', '--force', '--json', '-y', '-n', environment_name, 'python', 'pip'
+        ]
 
         try:
             subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
