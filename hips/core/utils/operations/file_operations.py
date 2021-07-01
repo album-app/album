@@ -3,6 +3,8 @@ import os
 import re
 import shutil
 import subprocess
+import zipfile
+import tempfile
 import sys
 import time
 from pathlib import Path
@@ -292,13 +294,31 @@ def create_path_recursively(path):
     return True
 
 
-def copy(path_from, path_to):
-    """Copies a path A to B. Makes sure folder structure for target exists."""
-    path_from = Path(path_from)
+def copy_folder(folder_to_copy, destination, copy_root_folder=True):
+    folder_to_copy = Path(folder_to_copy)
+    destination = Path(destination)
+
+    if copy_root_folder:
+        destination = destination.joinpath(folder_to_copy.name)
+
+    create_path_recursively(destination)
+
+    for root, dirs, files in os.walk(folder_to_copy):
+        root = Path(root)
+
+        for d in dirs:
+            copy_folder(root.joinpath(d), destination.joinpath(d), copy_root_folder=False)
+        for fi in files:
+            copy(root.joinpath(fi), destination)
+
+
+def copy(file, path_to):
+    """Copies a file A to either folder B or file B. Makes sure folder structure for target exists."""
+    file = Path(file)
     path_to = Path(path_to)
     create_path_recursively(path_to.parent)
 
-    shutil.copy(path_from, path_to)
+    return shutil.copy(file, path_to)
 
 
 def copy_in_file(file_content, file_path):
@@ -310,6 +330,46 @@ def copy_in_file(file_content, file_path):
     with open(file_path, "w") as script_file:
         script_file.write(file_content)
     return file_path
+
+
+def zip_folder(folder_path, zip_archive_file):
+    """Creates a zip archive of a given folder."""
+    zip_archive_file = Path(zip_archive_file)
+
+    if zip_archive_file.suffix == ".zip":  # remove suffix as it appends automatically
+        zip_archive_file = zip_archive_file.with_suffix("")
+
+    create_path_recursively(zip_archive_file.parent)
+
+    return shutil.make_archive(zip_archive_file, 'zip', folder_path)
+
+
+def zip_paths(paths_to_include, zip_archive_file):
+    """Creates a zip archive including all given files. Copies the data into a tmp directory first."""
+
+    with tempfile.TemporaryDirectory() as tmp_folder:
+        for file in paths_to_include:
+            file = Path(file)
+            if file.is_file():
+                copy(file, tmp_folder)
+            elif file.is_dir():
+                copy_folder(file, tmp_folder)
+            else:
+                raise FileNotFoundError("Could not find file %s" % str(file))
+
+        zip_folder(tmp_folder, zip_archive_file)
+
+
+def unzip_archive(zip_archive_file, target_folder=None):
+    """Unzips a archive file to a given folder or the folder where it is located (default)."""
+    zip_archive_file = Path(zip_archive_file)
+    target_folder = Path(target_folder) if target_folder else zip_archive_file.parent
+
+    create_path_recursively(target_folder)
+
+    shutil.unpack_archive(str(zip_archive_file), str(target_folder))
+
+    return target_folder
 
 
 def remove_warning_on_error(path):

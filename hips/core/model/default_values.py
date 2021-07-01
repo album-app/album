@@ -21,6 +21,7 @@ class HipsDefaultValues(Enum):
     cache_path_doi_solution_prefix = "doi_solutions"  # base folder name where doi solutions live
     cache_path_app_prefix = "apps"                    # base folder name where app solutions live
     cache_path_download_prefix = "downloads"          # base folder name where downloads live
+    solution_default_name = "solution.py"             # default name how solution.py files are called
 
     # environment
     default_environment = "hips"            # default environment name the hips framework operates from

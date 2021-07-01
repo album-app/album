@@ -30,6 +30,7 @@ def startup():
     __retrieve_logger()
     module_logger().info("Running hips version %s \n \n %s - contact via %s " %
                          (hips.__version__, hips.__author__, hips.__email__))
+    main()
 
 
 def __retrieve_logger():
@@ -39,4 +40,3 @@ def __retrieve_logger():
 
 if __name__ == "__main__":
     startup()
-    main()

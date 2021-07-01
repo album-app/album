@@ -190,7 +190,7 @@ class TestCatalog(TestHipsCommon):
             self.catalog.resolve("group0", "name0", "version0")
 
     @patch('hips.core.model.catalog.Catalog.get_solution_cache_file')
-    @patch('hips.core.model.catalog.Catalog.download_solution_via_doi', return_value=True)
+    @patch('hips.core.model.catalog.Catalog.download_solution_via_doi', return_value=Path("pathDoesNotExist"))
     def test_resolve_download_by_doi_if_present(self, download_doi_solution_mock, get_solution_cache_file_mock):
         self.populate_index()
         self.catalog.is_local = False
@@ -199,7 +199,7 @@ class TestCatalog(TestHipsCommon):
         search_result = self.catalog.resolve("group0", "name0", "version0")
         download_doi_solution_mock.assert_called_once()
 
-        self.assertEqual(search_result, Path("pathDoesNotExist"))
+        self.assertEqual(Path("pathDoesNotExist"), search_result)
 
     @patch('hips.core.model.catalog.Catalog.get_solution_cache_file')
     @patch('hips.core.model.catalog.Catalog.download_solution_via_doi', return_value=True)
@@ -316,10 +316,10 @@ class TestCatalog(TestHipsCommon):
             self.catalog.path.joinpath(self.catalog.gnv_solution_prefix, "g", "n", "v")
         )
 
-    def test_get_solution_cache_file_suffix(self):
+    def test_get_solution_cache_zip_folder_suffix(self):
         self.assertEqual(
-            self.catalog.get_solution_cache_file_suffix("g", "n", "v"),
-            Path("").joinpath(HipsDefaultValues.cache_path_solution_prefix.value, "g", "n", "v", "n.py")
+            Path("").joinpath(HipsDefaultValues.cache_path_solution_prefix.value, "g", "n", "v"),
+            self.catalog.get_solution_cache_zip_folder_suffix("g", "n", "v")
         )
 
     def test_get_doi_cache_file(self):
@@ -332,7 +332,7 @@ class TestCatalog(TestHipsCommon):
 
         # create solution files installed via g, n, v
         for i in range(0, 2):
-            p = self.catalog.get_solution_cache_file("group" + str(i), "name" + str(i), "version" + str(i))
+            p = self.catalog.get_solution_cache_zip("group" + str(i), "name" + str(i), "version" + str(i))
             p.mkdir(parents=True)
             p.touch()
 
@@ -380,10 +380,10 @@ class TestCatalog(TestHipsCommon):
 
         self.assertEqual(res, self.catalog.doi_to_grp_name_version(doi))
 
-    def test_get_solution_cache_file(self):
-        res = self.catalog.path.joinpath(HipsDefaultValues.cache_path_solution_prefix.value, "g", "n", "v", "n.py")
+    def test_get_solution_cache_zip(self):
+        res = self.catalog.path.joinpath(HipsDefaultValues.cache_path_solution_prefix.value, "g", "n", "v", "g_n_v.zip")
 
-        self.assertEqual(res, self.catalog.get_solution_cache_file("g", "n", "v"))
+        self.assertEqual(res, self.catalog.get_solution_cache_zip("g", "n", "v"))
 
     @unittest.skip("Needs to be implemented!")
     def test_download_solution_via_doi(self):
@@ -391,14 +391,19 @@ class TestCatalog(TestHipsCommon):
         pass
 
     @patch("hips.core.model.catalog.download_resource", return_value=None)
-    def test_download_solution(self, dl_mock):
+    @patch("hips.core.model.catalog.unzip_archive", return_value=Path("a/Path"))
+    def test_download_solution(self, unzip_mock, dl_mock):
         self.catalog.src = "NonsenseUrl.git"
 
-        dl_url = "NonsenseUrl" + "/-/raw/main/solutions/g/n/v/n.py"
-        dl_path = self.catalog.path.joinpath(HipsDefaultValues.cache_path_solution_prefix.value, "g", "n", "v", "n.py")
+        dl_url = "NonsenseUrl" + "/-/raw/main/solutions/g/n/v/gnv.zip"
+        dl_path = self.catalog.path.joinpath(
+            HipsDefaultValues.cache_path_solution_prefix.value, "g", "n", "v", "g_n_v.zip"
+        )
+        res = Path("a/Path").joinpath(HipsDefaultValues.solution_default_name.value)
 
-        self.assertEqual(dl_path, self.catalog.download_solution("g", "n", "v"))
+        self.assertEqual(res, self.catalog.download_solution("g", "n", "v"))
         dl_mock.assert_called_once_with(dl_url, dl_path)
+        unzip_mock.assert_called_once_with(dl_path)
 
     def test_download(self):
         self.catalog.src = HipsDefaultValues.catalog_url.value
