@@ -1,5 +1,6 @@
 import sys
 import unittest
+from unittest.mock import patch, PropertyMock
 
 from hips.argument_parsing import main
 from test.integration.test_integration_common import TestIntegrationCommon

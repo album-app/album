@@ -9,7 +9,7 @@ from anytree.importer import JsonImporter
 
 from hips.ci.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from hips.core.model.default_values import HipsDefaultValues
-from hips.core.utils.operations.file_operations import write_dict_to_json, remove_warning_on_error
+from hips.core.utils.operations.file_operations import write_dict_to_json, remove_warning_on_error, unzip_archive
 from hips.core.utils.operations.git_operations import download_repository
 from hips.core.utils.operations.url_operations import download_resource
 from hips_runner import logging
@@ -21,7 +21,7 @@ module_logger = logging.get_active_logger
 #  solutions whenever they are used?
 def get_index_src(src):
     """Gets the download link for an index."""
-    # todo: replace "new_catalog_structure" branch with "main"... although "main" is also hardcoded! :(
+    # todo: "main" is still hardcoded! :(
     return src.strip("git").strip(".") + "/-/raw/main/%s" \
            % HipsDefaultValues.catalog_index_file_name.value
 
@@ -29,9 +29,9 @@ def get_index_src(src):
 # todo: this is not good! Think of smth. clever here
 def get_solution_src(src, grp, name, version):
     """Gets the download link for a solution in an index."""
-    # todo: replace "new_catalog_structure" branch with "main"... although "main" is also hardcoded! :(
-    return src.strip("git").strip(".") + "/-/raw/main/solutions/%s/%s/%s/%s.py" \
-           % (grp, name, version, name)
+    # todo: "main" is still hardcoded! :(
+    return src.strip("git").strip(".") + "/-/raw/main/solutions/%s/%s/%s/%s" \
+           % (grp, name, version, "%s%s%s%s" % (grp, name, version, ".zip"))
 
 
 class Catalog:
@@ -114,9 +114,9 @@ class Catalog:
                         "Could resolve the solution, but file %s could not be found!"
                         " Please reinstall the solution!" % path_to_solution)
                 if hasattr(tree_leaf_node, "doi"):
-                    self.download_solution_via_doi(getattr(tree_leaf_node, "doi"), name)
+                    path_to_solution = self.download_solution_via_doi(getattr(tree_leaf_node, "doi"), name)
                 else:
-                    self.download_solution(group, name, version)
+                    path_to_solution = self.download_solution(group, name, version)
 
             return path_to_solution
 
@@ -237,6 +237,24 @@ class Catalog:
         }
 
     def get_solution_cache_file(self, group, name, version):
+        """Gets the file to the solution.py file of the extracted solution.zip
+
+        Args:
+            group:
+                The group affiliation of the solution.
+            name:
+                The name of the solution.
+            version:
+                The version of the solution.
+
+        Returns:
+            The path where the file is supposed to be once the zip is extracted during installation.
+
+        """
+        p = self.get_solution_cache_path(group, name, version)
+        return p.joinpath(HipsDefaultValues.solution_default_name.value)
+
+    def get_solution_cache_zip(self, group, name, version):
         """Gets the cache file of a solution given its group, name and version.
 
         Args:
@@ -251,7 +269,9 @@ class Catalog:
             The absolute path to the solution.py cache file.
 
         """
-        return self.get_solution_cache_path(group, name, version).joinpath("%s%s" % (name, ".py"))
+        return self.get_solution_cache_path(group, name, version).joinpath(
+            "_".join([group, name, version]) + ".zip"
+        )
 
     def get_solution_cache_path(self, group, name, version):
         """Gets the cache path of a solution given its group, name and version.
@@ -270,8 +290,8 @@ class Catalog:
         """
         return self.path.joinpath(self.gnv_solution_prefix, group, name, version)
 
-    def get_solution_cache_file_suffix(self, group, name, version):
-        """Gets the cache suffix of a solution file given its group, name and version.
+    def get_solution_cache_zip_suffix(self, group, name, version):
+        """Gets the cache suffix of a solution given its group, name and version.
 
         Args:
             group:
@@ -285,7 +305,28 @@ class Catalog:
             The absolute path to the cache folder of the solution.
 
         """
-        return Path("").joinpath(self.gnv_solution_prefix, group, name, version, "%s%s" % (name, ".py"))
+        return Path("").joinpath(
+            self.gnv_solution_prefix, group, name, version, "_".join([group, name, version]) + ".zip"
+        )
+
+    def get_solution_cache_zip_folder_suffix(self, group, name, version):
+        """Gets the cache suffix of a solution given its group, name and version.
+
+        Args:
+            group:
+                The group affiliation of the solution.
+            name:
+                The name of the solution.
+            version:
+                The version of the solution.
+
+        Returns:
+            The absolute path to the cache folder of the solution.
+
+        """
+        return Path("").joinpath(
+            self.gnv_solution_prefix, group, name, version
+        )
 
     def get_doi_cache_file(self, doi):
         """Gets the cache path of a solution given a doi.
@@ -318,6 +359,7 @@ class Catalog:
                          if the DOI is not unique.
 
         """
+        raise NotImplementedError
         # Todo: replace with non-sandbox version
         zenodo_api = ZenodoAPI(ZenodoDefaultUrl.sandbox_url.value, None)
 
@@ -355,8 +397,13 @@ class Catalog:
 
         """
         url = get_solution_src(self.src, group, name, version)
-        solution_path = self.path.joinpath(self.gnv_solution_prefix, group, name, version).joinpath("%s%s" % (name, ".py"))
-        download_resource(url, solution_path)
+
+        solution_zip_file = self.get_solution_cache_zip(group, name, version)
+        download_resource(url, solution_zip_file)
+
+        solution_zip_path = unzip_archive(solution_zip_file)
+        solution_path = solution_zip_path.joinpath(HipsDefaultValues.solution_default_name.value)
+
         return solution_path
 
     def load_index(self):
