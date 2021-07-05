@@ -45,7 +45,7 @@
 # Linux base template
 #
 # Uses a docker image where conda is already installed.
-# Creates a hips environment.
+# Creates a album environment.
 #
 .linux_base_template:
   image: continuumio/miniconda3:4.9.2
@@ -53,20 +53,20 @@
     - python -V  # Print out python version for debugging
     - pwd
     - which python
-    - conda env create -f hips.yml  # sets up environment including hips installation
+    - conda env create -f album.yml  # sets up environment including hips installation
     - conda init bash
     - source ~/.bashrc
-    - conda activate hips
+    - conda activate album
     - which python
     - pwd
     - ls ${CONDA_PREFIX}
     - ls /opt
-    - conda activate hips
+    - conda activate album
     - python -V
     - pip list
   variables:
     PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
-    CONDA_ENV_NAME: hips
+    CONDA_ENV_NAME: album
     CONDA_PREFIX: /opt/conda
     PREFIX: $CONDA_PREFIX/envs/$CONDA_ENV_NAME
   cache:
@@ -121,12 +121,12 @@ unit tests windows:
   extends: .windows_base_template
   stage: test
   script:
-    - '$cmnd = powershell.exe -command {conda env create -f hips.yml 2>&1 | Write-Host; conda activate hips 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit.py 2>&1 | Write-Host; exit(0)}'
+    - '$cmnd = powershell.exe -command {conda env create -f album.yml 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit.py 2>&1 | Write-Host; exit(0)}'
     - 'if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}'
 
 integration tests windows:
   extends: .windows_base_template
   stage: test
   script:
-    - '$cmnd = powershell.exe -command {conda env create -f hips.yml 2>&1 | Write-Host; conda activate hips 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration.py 2>&1 | Write-Host; exit(0)}'
+    - '$cmnd = powershell.exe -command {conda env create -f album.yml 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration.py 2>&1 | Write-Host; exit(0)}'
     - 'if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}'

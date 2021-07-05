@@ -1,4 +1,4 @@
-name: hips
+name: album
 channels:
   - conda-forge
   - defaults
@@ -7,4 +7,4 @@ dependencies:
   - pip
   - git
   - pip:
-      - git+https://gitlab.com/ida-mdc/hips.git
+      - git+https://gitlab.com/album-app/album.git
