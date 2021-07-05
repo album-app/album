@@ -8,7 +8,7 @@ For usage instructions, see [usage instructions](usage-instructions).
 
 For the solution development guide, see [solution development](solution-development).
 
-For the development guide (for developing the hips framework itself),
+For the development guide (for developing `album` itself),
 see [development guide](development-guide).
 
 ## Commands
