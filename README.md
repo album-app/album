@@ -1,5 +1,5 @@
 # hips
 
-Documentation: [https://hips-docs.readthedocs.io/en/latest/](https://hips-docs.readthedocs.io/en/latest/)
+Documentation: [https://docs.album.solutions/](https://docs.album.solutions)
 
-The IDA-MDC solution repository is available here: [https://solutions.capture-knowledge.org/](https://solutions.capture-knowledge.org/)
+The primary solution repository is available here: [https://solutions.capture-knowledge.org/](https://solutions.capture-knowledge.org/)
