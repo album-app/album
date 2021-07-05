@@ -1,14 +1,13 @@
-.. _solution-development:
+Solution development
 
-hips solution development guide
+album solution development guide
 ================================
 
 Write a solution file.
 
 Here is an example solution file:
 
-.. code-block: python
-   
+```
     from hips_runner import setup
     from io import StringIO
 
@@ -21,23 +20,23 @@ Here is an example solution file:
       - pip
       - git
       - pip:
-          - git+https://gitlab.com/ida-mdc/hips.git
+          - git+https://gitlab.com/album-app/album.git
     """)
 
 
-    def hips_init():
+    def init():
         pass
 
 
-    def hips_install():
+    def install():
         pass
 
 
-    def hips_run():
+    def run():
         print('The solution finished running')
 
 
-    def hips_close():
+    def close():
         pass
 
 
@@ -62,16 +61,9 @@ Here is an example solution file:
           min_hips_version="0.1.0",
           tested_hips_version="0.1.0",
           args=[],
-          install=hips_install,
-          init=hips_init,
-          run=hips_run,
-          close=hips_close,
+          install=install,
+          init=init,
+          run=run,
+          close=close,
           dependencies={'environment_file': env_file})
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
->
+```
