@@ -28,8 +28,9 @@ test_manager = TestManager(catalog_collection)
 
 def startup():
     __retrieve_logger()
-    module_logger().info("Running hips version %s \n \n %s - contact via %s " %
-                         (hips.__version__, hips.__author__, hips.__email__))
+    module_logger().info(
+        "Running album version %s \n \n %s - contact via %s " %
+        (hips.__version__, hips.__author__, hips.__email__))
     main()
 
 
