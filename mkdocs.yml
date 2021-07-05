@@ -1,2 +1,8 @@
 site_name: album docs
 site_url: https://docs.album.solutions/
+nav:
+  - Home: index.md
+  - Installation: installation-instructions.md
+  - Usage: usage-instructions.md
+  - Solution dev: solution-development.md
+  - album dev: development-guide.md
