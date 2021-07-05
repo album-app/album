@@ -7,4 +7,5 @@ dependencies:
   - pip
   - git
   - pip:
-      - git+https://gitlab.com/album-app/album.git
+      - "."
+#      - git+https://gitlab.com/album-app/album.git
