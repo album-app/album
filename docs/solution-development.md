@@ -1,5 +1,3 @@
-Solution development
-
 album solution development guide
 ================================
 
