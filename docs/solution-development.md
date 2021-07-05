@@ -20,7 +20,7 @@ Here is an example solution file:
       - pip
       - git
       - pip:
-          - git+https://gitlab.com/album-app/album.git
+          - git+https://gitlab.com/album-app/album-runner.git
     """)
 
 
