@@ -1,4 +1,4 @@
-# hips
+# album
 
 Documentation: [https://docs.album.solutions/](https://docs.album.solutions)
 

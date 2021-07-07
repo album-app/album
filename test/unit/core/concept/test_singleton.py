@@ -1,6 +1,6 @@
 import unittest
 
-from hips.core.concept.singleton import Singleton
+from album.core.concept.singleton import Singleton
 
 
 class TestSingleton(unittest.TestCase):

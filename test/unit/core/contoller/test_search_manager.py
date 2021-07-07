@@ -1,9 +1,9 @@
 import unittest.mock
 
-from test.unit.test_common import TestHipsCommon
+from test.unit.test_unit_common import TestUnitCommon
 
 
-class TestSearchManager(TestHipsCommon):
+class TestSearchManager(TestUnitCommon):
 
     def setUp(self):
         pass

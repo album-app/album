@@ -1,8 +1,8 @@
 import sys
 import unittest
 
-from hips.argument_parsing import main
-from hips.core.utils.operations.file_operations import force_remove
+from album.argument_parsing import main
+from album.core.utils.operations.file_operations import force_remove
 from test.integration.test_integration_common import TestIntegrationCommon
 
 

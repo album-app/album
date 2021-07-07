@@ -1,9 +1,9 @@
 import sys
 import unittest.mock
 
-import hips.core as hips
-from hips.argument_parsing import main
-from hips.core.model.environment import Environment
+import album.core as album
+from album.argument_parsing import main
+from album.core.model.environment import Environment
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -25,7 +25,7 @@ class TestIntegrationRun(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
-        self.assertIsNone(hips.get_active_hips())
+        self.assertIsNone(album.get_active_solution())
 
     def test_run_no_run_routine(self):
         # gather arguments
@@ -63,7 +63,7 @@ class TestIntegrationRun(TestIntegrationCommon):
             self.assertEqual("solution1_app1_run", log[2])
             self.assertEqual("solution1_app1_close", log[3])
             self.assertEqual("app1_close", log[4])
-            self.assertIsNone(hips.get_active_hips())
+            self.assertIsNone(album.get_active_solution())
 
     def test_run_with_steps(self):
         # create test environment
@@ -79,10 +79,10 @@ class TestIntegrationRun(TestIntegrationCommon):
         self.fake_install(self.get_test_solution_path("solution3_noparent.py"))
         self.fake_install(self.get_test_solution_path("solution2_app1.py"))
         self.fake_install(self.get_test_solution_path("solution1_app1.py"))
-        self.fake_install(self.get_test_solution_path("hips_with_steps.py"))
+        self.fake_install(self.get_test_solution_path("solution_with_steps.py"))
 
         # gather arguments
-        sys.argv = ["", "run", self.get_test_solution_path("hips_with_steps.py"), "--run-immediately=True", "--file",
+        sys.argv = ["", "run", self.get_test_solution_path("solution_with_steps.py"), "--run-immediately=True", "--file",
                     self.closed_tmp_file.name, "--file_solution1_app1", self.closed_tmp_file.name]
 
         # run
@@ -104,7 +104,7 @@ class TestIntegrationRun(TestIntegrationCommon):
             self.assertEqual("app1_close", log[9])
             self.assertEqual("solution3_noparent_run", log[10])
             self.assertEqual("solution3_noparent_close", log[11])
-            self.assertIsNone(hips.get_active_hips())
+            self.assertIsNone(album.get_active_solution())
 
     def test_run_with_grouped_steps(self):
         # create test environment
@@ -128,10 +128,10 @@ class TestIntegrationRun(TestIntegrationCommon):
         self.fake_install(self.get_test_solution_path("solution3_noparent.py"))
         self.fake_install(self.get_test_solution_path("solution4_app2.py"))
         self.fake_install(self.get_test_solution_path("solution5_app2.py"))
-        self.fake_install(self.get_test_solution_path("hips_with_steps_grouped.py"))
+        self.fake_install(self.get_test_solution_path("solution_with_steps_grouped.py"))
 
         # gather arguments
-        sys.argv = ["", "run", self.get_test_solution_path("hips_with_steps_grouped.py"), "--file",
+        sys.argv = ["", "run", self.get_test_solution_path("solution_with_steps_grouped.py"), "--file",
                     self.closed_tmp_file.name, "--file_solution1_app1", self.closed_tmp_file.name]
 
         # run
@@ -159,7 +159,7 @@ class TestIntegrationRun(TestIntegrationCommon):
             self.assertEqual("app2_close", log[15])
             self.assertEqual("solution3_noparent_run", log[16])
             self.assertEqual("solution3_noparent_close", log[17])
-            self.assertIsNone(hips.get_active_hips())
+            self.assertIsNone(album.get_active_solution())
 
 
 if __name__ == '__main__':

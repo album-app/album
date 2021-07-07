@@ -1,10 +1,8 @@
 import sys
 import unittest
-from pathlib import Path
 
-from hips.argument_parsing import main
-from hips.core.model.default_values import HipsDefaultValues
-from hips.core.utils.operations.file_operations import create_path_recursively, copy
+from album.argument_parsing import main
+from album.core.utils.operations.file_operations import create_path_recursively
 from test.integration.test_integration_common import TestIntegrationCommon
 
 

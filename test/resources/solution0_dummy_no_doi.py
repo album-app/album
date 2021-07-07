@@ -1,11 +1,11 @@
-from hips_runner import setup
+from album_runner import setup
 
 
-def hips_init():
+def album_init():
     pass
 
 
-def hips_run():
+def album_run():
     pass
 
 setup(
@@ -26,12 +26,12 @@ setup(
     covers=[],
     sample_inputs=[],
     sample_outputs=[],
-    min_hips_version="0.1.0",
-    tested_hips_version="0.1.0",
+    min_album_version="0.1.0",
+    tested_album_version="0.1.0",
     args=[],
-    init=hips_init,
-    run=hips_run,
+    init=album_init,
+    run=album_run,
     dependencies={
-        'environment_name': 'hips'
+        'environment_name': 'album'
     })
 

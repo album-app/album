@@ -6,16 +6,16 @@ from pathlib import Path
 from stat import *
 from unittest.mock import patch
 
-from hips.core.model.default_values import HipsDefaultValues
-from hips.core.utils.operations.file_operations import FileOperationError, get_zenodo_metadata, \
+from album.core.model.default_values import DefaultValues
+from album.core.utils.operations.file_operations import FileOperationError, get_zenodo_metadata, \
     set_zenodo_metadata_in_solutionfile, get_dict_from_yml, write_dict_to_yml, create_empty_file_recursively, \
     create_path_recursively, write_dict_to_json, force_remove, zip_folder, unzip_archive, copy, \
     copy_folder, zip_paths, rand_folder_name
 
-from test.unit.test_common import TestHipsCommon
+from test.unit.test_unit_common import TestUnitCommon
 
 
-class TestFileOperations(TestHipsCommon):
+class TestFileOperations(TestUnitCommon):
 
     def setUp(self):
         self.set_dummy_solution_path()
@@ -50,7 +50,7 @@ class TestFileOperations(TestHipsCommon):
 
         self.assertIsNone(get_zenodo_metadata(self.closed_tmp_file.name, "doi"))
 
-    @patch('hips.core.utils.operations.file_operations.shutil.copy', return_value=True)
+    @patch('album.core.utils.operations.file_operations.shutil.copy', return_value=True)
     def test_set_zenodo_metadata_in_solutionfile(self, shutil_mock):
         file_path = set_zenodo_metadata_in_solutionfile(self.dummysolution, "theDoi", "theID")
 
@@ -60,7 +60,7 @@ class TestFileOperations(TestHipsCommon):
             self.assertIn("    deposit_id=\"\",\n", lines)
 
         # needs to be this path - see @set_zenodo_metadata_in_solutionfile
-        new_file_path = str(HipsDefaultValues.app_cache_dir.value.joinpath("solution0_dummy_tmp.py"))
+        new_file_path = str(DefaultValues.app_cache_dir.value.joinpath("solution0_dummy_tmp.py"))
 
         with open(new_file_path) as f:
             lines = f.readlines()
@@ -71,7 +71,7 @@ class TestFileOperations(TestHipsCommon):
 
         shutil_mock.assert_called_once()
 
-    @patch('hips.core.utils.operations.file_operations.shutil.copy', return_value=True)
+    @patch('album.core.utils.operations.file_operations.shutil.copy', return_value=True)
     def test_set_zenodo_metadata_in_solutionfile_wrong_format(self, shutil_mock):
         with open(self.closed_tmp_file.name, mode="w") as file:
             with open(self.dummysolution) as d:

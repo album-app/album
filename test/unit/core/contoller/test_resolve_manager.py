@@ -1,13 +1,13 @@
 import unittest
 
-from hips.core.controller.resolve_manager import ResolveManager
-from test.unit.test_common import TestHipsCommon
+from album.core.controller.resolve_manager import ResolveManager
+from test.unit.test_unit_common import TestUnitCommon
 
 
-class TestResolveManager(TestHipsCommon):
+class TestResolveManager(TestUnitCommon):
     def setUp(self):
         self.create_test_config()
-        self.create_test_hips_no_env()
+        self.create_test_solution_no_env()
 
         self.resolve_manager = ResolveManager()
 

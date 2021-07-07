@@ -1,7 +1,7 @@
 import sys
 import unittest
 
-from hips.argument_parsing import main
+from album.argument_parsing import main
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -11,7 +11,7 @@ class TestIntegrationInstall(TestIntegrationCommon):
         super().tearDown()
 
     def test_install_no_install_routine(self):
-        # this solution has the no hips_install() configured
+        # this solution has the no install() configured
         sys.argv = ["", "install", str(self.get_test_solution_path("solution0_dummy_no_routines.py"))]
 
         # run

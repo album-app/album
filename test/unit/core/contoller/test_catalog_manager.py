@@ -1,9 +1,9 @@
 import unittest.mock
 
-from test.unit.test_common import TestHipsCommon
+from test.unit.test_unit_common import TestUnitCommon
 
 
-class TestCatalogManager(TestHipsCommon):
+class TestCatalogManager(TestUnitCommon):
     def setUp(self) -> None:
         pass
 

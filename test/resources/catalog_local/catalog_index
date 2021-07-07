@@ -58,9 +58,9 @@
               "description": "keyword1",
               "documentation": "",
               "format_version": "0.3.0",
-              "git_repo": "https://github.com/ida-mdc/hips",
+              "git_repo": "https://gitlab.com/album-app/album",
               "license": "MIT",
-              "min_hips_version": "0.1.0",
+              "min_album_version": "0.1.0",
               "name": "0.1.0",
               "sample_inputs": [
                 {
@@ -80,7 +80,7 @@
               "tags": [
                 "tag1"
               ],
-              "tested_hips_version": "0.1.0",
+              "tested_album_version": "0.1.0",
               "timestamp": "2021-02-08T22:16:03.331998"
             }
           ],
@@ -107,9 +107,9 @@
               "description": "keyword2",
               "documentation": "",
               "format_version": "0.3.0",
-              "git_repo": "https://github.com/ida-mdc/hips",
+              "git_repo": "https://gitlab.com/album-app/album",
               "license": "MIT",
-              "min_hips_version": "0.1.0",
+              "min_album_version": "0.1.0",
               "name": "0.1.0",
               "sample_inputs": [],
               "sample_outputs": [],
@@ -120,7 +120,7 @@
                 "tag2",
                 "tag3"
               ],
-              "tested_hips_version": "0.1.0",
+              "tested_album_version": "0.1.0",
               "timestamp": "2021-02-08T22:16:03.331998"
             }
           ],
@@ -130,6 +130,6 @@
       "name": "ida-mdc"
     }
   ],
-  "name": "hips-test-catalog",
+  "name": "album-test-catalog",
   "version": "0.1.0"
 }

@@ -1,20 +1,17 @@
-import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import patch
-from zipfile import ZipFile
 
 import yaml
-from hips.core.model.default_values import HipsDefaultValues
 
-from hips.core.model.configuration import HipsConfiguration
+from album.core.model.catalog_collection import CatalogCollection
+from album.core.model.configuration import Configuration
+from album.core.model.default_values import DefaultValues
+from test.unit.test_unit_common import TestUnitCommon
 
-from hips.core.model.catalog_collection import HipsCatalogCollection
-from test.unit.test_common import TestHipsCommon
 
-
-class TestHipsCatalogCollection(TestHipsCommon):
+class TestCatalogCollection(TestUnitCommon):
 
     def setUp(self):
         self.config_file = Path(self.tmp_dir.name).joinpath("config_file")
@@ -23,19 +20,19 @@ class TestHipsCatalogCollection(TestHipsCommon):
                 """catalogs: \n- %s\n- %s\n- %s""" %
                 (
                     str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog")),
-                    str("https://gitlab.com/ida-mdc/hips-catalog.git"),
+                    str(DefaultValues.catalog_url.value),
                     str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog2"))
                 )
             )
 
-        HipsConfiguration.instance = None
-        config = HipsConfiguration(
+        Configuration.instance = None
+        config = Configuration(
             base_cache_path=self.tmp_dir.name,
             configuration_file_path=Path(self.tmp_dir.name).joinpath("config_file")
         )
 
-        HipsCatalogCollection.instance = None  # lever out concept
-        self.config = HipsCatalogCollection(configuration=config)
+        CatalogCollection.instance = None  # lever out concept
+        self.config = CatalogCollection(configuration=config)
 
     def test__init__(self):
         self.assertTrue(self.config_file.is_file())
@@ -86,36 +83,36 @@ class TestHipsCatalogCollection(TestHipsCommon):
                     "{'catalogs': ['%s']}" % str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog_save")))
             )
 
-    @patch('hips.core.model.catalog_collection.get_dict_from_yml', return_value={""})
-    def test__load_hips_configuration(self, get_dict_mock):
-        config_file_dict = self.config._load_hips_configuration()
+    @patch('album.core.model.catalog_collection.get_dict_from_yml', return_value={""})
+    def test__load_configuration(self, get_dict_mock):
+        config_file_dict = self.config._load_configuration()
 
         get_dict_mock.assert_called_once()
 
         self.assertEqual(config_file_dict, {""})
 
-    @patch('hips.core.model.catalog_collection.get_dict_from_yml', return_value={})
-    def test__load_hips_configuration_empty_file(self, get_dict_mock):
+    @patch('album.core.model.catalog_collection.get_dict_from_yml', return_value={})
+    def test__load_configuration_empty_file(self, get_dict_mock):
 
         with self.assertRaises(IOError):
-            self.config._load_hips_configuration()
+            self.config._load_configuration()
 
         get_dict_mock.assert_called_once()
 
-    @patch('hips.core.model.catalog_collection.HipsCatalogCollection._create_default_configuration',
+    @patch('album.core.model.catalog_collection.CatalogCollection._create_default_configuration',
            return_value="Called")
-    @patch('hips.core.model.catalog_collection.HipsCatalogCollection.save', return_value=None)
-    def test__load_hips_configuration_no_file(self, save_mock, _create_default_mock):
+    @patch('album.core.model.catalog_collection.CatalogCollection.save', return_value=None)
+    def test__load_configuration_no_file(self, save_mock, _create_default_mock):
 
         self.config.config_file_path = Path("doesNotExist")
-        r = self.config._load_hips_configuration()
+        r = self.config._load_configuration()
 
         _create_default_mock.assert_called_once()
         save_mock.assert_called_once_with("Called")
 
         self.assertEqual(r, "Called")
 
-    @patch('hips.core.model.configuration.HipsConfiguration.get_default_hips_configuration', return_value="Called")
+    @patch('album.core.model.configuration.Configuration.get_default_configuration', return_value="Called")
     def test__create_default_configuration(self, create_default_mock):
 
         r = self.config._create_default_configuration()
@@ -147,80 +144,80 @@ class TestHipsCatalogCollection(TestHipsCommon):
 
         self.assertEqual(r, self.config.catalogs[0])
 
-    @patch('hips.core.model.catalog.Catalog.resolve_doi', return_value=None)
-    @patch('hips.core.model.catalog.Catalog.resolve', return_value=None)
+    @patch('album.core.model.catalog.Catalog.resolve_doi', return_value=None)
+    @patch('album.core.model.catalog.Catalog.resolve', return_value=None)
     def test_resolve_no_doi(self, catalog_resolve_mock, catalog_resolve_doi_mock):
-        hips_attr = dict()
-        hips_attr["group"] = "group"
-        hips_attr["name"] = "name"
-        hips_attr["version"] = "version"
+        solution_attr = dict()
+        solution_attr["group"] = "group"
+        solution_attr["name"] = "name"
+        solution_attr["version"] = "version"
 
-        r = self.config.resolve(hips_attr)
+        r = self.config.resolve(solution_attr)
 
         self.assertIsNone(r)
         self.assertEqual(3, catalog_resolve_mock.call_count)
         catalog_resolve_doi_mock.assert_not_called()
 
-    @patch('hips.core.model.catalog.Catalog.resolve_doi', return_value=None)
-    @patch('hips.core.model.catalog.Catalog.resolve', return_value=None)
+    @patch('album.core.model.catalog.Catalog.resolve_doi', return_value=None)
+    @patch('album.core.model.catalog.Catalog.resolve', return_value=None)
     def test_resolve_no_doi_no_group(self, catalog_resolve_mock, catalog_resolve_doi_mock):
-        hips_attr = dict()
-        hips_attr["name"] = "name"
-        hips_attr["version"] = "version"
+        solution_attr = dict()
+        solution_attr["name"] = "name"
+        solution_attr["version"] = "version"
 
         with self.assertRaises(ValueError):
-            self.config.resolve(hips_attr)
+            self.config.resolve(solution_attr)
 
         catalog_resolve_mock.assert_not_called()
         catalog_resolve_doi_mock.assert_not_called()
 
-    @patch('hips.core.model.catalog.Catalog.resolve_doi', return_value=None)
-    @patch('hips.core.model.catalog.Catalog.resolve', return_value=None)
+    @patch('album.core.model.catalog.Catalog.resolve_doi', return_value=None)
+    @patch('album.core.model.catalog.Catalog.resolve', return_value=None)
     def test_resolve_with_doi(self, catalog_resolve_mock, catalog_resolve_doi_mock):
-        hips_attr = dict()
-        hips_attr["group"] = "group"
-        hips_attr["name"] = "name"
-        hips_attr["version"] = "version"
-        hips_attr["doi"] = "aNiceDoi"
+        solution_attr = dict()
+        solution_attr["group"] = "group"
+        solution_attr["name"] = "name"
+        solution_attr["version"] = "version"
+        solution_attr["doi"] = "aNiceDoi"
 
-        r = self.config.resolve(hips_attr)
+        r = self.config.resolve(solution_attr)
 
         self.assertIsNone(r)
         self.assertEqual(3, catalog_resolve_doi_mock.call_count)
         catalog_resolve_mock.assert_not_called()
 
-    @patch('hips.core.model.catalog.Catalog.resolve_doi', return_value=None)
-    @patch('hips.core.model.catalog.Catalog.resolve', return_value="pathToSolutionFile")
+    @patch('album.core.model.catalog.Catalog.resolve_doi', return_value=None)
+    @patch('album.core.model.catalog.Catalog.resolve', return_value="pathToSolutionFile")
     def test_resolve_found_first_catalog(self, catalog_resolve_mock, catalog_resolve_doi_mock):
-        hips_attr = dict()
-        hips_attr["group"] = "group"
-        hips_attr["name"] = "name"
-        hips_attr["version"] = "version"
+        solution_attr = dict()
+        solution_attr["group"] = "group"
+        solution_attr["name"] = "name"
+        solution_attr["version"] = "version"
 
-        r = self.config.resolve(hips_attr)
+        r = self.config.resolve(solution_attr)
 
         self.assertEqual({"path": "pathToSolutionFile", "catalog": self.config.catalogs[0]}, r)
         self.assertEqual(1, catalog_resolve_mock.call_count)
         catalog_resolve_doi_mock.assert_not_called()
 
-    def test_resolve_hips_dependency_raise_error(self):
+    def test_resolve_dependency_raise_error(self):
 
         # mocks
         resolve_mock = MagicMock(return_value=None)
         self.config.resolve = resolve_mock
 
         with self.assertRaises(ValueError):
-            r = self.config.resolve_hips_dependency(dict())
+            r = self.config.resolve_dependency(dict())
             self.assertIsNone(r)
 
         resolve_mock.assert_called_once()
 
-    def test_resolve_hips_dependency_found(self):
+    def test_resolve_dependency_found(self):
         # mocks
         resolve_mock = MagicMock(return_value={"something"})
         self.config.resolve = resolve_mock
 
-        r = self.config.resolve_hips_dependency(dict())
+        r = self.config.resolve_dependency(dict())
 
         self.assertEqual({"something"}, r)
         resolve_mock.assert_called_once()
@@ -229,45 +226,45 @@ class TestHipsCatalogCollection(TestHipsCommon):
         # mocks
         get_doi_from_input = MagicMock(return_value=None)
         get_gnv_from_input = MagicMock(return_value=None)
-        resolve_hips_dependency = MagicMock(return_value=None)
+        resolve_dependency = MagicMock(return_value=None)
 
         self.config.get_doi_from_input = get_doi_from_input
         self.config.get_gnv_from_input = get_gnv_from_input
-        self.config.resolve_hips_dependency = resolve_hips_dependency
+        self.config.resolve_dependency = resolve_dependency
 
         with self.assertRaises(ValueError):
             self.config.resolve_from_str("aVeryStupidInput")
 
         get_doi_from_input.assert_called_once()
         get_gnv_from_input.assert_called_once()
-        resolve_hips_dependency.assert_not_called()
+        resolve_dependency.assert_not_called()
 
     def test_resolve_from_str_doi_input(self):
         # mocks
         get_doi_from_input = MagicMock(return_value="doi")
         get_gnv_from_input = MagicMock(return_value=None)
-        resolve_hips_dependency = MagicMock(return_value="solvedDoi")
+        resolve_dependency = MagicMock(return_value="solvedDoi")
 
         self.config.get_doi_from_input = get_doi_from_input
         self.config.get_gnv_from_input = get_gnv_from_input
-        self.config.resolve_hips_dependency = resolve_hips_dependency
+        self.config.resolve_dependency = resolve_dependency
 
         r = self.config.resolve_from_str("doi_input")
 
         self.assertEqual("solvedDoi", r)
         get_doi_from_input.assert_called_once()
         get_gnv_from_input.assert_not_called()
-        resolve_hips_dependency.assert_called_once_with("doi", True)
+        resolve_dependency.assert_called_once_with("doi", True)
 
     def test_resolve_from_str_gnv_input(self):
         # mocks
         get_doi_from_input = MagicMock(return_value=None)
         get_gnv_from_input = MagicMock(return_value="gnv")
-        resolve_hips_dependency = MagicMock(return_value="solvedGnv")
+        resolve_dependency = MagicMock(return_value="solvedGnv")
 
         self.config.get_doi_from_input = get_doi_from_input
         self.config.get_gnv_from_input = get_gnv_from_input
-        self.config.resolve_hips_dependency = resolve_hips_dependency
+        self.config.resolve_dependency = resolve_dependency
 
         r = self.config.resolve_from_str("gnv_input")
 
@@ -275,7 +272,7 @@ class TestHipsCatalogCollection(TestHipsCommon):
 
         get_doi_from_input.assert_called_once()
         get_gnv_from_input.assert_called_once()
-        resolve_hips_dependency.assert_called_once_with("gnv", True)
+        resolve_dependency.assert_called_once_with("gnv", True)
 
     def test_get_gnv_from_input(self):
         solution = {
@@ -313,7 +310,7 @@ class TestHipsCatalogCollection(TestHipsCommon):
 
         self.assertEqual({
             "test_catalog": ["someLeafs"],
-            "hips-catalog": ["someLeafs"],
+            "capture-knowledge": ["someLeafs"],
             "test_catalog2": ["someLeafs"],
         }, r)
 
@@ -329,7 +326,7 @@ class TestHipsCatalogCollection(TestHipsCommon):
 
         self.assertEqual({
             "test_catalog": ["someInstalledSolutions"],
-            "hips-catalog": ["someInstalledSolutions"],
+            "capture-knowledge": ["someInstalledSolutions"],
             "test_catalog2": ["someInstalledSolutions"],
         }, r)
 

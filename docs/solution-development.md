@@ -6,7 +6,7 @@ Write a solution file.
 Here is an example solution file:
 
 ```
-    from hips_runner import setup
+    from album_runner import setup
     from io import StringIO
 
     env_file = StringIO("""name: demo-solution
@@ -56,8 +56,8 @@ Here is an example solution file:
           }],
           sample_inputs=[],
           sample_outputs=[],
-          min_hips_version="0.1.0",
-          tested_hips_version="0.1.0",
+          min_album_version="0.1.0",
+          tested_album_version="0.1.0",
           args=[],
           install=install,
           init=init,
@@ -71,8 +71,8 @@ Here is an example solution file:
 Some useful paths and variables for a solution to use
 
 ```
-get_active_hips().environment_cache_path
-get_active_hips().environment_path
-get_active_hips().environment_name
-get_active_hips().download_cache_path
+get_active_solution().environment_cache_path
+get_active_solution().environment_path
+get_active_solution().environment_name
+get_active_solution().download_cache_path
 ```

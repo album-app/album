@@ -4,10 +4,10 @@ import tempfile
 import unittest.mock
 from unittest.mock import patch
 
-from hips import argument_parsing
+from album import argument_parsing
 
 # the functions to call. Caution: do not import as module!
-from hips.core.commandline import containerize, deploy, install, remove, repl, run, search, tutorial, test, start_server, \
+from album.core.commandline import containerize, deploy, install, remove, repl, run, search, tutorial, test, start_server, \
     add_catalog, remove_catalog
 
 
@@ -16,7 +16,7 @@ class TestArgumentParsing(unittest.TestCase):
     def setUp(self):
         pass
 
-    @patch('hips.argument_parsing.__run_subcommand', return_value=True)
+    @patch('album.argument_parsing.__run_subcommand', return_value=True)
     def test_run(self, _):
         fp = tempfile.NamedTemporaryFile(mode='w+', delete=False)
         fp.close()

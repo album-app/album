@@ -2,9 +2,9 @@ import sys
 import unittest
 from io import StringIO
 
-from hips.argument_parsing import main
-from hips.core import get_active_hips
-from hips.core.model.environment import Environment
+from album.argument_parsing import main
+from album.core import get_active_solution
+from album.core.model.environment import Environment
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -16,7 +16,7 @@ class TestIntegrationTest(TestIntegrationCommon):
     def test_test_no_test_routine(self):
         self.fake_install(self.get_test_solution_path("solution0_dummy_no_routines.py"))
 
-        # this solution has the no hips_test() configured
+        # this solution has the no test() configured
         sys.argv = ["", "test", self.get_test_solution_path("solution0_dummy_no_routines.py")]
 
         # run
@@ -60,7 +60,7 @@ class TestIntegrationTest(TestIntegrationCommon):
             self.assertIn("solution6_noparent_test_close", log)
             self.assertIn("solution6_noparent_test_test", log)
 
-        self.assertIsNone(get_active_hips())
+        self.assertIsNone(get_active_solution())
 
 
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
-# CI Routine for the HIPS framework.
+# CI Routine for the album framework.
 
 
 #----------------------------
@@ -40,7 +40,6 @@
     paths:
       - .cache\pip
       - .\download
-      - .\miniconda
 
 # Linux base template
 #
@@ -53,7 +52,7 @@
     - python -V  # Print out python version for debugging
     - pwd
     - which python
-    - conda env create -f album.yml  # sets up environment including hips installation
+    - conda env create -f album.yml  # sets up environment including album installation
     - conda init bash
     - source ~/.bashrc
     - conda activate album
@@ -93,17 +92,17 @@ cmdline linux:
   extends: .linux_base_template
   stage: build
   script:
-    - python -m hips -h
-    - python -m hips run -h
-    - python -m hips install -h
-    - python -m hips deploy -h
-    - python -m hips remove -h
-    - python -m hips repl -h
-    - python -m hips containerize -h
-    - python -m hips server -h
-    - python -m hips add-catalog -h
-    - python -m hips remove-catalog -h
-    - python -m hips tutorial -h
+    - python -m album -h
+    - python -m album run -h
+    - python -m album install -h
+    - python -m album deploy -h
+    - python -m album remove -h
+    - python -m album repl -h
+    - python -m album containerize -h
+    - python -m album server -h
+    - python -m album add-catalog -h
+    - python -m album remove-catalog -h
+    - python -m album tutorial -h
 
 unit tests linux:
   extends: .linux_base_template

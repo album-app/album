@@ -1,4 +1,4 @@
-from hips_runner import setup
+from album_runner import setup
 
 
 setup(
@@ -20,8 +20,8 @@ setup(
     covers=[],
     sample_inputs=[],
     sample_outputs=[],
-    min_hips_version="0.1.0",
-    tested_hips_version="0.1.0",
+    min_album_version="0.1.0",
+    tested_album_version="0.1.0",
     args=[
         {
             "name": "testArg1",
@@ -31,5 +31,5 @@ setup(
         }
     ],
     dependencies={
-        'environment_name': 'hips'
+        'environment_name': 'album'
     })

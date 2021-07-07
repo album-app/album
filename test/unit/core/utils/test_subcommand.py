@@ -1,9 +1,9 @@
 import unittest
 
-from test.unit.test_common import TestHipsCommon
+from test.unit.test_unit_common import TestUnitCommon
 
 
-class TestSubcommand(TestHipsCommon):
+class TestSubcommand(TestUnitCommon):
 
     @unittest.skip("Needs to be implemented!")
     def test_run(self):
