@@ -9,7 +9,7 @@ class HipsDefaultValues(Enum):
     """Add an entry here to initialize default attributes for a hips framework installation instance."""
 
     # deployment
-    catalog_url = 'https://gitlab.com/ida-mdc/hips-catalog.git'  # default deployment url
+    catalog_url = 'https://gitlab.com/album-app/capture-knowledge'  # default deployment url
     catalog = os.getenv('HIPS_DEFAULT_CATALOG', catalog_url)     # default catalog, either catalog_url or env. variable
     catalog_yaml_prefix = "catalog"                              # base folder name where yaml files of solutions
                                                                  # are stored in a catalog.
@@ -17,10 +17,12 @@ class HipsDefaultValues(Enum):
     # catalog
     local_catalog_name = 'catalog_local'              # the default name of the local catalog (always configured)
     catalog_index_file_name = 'catalog_index'         # the default index file name of the catalog_index
-    cache_path_solution_prefix = "solutions"          # base folder name where solutions live
-    cache_path_doi_solution_prefix = "doi_solutions"  # base folder name where doi solutions live
-    cache_path_app_prefix = "apps"                    # base folder name where app solutions live
-    cache_path_download_prefix = "downloads"          # base folder name where downloads live
+    catalog_folder_prefix = 'catalogs'                # base folder prefix where all not local catalogs live
+    cache_path_solution_prefix = "solutions"          # base folder prefix where solutions live
+    cache_path_doi_solution_prefix = "doi_solutions"  # base folder prefix where doi solutions live
+    cache_path_app_prefix = "apps"                    # base folder prefix where app solutions live
+    cache_path_download_prefix = "downloads"          # base folder prefix where downloads live
+    cache_path_tmp_prefix = "tmp"                     # base folder prefix where temporary files live
     solution_default_name = "solution.py"             # default name how solution.py files are called
 
     # environment

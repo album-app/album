@@ -5,9 +5,10 @@ from queue import Queue
 from unittest.mock import MagicMock, call
 from unittest.mock import patch
 
+from hips.core.controller.resolve_manager import ResolveManager
 from hips.core.controller.run_manager import RunManager
 from hips_runner.logging import LogLevel
-from test.unit.test_common import TestHipsCommon
+from test.unit.test_common import TestHipsCommon, EmptyTestClass
 
 
 class TestRunManager(TestHipsCommon):
@@ -16,38 +17,42 @@ class TestRunManager(TestHipsCommon):
         self.create_test_config()
         self.create_test_hips_no_env()
 
+        # always re-initialize RunManager
         with patch.object(RunManager, '__init__', return_value=None) as init_mock:
             RunManager.instance = None
             self.hips_runner = RunManager()
+            self.hips_runner.resolve_manager = ResolveManager(self.test_catalog_collection)
             self.hips_runner.init_script = ""
             init_mock.assert_called_once()
 
     def tearDown(self) -> None:
         super().tearDown()
-        RunManager.instance = None
 
-    @patch('hips.core.controller.run_manager.load')
-    def test_run(self, load_mock):
+    def test_run(self):
         # mocks
-        load_mock.return_value = self.active_hips
+        catalog = EmptyTestClass()
+        catalog.id = "niceId"
+
+        resolve_and_load = MagicMock(return_value=[{"path": "aPath", "catalog": catalog}, self.active_hips])
+        self.hips_runner.resolve_manager.resolve_and_load = resolve_and_load
 
         with open(self.closed_tmp_file.name, mode="w") as f:
             f.write("A valid solution file!")
 
-        resolve_from_str = MagicMock(return_value={"path": Path(self.closed_tmp_file.name), "catalog": None})
-        self.test_catalog_collection.resolve_from_str = resolve_from_str
-
         _run = MagicMock(return_value=None)
         self.hips_runner._run = _run
 
-        self.hips_runner.catalog_collection = self.test_catalog_collection
+        _resolve_installed = MagicMock(return_value={"path": Path(self.closed_tmp_file.name), "catalog": None})
+        self.hips_runner.resolve_manager._resolve_installed = _resolve_installed
+
+        self.hips_runner.resolve_manager.catalog_collection = self.test_catalog_collection
 
         # test
         self.hips_runner.run(self.closed_tmp_file.name)
 
         # assert
         _run.assert_called_once_with(self.active_hips, False)
-        load_mock.assert_called_once_with(Path(self.closed_tmp_file.name))
+        resolve_and_load.assert_called_once_with(self.closed_tmp_file.name, mode="c")
 
     def test__run(self):
         # mocks
@@ -80,8 +85,6 @@ class TestRunManager(TestHipsCommon):
         create_hips_run_script_standalone = MagicMock(return_value=None)
         self.hips_runner.create_hips_run_script_standalone = create_hips_run_script_standalone
 
-        self.hips_runner.catalog_collection = self.test_catalog_collection
-
         # call
         que = Queue()
         self.hips_runner.build_queue(self.active_hips, que, False)
@@ -106,8 +109,6 @@ class TestRunManager(TestHipsCommon):
 
         create_hips_run_script_standalone = MagicMock(return_value=None)
         self.hips_runner.create_hips_run_script_standalone = create_hips_run_script_standalone
-
-        self.hips_runner.catalog_collection = self.test_catalog_collection
 
         # call
         que = Queue()
@@ -147,13 +148,12 @@ class TestRunManager(TestHipsCommon):
         self.assertEqual(2, _run_in_environment_with_own_logger.call_count)
         self.assertIn("Currently nothing more to run!", self.captured_output.getvalue())
 
-    @patch('hips.core.controller.run_manager.load')
-    def test_build_steps_queue_no_parent(self, load_mock):
+    def test_build_steps_queue_no_parent(self):
         # mock
-        load_mock.return_value = self.active_hips
-
-        resolve_hips_dependency = MagicMock(return_value={"path": "aPath"})
-        self.test_catalog_collection.resolve_hips_dependency = resolve_hips_dependency
+        catalog = EmptyTestClass()
+        catalog.id = "niceId"
+        resolve_dependency_and_load = MagicMock(return_value=[{"path": "aPath", "catalog": catalog}, self.active_hips])
+        self.hips_runner.resolve_manager.resolve_dependency_and_load = resolve_dependency_and_load
 
         create_hips_run_collection_script = MagicMock(return_value="runScriptCollection")
         self.hips_runner.create_hips_run_collection_script = create_hips_run_collection_script
@@ -168,7 +168,7 @@ class TestRunManager(TestHipsCommon):
         self.hips_runner.run_queue = run_queue
 
         # call
-        self.hips_runner.catalog_collection = self.test_catalog_collection
+        self.hips_runner.resolve_manager.catalog_collection = self.test_catalog_collection
         que = Queue()
         steps = [{"name": "Step1", },
                  {"name": "Step2", }]
@@ -176,7 +176,7 @@ class TestRunManager(TestHipsCommon):
         self.hips_runner.build_steps_queue(que, steps, False)
 
         # assert
-        self.assertEqual(2, resolve_hips_dependency.call_count)  # 2 times resolved
+        self.assertEqual(2, resolve_dependency_and_load.call_count)  # 2 steps
         self.assertEqual(2, _get_args.call_count)  # 2 times arguments resolved
         self.assertEqual(2, create_hips_run_script_standalone.call_count)  # 2 times standalone script created
         create_hips_run_collection_script.assert_not_called()
@@ -191,15 +191,15 @@ class TestRunManager(TestHipsCommon):
         self.assertEqual(res_que.get(), que.get(block=False))
         self.assertEqual(res_que.get(), que.get(block=False))
 
-    @patch('hips.core.controller.run_manager.load')
-    def test_build_steps_queue_parent(self, load_mock):
+    def test_build_steps_queue_parent(self):
         self.active_hips.parent = "aParent"
 
-        # mock
-        load_mock.return_value = self.active_hips
+        # mocks
+        catalog = EmptyTestClass()
+        catalog.id = "niceId"
 
-        resolve_hips_dependency = MagicMock(return_value={"path": "aPath"})
-        self.test_catalog_collection.resolve_hips_dependency = resolve_hips_dependency
+        resolve_dependency_and_load = MagicMock(return_value=[{"path": "aPath", "catalog": catalog}, self.active_hips])
+        self.hips_runner.resolve_manager.resolve_dependency_and_load = resolve_dependency_and_load
 
         create_hips_run_collection_script = MagicMock(return_value="runScriptCollection")
         self.hips_runner.create_hips_run_collection_script = create_hips_run_collection_script
@@ -214,7 +214,7 @@ class TestRunManager(TestHipsCommon):
         self.hips_runner.run_queue = run_queue
 
         # call
-        self.hips_runner.catalog_collection = self.test_catalog_collection
+        self.hips_runner.resolve_manager.catalog_collection = self.test_catalog_collection
         que = Queue()
         steps = [{"name": "Step1", },
                  {"name": "Step2", }]
@@ -222,11 +222,14 @@ class TestRunManager(TestHipsCommon):
         self.hips_runner.build_steps_queue(que, steps, False)
 
         # assert
-        self.assertEqual(4, resolve_hips_dependency.call_count)  # 4 times resolved, 2 times step, 2 times step parent
+        self.assertEqual(4,
+                         resolve_dependency_and_load.call_count)  # 2 times step, 2 times parent
         self.assertEqual(0, _get_args.call_count)  # 0 times arguments resolved
         self.assertEqual(0, create_hips_run_script_standalone.call_count)  # 0 times standalone script created
+
         create_hips_run_collection_script.assert_called_once_with({
             "parent_script_path": "aPath",
+            "parent_script_catalog": catalog,
             "steps_hips": [self.active_hips, self.active_hips],
             "steps": steps
         })
@@ -239,13 +242,14 @@ class TestRunManager(TestHipsCommon):
         self.assertEqual(res_que.qsize(), que.qsize())
         self.assertEqual(res_que.get(), que.get(block=False))
 
-    @patch('hips.core.controller.run_manager.load')
-    def test_build_steps_queue_run_immediately(self, load_mock):
+    def test_build_steps_queue_run_immediately(self):
         # mock
-        load_mock.return_value = self.active_hips
+        catalog = EmptyTestClass()
+        catalog.id = "niceId"
 
-        resolve_hips_dependency = MagicMock(return_value={"path": "aPath"})
-        self.test_catalog_collection.resolve_hips_dependency = resolve_hips_dependency
+
+        resolve_dependency_and_load = MagicMock(return_value=[{"path": "aPath", "catalog": catalog}, self.active_hips])
+        self.hips_runner.resolve_manager.resolve_dependency_and_load = resolve_dependency_and_load
 
         create_hips_run_collection_script = MagicMock(return_value="runScriptCollection")
         self.hips_runner.create_hips_run_collection_script = create_hips_run_collection_script
@@ -260,14 +264,14 @@ class TestRunManager(TestHipsCommon):
         self.hips_runner.run_queue = run_queue
 
         # call
-        self.hips_runner.catalog_collection = self.test_catalog_collection
+        self.hips_runner.resolve_manager.catalog_collection = self.test_catalog_collection
         que = Queue()
         steps = [{"name": "Step1", }]
 
         self.hips_runner.build_steps_queue(que, steps, True)
 
         # assert
-        self.assertEqual(1, resolve_hips_dependency.call_count)  # 1 times resolved
+        self.assertEqual(1, resolve_dependency_and_load.call_count)  # 1 tep resolved
         self.assertEqual(1, _get_args.call_count)  # 1 times arguments resolved
         self.assertEqual(1, create_hips_run_script_standalone.call_count)  # 1 times standalone script created
         create_hips_run_collection_script.assert_not_called()
@@ -301,15 +305,14 @@ class TestRunManager(TestHipsCommon):
             self.active_hips, "\nget_active_hips().run()\n\nget_active_hips().close()\n", []
         )
 
-    @patch('hips.core.controller.run_manager.load')
-    def test_create_hips_run_with_parent_script_standalone(self, load_mock):
+    def test_create_hips_run_with_parent_script_standalone(self):
         self.active_hips.parent = {"name": "aParent"}
 
         # mock
-        load_mock.return_value = self.active_hips
-
-        resolve_hips_dependency = MagicMock(return_value={"path": "aPath"})
-        self.test_catalog_collection.resolve_hips_dependency = resolve_hips_dependency
+        catalog = EmptyTestClass()
+        catalog.id = "niceId"
+        resolve_dependency_and_load = MagicMock(return_value=[{"path": "aPath", "catalog": catalog}, self.active_hips])
+        self.hips_runner.resolve_manager.resolve_dependency_and_load = resolve_dependency_and_load
 
         create_hips_run_with_parent_scrip = MagicMock(return_value="aScript")
         self.hips_runner.create_hips_run_with_parent_scrip = create_hips_run_with_parent_scrip
@@ -318,7 +321,7 @@ class TestRunManager(TestHipsCommon):
         self.hips_runner.resolve_args = resolve_args
 
         # call
-        self.hips_runner.catalog_collection = self.test_catalog_collection
+        self.hips_runner.resolve_manager.catalog_collection = self.test_catalog_collection
         r = self.hips_runner.create_hips_run_with_parent_script_standalone(self.active_hips, [])
 
         # assert
@@ -326,6 +329,7 @@ class TestRunManager(TestHipsCommon):
         create_hips_run_with_parent_scrip.assert_called_once_with(
             self.active_hips, "parent_args", [self.active_hips], "active_hips_args"
         )
+        resolve_dependency_and_load.assert_called_once()
 
         # result
         self.assertEqual([self.active_hips, "aScript"], r)
@@ -334,6 +338,8 @@ class TestRunManager(TestHipsCommon):
     def test_create_hips_run_collection_script(self, load_mock):
         # mock
         load_mock.return_value = self.active_hips
+        catalog = EmptyTestClass()
+        catalog.id = "niceId"
 
         resolve_args = MagicMock(return_value=["parent_args", "active_hips_args"])
         self.hips_runner.resolve_args = resolve_args
@@ -345,6 +351,7 @@ class TestRunManager(TestHipsCommon):
         self.active_hips.parent = {"name": "aParent"}
         p = {
             "parent_script_path": "aPathToaParent",
+            "parent_script_catalog": catalog,
             "steps_hips": [self.active_hips, self.active_hips],
             "steps": ["step1", "step2"]
         }

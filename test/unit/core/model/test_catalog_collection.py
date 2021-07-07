@@ -3,8 +3,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import patch
+from zipfile import ZipFile
 
 import yaml
+from hips.core.model.default_values import HipsDefaultValues
+
+from hips.core.model.configuration import HipsConfiguration
 
 from hips.core.model.catalog_collection import HipsCatalogCollection
 from test.unit.test_common import TestHipsCommon
@@ -23,8 +27,15 @@ class TestHipsCatalogCollection(TestHipsCommon):
                     str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog2"))
                 )
             )
+
+        HipsConfiguration.instance = None
+        config = HipsConfiguration(
+            base_cache_path=self.tmp_dir.name,
+            configuration_file_path=Path(self.tmp_dir.name).joinpath("config_file")
+        )
+
         HipsCatalogCollection.instance = None  # lever out concept
-        self.config = HipsCatalogCollection(Path(self.tmp_dir.name).joinpath("config_file"))
+        self.config = HipsCatalogCollection(configuration=config)
 
     def test__init__(self):
         self.assertTrue(self.config_file.is_file())
@@ -152,6 +163,19 @@ class TestHipsCatalogCollection(TestHipsCommon):
 
     @patch('hips.core.model.catalog.Catalog.resolve_doi', return_value=None)
     @patch('hips.core.model.catalog.Catalog.resolve', return_value=None)
+    def test_resolve_no_doi_no_group(self, catalog_resolve_mock, catalog_resolve_doi_mock):
+        hips_attr = dict()
+        hips_attr["name"] = "name"
+        hips_attr["version"] = "version"
+
+        with self.assertRaises(ValueError):
+            self.config.resolve(hips_attr)
+
+        catalog_resolve_mock.assert_not_called()
+        catalog_resolve_doi_mock.assert_not_called()
+
+    @patch('hips.core.model.catalog.Catalog.resolve_doi', return_value=None)
+    @patch('hips.core.model.catalog.Catalog.resolve', return_value=None)
     def test_resolve_with_doi(self, catalog_resolve_mock, catalog_resolve_doi_mock):
         hips_attr = dict()
         hips_attr["group"] = "group"
@@ -200,25 +224,6 @@ class TestHipsCatalogCollection(TestHipsCommon):
 
         self.assertEqual({"something"}, r)
         resolve_mock.assert_called_once()
-
-    def test_resolve_from_str_valid_file(self):
-        # mocks
-        get_doi_from_input = MagicMock(return_value=None)
-        get_gnv_from_input = MagicMock(return_value=None)
-        resolve_hips_dependency = MagicMock(return_value=None)
-
-        self.config.get_doi_from_input = get_doi_from_input
-        self.config.get_doi_from_input = get_gnv_from_input
-        self.config.get_doi_from_input = resolve_hips_dependency
-
-        with tempfile.NamedTemporaryFile() as f:
-            r = self.config.resolve_from_str(f.name)
-
-            self.assertEqual({"path": Path(f.name), "catalog": None}, r)
-
-        get_doi_from_input.assert_not_called()
-        get_gnv_from_input.assert_not_called()
-        resolve_hips_dependency.assert_not_called()
 
     def test_resolve_from_str_wrong_input(self):
         # mocks

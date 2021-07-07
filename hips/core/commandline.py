@@ -12,15 +12,8 @@ from hips_runner.logging import hips_debug
 
 module_logger = logging.get_active_logger
 
-# load singletons
-hips_catalog_manager = CatalogManager()
-deploy_manager = DeployManager()
-install_manager = InstallManager()
-remove_manager = RemoveManager()
-run_manager = RunManager()
-search_manager = SearchManager()
-test_manager = TestManager()
-
+# NOTE: Singleton instances should already be initialized at this point! Look at __main__.py!
+# Calling Singleton classes only gives back the already initialized instances!
 
 # ToDo: environment purge method
 # ToDo: reusable versioned environments?
@@ -29,31 +22,31 @@ test_manager = TestManager()
 
 
 def add_catalog(args):
-    hips_catalog_manager.add(args.path)
+    CatalogManager().add(args.path)
 
 
 def remove_catalog(args):
-    hips_catalog_manager.remove(args.path)
+    CatalogManager().remove(args.path)
 
 
 def deploy(args):
-    deploy_manager.deploy(args.path, args.catalog, args.dry_run, args.trigger_pipeline, args.git_email, args.git_name)
+    DeployManager().deploy(args.path, args.catalog, args.dry_run, args.trigger_pipeline, args.git_email, args.git_name)
 
 
 def install(args):
-    install_manager.install(args.path)
+    InstallManager().install(args.path)
 
 
 def remove(args):
-    remove_manager.remove(args.path, args.remove_deps)
+    RemoveManager().remove(args.path, args.remove_deps)
 
 
 def run(args):
-    run_manager.run(args.path, args.run_immediately)
+    RunManager().run(args.path, args.run_immediately)
 
 
 def search(args):
-    search_manager.search(args.keywords)
+    SearchManager().search(args.keywords)
 
 
 def start_server(args):
@@ -61,7 +54,7 @@ def start_server(args):
 
 
 def test(args):
-    test_manager.test(args.path)
+    TestManager().test(args.path)
 
 
 def tutorial(args):

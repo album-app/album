@@ -6,7 +6,7 @@ from pathlib import Path
 from hips.core.concept.singleton import Singleton
 from hips.core.model.configuration import HipsConfiguration
 from hips.core.utils import subcommand
-from hips.core.utils.operations.file_operations import remove_warning_on_error
+from hips.core.utils.operations.file_operations import force_remove
 from hips_runner import logging
 
 module_logger = logging.get_active_logger
@@ -113,7 +113,7 @@ class CondaManager(metaclass=Singleton):
         subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
 
         # try to remove file content if any but don't fail:
-        remove_warning_on_error(path)
+        force_remove(path)
 
     def get_info(self):
         """Get the info of the conda installation on the corresponding system.

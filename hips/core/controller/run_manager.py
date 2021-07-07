@@ -4,7 +4,7 @@ from queue import Queue, Empty
 
 from hips.core import load
 from hips.core.concept.singleton import Singleton
-from hips.core.model.catalog_collection import HipsCatalogCollection
+from hips.core.controller.resolve_manager import ResolveManager
 from hips.core.utils.script import create_script
 from hips_runner import logging
 from hips_runner.logging import LogLevel
@@ -15,30 +15,26 @@ module_logger = logging.get_active_logger
 class RunManager(metaclass=Singleton):
     """Class managing the running process of a solution.
 
-    A solution is executed in its target environment created during installation. This class performs all operations
-    necessary to run a solution. Resolving of a solution in all configured catalogs, dependency checking, and more.
+    A solution is executed in its target environment which is created during installation. This class performs all
+    operations necessary to run a solution. Resolving of a solution in all configured catalogs,
+    dependency checking, and more.
 
      Attributes:
-         catalog_collection:
-            Holds all the catalogs of the HIPS framework installation.
+         resolve_manager:
+            Holding all configured catalogs. Resolves inside our outside catalogs.
 
     """
     # singletons
-    catalog_collection = None
+    resolve_manager = None
 
-    def __init__(self, catalog_collection=None):
-        self.catalog_collection = HipsCatalogCollection() if not catalog_collection else catalog_collection
+    def __init__(self, resolve_manager=None):
+        self.resolve_manager = ResolveManager() if not resolve_manager else resolve_manager
         self.init_script = ""
 
     def run(self, path, run_immediately=False):
         """Function corresponding to the `run` subcommand of `hips`."""
-        resolve = self.catalog_collection.resolve_from_str(path, download=False)
 
-        if not resolve["catalog"]:
-            if not (resolve['path'].is_file() and resolve['path'].stat().st_size > 0):
-                raise RuntimeError("Please install solution first!")
-
-        active_hips = load(resolve["path"])
+        resolve, active_hips = self.resolve_manager.resolve_and_load(path, mode="c")
 
         if not resolve["catalog"]:
             module_logger().debug('hips loaded locally: %s...' % str(active_hips))
@@ -97,6 +93,7 @@ class RunManager(metaclass=Singleton):
         """
         return {
             "parent_script_path": None,
+            "parent_script_catalog": None,
             "steps_hips": [],
             "steps": []
         }
@@ -159,13 +156,15 @@ class RunManager(metaclass=Singleton):
 
         for step in steps:
             module_logger().debug('resolving step \"%s\"...' % step["name"])
-            sub_step_path = self.catalog_collection.resolve_hips_dependency(step, download=False)["path"]
-            step_hips = load(sub_step_path)
+            _, step_hips = self.resolve_manager.resolve_dependency_and_load(step, load_solution=True)
 
             if step_hips["parent"]:  # collect steps as long as they have the same parent
-                current_parent_script_path = self.catalog_collection.resolve_hips_dependency(
-                    step_hips["parent"], download=False
-                )["path"]
+                current_parent_script_resolve, _ = self.resolve_manager.resolve_dependency_and_load(
+                    step_hips["parent"],
+                    load_solution=False
+                )
+                current_parent_script_path = current_parent_script_resolve["path"]
+                current_parent_script_catalog = current_parent_script_resolve["catalog"]
 
                 # check whether the step has the same parent as the previous steps
                 if same_parent_step_collection["parent_script_path"] and \
@@ -180,6 +179,7 @@ class RunManager(metaclass=Singleton):
 
                     # set new parent
                     same_parent_step_collection["parent_script_path"] = current_parent_script_path
+                    same_parent_step_collection["parent_script_catalog"] = current_parent_script_catalog
 
                     # overwrite old steps
                     same_parent_step_collection["steps_hips"] = [step_hips]
@@ -190,6 +190,7 @@ class RunManager(metaclass=Singleton):
 
                     # set parent
                     same_parent_step_collection["parent_script_path"] = current_parent_script_path
+                    same_parent_step_collection["parent_script_catalog"] = current_parent_script_catalog
 
                     # append another step to the steps already having the same parent
                     same_parent_step_collection["steps_hips"].append(step_hips)
@@ -260,10 +261,7 @@ class RunManager(metaclass=Singleton):
 
         """
         module_logger().debug('Creating hips script with parent \"%s\"...' % active_hips.parent["name"])
-        parent_script = self.catalog_collection.resolve_hips_dependency(
-            active_hips.parent, download=False
-        )["path"]
-        parent_hips = load(parent_script)
+        _, parent_hips = self.resolve_manager.resolve_dependency_and_load(active_hips.parent, load_solution=True)
 
         # handle arguments
         parent_args, active_hips_args = self.resolve_args(parent_hips, [active_hips], [None], args)
@@ -280,10 +278,8 @@ class RunManager(metaclass=Singleton):
             hips_collection:
                 dictionary consisting of the entries:
                     Parent_script_path: path to the parent dependency script.
-                steps_hips:
-                    The hip solution objects of all steps.
-                steps:
-                    The step description of the step. Must holds the argument keyword.
+                    steps_hips: The hip solution objects of all steps.
+                    steps: The step description of the step. Must holds the argument keyword.
 
         Returns:
             The hip solution shared parent object and its scripts.
@@ -291,6 +287,7 @@ class RunManager(metaclass=Singleton):
         """
         # load parent & steps
         parent_hips = load(hips_collection["parent_script_path"])
+        parent_hips.set_environment(hips_collection["parent_script_catalog"].id)
         steps_hips = hips_collection["steps_hips"]
         steps = hips_collection["steps"]
 

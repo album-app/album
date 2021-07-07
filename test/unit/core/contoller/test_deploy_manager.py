@@ -282,7 +282,7 @@ class TestDeployManager(TestGitCommon):
 
         copy_mock.assert_called_once_with(
             solution_file_to_deploy_locally,
-            self.test_catalog_collection.local_catalog.get_solution_cache_path(
+            self.test_catalog_collection.local_catalog.get_solution_path(
                 "tsg",
                 "tsn",
                 "tsv"
@@ -304,7 +304,7 @@ class TestDeployManager(TestGitCommon):
 
         copy_file_mock.assert_called_once_with(
             solution_folder_to_deploy_locally,
-            self.test_catalog_collection.local_catalog.get_solution_cache_path(
+            self.test_catalog_collection.local_catalog.get_solution_path(
                 "tsg",
                 "tsn",
                 "tsv"
@@ -327,7 +327,7 @@ class TestDeployManager(TestGitCommon):
 
         # result
         r = Path(self.repo.working_tree_dir).joinpath(
-            self.test_catalog_collection.local_catalog.get_solution_cache_zip_suffix("tsg", "tsn", "tsv")
+            self.test_catalog_collection.local_catalog.get_solution_zip_suffix("tsg", "tsn", "tsv")
         )
 
         # copy and zip a folder

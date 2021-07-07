@@ -55,6 +55,8 @@ setup(
     close=hips_close,
     parent={
         'name': 'app1',
+        'group': 'group',
+        'version': '0.1.0',
         'args': [
             {
                 "name": "app1_param",

@@ -1,9 +1,11 @@
 import copy
+from pathlib import Path
 
 from hips.core.model.configuration import HipsConfiguration
+
 from hips.core.model.environment import Environment
-from hips_runner import logging
 from hips_runner import HipsRunner
+from hips_runner import logging
 
 module_logger = logging.get_active_logger
 
@@ -51,9 +53,10 @@ class HipsClass(HipsRunner):
         # Attributes from the solution.py
         super().__init__(attrs)
 
-        self.environment = Environment(
-            self.dependencies, self["name"],  HipsConfiguration().get_cache_path_hips(self)
-        )
+        self.environment = None
+        self.cache_path_download = None
+        self.cache_path_app = None
+        self.cache_path_solution = None
 
     def __setitem__(self, key, value):
         setattr(self, key, value)
@@ -63,4 +66,19 @@ class HipsClass(HipsRunner):
         matches = [arg for arg in self['args'] if arg['name'] == k]
         return matches[0]
 
+    def set_environment(self, catalog_id):
+        """Initializes the Environment of the solution. This is not an installation!"""
+        self.set_cache_paths(catalog_id)
+        self.environment = Environment(
+            self.dependencies, cache_name=self["name"], cache_path=self.cache_path_solution
+        )
 
+    def set_cache_paths(self, catalog_id):
+        """Sets the available cache paths of the hips object, given its catalog_id (where it lives)"""
+
+        # Note: cache paths need the catalog the hips live in - otherwise there might be problems with solutions
+        # of different catalogs doing similar operations (e.g. downloads) as they might share the same cache path.
+        path_suffix = Path("").joinpath(self["group"], self["name"], self["version"])
+        self.cache_path_download = HipsConfiguration().cache_path_download.joinpath(catalog_id, path_suffix)
+        self.cache_path_app = HipsConfiguration().cache_path_app.joinpath(catalog_id, path_suffix)
+        self.cache_path_solution = HipsConfiguration().cache_path_solution.joinpath(catalog_id, path_suffix)

@@ -1,6 +1,5 @@
 import sys
 import unittest
-from unittest.mock import patch, PropertyMock
 
 from hips.argument_parsing import main
 from test.integration.test_integration_common import TestIntegrationCommon
@@ -27,11 +26,7 @@ class TestIntegrationInstall(TestIntegrationCommon):
         # gather arguments
         sys.argv = ["", "install", str(self.get_test_solution_path())]
 
-        # patch catalog_collection to be our test-config object - then run
-        with patch('hips.core.controller.install_manager.InstallManager.catalog_collection',
-                   new_callable=PropertyMock) as p_mock:
-            p_mock.return_value = self.test_catalog_collection
-            self.assertIsNone(main())
+        self.assertIsNone(main())
 
         # assert solution was added to local catalog
         self.assertEqual(len(self.test_catalog_collection.local_catalog), 1)

@@ -121,12 +121,12 @@ unit tests windows:
   extends: .windows_base_template
   stage: test
   script:
-    - '$cmnd = powershell.exe -command {conda env create -f album.yml 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit.py 2>&1 | Write-Host; exit(0)}'
+    - '$cmnd = powershell.exe -command {conda env create --force -f album.yml 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit.py 2>&1 | Write-Host; exit(0)}'
     - 'if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}'
 
 integration tests windows:
   extends: .windows_base_template
   stage: test
   script:
-    - '$cmnd = powershell.exe -command {conda env create -f album.yml 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration.py 2>&1 | Write-Host; exit(0)}'
+    - '$cmnd = powershell.exe -command {conda env create --force -f album.yml 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration.py 2>&1 | Write-Host; exit(0)}'
     - 'if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}'
