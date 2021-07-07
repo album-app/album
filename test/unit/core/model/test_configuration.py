@@ -1,9 +1,8 @@
+import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 from hips.core.model.configuration import HipsConfiguration, HipsDefaultValues
-from hips.core.model.hips_base import HipsClass
 from test.unit.test_common import TestHipsCommon
 
 
@@ -18,37 +17,33 @@ class TestHipsConfiguration(TestHipsCommon):
     def tearDown(self) -> None:
         super().tearDown()
 
-    @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={})
-    def test_get_cache_path_hips(self, _):
-        root = Path(self.tmp_dir.name).joinpath("hips")
+    def test_base_cache_path(self):
+        new_tmp_dir = tempfile.TemporaryDirectory(dir=self.tmp_dir.name)
 
-        path = self.conf.configuration_file_path.joinpath(".hips-config")
-        self.assertEqual(Path(self.tmp_dir.name).joinpath(HipsDefaultValues.hips_config_file_name.value),
-                         path)
+        # set
+        self.conf.base_cache_path = new_tmp_dir.name
 
-        path = self.conf.get_cache_path_hips(
-            HipsClass({"name": "myname", "group": "mygroup", "version": "myversion"}))
-        self.assertEqual(root.joinpath("solutions/local/mygroup/myname/myversion"), path)
-
-        path = self.conf.get_cache_path_hips(HipsClass({"doi": "mydoi"}))
-        self.assertEqual(root.joinpath("solutions/doi/mydoi"), path)
-
-        path = self.conf.get_cache_path_downloads(
-            HipsClass({"name": "myname", "group": "mygroup", "version": "myversion"}))
-        self.assertEqual(root.joinpath("downloads/local/mygroup/myname/myversion"), path)
-
-        path = self.conf.get_cache_path_downloads(HipsClass({"doi": "mydoi"}))
-        self.assertEqual(root.joinpath("downloads/doi/mydoi"), path)
-
-        path = self.conf.get_cache_path_catalog("mycatalog")
-        self.assertEqual(root.joinpath("catalogs/mycatalog"), path)
-
-        path = self.conf.get_cache_path_app(
-            HipsClass({"name": "myname", "group": "mygroup", "version": "myversion"}))
-        self.assertEqual(root.joinpath("apps", "local", "mygroup", "myname", "myversion"), path)
-
-        path = self.conf.get_cache_path_app(HipsClass({"doi": "mydoi"}))
-        self.assertEqual(root.joinpath("apps", "doi", "mydoi"), path)
+        # assert
+        self.assertEqual(
+            self.conf.base_cache_path,
+            Path(new_tmp_dir.name)
+        )
+        self.assertEqual(
+            Path(new_tmp_dir.name).joinpath(HipsDefaultValues.cache_path_solution_prefix.value),
+            self.conf.cache_path_solution
+        )
+        self.assertEqual(
+            Path(new_tmp_dir.name).joinpath(HipsDefaultValues.cache_path_app_prefix.value),
+            self.conf.cache_path_app
+        )
+        self.assertEqual(
+            Path(new_tmp_dir.name).joinpath(HipsDefaultValues.cache_path_download_prefix.value),
+            self.conf.cache_path_download
+        )
+        self.assertEqual(
+            Path(new_tmp_dir.name).joinpath(HipsDefaultValues.cache_path_tmp_prefix.value),
+            self.conf.cache_path_tmp
+        )
 
     def test_extract_catalog_name(self):
         catalog_name = "https://gitlab.com/ida-mdc/hips-catalog.ext"

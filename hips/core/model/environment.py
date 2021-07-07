@@ -33,9 +33,10 @@ class Environment:
             dependencies_dict:
                 Can be None or hold the entries a) "environment_file" b) "environment_name"
             cache_name:
-                name prefix for all files to cache
+                name prefix for all files to cache.
+                Used when "name" is not available during yaml-file download for example.
             cache_path:
-                cache path
+                cache path where to store downloads (yaml file, etc.)
         """
         self.conda = CondaManager()
         self.cache_path = Path(cache_path)

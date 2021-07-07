@@ -1,5 +1,6 @@
 import json
 import os
+import random
 import re
 import shutil
 import subprocess
@@ -294,6 +295,12 @@ def create_path_recursively(path):
     return True
 
 
+def create_paths_recursively(paths):
+    """Create paths. Creates missing parent folders."""
+    for p in paths:
+        create_path_recursively(p)
+
+
 def copy_folder(folder_to_copy, destination, copy_root_folder=True):
     folder_to_copy = Path(folder_to_copy)
     destination = Path(destination)
@@ -311,6 +318,8 @@ def copy_folder(folder_to_copy, destination, copy_root_folder=True):
         for fi in files:
             copy(root.joinpath(fi), destination)
 
+    return destination
+
 
 def copy(file, path_to):
     """Copies a file A to either folder B or file B. Makes sure folder structure for target exists."""
@@ -318,7 +327,7 @@ def copy(file, path_to):
     path_to = Path(path_to)
     create_path_recursively(path_to.parent)
 
-    return shutil.copy(file, path_to)
+    return Path(shutil.copy(file, path_to))
 
 
 def copy_in_file(file_content, file_path):
@@ -372,7 +381,7 @@ def unzip_archive(zip_archive_file, target_folder=None):
     return target_folder
 
 
-def remove_warning_on_error(path):
+def force_remove(path, warning=True):
     global brute_force
     brute_force = False
 
@@ -401,21 +410,38 @@ def remove_warning_on_error(path):
         finally:
             if brute_force:  # windows only
                 module_logger().debug("Trying brute force removal...")
-                cmd = 'cmd.exe /C del /f /s /q \"%s\"' % str(path)
+                cmd = ['cmd.exe', '/C', 'del', '/f', '/s', '/q', '%s' % str(path)]
                 try:
                     run(cmd, timeout1=60, timeout2=6000)
 
                     try:
                         i = 0
                         while path.exists() and i < 10:
+                            module_logger().warning("Path still exists! waiting...")
                             i += 1
                             time.sleep(1)
-                    except PermissionError:
-                        time.sleep(1)
-                        pass
-                except RuntimeError:
+                        if i == 10:
+                            raise TimeoutError("Cannot remove folder!")
+                    except PermissionError as e:
+                        if not warning:
+                            raise e
+                except RuntimeError as e:
                     module_logger().warning("Could not remove %s with brute force!" % str(path))
+                    if not warning:
+                        raise e
+                except TimeoutError as e:
+                    module_logger().warning("Could not remove %s with brute force!" % str(path))
+                    if not warning:
+                        raise e
                 else:
                     module_logger().info("Brute force successfully removed %s!" % str(path))
     else:
         module_logger().info("No content in %s! Nothing to delete..." % str(path))
+
+
+def rand_folder_name(f_len=8):
+    characters = "abcdefghijklmnopqrstuvwxyz0123456789_"
+    s = []
+    for i in range(0, f_len):
+        s.append(characters[random.randint(0, len(characters) - 1)])
+    return "".join(s)

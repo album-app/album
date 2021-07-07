@@ -37,6 +37,8 @@ setup(
     init=hips_init,
     steps=[{
         'name': 'solution1_app1',
+        'group': 'group',
+        'version': '0.1.0',
         'args': [
             {
                 "name": "file",
@@ -51,6 +53,8 @@ setup(
         ]
     }, {
         'name': 'solution2_app1',
+        'group': 'group',
+        'version': '0.1.0',
         'args': [
             {
                 "name": "file",
@@ -65,6 +69,8 @@ setup(
         ]
     }, {
         'name': 'solution3_noparent',
+        'group': 'group',
+        'version': '0.1.0',
         'args': [
             {
                 "name": "file",

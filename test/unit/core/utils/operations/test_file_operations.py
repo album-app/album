@@ -9,8 +9,8 @@ from unittest.mock import patch
 from hips.core.model.default_values import HipsDefaultValues
 from hips.core.utils.operations.file_operations import FileOperationError, get_zenodo_metadata, \
     set_zenodo_metadata_in_solutionfile, get_dict_from_yml, write_dict_to_yml, create_empty_file_recursively, \
-    create_path_recursively, write_dict_to_json, remove_warning_on_error, zip_folder, unzip_archive, copy, \
-    copy_folder, zip_paths
+    create_path_recursively, write_dict_to_json, force_remove, zip_folder, unzip_archive, copy, \
+    copy_folder, zip_paths, rand_folder_name
 
 from test.unit.test_common import TestHipsCommon
 
@@ -199,8 +199,8 @@ class TestFileOperations(TestHipsCommon):
         copy(source_copy_file, target_copy.joinpath("newname.txt"))  # to new target folder with new name
 
         # assert
-        self.assertTrue(target_copy.joinpath("aFile.txt"))
-        self.assertTrue(target_copy.joinpath("newname.txt"))
+        self.assertTrue(target_copy.joinpath("aFile.txt").exists())
+        self.assertTrue(target_copy.joinpath("newname.txt").exists())
 
     def test_zip_folder(self):
         tmp_dir = pathlib.Path(self.tmp_dir.name)
@@ -246,7 +246,6 @@ class TestFileOperations(TestHipsCommon):
         self.assertTrue(target_unzip.joinpath("test_source_folder1", "aFile.txt").exists())
         self.assertTrue(target_unzip.joinpath("bFile.txt").exists())
 
-
     def test_unzip_archive(self):
         tmp_dir = pathlib.Path(self.tmp_dir.name)
         source_dir = tmp_dir.joinpath("test_source_folder")
@@ -269,14 +268,14 @@ class TestFileOperations(TestHipsCommon):
         # assert
         self.assertTrue(target_unzip.joinpath("aFile.txt").exists())
 
-    def test_remove_warning_on_error_no_folder(self):
+    def test_force_remove_no_folder(self):
         p = Path(self.tmp_dir.name).joinpath("not_exist")
 
-        remove_warning_on_error(p)
+        force_remove(p)
 
         self.assertIn("No content in ", self.captured_output.getvalue())
 
-    def test_remove_warning_on_error_folder_undeletable(self):
+    def test_force_remove_folder_undeletable(self):
         p = Path(self.tmp_dir.name).joinpath("folder_in_use")
 
         create_path_recursively(p)
@@ -296,11 +295,18 @@ class TestFileOperations(TestHipsCommon):
             skip = False
 
             # no error and folder deleted
-            self.assertIsNone(remove_warning_on_error(p))
+            self.assertIsNone(force_remove(p))
             self.assertFalse(p.exists())
 
         if skip:
             self.skipTest("Cannot setup test routine. Unknown reason!")
+
+    def test_rand_folder_name(self):
+        f1 = rand_folder_name()
+        f2 = rand_folder_name(f_len=10)
+
+        self.assertEqual(8, len(f1))
+        self.assertEqual(10, len(f2))
 
 
 if __name__ == '__main__':

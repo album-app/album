@@ -14,6 +14,8 @@ class TestIntegrationTest(TestIntegrationCommon):
         super().tearDown()
 
     def test_test_no_test_routine(self):
+        self.fake_install(self.get_test_solution_path("solution0_dummy_no_routines.py"))
+
         # this solution has the no hips_test() configured
         sys.argv = ["", "test", self.get_test_solution_path("solution0_dummy_no_routines.py")]
 
@@ -23,9 +25,18 @@ class TestIntegrationTest(TestIntegrationCommon):
         # assert
         self.assertIn("WARNING - No \"test\" routine configured for solution", self.captured_output.getvalue())
 
+    def test_test_not_installed(self):
+        sys.argv = ["", "test", self.get_test_solution_path("solution0_dummy_no_routines.py")]
+
+        # run
+        with self.assertRaises(ValueError):
+            self.assertIsNone(main())
+
     def test_test(self):
         # create solution6_noparent_test environment
         Environment({'environment_name': "solution6_noparent_test"}, "unusedCacheName", "unusedCachePath").install()
+
+        self.fake_install(self.get_test_solution_path("solution6_noparent_test.py"))
 
         # configure silent solution logger
         solution_output = StringIO()

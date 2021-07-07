@@ -1,11 +1,9 @@
-import logging
+import sys
 import sys
 import unittest
-from pathlib import Path
-from unittest.mock import patch
 
 from hips.argument_parsing import main
-from hips.core.model.catalog_collection import HipsCatalogCollection
+from hips.core import load
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -24,30 +22,25 @@ class TestIntegrationSearch(TestIntegrationCommon):
         sys.argv = ["", "search", "keyword"]
         self.assertIsNone(main())
 
-    @patch('hips.core.controller.search_manager.HipsCatalogCollection.get_search_index')
-    @patch('hips.__main__.__retrieve_logger')
-    def test_search_filled_index(self, logger_mock, get_search_index_mock):
-        # configure additional log output for checking
-        logger_mock.side_effect = [logging.getLogger("integration-test")]
+    def test_search_filled_index(self):
+        # populate tmp_index!
+        h = load(self.get_test_solution_path())
+        h["description"] = "keyword1"
+        d = h.get_hips_deploy_dict()
+        self.test_catalog_collection.local_catalog.catalog_index.update(d)
+        self.test_catalog_collection.local_catalog.catalog_index.save()
 
-        self.test_config_init += "- " + str(Path(self.get_test_solution_path("")).joinpath("catalog_local"))
-        with open(self.closed_tmp_file.name, mode="w") as f:
-            f.writelines(self.test_config_init)
-
-        # use config in test resources with relative path to a local catalog
-        HipsCatalogCollection.instance = None  # lever out concept
-        config = HipsCatalogCollection(self.closed_tmp_file.name)
-
-        get_search_index_mock.return_value = {
-            config.local_catalog.id: config.local_catalog.catalog_index.get_leaves_dict_list()
-        }
+        self.assertEqual(1, len(self.test_catalog_collection.local_catalog))
 
         # define and run search
         sys.argv = ["", "search", "keyword1"]
         self.assertIsNone(main())
 
         # check output to have found the solution behind keyword1
-        self.assertIn('catalog_local_ida-mdc_solution0_dummy_0.1.0', self.captured_output.getvalue())
+        self.assertIn(
+            '%s_%s_%s_%s' % (self.test_catalog_collection.local_catalog.id, h["group"], h["name"], h["version"]),
+            self.captured_output.getvalue()
+        )
 
 
 if __name__ == '__main__':

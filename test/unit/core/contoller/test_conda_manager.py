@@ -3,7 +3,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from hips.core.controller.conda_manager import CondaManager
-from hips.core.utils.operations.file_operations import remove_warning_on_error
+from hips.core.utils.operations.file_operations import force_remove
 from test.unit.test_common import TestHipsCommon
 
 
@@ -19,7 +19,7 @@ class TestCondaManager(TestHipsCommon):
             self.conda.remove_environment(self.test_environment_name)
             self.assertFalse(self.conda.environment_exists(self.test_environment_name))
             # try to delete rest of disc content
-            remove_warning_on_error(env_dict[self.test_environment_name])
+            force_remove(env_dict[self.test_environment_name])
         CondaManager.instance = None
         super().tearDown()
 

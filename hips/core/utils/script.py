@@ -65,9 +65,7 @@ def __api_access(active_hips, script):
     script += "environment_cache_path=\"" + "{}".format(str(active_hips.environment.cache_path).encode(enc)) + "\", "
     script += "environment_path=\"" + "{}".format(str(active_hips.environment.path).encode(enc)) + "\", "
     script += "environment_name=\"" + "{}".format(str(active_hips.environment.name).encode(enc)) + "\", "
-    script += "download_cache_path=\"" + "{}".format(
-        str(HipsConfiguration().get_cache_path_downloads(active_hips)).encode(enc)
-    ) + "\""
+    script += "download_cache_path=\"" + "{}".format(str(active_hips.cache_path_download).encode(enc)) + "\""
     script += ")\n"
 
     return script

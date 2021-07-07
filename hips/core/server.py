@@ -5,6 +5,9 @@ import threading
 from flask import Flask
 from flask import request
 
+from hips.core.controller.resolve_manager import ResolveManager
+from hips.core.model.configuration import HipsConfiguration
+
 from hips.core.concept.singleton import Singleton
 from hips.core.controller.catalog_manager import CatalogManager
 from hips.core.controller.deploy_manager import DeployManager
@@ -24,19 +27,22 @@ class HipsServer(threading.Thread, metaclass=Singleton):
     port = 5476
 
     # load singletons
-    catalog_collection = HipsCatalogCollection()
-    hips_catalog_manager = CatalogManager(catalog_collection)
-    deploy_manager = DeployManager(catalog_collection)
-    install_manager = InstallManager(catalog_collection)
-    remove_manager = RemoveManager(catalog_collection)
-    run_manager = RunManager(catalog_collection)
-    search_manager = SearchManager(catalog_collection)
-    test_manager = TestManager(catalog_collection)
+    configuration = None
+    catalog_collection = None
+    resolve_manager = None
+    hips_catalog_manager = None
+    deploy_manager = None
+    install_manager = None
+    remove_manager = None
+    run_manager = None
+    search_manager = None
+    test_manager = None
 
     def __init__(self, port):
         self.port = port
 
         threading.Thread.__init__(self)
+        # initialize singletons here!
 
     def start(self):
         # Start the thread.

@@ -172,41 +172,41 @@ class TestCatalog(TestHipsCommon):
         self.assertIn("WARNING - Cannot remove entries", self.get_logs()[-1])
         self.assertEqual(len(self.catalog), 10)
 
-    @patch('hips.core.model.catalog.Catalog.get_solution_cache_file')
-    def test_resolve(self, get_solution_cache_file_mock):
+    @patch('hips.core.model.catalog.Catalog.get_solution_file')
+    def test_resolve(self, get_solution_file_mock):
         self.populate_index()
-        get_solution_cache_file_mock.side_effect = [Path(self.closed_tmp_file.name)]
+        get_solution_file_mock.side_effect = [Path(self.closed_tmp_file.name)]
 
         search_result = self.catalog.resolve("group0", "name0", "version0")
 
         self.assertEqual(search_result, Path(self.closed_tmp_file.name))
 
-    @patch('hips.core.model.catalog.Catalog.get_solution_cache_file')
-    def test_resolve_in_index_but_no_file(self, get_solution_cache_file_mock):
+    @patch('hips.core.model.catalog.Catalog.get_solution_file')
+    def test_resolve_in_index_but_no_file(self, get_solution_file_mock):
         self.populate_index()
-        get_solution_cache_file_mock.side_effect = [Path("pathDoesNotExist")]
+        get_solution_file_mock.side_effect = [Path("pathDoesNotExist")]
 
         with self.assertRaises(FileNotFoundError):
             self.catalog.resolve("group0", "name0", "version0")
 
-    @patch('hips.core.model.catalog.Catalog.get_solution_cache_file')
+    @patch('hips.core.model.catalog.Catalog.get_solution_file')
     @patch('hips.core.model.catalog.Catalog.download_solution_via_doi', return_value=Path("pathDoesNotExist"))
-    def test_resolve_download_by_doi_if_present(self, download_doi_solution_mock, get_solution_cache_file_mock):
+    def test_resolve_download_by_doi_if_present(self, download_doi_solution_mock, get_solution_file_mock):
         self.populate_index()
         self.catalog.is_local = False
-        get_solution_cache_file_mock.side_effect = [Path("pathDoesNotExist")]
+        get_solution_file_mock.side_effect = [Path("pathDoesNotExist")]
 
         search_result = self.catalog.resolve("group0", "name0", "version0")
         download_doi_solution_mock.assert_called_once()
 
         self.assertEqual(Path("pathDoesNotExist"), search_result)
 
-    @patch('hips.core.model.catalog.Catalog.get_solution_cache_file')
+    @patch('hips.core.model.catalog.Catalog.get_solution_file')
     @patch('hips.core.model.catalog.Catalog.download_solution_via_doi', return_value=True)
-    def test_resolve_not_download_by_doi_on_flag(self, download_doi_solution_mock, get_solution_cache_file_mock):
+    def test_resolve_not_download_by_doi_on_flag(self, download_doi_solution_mock, get_solution_file_mock):
         self.populate_index()
         self.catalog.is_local = False
-        get_solution_cache_file_mock.side_effect = [Path("pathDoesNotExist")]
+        get_solution_file_mock.side_effect = [Path("pathDoesNotExist")]
 
         with self.assertRaises(FileNotFoundError):
             self.catalog.resolve("group0", "name0", "version0", download=False)
@@ -310,17 +310,16 @@ class TestCatalog(TestHipsCommon):
         with self.assertRaises(ValueError):
             self.catalog.download_index()
 
-    def test_get_solution_cache_path(self):
+    def test_get_solution_path(self):
         self.assertEqual(
-            self.catalog.get_solution_cache_path("g", "n", "v"),
+            self.catalog.get_solution_path("g", "n", "v"),
             self.catalog.path.joinpath(self.catalog.gnv_solution_prefix, "g", "n", "v")
         )
 
-    def test_get_solution_cache_zip_folder_suffix(self):
-        self.assertEqual(
-            Path("").joinpath(HipsDefaultValues.cache_path_solution_prefix.value, "g", "n", "v"),
-            self.catalog.get_solution_cache_zip_folder_suffix("g", "n", "v")
-        )
+    def test_get_solution_zip(self):
+        res = self.catalog.path.joinpath(HipsDefaultValues.cache_path_solution_prefix.value, "g", "n", "v", "g_n_v.zip")
+
+        self.assertEqual(res, self.catalog.get_solution_zip("g", "n", "v"))
 
     def test_get_doi_cache_file(self):
         self.assertEqual(
@@ -332,7 +331,7 @@ class TestCatalog(TestHipsCommon):
 
         # create solution files installed via g, n, v
         for i in range(0, 2):
-            p = self.catalog.get_solution_cache_zip("group" + str(i), "name" + str(i), "version" + str(i))
+            p = self.catalog.get_solution_zip("group" + str(i), "name" + str(i), "version" + str(i))
             p.mkdir(parents=True)
             p.touch()
 
@@ -380,10 +379,6 @@ class TestCatalog(TestHipsCommon):
 
         self.assertEqual(res, self.catalog.doi_to_grp_name_version(doi))
 
-    def test_get_solution_cache_zip(self):
-        res = self.catalog.path.joinpath(HipsDefaultValues.cache_path_solution_prefix.value, "g", "n", "v", "g_n_v.zip")
-
-        self.assertEqual(res, self.catalog.get_solution_cache_zip("g", "n", "v"))
 
     @unittest.skip("Needs to be implemented!")
     def test_download_solution_via_doi(self):
@@ -424,169 +419,6 @@ class TestCatalog(TestHipsCommon):
     @unittest.skip("tested in hips_catalog.CatalogIndex.__len__")
     def test__len__(self):
         pass
-
-
-class TestHipsCatalogIndex(TestHipsCommon):
-    def setUp(self):
-        # fill index file
-        cs_file = Path(self.tmp_dir.name).joinpath(HipsDefaultValues.catalog_index_file_name.value)
-        with open(cs_file, "w+") as f:
-            f.write(sample_index)
-        self.cs_file = cs_file
-
-        # fill empty_index file
-        self.cs_file_index_empty = Path(self.tmp_dir.name).joinpath("empty_index_file")
-        with open(self.cs_file_index_empty, "w+") as f:
-            f.write(empty_index)
-
-        # fill emtpy_file
-        self.cs_file_empty = Path(self.tmp_dir.name).joinpath("empty_file")
-        self.cs_file_empty.touch()
-
-        self.cs_index = CatalogIndex("test", self.cs_file)
-
-    def tearDown(self) -> None:
-        super().tearDown()
-
-    def test__init__(self):
-        self.assertEqual(len(self.cs_index), 1)
-
-    def test__init__index_given(self):
-        cs_index = CatalogIndex("test", self.cs_file, index=Node("IndexGiven", **{"version": "0.1.0"}))
-
-        self.assertEqual(len(cs_index), 0)
-
-    def test__len__(self):
-        self.assertEqual(len(self.cs_index), 1)
-
-        attrs = {
-            "group": "group0",
-            "name": "name0",
-            "version": "version0"
-        }
-
-        self.cs_index.update(node_attrs=attrs)
-
-        self.assertEqual(len(self.cs_index), 2)
-
-    def test_load(self):
-        self.assertEqual(len(self.cs_index), 1)
-        self.cs_index.load(self.cs_file_index_empty)
-        self.assertEqual(len(self.cs_index), 0)
-
-    def test_load_empty_file(self):
-        self.assertEqual(len(self.cs_index), 1)
-        self.cs_index.load(self.cs_file_empty)
-        self.assertEqual(len(self.cs_index), 1)
-
-    def test_update(self):
-        node_attrs = {"name": "myname", "group": "mygroup", "version": "myversion"}
-
-        self.cs_index.load(self.cs_file_index_empty)
-        self.assertEqual(len(self.cs_index), 0)
-        self.cs_index.update(node_attrs)
-        self.assertEqual(len(self.cs_index), 1)
-
-        self.assertIsNotNone(self.cs_index._find_node_by_name_version_and_group(
-            self.cs_index.index, "myname", "myversion", "mygroup")
-        )
-
-    def test_update_overwrite_old(self):
-        res = self.cs_index._find_node_by_name_version_and_group(
-            self.cs_index.index, "testName", "testVersion", "testGroup"
-        )
-        self.assertIsNotNone(res)
-        self.assertFalse(hasattr(res, "newAttr"))
-        self.assertEqual(len(self.cs_index), 1)
-
-        # updated version
-        node_attrs = {"name": "testName", "group": "testGroup", "version": "testVersion", "newAttr": "newAttrVal"}
-        self.cs_index.update(node_attrs)
-
-        # check changes
-        self.assertEqual(len(self.cs_index), 1)
-        res = self.cs_index._find_node_by_name_version_and_group(
-            self.cs_index.index, "testName", "testVersion", "testGroup"
-        )
-        self.assertIsNotNone(res)
-        self.assertEqual(res.newAttr, "newAttrVal")
-
-    def test_update_add_version(self):
-        res = self.cs_index._find_node_by_name_version_and_group(
-            self.cs_index.index, "testName", "testVersion", "testGroup"
-        )
-        self.assertIsNotNone(res)
-        self.assertEqual(len(self.cs_index), 1)
-
-        # updated version
-        node_attrs = {"name": "testName", "group": "testGroup", "version": "testVersion2"}
-        self.cs_index.update(node_attrs)
-
-        # check
-        self.assertEqual(len(self.cs_index), 2)
-        self.assertIsNotNone(self.cs_index._find_node_by_name_version_and_group(
-            self.cs_index.index, "testName", "testVersion", "testGroup"
-        ))
-        self.assertIsNotNone(self.cs_index._find_node_by_name_version_and_group(
-            self.cs_index.index, "testName", "testVersion2", "testGroup"
-        ))
-
-    def test_save(self):
-        self.assertTrue(self.cs_file_empty.stat().st_size == 0)
-        self.cs_index.save(self.cs_file_empty)
-        self.assertTrue(self.cs_file_empty.stat().st_size > 0)
-
-        self.cs_index.load(self.cs_file_empty)
-        self.assertEqual(len(self.cs_index), 1)
-
-    def test_get_leaves_dict_list(self):
-        l_dict_list = self.cs_index.get_leaves_dict_list()
-        self.assertEqual(len(l_dict_list), 1)
-
-    def test_resolve_hips_by_name_version_and_group(self):
-        self.assertIsNotNone(
-            self.cs_index.resolve_hips_by_name_version_and_group("testName", "testVersion", "testGroup")
-        )
-
-    def test_resolve_hips_by_name_version_and_group_no_leaf(self):
-        r = self.cs_index.resolve_hips_by_name_version_and_group("testName", "testVersion", "testGroup")
-        self.assertIsNotNone(r)
-        Node("wrongNode", parent=r)  # resolving not a leaf any more
-        with self.assertRaises(RuntimeError):
-            self.cs_index.resolve_hips_by_name_version_and_group("testName", "testVersion", "testGroup")
-
-    def test_resolve_hips_by_doi(self):
-        self.assertIsNotNone(
-            self.cs_index.resolve_hips_by_doi("doi0")
-        )
-
-    def test_test_resolve_hips_by_doi_no_leaf(self):
-        r = self.cs_index.resolve_hips_by_doi("doi0")
-        self.assertIsNotNone(r)
-        Node("wrongNode", parent=r)  # resolving not a leaf any more
-
-        with self.assertRaises(RuntimeError) as context:
-            self.cs_index.resolve_hips_by_doi("doi0")
-            self.assertIn("Ambiguous results", str(context.exception))
-
-    @patch('hips.core.model.catalog.CatalogIndex._find_all_nodes_by_attribute')
-    def test_test_resolve_hips_by_doi_two_doi(self, fanba_mock):
-        fanba_mock.side_effect = [[Node("new1"), Node("new2")]]
-
-        with self.assertRaises(RuntimeError) as context:
-            self.cs_index.resolve_hips_by_doi("doi0")
-            self.assertIn("Found several results", str(context.exception))
-
-    def test_export_json(self):
-        self.cs_index.export(self.closed_tmp_file.name, export_format="JSON")
-        export_file = open(self.closed_tmp_file.name).readlines()[0]
-
-        self.assertEqual(json.dumps(self.cs_index.get_leaves_dict_list()), export_file)
-
-    @patch('hips.core.model.catalog.RenderTree', return_value="")
-    def test_visualize(self, rt_mock):
-        self.cs_index.visualize()
-        rt_mock.assert_called_once_with(self.cs_index.index)
 
 
 if __name__ == '__main__':

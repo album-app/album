@@ -1,5 +1,4 @@
 import re
-from pathlib import Path
 
 import validators
 
@@ -26,14 +25,15 @@ class HipsCatalogCollection(metaclass=Singleton):
 
     """
     # Singletons
-    configuration = HipsConfiguration()
+    configuration = None
 
-    def __init__(self, config_file=None):
+    def __init__(self, configuration: HipsConfiguration = None):
         super().__init__()
-        if config_file:
-            self.config_file_path = Path(config_file)
+        if configuration:
+            self.configuration = configuration
         else:
-            self.config_file_path = self.configuration.configuration_file_path
+            self.configuration = HipsConfiguration()
+        self.config_file_path = self.configuration.configuration_file_path
         self.config_file_dict = self._load_hips_configuration()
         self.catalogs = self._get_catalogs()
         self.local_catalog = self._get_local_catalog()
@@ -174,6 +174,10 @@ class HipsCatalogCollection(metaclass=Singleton):
             if "doi" in hips_attr.keys():
                 path_to_solution = catalog.resolve_doi(hips_attr["doi"], download)
             else:  # resolve via group, name, version
+                if not all([k in hips_attr.keys() for k in ["name", "version", "group"]]):
+                    raise ValueError("Cannot resolve dependency!"
+                                     " Either a DOI or name, group and version must be specified!")
+
                 group = hips_attr["group"]
                 name = hips_attr["name"]
                 version = hips_attr["version"]
@@ -205,7 +209,7 @@ class HipsCatalogCollection(metaclass=Singleton):
         r = self.resolve(hips_dependency, download)
 
         if not r:
-            raise ValueError("Could not resolve hip dependency! %s" % hips_dependency)
+            raise ValueError("Could not resolve solution: %s" % hips_dependency)
 
         return r
 
@@ -243,7 +247,7 @@ class HipsCatalogCollection(metaclass=Singleton):
         return None
 
     def resolve_from_str(self, str_input: str, download=True):
-        """Resolves a sring input if in valid format.
+        """Resolves a string input if in valid format.
 
         Args:
             str_input:
@@ -251,7 +255,6 @@ class HipsCatalogCollection(metaclass=Singleton):
                     doi:  <doi>:<prefix>/<suffix> or <prefix>/<suffix> of a solution
                     gnv: <group>:<name>:<version> of a solution
                     url: any url pointing to a solution file
-                    path: a path to a valid solution file on the disk.
             download:
                 Boolean to indicate whether to download a solution from the catalog it has been found in or not.
 
@@ -259,27 +262,15 @@ class HipsCatalogCollection(metaclass=Singleton):
             Dictionary holding the path to the solution and the catalog the solution has been resolved in.
 
         """
-        p = Path(str_input)
-        if p.is_file():
-            return {
-                "path": p,
-                "catalog": None
-            }
-        else:
-            if self.is_url(str_input):
-                return {
-                    "path": self.download(str_input),
-                    "catalog": None
-                }
-            else:
-                p = self.get_doi_from_input(str_input)
-                if not p:
-                    p = self.get_gnv_from_input(str_input)
-                    if not p:
-                        raise ValueError("Invalid input format! Try <doi>:<prefix>/<suffix> or <prefix>/<suffix> or "
-                                         "<group>:<name>:<version> or point to a valid file! Aborting...")
-                module_logger().debug("Parsed %s from the input... " % p)
-                return self.resolve_hips_dependency(p, download)
+        attrs_dict = self.get_doi_from_input(str_input)
+        if not attrs_dict:
+            attrs_dict = self.get_gnv_from_input(str_input)
+            if not attrs_dict:
+                raise ValueError(
+                    "Invalid input format! Try <doi>:<prefix>/<suffix> or <prefix>/<suffix> or "
+                    "<group>:<name>:<version> or point to a valid file! Aborting...")
+        module_logger().debug("Parsed %s from the input... " % attrs_dict)
+        return self.resolve_hips_dependency(attrs_dict, download)
 
     def get_installed_solutions(self):
         """Returns all installed solutions of all catalogs configured"""
@@ -312,26 +303,3 @@ class HipsCatalogCollection(metaclass=Singleton):
                 "doi": s.group(2)
             }
         return None
-
-    @staticmethod
-    def is_url(str_input: str):
-        """Parses a url."""
-        url_regex = re.compile(
-            r'^(?:http|ftp)s?://'  # http:// or https://
-            r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # domain...
-            r'localhost|'  # localhost...
-            r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # ...or ip
-            r'(?::\d+)?'  # optional port
-            r'(?:/?|[/?]\S+)$', re.IGNORECASE)
-        return re.match(url_regex, str_input) is not None
-
-    @staticmethod
-    def download(str_input):
-        """Downloads a solution file into a temporary file."""
-        import urllib.request
-        import shutil
-        import tempfile
-        new_file, file_name = tempfile.mkstemp()
-        with urllib.request.urlopen(str_input) as response, open(file_name, 'wb') as out_file:
-            shutil.copyfileobj(response, out_file)
-        return Path(file_name)

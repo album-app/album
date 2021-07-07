@@ -4,6 +4,7 @@ from hips.core.controller.catalog_manager import CatalogManager
 from hips.core.controller.deploy_manager import DeployManager
 from hips.core.controller.install_manager import InstallManager
 from hips.core.controller.remove_manager import RemoveManager
+from hips.core.controller.resolve_manager import ResolveManager
 from hips.core.controller.run_manager import RunManager
 from hips.core.controller.search_manager import SearchManager
 from hips.core.controller.test_manager import TestManager
@@ -16,14 +17,19 @@ module_logger = logging.get_active_logger
 
 # singletons initialization
 configuration = HipsConfiguration()
-catalog_collection = HipsCatalogCollection()
+catalog_collection = HipsCatalogCollection(configuration)
+
+# catalog_collection init
+search_manager = SearchManager(catalog_collection)
+resolve_manager = ResolveManager(catalog_collection)
 hips_catalog_manager = CatalogManager(catalog_collection)
 deploy_manager = DeployManager(catalog_collection)
-install_manager = InstallManager(catalog_collection)
-remove_manager = RemoveManager(catalog_collection)
-run_manager = RunManager(catalog_collection)
-search_manager = SearchManager(catalog_collection)
-test_manager = TestManager(catalog_collection)
+
+# resolve init
+install_manager = InstallManager(resolve_manager)
+remove_manager = RemoveManager(resolve_manager)
+run_manager = RunManager(resolve_manager)
+test_manager = TestManager(resolve_manager)
 
 
 def startup():

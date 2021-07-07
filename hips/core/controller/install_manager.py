@@ -1,9 +1,8 @@
 import sys
 
-from hips.core import load
 from hips.core.concept.singleton import Singleton
-from hips.core.model.catalog_collection import HipsCatalogCollection
-from hips.core.utils.operations.file_operations import copy_in_file
+from hips.core.controller.resolve_manager import ResolveManager
+from hips.core.utils.operations.file_operations import copy_folder
 from hips.core.utils.script import create_script
 from hips_runner import logging
 from hips_runner.logging import LogLevel
@@ -20,21 +19,21 @@ class InstallManager(metaclass=Singleton):
     After installation the solution is marked as installed in a local catalog.
 
     Attributes:
-        catalog_collection:
-            Holding all configured catalogs.
+        resolve_manager:
+            Holding all configured catalogs. Resolves inside our outside catalogs.
 
     """
     # singletons
-    catalog_collection = None
+    resolve_manager = None
 
-    def __init__(self, catalog_collection=None):
-        self.catalog_collection = HipsCatalogCollection() if not catalog_collection else catalog_collection
+    def __init__(self, resolve_manager=None):
+        self.resolve_manager = ResolveManager() if not resolve_manager else resolve_manager
+        self.configuration = self.resolve_manager.catalog_collection.configuration
 
     def install(self, path):
         """Function corresponding to the `install` subcommand of `hips`."""
         # Load HIPS
-        resolve = self.catalog_collection.resolve_from_str(path)
-        active_hips = load(resolve["path"])
+        resolve, active_hips = self.resolve_manager.resolve_and_load(path, mode="a")
 
         if not resolve["catalog"]:
             module_logger().debug('hips loaded locally: %s...' % str(active_hips))
@@ -45,17 +44,20 @@ class InstallManager(metaclass=Singleton):
         self._install(active_hips)
 
         if not resolve["catalog"] or resolve["catalog"].is_local:  # case where a solution file is directly given
-            self.add_to_local_catalog(active_hips)
+            self.add_to_local_catalog(active_hips, resolve["path"].parent)
 
         module_logger().info('Installed %s!' % active_hips['name'])
 
-    def add_to_local_catalog(self, active_hips):
+    def add_to_local_catalog(self, active_hips, path):
         """Force adds the installation to the local catalog to be cached for running"""
-        self.catalog_collection.local_catalog.add(active_hips, force_overwrite=True)
-        local_catalog_path = self.catalog_collection.local_catalog.get_solution_cache_file(
+        self.resolve_manager.catalog_collection.local_catalog.add(active_hips, force_overwrite=True)
+        # get the install location
+        install_location = self.resolve_manager.catalog_collection.local_catalog.get_solution_path(
             active_hips.group, active_hips.name, active_hips.version
         )
-        copy_in_file(active_hips.script, local_catalog_path)
+
+        copy_folder(path, install_location, copy_root_folder=False)
+        self.resolve_manager.clean_resolve_tmp()
 
     def _install(self, active_hips):
         # install environment
@@ -93,6 +95,6 @@ class InstallManager(metaclass=Singleton):
 
     def install_dependency(self, hips_dependency):
         """Calls `install` for a HIPS declared in a dependency block"""
-        hips_script_path = self.catalog_collection.resolve_hips_dependency(hips_dependency)["path"]
+        hips_script_path = self.resolve_manager.catalog_collection.resolve_hips_dependency(hips_dependency)["path"]
         # recursive installation call
         self.install(hips_script_path)

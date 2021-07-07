@@ -7,7 +7,7 @@ from unittest.mock import patch
 import hips.core.utils.operations.git_operations as git_op
 from hips.core.model.default_values import HipsDefaultValues
 from hips.core.model.hips_base import HipsClass
-from hips.core.utils.operations.file_operations import copy, remove_warning_on_error
+from hips.core.utils.operations.file_operations import copy, force_remove
 from test.unit.test_common import TestGitCommon
 
 
@@ -142,7 +142,7 @@ class TestGitOperations(TestGitCommon):
     @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={})
     def test_download_repository(self, _):
         # clean
-        remove_warning_on_error(HipsDefaultValues.app_cache_dir.value.joinpath("test"))
+        force_remove(HipsDefaultValues.app_cache_dir.value.joinpath("test"))
 
         # create hips
         self.attrs = {

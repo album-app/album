@@ -2,8 +2,8 @@ from queue import Queue
 
 from hips.core import load
 from hips.core.concept.singleton import Singleton
+from hips.core.controller.resolve_manager import ResolveManager
 from hips.core.controller.run_manager import RunManager
-from hips.core.model.catalog_collection import HipsCatalogCollection
 from hips_runner import logging
 from hips_runner.logging import LogLevel
 
@@ -16,27 +16,26 @@ class TestManager(metaclass=Singleton):
     Solutions must be installed to run their testing routine.
 
      Attributes:
-         catalog_collection:
-            Holds all the catalogs of the HIPS framework installation.
+         resolve_manager:
+            Holding all configured catalogs. Resolves inside our outside catalogs.
 
     """
     # singletons
-    catalog_collection = None
+    resolve_manager = None
     run_manager = None
 
-    def __init__(self, catalog_collection=None):
-        self.catalog_collection = HipsCatalogCollection() if not catalog_collection else catalog_collection
-        self.run_manager = RunManager(self.catalog_collection)
+    def __init__(self, resolve_manager=None):
+        self.resolve_manager = ResolveManager() if not resolve_manager else resolve_manager
+        self.run_manager = RunManager(self.resolve_manager)
 
     def test(self, path):
         """Function corresponding to the `test` subcommand of `hips`."""
-        resolve = self.catalog_collection.resolve_from_str(path, download=False)
-
-        if not resolve["catalog"]:
-            if not (resolve['path'].is_file() and resolve['path'].stat().st_size > 0):
-                raise RuntimeError("Please install solution first!")
-
-        active_hips = load(resolve["path"])
+        try:
+            resolve, active_hips = self.resolve_manager.resolve_and_load(path, mode="c")
+        except ValueError:
+            raise ValueError("Solution points to a local file which has not been installed yet. "
+                             "Please point to an installation from the catalog or install the solution. "
+                             "Aborting...")
 
         if not resolve["catalog"]:
             module_logger().debug('hips loaded locally: %s...' % str(active_hips))

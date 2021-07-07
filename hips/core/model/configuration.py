@@ -4,6 +4,7 @@ from pathlib import Path
 
 from hips.core.concept.singleton import Singleton
 from hips.core.model.default_values import HipsDefaultValues
+from hips.core.utils.operations.file_operations import create_paths_recursively, force_remove
 from hips_runner import logging
 
 module_logger = logging.get_active_logger
@@ -21,6 +22,15 @@ class HipsConfiguration(metaclass=Singleton):
             The path to the configuration file holding the catalogs.
          conda_executable:
             The conda executable. Either a full path to a conda executable/binary or a command
+        cache_path_solution:
+            Path for everything a solution needs. Holds the environment cache path. Catalog independent!
+            NOT the installation folder though! Installation folder is always in the catalog it lives in!
+        cache_path_app:
+            Path for app solutions. Catalog independent!
+        cache_path_download:
+            Path for downloads a solution makes. Catalog independent!
+        cache_path_tmp:
+            Paths for temporary files!
 
     """
 
@@ -56,10 +66,14 @@ class HipsConfiguration(metaclass=Singleton):
 
     @base_cache_path.setter
     def base_cache_path(self, value):
-        self._base_cache_path = value
+        self._base_cache_path = Path(value)
         self.cache_path_solution = self.base_cache_path.joinpath(HipsDefaultValues.cache_path_solution_prefix.value)
         self.cache_path_app = self.base_cache_path.joinpath(HipsDefaultValues.cache_path_app_prefix.value)
         self.cache_path_download = self.base_cache_path.joinpath(HipsDefaultValues.cache_path_download_prefix.value)
+        self.cache_path_tmp = self.base_cache_path.joinpath(HipsDefaultValues.cache_path_tmp_prefix.value)
+        create_paths_recursively(
+            [self.cache_path_solution, self.cache_path_app, self.cache_path_download, self.cache_path_tmp]
+        )
 
     @property
     def conda_executable(self):
@@ -69,53 +83,18 @@ class HipsConfiguration(metaclass=Singleton):
     def conda_executable(self, value):
         self._conda_executable = value
 
-    def get_cache_path_hips(self, active_hips):
-        """Get the cache path of the active hips
+    @staticmethod
+    def get_solution_path_suffix(g, n, v):
+        """Returns the suffix path for an hips giving its group, name and version"""
+        return Path("").joinpath(HipsDefaultValues.cache_path_solution_prefix.value, g, n, v)
 
-        Args:
-            active_hips: The HIPS object
-
-        Returns: Path to local cache of a HIPS
-
-        """
-        if hasattr(active_hips, "doi"):
-            return self.cache_path_solution.joinpath("doi", active_hips["doi"])
-        else:
-            return self.cache_path_solution.joinpath("local", active_hips["group"], active_hips["name"],
-                                                     active_hips["version"])
-
-    def get_cache_path_app(self, active_hips):
-        """Get the app cache path of the active hips
-
-        Args:
-            active_hips: The HIPS object
-
-        Returns: Path to local cache of any apps belonging to a HIPS
-
-        """
-        if hasattr(active_hips, "doi"):
-            return self.cache_path_app.joinpath("doi", active_hips["doi"])
-        else:
-            return self.cache_path_app.joinpath("local", active_hips["group"], active_hips["name"],
-                                                active_hips["version"])
-
-    def get_cache_path_downloads(self, active_hips):
-        """Get the cache path of anything a hips downloads.
-
-        Args:
-            active_hips: The HIPS object
-
-        Returns: Path to local cache of any download files belonging to a HIPS
-
-        """
-        if hasattr(active_hips, "doi"):
-            return self.cache_path_download.joinpath("doi", active_hips["doi"])
-        else:
-            return self.cache_path_download.joinpath("local", active_hips["group"], active_hips["name"],
-                                                     active_hips["version"])
+    @staticmethod
+    def get_doi_solution_path_suffix(doi):
+        """Returns the suffix path for an hips giving its doi"""
+        return Path("").joinpath(HipsDefaultValues.cache_path_doi_solution_prefix.value, doi)
 
     def get_cache_path_catalog(self, catalog_id):
-        """Get the cache path to the catalog with a certain ID.
+        """Get the cache path to the catalog with a certain ID. Catalog independent!
 
         Args:
             catalog_id: The ID of the HIPS catalog
@@ -123,7 +102,7 @@ class HipsConfiguration(metaclass=Singleton):
         Returns: Path to local cache of a catalog identified by the ID
 
         """
-        return self.base_cache_path.joinpath("catalogs", catalog_id)
+        return self.base_cache_path.joinpath(HipsDefaultValues.catalog_folder_prefix.value, catalog_id)
 
     def get_default_hips_configuration(self):
         """Creates the default hips configuration dict which will be written in the hips configuration yaml file."""
@@ -155,3 +134,7 @@ class HipsConfiguration(metaclass=Singleton):
         """
         name, _ = os.path.splitext(os.path.basename(catalog_repo))
         return name
+
+    def empty_tmp(self):
+        """Removes the content of the tmp folder"""
+        force_remove(self.cache_path_tmp)

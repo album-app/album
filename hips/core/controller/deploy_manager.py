@@ -138,7 +138,7 @@ class DeployManager(metaclass=Singleton):
 
     def _get_cache_suffix(self):
         return Path(self._repo.working_tree_dir).joinpath(
-            self._catalog.get_solution_cache_zip_suffix(
+            self._catalog.get_solution_zip_suffix(
                 self._active_hips['group'],
                 self._active_hips["name"],
                 self._active_hips["version"]
@@ -195,7 +195,7 @@ class DeployManager(metaclass=Singleton):
         name = self._active_hips.name
         version = self._active_hips.version
 
-        abs_path_solution_folder = self._catalog.get_solution_cache_path(grp, name, version).joinpath(
+        abs_path_solution_folder = self._catalog.get_solution_path(grp, name, version).joinpath(
             "_".join([grp, name, version])
         )
 

@@ -34,11 +34,6 @@ class TestArgumentParsing(unittest.TestCase):
 
         self.assertEqual(e.exception.code, 2)
 
-    def test_run_non_existing_file(self):
-        sys.argv = ["", "run", "test/path"]
-        with self.assertRaises(ValueError):
-            argument_parsing.main()
-
     def test_create_parser(self):
         parser = argument_parsing.create_parser()
 

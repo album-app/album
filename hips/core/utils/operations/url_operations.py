@@ -1,15 +1,18 @@
+import re
+import shutil
+import tempfile
 from pathlib import Path
+from urllib import request
 
 import requests
 
-from hips_runner import logging
-from hips.core.utils.operations.file_operations import create_path_recursively
 from hips.ci.zenodo_api import ResponseStatus
+from hips.core.utils.operations.file_operations import create_path_recursively
+from hips_runner import logging
 
 module_logger = logging.get_active_logger
 
 
-# todo: write tests
 def is_downloadable(url):
     """Shows if url is a downloadable resource."""
     h = requests.head(url, allow_redirects=True)
@@ -20,7 +23,6 @@ def is_downloadable(url):
     return True
 
 
-# todo: write tests
 def download_resource(url, path):
     """Downloads a resource given its url."""
     module_logger().debug("Download url %s to %s..." % (url, path))
@@ -40,7 +42,6 @@ def download_resource(url, path):
     return path
 
 
-# todo: write tests
 def _request_get(url):
     """Get a response from a request to a resource url."""
     r = requests.get(url, allow_redirects=True, stream=True)
@@ -49,3 +50,23 @@ def _request_get(url):
         raise ConnectionError("Could not connect to resource %s!" % url)
 
     return r
+
+
+def is_url(str_input: str):
+    """Parses a url."""
+    url_regex = re.compile(
+        r'^(?:http|ftp)s?://'  # http:// or https://
+        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # domain...
+        r'localhost|'  # localhost...
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # ...or ip
+        r'(?::\d+)?'  # optional port
+        r'(?:/?|[/?]\S+)$', re.IGNORECASE)
+    return re.match(url_regex, str_input) is not None
+
+
+def download(str_input, base):
+    """Downloads a solution file into a temporary file."""
+    new_file, file_name = tempfile.mkstemp(dir=base)
+    with request.urlopen(str_input) as response, open(file_name, 'wb') as out_file:
+        shutil.copyfileobj(response, out_file)
+    return Path(file_name)

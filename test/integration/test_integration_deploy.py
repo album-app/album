@@ -1,14 +1,21 @@
 import sys
 import unittest
-from unittest.mock import patch, PropertyMock
 
 from hips.argument_parsing import main
+from hips.core.utils.operations.file_operations import force_remove
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
 class TestIntegrationDeploy(TestIntegrationCommon):
 
     def tearDown(self) -> None:
+        # try to avoid git-removal windows errors
+        try:
+            force_remove(self.test_catalog_collection.configuration.cache_path_download, warning=False)
+        except TimeoutError:
+            # todo: fixme! rather sooner than later!
+            if sys.platform == 'win32' or sys.platform == 'cygwin':
+                pass
         super().tearDown()
 
     def test_deploy(self):

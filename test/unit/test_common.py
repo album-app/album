@@ -7,12 +7,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 import git
+from hips.core.model.configuration import HipsConfiguration
 
 from hips.ci.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from hips.core import HipsClass
 from hips.core.model.catalog_collection import HipsCatalogCollection
 from hips.core.model.default_values import HipsDefaultValues
-from hips.core.utils.operations.file_operations import remove_warning_on_error
+from hips.core.utils.operations.file_operations import force_remove
 from hips_runner.logging import push_active_logger, pop_active_logger
 
 
@@ -61,7 +62,7 @@ class TestHipsCommon(unittest.TestCase):
             self.tmp_dir.cleanup()
         except PermissionError:
             try:
-                remove_warning_on_error(self.tmp_dir.name)
+                force_remove(self.tmp_dir.name)
             except PermissionError:
                 raise
 
@@ -84,13 +85,21 @@ class TestHipsCommon(unittest.TestCase):
 
     @patch('hips.core.model.catalog.Catalog.refresh_index', return_value=None)
     def create_test_config(self, _):
-        self.test_catalog_collection_config_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
+        self.test_catalog_collection_config_file = tempfile.NamedTemporaryFile(
+            delete=False, mode="w", dir=self.tmp_dir.name
+        )
         self.test_config_init += "- " + self.tmp_dir.name
         self.test_catalog_collection_config_file.writelines(self.test_config_init)
         self.test_catalog_collection_config_file.close()
 
+        HipsConfiguration.instance = None
+        config = HipsConfiguration(
+            base_cache_path=self.tmp_dir.name,
+            configuration_file_path=self.test_catalog_collection_config_file.name
+        )
+
         HipsCatalogCollection.instance = None  # lever out concept
-        self.test_catalog_collection = HipsCatalogCollection(self.test_catalog_collection_config_file.name)
+        self.test_catalog_collection = HipsCatalogCollection(configuration=config)
 
         self.assertEqual(len(self.test_catalog_collection.local_catalog), 0)
 
@@ -171,7 +180,7 @@ class TestGitCommon(TestHipsCommon):
         if self.repo:
             p = self.repo.working_tree_dir
             del self.repo
-            remove_warning_on_error(p)
+            force_remove(p)
 
         super().tearDown()
 
@@ -227,3 +236,7 @@ class TestGitCommon(TestHipsCommon):
         self.repo = repo
 
         return tmp_file.name
+
+
+class EmptyTestClass:
+    pass
