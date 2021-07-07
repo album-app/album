@@ -65,3 +65,14 @@ Here is an example solution file:
           close=close,
           dependencies={'environment_file': env_file})
 ```
+
+## Tips for developing solutions
+
+Some useful paths and variables for a solution to use
+
+```
+get_active_hips().environment_cache_path
+get_active_hips().environment_path
+get_active_hips().environment_name
+get_active_hips().download_cache_path
+```
