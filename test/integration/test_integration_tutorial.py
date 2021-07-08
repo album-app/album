@@ -1,7 +1,7 @@
 import sys
 import unittest
 
-from hips.argument_parsing import main
+from album.argument_parsing import main
 from test.integration.test_integration_common import TestIntegrationCommon
 
 

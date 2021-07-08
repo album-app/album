@@ -7,27 +7,27 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-import hips.core as hips
-from hips.core.controller.catalog_manager import CatalogManager
-from hips.core.controller.conda_manager import CondaManager
-from hips.core.controller.deploy_manager import DeployManager
-from hips.core.controller.install_manager import InstallManager
-from hips.core.controller.remove_manager import RemoveManager
-from hips.core.controller.resolve_manager import ResolveManager
-from hips.core.controller.run_manager import RunManager
-from hips.core.controller.search_manager import SearchManager
-from hips.core.controller.test_manager import TestManager
-from hips.core.model.catalog_collection import HipsCatalogCollection
-from hips.core.model.configuration import HipsConfiguration
-from hips.core.model.default_values import HipsDefaultValues
-from hips.core.utils.operations.file_operations import copy
-from hips_runner.logging import push_active_logger
+import album.core as album
+from album.core.controller.catalog_manager import CatalogManager
+from album.core.controller.conda_manager import CondaManager
+from album.core.controller.deploy_manager import DeployManager
+from album.core.controller.install_manager import InstallManager
+from album.core.controller.remove_manager import RemoveManager
+from album.core.controller.resolve_manager import ResolveManager
+from album.core.controller.run_manager import RunManager
+from album.core.controller.search_manager import SearchManager
+from album.core.controller.test_manager import TestManager
+from album.core.model.catalog_collection import CatalogCollection
+from album.core.model.configuration import Configuration
+from album.core.model.default_values import DefaultValues
+from album.core.utils.operations.file_operations import copy
+from album_runner.logging import push_active_logger
 
 
 class TestIntegrationCommon(unittest.TestCase):
     test_config_init = """catalogs:
     - %s
-    """ % HipsDefaultValues.catalog_url.value
+    """ % DefaultValues.catalog_url.value
 
     test_configuration_file = None
 
@@ -44,9 +44,9 @@ class TestIntegrationCommon(unittest.TestCase):
             cls.setUp = set_up_override
 
     def setUp(self):
-        # make sure no active hips are somehow configured!
-        while hips.get_active_hips() is not None:
-            hips.pop_active_hips()
+        # make sure no active album are somehow configured!
+        while album.get_active_solution() is not None:
+            album.pop_active_solution()
 
         # tempfile/dirs
         self.tmp_dir = tempfile.TemporaryDirectory()
@@ -80,8 +80,8 @@ class TestIntegrationCommon(unittest.TestCase):
     @staticmethod
     def tear_down_singletons():
         # todo: This should actually not be necessary - we want to always load the correct singleton - fixme
-        HipsConfiguration.instance = None
-        HipsCatalogCollection.instance = None
+        Configuration.instance = None
+        CatalogCollection.instance = None
         SearchManager.instance = None
         ResolveManager.instance = None
         CatalogManager.instance = None
@@ -91,25 +91,25 @@ class TestIntegrationCommon(unittest.TestCase):
         RunManager.instance = None
         TestManager.instance = None
 
-    @patch('hips.core.model.catalog.Catalog.refresh_index', return_value=None)
+    @patch('album.core.model.catalog.Catalog.refresh_index', return_value=None)
     def create_test_config(self, _):
         self.test_configuration_file = tempfile.NamedTemporaryFile(
             delete=False, mode="w", dir=self.tmp_dir.name
         )
         test_config_init = self.test_config_init + "- %s" % str(Path(self.tmp_dir.name).joinpath(
-            HipsDefaultValues.catalog_folder_prefix.value, "test_catalog")
+            DefaultValues.catalog_folder_prefix.value, "test_catalog")
         )
         self.test_configuration_file.writelines(test_config_init)
         self.test_configuration_file.close()
 
-        HipsConfiguration.instance = None  # always force reinitialization of the object!
-        config = HipsConfiguration(
+        Configuration.instance = None  # always force reinitialization of the object!
+        config = Configuration(
             base_cache_path=self.tmp_dir.name,
             configuration_file_path=self.test_configuration_file.name
         )
 
-        HipsCatalogCollection.instance = None  # always force reinitialization of the object!
-        self.test_catalog_collection = HipsCatalogCollection(configuration=config)
+        CatalogCollection.instance = None  # always force reinitialization of the object!
+        self.test_catalog_collection = CatalogCollection(configuration=config)
 
         self.assertEqual(len(self.test_catalog_collection.local_catalog), 0)
 
@@ -133,11 +133,11 @@ class TestIntegrationCommon(unittest.TestCase):
         return logger
 
     @staticmethod
-    def resolve_hips(hips_dependency, download=False):
+    def resolve_solution(solution_dependency, download=False):
         class TestCatalog:
             id = "aCatalog"
 
-        path = TestIntegrationCommon.get_test_solution_path(hips_dependency['name'] + ".py")
+        path = TestIntegrationCommon.get_test_solution_path(solution_dependency['name'] + ".py")
         return {"path": path, "catalog": TestCatalog()}
 
     @staticmethod
@@ -148,9 +148,9 @@ class TestIntegrationCommon(unittest.TestCase):
 
     def fake_install(self, path):
         # add to local catalog
-        h = hips.load(path)
+        a = album.load(path)
         len_before = len(self.test_catalog_collection.local_catalog)
-        self.test_catalog_collection.local_catalog.catalog_index.update(h.get_hips_deploy_dict())
+        self.test_catalog_collection.local_catalog.catalog_index.update(a.get_deploy_dict())
 
         self.assertEqual(len(self.test_catalog_collection.local_catalog), len_before + 1)
 
@@ -158,10 +158,10 @@ class TestIntegrationCommon(unittest.TestCase):
         copy(
             path,
             self.test_catalog_collection.local_catalog.path.joinpath(
-                HipsDefaultValues.cache_path_solution_prefix.value,
-                h["group"],
-                h["name"],
-                h["version"],
-                HipsDefaultValues.solution_default_name.value
+                DefaultValues.cache_path_solution_prefix.value,
+                a["group"],
+                a["name"],
+                a["version"],
+                DefaultValues.solution_default_name.value
             )
         )

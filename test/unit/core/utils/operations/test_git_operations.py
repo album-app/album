@@ -4,11 +4,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-import hips.core.utils.operations.git_operations as git_op
-from hips.core.model.default_values import HipsDefaultValues
-from hips.core.model.hips_base import HipsClass
-from hips.core.utils.operations.file_operations import copy, force_remove
-from test.unit.test_common import TestGitCommon
+import album.core.utils.operations.git_operations as git_op
+from album.core.model.default_values import DefaultValues
+from album.core.model.album_base import AlbumClass
+from album.core.utils.operations.file_operations import copy, force_remove
+from test.unit.test_unit_common import TestGitCommon
 
 
 class TestGitOperations(TestGitCommon):
@@ -75,10 +75,10 @@ class TestGitOperations(TestGitCommon):
 
         self.assertTrue("Pattern not found!" in str(context.exception))
 
-    @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={})
+    @patch('album.core.model.album_base.AlbumClass.get_deploy_dict', return_value={})
     def test_add_files_commit_and_push(self, _):
         attrs_dict = {"name": "test_solution_name", "group": "test_solution_group", "version": "test_solution_version"}
-        active_hips = HipsClass(attrs_dict)
+        active_solution = AlbumClass(attrs_dict)
 
         tmp_file = tempfile.NamedTemporaryFile(delete=False)
         tmp_file.close()
@@ -90,14 +90,14 @@ class TestGitOperations(TestGitCommon):
 
         tmp_file_in_repo = Path(self.repo.working_tree_dir).joinpath(
             "solutions",
-            active_hips['group'],
-            active_hips["name"],
-            active_hips["version"],
-            "%s%s" % (active_hips['name'], ".py")
+            active_solution['group'],
+            active_solution["name"],
+            active_solution["version"],
+            "%s%s" % (active_solution['name'], ".py")
         )
         copy(tmp_file.name, tmp_file_in_repo)
 
-        commit_mssg = "Adding new/updated %s" % active_hips["name"]
+        commit_mssg = "Adding new/updated %s" % active_solution["name"]
 
         git_op.add_files_commit_and_push(new_head, [tmp_file_in_repo], commit_mssg,
                                          dry_run=True)
@@ -113,14 +113,14 @@ class TestGitOperations(TestGitCommon):
         # correct branch checked out
         self.assertEqual(self.repo.active_branch.name, "test_solution_name")
 
-    @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={})
+    @patch('album.core.model.album_base.AlbumClass.get_deploy_dict', return_value={})
     def test_add_files_commit_and_push_no_diff(self, _):
         attrs_dict = {
             "name": "test_solution_name",
             "group": "mygroup",
             "version": "myversion"
         }
-        HipsClass(attrs_dict)
+        AlbumClass(attrs_dict)
 
         file = self.create_tmp_repo(commit_solution_file=False)
 
@@ -139,34 +139,34 @@ class TestGitOperations(TestGitCommon):
         self.assertEqual("MyName", repo.config_reader().get_value("user", "name"))
         self.assertEqual("MyEmail", repo.config_reader().get_value("user", "email"))
 
-    @patch('hips.core.model.hips_base.HipsClass.get_hips_deploy_dict', return_value={})
+    @patch('album.core.model.album_base.AlbumClass.get_deploy_dict', return_value={})
     def test_download_repository(self, _):
         # clean
-        force_remove(HipsDefaultValues.app_cache_dir.value.joinpath("test"))
+        force_remove(DefaultValues.app_cache_dir.value.joinpath("test"))
 
-        # create hips
+        # create album
         self.attrs = {
             "git_repo": "https://github.com/rmccue/test-repository.git",
             "name": "test",
             "group": "mygroup",
             "version": "myversion"
         }
-        hips_with_git_repo = HipsClass(self.attrs)
+        solution_with_git_repo = AlbumClass(self.attrs)
 
         # run
-        git_op.download_repository(hips_with_git_repo["git_repo"],
-                                   HipsDefaultValues.app_cache_dir.value.joinpath(
+        git_op.download_repository(solution_with_git_repo["git_repo"],
+                                   DefaultValues.app_cache_dir.value.joinpath(
                                        "test"))
 
         # check
-        self.assertIn("test", os.listdir(str(HipsDefaultValues.app_cache_dir.value)), "Download failed!")
+        self.assertIn("test", os.listdir(str(DefaultValues.app_cache_dir.value)), "Download failed!")
 
         # ToDo: finish test writing
 
         # checkout old version of repo
 
         # run again
-        # ips.public_api.download_hips_repository(hips_with_git_repo)
+
 
         # assert that repo has been updated to head!
 

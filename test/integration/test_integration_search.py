@@ -1,9 +1,8 @@
 import sys
-import sys
 import unittest
 
-from hips.argument_parsing import main
-from hips.core import load
+from album.argument_parsing import main
+from album.core import load
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -26,7 +25,7 @@ class TestIntegrationSearch(TestIntegrationCommon):
         # populate tmp_index!
         h = load(self.get_test_solution_path())
         h["description"] = "keyword1"
-        d = h.get_hips_deploy_dict()
+        d = h.get_deploy_dict()
         self.test_catalog_collection.local_catalog.catalog_index.update(d)
         self.test_catalog_collection.local_catalog.catalog_index.save()
 

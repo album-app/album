@@ -1,11 +1,11 @@
 import unittest
 from pathlib import Path
 
-from hips.core.utils.operations.url_operations import is_downloadable, download_resource, _request_get, is_url
-from test.unit.test_common import TestHipsCommon
+from album.core.utils.operations.url_operations import is_downloadable, download_resource, _request_get, is_url
+from test.unit.test_unit_common import TestUnitCommon
 
 
-class TestUrlOperations(TestHipsCommon):
+class TestUrlOperations(TestUnitCommon):
 
     def setUp(self) -> None:
         self.downloadable_url = "https://www.google.com/favicon.ico"

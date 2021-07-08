@@ -2,12 +2,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from hips.core.controller.conda_manager import CondaManager
-from hips.core.utils.operations.file_operations import force_remove
-from test.unit.test_common import TestHipsCommon
+from album.core.controller.conda_manager import CondaManager
+from album.core.utils.operations.file_operations import force_remove
+from test.unit.test_unit_common import TestUnitCommon
 
 
-class TestCondaManager(TestHipsCommon):
+class TestCondaManager(TestUnitCommon):
     test_environment_name = "unittest"
 
     def setUp(self):
@@ -23,7 +23,7 @@ class TestCondaManager(TestHipsCommon):
         CondaManager.instance = None
         super().tearDown()
 
-    @patch('hips.core.controller.conda_manager.CondaManager.get_info')
+    @patch('album.core.controller.conda_manager.CondaManager.get_info')
     def test_get_environment_dict(self, ginfo_mock):
         ginfo_mock.return_value = {
             "envs": [Path("aPath").joinpath("envName1"), Path("anotherPath").joinpath("envName2")]
@@ -42,7 +42,7 @@ class TestCondaManager(TestHipsCommon):
         self.assertIsNotNone(r)
         self.assertTrue(Path(r).is_dir())
 
-    @patch('hips.core.controller.conda_manager.CondaManager.get_environment_dict')
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_dict')
     def test_environment_exists(self, ged_mock):
         ged_mock.return_value = {
             "envName1": Path("aPath").joinpath("envName1"),
@@ -52,7 +52,7 @@ class TestCondaManager(TestHipsCommon):
         self.assertTrue(self.conda.environment_exists("envName1"))
         self.assertFalse(self.conda.environment_exists("notExitendEnvs"))
 
-    @patch('hips.core.controller.conda_manager.CondaManager.get_environment_dict')
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_dict')
     def test_get_environment_path(self, ged_mock):
         ged_mock.return_value = {
             "envName1": Path("aPath").joinpath("envName1"),
@@ -60,14 +60,14 @@ class TestCondaManager(TestHipsCommon):
         }
         self.assertEqual(Path("aPath").joinpath("envName1"), self.conda.get_environment_path("envName1"))
 
-    @patch('hips.core.controller.conda_manager.CondaManager.get_info')
+    @patch('album.core.controller.conda_manager.CondaManager.get_info')
     def test_get_active_environment_name(self, ginfo_mock):
         ginfo_mock.return_value = {
             "active_prefix_name": "envName1"
         }
         self.assertEqual("envName1", self.conda.get_active_environment_name())
 
-    @patch('hips.core.controller.conda_manager.CondaManager.get_info')
+    @patch('album.core.controller.conda_manager.CondaManager.get_info')
     def test_get_active_environment_path(self, ginfo_mock):
         ginfo_mock.return_value = {
             "active_prefix": "aEnvPath"
@@ -169,7 +169,7 @@ class TestCondaManager(TestHipsCommon):
     def test_remove_environment(self, active_env_mock):
         pass
 
-    @patch('hips.core.utils.subcommand.run', return_value=True)
+    @patch('album.core.utils.subcommand.run', return_value=True)
     def test_remove_environment_not_exist(self, run_mock):
         self.conda.create_environment(self.test_environment_name)
         run_mock.assert_called_once()
@@ -183,7 +183,7 @@ class TestCondaManager(TestHipsCommon):
             self.conda.create_environment(self.test_environment_name)
         p = self.conda.get_environment_dict()[self.test_environment_name]
 
-        self.assertFalse(self.conda.cmd_available(p, ["hips"]))
+        self.assertFalse(self.conda.cmd_available(p, ["album"]))
         self.assertTrue(self.conda.cmd_available(p, ["conda"]))
 
     def test_conda_install(self):

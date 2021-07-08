@@ -1,10 +1,10 @@
 import unittest.suite
 
-import hips.core as hips
-from test.unit.test_common import TestHipsCommon
+import album.core as album
+from test.unit.test_unit_common import TestUnitCommon
 
 
-class TestHipsInit(TestHipsCommon):
+class TestUnitInit(TestUnitCommon):
     def setUp(self):
         """Setup things necessary for all tests of this class"""
         # self.something_all_tests_use = some_value
@@ -14,18 +14,18 @@ class TestHipsInit(TestHipsCommon):
         super().tearDown()
 
     def test_setup(self):
-        get_active_hips = hips.get_active_hips()
-        self.assertIsNone(get_active_hips)
+        get_active_solution = album.get_active_solution()
+        self.assertIsNone(get_active_solution)
         self.attrs = {
             "name": "myname",
             "group": "mygroup",
             "version": "myversion"
         }
-        self.assertIsNone(hips.setup_hips(**self.attrs))
-        active_hips = hips.get_active_hips()
-        self.assertIsNotNone(active_hips)
-        self.assertEqual("myname", active_hips["name"])
-        hips.pop_active_hips()
+        self.assertIsNone(album.setup_solution(**self.attrs))
+        active_solution = album.get_active_solution()
+        self.assertIsNotNone(active_solution)
+        self.assertEqual("myname", active_solution["name"])
+        album.pop_active_solution()
 
 
 if __name__ == '__main__':

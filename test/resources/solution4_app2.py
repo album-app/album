@@ -1,22 +1,22 @@
-from hips_runner import setup
+from album_runner import setup
 
 global args
 
 
-def hips_init():
+def album_init():
     global args
     args = {}
     pass
 
 
-def hips_run():
+def album_run():
     global args
     file = open(args.get("file"), "a")
     file.write("solution4_app2_run\n")
     file.close()
 
 
-def hips_close():
+def album_close():
     global args
     file = open(args.get("file"), "a")
     file.write("solution4_app2_close\n")
@@ -40,17 +40,17 @@ setup(
     covers=[],
     sample_inputs=[],
     sample_outputs=[],
-    min_hips_version="0.1.0",
-    tested_hips_version="0.1.0",
+    min_album_version="0.1.0",
+    tested_album_version="0.1.0",
     args=[{
         "name": "file_solution4_app2",
         "default": "",
         "description": "",
         "action": lambda path: args.update({"file": path})
     }],
-    init=hips_init,
-    run=hips_run,
-    close=hips_close,
+    init=album_init,
+    run=album_run,
+    close=album_close,
     parent={
         'name': 'app2',
         'group': 'group',

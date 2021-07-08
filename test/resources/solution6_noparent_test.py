@@ -1,12 +1,12 @@
 import sys
 
-from hips_runner import setup
+from album_runner import setup
 import tempfile
 
 global args
 
 
-def hips_init():
+def album_init():
     print("solution6_noparent_test_init")
 
     global args
@@ -14,7 +14,7 @@ def hips_init():
     pass
 
 
-def hips_run():
+def album_run():
     # log-output
     print("solution6_noparent_test_run")
 
@@ -24,7 +24,7 @@ def hips_run():
     file.close()
 
 
-def hips_close():
+def album_close():
     # log-output
     print("solution6_noparent_test_close")
 
@@ -34,13 +34,13 @@ def hips_close():
     file.close()
 
 
-def hips_prepare_test():
+def album_prepare_test():
     # log-output
     print("solution6_noparent_test_pre_test")
 
-    # here we prepare the arguments for hips_run() during testing
+    # here we prepare the arguments for run() during testing
     file = tempfile.NamedTemporaryFile(delete=False, mode="w+")
-    file.write("File created in hips_prepare_test\n")
+    file.write("File created in album_prepare_test\n")
     file.close()
 
     # and we set the arguments
@@ -49,7 +49,7 @@ def hips_prepare_test():
     }
 
 
-def hips_test():
+def album_test():
     # log-output
     print("solution6_noparent_test_test")
 
@@ -59,7 +59,7 @@ def hips_test():
     file.close()
     # and we do a test
     expected_result = [
-        "File created in hips_prepare_test\n", "solution6_noparent_test_run\n", "solution6_noparent_test_close\n"
+        "File created in album_prepare_test\n", "solution6_noparent_test_run\n", "solution6_noparent_test_close\n"
     ]
     assert expected_result == file_content
 
@@ -81,19 +81,19 @@ setup(
     covers=[],
     sample_inputs=[],
     sample_outputs=[],
-    min_hips_version="0.1.0",
-    tested_hips_version="0.1.0",
+    min_album_version="0.1.0",
+    tested_album_version="0.1.0",
     args=[{
         "name": "file",
         "default": "",
         "description": "",
         "action": lambda path: args.update({"file": path})
     }],
-    init=hips_init,
-    run=hips_run,
-    close=hips_close,
-    pre_test=hips_prepare_test,
-    test=hips_test,
+    init=album_init,
+    run=album_run,
+    close=album_close,
+    pre_test=album_prepare_test,
+    test=album_test,
     dependencies={
         'environment_name': 'solution6_noparent_test'
     })

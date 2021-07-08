@@ -2,16 +2,16 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from hips.core.model.configuration import HipsConfiguration, HipsDefaultValues
-from test.unit.test_common import TestHipsCommon
+from album.core.model.configuration import Configuration, DefaultValues
+from test.unit.test_unit_common import TestUnitCommon
 
 
-class TestHipsConfiguration(TestHipsCommon):
+class TestConfiguration(TestUnitCommon):
 
     def setUp(self) -> None:
-        HipsConfiguration.instance = None  # lever out concept
-        self.conf = HipsConfiguration(
-            base_cache_path=Path(self.tmp_dir.name).joinpath("hips"), configuration_file_path=self.tmp_dir.name
+        Configuration.instance = None  # lever out concept
+        self.conf = Configuration(
+            base_cache_path=Path(self.tmp_dir.name).joinpath("album"), configuration_file_path=self.tmp_dir.name
         )
 
     def tearDown(self) -> None:
@@ -29,29 +29,29 @@ class TestHipsConfiguration(TestHipsCommon):
             Path(new_tmp_dir.name)
         )
         self.assertEqual(
-            Path(new_tmp_dir.name).joinpath(HipsDefaultValues.cache_path_solution_prefix.value),
+            Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_solution_prefix.value),
             self.conf.cache_path_solution
         )
         self.assertEqual(
-            Path(new_tmp_dir.name).joinpath(HipsDefaultValues.cache_path_app_prefix.value),
+            Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_app_prefix.value),
             self.conf.cache_path_app
         )
         self.assertEqual(
-            Path(new_tmp_dir.name).joinpath(HipsDefaultValues.cache_path_download_prefix.value),
+            Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_download_prefix.value),
             self.conf.cache_path_download
         )
         self.assertEqual(
-            Path(new_tmp_dir.name).joinpath(HipsDefaultValues.cache_path_tmp_prefix.value),
+            Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value),
             self.conf.cache_path_tmp
         )
 
     def test_extract_catalog_name(self):
-        catalog_name = "https://gitlab.com/ida-mdc/hips-catalog.ext"
+        catalog_name = "https://gitlab.com/album-app/capture-knowledge.ext"
 
-        self.assertEqual(self.conf.extract_catalog_name(catalog_name), "hips-catalog")
+        self.assertEqual(self.conf.extract_catalog_name(catalog_name), "capture-knowledge")
 
     @unittest.skip("Needs to be implemented!")
-    def test_get_default_hips_configuration(self):
+    def test_get_default_configuration(self):
         # ToDo: implement
         pass
 

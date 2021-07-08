@@ -5,11 +5,11 @@ import unittest.suite
 from pathlib import Path
 from unittest.mock import patch
 
-from hips.core.model.environment import Environment
-from test.unit.test_common import TestHipsCommon
+from album.core.model.environment import Environment
+from test.unit.test_unit_common import TestUnitCommon
 
 
-class TestEnvironment(TestHipsCommon):
+class TestEnvironment(TestUnitCommon):
     test_environment_name = "unittest"
 
     def setUp(self):
@@ -17,8 +17,8 @@ class TestEnvironment(TestHipsCommon):
         self.environment = Environment(None, self.test_environment_name, "aPath")
         self.environment.name = self.test_environment_name
 
-    @patch('hips.core.model.environment.Environment.get_env_file', return_value="Called")
-    @patch('hips.core.model.environment.Environment.get_env_name', return_value="Called")
+    @patch('album.core.model.environment.Environment.get_env_file', return_value="Called")
+    @patch('album.core.model.environment.Environment.get_env_name', return_value="Called")
     def test_init_(self, get_env_file_mock, get_env_name_mock):
         e = Environment(None, self.test_environment_name, "aPath")
 
@@ -29,9 +29,9 @@ class TestEnvironment(TestHipsCommon):
         self.assertEqual(self.test_environment_name, e.cache_name)
         self.assertEqual(Path("aPath"), e.cache_path)
 
-    @patch('hips.core.model.environment.Environment.create_or_update_env', return_value="Called")
-    @patch('hips.core.model.environment.Environment.get_env_path', return_value="Called")
-    @patch('hips.core.model.environment.Environment.install_hips', return_value="Called")
+    @patch('album.core.model.environment.Environment.create_or_update_env', return_value="Called")
+    @patch('album.core.model.environment.Environment.get_env_path', return_value="Called")
+    @patch('album.core.model.environment.Environment.install_framework', return_value="Called")
     def test_install(self, is_inst_mock, get_env_path_mock, create_mock):
         self.environment.install("TestVersion")
 
@@ -45,7 +45,7 @@ class TestEnvironment(TestHipsCommon):
     def test_get_env_file_empty_deps(self):
         self.assertIsNone(self.environment.get_env_file({}))
 
-    @patch('hips.core.model.environment.create_path_recursively', return_value="createdPath")
+    @patch('album.core.model.environment.create_path_recursively', return_value="createdPath")
     def test_get_env_file_invalid_file(self, create_path_mock):
         with self.assertRaises(RuntimeError) as context:
             self.environment.get_env_file({"environment_file": "env_file"})
@@ -53,8 +53,8 @@ class TestEnvironment(TestHipsCommon):
 
         create_path_mock.assert_called_once()
 
-    @patch('hips.core.model.environment.copy', return_value="copiedPath")
-    @patch('hips.core.model.environment.create_path_recursively', return_value="createdPath")
+    @patch('album.core.model.environment.copy', return_value="copiedPath")
+    @patch('album.core.model.environment.create_path_recursively', return_value="createdPath")
     def test_get_env_file_valid_file(self, create_path_mock, copy_mock):
         with open(self.closed_tmp_file.name, mode="w") as tmp_file:
             tmp_file.write(self.test_environment_name)
@@ -66,8 +66,8 @@ class TestEnvironment(TestHipsCommon):
         create_path_mock.assert_called_once()
         copy_mock.assert_called_once()
 
-    @patch('hips.core.model.environment.download_resource', return_value="donwloadedResource")
-    @patch('hips.core.model.environment.create_path_recursively', return_value="createdPath")
+    @patch('album.core.model.environment.download_resource', return_value="donwloadedResource")
+    @patch('album.core.model.environment.create_path_recursively', return_value="createdPath")
     def test_get_env_file_valid_url(self, create_path_mock, download_mock):
         url = "http://test.de"
 
@@ -78,7 +78,7 @@ class TestEnvironment(TestHipsCommon):
         create_path_mock.assert_called_once()
         download_mock.assert_called_once_with(url, Path("aPath").joinpath("%s.yml" % self.test_environment_name))
 
-    @patch('hips.core.model.environment.create_path_recursively', return_value="createdPath")
+    @patch('album.core.model.environment.create_path_recursively', return_value="createdPath")
     def test_get_env_file_valid_StringIO(self, create_path_mock):
         self.environment.cache_path = Path(tempfile.gettempdir())
 
@@ -96,7 +96,7 @@ class TestEnvironment(TestHipsCommon):
         create_path_mock.assert_called_once()
 
     def test_get_env_name_no_deps(self):
-        self.assertEqual(self.environment.get_env_name({}), 'hips')
+        self.assertEqual(self.environment.get_env_name({}), 'album')
 
     def test_get_env_name_invalid_deps(self):
         with self.assertRaises(RuntimeError):
@@ -107,7 +107,7 @@ class TestEnvironment(TestHipsCommon):
             self.environment.get_env_name({"environment_name": self.test_environment_name}), self.test_environment_name
         )
 
-    @patch('hips.core.model.environment.Environment.get_env_name_from_yaml', return_value="TheParsedName")
+    @patch('album.core.model.environment.Environment.get_env_name_from_yaml', return_value="TheParsedName")
     def test_get_env_name_file_given(self, get_env_name_mock):
         self.assertEqual(
             self.environment.get_env_name({"environment_file": self.test_environment_name}), 'TheParsedName'
@@ -123,7 +123,7 @@ class TestEnvironment(TestHipsCommon):
 
         self.assertEqual(self.environment.get_env_name_from_yaml(), "TestName")
 
-    @patch('hips.core.controller.conda_manager.CondaManager.get_environment_dict')
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_dict')
     def test_get_env_path(self, ged_mock):
         ged_mock.return_value = {
             self.test_environment_name: Path("aPath").joinpath(self.test_environment_name),
@@ -144,7 +144,7 @@ class TestEnvironment(TestHipsCommon):
 
         self.assertIsNone(self.environment.init_env_path())
 
-    @patch('hips.core.controller.conda_manager.CondaManager.get_environment_dict')
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_dict')
     def test_init_env_path(self, ged_mock):
         ged_mock.return_value = {
             self.test_environment_name: Path("aPath").joinpath(self.test_environment_name),
@@ -153,7 +153,7 @@ class TestEnvironment(TestHipsCommon):
 
         self.assertIn("test", str(self.environment.init_env_path()))
 
-    @patch('hips.core.controller.conda_manager.CondaManager.list_environment')
+    @patch('album.core.controller.conda_manager.CondaManager.list_environment')
     def test_is_installed(self, list_environment_mock):
         list_environment_mock.return_value = json.loads(
             """[
@@ -175,7 +175,7 @@ class TestEnvironment(TestHipsCommon):
         self.assertFalse(self.environment.is_installed("python", "500.1"))
         self.assertTrue(self.environment.is_installed("python", "2.7"))
 
-    @patch('hips.core.controller.conda_manager.CondaManager.run_script', return_value="ranScript")
+    @patch('album.core.controller.conda_manager.CondaManager.run_script', return_value="ranScript")
     def test_run_script(self, conda_run_mock):
         script = "print(\"%s\")" % self.test_environment_name
 
@@ -184,7 +184,7 @@ class TestEnvironment(TestHipsCommon):
         self.environment.run_scripts(script)
         conda_run_mock.assert_called_once()
 
-    @patch('hips.core.controller.conda_manager.CondaManager.run_script', return_value="ranScript")
+    @patch('album.core.controller.conda_manager.CondaManager.run_script', return_value="ranScript")
     def test_run_script_no_path(self, conda_run_mock):
         script = "print(\"%s\")" % self.test_environment_name
 
@@ -194,16 +194,16 @@ class TestEnvironment(TestHipsCommon):
             self.environment.run_scripts(script)
         conda_run_mock.assert_not_called()
 
-    @patch('hips.core.model.environment.Environment.update')
-    @patch('hips.core.model.environment.Environment.create')
+    @patch('album.core.model.environment.Environment.update')
+    @patch('album.core.model.environment.Environment.create')
     def test_create_or_update_env_no_env(self, create_mock, update_mock):
         self.environment.create_or_update_env()
         create_mock.assert_called_once()
         update_mock.assert_not_called()
 
-    @patch('hips.core.model.environment.Environment.update')
-    @patch('hips.core.model.environment.Environment.create')
-    @patch('hips.core.controller.conda_manager.CondaManager.environment_exists')
+    @patch('album.core.model.environment.Environment.update')
+    @patch('album.core.model.environment.Environment.create')
+    @patch('album.core.controller.conda_manager.CondaManager.environment_exists')
     def test_create_or_update_env_env_present(self, ex_env_mock, create_mock, update_mock):
         ex_env_mock.return_value = True
 
@@ -216,8 +216,8 @@ class TestEnvironment(TestHipsCommon):
         # ToDo: implement
         pass
 
-    @patch('hips.core.controller.conda_manager.CondaManager.create_environment')
-    @patch('hips.core.controller.conda_manager.CondaManager.create_environment_from_file')
+    @patch('album.core.controller.conda_manager.CondaManager.create_environment')
+    @patch('album.core.controller.conda_manager.CondaManager.create_environment_from_file')
     def test_create_valid_yaml(self, create_environment_from_file_mock, create_environment_mock):
         self.environment.yaml_file = Path("aPath")
 
@@ -226,32 +226,32 @@ class TestEnvironment(TestHipsCommon):
         create_environment_from_file_mock.assert_called_once_with(Path("aPath"), self.test_environment_name)
         create_environment_mock.assert_not_called()
 
-    @patch('hips.core.controller.conda_manager.CondaManager.create_environment')
-    @patch('hips.core.controller.conda_manager.CondaManager.create_environment_from_file')
+    @patch('album.core.controller.conda_manager.CondaManager.create_environment')
+    @patch('album.core.controller.conda_manager.CondaManager.create_environment_from_file')
     def test_create_no_yaml(self, create_environment_from_file_mock, create_environment_mock):
         self.environment.create()
 
         create_environment_mock.assert_called_once_with(self.test_environment_name)
         create_environment_from_file_mock.assert_not_called()
 
-    @patch('hips.core.controller.conda_manager.CondaManager.cmd_available', return_value=True)
-    @patch('hips.core.model.environment.Environment.pip_install')
-    @patch('hips.core.model.environment.Environment.is_installed', return_value=False)
-    def test_install_hips(self, is_installed_mock, pip_install_mock, cmd_available):
-        self.environment.install_hips(None)
+    @patch('album.core.controller.conda_manager.CondaManager.cmd_available', return_value=True)
+    @patch('album.core.model.environment.Environment.pip_install')
+    @patch('album.core.model.environment.Environment.is_installed', return_value=False)
+    def test_install_runner(self, is_installed_mock, pip_install_mock, cmd_available):
+        self.environment.install_framework(None)
 
         cmd_available.assert_called_once()
-        is_installed_mock.assert_called_once_with("hips-runner", None)
-        pip_install_mock.assert_called_once_with('git+https://gitlab.com/ida-mdc/hips-runner.git')
+        is_installed_mock.assert_called_once_with("album-runner", None)
+        pip_install_mock.assert_called_once_with('git+https://gitlab.com/album-app/album-runner')
 
-    @patch('hips.core.controller.conda_manager.CondaManager.pip_install')
+    @patch('album.core.controller.conda_manager.CondaManager.pip_install')
     def test_pip_install(self, conda_install_mock):
         self.environment.path = "aPath"
         self.environment.pip_install("test", "testVersion")
 
         conda_install_mock.assert_called_once_with("aPath", "test==testVersion")
 
-    @patch('hips.core.controller.conda_manager.CondaManager.remove_environment')
+    @patch('album.core.controller.conda_manager.CondaManager.remove_environment')
     def test_remove(self, remove_mock):
         self.environment.remove()
 

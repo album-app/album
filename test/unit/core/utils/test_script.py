@@ -9,7 +9,7 @@ class TestScript(unittest.TestCase):
         pass
 
     @unittest.skip("Needs to be implemented!")
-    def create_hips_with_parent_script(self):
+    def create_solution_with_parent_script(self):
         # ToDo: implement
         pass
 

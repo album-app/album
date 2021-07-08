@@ -1,21 +1,20 @@
 import json
-import json
 import unittest.mock
 from pathlib import Path
 from unittest.mock import patch
 
 from anytree import Node
 
-from hips.core.model.catalog import CatalogIndex
-from hips.core.model.default_values import HipsDefaultValues
+from album.core.model.catalog import CatalogIndex
+from album.core.model.default_values import DefaultValues
 from test.unit.core.model.test_catalog import sample_index, empty_index
-from test.unit.test_common import TestHipsCommon
+from test.unit.test_unit_common import TestUnitCommon
 
 
-class TestHipsCatalogIndex(TestHipsCommon):
+class TestCatalogIndex(TestUnitCommon):
     def setUp(self):
         # fill index file
-        cs_file = Path(self.tmp_dir.name).joinpath(HipsDefaultValues.catalog_index_file_name.value)
+        cs_file = Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_index_file_name.value)
         with open(cs_file, "w+") as f:
             f.write(sample_index)
         self.cs_file = cs_file
@@ -129,38 +128,38 @@ class TestHipsCatalogIndex(TestHipsCommon):
         l_dict_list = self.cs_index.get_leaves_dict_list()
         self.assertEqual(len(l_dict_list), 1)
 
-    def test_resolve_hips_by_name_version_and_group(self):
+    def test_resolve_by_name_version_and_group(self):
         self.assertIsNotNone(
-            self.cs_index.resolve_hips_by_name_version_and_group("testName", "testVersion", "testGroup")
+            self.cs_index.resolve_by_name_version_and_group("testName", "testVersion", "testGroup")
         )
 
-    def test_resolve_hips_by_name_version_and_group_no_leaf(self):
-        r = self.cs_index.resolve_hips_by_name_version_and_group("testName", "testVersion", "testGroup")
+    def test_resolve_by_name_version_and_group_no_leaf(self):
+        r = self.cs_index.resolve_by_name_version_and_group("testName", "testVersion", "testGroup")
         self.assertIsNotNone(r)
         Node("wrongNode", parent=r)  # resolving not a leaf any more
         with self.assertRaises(RuntimeError):
-            self.cs_index.resolve_hips_by_name_version_and_group("testName", "testVersion", "testGroup")
+            self.cs_index.resolve_by_name_version_and_group("testName", "testVersion", "testGroup")
 
-    def test_resolve_hips_by_doi(self):
+    def test_resolve_by_doi(self):
         self.assertIsNotNone(
-            self.cs_index.resolve_hips_by_doi("doi0")
+            self.cs_index.resolve_by_doi("doi0")
         )
 
-    def test_test_resolve_hips_by_doi_no_leaf(self):
-        r = self.cs_index.resolve_hips_by_doi("doi0")
+    def test_test_resolve_by_doi_no_leaf(self):
+        r = self.cs_index.resolve_by_doi("doi0")
         self.assertIsNotNone(r)
         Node("wrongNode", parent=r)  # resolving not a leaf any more
 
         with self.assertRaises(RuntimeError) as context:
-            self.cs_index.resolve_hips_by_doi("doi0")
+            self.cs_index.resolve_by_doi("doi0")
             self.assertIn("Ambiguous results", str(context.exception))
 
-    @patch('hips.core.model.catalog.CatalogIndex._find_all_nodes_by_attribute')
-    def test_test_resolve_hips_by_doi_two_doi(self, fanba_mock):
+    @patch('album.core.model.catalog.CatalogIndex._find_all_nodes_by_attribute')
+    def test_test_resolve_by_doi_two_doi(self, fanba_mock):
         fanba_mock.side_effect = [[Node("new1"), Node("new2")]]
 
         with self.assertRaises(RuntimeError) as context:
-            self.cs_index.resolve_hips_by_doi("doi0")
+            self.cs_index.resolve_by_doi("doi0")
             self.assertIn("Found several results", str(context.exception))
 
     def test_export_json(self):
@@ -169,7 +168,7 @@ class TestHipsCatalogIndex(TestHipsCommon):
 
         self.assertEqual(json.dumps(self.cs_index.get_leaves_dict_list()), export_file)
 
-    @patch('hips.core.model.catalog_index.RenderTree', return_value="")
+    @patch('album.core.model.catalog_index.RenderTree', return_value="")
     def test_visualize(self, rt_mock):
         self.cs_index.visualize()
         rt_mock.assert_called_once_with(self.cs_index.index)
