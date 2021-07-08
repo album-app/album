@@ -59,10 +59,10 @@ def create_script(solution_object, custom_code, argv):
 
 def __api_access(active_solution, script):
     script += "album_runner_init("
-    script += "environment_cache_path=\"" + "{}".format(str(active_solution.environment.cache_path).encode(enc)) + "\", "
-    script += "environment_path=\"" + "{}".format(str(active_solution.environment.path).encode(enc)) + "\", "
-    script += "environment_name=\"" + "{}".format(str(active_solution.environment.name).encode(enc)) + "\", "
-    script += "download_cache_path=\"" + "{}".format(str(active_solution.cache_path_download).encode(enc)) + "\""
+    script += "environment_cache_path=" + "{}".format(str(active_solution.environment.cache_path).encode(enc)) + ", "
+    script += "environment_path=" + "{}".format(str(active_solution.environment.path).encode(enc)) + ", "
+    script += "environment_name=" + "{}".format(str(active_solution.environment.name).encode(enc)) + ", "
+    script += "download_cache_path=" + "{}".format(str(active_solution.cache_path_download).encode(enc)) + ""
     script += ")\n"
 
     return script

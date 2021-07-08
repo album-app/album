@@ -1,7 +1,9 @@
 import sys
 import unittest
+from pathlib import Path
 
 from album.argument_parsing import main
+from album.core.model.default_values import DefaultValues
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -21,8 +23,6 @@ class TestIntegrationInstall(TestIntegrationCommon):
         self.assertIn("WARNING - No \"install\" routine configured for solution", self.captured_output.getvalue())
 
     def test_install(self):
-        self.create_test_config()
-
         # gather arguments
         sys.argv = ["", "install", str(self.get_test_solution_path())]
 
@@ -30,6 +30,16 @@ class TestIntegrationInstall(TestIntegrationCommon):
 
         # assert solution was added to local catalog
         self.assertEqual(len(self.test_catalog_collection.local_catalog), 1)
+
+        # assert solution is in the right place and has the right name
+        self.assertTrue(
+            Path(self.tmp_dir.name).joinpath(
+                DefaultValues.catalog_folder_prefix.value,
+                self.test_catalog_collection.local_catalog.id,
+                DefaultValues.cache_path_solution_prefix.value,
+                "group", "name", "0.1.0", "solution.py"
+            ).exists()
+        )
 
     @unittest.skip("Needs to be implemented!")
     def test_install_with_dependencies(self):

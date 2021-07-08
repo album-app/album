@@ -126,9 +126,10 @@ class ResolveManager(metaclass=Singleton):
                     p = unzip_archive(p, target_folder)
                     p = p.joinpath(DefaultValues.solution_default_name.value)
                 else:  # python file
-                    p = copy(p, target_folder)
+                    p = copy(p, target_folder.joinpath(DefaultValues.solution_default_name.value))
             elif p.is_dir():  # unzipped zip
                 p = copy_folder(p, target_folder, copy_root_folder=False)
+                p = p.joinpath(DefaultValues.solution_default_name.value)
 
             return {
                 "path": p,
