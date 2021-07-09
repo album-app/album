@@ -9,7 +9,7 @@ class DefaultValues(Enum):
     """Add an entry here to initialize default attributes for a album framework installation instance."""
 
     # deployment
-    catalog_url = 'https://gitlab.com/album-app/capture-knowledge'  # default deployment url
+    catalog_url = 'https://gitlab.com/album-app/catalogs/default'  # default deployment url
     runner_rul = 'https://gitlab.com/album-app/album-runner'        # default runner url
     catalog = os.getenv('ALBUM_DEFAULT_CATALOG', catalog_url)     # default catalog, either catalog_url or env. variable
     catalog_yaml_prefix = "catalog"                              # base folder name where yaml files of solutions

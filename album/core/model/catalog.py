@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 from album.core.model.configuration import Configuration
@@ -19,7 +20,7 @@ module_logger = logging.get_active_logger
 def get_index_src(src):
     """Gets the download link for an index."""
     # todo: "main" is still hardcoded! :(
-    return src.strip("git").strip(".") + "/-/raw/main/%s" \
+    return re.sub(r"\.git$", "", src) + "/-/raw/main/%s" \
            % DefaultValues.catalog_index_file_name.value
 
 
@@ -27,7 +28,7 @@ def get_index_src(src):
 def get_solution_src(src, grp, name, version):
     """Gets the download link for a solution in an index."""
     # todo: "main" is still hardcoded! :(
-    return src.strip("git").strip(".") + "/-/raw/main/solutions/%s/%s/%s/%s" \
+    return re.sub(r"\.git$", "", src) + "/-/raw/main/solutions/%s/%s/%s/%s" \
            % (grp, name, version, "%s%s%s%s" % (grp, name, version, ".zip"))
 
 

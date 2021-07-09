@@ -310,7 +310,7 @@ class TestCatalogCollection(TestUnitCommon):
 
         self.assertEqual({
             "test_catalog": ["someLeafs"],
-            "capture-knowledge": ["someLeafs"],
+            "default": ["someLeafs"],
             "test_catalog2": ["someLeafs"],
         }, r)
 
@@ -326,7 +326,7 @@ class TestCatalogCollection(TestUnitCommon):
 
         self.assertEqual({
             "test_catalog": ["someInstalledSolutions"],
-            "capture-knowledge": ["someInstalledSolutions"],
+            "default": ["someInstalledSolutions"],
             "test_catalog2": ["someInstalledSolutions"],
         }, r)
 
