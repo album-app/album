@@ -112,12 +112,13 @@ class ReleaseManager(metaclass=Singleton):
         # update catalog index
         self.catalog.catalog_index.update(yml_dict)
         self.catalog.catalog_index.save()
+        self.catalog.catalog_index.export(self.catalog.solution_list_path)
 
         # push changes to catalog, do not trigger pipeline
         commit_msg = "CI updated %s" % solution_name
         add_files_commit_and_push(
             head,
-            [yml_file_path, solution_file, self.catalog.index_path],
+            [yml_file_path, solution_file, self.catalog.index_path, self.catalog.solution_list_path],
             commit_msg,
             dry_run=dry_run,
             trigger_pipeline=False

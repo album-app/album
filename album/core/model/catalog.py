@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 from album.core.model.configuration import Configuration
@@ -19,7 +20,7 @@ module_logger = logging.get_active_logger
 def get_index_src(src):
     """Gets the download link for an index."""
     # todo: "main" is still hardcoded! :(
-    return src.strip("git").strip(".") + "/-/raw/main/%s" \
+    return re.sub(r"\.git$", "", src) + "/-/raw/main/%s" \
            % DefaultValues.catalog_index_file_name.value
 
 
@@ -27,7 +28,7 @@ def get_index_src(src):
 def get_solution_src(src, grp, name, version):
     """Gets the download link for a solution in an index."""
     # todo: "main" is still hardcoded! :(
-    return src.strip("git").strip(".") + "/-/raw/main/solutions/%s/%s/%s/%s" \
+    return re.sub(r"\.git$", "", src) + "/-/raw/main/solutions/%s/%s/%s/%s" \
            % (grp, name, version, "%s%s%s%s" % (grp, name, version, ".zip"))
 
 
@@ -54,6 +55,8 @@ class Catalog:
             The path to the catalog on the disk.
         index_path:
             The path to the catalog index on the disk. Relative to the path attribute.
+        solution_list_path:
+            The path to the catalog solution list on the disk. Relative to the path attribute.
 
     """
 
@@ -78,6 +81,7 @@ class Catalog:
         self.is_local = True
         self.path = Path(path)
         self.index_path = self.path.joinpath(DefaultValues.catalog_index_file_name.value)
+        self.solution_list_path = self.path.joinpath(DefaultValues.catalog_solution_list_file_name.value)
 
         # initialize the index
         self.load_index()
@@ -461,6 +465,7 @@ class Catalog:
 
         self.catalog_index.update(node_attrs)
         self.catalog_index.save()
+        self.catalog_index.export(self.solution_list_path)
 
     def remove(self, active_solution):
         """Removes a solution from a catalog. Only for local catalogs.
@@ -479,6 +484,7 @@ class Catalog:
             if node:
                 node.parent = None
                 self.catalog_index.save()
+                self.catalog_index.export(self.solution_list_path)
             else:
                 module_logger().warning("Solution not installed! Doing nothing...")
         else:
