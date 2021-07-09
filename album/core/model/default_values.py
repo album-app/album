@@ -16,15 +16,16 @@ class DefaultValues(Enum):
                                                                  # are stored in a catalog.
 
     # catalog
-    local_catalog_name = 'catalog_local'              # the default name of the local catalog (always configured)
-    catalog_index_file_name = 'catalog_index'         # the default index file name of the catalog_index
-    catalog_folder_prefix = 'catalogs'                # base folder prefix where all not local catalogs live
-    cache_path_solution_prefix = "solutions"          # base folder prefix where solutions live
-    cache_path_doi_solution_prefix = "doi_solutions"  # base folder prefix where doi solutions live
-    cache_path_app_prefix = "apps"                    # base folder prefix where app solutions live
-    cache_path_download_prefix = "downloads"          # base folder prefix where downloads live
-    cache_path_tmp_prefix = "tmp"                     # base folder prefix where temporary files live
-    solution_default_name = "solution.py"             # default name how solution.py files are called
+    local_catalog_name = 'catalog_local'                            # the default name of the local catalog (always configured)
+    catalog_index_file_name = 'album_catalog_index.json'            # the default index file name of the catalog_index
+    catalog_solution_list_file_name = 'album_solution_list.json'    # the default file name for exporting the list of solutions of a catalog
+    catalog_folder_prefix = 'catalogs'                              # base folder prefix where all not local catalogs live
+    cache_path_solution_prefix = "solutions"                        # base folder prefix where solutions live
+    cache_path_doi_solution_prefix = "doi_solutions"                # base folder prefix where doi solutions live
+    cache_path_app_prefix = "apps"                                  # base folder prefix where app solutions live
+    cache_path_download_prefix = "downloads"                        # base folder prefix where downloads live
+    cache_path_tmp_prefix = "tmp"                                   # base folder prefix where temporary files live
+    solution_default_name = "solution.py"                           # default name how solution.py files are called
 
     # environment
     default_environment = "album"            # default environment name the album framework operates from

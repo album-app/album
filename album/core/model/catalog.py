@@ -55,6 +55,8 @@ class Catalog:
             The path to the catalog on the disk.
         index_path:
             The path to the catalog index on the disk. Relative to the path attribute.
+        solution_list_path:
+            The path to the catalog solution list on the disk. Relative to the path attribute.
 
     """
 
@@ -79,6 +81,7 @@ class Catalog:
         self.is_local = True
         self.path = Path(path)
         self.index_path = self.path.joinpath(DefaultValues.catalog_index_file_name.value)
+        self.solution_list_path = self.path.joinpath(DefaultValues.catalog_solution_list_file_name.value)
 
         # initialize the index
         self.load_index()
@@ -462,6 +465,7 @@ class Catalog:
 
         self.catalog_index.update(node_attrs)
         self.catalog_index.save()
+        self.catalog_index.export(self.solution_list_path)
 
     def remove(self, active_solution):
         """Removes a solution from a catalog. Only for local catalogs.
@@ -480,6 +484,7 @@ class Catalog:
             if node:
                 node.parent = None
                 self.catalog_index.save()
+                self.catalog_index.export(self.solution_list_path)
             else:
                 module_logger().warning("Solution not installed! Doing nothing...")
         else:
