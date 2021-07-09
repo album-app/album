@@ -1,20 +1,32 @@
 import json
+import queue
 import sys
-import threading
+from threading import Thread
 
-from flask import Flask
-from flask import request
+from album_runner import logging
+from flask import Flask, request
+from werkzeug.exceptions import abort
 
 from album.core.concept.singleton import Singleton
+from album.core.controller.catalog_manager import CatalogManager
 from album.core.controller.install_manager import InstallManager
+from album.core.controller.remove_manager import RemoveManager
 from album.core.controller.run_manager import RunManager
-from album_runner import logging
+from album.core.controller.search_manager import SearchManager
+from album.core.controller.test_manager import TestManager
+from album.core.model.catalog_collection import CatalogCollection
+from album.core.model.configuration import Configuration
 
 module_logger = logging.get_active_logger
 
 
-class AlbumServer(threading.Thread, metaclass=Singleton):
-    running = False
+class AlbumServer(metaclass=Singleton):
+
+    class ServerTask:
+        method = None
+        solution_path = None
+        sysarg = None
+
     port = 5476
 
     # load singletons
@@ -22,76 +34,102 @@ class AlbumServer(threading.Thread, metaclass=Singleton):
     catalog_collection = None
     resolve_manager = None
     catalog_manager = None
-    deploy_manager = None
     install_manager = None
     remove_manager = None
     run_manager = None
     search_manager = None
     test_manager = None
 
+    app = None
+    server_queue = queue.Queue()
+    num_fetch_threads = 2
+
     def __init__(self, port):
         self.port = port
 
-        threading.Thread.__init__(self)
         # initialize singletons here!
+        self.configuration = Configuration()
+        self.catalog_collection = CatalogCollection()
+        self.catalog_manager = CatalogManager()
+        self.install_manager = InstallManager()
+        self.remove_manager = RemoveManager()
+        self.run_manager = RunManager()
+        self.search_manager = SearchManager()
+        self.test_manager = TestManager()
 
-    def start(self):
-        # Start the thread.
-        print('Starting server thread')
-        self.running = True
-        self.daemon = False
-        threading.Thread.start(self)
+        for i in range(self.num_fetch_threads):
+            worker = Thread(target=self._run_queue_entry, args=(i,))
+            worker.setDaemon(True)
+            worker.start()
 
-    def stop(self):
-        # Stop the thread.
-        print('Stopping server thread')
-        self.running = False
-        print('Done stopping server thread')
+    def start(self, test_config=None):
+        module_logger().info('Starting server')
+        self.init_server(test_config)
+        self.app.run(port=self.port)
 
-    def run(self):
-        # Setup the network socket.
-        # print(f"Server listening on {HOST}:{self.port}")
-        app = Flask(__name__)
+    def init_server(self, test_config=None):
+        self.app = Flask(__name__, instance_relative_config=True)
+        if test_config is not None:
+            self.app.config.update(test_config)
+        self._set_routes()
+        return self.app
 
-        @app.route("/")
+    def _set_routes(self):
+        @self.app.route("/")
         def hello_world():
             return {"message": "Hello World"}
 
-        @app.route("/config")
+        @self.app.route("/config")
         def get_config():
             return {
-                "hips_config_path": str(self.catalog_collection.config_file_path),
-                "hips_config": self.catalog_collection.config_file_dict,
-                "cache_base": str(self.catalog_collection.configuration.base_cache_path),
-                "cache_catalogs": str(self.catalog_collection.configuration.cache_path_solution),
-                "cache_apps": str(self.catalog_collection.configuration.cache_path_app),
-                "cache_downloads": str(self.catalog_collection.configuration.cache_path_download)
+                "album_config_path": str(self.catalog_collection.config_file_path),
+                "album_config": self.catalog_collection.config_file_dict,
+                "cache_base": str(self.configuration.base_cache_path),
+                "cache_solutions": str(self.configuration.cache_path_solution),
+                "cache_apps": str(self.configuration.cache_path_app),
+                "cache_downloads": str(self.configuration.cache_path_download)
             }
 
-        @app.route("/index")
+        @self.app.route("/index")
         def get_index():
             return self.catalog_collection.get_search_index()
 
-        @app.route('/<catalog>/<group>/<name>/<version>/run')
+        @self.app.route('/<catalog>/<group>/<name>/<version>/run')
         def run(catalog, group, name, version):
-
-            #
-            self.run_manager.run()
-
-            args_json = request.get_json()
-            threading.Thread(target=self.__run_solution_command, args=[catalog, group, name, version, "run", args_json],
-                             daemon=False).start()
+            self._run_solution_method(catalog, group, name, version, self.run_manager.run)
             return {}
 
-        @app.route('/<catalog>/<group>/<name>/<version>/install')
+        @self.app.route('/<catalog>/<group>/<name>/<version>/install')
         def install(catalog, group, name, version):
-            args_json = request.get_json()
-            threading.Thread(target=self.__run_solution_command,
-                             args=[catalog, group, name, version, "install", args_json],
-                             daemon=False).start()
+            self._run_solution_method(catalog, group, name, version, self.install_manager.install)
             return {}
 
-        @app.route('/shutdown', methods=['GET'])
+        @self.app.route('/<catalog>/<group>/<name>/<version>/remove')
+        def remove(catalog, group, name, version):
+            self._run_solution_method(catalog, group, name, version, self.remove_manager.remove)
+            return {}
+
+        @self.app.route('/<catalog>/<group>/<name>/<version>/test')
+        def test(catalog, group, name, version):
+            self._run_solution_method(catalog, group, name, version, self.test_manager.test)
+            return {}
+
+        @self.app.route('/add-catalog/<url>')
+        def add_catalog(url):
+            self.catalog_manager.add(url)
+            return {}
+
+        @self.app.route('/remove-catalog/<url>')
+        def remove_catalog(url):
+            self.catalog_manager.remove(url)
+            return {}
+
+        @self.app.route('/search/<keywords>')
+        def search(keywords):
+            self.search_manager.search(keywords)
+            return {}
+
+        @self.app.route('/shutdown', methods=['GET'])
         def shutdown():
             func = request.environ.get('werkzeug.server.shutdown')
             if func is None:
@@ -99,32 +137,43 @@ class AlbumServer(threading.Thread, metaclass=Singleton):
             func()
             return 'Server shutting down...'
 
-        app.run(port=self.port)
+    def _run_queue_entry(self, i):
+        task = self.server_queue.get()
+        self._run_task(task)
+        self.server_queue.task_done()
 
-    def __run_solution_thread(self, solution_path, command, command_args):
-        sys.argv = str(command_args).split(" ")
-        if command == "install":
-            InstallManager().install(solution_path)
-        if command == "run":
-            RunManager().run(solution_path)
+    @staticmethod
+    def _run_task(task):
+        sys.argv = task.sysarg
+        task.method(task.solution_path)
 
-    def __run_solution_command(self, catalog, group, name, version, command, args_json):
-        args = ""
+    def _run_solution_method(self, catalog, group, name, version, method):
+        solution_path = self._get_solution_path(catalog, group, name, version)
+        if solution_path is None:
+            abort(404, description="Solution not found")
+        task = self.ServerTask()
+        task.solution_path = solution_path
+        task.sysarg = self._get_arguments(request.get_json(), solution_path)
+        task.method = method
+        self._run_task(task)
+        # self.server_queue.put(task)
+
+    @staticmethod
+    def _get_arguments(args_json, solution_path):
+        command_args = [str(solution_path)]
         if args_json:
             request_data = json.loads(args_json)
             for key in request_data:
-                args += f"--{key}={str(request_data[key])} "
-        module_logger().info(args)
+                command_args.append(f"--{key}")
+                command_args.append(str(request_data[key]))
+        return command_args
+
+    def _get_solution_path(self, catalog, group, name, version):
         solution = self.catalog_collection.resolve_directly(catalog_id=catalog, group=group, name=name,
                                                             version=version)
         if solution is None:
             module_logger().error(f"Solution not found: {catalog}:{group}:{name}:{version}")
-            return
-        solution_path = str(solution['path'])
-        command_args = str(solution_path)
-        for arg in args:
-            command_args += f" --{arg} {getattr(args, arg)}"
-        module_logger().info("launching " + command_args)
-        # FIXME this should run in a thread, but produces a PicklingError on Windows
-        # Process(target=self.__run_solution_thread, args=(solution_path, command, command_args)).start()
-        self.__run_solution_thread(solution_path, command, command_args)
+            return None
+        else:
+            return str(solution['path'])
+

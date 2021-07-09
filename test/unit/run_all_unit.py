@@ -1,7 +1,7 @@
 import unittest
 
 from test.unit.ci.utils import test_ci_utils
-from test.unit.core import test__init__, test_argument_parsing
+from test.unit.core import test__init__, test_argument_parsing, test_server
 from test.unit.core.contoller import test_search_manager, test_install_manager, test_run_manager, test_deploy_manager, \
     test_catalog_manager, test_conda_manager, test_test_manager, test_resolve_manager
 from test.unit.core.model import test_catalog, test_configuration, test_catalog_collection, test_environment, \
@@ -19,6 +19,7 @@ def main():
     # album.core
     suite.addTests(loader.loadTestsFromModule(test__init__))
     suite.addTests(loader.loadTestsFromModule(test_argument_parsing))
+    suite.addTests(loader.loadTestsFromModule(test_server))
 
     # album core.controller
     suite.addTests(loader.loadTestsFromModule(test_deploy_manager))

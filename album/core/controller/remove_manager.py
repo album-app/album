@@ -25,7 +25,7 @@ class RemoveManager(metaclass=Singleton):
         self.resolve_manager = ResolveManager() if not resolve_manager else resolve_manager
         self._active_solution = None
 
-    def remove(self, path, rm_dep):
+    def remove(self, path, rm_dep=False):
         """Removes a solution from the disk. Thereby uninstalling its environment and deleting all its downloads.
 
         Args:
