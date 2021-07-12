@@ -4,11 +4,11 @@ from io import StringIO
 from pathlib import Path
 
 import validators
-import yaml
 
 from album.core.controller.conda_manager import CondaManager
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import create_path_recursively, copy
+from album.core.utils.operations.file_operations import create_path_recursively, copy, write_dict_to_yml, \
+    get_dict_from_yml
 from album.core.utils.operations.url_operations import download_resource
 from album_runner import logging
 from album_runner.logging import debug_settings
@@ -26,23 +26,22 @@ class Environment:
 
     """
 
-    def __init__(self, dependencies_dict, cache_name, cache_path):
+    def __init__(self, dependencies_dict, environment_name, cache_path):
         """Init routine
 
         Args:
             dependencies_dict:
                 Can be None or hold the entries a) "environment_file" b) "environment_name"
-            cache_name:
+            environment_name:
                 name prefix for all files to cache.
                 Used when "name" is not available during yaml-file download for example.
             cache_path:
                 cache path where to store downloads (yaml file, etc.)
         """
         self.conda = CondaManager()
+        self.name = environment_name
         self.cache_path = Path(cache_path)
-        self.cache_name = cache_name
-        self.yaml_file = self.get_env_file(dependencies_dict)
-        self.name = self.get_env_name(dependencies_dict)
+        self.yaml_file = self.prepare_env_file(dependencies_dict)
         self.path = self.init_env_path()
 
     def install(self, min_album_version=None):
@@ -52,8 +51,9 @@ class Environment:
 
         self.install_framework(min_album_version)
 
-    def get_env_file(self, dependencies_dict):
-        """Checks how to set up an environment. Returns a path to a valid yaml file.
+    def prepare_env_file(self, dependencies_dict):
+        """Checks how to set up an environment. Returns a path to a valid yaml file. Environment name in that file
+        will be overwritten!
 
         Args:
             dependencies_dict:
@@ -63,7 +63,7 @@ class Environment:
                     - stream object
 
         Returns:
-            Path to a valid yaml file
+            Path to a valid yaml file where environment name has been replaced!
 
         """
         if dependencies_dict:
@@ -71,72 +71,36 @@ class Environment:
                 env_file = dependencies_dict['environment_file']
 
                 yaml_path = self.cache_path.joinpath(
-                    "%s%s" % (self.cache_name, ".yml"))
+                    "%s%s" % (self.name, ".yml"))
                 create_path_recursively(yaml_path.parent)
 
                 if isinstance(env_file, str):
                     # case valid url
                     if validators.url(env_file):
-                        return download_resource(env_file, yaml_path)
-
+                        yaml_path = download_resource(env_file, yaml_path)
                     # case Path
                     elif Path(env_file).is_file() and Path(env_file).stat().st_size > 0:
-                        copy(env_file, yaml_path)
-                        return yaml_path
-
+                        yaml_path = copy(env_file, yaml_path)
+                    else:
+                        raise TypeError("Yaml file must either be a url to a valid file"
+                                        " or point to a file on the disk!")
                 # case String stream
                 elif isinstance(env_file, StringIO):
                     with open(yaml_path, "w+") as f:
                         env_file.seek(0)  # make sure we start from the beginning
                         f.writelines(env_file.readlines())
-                    return yaml_path
+                    yaml_path = yaml_path
+                else:
+                    raise RuntimeError('Environment file specified, but format is unknown!'
+                                       ' Don\'t know where to run solution!')
 
-                raise RuntimeError('No valid environment name or file specified! Don\'t know where to run solution!')
+                yaml_dict = get_dict_from_yml(yaml_path)
+                yaml_dict["name"] = self.name
+                write_dict_to_yml(yaml_path, yaml_dict)
+
+                return yaml_path
             return None
         return None
-
-    def get_env_name(self, dependencies_dict):
-        """
-
-        Args:
-            dependencies_dict:
-                Dictionary holding either the "environment_name" or "environment_file" key.
-
-        Returns:
-            The environment name.
-
-        """
-        if dependencies_dict:
-            if 'environment_name' in dependencies_dict:
-                environment_name = dependencies_dict['environment_name']
-                module_logger().debug('Environment name explicit given as: %s...' % environment_name)
-                return environment_name
-
-            elif 'environment_file' in dependencies_dict:
-                environment_name = self.get_env_name_from_yaml()
-                module_logger().debug('Extracted following name from file: %s...' %
-                                      environment_name)
-                return environment_name
-            else:
-                raise RuntimeError('No valid environment name or file specified! Don\'t know where to run solution!')
-        else:
-            environment_name = DefaultValues.default_environment.value
-            module_logger().debug('Environment name not given. Assume solution can be run in: %s...' % environment_name)
-            return environment_name
-
-    def get_env_name_from_yaml(self):
-        """Reads out the "name" keywords from the environment yaml file.
-
-        Returns:
-            The name of the environment.
-
-        """
-        module_logger().debug('Parsing environment name form yaml: %s...' % self.yaml_file)
-
-        with open(self.yaml_file) as f:
-            # todo: use safe_load to avoid code injection
-            env = yaml.load(f, Loader=yaml.FullLoader)
-        return env['name']
 
     def init_env_path(self):
         """Sets the environment path from the name of the environment
@@ -200,7 +164,8 @@ class Environment:
         # Use an environment path and a temporary file to store the script
         if debug_settings():
             fp = open(str(DefaultValues.app_cache_dir.value.joinpath('album_test.py')), 'w')
-            module_logger().debug("Executable file in: %s..." % str(DefaultValues.app_cache_dir.value.joinpath('album_test.py')))
+            module_logger().debug(
+                "Executable file in: %s..." % str(DefaultValues.app_cache_dir.value.joinpath('album_test.py')))
         else:
             fp = tempfile.NamedTemporaryFile(mode='w+', delete=False)
             module_logger().debug('Executable file in: %s...' % fp.name)
@@ -254,7 +219,11 @@ class Environment:
             self.conda.conda_install(str(self.path), "git")
 
         if not self.is_installed("album-runner", min_framework_version):
-            self.pip_install("git+" + DefaultValues.runner_rul.value)
+            module = "album-runner"
+            if min_framework_version:
+                module += "==" + str(min_framework_version)
+
+            self.pip_install(module)
 
     def pip_install(self, module, version=None):
         """Installs the given module in the environment.

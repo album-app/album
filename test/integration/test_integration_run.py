@@ -14,7 +14,8 @@ class TestIntegrationRun(TestIntegrationCommon):
 
     def test_run(self):
         # create test environment
-        Environment(None, "unusedCacheName", "unusedCachePath").install()
+        env_name = self.test_catalog_collection.local_catalog.id + "_group_name_0.1.0"
+        Environment(None, env_name, "unusedCachePath").install()
 
         self.fake_install(self.get_test_solution_path())
 
@@ -38,10 +39,12 @@ class TestIntegrationRun(TestIntegrationCommon):
 
     def test_run_with_parent(self):
         # create test environment
-        Environment(None, "unusedCacheName", "unusedCachePath").install()
+        env_name = self.test_catalog_collection.local_catalog.id + "_group_name_0.1.0"
+        Environment(None, env_name, "unusedCachePath").install()
 
         # create app environment
-        Environment({'environment_name': "app1"}, "unusedCacheName", "unusedCachePath").install()
+        env_name = self.test_catalog_collection.local_catalog.id + "_group_app1_0.1.0"
+        Environment(None, env_name, "unusedCachePath").install()
 
         # fake install what we need
         self.fake_install(self.get_test_solution_path("app1.py"))
@@ -67,13 +70,16 @@ class TestIntegrationRun(TestIntegrationCommon):
 
     def test_run_with_steps(self):
         # create test environment
-        Environment(None, "unusedCacheName", "unusedCachePath").install()
+        env_name = self.test_catalog_collection.local_catalog.id + "_group_name_0.1.0"
+        Environment(None, env_name, "unusedCachePath").install()
 
         # create app environment
-        Environment({'environment_name': "app1"}, "unusedCacheName", "unusedCachePath").install()
+        env_name = self.test_catalog_collection.local_catalog.id + "_group_app1_0.1.0"
+        Environment(None, env_name, "unusedCachePath").install()
 
         # create solution3_noparent environment
-        Environment({'environment_name': "solution3_noparent"}, "unusedCacheName", "unusedCachePath").install()
+        env_name = self.test_catalog_collection.local_catalog.id + "_group_solution3_noparent_0.1.0"
+        Environment(None, env_name, "unusedCachePath").install()
 
         self.fake_install(self.get_test_solution_path("app1.py"))
         self.fake_install(self.get_test_solution_path("solution3_noparent.py"))
@@ -108,14 +114,20 @@ class TestIntegrationRun(TestIntegrationCommon):
 
     def test_run_with_grouped_steps(self):
         # create test environment
-        Environment(None, "unusedCacheName", "unusedCachePath").install()
+        env_name = self.test_catalog_collection.local_catalog.id + "_group_name_0.1.0"
+        Environment(None, env_name, "unusedCachePath").install()
 
         # create app environment
-        Environment({'environment_name': "app1"}, "unusedCacheName", "unusedCachePath").install()
-        Environment({'environment_name': "app2"}, "unusedCacheName", "unusedCachePath").install()
+        env_name = self.test_catalog_collection.local_catalog.id + "_group_app1_0.1.0"
+        Environment(None, env_name, "unusedCachePath").install()
+
+        # create app environment
+        env_name = self.test_catalog_collection.local_catalog.id + "_group_app2_0.1.0"
+        Environment(None, env_name, "unusedCachePath").install()
 
         # create solution3_noparent environment
-        Environment({'environment_name': "solution3_noparent"}, "unusedCacheName", "unusedCachePath").install()
+        env_name = self.test_catalog_collection.local_catalog.id + "_group_solution3_noparent_0.1.0"
+        Environment(None, env_name, "unusedCachePath").install()
 
         # mock resolving
         class TestCatalog:

@@ -47,8 +47,6 @@ channels:
             "min_album_version": "1",
             "dependencies": {'environment_file': self.test_environment_yml}
         }
-        tmp_folder = self.tmp_dir.name
-
         active_solution = AlbumClass(solution_dict)
 
         self.assertEqual(None, active_solution.environment)
@@ -95,8 +93,9 @@ channels:
 
         # assert
         environment_init_mock.assert_called_once_with(
-            active_solution.dependencies, cache_name="n1", cache_path=None
-
+            active_solution.dependencies,
+            environment_name="catalog_id_solution_lives_in_gr1_n1_v1",
+            cache_path=active_solution.cache_path_solution
         )
 
     def test_get_deploy_dict(self):

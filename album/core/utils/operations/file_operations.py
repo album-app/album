@@ -223,6 +223,9 @@ def get_dict_from_yml(yml_file):
     with open(yml_file, 'r') as yml_f:
         d = yaml.safe_load(yml_f)
 
+    if not isinstance(d, dict):
+        raise TypeError("Yaml file %s invalid!" % str(yml_file))
+
     return d
 
 

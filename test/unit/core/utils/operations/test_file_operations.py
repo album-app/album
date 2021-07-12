@@ -93,6 +93,25 @@ class TestFileOperations(TestUnitCommon):
         d = get_dict_from_yml(tmp_yml_file)
         self.assertEqual(d, {"test": [1, 2, 3]})
 
+    def test_get_dict_from_yml_string_only(self):
+        tmp_folder = pathlib.Path(self.tmp_dir.name)
+
+        tmp_yml_file = tmp_folder.joinpath("test_yaml")
+        with open(tmp_yml_file, "w+") as f:
+            f.write("iAmOnlyAString")
+
+        with self.assertRaises(TypeError):
+            get_dict_from_yml(tmp_yml_file)
+
+    def test_get_dict_from_yml_empty(self):
+        tmp_folder = pathlib.Path(self.tmp_dir.name)
+
+        tmp_yml_file = tmp_folder.joinpath("test_yaml")
+        tmp_yml_file.touch()
+
+        with self.assertRaises(TypeError):
+            get_dict_from_yml(tmp_yml_file)
+
     def test_write_dict_to_yml(self):
         tmp_yml_file = pathlib.Path(self.tmp_dir.name).joinpath("test_yaml")
         tmp_yml_file.touch()

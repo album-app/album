@@ -40,8 +40,8 @@ setup(
     covers=[],
     sample_inputs=[],
     sample_outputs=[],
-    min_album_version="0.1.0",
-    tested_album_version="0.1.0",
+    min_album_version="0.1.1",
+    tested_album_version="0.1.1",
     args=[{
         "name": "file_solution5_app2",
         "default": "",
