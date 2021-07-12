@@ -125,7 +125,7 @@ class CatalogIndex:
                 with open(index_file_path) as json_file:
                     self.index = importer.read(json_file)
             else:
-                module_logger().warning("File contains no content!")
+                module_logger().info("Empty index file (%s) loaded!" % str(self.path))
         else:
             Path(index_file_path).parent.mkdir(parents=True, exist_ok=True)
             Path(index_file_path).touch()

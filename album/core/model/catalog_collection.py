@@ -162,45 +162,65 @@ class CatalogCollection(metaclass=Singleton):
             Dictionary holding the path to the solution and the catalog the solution has been resolved in.
 
         """
-        file_not_found = None
-        # resolve in order of catalogs specified in config file
-        for catalog in self.catalogs:
+        # resolve local catalog first!
+        path_to_solution, file_not_found_error = self._resolve_in_catalog(self.local_catalog, solution_attr, download)
 
-            # update if necessary and possible
-            if not catalog.is_local and download:
-                catalog.refresh_index()
-
-            # resolve via doi
-            if "doi" in solution_attr.keys():
-                path_to_solution = catalog.resolve_doi(solution_attr["doi"], download)
-            else:  # resolve via group, name, version
-                if not all([k in solution_attr.keys() for k in ["name", "version", "group"]]):
-                    raise ValueError("Cannot resolve dependency!"
-                                     " Either a DOI or name, group and version must be specified!")
-
-                group = solution_attr["group"]
-                name = solution_attr["name"]
-                version = solution_attr["version"]
-
-                try:
-                    path_to_solution = catalog.resolve(group, name, version, download)
-                except FileNotFoundError as e:
-                    file_not_found = e
-                    continue
-
-            if not path_to_solution:
-                continue
-
+        if path_to_solution and not file_not_found_error:
             return {
                 "path": path_to_solution,
-                "catalog": catalog
+                "catalog": self.local_catalog
             }
+        else:
+            path_to_solution, file_not_found_error = [None, None]
 
-        # only raise FileNotFound if not installed from any of the configured catalogs
-        if file_not_found:
-            raise file_not_found
+            # resolve in order of catalogs specified in config file
+            for catalog in self.catalogs:
+                if catalog.id == self.local_catalog.id:
+                    continue  # skip local catalog as it already has been checked
 
-        return None
+                path_to_solution, file_not_found_error = self._resolve_in_catalog(catalog, solution_attr, download)
+
+                # continue if "resolved, but file not there" or "not resolved"
+                if path_to_solution and file_not_found_error or not path_to_solution:
+                    continue
+
+                return {
+                    "path": path_to_solution,
+                    "catalog": catalog
+                }
+
+        # only raise FileNotFound if resolved, but not installed from any of the configured catalogs
+        if file_not_found_error:
+            raise file_not_found_error
+
+        return None  # not resolvable
+
+    @staticmethod
+    def _resolve_in_catalog(catalog, solution_attr, download=True):
+        path_to_solution = None
+
+        # update if necessary and possible
+        if not catalog.is_local and download:
+            catalog.refresh_index()
+
+        # resolve via doi
+        if "doi" in solution_attr.keys():
+            path_to_solution = catalog.resolve_doi(solution_attr["doi"], download)
+        else:  # resolve via group, name, version
+            if not all([k in solution_attr.keys() for k in ["name", "version", "group"]]):
+                raise ValueError("Cannot resolve dependency!"
+                                 " Either a DOI or name, group and version must be specified!")
+
+            group = solution_attr["group"]
+            name = solution_attr["name"]
+            version = solution_attr["version"]
+
+            try:
+                path_to_solution = catalog.resolve(group, name, version, download)
+            except FileNotFoundError as e:
+                return [path_to_solution, e]
+
+        return [path_to_solution, None]
 
     def resolve_dependency(self, dependency, download=True):
         """Resolves the album and returns the path to the solution.py file on the current system.

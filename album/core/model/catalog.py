@@ -87,7 +87,7 @@ class Catalog:
         self.load_index()
 
     def resolve(self, group, name, version, download=True):
-        """Resolves (also: finds, looks up) a album in the catalog and returning the absolute path to the solution file.
+        """Resolves (also: finds, looks up) a solution in the catalog, returning the absolute path to the solution file.
 
         Args:
             group:
