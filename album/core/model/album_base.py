@@ -68,9 +68,10 @@ class AlbumClass(AlbumRunner):
 
     def set_environment(self, catalog_id):
         """Initializes the Environment of the solution. This is not an installation!"""
+        environment_name = self.get_environment_name(catalog_id)
         self.set_cache_paths(catalog_id)
         self.environment = Environment(
-            self.dependencies, cache_name=self["name"], cache_path=self.cache_path_solution
+            self.dependencies, environment_name=environment_name, cache_path=self.cache_path_solution
         )
 
     def set_cache_paths(self, catalog_id):
@@ -82,3 +83,6 @@ class AlbumClass(AlbumRunner):
         self.cache_path_download = Configuration().cache_path_download.joinpath(catalog_id, path_suffix)
         self.cache_path_app = Configuration().cache_path_app.joinpath(catalog_id, path_suffix)
         self.cache_path_solution = Configuration().cache_path_solution.joinpath(catalog_id, path_suffix)
+
+    def get_environment_name(self, catalog_id):
+        return "_".join([catalog_id, self["group"], self["name"], self["version"]])

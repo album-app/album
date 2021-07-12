@@ -15,19 +15,17 @@ class TestEnvironment(TestUnitCommon):
     def setUp(self):
         """Setup things necessary for all tests of this class"""
         self.environment = Environment(None, self.test_environment_name, "aPath")
-        self.environment.name = self.test_environment_name
 
-    @patch('album.core.model.environment.Environment.get_env_file', return_value="Called")
-    @patch('album.core.model.environment.Environment.get_env_name', return_value="Called")
-    def test_init_(self, get_env_file_mock, get_env_name_mock):
+    @patch('album.core.model.environment.Environment.prepare_env_file', return_value=None)
+    def test_init_(self, prepare_env_file_mock):
         e = Environment(None, self.test_environment_name, "aPath")
 
-        get_env_file_mock.assert_called_once()
-        get_env_name_mock.assert_called_once()
+        prepare_env_file_mock.assert_called_once()
 
         self.assertIsNotNone(e)
-        self.assertEqual(self.test_environment_name, e.cache_name)
+        self.assertEqual(self.test_environment_name, e.name)
         self.assertEqual(Path("aPath"), e.cache_path)
+        self.assertIsNone(e.yaml_file)
 
     @patch('album.core.model.environment.Environment.create_or_update_env', return_value="Called")
     @patch('album.core.model.environment.Environment.get_env_path', return_value="Called")
@@ -39,89 +37,82 @@ class TestEnvironment(TestUnitCommon):
         get_env_path_mock.assert_called_once()
         is_inst_mock.assert_called_once_with("TestVersion")
 
-    def test_get_env_file_no_deps(self):
-        self.assertIsNone(self.environment.get_env_file(None))
+    def test_prepare_env_file_no_deps(self):
+        self.assertIsNone(self.environment.prepare_env_file(None))
 
-    def test_get_env_file_empty_deps(self):
-        self.assertIsNone(self.environment.get_env_file({}))
+    def test_prepare_env_file_empty_deps(self):
+        self.assertIsNone(self.environment.prepare_env_file({}))
 
     @patch('album.core.model.environment.create_path_recursively', return_value="createdPath")
-    def test_get_env_file_invalid_file(self, create_path_mock):
-        with self.assertRaises(RuntimeError) as context:
-            self.environment.get_env_file({"environment_file": "env_file"})
-            self.assertIn("No valid environment name", str(context.exception))
+    def test_prepare_env_file_invalid_file(self, create_path_mock):
+        with self.assertRaises(TypeError) as context:
+            self.environment.prepare_env_file({"environment_file": "env_file"})
+            self.assertIn("Yaml file must either be a url", str(context.exception))
 
         create_path_mock.assert_called_once()
 
-    @patch('album.core.model.environment.copy', return_value="copiedPath")
+    @patch('album.core.model.environment.copy')
     @patch('album.core.model.environment.create_path_recursively', return_value="createdPath")
-    def test_get_env_file_valid_file(self, create_path_mock, copy_mock):
+    def test_prepare_env_file_valid_file(self, create_path_mock, copy_mock):
+        # mocks
+        copy_mock.return_value = self.closed_tmp_file.name
         with open(self.closed_tmp_file.name, mode="w") as tmp_file:
-            tmp_file.write(self.test_environment_name)
+            tmp_file.write("""name: test""")
 
-        r = self.environment.get_env_file({"environment_file": self.closed_tmp_file.name})
+        r = self.environment.prepare_env_file({"environment_file": self.closed_tmp_file.name})
 
-        self.assertEqual(Path("aPath").joinpath("%s.yml" % self.test_environment_name), r)
+        self.assertEqual(self.closed_tmp_file.name, r)
 
         create_path_mock.assert_called_once()
         copy_mock.assert_called_once()
 
-    @patch('album.core.model.environment.download_resource', return_value="donwloadedResource")
+    @patch('album.core.model.environment.download_resource')
     @patch('album.core.model.environment.create_path_recursively', return_value="createdPath")
     def test_get_env_file_valid_url(self, create_path_mock, download_mock):
+        # mocks
+        download_mock.return_value = self.closed_tmp_file.name
+        with open(self.closed_tmp_file.name, mode="w") as tmp_file:
+            tmp_file.write("""name: test""")
+
         url = "http://test.de"
 
-        r = self.environment.get_env_file({"environment_file": url})
+        r = self.environment.prepare_env_file({"environment_file": url})
 
-        self.assertEqual("donwloadedResource", r)
+        self.assertEqual(self.closed_tmp_file.name, r)
 
         create_path_mock.assert_called_once()
         download_mock.assert_called_once_with(url, Path("aPath").joinpath("%s.yml" % self.test_environment_name))
 
     @patch('album.core.model.environment.create_path_recursively', return_value="createdPath")
-    def test_get_env_file_valid_StringIO(self, create_path_mock):
+    def test_get_env_file_invalid_StringIO(self, create_path_mock):
         self.environment.cache_path = Path(tempfile.gettempdir())
 
         string_io = io.StringIO("""testStringIo""")
 
-        r = self.environment.get_env_file({"environment_file": string_io})
+        with self.assertRaises(TypeError):
+            self.environment.prepare_env_file({"environment_file": string_io})
+
+        self.assertTrue(Path(tempfile.gettempdir()).joinpath("%s.yml" % self.test_environment_name).exists())
+
+        create_path_mock.assert_called_once()
+
+    @patch('album.core.model.environment.create_path_recursively', return_value="createdPath")
+    def test_get_env_file_valid_StringIO(self, create_path_mock):
+        self.environment.cache_path = Path(tempfile.gettempdir())
+
+        string_io = io.StringIO("""name: value""")
+
+        r = self.environment.prepare_env_file({"environment_file": string_io})
 
         self.assertEqual(Path(tempfile.gettempdir()).joinpath("%s.yml" % self.test_environment_name), r)
 
         with open(Path(tempfile.gettempdir()).joinpath("%s.yml" % self.test_environment_name), "r") as f:
             lines = f.readlines()
 
-        self.assertEqual(lines[0], "testStringIo")
+        # overwritten name
+        self.assertEqual(lines[0], "name: %s\n" % self.test_environment_name)
 
         create_path_mock.assert_called_once()
-
-    def test_get_env_name_no_deps(self):
-        self.assertEqual(self.environment.get_env_name({}), 'album')
-
-    def test_get_env_name_invalid_deps(self):
-        with self.assertRaises(RuntimeError):
-            self.environment.get_env_name({"not_exist_file": "None"})
-
-    def test_get_env_name_name_given(self):
-        self.assertEqual(
-            self.environment.get_env_name({"environment_name": self.test_environment_name}), self.test_environment_name
-        )
-
-    @patch('album.core.model.environment.Environment.get_env_name_from_yaml', return_value="TheParsedName")
-    def test_get_env_name_file_given(self, get_env_name_mock):
-        self.assertEqual(
-            self.environment.get_env_name({"environment_file": self.test_environment_name}), 'TheParsedName'
-        )
-
-        get_env_name_mock.assert_called_once()
-
-    def test_get_env_name_from_yaml(self):
-        with open(self.closed_tmp_file.name, "w") as tmp_file:
-            tmp_file.write("name: TestName")
-
-        self.environment.yaml_file = Path(self.closed_tmp_file.name)
-
-        self.assertEqual(self.environment.get_env_name_from_yaml(), "TestName")
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_dict')
     def test_get_env_path(self, ged_mock):
@@ -238,11 +229,11 @@ class TestEnvironment(TestUnitCommon):
     @patch('album.core.model.environment.Environment.pip_install')
     @patch('album.core.model.environment.Environment.is_installed', return_value=False)
     def test_install_runner(self, is_installed_mock, pip_install_mock, cmd_available):
-        self.environment.install_framework(None)
+        self.environment.install_framework("version")
 
         cmd_available.assert_called_once()
-        is_installed_mock.assert_called_once_with("album-runner", None)
-        pip_install_mock.assert_called_once_with('git+https://gitlab.com/album-app/album-runner')
+        is_installed_mock.assert_called_once_with("album-runner", "version")
+        pip_install_mock.assert_called_once_with('album-runner==version')
 
     @patch('album.core.controller.conda_manager.CondaManager.pip_install')
     def test_pip_install(self, conda_install_mock):

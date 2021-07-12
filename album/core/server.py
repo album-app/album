@@ -74,6 +74,10 @@ class AlbumServer(threading.Thread, metaclass=Singleton):
 
         @app.route('/<catalog>/<group>/<name>/<version>/run')
         def run(catalog, group, name, version):
+
+            #
+            self.run_manager.run()
+
             args_json = request.get_json()
             threading.Thread(target=self.__run_solution_command, args=[catalog, group, name, version, "run", args_json],
                              daemon=False).start()

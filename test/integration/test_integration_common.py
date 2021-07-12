@@ -63,7 +63,14 @@ class TestIntegrationCommon(unittest.TestCase):
 
     def tearDown(self) -> None:
         # clean all environments specified in test-resources
-        for e in ["app1", "app2", "solution3_noparent", "solution6_noparent_test"]:
+        env_names = [
+            self.test_catalog_collection.local_catalog.id + "_group_name_0.1.0",
+            self.test_catalog_collection.local_catalog.id + "_group_app1_0.1.0",
+            self.test_catalog_collection.local_catalog.id + "_group_app2_0.1.0",
+            self.test_catalog_collection.local_catalog.id + "_group_solution3_noparent_0.1.0",
+            self.test_catalog_collection.local_catalog.id + "_group_solution6_noparent_test_0.1.0",
+        ]
+        for e in env_names:
             if CondaManager().environment_exists(e):
                 CondaManager().remove_environment(e)
 
