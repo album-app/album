@@ -71,8 +71,15 @@ class Configuration(metaclass=Singleton):
         self.cache_path_app = self.base_cache_path.joinpath(DefaultValues.cache_path_app_prefix.value)
         self.cache_path_download = self.base_cache_path.joinpath(DefaultValues.cache_path_download_prefix.value)
         self.cache_path_tmp = self.base_cache_path.joinpath(DefaultValues.cache_path_tmp_prefix.value)
+        self.solutions_db_path = self.base_cache_path.joinpath(DefaultValues.catalog_folder_prefix.value)
         create_paths_recursively(
-            [self.cache_path_solution, self.cache_path_app, self.cache_path_download, self.cache_path_tmp]
+            [
+                self.cache_path_solution,
+                self.cache_path_app,
+                self.cache_path_download,
+                self.cache_path_tmp,
+                self.solutions_db_path
+            ]
         )
 
     @property

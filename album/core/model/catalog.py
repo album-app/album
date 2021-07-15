@@ -38,7 +38,7 @@ class Catalog:
     An album catalog contains solution files. These files are python scripts which can be interpreted by the album
     framework and implement a routine for solving a problem of any kind. The Catalog has an index where the solution
     files and its metadata are stored in a hierarchical way. This class brings all the functionality to resolve, add,
-    remove solutions from a Catalog, wheras resolving refers to the act of looking up, if a solution exists in the
+    remove solutions from a Catalog, whereas resolving refers to the act of looking up, if a solution exists in the
     catalog. A catalog can be local or remote. If the catalog is remote, solutions cannot be
     added or removed to/from it. (see deploy for context)
 
@@ -86,7 +86,7 @@ class Catalog:
         # initialize the index
         self.load_index()
 
-    def resolve(self, group, name, version, download=True):
+    def resolve(self, group, name, version):
         """Resolves (also: finds, looks up) a solution in the catalog, returning the absolute path to the solution file.
 
         Args:
@@ -96,10 +96,6 @@ class Catalog:
                 The name of the solution
             version:
                 The version of the solution
-            download:
-                Case True: downloads the solution if not already cached.
-                Case False: raises FileNotFoundError if not cached
-                (Default: True)
 
         Returns: the path to the solution file.
 
@@ -109,30 +105,16 @@ class Catalog:
         if tree_leaf_node:
             path_to_solution = self.get_solution_file(group, name, version)
 
-            if not path_to_solution.is_file():
-                if self.is_local or not download:
-                    raise FileNotFoundError(
-                        "Could resolve the solution, but file %s could not be found!"
-                        " Please reinstall the solution!" % path_to_solution)
-                if hasattr(tree_leaf_node, "doi"):
-                    path_to_solution = self.download_solution_via_doi(getattr(tree_leaf_node, "doi"), name)
-                else:
-                    path_to_solution = self.download_solution(group, name, version)
-
             return path_to_solution
 
         return None  # could not resolve
 
-    def resolve_doi(self, doi, download=True):
+    def resolve_doi(self, doi):
         """Resolves a album via doi. Returns the absolute path to the solution.
 
         Args:
             doi:
                 The doi of the solution
-            download:
-                Case True: downloads the solution if not already cached.
-                Case False: raises FileNotFoundError if not cached
-                (Default: True)
 
         Returns:
             Absolute path to the solution file.
@@ -146,71 +128,9 @@ class Catalog:
         if tree_leaf_node:
             path_to_solution = self.get_doi_cache_file(doi)
 
-            # file already cached
-            if path_to_solution.is_file():
-                return path_to_solution
-            elif not download:
-                raise FileNotFoundError(
-                    "Could resolve the solution, but file %s could not be found!"
-                    " Please reinstall the solution!" % path_to_solution)
-            else:
-                return self.download_solution_via_doi(doi, getattr(tree_leaf_node, "doi"))
+            return path_to_solution
 
         return None  # could not resolve
-
-    def list_installed(self):
-        """ Lists all installed solutions in the catalog, thereby iterating over downloaded solutions.
-
-        Returns:
-            list if dictionaries. Each list entry corresponds to a solution with "group", "name", "version" set.
-
-        """
-        installed_solutions = []
-
-        # search through all installed doi solutions
-        installed_doi_path = self.path.joinpath(self.doi_solution_prefix)
-        if installed_doi_path.is_dir():
-            for directory in installed_doi_path.iterdir():
-                installed_solutions.append(self.doi_to_grp_name_version(directory.name))
-
-        # search through all installed solutions without doi
-        for grp_dir in self.path.joinpath(self.gnv_solution_prefix).iterdir():
-            for solution_dir in grp_dir.iterdir():
-                for version_dir in solution_dir.iterdir():
-                    installed_solutions.append(
-                        self.get_grp_name_version_from_file_structure(
-                            grp_dir.name, solution_dir.name, version_dir.name
-                        )
-                    )
-
-        return sorted(installed_solutions, key=lambda k: k["name"])
-
-    def get_grp_name_version_from_file_structure(self, grp_dir, solution_dir, version_dir):
-        """Resolves a solution via its group, name, version and returns their values as a dictionary.
-
-        Args:
-            grp_dir:
-                The name of the group directory
-            solution_dir:
-                The name of the solution directory
-            version_dir:
-                The name of the version directory
-
-        Returns:
-            dict holding the metadata of the solution which is supposed to live in the catalog.
-
-        Raises:
-             RuntimeError if the solution cannot be found in the catalog, although the folder structure for it exists.
-
-        """
-        tree_leaf_node = self.catalog_index.resolve_by_name_version_and_group(solution_dir, version_dir, grp_dir)
-        if not tree_leaf_node:
-            raise RuntimeError("Folder structure is broken! Could not resolve solution %s in index!" % solution_dir)
-        return {
-            "group": tree_leaf_node.solution_group,
-            "name": tree_leaf_node.solution_name,
-            "version": tree_leaf_node.solution_version,
-        }
 
     def doi_to_grp_name_version(self, doi):
         """Resolves a solution via its DOI and returns a dictionary of their group, name, version.

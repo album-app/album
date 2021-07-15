@@ -20,7 +20,7 @@ class TestIntegrationInstall(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
-        self.assertIn("WARNING - No \"install\" routine configured for solution", self.captured_output.getvalue())
+        self.assertIn("No \"install\" routine configured for solution", self.captured_output.getvalue())
 
     def test_install(self):
         # gather arguments

@@ -52,13 +52,11 @@ class CatalogCollection(metaclass=Singleton):
         raise LookupError("No local catalog configured! Doing nothing...")
 
     def get_catalog_by_url(self, url):
-        """Returns first catalog which is not local. This is used as default deployment catalog."""
+        """Returns the catalog object of a given url if configured."""
         for catalog in self.catalogs:
             if catalog.src == url:
                 if not catalog.is_local:
                     return catalog
-                else:
-                    raise ValueError("Cannot deploy to the catalog with url %s since it is marked local!" % url)
         raise LookupError("Catalog with URL \"%s\" not configured!" % url)
 
     def get_catalog_by_id(self, cat_id):
@@ -148,92 +146,79 @@ class CatalogCollection(metaclass=Singleton):
 
         return catalog_indices_dict
 
-    def resolve(self, solution_attr, download=True):
+    def resolve(self, solution_attr, update=True):
         """Resolves a dictionary holding solution attributes (group, name, version, etc.) and
         returns the path to the solution.py file on the current system.
 
         Args:
             solution_attr:
                 Dictionary holding the attributes defining a solution (group, name, version are required).
-            download:
-                Boolean to indicate whether to download a solution from the catalog it has been found in or not.
+            update:
+                Boolean to indicate whether to update the catalog before resolving or not.
 
         Returns:
             Dictionary holding the path to the solution and the catalog the solution has been resolved in.
 
         """
         # resolve local catalog first!
-        path_to_solution, file_not_found_error = self._resolve_in_catalog(self.local_catalog, solution_attr, download)
+        path_to_solution = self._resolve_in_catalog(self.local_catalog, solution_attr)
 
-        if path_to_solution and not file_not_found_error:
+        if path_to_solution:
             return {
                 "path": path_to_solution,
                 "catalog": self.local_catalog
             }
         else:
-            path_to_solution, file_not_found_error = [None, None]
-
             # resolve in order of catalogs specified in config file
             for catalog in self.catalogs:
                 if catalog.id == self.local_catalog.id:
                     continue  # skip local catalog as it already has been checked
 
-                path_to_solution, file_not_found_error = self._resolve_in_catalog(catalog, solution_attr, download)
+                # update if necessary and possible
+                if not catalog.is_local and update:
+                    catalog.refresh_index()
 
-                # continue if "resolved, but file not there" or "not resolved"
-                if path_to_solution and file_not_found_error or not path_to_solution:
-                    continue
+                path_to_solution = self._resolve_in_catalog(catalog, solution_attr)
 
-                return {
-                    "path": path_to_solution,
-                    "catalog": catalog
-                }
-
-        # only raise FileNotFound if resolved, but not installed from any of the configured catalogs
-        if file_not_found_error:
-            raise file_not_found_error
+                if path_to_solution:
+                    return {
+                        "path": path_to_solution,
+                        "catalog": catalog
+                    }
 
         return None  # not resolvable
 
-    @staticmethod
-    def _resolve_in_catalog(catalog, solution_attr, download=True):
-        path_to_solution = None
-
-        # update if necessary and possible
-        if not catalog.is_local and download:
-            catalog.refresh_index()
-
-        # resolve via doi
+    def _resolve_in_catalog(self, catalog, solution_attr):
         if "doi" in solution_attr.keys():
-            path_to_solution = catalog.resolve_doi(solution_attr["doi"], download)
-        else:  # resolve via group, name, version
-            if not all([k in solution_attr.keys() for k in ["name", "version", "group"]]):
-                raise ValueError("Cannot resolve dependency!"
-                                 " Either a DOI or name, group and version must be specified!")
+            raise NotImplementedError
+        else:
+            self._check_requirement(solution_attr)
 
             group = solution_attr["group"]
             name = solution_attr["name"]
             version = solution_attr["version"]
 
-            try:
-                path_to_solution = catalog.resolve(group, name, version, download)
-            except FileNotFoundError as e:
-                return [path_to_solution, e]
+            path_to_solution = catalog.resolve(group, name, version)
 
-        return [path_to_solution, None]
+        return path_to_solution
 
-    def resolve_dependency(self, dependency, download=True):
+    @staticmethod
+    def _check_requirement(solution_attr):
+        if not all([k in solution_attr.keys() for k in ["name", "version", "group"]]):
+            raise ValueError("Cannot resolve dependency! Either a DOI or name, group and version must be specified!")
+
+    def resolve_dependency(self, dependency, update=True):
         """Resolves the album and returns the path to the solution.py file on the current system.
         Throws error if not resolvable!"""
 
-        r = self.resolve(dependency, download)
+        r = self.resolve(dependency, update)
 
         if not r:
             raise ValueError("Could not resolve solution: %s" % dependency)
 
         return r
 
-    def resolve_directly(self, catalog_id, group, name, version, download=True):
+    def resolve_directly(self, catalog_id, group, name, version, update=True):
         """Resolves a solution given its group, name, version only looking through a specific catalog.
 
         Args:
@@ -245,8 +230,8 @@ class CatalogCollection(metaclass=Singleton):
                 The name of the solution.
             version:
                 The version of the solution.
-            download:
-                Boolean to indicate whether to download a solution from the catalog it has been found in or not.
+            update:
+                Boolean to indicate whether to update the catalog before resolving or not.
 
         Returns:
             Dictionary holding the path to the solution and the catalog the solution has been resolved in.
@@ -255,71 +240,16 @@ class CatalogCollection(metaclass=Singleton):
         for catalog in self.catalogs:
             if catalog.id == catalog_id:
                 # update if necessary and possible
-                if not catalog.is_local:
+                if not catalog.is_local and update:
                     catalog.refresh_index()
-                path_to_solution = catalog.resolve(group, name, version, download)
-                if not path_to_solution:
-                    return None
-                return {
-                    "path": path_to_solution,
-                    "catalog": catalog
-                }
+
+                path_to_solution = catalog.resolve(group, name, version)
+
+                if path_to_solution:
+                    return {
+                        "path": path_to_solution,
+                        "catalog": catalog
+                    }
         return None
 
-    def resolve_from_str(self, str_input: str, download=True):
-        """Resolves a string input if in valid format.
 
-        Args:
-            str_input:
-                The string input. Supported formats:
-                    doi:  <doi>:<prefix>/<suffix> or <prefix>/<suffix> of a solution
-                    gnv: <group>:<name>:<version> of a solution
-                    url: any url pointing to a solution file
-            download:
-                Boolean to indicate whether to download a solution from the catalog it has been found in or not.
-
-        Returns:
-            Dictionary holding the path to the solution and the catalog the solution has been resolved in.
-
-        """
-        attrs_dict = self.get_doi_from_input(str_input)
-        if not attrs_dict:
-            attrs_dict = self.get_gnv_from_input(str_input)
-            if not attrs_dict:
-                raise ValueError(
-                    "Invalid input format! Try <doi>:<prefix>/<suffix> or <prefix>/<suffix> or "
-                    "<group>:<name>:<version> or point to a valid file! Aborting...")
-        module_logger().debug("Parsed %s from the input... " % attrs_dict)
-        return self.resolve_dependency(attrs_dict, download)
-
-    def get_installed_solutions(self):
-        """Returns all installed solutions of all catalogs configured"""
-        installed_solutions_dict = {}
-        for catalog in self.catalogs:
-            module_logger().debug("Get installed solutions from catalog: %s..." % catalog.id)
-            installed_solutions_dict[catalog.id] = catalog.list_installed()
-
-        return installed_solutions_dict
-
-    @staticmethod
-    def get_gnv_from_input(str_input: str):
-        """Parses Group, Name, Version from input, separated by ":". """
-        s = re.search('^([^:]+):([^:]+):([^:]+)$', str_input)
-
-        if s:
-            return {
-                "group": s.group(1),
-                "name": s.group(2),
-                "version": s.group(3)
-            }
-        return None
-
-    @staticmethod
-    def get_doi_from_input(str_input: str):
-        """Parses the DOI from string input."""
-        s = re.search('^(^doi:)?([^:\/]*\/[^:\/]*)$', str_input)
-        if s:
-            return {
-                "doi": s.group(2)
-            }
-        return None

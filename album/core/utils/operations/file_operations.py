@@ -8,6 +8,7 @@ import tempfile
 import time
 from pathlib import Path
 from stat import *
+from zipfile import ZipFile
 
 import yaml
 
@@ -446,3 +447,7 @@ def rand_folder_name(f_len=8):
     for i in range(0, f_len):
         s.append(characters[random.randint(0, len(characters) - 1)])
     return "".join(s)
+
+
+def check_zip(path):
+    return not ZipFile(path).testzip()

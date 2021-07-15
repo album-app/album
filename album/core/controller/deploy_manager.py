@@ -82,7 +82,9 @@ class DeployManager(metaclass=Singleton):
             module_logger().warning("No catalog specified. Deploying to default catalog %s!" % self._catalog.id)
 
         if self._catalog.is_local:
+            # copy to correct place and add to index for later usage/installation
             self._copy_folder_in_local_catalog(deploy_path)
+            self._catalog.add(self._active_solution, force_overwrite=True)
         else:
             dwnld_path = Path(self.catalog_collection.configuration.cache_path_download).joinpath(self._catalog.id)
             self._repo = self._catalog.download(dwnld_path, force_download=True)

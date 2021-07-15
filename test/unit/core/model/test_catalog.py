@@ -172,6 +172,16 @@ class TestCatalog(TestUnitCommon):
         self.assertEqual(len(self.catalog), 10)
 
     @patch('album.core.model.catalog.Catalog.get_solution_file')
+    def test_resolve_nothing_found(self, get_solution_file_mock):
+        get_solution_file_mock.return_value = None
+        self.assertIsNone(self.catalog.resolve("a", "b", "c"))
+
+    @patch('album.core.model.catalog.Catalog.get_solution_file')
+    def test_resolve_doi_nothing_found(self, get_solution_file_mock):
+        get_solution_file_mock.return_value = None
+        self.assertIsNone(self.catalog.resolve_doi("a"))
+
+    @patch('album.core.model.catalog.Catalog.get_solution_file')
     def test_resolve(self, get_solution_file_mock):
         self.populate_index()
         get_solution_file_mock.side_effect = [Path(self.closed_tmp_file.name)]
@@ -179,38 +189,6 @@ class TestCatalog(TestUnitCommon):
         search_result = self.catalog.resolve("group0", "name0", "version0")
 
         self.assertEqual(search_result, Path(self.closed_tmp_file.name))
-
-    @patch('album.core.model.catalog.Catalog.get_solution_file')
-    def test_resolve_in_index_but_no_file(self, get_solution_file_mock):
-        self.populate_index()
-        get_solution_file_mock.side_effect = [Path("pathDoesNotExist")]
-
-        with self.assertRaises(FileNotFoundError):
-            self.catalog.resolve("group0", "name0", "version0")
-
-    @patch('album.core.model.catalog.Catalog.get_solution_file')
-    @patch('album.core.model.catalog.Catalog.download_solution_via_doi', return_value=Path("pathDoesNotExist"))
-    def test_resolve_download_by_doi_if_present(self, download_doi_solution_mock, get_solution_file_mock):
-        self.populate_index()
-        self.catalog.is_local = False
-        get_solution_file_mock.side_effect = [Path("pathDoesNotExist")]
-
-        search_result = self.catalog.resolve("group0", "name0", "version0")
-        download_doi_solution_mock.assert_called_once()
-
-        self.assertEqual(Path("pathDoesNotExist"), search_result)
-
-    @patch('album.core.model.catalog.Catalog.get_solution_file')
-    @patch('album.core.model.catalog.Catalog.download_solution_via_doi', return_value=True)
-    def test_resolve_not_download_by_doi_on_flag(self, download_doi_solution_mock, get_solution_file_mock):
-        self.populate_index()
-        self.catalog.is_local = False
-        get_solution_file_mock.side_effect = [Path("pathDoesNotExist")]
-
-        with self.assertRaises(FileNotFoundError):
-            self.catalog.resolve("group0", "name0", "version0", download=False)
-
-        download_doi_solution_mock.assert_not_called()
 
     @patch('album.core.model.catalog.Catalog.get_doi_cache_file')
     def test_resolve_doi(self, get_doi_cache_file_mock):
@@ -220,32 +198,6 @@ class TestCatalog(TestUnitCommon):
         search_result = self.catalog.resolve_doi("doi0")
 
         self.assertEqual(search_result, Path(self.closed_tmp_file.name))
-
-    @patch('album.core.model.catalog.Catalog.get_doi_cache_file')
-    @patch('album.core.model.catalog.Catalog.download_solution_via_doi')
-    def test_resolve_doi_not_cached(self, download_doi_solution_mock, get_solution_cache_file_mock):
-        self.populate_index()
-        get_solution_cache_file_mock.side_effect = [Path("pathDoesNotExist")]
-
-        download_doi_solution_mock.side_effect = [Path(self.closed_tmp_file.name)]
-
-        search_result = self.catalog.resolve_doi("doi0")
-
-        download_doi_solution_mock.assert_called_once()
-        self.assertEqual(search_result, Path(self.closed_tmp_file.name))
-
-    @patch('album.core.model.catalog.Catalog.get_doi_cache_file')
-    @patch('album.core.model.catalog.Catalog.download_solution_via_doi')
-    def test_resolve_doi_not_cached_no_download(self, download_doi_solution_mock, get_solution_cache_file_mock):
-        self.populate_index()
-        get_solution_cache_file_mock.side_effect = [Path("pathDoesNotExist")]
-
-        download_doi_solution_mock.side_effect = [Path(self.closed_tmp_file.name)]
-
-        with self.assertRaises(FileNotFoundError):
-            self.catalog.resolve_doi("doi0", download=False)
-
-        download_doi_solution_mock.assert_not_called()
 
     @unittest.skip("tested in test_catalog_index.CatalogIndex.visualize")
     def test_visualize(self):
@@ -324,45 +276,6 @@ class TestCatalog(TestUnitCommon):
         self.assertEqual(
             self.catalog.get_doi_cache_file("d"), self.catalog.path.joinpath(self.catalog.doi_solution_prefix, "d")
         )
-
-    def test_list_installed(self):
-        self.populate_index(r=4)
-
-        # create solution files installed via g, n, v
-        for i in range(0, 2):
-            p = self.catalog.get_solution_zip("group" + str(i), "name" + str(i), "version" + str(i))
-            p.mkdir(parents=True)
-            p.touch()
-
-        # create solution files installed via doi
-        for i in range(2, 4):
-            p = self.catalog.get_doi_cache_file("doi" + str(i))
-            p.mkdir(parents=True)
-            p.touch()
-
-        r = [
-            {"group": "group0", "name": "name0", "version": "version0"},
-            {"group": "group1", "name": "name1", "version": "version1"},
-            {"group": "group2", "name": "name2", "version": "version2"},
-            {"group": "group3", "name": "name3", "version": "version3"}]
-
-        self.assertEqual(r, self.catalog.list_installed())
-
-    def test_get_grp_name_version_from_file_structure(self):
-        self.populate_index(r=2)
-
-        grp_dir = "group0"
-        solution_dir = "name0"
-        version_dir = "version0"
-
-        node = self.catalog.catalog_index.index.leaves[0]
-        res = {
-            "group": node.solution_group,
-            "name": node.solution_name,
-            "version": node.solution_version,
-        }
-
-        self.assertEqual(res, self.catalog.get_grp_name_version_from_file_structure(grp_dir, solution_dir, version_dir))
 
     def test_doi_to_grp_name_version(self):
         self.populate_index(r=2)

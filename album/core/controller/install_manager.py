@@ -33,7 +33,7 @@ class InstallManager(metaclass=Singleton):
     def install(self, path):
         """Function corresponding to the `install` subcommand of `album`."""
         # Load solution
-        resolve, active_solution = self.resolve_manager.resolve_and_load(path, mode="a")
+        resolve, active_solution = self.resolve_manager.resolve_and_load(path)
 
         if not resolve["catalog"]:
             module_logger().debug('album loaded locally: %s...' % str(active_solution))
@@ -41,12 +41,31 @@ class InstallManager(metaclass=Singleton):
             module_logger().debug('album loaded from catalog %s: %s...' % (resolve["catalog"].id, str(active_solution)))
 
         # execute installation routine
-        self._install(active_solution)
+        parent_catalog_id = self._install(active_solution)
 
         if not resolve["catalog"] or resolve["catalog"].is_local:  # case where a solution file is directly given
             self.add_to_local_catalog(active_solution, resolve["path"].parent)
 
+        self.add_to_solutions_db(resolve["catalog"].id, parent_catalog_id, active_solution)
+
         module_logger().info('Installed %s!' % active_solution['name'])
+
+        return resolve["catalog"].id
+
+    def add_to_solutions_db(self, catalog_id, parent_catalog_id, active_solution):
+        parent_id = None
+
+        if active_solution.parent:
+            parent = active_solution.parent
+
+            parent_entry = self.resolve_manager.solution_db.get_solution(
+                parent_catalog_id, parent["group"], parent["name"], parent["version"]
+            )
+            parent_id = parent_entry["solution_id"]
+
+        self.resolve_manager.solution_db.add_solution(
+            catalog_id, active_solution["group"], active_solution["name"], active_solution["version"], parent_id
+        )
 
     def add_to_local_catalog(self, active_solution, path):
         """Force adds the installation to the local catalog to be cached for running"""
@@ -64,7 +83,7 @@ class InstallManager(metaclass=Singleton):
         active_solution.environment.install(active_solution.min_album_version)
 
         # install dependencies first. Recursive call to install with dependencies
-        self.install_dependencies(active_solution)
+        parent_catalog_id = self.install_dependencies(active_solution)
 
         """Run install routine of album if specified"""
         if active_solution['install'] and callable(active_solution['install']):
@@ -77,24 +96,32 @@ class InstallManager(metaclass=Singleton):
             active_solution.environment.run_scripts([script])
             logging.pop_active_logger()
         else:
-            module_logger().warning(
-                'No \"install\" routine configured for solution %s! Will install nothing...' % active_solution['name']
+            module_logger().info(
+                'No \"install\" routine configured for solution %s! Will execute nothing! Installation complete!' % active_solution['name']
             )
+
+        return parent_catalog_id
 
     def install_dependencies(self, active_solution):
         """Handle dependencies in album dependency block"""
+        parent_catalog_id = None
 
-        if active_solution.dependencies:  # todo: check if that is necessary any more
+        # todo: check if that is necessary any more
+        if active_solution.dependencies:
             if 'album' in active_solution.dependencies:
                 args = active_solution.dependencies['album']
                 for dependency in args:
                     self.install_dependency(dependency)
 
         if active_solution.parent:
-            self.install_dependency(active_solution.parent)
+            parent_catalog_id = self.install_dependency(active_solution.parent)
+
+        return parent_catalog_id
 
     def install_dependency(self, dependency):
         """Calls `install` for a solution declared in a dependency block"""
         script_path = self.resolve_manager.catalog_collection.resolve_dependency(dependency)["path"]
         # recursive installation call
-        self.install(script_path)
+        catalog_id = self.install(script_path)
+
+        return catalog_id

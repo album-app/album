@@ -63,7 +63,7 @@ class TestCatalogCollection(TestUnitCommon):
         self.test_catalog_collection.catalogs[0].is_local = True
         self.test_catalog_collection.catalogs[0].src = "myurl"
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(LookupError):
             self.test_catalog_collection.get_catalog_by_url("myurl")
 
     def test_get_catalog_by_id(self):
@@ -144,40 +144,70 @@ class TestCatalogCollection(TestUnitCommon):
 
         self.assertEqual(r, self.test_catalog_collection.catalogs[0])
 
-    def test_resolve(self):
+    @patch('album.core.model.catalog.Catalog.refresh_index')
+    def test_resolve(self, refresh_index_mock):
         # mocks
-        _resolve_in_catalog = MagicMock(return_value=[None, None])
+        _resolve_in_catalog = MagicMock(return_value=None)
         self.test_catalog_collection._resolve_in_catalog = _resolve_in_catalog
 
         solution_attr = dict()
-        solution_attr["group"] = "group"
-        solution_attr["name"] = "name"
-        solution_attr["version"] = "version"
 
-        r = self.test_catalog_collection.resolve(solution_attr)
+        r = self.test_catalog_collection.resolve(solution_attr, update=False)
 
         self.assertIsNone(r)
         self.assertEqual(3, _resolve_in_catalog.call_count)
+        refresh_index_mock.assert_not_called()
+
+    @patch('album.core.model.catalog.Catalog.refresh_index')
+    def test_resolve_update(self, refresh_index_mock):
+        # mocks
+        refresh_index_mock.return_value = None
+
+        _resolve_in_catalog = MagicMock(return_value=None)
+        self.test_catalog_collection._resolve_in_catalog = _resolve_in_catalog
+
+        solution_attr = dict()
+
+        r = self.test_catalog_collection.resolve(solution_attr, update=True)
+
+        self.assertIsNone(r)
+        self.assertEqual(3, _resolve_in_catalog.call_count)
+        refresh_index_mock.assert_called_once()
+
+    def test_resolve_found_locally(self):
+        # mocks
+        _resolve_in_catalog = MagicMock(return_value="aPath")
+        self.test_catalog_collection._resolve_in_catalog = _resolve_in_catalog
+
+        solution_attr = dict()
+
+        r = self.test_catalog_collection.resolve(solution_attr, update=False)
+
+        _resolve_in_catalog.assert_called_once_with(self.test_catalog_collection.local_catalog, solution_attr)
+
+        self.assertDictEqual(
+            {
+                "path": "aPath",
+                "catalog": self.test_catalog_collection.local_catalog
+            },
+            r
+        )
 
     def test_resolve_locally_not_found(self):
         # mocks
         _resolve_in_catalog = MagicMock()
-        _resolve_in_catalog.side_effect = [[None, None], ["path", "error"], ["path", None]]
+        _resolve_in_catalog.side_effect = [None, "path"]
         self.test_catalog_collection._resolve_in_catalog = _resolve_in_catalog
 
         solution_attr = dict()
-        solution_attr["group"] = "group"
-        solution_attr["name"] = "name"
-        solution_attr["version"] = "version"
 
-        r = self.test_catalog_collection.resolve(solution_attr)
+        r = self.test_catalog_collection.resolve(solution_attr, update=False)
 
         self.assertEqual(r, {
-                    "path": "path",
-                    "catalog": self.test_catalog_collection.catalogs[-1]
-                })
-        self.assertEqual(3, _resolve_in_catalog.call_count)
-
+            "path": "path",
+            "catalog": self.test_catalog_collection.catalogs[1]
+        })
+        self.assertEqual(2, _resolve_in_catalog.call_count)
 
     @patch('album.core.model.catalog.Catalog.resolve_doi', return_value=None)
     @patch('album.core.model.catalog.Catalog.resolve', return_value=None)
@@ -201,11 +231,8 @@ class TestCatalogCollection(TestUnitCommon):
         solution_attr["version"] = "version"
         solution_attr["doi"] = "aNiceDoi"
 
-        r = self.test_catalog_collection._resolve_in_catalog(self.test_catalog_collection.local_catalog, solution_attr)
-
-        self.assertEqual(r, [None, None])
-        catalog_resolve_doi_mock.assert_called_once()
-        catalog_resolve_mock.assert_not_called()
+        with self.assertRaises(NotImplementedError):
+            self.test_catalog_collection._resolve_in_catalog(self.test_catalog_collection.local_catalog, solution_attr)
 
     @patch('album.core.model.catalog.Catalog.resolve_doi', return_value=None)
     @patch('album.core.model.catalog.Catalog.resolve', return_value="pathToSolutionFile")
@@ -215,9 +242,9 @@ class TestCatalogCollection(TestUnitCommon):
         solution_attr["name"] = "name"
         solution_attr["version"] = "version"
 
-        r = self.test_catalog_collection._resolve_in_catalog( self.test_catalog_collection.catalogs[0], solution_attr)
+        r = self.test_catalog_collection._resolve_in_catalog(self.test_catalog_collection.catalogs[0], solution_attr)
 
-        self.assertEqual(["pathToSolutionFile", None], r)
+        self.assertEqual("pathToSolutionFile", r)
         catalog_resolve_mock.assert_called_once()
         catalog_resolve_doi_mock.assert_not_called()
 
@@ -243,84 +270,6 @@ class TestCatalogCollection(TestUnitCommon):
         self.assertEqual({"something"}, r)
         resolve_mock.assert_called_once()
 
-    def test_resolve_from_str_wrong_input(self):
-        # mocks
-        get_doi_from_input = MagicMock(return_value=None)
-        get_gnv_from_input = MagicMock(return_value=None)
-        resolve_dependency = MagicMock(return_value=None)
-
-        self.test_catalog_collection.get_doi_from_input = get_doi_from_input
-        self.test_catalog_collection.get_gnv_from_input = get_gnv_from_input
-        self.test_catalog_collection.resolve_dependency = resolve_dependency
-
-        with self.assertRaises(ValueError):
-            self.test_catalog_collection.resolve_from_str("aVeryStupidInput")
-
-        get_doi_from_input.assert_called_once()
-        get_gnv_from_input.assert_called_once()
-        resolve_dependency.assert_not_called()
-
-    def test_resolve_from_str_doi_input(self):
-        # mocks
-        get_doi_from_input = MagicMock(return_value="doi")
-        get_gnv_from_input = MagicMock(return_value=None)
-        resolve_dependency = MagicMock(return_value="solvedDoi")
-
-        self.test_catalog_collection.get_doi_from_input = get_doi_from_input
-        self.test_catalog_collection.get_gnv_from_input = get_gnv_from_input
-        self.test_catalog_collection.resolve_dependency = resolve_dependency
-
-        r = self.test_catalog_collection.resolve_from_str("doi_input")
-
-        self.assertEqual("solvedDoi", r)
-        get_doi_from_input.assert_called_once()
-        get_gnv_from_input.assert_not_called()
-        resolve_dependency.assert_called_once_with("doi", True)
-
-    def test_resolve_from_str_gnv_input(self):
-        # mocks
-        get_doi_from_input = MagicMock(return_value=None)
-        get_gnv_from_input = MagicMock(return_value="gnv")
-        resolve_dependency = MagicMock(return_value="solvedGnv")
-
-        self.test_catalog_collection.get_doi_from_input = get_doi_from_input
-        self.test_catalog_collection.get_gnv_from_input = get_gnv_from_input
-        self.test_catalog_collection.resolve_dependency = resolve_dependency
-
-        r = self.test_catalog_collection.resolve_from_str("gnv_input")
-
-        self.assertEqual("solvedGnv", r)
-
-        get_doi_from_input.assert_called_once()
-        get_gnv_from_input.assert_called_once()
-        resolve_dependency.assert_called_once_with("gnv", True)
-
-    def test_get_gnv_from_input(self):
-        solution = {
-            "group": "grp",
-            "name": "name",
-            "version": "version"
-        }
-
-        self.assertEqual(solution, self.test_catalog_collection.get_gnv_from_input("grp:name:version"))
-        self.assertIsNone(self.test_catalog_collection.get_gnv_from_input("grp:name"))
-        self.assertIsNone(self.test_catalog_collection.get_gnv_from_input("grp:version"))
-        self.assertIsNone(self.test_catalog_collection.get_gnv_from_input("grp:name:version:uselessInput"))
-        self.assertIsNone(self.test_catalog_collection.get_gnv_from_input("uselessInput"))
-        self.assertIsNone(self.test_catalog_collection.get_gnv_from_input("::"))
-        self.assertIsNone(self.test_catalog_collection.get_gnv_from_input("doi:prefix/suffix"))
-
-    def test_get_doi_from_input(self):
-        solution = {
-            "doi": "prefix/suffix",
-        }
-        self.assertEqual(solution, self.test_catalog_collection.get_doi_from_input("doi:prefix/suffix"))
-        self.assertEqual(solution, self.test_catalog_collection.get_doi_from_input("prefix/suffix"))
-        self.assertIsNone(self.test_catalog_collection.get_doi_from_input("prefixOnly"))
-        self.assertIsNone(self.test_catalog_collection.get_doi_from_input("doi:"))
-        self.assertIsNone(self.test_catalog_collection.get_doi_from_input(":"))
-        self.assertIsNone(self.test_catalog_collection.get_doi_from_input("grp:name:version"))
-
     def test_get_search_index(self):
         # mock
         get_leaves_dict_list = MagicMock(return_value=["someLeafs"])
@@ -336,22 +285,6 @@ class TestCatalogCollection(TestUnitCommon):
         }, r)
 
         self.assertEqual(3, get_leaves_dict_list.call_count)
-
-    def test_get_installed_solutions(self):
-        # mock
-        list_installed = MagicMock(return_value=["someInstalledSolutions"])
-        for c in self.test_catalog_collection.catalogs:
-            c.list_installed = list_installed
-
-        r = self.test_catalog_collection.get_installed_solutions()
-
-        self.assertEqual({
-            "test_catalog": ["someInstalledSolutions"],
-            "default": ["someInstalledSolutions"],
-            "test_catalog2": ["someInstalledSolutions"],
-        }, r)
-
-        self.assertEqual(3, list_installed.call_count)
 
 
 if __name__ == '__main__':

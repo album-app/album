@@ -25,6 +25,27 @@ class TestUnitCommon(unittest.TestCase):
     """ % DefaultValues.catalog_url.value
     test_catalog_collection_config_file = None
 
+    solution_default_dict = {
+        'group': "tsg",
+        'name': "tsn",
+        'description': "d1",
+        'version': "tsv",
+        'format_version': "f1",
+        'tested_album_version': "t1",
+        'min_album_version': "mhv1",
+        'license': "l1",
+        'git_repo': "g1",
+        'authors': "a1",
+        'cite': "c1",
+        'tags': "t1",
+        'documentation': "do1",
+        'covers': "co1",
+        'sample_inputs': "si1",
+        'sample_outputs': "so1",
+        'args': [{"action": None}],
+        'title': "t1",
+    }
+
     @classmethod
     def setUpClass(cls):
         """On inherited classes, run our `setUp` method"""
@@ -106,7 +127,7 @@ class TestUnitCommon(unittest.TestCase):
     @patch('album.core.model.environment.Environment.__init__', return_value=None)
     @patch('album.core.model.album_base.AlbumClass.get_deploy_dict')
     def create_test_solution_no_env(self, deploy_dict_mock, _):
-        deploy_dict_mock.return_value = {"name": "tsn", "group": "tsg", "version": "tsv"}
+        deploy_dict_mock.return_value = self.solution_default_dict
         self.active_solution = AlbumClass(deploy_dict_mock.return_value)
         self.active_solution.init = lambda: None
         self.active_solution.args = []

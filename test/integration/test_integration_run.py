@@ -3,7 +3,6 @@ import unittest.mock
 
 import album.core as album
 from album.argument_parsing import main
-from album.core.model.environment import Environment
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -14,9 +13,6 @@ class TestIntegrationRun(TestIntegrationCommon):
 
     def test_run(self):
         # create test environment
-        env_name = self.test_catalog_collection.local_catalog.id + "_group_name_0.1.0"
-        Environment(None, env_name, "unusedCachePath").install()
-
         self.fake_install(self.get_test_solution_path())
 
         # gather arguments
@@ -29,6 +25,8 @@ class TestIntegrationRun(TestIntegrationCommon):
         self.assertIsNone(album.get_active_solution())
 
     def test_run_no_run_routine(self):
+        self.fake_install(self.get_test_solution_path("solution0_dummy_no_routines.py"), create_environment=False)
+
         # gather arguments
         sys.argv = ["", "run", str(self.get_test_solution_path("solution0_dummy_no_routines.py"))]
 
@@ -38,14 +36,6 @@ class TestIntegrationRun(TestIntegrationCommon):
             self.assertIn("No \"run\" routine specified for solution", str(context.exception))
 
     def test_run_with_parent(self):
-        # create test environment
-        env_name = self.test_catalog_collection.local_catalog.id + "_group_name_0.1.0"
-        Environment(None, env_name, "unusedCachePath").install()
-
-        # create app environment
-        env_name = self.test_catalog_collection.local_catalog.id + "_group_app1_0.1.0"
-        Environment(None, env_name, "unusedCachePath").install()
-
         # fake install what we need
         self.fake_install(self.get_test_solution_path("app1.py"))
         self.fake_install(self.get_test_solution_path("solution1_app1.py"))
@@ -69,18 +59,7 @@ class TestIntegrationRun(TestIntegrationCommon):
             self.assertIsNone(album.get_active_solution())
 
     def test_run_with_steps(self):
-        # create test environment
-        env_name = self.test_catalog_collection.local_catalog.id + "_group_name_0.1.0"
-        Environment(None, env_name, "unusedCachePath").install()
-
-        # create app environment
-        env_name = self.test_catalog_collection.local_catalog.id + "_group_app1_0.1.0"
-        Environment(None, env_name, "unusedCachePath").install()
-
-        # create solution3_noparent environment
-        env_name = self.test_catalog_collection.local_catalog.id + "_group_solution3_noparent_0.1.0"
-        Environment(None, env_name, "unusedCachePath").install()
-
+        # fake install what we need
         self.fake_install(self.get_test_solution_path("app1.py"))
         self.fake_install(self.get_test_solution_path("solution3_noparent.py"))
         self.fake_install(self.get_test_solution_path("solution2_app1.py"))
@@ -88,7 +67,8 @@ class TestIntegrationRun(TestIntegrationCommon):
         self.fake_install(self.get_test_solution_path("solution_with_steps.py"))
 
         # gather arguments
-        sys.argv = ["", "run", self.get_test_solution_path("solution_with_steps.py"), "--run-immediately=True", "--file",
+        sys.argv = ["", "run", self.get_test_solution_path("solution_with_steps.py"), "--run-immediately=True",
+                    "--file",
                     self.closed_tmp_file.name, "--file_solution1_app1", self.closed_tmp_file.name]
 
         # run
@@ -113,22 +93,6 @@ class TestIntegrationRun(TestIntegrationCommon):
             self.assertIsNone(album.get_active_solution())
 
     def test_run_with_grouped_steps(self):
-        # create test environment
-        env_name = self.test_catalog_collection.local_catalog.id + "_group_name_0.1.0"
-        Environment(None, env_name, "unusedCachePath").install()
-
-        # create app environment
-        env_name = self.test_catalog_collection.local_catalog.id + "_group_app1_0.1.0"
-        Environment(None, env_name, "unusedCachePath").install()
-
-        # create app environment
-        env_name = self.test_catalog_collection.local_catalog.id + "_group_app2_0.1.0"
-        Environment(None, env_name, "unusedCachePath").install()
-
-        # create solution3_noparent environment
-        env_name = self.test_catalog_collection.local_catalog.id + "_group_solution3_noparent_0.1.0"
-        Environment(None, env_name, "unusedCachePath").install()
-
         # mock resolving
         class TestCatalog:
             id = "aCatalog"

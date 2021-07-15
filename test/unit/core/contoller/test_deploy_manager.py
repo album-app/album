@@ -21,8 +21,9 @@ class TestDeployManager(TestGitCommon):
     def tearDown(self) -> None:
         super().tearDown()
 
+    @patch('album.core.model.catalog.Catalog.add')
     @patch('album.core.controller.deploy_manager.load')
-    def test_deploy_catalog_name_given(self, load_mock):
+    def test_deploy_catalog_name_given_and_local(self, load_mock, catalog_add):
         # mocks
         load_mock.return_value = self.active_solution
 
@@ -65,6 +66,7 @@ class TestDeployManager(TestGitCommon):
         get_catalog_by_id.assert_called_once_with(os.path.basename(self.tmp_dir.name))  # correct id requested
         get_catalog_by_url.assert_not_called()  # catalog given by id not url
         _copy_folder_in_local_catalog.assert_called_once_with(Path("None"))  # local ->  copy locally
+        catalog_add.assert_called_once()
         _copy_and_zip.assert_not_called()  # remote -> zip to repo
         _copy_cover_to_repo.assert_not_called()  # remote -> cover outside zip
         _create_yaml_file_in_repo.assert_not_called()  # local -> no yaml
