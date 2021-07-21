@@ -1,52 +1,25 @@
-from argparse import ArgumentParser
-
-from album.ci.controller.release_manager import ReleaseManager
-from album_runner.logging import get_active_logger, configure_logging, LogLevel
+import album
+from album.ci.argument_parsing import main
+from album_runner import logging
+from album_runner.logging import get_active_logger, debug_settings
 
 module_logger = get_active_logger
 
-release_manager = ReleaseManager()
 
-entry_point_map = {
-    'ci_pre_release': release_manager.pre_release,
-    'ci_release': release_manager.release()
-}
+def startup():
+    __retrieve_logger()
+    module_logger().info(
+        "Running album-ci version %s \n \n %s - contact via %s " %
+        (album.ci.__version__, album.ci.__author__, album.ci.__email__))
+    main()
 
 
 def __retrieve_logger():
-    """Retrieves the default album logger."""
-    configure_logging('album_ci', loglevel=LogLevel.DEBUG)
-
-
-def create_parser():
-    parser = ArgumentParser(add_help=False)
-    # parse logging
-    parser.add_argument(
-        'ci_routine',
-        help='Which ci routine to perform',
-        default='ci_pre_release',
-    )
-    parser.add_argument(
-        '--dry-run',
-        required=False,
-        help='Dry-run option. If True, no merge request will be created, only information is shown. Choose between %s' %
-             ", ".join([str(True), str(False)]),
-        default=False,
-        type=(lambda choice: bool(choice)),
-    )
-    return parser
+    """Retrieves the default album ci logger."""
+    logging.configure_logging(logging.LogLevel(debug_settings()), 'album_ci')
 
 
 if __name__ == '__main__':
-    # configure logging for album CI
-    __retrieve_logger()
+    startup()
 
-    ci_parser = create_parser()
-    args = ci_parser.parse_args()
 
-    module_logger().info("Starting CI release cycle...")
-
-    # read out entry point
-    entry_point = entry_point_map[args.ci_routine]
-
-    entry_point()

@@ -4,7 +4,7 @@ from unittest.mock import call
 from unittest.mock import patch
 
 from album.ci.utils import ci_utils
-from album.ci.zenodo_api import ZenodoAPI, ZenodoDeposit, ZenodoMetadata, ZenodoFile, DepositStatus
+from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDeposit, ZenodoMetadata, ZenodoFile, DepositStatus
 from test.unit.test_unit_common import TestGitCommon
 
 

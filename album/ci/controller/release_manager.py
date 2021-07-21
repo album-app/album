@@ -1,105 +1,92 @@
-from album.ci.utils.ci_utils import get_ssh_url, retrieve_yml_file_path, retrieve_solution_file_path, \
-    zenodo_get_deposit, \
-    zenodo_upload
-from album.ci.utils.deploy_environment import get_ci_deploy_values, get_ci_git_config_values, get_ci_project_values
-from album.core import load
+from pathlib import Path
+
+from album.ci.controller.zenodo_manager import ZenodoManager
+from album.ci.utils.ci_utils import get_ssh_url
 from album.core.concept.singleton import Singleton
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import get_dict_from_yml, set_zenodo_metadata_in_solutionfile, \
-    write_dict_to_yml, get_yml_entry
-from album.core.utils.operations.git_operations import checkout_branch, add_files_commit_and_push
+from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_yml_entry
+from album.core.utils.operations.git_operations import checkout_branch, add_files_commit_and_push, \
+    retrieve_single_file_from_head, configure_git
 from album_runner import logging
 
 module_logger = logging.get_active_logger
 
 
 class ReleaseManager(metaclass=Singleton):
-    """Class handling a CI release.
 
-    When a deploy routine creates a merge request to a catalog, the solution is uploaded to zenodo. This class handles
-    the routine to do so.
-
-    Requires the CI runner to be configured in a certain way - see deploy_environment
-
-    """
-
-    def __init__(self):
-        branch_name, catalog_name, target_url, source_url = get_ci_deploy_values()
-        user_name, user_email = get_ci_git_config_values()
-        project_path, server_url = get_ci_project_values()
-
-        self.project_path = project_path
-        self.server_url = server_url
-
-        self.branch_name = branch_name
+    def __init__(self, catalog_name, catalog_path, catalog_src):
         self.catalog_name = catalog_name
-        self.target_url = target_url
-        self.source_url = source_url
+        self.catalog_path = catalog_path
+        self.catalog_src = catalog_src
 
-        self.user_name = user_name
-        self.user_email = user_email
+        self.catalog = Catalog(catalog_id=self.catalog_name, path=catalog_path, src=self.catalog_src)
+        self.catalog_repo = self.catalog.download(force_download=True)
 
-        catalog_path = DefaultValues.app_cache_dir.value.joinpath(self.catalog_name)
+    def configure_repo(self, user_name, user_email):
+        configure_git(self.catalog_repo, user_email, user_name)
 
-        self.catalog = Catalog(catalog_id=self.catalog_name, path=catalog_path, src=self.server_url)
-        self.repo = None
+    def configure_ssh(self, project_path):
+        if not project_path:
+            raise KeyError("Project path not given!")
 
-        self._configure_git()
+        if not self.catalog_repo.remote().url.startswith("git"):
+            self.catalog_repo.remote().set_url(get_ssh_url(project_path, self.catalog_src))
 
-    def _configure_git(self):
-        self.repo.config_writer().set_value("user", "name", self.user_name).release()
-        self.repo.config_writer().set_value("user", "email", self.user_email).release()
+    @staticmethod
+    def _get_zip_path(group, name, version):
+        zip_name = Catalog.get_zip_name(group, name, version)
+        return Path("").joinpath(DefaultValues.cache_path_solution_prefix.value, group, name, version, zip_name)
 
-        # switch to ssh url if not already set
-        if not self.repo.remote().url.startswith("git"):
-            self.repo.remote().set_url(get_ssh_url(self.project_path, self.server_url))
+    @staticmethod
+    def _get_yml_dict(head):
+        yml_file_path = retrieve_single_file_from_head(head, DefaultValues.catalog_yaml_prefix.value)
+        yml_dict = get_dict_from_yml(yml_file_path)
 
-    def pre_release(self, dry_run=False):
-        """Performs all operation to release the branch in the given repo, but does not publish yet.
+        return [yml_dict, yml_file_path]
 
-        Args:
-            dry_run:
-                Boolean flag, if True, no commit will happen, but an info is shown.
+    def zenodo_publish(self, branch_name, zenodo_base_url, zenodo_access_token):
+        zenodo_manager = ZenodoManager(zenodo_base_url, zenodo_access_token)
 
-        Returns:
-            True.
+        head = checkout_branch(self.catalog_repo, branch_name)
 
-        """
-        if self.target_url != self.source_url:
-            raise RuntimeError("CI Routine only works for a merge request within the same project!")
+        # get the yml file to release from current branch
+        yml_dict, yml_file_path = self._get_yml_dict(head)
 
-        self.repo = self.catalog.download()
+        # retrieve the deposit from zenodo by id
+        zip_path = self._get_zip_path(yml_dict["group"], yml_dict["name"], yml_dict["version"])
+        deposit_name = Catalog.get_zip_name_prefix(yml_dict["group"], yml_dict["name"], yml_dict["version"])
+        deposit_id = get_yml_entry(yml_dict, "deposit_id", allow_none=False)
+        deposit = zenodo_manager.zenodo_get_unpublished_deposit_by_id(
+            deposit_name, deposit_id, expected_files=[zip_path]
+        )
 
-        module_logger().info("Branch name: %s" % self.branch_name)
+        # publish to zenodo
+        deposit.publish()
 
-        # checkout branch
-        head = checkout_branch(self.repo.working_tree_dir, self.branch_name)
+    def zenodo_upload(self, branch_name, zenodo_base_url, zenodo_access_token):
+        zenodo_manager = ZenodoManager(zenodo_base_url, zenodo_access_token)
+
+        head = checkout_branch(self.catalog_repo, branch_name)
 
         # get the yml file to release
-        yml_file_path = retrieve_yml_file_path(head)
-        yml_dict = get_dict_from_yml(yml_file_path)
+        yml_dict, yml_file_path = self._get_yml_dict(head)
 
         # get metadata from yml_file
         try:
             deposit_id = yml_dict["deposit_id"]
         except KeyError:
             deposit_id = None
-        solution_name = yml_dict["name"]
+
+        # extract deposit name
+        deposit_name = Catalog.get_zip_name_prefix(yml_dict["group"], yml_dict["name"], yml_dict["version"])
 
         # get the solution file to release
-        solution_file = retrieve_solution_file_path(head)
+        zip_path = self._get_zip_path(yml_dict["group"], yml_dict["name"], yml_dict["version"])
+        solution_zip = retrieve_single_file_from_head(head, str(zip_path))
 
-        # get the release deposit. Either a new one or an existing one to perform an update
-        deposit = zenodo_get_deposit(solution_name, solution_file, deposit_id)
-
-        # alter the files in the merge request to include the DOI
-        # Todo: really necessary? It is hacky...
-        solution_file = set_zenodo_metadata_in_solutionfile(
-            solution_file,
-            deposit.metadata.prereserve_doi["doi"],
-            deposit.id
-        )
+        # get the release deposit. Either a new one or an existing one to perform an update on
+        deposit = zenodo_manager.zenodo_get_deposit(deposit_name, deposit_id, expected_files=[solution_zip])
 
         # include doi and ID in yml
         yml_dict["doi"] = deposit.metadata.prereserve_doi["doi"]
@@ -107,68 +94,38 @@ class ReleaseManager(metaclass=Singleton):
         write_dict_to_yml(yml_file_path, yml_dict)
 
         # zenodo upload solution but not publish
-        zenodo_upload(deposit, solution_file)
+        zenodo_manager.zenodo_upload(deposit, solution_zip)
 
-        # update catalog index
+    def update_index(self, branch_name):
+        head = checkout_branch(self.catalog_repo, branch_name)
+
+        yml_dict, _ = self._get_yml_dict(head)
+
         self.catalog.catalog_index.update(yml_dict)
         self.catalog.catalog_index.save()
         self.catalog.catalog_index.export(self.catalog.solution_list_path)
 
-        # push changes to catalog, do not trigger pipeline
-        commit_msg = "CI updated %s" % solution_name
+    def push_changes(self, branch_name, dry_run, trigger_pipeline, ci_user_name, ci_user_email):
+        head = checkout_branch(self.catalog_repo, branch_name)
+
+        yml_dict, yml_file_path = self._get_yml_dict(head)
+
+        zip_path = self._get_zip_path(yml_dict["group"], yml_dict["name"], yml_dict["version"])
+        solution_zip = retrieve_single_file_from_head(head, str(zip_path))
+
+        commit_files = [yml_file_path, solution_zip, self.catalog.index_path, self.catalog.solution_list_path]
+        if not all([Path(f).is_file() for f in commit_files]):
+            raise FileNotFoundError("Invalid deploy request or broken catalog repository!")
+
+        commit_msg = "CI updated %s" % branch_name
         add_files_commit_and_push(
             head,
-            [yml_file_path, solution_file, self.catalog.index_path, self.catalog.solution_list_path],
+            commit_files,
             commit_msg,
-            dry_run=dry_run,
-            trigger_pipeline=False
+            push=not dry_run,
+            trigger_pipeline=trigger_pipeline,
+            username=ci_user_name,
+            email=ci_user_email
         )
 
         return True
-
-    def release(self):
-        """Releases the solution files in the branch of a catalog repository.
-
-        Returns:
-            The published deposit.
-
-        """
-        self.repo = self.catalog.download()
-
-        # checkout branch
-        head = checkout_branch(self.repo.working_tree_dir, self.branch_name)
-
-        # get the solution file to release
-        solution_file = retrieve_solution_file_path(head)
-
-        # get the yml file to release
-        yml_file_path = retrieve_yml_file_path(head)
-        yml_dict = get_dict_from_yml(yml_file_path)
-
-        deposit_id = get_yml_entry(yml_dict, "deposit_id", allow_none=True)
-        solution_name = get_yml_entry(yml_dict, "name", allow_none=False)
-
-        # retrieve the deposit from the id
-        deposit = zenodo_get_deposit(solution_name, solution_file, deposit_id)
-
-        # publish to zenodo
-        deposit.publish()
-
-        return True
-
-    def solution_test(self, path):
-        """Reads in a solution and executes the testing routine.
-
-        Returns:
-            True when the test routine succeeds, False otherwise.
-
-        """
-        pass
-
-        # install solution
-
-        # create script for running testing
-
-        # execute in target env.
-
-        # retrieve return value and evaluate

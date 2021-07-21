@@ -52,11 +52,14 @@ class TestIntegrationCommon(unittest.TestCase):
             self.test_catalog_collection.local_catalog.id + "_group_app2_0.1.0",
             self.test_catalog_collection.local_catalog.id + "_group_solution3_noparent_0.1.0",
             self.test_catalog_collection.local_catalog.id + "_group_solution6_noparent_test_0.1.0",
+            self.test_catalog_collection.local_catalog.id + "_group_solution7_long_routines_0.1.0",
         ]
         for e in env_names:
             if CondaManager().environment_exists(e):
                 CondaManager().remove_environment(e)
+
         TestUnitCommon.tear_down_singletons()
+
         try:
             Path(self.closed_tmp_file.name).unlink()
             self.tmp_dir.cleanup()

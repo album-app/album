@@ -1,6 +1,5 @@
 import unittest
 
-from test.unit.ci.utils import test_ci_utils
 from test.unit.core import test__init__, test_argument_parsing, test_server
 from test.unit.core.contoller import test_search_manager, test_install_manager, test_run_manager, test_deploy_manager, \
     test_catalog_manager, test_conda_manager, test_test_manager, test_resolve_manager, test_task_manager
@@ -52,12 +51,6 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_file_operations))
     suite.addTests(loader.loadTestsFromModule(test_git_operations))
     suite.addTests(loader.loadTestsFromModule(test_url_operations))
-
-    # extensions
-
-    # album.ci
-    suite.addTests(loader.loadTestsFromModule(test_ci_utils))
-    # suite.addTests(loader.loadTestsFromModule(test_zenodo_api))
 
     runner = unittest.TextTestRunner(verbosity=3)
     result = runner.run(suite)

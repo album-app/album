@@ -19,15 +19,16 @@ class TestGitOperations(TestGitCommon):
     def test_checkout_branch(self):
         self.create_tmp_repo(create_test_branch=True)
 
-        head = git_op.checkout_branch(str(self.repo.working_tree_dir), "test_branch")
+        head = git_op.checkout_branch(self.repo, "test_branch")
 
         self.assertTrue(head == self.repo.heads["test_branch"])
+        # todo: assert checked out
 
     def test_checkout_branch_no_branch(self):
         self.create_tmp_repo(commit_solution_file=False)
 
         with self.assertRaises(IndexError) as context:
-            git_op.checkout_branch(str(self.repo.working_tree_dir), "NoValidBranch")
+            git_op.checkout_branch(self.repo, "NoValidBranch")
 
         self.assertTrue("Branch NoValidBranch not in repository!" in str(context.exception))
 
@@ -99,8 +100,7 @@ class TestGitOperations(TestGitCommon):
 
         commit_mssg = "Adding new/updated %s" % active_solution["name"]
 
-        git_op.add_files_commit_and_push(new_head, [tmp_file_in_repo], commit_mssg,
-                                         dry_run=True)
+        git_op.add_files_commit_and_push(new_head, [tmp_file_in_repo], commit_mssg, push=False)
 
         # new branch created
         self.assertTrue("test_solution_name" in self.repo.branches)
@@ -128,8 +128,7 @@ class TestGitOperations(TestGitCommon):
         new_head.checkout()
 
         with self.assertRaises(RuntimeError):
-            git_op.add_files_commit_and_push(new_head, [file], "a_wonderful_cmt_msg",
-                                             dry_run=True)
+            git_op.add_files_commit_and_push(new_head, [file], "a_wonderful_cmt_msg", push=False)
 
     def test_configure_git(self):
         self.create_tmp_repo(commit_solution_file=False)
@@ -161,14 +160,7 @@ class TestGitOperations(TestGitCommon):
         # check
         self.assertIn("test", os.listdir(str(DefaultValues.app_cache_dir.value)), "Download failed!")
 
-        # ToDo: finish test writing
-
-        # checkout old version of repo
-
-        # run again
-
-
-        # assert that repo has been updated to head!
+        # ToDo: finish test writing - use tmp-dir!
 
 
 if __name__ == '__main__':

@@ -6,7 +6,7 @@ from urllib import request
 
 import requests
 
-from album.ci.zenodo_api import ResponseStatus
+from album.ci.utils.zenodo_api import ResponseStatus
 from album.core.utils.operations.file_operations import create_path_recursively
 from album_runner import logging
 
