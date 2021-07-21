@@ -16,6 +16,7 @@ from album.core.model.environment import Environment
 from album.core.model.solutions_db import SolutionsDb
 from album.core.utils.operations.file_operations import copy
 from album_runner.logging import configure_logging, LogLevel
+from test.global_exception_watcher import GlobalExceptionWatcher
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -63,6 +64,11 @@ class TestIntegrationCommon(unittest.TestCase):
             # todo: fixme! rather sooner than later!
             if sys.platform == 'win32' or sys.platform == 'cygwin':
                 pass
+
+    def run(self, result=None):
+        # add watcher to catch any exceptions thrown in threads
+        with GlobalExceptionWatcher():
+            super(TestIntegrationCommon, self).run(result)
 
     @patch('album.core.model.catalog.Catalog.refresh_index', return_value=None)
     def create_test_config(self, _):

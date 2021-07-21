@@ -27,6 +27,7 @@ from album.core.model.solutions_db import SolutionsDb
 from album.core.server import AlbumServer
 from album.core.utils.operations.file_operations import force_remove
 from album_runner.logging import pop_active_logger, LogLevel, configure_logging
+from test.global_exception_watcher import GlobalExceptionWatcher
 
 
 class TestUnitCommon(unittest.TestCase):
@@ -105,6 +106,11 @@ class TestUnitCommon(unittest.TestCase):
                 force_remove(self.tmp_dir.name)
             except PermissionError:
                 raise
+
+    def run(self, result=None):
+        # add watcher to catch any exceptions thrown in threads
+        with GlobalExceptionWatcher():
+            super(TestUnitCommon, self).run(result)
 
     def configure_test_logging(self, stream_handler):
         self.logger = configure_logging("unitTest", loglevel=LogLevel.INFO)
