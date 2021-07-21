@@ -14,7 +14,7 @@ class TestServer(flask_unittest.ClientTestCase):
 
     def getJSONResponse(self, client, path):
         response = client.get(path)
-        self.assertEquals(200, response.status_code)
+        self.assertEqual(200, response.status_code)
         return response.json
 
     def test_root(self, client):
@@ -52,26 +52,30 @@ class TestServer(flask_unittest.ClientTestCase):
         self.__testCatalogRoute(client, "remove-catalog", route)
 
     def testSearch(self, client):
-        route = MagicMock(return_value=None)
+        route = MagicMock(return_value={})
         self.server.search_manager.search = route
         json = self.getJSONResponse(client, "/search/searchterm")
         self.assertIsNotNone(json)
-        self.server.server_queue.join()
-        self.assertEquals(1, route.call_count)
+        self.server.task_manager.server_queue.join()
+        self.assertEqual(1, route.call_count)
 
     def __testSolutionRoute(self, client, route, route_mock):
         _get_solution_path = MagicMock(return_value="/my/solution/path.py")
         self.server._get_solution_path = _get_solution_path
-        json = self.getJSONResponse(client, "/catalog/group/name/version/%s" % route)
+        json = self.getJSONResponse(client, "/%s/catalog/group/name/version" % route)
         self.assertIsNotNone(json)
-        self.server.server_queue.join()
-        self.assertEquals(1, route_mock.call_count)
+        self.server.task_manager.server_queue.join()
+        self.assertEqual(1, route_mock.call_count)
+        json = self.getJSONResponse(client, "/%s/group/name/version" % route)
+        self.assertIsNotNone(json)
+        self.server.task_manager.server_queue.join()
+        self.assertEqual(2, route_mock.call_count)
 
     def __testCatalogRoute(self, client, route, route_mock):
         json = self.getJSONResponse(client, "/%s/CATALOG_URL" % route)
         self.assertIsNotNone(json)
-        self.server.server_queue.join()
-        self.assertEquals(1, route_mock.call_count)
+        self.server.task_manager.server_queue.join()
+        self.assertEqual(1, route_mock.call_count)
 
 
 if __name__ == '__main__':

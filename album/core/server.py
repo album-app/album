@@ -1,9 +1,6 @@
 import json
-import queue
 import sys
-from threading import Thread
 
-from album_runner import logging
 from flask import Flask, request
 from werkzeug.exceptions import abort
 
@@ -13,19 +10,17 @@ from album.core.controller.install_manager import InstallManager
 from album.core.controller.remove_manager import RemoveManager
 from album.core.controller.run_manager import RunManager
 from album.core.controller.search_manager import SearchManager
+from album.core.controller.task_manager import TaskManager
 from album.core.controller.test_manager import TestManager
 from album.core.model.catalog_collection import CatalogCollection
 from album.core.model.configuration import Configuration
+from album.core.model.task import Task
+from album_runner import logging
 
 module_logger = logging.get_active_logger
 
 
 class AlbumServer(metaclass=Singleton):
-
-    class ServerTask:
-        method = None
-        solution_path = None
-        sysarg = None
 
     port = 5476
 
@@ -39,10 +34,9 @@ class AlbumServer(metaclass=Singleton):
     run_manager = None
     search_manager = None
     test_manager = None
+    task_manager = None
 
     app = None
-    server_queue = queue.Queue()
-    num_fetch_threads = 2
 
     def __init__(self, port):
         self.port = port
@@ -56,14 +50,10 @@ class AlbumServer(metaclass=Singleton):
         self.run_manager = RunManager()
         self.search_manager = SearchManager()
         self.test_manager = TestManager()
-
-        for i in range(self.num_fetch_threads):
-            worker = Thread(target=self._run_queue_entry, args=(i,))
-            worker.setDaemon(True)
-            worker.start()
+        self.task_manager = TaskManager()
 
     def start(self, test_config=None):
-        module_logger().info('Starting server')
+        module_logger().info('Starting server..')
         self.init_server(test_config)
         self.app.run(port=self.port)
 
@@ -94,25 +84,37 @@ class AlbumServer(metaclass=Singleton):
         def get_index():
             return self.catalog_collection.get_search_index()
 
-        @self.app.route('/<catalog>/<group>/<name>/<version>/run')
+        @self.app.route('/run/<group>/<name>/<version>', defaults={'catalog': None})
+        @self.app.route('/run/<catalog>/<group>/<name>/<version>')
         def run(catalog, group, name, version):
-            self._run_solution_method(catalog, group, name, version, self.run_manager.run)
-            return {}
+            module_logger().info(f"Server call: /run/{catalog}/{group}/{name}/{version}")
+            task = self._run_solution_method_async(catalog, group, name, version, self.run_manager.run)
+            return {"id": task.id, "msg": "process started"}
 
-        @self.app.route('/<catalog>/<group>/<name>/<version>/install')
+        @self.app.route('/install/<group>/<name>/<version>', defaults={'catalog': None})
+        @self.app.route('/install/<catalog>/<group>/<name>/<version>')
         def install(catalog, group, name, version):
-            self._run_solution_method(catalog, group, name, version, self.install_manager.install)
-            return {}
+            task = self._run_solution_method_async(catalog, group, name, version, self.install_manager.install)
+            return {"id": task.id, "msg": "process started"}
 
-        @self.app.route('/<catalog>/<group>/<name>/<version>/remove')
+        @self.app.route('/remove/<group>/<name>/<version>', defaults={'catalog': None})
+        @self.app.route('/remove/<catalog>/<group>/<name>/<version>')
         def remove(catalog, group, name, version):
-            self._run_solution_method(catalog, group, name, version, self.remove_manager.remove)
-            return {}
+            task = self._run_solution_method_async(catalog, group, name, version, self.remove_manager.remove)
+            return {"id": task.id, "msg": "process started"}
 
-        @self.app.route('/<catalog>/<group>/<name>/<version>/test')
+        @self.app.route('/test/<group>/<name>/<version>', defaults={'catalog': None})
+        @self.app.route('/test/<catalog>/<group>/<name>/<version>')
         def test(catalog, group, name, version):
-            self._run_solution_method(catalog, group, name, version, self.test_manager.test)
-            return {}
+            task = self._run_solution_method_async(catalog, group, name, version, self.test_manager.test)
+            return {"id": task.id, "msg": "process started"}
+
+        @self.app.route('/status/<task_id>')
+        def status(task_id):
+            task = self.task_manager.get_task(str(task_id))
+            if task is None:
+                abort(404, description=f"Task not found with id {task_id}")
+            return self.task_manager.get_status(task)
 
         @self.app.route('/add-catalog/<url>')
         def add_catalog(url):
@@ -126,8 +128,7 @@ class AlbumServer(metaclass=Singleton):
 
         @self.app.route('/search/<keywords>')
         def search(keywords):
-            self.search_manager.search(keywords)
-            return {}
+            return self.search_manager.search(keywords)
 
         @self.app.route('/shutdown', methods=['GET'])
         def shutdown():
@@ -137,26 +138,18 @@ class AlbumServer(metaclass=Singleton):
             func()
             return 'Server shutting down...'
 
-    def _run_queue_entry(self, i):
-        task = self.server_queue.get()
-        self._run_task(task)
-        self.server_queue.task_done()
-
-    @staticmethod
-    def _run_task(task):
-        sys.argv = task.sysarg
-        task.method(task.solution_path)
-
     def _run_solution_method(self, catalog, group, name, version, method):
-        solution_path = self._get_solution_path(catalog, group, name, version)
-        if solution_path is None:
-            abort(404, description="Solution not found")
-        task = self.ServerTask()
-        task.solution_path = solution_path
-        task.sysarg = self._get_arguments(request.get_json(), solution_path)
+        solution_path = self.get_solution_path_or_abort(catalog, group, name, version)
+        sys.argv = self._get_arguments(request.get_json(), solution_path)
+        return method(solution_path)
+
+    def _run_solution_method_async(self, catalog, group, name, version, method):
+        task = Task()
+        task.solution_path = self.get_solution_path_or_abort(catalog, group, name, version)
+        task.sysarg = self._get_arguments(request.get_json(), task.solution_path)
         task.method = method
-        self._run_task(task)
-        # self.server_queue.put(task)
+        self.task_manager.register_task(task)
+        return task
 
     @staticmethod
     def _get_arguments(args_json, solution_path):
@@ -168,9 +161,17 @@ class AlbumServer(metaclass=Singleton):
                 command_args.append(str(request_data[key]))
         return command_args
 
+    def get_solution_path_or_abort(self, catalog, group, name, version):
+        solution_path = self._get_solution_path(catalog, group, name, version)
+        if solution_path is None:
+            abort(404, description=f"Solution not found: {catalog}:{group}:{name}:{version}")
+        return solution_path
+
     def _get_solution_path(self, catalog, group, name, version):
-        solution = self.catalog_collection.resolve_directly(catalog_id=catalog, group=group, name=name,
-                                                            version=version)
+        if catalog is None:
+            solution = self.catalog_collection.resolve_dependency({"group": group, "name": name, "version": version})
+        else:
+            solution = self.catalog_collection.resolve_directly(catalog_id=catalog, group=group, name=name, version=version)
         if solution is None:
             module_logger().error(f"Solution not found: {catalog}:{group}:{name}:{version}")
             return None

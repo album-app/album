@@ -19,6 +19,7 @@ from album.core.controller.remove_manager import RemoveManager
 from album.core.controller.resolve_manager import ResolveManager
 from album.core.controller.run_manager import RunManager
 from album.core.controller.search_manager import SearchManager
+from album.core.controller.task_manager import TaskManager
 from album.core.controller.test_manager import TestManager
 from album.core.model.catalog_collection import CatalogCollection
 from album.core.model.configuration import Configuration
@@ -82,6 +83,7 @@ class TestUnitCommon(unittest.TestCase):
         RemoveManager.instance = None
         RunManager.instance = None
         TestManager.instance = None
+        TaskManager.instance = None
         AlbumServer.instance = None
         CondaManager.instance = None
         SolutionsDb.instance = None

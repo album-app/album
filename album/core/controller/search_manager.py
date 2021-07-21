@@ -51,3 +51,4 @@ class SearchManager(metaclass=Singleton):
         sorted_results = sorted(match_score.items(), key=operator.itemgetter(1))
         module_logger().info('Search results for "%s"...' % keywords)
         module_logger().info(sorted_results)
+        return sorted_results
