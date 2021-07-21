@@ -5,7 +5,7 @@ from queue import Queue, Empty
 from album.core import load
 from album.core.concept.singleton import Singleton
 from album.core.controller.resolve_manager import ResolveManager
-from album.core.utils.script import create_script
+from album.core.utils.script import create_solution_script
 from album_runner import logging
 from album_runner.logging import LogLevel
 
@@ -243,7 +243,7 @@ class RunManager(metaclass=Singleton):
             raise ValueError("No \"run\" routine specified for solution %s! Aborting..." % active_solution["name"])
         if active_solution['close'] and callable(active_solution['close']):
             script_inset += "\nget_active_solution().close()\n"
-        script = create_script(active_solution, script_inset, args)
+        script = create_solution_script(active_solution, script_inset, args)
 
         return [active_solution, [script]]
 
@@ -325,9 +325,9 @@ class RunManager(metaclass=Singleton):
             A list holding all execution scripts.
 
         """
-        script_parent = create_script(parent_solution,
-                                      self.init_script + "\nget_active_solution().run()\n",
-                                      parent_args)
+        script_parent = create_solution_script(parent_solution,
+                                               self.init_script + "\nget_active_solution().run()\n",
+                                               parent_args)
 
         script_list = [script_parent]
         for child_solution, child_args in zip(child_solution_list, child_args):
@@ -337,7 +337,7 @@ class RunManager(metaclass=Singleton):
                 child_script += "\nget_active_solution().close()\n"
             child_script += "\nmodule_logger().info(\"Finished %s\")\n" % child_solution["name"]
             child_script += "\npop_active_solution()\n"
-            script_list.append(create_script(child_solution, child_script, child_args))
+            script_list.append(create_solution_script(child_solution, child_script, child_args))
 
         script_parent_close = "\nget_active_solution().close()\n" if hasattr(parent_solution, "close") else ""
         script_parent_close += "\npop_active_solution()\n"

@@ -8,12 +8,34 @@ module_logger = logging.get_active_logger
 enc = sys.getfilesystemencoding()
 
 
-def create_script(solution_object, custom_code, argv):
+def create_solution_script(solution_object, custom_code, argv):
     """Creates the script which will later run custom_code in the environment of the solution_object.
 
     Args:
         solution_object:
             The album object to create a solution for.
+        custom_code:
+            The code which will be executed by the returned script in the environment associated with the album object
+        argv:
+            Arguments which should be appended to the script call
+
+    Returns:
+        The script as opened file.
+
+    Raises:
+        ArgumentError: When the arguments in the album are not supported
+    """
+    process_name = solution_object['name']
+    script = _generate_solution_block(solution_object)
+    return create_script(process_name, script + custom_code, argv)
+
+
+def create_script(process_name, custom_code, argv):
+    """Creates the script which will run custom_code.
+
+    Args:
+        process_name:
+            The name of the process.
         custom_code:
             The code which will be executed by the returned script in the environment associated with the album object
         argv:
@@ -34,7 +56,6 @@ def create_script(solution_object, custom_code, argv):
                "module_logger = get_active_logger\n")
     # create logging
     parent_name = logging.get_active_logger().name
-    process_name = solution_object['name']
     script += "configure_logging(\"%s\", loglevel=%s, stream_handler=sys.stdout, " % (
         process_name, logging.to_loglevel(logging.get_loglevel_name())
     ) + "formatter_string=\"" + r"%(name)s - %(levelname)s - %(message)s" \
@@ -44,41 +65,41 @@ def create_script(solution_object, custom_code, argv):
     argv_string = ", ".join(argv)
     module_logger().debug("Add sys.argv arguments to runtime script: %s..." % argv_string)
     script += "sys.argv = json.loads(r'%s')\n" % json.dumps(argv)
-
-    # add the album script
-    script += solution_object['script']
-
-    # init routine
-    script += "\nget_active_solution().init()\n"
-
-    # API access
-    script = __api_access(solution_object, script)
-
-    args = solution_object['args']
-    script = __append_arguments(args, solution_object, script)
     script += custom_code
     return script
 
 
-def __api_access(active_solution, script):
-    script += "album_runner_init("
+def _generate_solution_block(solution_object):
+    # add the album script
+    script = solution_object['script']
+    # init routine
+    script += "\nget_active_solution().init()\n"
+    # API access
+    script += __api_access(solution_object)
+    args = solution_object['args']
+    script += __append_arguments(args, solution_object)
+    return script
+
+
+def __api_access(active_solution):
+    script = "album_runner_init("
     script += "environment_cache_path=" + "{}".format(str(active_solution.environment.cache_path).encode(enc)) + ", "
     script += "environment_path=" + "{}".format(str(active_solution.environment.path).encode(enc)) + ", "
     script += "environment_name=" + "{}".format(str(active_solution.environment.name).encode(enc)) + ", "
     script += "download_cache_path=" + "{}".format(str(active_solution.cache_path_download).encode(enc)) + ""
     script += ")\n"
-
     return script
 
 
-def __append_arguments(args, solution_object, script):
+def __append_arguments(args, solution_object):
+    script = ""
     module_logger().debug(
         'Read out arguments in album solution and add to runtime script...')
     # special argument parsing cases
     if isinstance(args, str):
         __handle_args_string(args)
     else:
-        script = __handle_args_list(args, solution_object, script)
+        script += __handle_args_list(args, solution_object)
     return script
 
 
@@ -102,11 +123,11 @@ def __handle_pass_through():
     pass
 
 
-def __handle_args_list(args, solution_object, script):
+def __handle_args_list(args, solution_object):
     module_logger().debug(
         'Add argument parsing for album solution to runtime script...')
     # Add the argument handling
-    script += "\nparser = argparse.ArgumentParser(description='Album Run %s')\n" % solution_object['name']
+    script = "\nparser = argparse.ArgumentParser(description='Album Run %s')\n" % solution_object['name']
     for arg in args:
         script += __create_action_class_string(arg)
         script += __create_parser_argument_string(arg)

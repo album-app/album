@@ -3,7 +3,7 @@ import sys
 from album.core.concept.singleton import Singleton
 from album.core.controller.resolve_manager import ResolveManager
 from album.core.utils.operations.file_operations import copy_folder
-from album.core.utils.script import create_script
+from album.core.utils.script import create_solution_script
 from album_runner import logging
 from album_runner.logging import LogLevel
 
@@ -88,7 +88,7 @@ class InstallManager(metaclass=Singleton):
         """Run install routine of album if specified"""
         if active_solution['install'] and callable(active_solution['install']):
             module_logger().debug('Creating install script...')
-            script = create_script(active_solution, "\nget_active_solution().install()\n", sys.argv)
+            script = create_solution_script(active_solution, "\nget_active_solution().install()\n", sys.argv)
             module_logger().debug('Calling install routine specified in solution...')
             logging.configure_logging(active_solution['name'])
             active_solution.environment.run_scripts([script])

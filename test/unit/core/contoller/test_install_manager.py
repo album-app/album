@@ -126,7 +126,7 @@ class TestInstallManager(TestUnitCommon):
         environment_install.assert_called_once()
         install_dependencies.assert_called_once_with(self.active_solution)
 
-    @patch('album.core.controller.install_manager.create_script', return_value="script")
+    @patch('album.core.controller.install_manager.create_solution_script', return_value="script")
     def test__install_call_routine(self, create_script_mock):
         self.active_solution.environment = EmptyTestClass()
 
