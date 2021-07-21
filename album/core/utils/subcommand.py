@@ -1,10 +1,8 @@
 import io
-import queue
 import signal
 import subprocess
 import sys
 import threading
-from queue import Queue
 
 import pexpect
 
@@ -19,8 +17,8 @@ class SaveThreadWithReturn:
     action is terminated.
 
     Attributes:
-        que:
-            the action queue.
+        name:
+            the name of the action
         action:
             the action to call
         action2:
@@ -29,10 +27,12 @@ class SaveThreadWithReturn:
             time, after which action2 is executed.
         timeout2:
             time, after which action is terminated with error
+        parent_thread_name:
+            name of thread from which this thread is started
 
     """
 
-    def __init__(self, action, action2=None, timeout=1, timeout2=5):
+    def __init__(self, name, action, action2=None, timeout=1, timeout2=5, parent_thread_name=None):
         if not callable(action):
             raise ValueError("Action needs to be callable!")
 
@@ -42,7 +42,7 @@ class SaveThreadWithReturn:
         else:
             action2 = self.stop
 
-        self.que = Queue()
+        self.name = name
         self.action = action
         self.action2 = action2
         self.timeout = timeout
@@ -50,10 +50,13 @@ class SaveThreadWithReturn:
         self.errors = False
         self.thread = None
         self.thread_id = -1
+        self.parent_thread_name = parent_thread_name
+        self.return_value = None
 
     def run(self):
         """run the thread. Starting the action"""
-        self.thread = threading.Thread(target=lambda: self.que.put(self.action()))
+
+        self.thread = threading.Thread(target=self.run_action)
         self.thread.daemon = True  # important for the main python to be able to finish
         self.thread.start()
         self.thread.join(self.timeout)
@@ -64,14 +67,12 @@ class SaveThreadWithReturn:
             if self.thread.is_alive():
                 self._stop_routine()
 
-        r = None
+        return self.return_value
 
-        try:
-            r = self.que.get_nowait()
-        except queue.Empty:
-            self._stop_routine()
-
-        return r
+    def run_action(self):
+        logging.configure_logging(self.name, parent_name=self.parent_thread_name)
+        self.return_value = self.action()
+        logging.pop_active_logger()
 
     def _stop_routine(self):
         self.thread_id = self.thread.ident
@@ -119,18 +120,21 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
     module_logger().info('Running command: %s...' % " ".join(command))
     exit_status = 1
 
+    logger = logging.configure_logging("subcommand")
     log = LogfileBuffer(message_formatter)
+    log.module_logger = lambda: logger
     if not log_output:
         log = io.StringIO()
 
     operation_system = sys.platform
     if operation_system == 'linux' or operation_system == 'darwin':
-        (_, exit_status) = pexpect.run(
+        (command_output, exit_status) = pexpect.run(
             " ".join(command), logfile=log, withexitstatus=1, timeout=None, encoding=sys.getfilesystemencoding()
         )
         if exit_status != 0:
-            module_logger().error(log.getvalue())
-            raise RuntimeError("Command failed due to reasons above!")
+            module_logger().error(command_output)
+            logging.pop_active_logger()
+            raise RuntimeError("Command " + " ".join(command) + " failed: " + command_output)
     else:
         process = subprocess.Popen(
             command,
@@ -144,12 +148,15 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
 
         save_communicate = True
 
-        poll = SaveThreadWithReturn(process.poll)
+        current_logger_name = logging.get_active_logger().name
+        poll = SaveThreadWithReturn("poll", process.poll, parent_thread_name=current_logger_name)
         read_message = SaveThreadWithReturn(
+            "reader",
             process.stdout.readline,
             lambda: process.stdin.write("\r\n"),  # after 60 seconds of no feedback try to send a linebreak
             timeout=timeout1,
-            timeout2=timeout2
+            timeout2=timeout2,
+            parent_thread_name=current_logger_name
         )
 
         while True:
@@ -176,6 +183,7 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
             _, err = process.communicate()
         else:  # cmd frozen
             process.terminate()
+            logging.pop_active_logger()
             raise TimeoutError(
                 "Process timed out. Process shut down. Last messages from the process: %s"
                 % log.getvalue()
@@ -184,6 +192,7 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
         # cmd failed
         if process.returncode:
             err_msg = err if err else log.getvalue()
+            logging.pop_active_logger()
             raise RuntimeError(
                 "{\"ret_code\": %(ret_code)s, \"err_msg\": %(err_msg)s}"
                 % {"ret_code": process.returncode, "err_msg": err_msg}
@@ -196,6 +205,7 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
 
             exit_status = process.returncode
 
+    logging.pop_active_logger()
     return exit_status
 
 
