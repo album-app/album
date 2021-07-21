@@ -7,4 +7,4 @@ dependencies:
   - pip
   - git
   - pip:
-      - git+https://gitlab.com/album-app/album.git
+      - https://gitlab.com/album-app/album/-/archive/server-async/album-server-async.zip
