@@ -15,7 +15,7 @@ from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
 from album.core.model.solutions_db import SolutionsDb
 from album.core.utils.operations.file_operations import copy
-from album_runner.logging import push_active_logger
+from album_runner.logging import configure_logging, LogLevel
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -88,22 +88,13 @@ class TestIntegrationCommon(unittest.TestCase):
         self.assertTrue(self.test_solution_db.is_empty())
 
     @staticmethod
-    def configure_silent_test_logging(captured_output, logger_name="integration-test", push=True):
-        logger = logging.getLogger(logger_name)
-
-        for handler in logger.handlers:
-            logger.removeHandler(handler)
-
-        logger.setLevel('INFO')
+    def configure_silent_test_logging(captured_output, logger_name="integration-test"):
+        logger = configure_logging(logger_name, loglevel=LogLevel.INFO)
         ch = logging.StreamHandler(captured_output)
         ch.setLevel('INFO')
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         ch.setFormatter(formatter)
         logger.addHandler(ch)
-
-        if push:
-            push_active_logger(logger)
-
         return logger
 
     @staticmethod

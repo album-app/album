@@ -17,7 +17,7 @@ def startup():
 
 def __retrieve_logger():
     """Retrieves the default album logger."""
-    logging.configure_logging(logging.LogLevel(debug_settings()), 'album_core')
+    logging.configure_root_logger(logging.LogLevel(debug_settings()))
 
 
 if __name__ == "__main__":

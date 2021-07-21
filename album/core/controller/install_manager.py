@@ -90,9 +90,7 @@ class InstallManager(metaclass=Singleton):
             module_logger().debug('Creating install script...')
             script = create_script(active_solution, "\nget_active_solution().install()\n", sys.argv)
             module_logger().debug('Calling install routine specified in solution...')
-            logging.configure_logging(
-                LogLevel(logging.to_loglevel(logging.get_loglevel_name())), active_solution['name']
-            )
+            logging.configure_logging(active_solution['name'])
             active_solution.environment.run_scripts([script])
             logging.pop_active_logger()
         else:

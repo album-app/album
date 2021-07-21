@@ -226,15 +226,12 @@ class TestEnvironment(TestUnitCommon):
         create_environment_mock.assert_called_once_with(self.test_environment_name)
         create_environment_from_file_mock.assert_not_called()
 
-    @patch('album.core.controller.conda_manager.CondaManager.cmd_available', return_value=True)
     @patch('album.core.model.environment.Environment.pip_install')
     @patch('album.core.model.environment.Environment.is_installed', return_value=False)
-    def test_install_runner(self, is_installed_mock, pip_install_mock, cmd_available):
+    def test_install_runner(self, is_installed_mock, pip_install_mock):
         self.environment.install_framework("version")
-
-        cmd_available.assert_called_once()
         is_installed_mock.assert_called_once_with("album-runner", "version")
-        pip_install_mock.assert_called_once_with('album-runner==version')
+        pip_install_mock.assert_called_once_with('https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip')
 
     @patch('album.core.controller.conda_manager.CondaManager.pip_install')
     def test_pip_install(self, conda_install_mock):

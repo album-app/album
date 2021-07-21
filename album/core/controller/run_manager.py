@@ -410,9 +410,7 @@ class RunManager(metaclass=Singleton):
     @staticmethod
     def _run_in_environment_with_own_logger(active_solution, scripts):
         """Pushes a new logger to the stack before running the solution and pops it afterwards."""
-        logging.configure_logging(
-            LogLevel(logging.to_loglevel(logging.get_loglevel_name())), active_solution['name']
-        )
+        logging.configure_logging(active_solution['name'])
         module_logger().info("Starting solution \"%s\"..." % active_solution['name'])
         active_solution.environment.run_scripts(scripts)
         logging.pop_active_logger()

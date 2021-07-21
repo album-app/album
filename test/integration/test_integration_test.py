@@ -1,6 +1,5 @@
 import sys
 import unittest
-from io import StringIO
 
 from album.argument_parsing import main
 from album.core import get_active_solution
@@ -14,6 +13,7 @@ class TestIntegrationTest(TestIntegrationCommon):
         super().tearDown()
 
     def test_test_no_test_routine(self):
+
         self.fake_install(self.get_test_solution_path("solution0_dummy_no_routines.py"))
 
         # this solution has the no test() configured
@@ -33,15 +33,12 @@ class TestIntegrationTest(TestIntegrationCommon):
             self.assertIsNone(main())
 
     def test_test(self):
+
         # create solution6_noparent_test environment
         env_name = self.test_catalog_collection.local_catalog.id + "_group_solution6_noparent_test_0.1.0"
         Environment(None, env_name, "unusedCachePath").install()
 
         self.fake_install(self.get_test_solution_path("solution6_noparent_test.py"))
-
-        # configure silent solution logger
-        solution_output = StringIO()
-        self.configure_silent_test_logging(solution_output, "solution6_noparent_test", push=False)
 
         # set up arguments
         sys.argv = ["", "test", self.get_test_solution_path("solution6_noparent_test.py")]
@@ -54,7 +51,7 @@ class TestIntegrationTest(TestIntegrationCommon):
 
         # todo: change this. first assure subprocess logging is possible in windows
         if sys.platform == 'linux' or sys.platform == 'darwin':
-            log = solution_output.getvalue()
+            log = self.captured_output.getvalue()
             self.assertIn("solution6_noparent_test_init", log)
             self.assertIn("solution6_noparent_test_pre_test", log)
             self.assertIn("solution6_noparent_test_run", log)

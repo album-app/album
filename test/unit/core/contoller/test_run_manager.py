@@ -483,7 +483,7 @@ class TestRunManager(TestUnitCommon):
 
         self.run_manager._run_in_environment_with_own_logger(self.active_solution, "")
 
-        conf_mock.assert_called_once_with(LogLevel(0), self.active_solution["name"])
+        conf_mock.assert_called_once_with(self.active_solution["name"])
 
         pop_mock.assert_called_once()
 

@@ -70,9 +70,7 @@ class TestManager(metaclass=Singleton):
                 scripts[0] += "\nget_active_solution().test()\n"
 
             module_logger().debug('Calling test routine specified in solution...')
-            logging.configure_logging(
-                LogLevel(logging.to_loglevel(logging.get_loglevel_name())), active_solution['name']
-            )
+            logging.configure_logging(active_solution['name'])
             active_solution.environment.run_scripts(scripts)
             logging.pop_active_logger()
         else:

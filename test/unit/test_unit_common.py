@@ -26,7 +26,7 @@ from album.core.model.default_values import DefaultValues
 from album.core.model.solutions_db import SolutionsDb
 from album.core.server import AlbumServer
 from album.core.utils.operations.file_operations import force_remove
-from album_runner.logging import push_active_logger, pop_active_logger
+from album_runner.logging import pop_active_logger, LogLevel, configure_logging
 
 
 class TestUnitCommon(unittest.TestCase):
@@ -107,16 +107,12 @@ class TestUnitCommon(unittest.TestCase):
                 raise
 
     def configure_test_logging(self, stream_handler):
-        self.logger = logging.getLogger("unitTest")
-
-        if not self.logger.hasHandlers():
-            self.logger.setLevel('INFO')
-            ch = logging.StreamHandler(stream_handler)
-            ch.setLevel('INFO')
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            ch.setFormatter(formatter)
-            self.logger.addHandler(ch)
-            push_active_logger(self.logger)
+        self.logger = configure_logging("unitTest", loglevel=LogLevel.INFO)
+        ch = logging.StreamHandler(stream_handler)
+        ch.setLevel('INFO')
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        ch.setFormatter(formatter)
+        self.logger.addHandler(ch)
 
     def get_logs(self):
         logs = self.logger.handlers[0].stream.getvalue()

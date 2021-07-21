@@ -215,15 +215,12 @@ class Environment:
     # ToDo: use explicit versioning of album
     def install_framework(self, min_framework_version=None):
         """Installs the album dependency in the environment"""
-        if not self.conda.cmd_available(str(self.path), ["git", "--version"]):
-            self.conda.conda_install(str(self.path), "git")
-
         if not self.is_installed("album-runner", min_framework_version):
-            module = "album-runner"
-            if min_framework_version:
-                module += "==" + str(min_framework_version)
-
-            self.pip_install(module)
+            self.pip_install(DefaultValues.runner_url.value)
+            # module = "album-runner"
+            # if min_framework_version:
+            #     module += "==" + str(min_framework_version)
+            # self.pip_install(module)
 
     def pip_install(self, module, version=None):
         """Installs the given module in the environment.

@@ -27,15 +27,18 @@ def create_script(solution_object, custom_code, argv):
     """
     # Create script to run within target environment
     script = ("import sys\n"
-              "import json\n"
-              "import argparse\n"
-              "from album_runner import *\n"
-              "from album_runner.logging import configure_logging, LogLevel, get_active_logger\n"
-              "module_logger = get_active_logger\n")
+               "import json\n"
+               "import argparse\n"
+               "from album_runner import *\n"
+               "from album_runner.logging import configure_logging, LogLevel, get_active_logger\n"
+               "module_logger = get_active_logger\n")
     # create logging
-    script += "configure_logging(%s, \"%s\", sys.stdout, " % (
-        logging.to_loglevel(logging.get_loglevel_name()), solution_object['name']
-    ) + "\"" + r"%(name)s - %(levelname)s - %(message)s" + "\")\n"
+    parent_name = logging.get_active_logger().name
+    process_name = solution_object['name']
+    script += "configure_logging(\"%s\", loglevel=%s, stream_handler=sys.stdout, " % (
+        process_name, logging.to_loglevel(logging.get_loglevel_name())
+    ) + "formatter_string=\"" + r"%(name)s - %(levelname)s - %(message)s" \
+               + "\", parent_name=\"%s\")\n" % parent_name
     script += "print = module_logger().info\n"
     # This could have an issue with nested quotes
     argv_string = ", ".join(argv)
