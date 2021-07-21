@@ -27,8 +27,8 @@ class RunManager(metaclass=Singleton):
     # singletons
     resolve_manager = None
 
-    def __init__(self, resolve_manager=None):
-        self.resolve_manager = ResolveManager() if not resolve_manager else resolve_manager
+    def __init__(self):
+        self.resolve_manager = ResolveManager()
         self.init_script = ""
 
     def run(self, path, run_immediately=False):

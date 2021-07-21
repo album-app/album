@@ -4,6 +4,7 @@ from test.unit.test_unit_common import TestUnitCommon
 
 class TestSolutionDb(TestUnitCommon):
     def setUp(self):
+        super().setUp()
         self.create_test_config()
         SolutionsDb.instance = None
         self.test_solutions_db = SolutionsDb()

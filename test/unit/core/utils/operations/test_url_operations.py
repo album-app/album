@@ -8,6 +8,7 @@ from test.unit.test_unit_common import TestUnitCommon
 class TestUrlOperations(TestUnitCommon):
 
     def setUp(self) -> None:
+        super().setUp()
         self.downloadable_url = "https://www.google.com/favicon.ico"
         self.html_url = "https://gitlab.com/"
         self.wrong_url = "https://www.google.com/favicon.i"

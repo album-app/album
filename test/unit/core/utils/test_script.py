@@ -1,7 +1,12 @@
 import unittest
 
+from test.unit.test_unit_common import TestUnitCommon
 
-class TestScript(unittest.TestCase):
+
+class TestScript(TestUnitCommon):
+
+    def setUp(self):
+        super().setUp()
 
     @unittest.skip("Needs to be implemented!")
     def test_create_script(self):

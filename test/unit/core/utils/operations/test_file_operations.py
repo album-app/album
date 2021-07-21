@@ -18,6 +18,7 @@ from test.unit.test_unit_common import TestUnitCommon
 class TestFileOperations(TestUnitCommon):
 
     def setUp(self):
+        super().setUp()
         self.set_dummy_solution_path()
 
     def tearDown(self) -> None:

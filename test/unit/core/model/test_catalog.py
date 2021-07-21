@@ -58,6 +58,7 @@ class TestCatalog(TestUnitCommon):
             self.catalog.add(solution)
 
     def setUp(self):
+        super().setUp()
         self.catalog = Catalog("test", Path(self.tmp_dir.name).joinpath("testRepo"))
 
     def tearDown(self) -> None:

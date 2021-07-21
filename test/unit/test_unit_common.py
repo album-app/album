@@ -7,12 +7,24 @@ from pathlib import Path
 from unittest.mock import patch
 
 import git
-from album.core.model.configuration import Configuration
 
+import album_runner
 from album.ci.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core import AlbumClass
+from album.core.controller.catalog_manager import CatalogManager
+from album.core.controller.conda_manager import CondaManager
+from album.core.controller.deploy_manager import DeployManager
+from album.core.controller.install_manager import InstallManager
+from album.core.controller.remove_manager import RemoveManager
+from album.core.controller.resolve_manager import ResolveManager
+from album.core.controller.run_manager import RunManager
+from album.core.controller.search_manager import SearchManager
+from album.core.controller.test_manager import TestManager
 from album.core.model.catalog_collection import CatalogCollection
+from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
+from album.core.model.solutions_db import SolutionsDb
+from album.core.server import AlbumServer
 from album.core.utils.operations.file_operations import force_remove
 from album_runner.logging import push_active_logger, pop_active_logger
 
@@ -46,18 +58,6 @@ class TestUnitCommon(unittest.TestCase):
         'title': "t1",
     }
 
-    @classmethod
-    def setUpClass(cls):
-        """On inherited classes, run our `setUp` method"""
-        if cls is not TestUnitCommon and cls.setUp is not TestUnitCommon.setUp:
-            orig_set_up = cls.setUp
-
-            def set_up_override(self, *args, **kwargs):
-                TestUnitCommon.setUp(self)
-                return orig_set_up(self, *args, **kwargs)
-
-            cls.setUp = set_up_override
-
     def setUp(self):
         """Could initialize default values for each test class. use `_<name>` to skip property setting."""
         self.attrs = {}
@@ -66,6 +66,24 @@ class TestUnitCommon(unittest.TestCase):
         self.tmp_dir = tempfile.TemporaryDirectory()
         self.closed_tmp_file = tempfile.NamedTemporaryFile(delete=False)
         self.closed_tmp_file.close()
+
+    @staticmethod
+    def tear_down_singletons():
+        # this is here to make sure all mocks are reset each time a test is executed
+        album_runner.logging._active_logger = {}
+        Configuration.instance = None
+        CatalogCollection.instance = None
+        SearchManager.instance = None
+        ResolveManager.instance = None
+        CatalogManager.instance = None
+        DeployManager.instance = None
+        InstallManager.instance = None
+        RemoveManager.instance = None
+        RunManager.instance = None
+        TestManager.instance = None
+        AlbumServer.instance = None
+        CondaManager.instance = None
+        SolutionsDb.instance = None
 
     def tearDown(self) -> None:
         self.captured_output.close()
@@ -79,6 +97,7 @@ class TestUnitCommon(unittest.TestCase):
             Path(self.test_catalog_collection_config_file.name).unlink()
 
         Path(self.closed_tmp_file.name).unlink()
+        self.tear_down_singletons()
         try:
             self.tmp_dir.cleanup()
         except PermissionError:
@@ -113,14 +132,13 @@ class TestUnitCommon(unittest.TestCase):
         self.test_catalog_collection_config_file.writelines(self.test_config_init)
         self.test_catalog_collection_config_file.close()
 
-        Configuration.instance = None
-        config = Configuration(
+        config = Configuration()
+        config.setup(
             base_cache_path=self.tmp_dir.name,
             configuration_file_path=self.test_catalog_collection_config_file.name
         )
 
-        CatalogCollection.instance = None  # lever out concept
-        self.test_catalog_collection = CatalogCollection(configuration=config)
+        self.test_catalog_collection = CatalogCollection()
 
         self.assertEqual(len(self.test_catalog_collection.local_catalog), 0)
 

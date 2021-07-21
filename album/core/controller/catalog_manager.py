@@ -21,8 +21,8 @@ class CatalogManager(metaclass=Singleton):
     # singletons
     catalog_collection = None
 
-    def __init__(self, catalog_collection=None):
-        self.catalog_collection = CatalogCollection() if not catalog_collection else catalog_collection
+    def __init__(self):
+        self.catalog_collection = CatalogCollection()
 
     def add(self, path):
         """ Adds a catalog to the configuration."""

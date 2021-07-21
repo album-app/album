@@ -34,18 +34,22 @@ class Configuration(metaclass=Singleton):
 
     """
 
-    def __init__(self, base_cache_path=None, configuration_file_path=None):
+    def __init__(self):
+        self.configuration_file_path = None
+        self.base_cache_path = None
+        self.conda_executable = None
+        self.setup(None, None)
+
+    def setup(self, base_cache_path, configuration_file_path):
         if base_cache_path:
             self.base_cache_path = Path(base_cache_path)
         else:
             self.base_cache_path = DefaultValues.app_data_dir.value
-
         if configuration_file_path:
             self.configuration_file_path = Path(configuration_file_path)
         else:
             self.configuration_file_path = DefaultValues.app_config_dir.value.joinpath(
                 DefaultValues.config_file_name.value)
-
         conda_path = DefaultValues.conda_path.value
         if conda_path is not DefaultValues.conda_default_executable.value:
             self.conda_executable = self.__build_conda_executable(conda_path)
@@ -66,6 +70,8 @@ class Configuration(metaclass=Singleton):
 
     @base_cache_path.setter
     def base_cache_path(self, value):
+        if not value:
+            return
         self._base_cache_path = Path(value)
         self.cache_path_solution = self.base_cache_path.joinpath(DefaultValues.cache_path_solution_prefix.value)
         self.cache_path_app = self.base_cache_path.joinpath(DefaultValues.cache_path_app_prefix.value)

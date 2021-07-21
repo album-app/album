@@ -7,6 +7,7 @@ from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
 
 class TestResolveManager(TestUnitCommon):
     def setUp(self):
+        super().setUp()
         self.create_test_config()
         self.create_test_solution_no_env()
 
@@ -14,7 +15,6 @@ class TestResolveManager(TestUnitCommon):
 
     def tearDown(self) -> None:
         super().tearDown()
-        ResolveManager.instance = None
 
     def test_resolve_installed_and_load_valid_path(self):
         # mocks

@@ -20,8 +20,8 @@ class SearchManager(metaclass=Singleton):
     # singletons
     catalog_collection = None
 
-    def __init__(self, catalog_collection=None):
-        self.catalog_collection = CatalogCollection() if not catalog_collection else catalog_collection
+    def __init__(self):
+        self.catalog_collection = CatalogCollection()
 
     def search(self, keywords):
         """Function corresponding to the `search` subcommand of `album`.

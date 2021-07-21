@@ -11,6 +11,7 @@ from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
 class TestInstallManager(TestUnitCommon):
 
     def setUp(self):
+        super().setUp()
         self.create_test_config()
         self.create_test_solution_no_env()
 
@@ -18,8 +19,6 @@ class TestInstallManager(TestUnitCommon):
 
     def tearDown(self) -> None:
         super().tearDown()
-        InstallManager.instance = None
-        ResolveManager.instance = None
 
     def test_install(self):
         # create mocks

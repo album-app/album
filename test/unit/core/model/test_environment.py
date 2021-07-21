@@ -13,6 +13,7 @@ class TestEnvironment(TestUnitCommon):
     test_environment_name = "unittest"
 
     def setUp(self):
+        super().setUp()
         """Setup things necessary for all tests of this class"""
         self.environment = Environment(None, self.test_environment_name, "aPath")
 

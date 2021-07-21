@@ -13,6 +13,7 @@ from test.unit.test_unit_common import TestUnitCommon
 
 class TestCatalogIndex(TestUnitCommon):
     def setUp(self):
+        super().setUp()
         # fill index file
         cs_file = Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_index_file_name.value)
         with open(cs_file, "w+") as f:

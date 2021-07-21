@@ -23,9 +23,9 @@ class TestManager(metaclass=Singleton):
     resolve_manager = None
     run_manager = None
 
-    def __init__(self, resolve_manager=None):
-        self.resolve_manager = ResolveManager() if not resolve_manager else resolve_manager
-        self.run_manager = RunManager(self.resolve_manager)
+    def __init__(self):
+        self.resolve_manager = ResolveManager()
+        self.run_manager = RunManager()
 
     def test(self, path):
         """Function corresponding to the `test` subcommand of `album`."""

@@ -13,17 +13,11 @@ from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
 
 class TestRunManager(TestUnitCommon):
     def setUp(self):
+        super().setUp()
         """Setup things necessary for all tests of this class"""
         self.create_test_config()
         self.create_test_solution_no_env()
-
-        # always re-initialize RunManager
-        with patch.object(RunManager, '__init__', return_value=None) as init_mock:
-            RunManager.instance = None
-            self.run_manager = RunManager()
-            self.run_manager.resolve_manager = ResolveManager(self.test_catalog_collection)
-            self.run_manager.init_script = ""
-            init_mock.assert_called_once()
+        self.run_manager = RunManager()
 
     def tearDown(self) -> None:
         super().tearDown()

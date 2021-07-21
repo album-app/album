@@ -26,8 +26,8 @@ class InstallManager(metaclass=Singleton):
     # singletons
     resolve_manager = None
 
-    def __init__(self, resolve_manager=None):
-        self.resolve_manager = ResolveManager() if not resolve_manager else resolve_manager
+    def __init__(self):
+        self.resolve_manager = ResolveManager()
         self.configuration = self.resolve_manager.catalog_collection.configuration
 
     def install(self, path):

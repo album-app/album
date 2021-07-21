@@ -27,12 +27,16 @@ class CatalogCollection(metaclass=Singleton):
     # Singletons
     configuration = None
 
-    def __init__(self, configuration: Configuration = None):
+    def __init__(self):
         super().__init__()
-        if configuration:
-            self.configuration = configuration
-        else:
-            self.configuration = Configuration()
+        self.config_file_path = None
+        self.config_file_dict = None
+        self.catalogs = None
+        self.local_catalog = None
+        self.setup()
+
+    def setup(self):
+        self.configuration = Configuration()
         self.config_file_path = self.configuration.configuration_file_path
         self.config_file_dict = self._load_configuration()
         self.catalogs = self._get_catalogs()
