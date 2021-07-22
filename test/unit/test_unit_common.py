@@ -73,20 +73,25 @@ class TestUnitCommon(unittest.TestCase):
     def tear_down_singletons():
         # this is here to make sure all mocks are reset each time a test is executed
         album_runner.logging._active_logger = {}
-        Configuration.instance = None
-        CatalogCollection.instance = None
-        SearchManager.instance = None
-        ResolveManager.instance = None
-        CatalogManager.instance = None
-        DeployManager.instance = None
-        InstallManager.instance = None
-        RemoveManager.instance = None
-        RunManager.instance = None
-        TestManager.instance = None
-        TaskManager.instance = None
-        AlbumServer.instance = None
-        CondaManager.instance = None
-        SolutionsDb.instance = None
+        TestUnitCommon._delete(AlbumServer)
+        TestUnitCommon._delete(Configuration)
+        TestUnitCommon._delete(CatalogCollection)
+        TestUnitCommon._delete(CatalogManager)
+        TestUnitCommon._delete(CondaManager)
+        TestUnitCommon._delete(DeployManager)
+        TestUnitCommon._delete(InstallManager)
+        TestUnitCommon._delete(RemoveManager)
+        TestUnitCommon._delete(ResolveManager)
+        TestUnitCommon._delete(RunManager)
+        TestUnitCommon._delete(SearchManager)
+        TestUnitCommon._delete(SolutionsDb)
+        TestUnitCommon._delete(TaskManager)
+        TestUnitCommon._delete(TestManager)
+
+    @staticmethod
+    def _delete(singleton):
+        if singleton.instance is not None:
+            del singleton.instance
 
     def tearDown(self) -> None:
         self.captured_output.close()
