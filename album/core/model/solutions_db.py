@@ -140,17 +140,20 @@ class SolutionsDb(metaclass=Singleton):
 
         return installed_solutions_list
 
-    def is_installed(self, catalog_id, grp, name, version):
-        r = self.get_cursor().execute(
+    def get_solution_by_catalog_grp_name_version(self, catalog, grp, name, version):
+        cursor = self.get_cursor()
+        return cursor.execute(
             "SELECT * FROM installed_solutions WHERE catalog_id=:catalog_id AND grp=:group AND name=:name AND version=:version",
             {
-                "catalog_id": catalog_id,
+                "catalog_id": catalog,
                 "group": grp,
                 "name": name,
                 "version": version,
             }
         ).fetchone()
 
+    def is_installed(self, catalog_id, grp, name, version):
+        r = self.get_solution_by_catalog_grp_name_version(catalog_id, grp, name, version)
         return True if r else False
 
     def update_solution(self, catalog_id, grp, name, version):

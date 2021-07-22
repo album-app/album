@@ -506,6 +506,15 @@ class TestResolveManager(TestUnitCommon):
         self.assertIsNone(self.resolve_manager.get_gnv_from_input("::"))
         self.assertIsNone(self.resolve_manager.get_gnv_from_input("doi:prefix/suffix"))
 
+    def test_get_cgnv_from_input(self):
+        solution = {
+            "catalog": "catalog",
+            "group": "grp",
+            "name": "name",
+            "version": "version"
+        }
+        self.assertEqual(solution, self.resolve_manager.get_cgnv_from_input("catalog:grp:name:version"))
+
     def test_get_doi_from_input(self):
         solution = {
             "doi": "prefix/suffix",
