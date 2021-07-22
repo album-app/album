@@ -34,15 +34,15 @@ class TestCatalogIndex(TestUnitCommon):
         super().tearDown()
 
     def test__init__(self):
-        self.assertEqual(len(self.cs_index), 1)
+        self.assertEqual(1, len(self.cs_index))
 
     def test__init__index_given(self):
         cs_index = CatalogIndex("test", self.cs_file, index=Node("IndexGiven", **{"version": "0.1.0"}))
 
-        self.assertEqual(len(cs_index), 0)
+        self.assertEqual(0, len(cs_index))
 
     def test__len__(self):
-        self.assertEqual(len(self.cs_index), 1)
+        self.assertEqual(1, len(self.cs_index))
 
         attrs = {
             "group": "group0",
@@ -52,17 +52,17 @@ class TestCatalogIndex(TestUnitCommon):
 
         self.cs_index.update(node_attrs=attrs)
 
-        self.assertEqual(len(self.cs_index), 2)
+        self.assertEqual(2, len(self.cs_index))
 
     def test_load(self):
-        self.assertEqual(len(self.cs_index), 1)
+        self.assertEqual(1, len(self.cs_index))
         self.cs_index.load(self.cs_file_index_empty)
-        self.assertEqual(len(self.cs_index), 0)
+        self.assertEqual(0, len(self.cs_index))
 
     def test_load_empty_file(self):
-        self.assertEqual(len(self.cs_index), 1)
+        self.assertEqual(1, len(self.cs_index))
         self.cs_index.load(self.cs_file_empty)
-        self.assertEqual(len(self.cs_index), 1)
+        self.assertEqual(1, len(self.cs_index))
 
     def test_update(self):
         node_attrs = {"name": "myname", "group": "mygroup", "version": "myversion"}
@@ -82,14 +82,14 @@ class TestCatalogIndex(TestUnitCommon):
         )
         self.assertIsNotNone(res)
         self.assertFalse(hasattr(res, "newAttr"))
-        self.assertEqual(len(self.cs_index), 1)
+        self.assertEqual(1, len(self.cs_index))
 
         # updated version
         node_attrs = {"name": "testName", "group": "testGroup", "version": "testVersion", "newAttr": "newAttrVal"}
         self.cs_index.update(node_attrs)
 
         # check changes
-        self.assertEqual(len(self.cs_index), 1)
+        self.assertEqual(1, len(self.cs_index))
         res = self.cs_index._find_node_by_name_version_and_group(
             self.cs_index.index, "testName", "testVersion", "testGroup"
         )
@@ -101,14 +101,14 @@ class TestCatalogIndex(TestUnitCommon):
             self.cs_index.index, "testName", "testVersion", "testGroup"
         )
         self.assertIsNotNone(res)
-        self.assertEqual(len(self.cs_index), 1)
+        self.assertEqual(1, len(self.cs_index))
 
         # updated version
         node_attrs = {"name": "testName", "group": "testGroup", "version": "testVersion2"}
         self.cs_index.update(node_attrs)
 
         # check
-        self.assertEqual(len(self.cs_index), 2)
+        self.assertEqual(2, len(self.cs_index))
         self.assertIsNotNone(self.cs_index._find_node_by_name_version_and_group(
             self.cs_index.index, "testName", "testVersion", "testGroup"
         ))
@@ -122,7 +122,7 @@ class TestCatalogIndex(TestUnitCommon):
         self.assertTrue(self.cs_file_empty.stat().st_size > 0)
 
         self.cs_index.load(self.cs_file_empty)
-        self.assertEqual(len(self.cs_index), 1)
+        self.assertEqual(1, len(self.cs_index))
 
     def test_get_leaves_dict_list(self):
         l_dict_list = self.cs_index.get_leaves_dict_list()
@@ -164,9 +164,12 @@ class TestCatalogIndex(TestUnitCommon):
 
     def test_export_json(self):
         self.cs_index.export(self.closed_tmp_file.name, export_format="JSON")
-        export_file = open(self.closed_tmp_file.name).readlines()[0]
+        export_file = open(self.closed_tmp_file.name)
+        export_file_lines = export_file.readlines()[0]
 
-        self.assertEqual(json.dumps(self.cs_index.get_leaves_dict_list()), export_file)
+        self.assertEqual(json.dumps(self.cs_index.get_leaves_dict_list()), export_file_lines)
+
+        export_file.close()
 
     @patch('album.core.model.catalog_index.RenderTree', return_value="")
     def test_visualize(self, rt_mock):

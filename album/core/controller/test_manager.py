@@ -30,7 +30,7 @@ class TestManager(metaclass=Singleton):
     def test(self, path):
         """Function corresponding to the `test` subcommand of `album`."""
         try:
-            resolve, active_solution = self.resolve_manager.resolve_and_load(path, mode="c")
+            resolve, active_solution = self.resolve_manager.resolve_installed_and_load(path)
         except ValueError:
             raise ValueError("Solution points to a local file which has not been installed yet. "
                              "Please point to an installation from the catalog or install the solution. "

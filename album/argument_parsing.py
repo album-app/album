@@ -1,8 +1,8 @@
 import argparse
 import sys
 
-from album.core.commandline import add_catalog, remove_catalog, containerize, deploy, install, remove, repl, run, search, \
-    start_server, tutorial, test
+from album.core.commandline import add_catalog, remove_catalog, containerize, deploy, \
+    install, remove, repl, run, search, start_server, tutorial, test
 from album_runner import logging
 from album_runner.logging import debug_settings
 
@@ -43,62 +43,53 @@ def create_parser():
     """Creates a parser for all known album arguments."""
     parser = AlbumParser()
     p = parser.create_command_parser(
-        'search', search, 'search for a HIP Solution using keywords')
+        'search', search, 'search for an album solution using keywords')
     p.add_argument('keywords', type=str, nargs='+', help='Search keywords')
-    p = parser.create_file_command_parser('run', run,
-                                               'run a HIP Solution')
+    p = parser.create_file_command_parser('run', run, 'run an album solution')
     p.add_argument(
         '--run-immediately',
         required=False,
-        help=
-        'When the solution to run consists of several steps, indicates whether to immediately run '
-        'a step (True) or to wait for all steps to be prepared to run (False). Choose between %s.'
-        ' Default is False' % ", ".join([str(True), str(False)]),
+        help='When the solution to run consists of several steps, indicates whether to immediately run '
+             'a step (True) or to wait for all steps to be prepared to run (False). Choose between %s.'
+             ' Default is False' % ", ".join([str(True), str(False)]),
         default=False,
         type=(lambda choice: bool(choice)))
     parser.create_file_command_parser(
-        'repl', repl, 'get an interactive repl for a HIP Solution')
-    p = parser.create_file_command_parser('deploy', deploy,
-                                               'deploy a HIP Solution')
+        'repl', repl, 'get an interactive repl for an album solution')
+    p = parser.create_file_command_parser('deploy', deploy, 'deploy an album solution')
     p.add_argument(
         '--dry-run',
         required=False,
-        help=
-        'Boolean to indicate a dry run and only show what would happen. Choose between %s.'
-        ' Default is False' % ", ".join([str(True), str(False)]),
+        help='Boolean to indicate a dry run and only show what would happen. Choose between %s.'
+             ' Default is False' % ", ".join([str(True), str(False)]),
         default=False,
         type=(lambda choice: bool(choice)))
     p.add_argument(
         '--catalog',
         required=False,
-        help='Specify a catalog ID to deploy to. Must be configured! '
-        '\"catalog_local\" refers to the local catalog. Default is None',
+        help='Specify a catalog ID to deploy to. Must be configured!'
+             ' \"catalog_local\" refers to the local catalog. Default is None',
         default=None)
     p.add_argument(
         '--trigger-pipeline',
         required=False,
-        help=
-        'Boolean to indicate whether to trigger the CI of the catlog or not! Choose between %s. '
-        'Default is True' % ", ".join([str(True), str(False)]),
+        help='Boolean to indicate whether to trigger the CI of the catlog or not!'
+             ' Choose between %s. Default is True' % ", ".join([str(True), str(False)]),
         default=True,
         type=(lambda choice: bool(choice)))
     p.add_argument(
         '--git-email',
         required=False,
-        help='Email to use for all git operations. '
-        'If none given, system is required to be proper configured!',
+        help='Email to use for all git operations. If none given, system is required to be proper configured!',
         default=None)
     p.add_argument(
         '--git-name',
         required=False,
-        help='Name to use for all git operations. '
-        'If none given, system is required to be proper configured!',
+        help='Name to use for all git operations. If none given, system is required to be proper configured!',
         default=None)
 
-    parser.create_file_command_parser('install', install,
-                                           'install a HIP Solution')
-    p = parser.create_file_command_parser('remove', remove,
-                                               'remove a HIP Solution')
+    parser.create_file_command_parser('install', install, 'install an album solution')
+    p = parser.create_file_command_parser('remove', remove, 'remove an album solution')
     p.add_argument(
         '--remove-deps',
         required=False,
@@ -109,25 +100,26 @@ def create_parser():
         type=(lambda choice: bool(choice)))
     parser.create_file_command_parser(
         'containerize', containerize,
-        'create a Singularity container for a Album Solution')
+        'create a Singularity container for an album solution')
     parser.create_file_command_parser(
-        'tutorial', tutorial, 'run a tutorial for a Album Solution')
+        'tutorial', tutorial, 'run a tutorial for an album solution')
     parser.create_file_command_parser(
         'add-catalog', add_catalog,
-        'add a catalog to your local Album configuration file')
+        'add a catalog to your local album configuration file')
     parser.create_file_command_parser(
         'remove-catalog', remove_catalog,
-        'remove a catalog from your local Album configuration file')
+        'remove a catalog from your local album configuration file')
     parser.create_file_command_parser(
         'test', test, 'execute a solutions test routine.')
     p = parser.create_command_parser('server', start_server,
-                                     'start an Album server')
+                                     'start an album server')
     p.add_argument('port', type=int, default=8080, help='Port')
     return parser.parser
 
 
 class ArgumentParser(argparse.ArgumentParser):
     """Override default error method of all parsers to show help of subcommand"""
+
     def error(self, message):
         self.print_help()
         self.exit(2, '%s: error: %s\n' % (self.prog, message))
@@ -150,14 +142,14 @@ class AlbumParser(ArgumentParser):
             '--log',
             required=False,
             help='Logging level for your album command. Choose between %s' %
-            ", ".join([loglevel.name for loglevel in logging.LogLevel]),
+                 ", ".join([loglevel.name for loglevel in logging.LogLevel]),
             default=logging.LogLevel(debug_settings()),
             type=(lambda choice: logging.to_loglevel(choice)),
         )
         return parent_parser
 
     def create_parser(self):
-        """Creates the main parser for the hip framework."""
+        """Creates the main parser for the album framework."""
         parser = ArgumentParser(
             add_help=True,
             description=

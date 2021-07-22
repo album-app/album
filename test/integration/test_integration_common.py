@@ -20,6 +20,8 @@ from album.core.controller.test_manager import TestManager
 from album.core.model.catalog_collection import CatalogCollection
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
+from album.core.model.environment import Environment
+from album.core.model.solutions_db import SolutionsDb
 from album.core.utils.operations.file_operations import copy
 from album_runner.logging import push_active_logger
 
@@ -61,6 +63,8 @@ class TestIntegrationCommon(unittest.TestCase):
         # load singletons with test configuration
         self.create_test_config()
 
+        self.create_test_db()
+
     def tearDown(self) -> None:
         # clean all environments specified in test-resources
         env_names = [
@@ -86,7 +90,8 @@ class TestIntegrationCommon(unittest.TestCase):
 
     @staticmethod
     def tear_down_singletons():
-        # todo: This should actually not be necessary - we want to always load the correct singleton - fixme
+        # Note: Since python unittests all run in the same python process, Singletons REMAIN ACTIVE over all tests.
+        # To make sure every test scenario starts with a new Singletons, the instances must be removed!
         Configuration.instance = None
         CatalogCollection.instance = None
         SearchManager.instance = None
@@ -97,6 +102,7 @@ class TestIntegrationCommon(unittest.TestCase):
         RemoveManager.instance = None
         RunManager.instance = None
         TestManager.instance = None
+        SolutionsDb.instance = None
 
     @patch('album.core.model.catalog.Catalog.refresh_index', return_value=None)
     def create_test_config(self, _):
@@ -119,6 +125,10 @@ class TestIntegrationCommon(unittest.TestCase):
         self.test_catalog_collection = CatalogCollection(configuration=config)
 
         self.assertEqual(len(self.test_catalog_collection.local_catalog), 0)
+
+    def create_test_db(self):
+        self.test_solution_db = SolutionsDb()
+        self.assertTrue(self.test_solution_db.is_empty())
 
     @staticmethod
     def configure_silent_test_logging(captured_output, logger_name="integration-test", push=True):
@@ -153,13 +163,30 @@ class TestIntegrationCommon(unittest.TestCase):
         path = current_path.joinpath("..", "resources", solution_file)
         return str(path.resolve())
 
-    def fake_install(self, path):
+    def fake_install(self, path, create_environment=True):
         # add to local catalog
         a = album.load(path)
-        len_before = len(self.test_catalog_collection.local_catalog)
-        self.test_catalog_collection.local_catalog.catalog_index.update(a.get_deploy_dict())
+        d = a.get_deploy_dict()
 
-        self.assertEqual(len(self.test_catalog_collection.local_catalog), len_before + 1)
+        if create_environment:
+            env_name = "_".join([self.test_catalog_collection.local_catalog.id, d["group"], d["name"], d["version"]])
+            Environment(None, env_name, "unusedCachePath").install()
+
+        # add to local catalog
+        len_catalog_before = len(self.test_catalog_collection.local_catalog)
+        self.test_catalog_collection.local_catalog.catalog_index.update(a.get_deploy_dict())
+        self.assertEqual(len(self.test_catalog_collection.local_catalog), len_catalog_before + 1)
+
+        # add to installed solutions_db
+        len_solution_db_before = len(self.test_solution_db.get_all_solutions())
+        self.test_solution_db.add_solution(
+            self.test_catalog_collection.local_catalog.id,
+            d["group"],
+            d["name"],
+            d["version"],
+            None
+        )
+        self.assertEqual(len(self.test_solution_db.get_all_solutions()), len_solution_db_before + 1)
 
         # copy to correct folder
         copy(

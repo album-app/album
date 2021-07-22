@@ -33,8 +33,8 @@ class TestRunManager(TestUnitCommon):
         catalog = EmptyTestClass()
         catalog.id = "niceId"
 
-        resolve_and_load = MagicMock(return_value=[{"path": "aPath", "catalog": catalog}, self.active_solution])
-        self.run_manager.resolve_manager.resolve_and_load = resolve_and_load
+        resolve_installed_and_load = MagicMock(return_value=[{"path": "aPath", "catalog": catalog}, self.active_solution])
+        self.run_manager.resolve_manager.resolve_installed_and_load = resolve_installed_and_load
 
         with open(self.closed_tmp_file.name, mode="w") as f:
             f.write("A valid solution file!")
@@ -52,7 +52,7 @@ class TestRunManager(TestUnitCommon):
 
         # assert
         _run.assert_called_once_with(self.active_solution, False)
-        resolve_and_load.assert_called_once_with(self.closed_tmp_file.name, mode="c")
+        resolve_installed_and_load.assert_called_once_with(self.closed_tmp_file.name)
 
     def test__run(self):
         # mocks

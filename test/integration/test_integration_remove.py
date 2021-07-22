@@ -14,7 +14,7 @@ class TestIntegrationRemove(TestIntegrationCommon):
     def test_remove(self):
         self.assertEqual(len(self.test_catalog_collection.local_catalog), 0)
 
-        self.fake_install(self.get_test_solution_path())
+        self.fake_install(self.get_test_solution_path(), create_environment=False)
 
         # lets assume solution had downloads, caches and apps
         p = self.test_catalog_collection.configuration.cache_path_solution.joinpath(
@@ -63,9 +63,9 @@ class TestIntegrationRemove(TestIntegrationCommon):
     def test_remove_solution_not_installed(self):
         sys.argv = ["", "remove", self.get_test_solution_path()]
 
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(LookupError) as context:
             main()
-            self.assertIn("WARNING - Solution points to a local file", str(context.exception))
+            self.assertIn("Solution seems not to be installed! Please install solution first!", str(context.exception))
 
 
 if __name__ == '__main__':

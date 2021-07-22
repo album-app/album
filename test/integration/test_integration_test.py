@@ -29,7 +29,7 @@ class TestIntegrationTest(TestIntegrationCommon):
         sys.argv = ["", "test", self.get_test_solution_path("solution0_dummy_no_routines.py")]
 
         # run
-        with self.assertRaises(ValueError):
+        with self.assertRaises(LookupError):
             self.assertIsNone(main())
 
     def test_test(self):

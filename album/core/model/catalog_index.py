@@ -5,6 +5,7 @@ from anytree import RenderTree, Node
 from anytree.exporter import JsonExporter, DictExporter
 from anytree.importer import JsonImporter
 
+from album import __version__ as version
 from album.core.utils.operations.file_operations import write_dict_to_json
 from album_runner import logging
 
@@ -35,7 +36,7 @@ class CatalogIndex:
 
         """
         self.path = Path(path)
-        self.index = Node(name, **{"version": "0.1.0"})
+        self.index = Node(name, **{"version": version})
         if index:
             self.index = index
         else:
@@ -125,7 +126,7 @@ class CatalogIndex:
                 with open(index_file_path) as json_file:
                     self.index = importer.read(json_file)
             else:
-                module_logger().warning("File contains no content!")
+                module_logger().info("Empty index file (%s) loaded!" % str(self.path))
         else:
             Path(index_file_path).parent.mkdir(parents=True, exist_ok=True)
             Path(index_file_path).touch()
@@ -345,7 +346,7 @@ class CatalogIndex:
         leaves = self.index.leaves
         count = 0
         for leaf in leaves:
-            if leaf.depth == 3:  # only add depth 3 nodes (these are solution nodes)
+            if leaf.depth == 3:  # only count depth 3 nodes (these are solution nodes)
                 count += 1
 
         return count

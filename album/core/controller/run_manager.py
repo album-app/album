@@ -34,7 +34,7 @@ class RunManager(metaclass=Singleton):
     def run(self, path, run_immediately=False):
         """Function corresponding to the `run` subcommand of `album`."""
 
-        resolve, active_solution = self.resolve_manager.resolve_and_load(path, mode="c")
+        resolve, active_solution = self.resolve_manager.resolve_installed_and_load(path)
 
         if not resolve["catalog"]:
             module_logger().debug('album loaded locally: %s...' % str(active_solution))
@@ -261,13 +261,18 @@ class RunManager(metaclass=Singleton):
 
         """
         module_logger().debug('Creating album script with parent \"%s\"...' % active_solution.parent["name"])
-        _, parent_solution = self.resolve_manager.resolve_dependency_and_load(active_solution.parent, load_solution=True)
+        _, parent_solution = self.resolve_manager.resolve_dependency_and_load(
+            active_solution.parent,
+            load_solution=True
+        )
 
         # handle arguments
         parent_args, active_solution_args = self.resolve_args(parent_solution, [active_solution], [None], args)
 
         # create script
-        scripts = self.create_solution_run_with_parent_script(parent_solution, parent_args, [active_solution], active_solution_args)
+        scripts = self.create_solution_run_with_parent_script(
+            parent_solution, parent_args, [active_solution], active_solution_args
+        )
 
         return [parent_solution, scripts]
 

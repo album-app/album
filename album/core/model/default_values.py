@@ -17,6 +17,7 @@ class DefaultValues(Enum):
 
     # catalog
     local_catalog_name = 'catalog_local'                            # the default name of the local catalog (always configured)
+    solutions_db_name = 'solutions.db'                              # the default name of the DB to save installed solutions
     catalog_index_file_name = 'album_catalog_index.json'            # the default index file name of the catalog_index
     catalog_solution_list_file_name = 'album_solution_list.json'    # the default file name for exporting the list of solutions of a catalog
     catalog_folder_prefix = 'catalogs'                              # base folder prefix where all not local catalogs live

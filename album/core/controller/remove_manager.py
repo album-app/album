@@ -48,7 +48,7 @@ class RemoveManager(metaclass=Singleton):
         # -> ignore this dependency then?
 
         try:
-            resolve, self._active_solution = self.resolve_manager.resolve_and_load(path, mode="c")
+            resolve, self._active_solution = self.resolve_manager.resolve_installed_and_load(path)
         except ValueError:
             raise ValueError("Solution points to a local file which has not been installed yet. "
                              "Please point to an installation from the catalog or install the solution. "
@@ -83,12 +83,12 @@ class RemoveManager(metaclass=Singleton):
                     # ToDo: need to search through all installed installations if there is another dependency of what
                     #  we are going to delete... otherwise there will nasty resolving errors during runtime
                     dependency_path = self.resolve_manager.catalog_collection.resolve_dependency(
-                        dependency, download=False
+                        dependency, update=False
                     )["path"]
                     self.remove(dependency_path, True)
 
         if self._active_solution.parent:
             parent_path = self.resolve_manager.catalog_collection.resolve_dependency(
-                self._active_solution.parent, download=False
+                self._active_solution.parent, update=False
             )["path"]
             self.remove(parent_path, True)
