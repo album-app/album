@@ -31,7 +31,8 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
 
         logging.set_loglevel(LogLevel.INFO)
 
-        Environment({'environment_name': "solution7_long_routines"}, "unusedCacheName", "unusedCachePath").install()
+        test_env_name = self.test_catalog_collection.local_catalog.id + "_group_solution7_long_routines_0.1.0"
+        Environment(None, test_env_name, "unusedCachePath").install()
 
         path = self.get_test_solution_path("solution7_long_routines.py")
         self.fake_install(path)
