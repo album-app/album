@@ -14,6 +14,7 @@ from album.core.controller.task_manager import TaskManager
 from album.core.controller.test_manager import TestManager
 from album.core.model.catalog_collection import CatalogCollection
 from album.core.model.configuration import Configuration
+from album.core.model.solutions_db import SolutionsDb
 from album.core.model.task import Task
 from album_runner import logging
 
@@ -35,13 +36,15 @@ class AlbumServer(metaclass=Singleton):
     search_manager = None
     test_manager = None
     task_manager = None
+    solutions_db = None
 
     app = None
 
     def __init__(self, port):
-        self.port = port
+        self.setup(port)
 
-        # initialize singletons here!
+    def setup(self, port):
+        self.port = port
         self.configuration = Configuration()
         self.catalog_collection = CatalogCollection()
         self.catalog_manager = CatalogManager()
@@ -51,6 +54,7 @@ class AlbumServer(metaclass=Singleton):
         self.search_manager = SearchManager()
         self.test_manager = TestManager()
         self.task_manager = TaskManager()
+        self.solutions_db = SolutionsDb()
 
     def start(self, test_config=None):
         module_logger().info('Starting server..')
@@ -109,8 +113,16 @@ class AlbumServer(metaclass=Singleton):
             task = self._run_solution_method_async(catalog, group, name, version, self.test_manager.test)
             return {"id": task.id, "msg": "process started"}
 
+        @self.app.route('/status/<catalog>/<group>/<name>/<version>')
+        def status_solution(catalog, group, name, version):
+            installed = self.solutions_db.is_installed(catalog, group, name, version)
+            res = {
+                "installed": installed
+            }
+            return res
+
         @self.app.route('/status/<task_id>')
-        def status(task_id):
+        def status_task(task_id):
             task = self.task_manager.get_task(str(task_id))
             if task is None:
                 abort(404, description=f"Task not found with id {task_id}")
@@ -145,7 +157,10 @@ class AlbumServer(metaclass=Singleton):
 
     def _run_solution_method_async(self, catalog, group, name, version, method):
         task = Task()
-        task.solution_path = self.get_solution_path_or_abort(catalog, group, name, version)
+        if catalog is None:
+            task.solution_path = ":".join([group, name, version])
+        else:
+            task.solution_path = ":".join([catalog, group, name, version])
         task.sysarg = self._get_arguments(request.get_json(), task.solution_path)
         task.method = method
         self.task_manager.register_task(task)
