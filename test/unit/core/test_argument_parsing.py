@@ -7,7 +7,7 @@ from unittest.mock import patch
 from album import argument_parsing
 
 # the functions to call. Caution: do not import as module!
-from album.core.commandline import containerize, deploy, install, remove, repl, run, search, tutorial, test, start_server, \
+from album.core.commandline import containerize, deploy, install, remove, repl, run, search, test, start_server, \
     add_catalog, remove_catalog
 
 
@@ -46,7 +46,6 @@ class TestArgumentParsing(unittest.TestCase):
         self.assertSubcommandWithFileArgParsed(parser, "install", install)
         self.assertSubcommandWithFileArgParsed(parser, "remove", remove)
         self.assertSubcommandWithFileArgParsed(parser, "containerize", containerize)
-        self.assertSubcommandWithFileArgParsed(parser, "tutorial", tutorial)
         self.assertSubcommandWithFileArgParsed(parser, "test", test)
         self.assertSubcommandWithFileArgParsed(parser, "add-catalog", add_catalog)
         self.assertSubcommandWithFileArgParsed(parser, "remove-catalog", remove_catalog)

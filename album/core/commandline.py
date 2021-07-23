@@ -57,13 +57,6 @@ def test(args):
     TestManager().test(args.path)
 
 
-def tutorial(args):
-    """Function corresponding to the `tutorial` subcommand of `album`."""
-    active_solution = load_and_push_solution(args.path)
-    module_logger().info('This would run a tutorial for: %s...' % active_solution['name'])
-    pop_active_solution()
-
-
 def containerize(args):
     """Function corresponding to the `containerize` subcommand of `album`."""
     # Load solution
