@@ -1,35 +1,10 @@
-import album
-from album.argument_parsing import main
-from album.core.controller.catalog_manager import CatalogManager
-from album.core.controller.deploy_manager import DeployManager
-from album.core.controller.install_manager import InstallManager
-from album.core.controller.remove_manager import RemoveManager
-from album.core.controller.resolve_manager import ResolveManager
-from album.core.controller.run_manager import RunManager
-from album.core.controller.search_manager import SearchManager
-from album.core.controller.test_manager import TestManager
-from album.core.model.catalog_collection import CatalogCollection
-from album.core.model.configuration import Configuration
 from album_runner import logging
 from album_runner.logging import debug_settings
 
+import album
+from album.argument_parsing import main
+
 module_logger = logging.get_active_logger
-
-# singletons initialization
-configuration = Configuration()
-catalog_collection = CatalogCollection(configuration)
-
-# catalog_collection init
-search_manager = SearchManager(catalog_collection)
-resolve_manager = ResolveManager(catalog_collection)
-catalog_manager = CatalogManager(catalog_collection)
-deploy_manager = DeployManager(catalog_collection)
-
-# resolve init
-install_manager = InstallManager(resolve_manager)
-remove_manager = RemoveManager(resolve_manager)
-run_manager = RunManager(resolve_manager)
-test_manager = TestManager(resolve_manager)
 
 
 def startup():
@@ -42,7 +17,7 @@ def startup():
 
 def __retrieve_logger():
     """Retrieves the default album logger."""
-    logging.configure_logging(logging.LogLevel(debug_settings()), 'album_core')
+    logging.configure_root_logger(logging.LogLevel(debug_settings()))
 
 
 if __name__ == "__main__":

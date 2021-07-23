@@ -11,6 +11,7 @@ class TestUnitBase(TestUnitCommon):
 
     def tearDown(self) -> None:
         CondaManager().remove_environment("unit-test-env")
+        super().tearDown()
 
     test_environment_yml = StringIO("""name: unit-test-env
 channels:

@@ -14,6 +14,7 @@ from test.unit.test_unit_common import TestUnitCommon
 class TestCatalogCollection(TestUnitCommon):
 
     def setUp(self):
+        super().setUp()
         self.config_file = Path(self.tmp_dir.name).joinpath("config_file")
         with open(self.config_file, "w+") as f:
             f.write(
@@ -25,14 +26,12 @@ class TestCatalogCollection(TestUnitCommon):
                 )
             )
 
-        Configuration.instance = None
-        config = Configuration(
+        config = Configuration()
+        config.setup(
             base_cache_path=self.tmp_dir.name,
             configuration_file_path=Path(self.tmp_dir.name).joinpath("config_file")
         )
-
-        CatalogCollection.instance = None  # lever out concept
-        self.test_catalog_collection = CatalogCollection(configuration=config)
+        self.test_catalog_collection = CatalogCollection()
 
     def test__init__(self):
         self.assertTrue(self.config_file.is_file())

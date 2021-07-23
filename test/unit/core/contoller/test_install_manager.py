@@ -11,6 +11,7 @@ from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
 class TestInstallManager(TestUnitCommon):
 
     def setUp(self):
+        super().setUp()
         self.create_test_config()
         self.create_test_solution_no_env()
 
@@ -18,8 +19,6 @@ class TestInstallManager(TestUnitCommon):
 
     def tearDown(self) -> None:
         super().tearDown()
-        InstallManager.instance = None
-        ResolveManager.instance = None
 
     def test_install(self):
         # create mocks
@@ -127,7 +126,7 @@ class TestInstallManager(TestUnitCommon):
         environment_install.assert_called_once()
         install_dependencies.assert_called_once_with(self.active_solution)
 
-    @patch('album.core.controller.install_manager.create_script', return_value="script")
+    @patch('album.core.controller.install_manager.create_solution_script', return_value="script")
     def test__install_call_routine(self, create_script_mock):
         self.active_solution.environment = EmptyTestClass()
 

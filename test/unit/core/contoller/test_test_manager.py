@@ -6,7 +6,7 @@ from test.unit.test_unit_common import TestUnitCommon
 class TestTestManager(TestUnitCommon):
 
     def setUp(self):
-        pass
+        super().setUp()
 
     @unittest.skip("Needs to be implemented!")
     def test_test(self):

@@ -2,7 +2,8 @@ import unittest
 
 from test.integration import test_integration_catalog_features, test_integration_containerize, \
     test_integration_deploy, test_integration_install, test_integration_remove, test_integration_repl, \
-    test_integration_run, test_integration_search, test_integration_test, test_integration_tutorial
+    test_integration_run, test_integration_search, test_integration_test, test_integration_tutorial, \
+    test_integration_server
 
 
 def main():
@@ -19,6 +20,7 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_integration_run))
     suite.addTests(loader.loadTestsFromModule(test_integration_search))
     suite.addTests(loader.loadTestsFromModule(test_integration_test))
+    suite.addTests(loader.loadTestsFromModule(test_integration_server))
     suite.addTests(loader.loadTestsFromModule(test_integration_tutorial))
 
     runner = unittest.TextTestRunner(verbosity=3)

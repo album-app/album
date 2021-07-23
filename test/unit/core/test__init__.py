@@ -7,8 +7,8 @@ from test.unit.test_unit_common import TestUnitCommon
 class TestUnitInit(TestUnitCommon):
     def setUp(self):
         """Setup things necessary for all tests of this class"""
+        super().setUp()
         # self.something_all_tests_use = some_value
-        pass
 
     def tearDown(self) -> None:
         super().tearDown()

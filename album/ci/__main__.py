@@ -15,7 +15,7 @@ entry_point_map = {
 
 def __retrieve_logger():
     """Retrieves the default album logger."""
-    configure_logging(LogLevel.DEBUG, 'album_ci')
+    configure_logging('album_ci', loglevel=LogLevel.DEBUG)
 
 
 def create_parser():

@@ -9,10 +9,10 @@ from test.unit.test_unit_common import TestUnitCommon
 class TestConfiguration(TestUnitCommon):
 
     def setUp(self) -> None:
-        Configuration.instance = None  # lever out concept
-        self.conf = Configuration(
-            base_cache_path=Path(self.tmp_dir.name).joinpath("album"), configuration_file_path=self.tmp_dir.name
-        )
+        super().setUp()
+        self.conf = Configuration()
+        self.conf.setup(base_cache_path=Path(self.tmp_dir.name).joinpath("album"),
+                        configuration_file_path=self.tmp_dir.name)
 
     def tearDown(self) -> None:
         super().tearDown()

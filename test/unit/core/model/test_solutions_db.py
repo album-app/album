@@ -4,11 +4,13 @@ from test.unit.test_unit_common import TestUnitCommon
 
 class TestSolutionDb(TestUnitCommon):
     def setUp(self):
+        super().setUp()
         self.create_test_config()
-        SolutionsDb.instance = None
         self.test_solutions_db = SolutionsDb()
+        self.assertIsNotNone(self.test_solutions_db.get_cursor())
 
     def tearDown(self) -> None:
+        self.test_solutions_db = None
         super().tearDown()
 
     def test__init___has_empty(self):
@@ -29,7 +31,7 @@ class TestSolutionDb(TestUnitCommon):
         parent_id = None
 
         self.test_solutions_db.add_solution(catalog_id, grp, name, version, parent_id)
-        self.assertEqual(1, len(self.test_solutions_db.cursor.execute("SELECT * FROM installed_solutions").fetchall()))
+        self.assertEqual(1, len(self.test_solutions_db.get_cursor().execute("SELECT * FROM installed_solutions").fetchall()))
 
         catalog_id = "aNiceId2"
         grp = "grp2"
@@ -38,7 +40,7 @@ class TestSolutionDb(TestUnitCommon):
         parent_id = 1
 
         self.test_solutions_db.add_solution(catalog_id, grp, name, version, parent_id)
-        self.assertEqual(2, len(self.test_solutions_db.cursor.execute("SELECT * FROM installed_solutions").fetchall()))
+        self.assertEqual(2, len(self.test_solutions_db.get_cursor().execute("SELECT * FROM installed_solutions").fetchall()))
 
         self.assertEqual(3, self.test_solutions_db.next_id())
 

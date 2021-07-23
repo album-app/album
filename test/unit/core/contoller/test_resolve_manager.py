@@ -7,6 +7,7 @@ from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
 
 class TestResolveManager(TestUnitCommon):
     def setUp(self):
+        super().setUp()
         self.create_test_config()
         self.create_test_solution_no_env()
 
@@ -14,7 +15,6 @@ class TestResolveManager(TestUnitCommon):
 
     def tearDown(self) -> None:
         super().tearDown()
-        ResolveManager.instance = None
 
     def test_resolve_installed_and_load_valid_path(self):
         # mocks
@@ -505,6 +505,15 @@ class TestResolveManager(TestUnitCommon):
         self.assertIsNone(self.resolve_manager.get_gnv_from_input("uselessInput"))
         self.assertIsNone(self.resolve_manager.get_gnv_from_input("::"))
         self.assertIsNone(self.resolve_manager.get_gnv_from_input("doi:prefix/suffix"))
+
+    def test_get_cgnv_from_input(self):
+        solution = {
+            "catalog": "catalog",
+            "group": "grp",
+            "name": "name",
+            "version": "version"
+        }
+        self.assertEqual(solution, self.resolve_manager.get_cgnv_from_input("catalog:grp:name:version"))
 
     def test_get_doi_from_input(self):
         solution = {

@@ -5,7 +5,7 @@ from test.unit.test_unit_common import TestUnitCommon
 
 class TestCatalogManager(TestUnitCommon):
     def setUp(self) -> None:
-        pass
+        super().setUp()
 
     def tearDown(self) -> None:
         super().tearDown()

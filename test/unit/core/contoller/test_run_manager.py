@@ -13,17 +13,11 @@ from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
 
 class TestRunManager(TestUnitCommon):
     def setUp(self):
+        super().setUp()
         """Setup things necessary for all tests of this class"""
         self.create_test_config()
         self.create_test_solution_no_env()
-
-        # always re-initialize RunManager
-        with patch.object(RunManager, '__init__', return_value=None) as init_mock:
-            RunManager.instance = None
-            self.run_manager = RunManager()
-            self.run_manager.resolve_manager = ResolveManager(self.test_catalog_collection)
-            self.run_manager.init_script = ""
-            init_mock.assert_called_once()
+        self.run_manager = RunManager()
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -277,14 +271,14 @@ class TestRunManager(TestUnitCommon):
         create_solution_run_collection_script.assert_not_called()
         self.assertEqual(2, run_queue.call_count)  # once to immediately run, once to clear que
 
-    @patch('album.core.controller.run_manager.create_script', return_value=None)
+    @patch('album.core.controller.run_manager.create_solution_script', return_value=None)
     def test_create_solution_run_script_standalone_no_run(self, create_script_mock):
         with self.assertRaises(ValueError):
             self.run_manager.create_solution_run_script_standalone(self.active_solution, [])
 
         create_script_mock.assert_not_called()
 
-    @patch('album.core.controller.run_manager.create_script', return_value="aScript")
+    @patch('album.core.controller.run_manager.create_solution_script', return_value="aScript")
     def test_create_solution_run_script_standalone(self, create_script_mock):
         self.active_solution.run = print
 
@@ -293,7 +287,7 @@ class TestRunManager(TestUnitCommon):
         self.assertEqual([self.active_solution, ["aScript"]], r)
         create_script_mock.assert_called_once_with(self.active_solution, "\nget_active_solution().run()\n", [])
 
-    @patch('album.core.controller.run_manager.create_script', return_value="aScript")
+    @patch('album.core.controller.run_manager.create_solution_script', return_value="aScript")
     def test_create_solution_run_script_standalone_run_and_close(self, create_script_mock):
         self.active_solution.run = print
         self.active_solution.close = print
@@ -368,7 +362,7 @@ class TestRunManager(TestUnitCommon):
         # result
         self.assertEqual([self.active_solution, "aScript"], r)
 
-    @patch('album.core.controller.run_manager.create_script')
+    @patch('album.core.controller.run_manager.create_solution_script')
     def test_create_solution_run_with_parent_scrip(self, create_script_mock):
         create_script_mock.side_effect = ["script_paretn", "script_child_1", "script_child_2"]
 
@@ -489,7 +483,7 @@ class TestRunManager(TestUnitCommon):
 
         self.run_manager._run_in_environment_with_own_logger(self.active_solution, "")
 
-        conf_mock.assert_called_once_with(LogLevel(0), self.active_solution["name"])
+        conf_mock.assert_called_once_with(self.active_solution["name"])
 
         pop_mock.assert_called_once()
 

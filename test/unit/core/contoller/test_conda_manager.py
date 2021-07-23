@@ -11,6 +11,7 @@ class TestCondaManager(TestUnitCommon):
     test_environment_name = "unittest"
 
     def setUp(self):
+        super().setUp()
         self.conda = CondaManager()
 
     def tearDown(self) -> None:
@@ -20,7 +21,6 @@ class TestCondaManager(TestUnitCommon):
             self.assertFalse(self.conda.environment_exists(self.test_environment_name))
             # try to delete rest of disc content
             force_remove(env_dict[self.test_environment_name])
-        CondaManager.instance = None
         super().tearDown()
 
     @patch('album.core.controller.conda_manager.CondaManager.get_info')

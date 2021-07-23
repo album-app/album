@@ -7,14 +7,28 @@ from pathlib import Path
 from unittest.mock import patch
 
 import git
-from album.core.model.configuration import Configuration
 
+import album_runner
 from album.ci.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core import AlbumClass
+from album.core.controller.catalog_manager import CatalogManager
+from album.core.controller.conda_manager import CondaManager
+from album.core.controller.deploy_manager import DeployManager
+from album.core.controller.install_manager import InstallManager
+from album.core.controller.remove_manager import RemoveManager
+from album.core.controller.resolve_manager import ResolveManager
+from album.core.controller.run_manager import RunManager
+from album.core.controller.search_manager import SearchManager
+from album.core.controller.task_manager import TaskManager
+from album.core.controller.test_manager import TestManager
 from album.core.model.catalog_collection import CatalogCollection
+from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
+from album.core.model.solutions_db import SolutionsDb
+from album.core.server import AlbumServer
 from album.core.utils.operations.file_operations import force_remove
-from album_runner.logging import push_active_logger, pop_active_logger
+from album_runner.logging import pop_active_logger, LogLevel, configure_logging
+from test.global_exception_watcher import GlobalExceptionWatcher
 
 
 class TestUnitCommon(unittest.TestCase):
@@ -46,18 +60,6 @@ class TestUnitCommon(unittest.TestCase):
         'title': "t1",
     }
 
-    @classmethod
-    def setUpClass(cls):
-        """On inherited classes, run our `setUp` method"""
-        if cls is not TestUnitCommon and cls.setUp is not TestUnitCommon.setUp:
-            orig_set_up = cls.setUp
-
-            def set_up_override(self, *args, **kwargs):
-                TestUnitCommon.setUp(self)
-                return orig_set_up(self, *args, **kwargs)
-
-            cls.setUp = set_up_override
-
     def setUp(self):
         """Could initialize default values for each test class. use `_<name>` to skip property setting."""
         self.attrs = {}
@@ -66,6 +68,30 @@ class TestUnitCommon(unittest.TestCase):
         self.tmp_dir = tempfile.TemporaryDirectory()
         self.closed_tmp_file = tempfile.NamedTemporaryFile(delete=False)
         self.closed_tmp_file.close()
+
+    @staticmethod
+    def tear_down_singletons():
+        # this is here to make sure all mocks are reset each time a test is executed
+        album_runner.logging._active_logger = {}
+        TestUnitCommon._delete(AlbumServer)
+        TestUnitCommon._delete(Configuration)
+        TestUnitCommon._delete(CatalogCollection)
+        TestUnitCommon._delete(CatalogManager)
+        TestUnitCommon._delete(CondaManager)
+        TestUnitCommon._delete(DeployManager)
+        TestUnitCommon._delete(InstallManager)
+        TestUnitCommon._delete(RemoveManager)
+        TestUnitCommon._delete(ResolveManager)
+        TestUnitCommon._delete(RunManager)
+        TestUnitCommon._delete(SearchManager)
+        TestUnitCommon._delete(SolutionsDb)
+        TestUnitCommon._delete(TaskManager)
+        TestUnitCommon._delete(TestManager)
+
+    @staticmethod
+    def _delete(singleton):
+        if singleton.instance is not None:
+            del singleton.instance
 
     def tearDown(self) -> None:
         self.captured_output.close()
@@ -79,6 +105,7 @@ class TestUnitCommon(unittest.TestCase):
             Path(self.test_catalog_collection_config_file.name).unlink()
 
         Path(self.closed_tmp_file.name).unlink()
+        self.tear_down_singletons()
         try:
             self.tmp_dir.cleanup()
         except PermissionError:
@@ -87,17 +114,18 @@ class TestUnitCommon(unittest.TestCase):
             except PermissionError:
                 raise
 
-    def configure_test_logging(self, stream_handler):
-        self.logger = logging.getLogger("unitTest")
+    def run(self, result=None):
+        # add watcher to catch any exceptions thrown in threads
+        with GlobalExceptionWatcher():
+            super(TestUnitCommon, self).run(result)
 
-        if not self.logger.hasHandlers():
-            self.logger.setLevel('INFO')
-            ch = logging.StreamHandler(stream_handler)
-            ch.setLevel('INFO')
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            ch.setFormatter(formatter)
-            self.logger.addHandler(ch)
-            push_active_logger(self.logger)
+    def configure_test_logging(self, stream_handler):
+        self.logger = configure_logging("unitTest", loglevel=LogLevel.INFO)
+        ch = logging.StreamHandler(stream_handler)
+        ch.setLevel('INFO')
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        ch.setFormatter(formatter)
+        self.logger.addHandler(ch)
 
     def get_logs(self):
         logs = self.logger.handlers[0].stream.getvalue()
@@ -113,14 +141,13 @@ class TestUnitCommon(unittest.TestCase):
         self.test_catalog_collection_config_file.writelines(self.test_config_init)
         self.test_catalog_collection_config_file.close()
 
-        Configuration.instance = None
-        config = Configuration(
+        config = Configuration()
+        config.setup(
             base_cache_path=self.tmp_dir.name,
             configuration_file_path=self.test_catalog_collection_config_file.name
         )
 
-        CatalogCollection.instance = None  # lever out concept
-        self.test_catalog_collection = CatalogCollection(configuration=config)
+        self.test_catalog_collection = CatalogCollection()
 
         self.assertEqual(len(self.test_catalog_collection.local_catalog), 0)
 

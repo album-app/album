@@ -25,8 +25,8 @@ class CondaManager(metaclass=Singleton):
     # singletons
     configuration = None
 
-    def __init__(self, configuration=None):
-        self.configuration = configuration if configuration else Configuration()
+    def __init__(self):
+        self.configuration = Configuration()
         self.conda_executable = self.configuration.conda_executable
 
     def get_environment_dict(self):

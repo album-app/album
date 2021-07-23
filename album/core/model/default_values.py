@@ -10,7 +10,7 @@ class DefaultValues(Enum):
 
     # deployment
     catalog_url = 'https://gitlab.com/album-app/catalogs/default'  # default deployment url
-    runner_rul = 'https://gitlab.com/album-app/album-runner'        # default runner url
+    runner_url = 'https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip'  # default runner url
     catalog = os.getenv('ALBUM_DEFAULT_CATALOG', catalog_url)     # default catalog, either catalog_url or env. variable
     catalog_yaml_prefix = "catalog"                              # base folder name where yaml files of solutions
                                                                  # are stored in a catalog.

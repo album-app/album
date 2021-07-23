@@ -20,8 +20,8 @@ class SearchManager(metaclass=Singleton):
     # singletons
     catalog_collection = None
 
-    def __init__(self, catalog_collection=None):
-        self.catalog_collection = CatalogCollection() if not catalog_collection else catalog_collection
+    def __init__(self):
+        self.catalog_collection = CatalogCollection()
 
     def search(self, keywords):
         """Function corresponding to the `search` subcommand of `album`.
@@ -51,3 +51,4 @@ class SearchManager(metaclass=Singleton):
         sorted_results = sorted(match_score.items(), key=operator.itemgetter(1))
         module_logger().info('Search results for "%s"...' % keywords)
         module_logger().info(sorted_results)
+        return sorted_results

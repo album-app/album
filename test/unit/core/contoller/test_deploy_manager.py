@@ -12,6 +12,7 @@ from test.unit.test_unit_common import TestGitCommon
 
 class TestDeployManager(TestGitCommon):
     def setUp(self) -> None:
+        super().setUp()
         self.zenodoAPI = ZenodoAPI('url', 'access_token')
         self.create_test_config()
         self.create_test_solution_no_env()
