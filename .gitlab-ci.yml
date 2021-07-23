@@ -102,7 +102,6 @@ cmdline linux:
     - python -m album server -h
     - python -m album add-catalog -h
     - python -m album remove-catalog -h
-    - python -m album tutorial -h
 
 unit tests linux:
   extends: .linux_base_template

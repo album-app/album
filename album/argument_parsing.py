@@ -2,7 +2,7 @@ import argparse
 import sys
 
 from album.core.commandline import add_catalog, remove_catalog, containerize, deploy, \
-    install, remove, repl, run, search, start_server, tutorial, test
+    install, remove, repl, run, search, start_server, test
 from album_runner import logging
 from album_runner.logging import debug_settings
 
@@ -101,8 +101,6 @@ def create_parser():
     parser.create_file_command_parser(
         'containerize', containerize,
         'create a Singularity container for an album solution')
-    parser.create_file_command_parser(
-        'tutorial', tutorial, 'run a tutorial for an album solution')
     parser.create_file_command_parser(
         'add-catalog', add_catalog,
         'add a catalog to your local album configuration file')
