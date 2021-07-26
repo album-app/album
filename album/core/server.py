@@ -14,6 +14,7 @@ from album.core.controller.task_manager import TaskManager
 from album.core.controller.test_manager import TestManager
 from album.core.model.catalog_collection import CatalogCollection
 from album.core.model.configuration import Configuration
+from album.core.model.default_values import DefaultValues
 from album.core.model.solutions_db import SolutionsDb
 from album.core.model.task import Task
 from album_runner import logging
@@ -23,7 +24,7 @@ module_logger = logging.get_active_logger
 
 class AlbumServer(metaclass=Singleton):
 
-    port = 5476
+    port = DefaultValues.server_port
 
     # load singletons
     configuration = None

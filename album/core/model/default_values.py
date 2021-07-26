@@ -40,3 +40,6 @@ class DefaultValues(Enum):
     # conda
     conda_default_executable = "conda"                                   # default conda executable
     conda_path = os.getenv('ALBUM_CONDA_PATH', conda_default_executable)  # default conda path, either env. var or conda
+
+    # server
+    server_port = 5476  # default port used to launch server
