@@ -40,6 +40,18 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         name = "solution7_long_routines"
         version = "0.1.0"
 
+        # add catalog
+        self.assertCatalogPresence(self.test_catalog_collection.catalogs, "/tmp/test", False)
+        res_status = client.get("/add-catalog?path=%2Ftmp%2Ftest")
+        self.assertEqual(200, res_status.status_code)
+        self.assertCatalogPresence(self.test_catalog_collection.catalogs, "/tmp/test", True)
+
+        # remove catalog
+        res_status = client.get("/remove-catalog?path=%2Ftmp%2Ftest")
+        self.assertEqual(200, res_status.status_code)
+        self.assertCatalogPresence(self.test_catalog_collection.catalogs, "/tmp/test", False)
+
+
         # check that solution is not installed
 
         res_status = client.get(f'/status/{catalog}/{group}/{name}/{version}')
@@ -117,6 +129,13 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
             if msg in record.msg:
                 return True
         return False
+
+    def assertCatalogPresence(self, catalogs, path, should_be_present):
+        present = False
+        for catalog in catalogs:
+            if str(catalog.path) == path:
+                present = True
+        self.assertEqual(should_be_present, present)
 
 
 if __name__ == '__main__':

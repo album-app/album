@@ -86,6 +86,20 @@ class SolutionsDb(metaclass=Singleton):
 
         return installed_solutions_list
 
+    def get_recently_installed_solutions(self):
+        solutions_list = []
+        cursor = self.get_cursor()
+        for row in cursor.execute("SELECT * FROM installed_solutions ORDER BY install_date"):
+            solutions_list.append(self._row_interpretation(row))
+        return solutions_list
+
+    def get_recently_launched_solutions(self):
+        solutions_list = []
+        cursor = self.get_cursor()
+        for row in cursor.execute("SELECT * FROM installed_solutions WHERE last_execution IS NOT NULL ORDER BY last_execution"):
+            solutions_list.append(self._row_interpretation(row))
+        return solutions_list
+
     def get_solution_by_id(self, solution_id):
         r = self.get_cursor().execute(
             "SELECT * FROM installed_solutions WHERE solution_id=:solution_id",

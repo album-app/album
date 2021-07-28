@@ -82,7 +82,7 @@ class TestServer(flask_unittest.ClientTestCase, TestUnitCommon):
         self.assertEqual(2, route_mock.call_count)
 
     def __test_catalog_route(self, client, route, route_mock):
-        json = self.getJSONResponse(client, "/%s/CATALOG_URL" % route)
+        json = self.getJSONResponse(client, "/%s?path=CATALOG_URL" % route)
         self.assertIsNotNone(json)
         self.server.task_manager.server_queue.join()
         self.assertEqual(1, route_mock.call_count)
