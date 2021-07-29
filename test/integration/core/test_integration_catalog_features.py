@@ -20,7 +20,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
     def test_add_remove_catalog(self):
         catalog_configuration = CatalogCollection()
         self.assertIsNotNone(catalog_configuration)
-        initial_catalogs = catalog_configuration.config_file_dict["catalogs"]
+        initial_catalogs = catalog_configuration.config_file_dict["catalogs"].copy()
         self.assertIsNotNone(initial_catalogs)
         initial_len = len(initial_catalogs)
         somedir = "/tmp/somedir"

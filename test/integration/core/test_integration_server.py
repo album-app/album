@@ -1,4 +1,5 @@
 import unittest
+import urllib.parse
 from time import time, sleep
 
 import flask_unittest
@@ -40,16 +41,18 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         name = "solution7_long_routines"
         version = "0.1.0"
 
+        catalog_to_be_added = "https://gitlab.com/album-app/catalogs/templates/catalog"
+
         # add catalog
-        self.assertCatalogPresence(self.test_catalog_collection.catalogs, "/tmp/test", False)
-        res_status = client.get("/add-catalog?path=%2Ftmp%2Ftest")
+        self.assertCatalogPresence(self.test_catalog_collection.catalogs, catalog_to_be_added, False)
+        res_status = client.get("/add-catalog?path=" + urllib.parse.quote(catalog_to_be_added))
         self.assertEqual(200, res_status.status_code)
-        self.assertCatalogPresence(self.test_catalog_collection.catalogs, "/tmp/test", True)
+        self.assertCatalogPresence(self.test_catalog_collection.catalogs, catalog_to_be_added, True)
 
         # remove catalog
-        res_status = client.get("/remove-catalog?path=%2Ftmp%2Ftest")
+        res_status = client.get("/remove-catalog?path=" + urllib.parse.quote(catalog_to_be_added))
         self.assertEqual(200, res_status.status_code)
-        self.assertCatalogPresence(self.test_catalog_collection.catalogs, "/tmp/test", False)
+        self.assertCatalogPresence(self.test_catalog_collection.catalogs, catalog_to_be_added, False)
 
 
         # check that solution is not installed
@@ -130,10 +133,10 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
                 return True
         return False
 
-    def assertCatalogPresence(self, catalogs, path, should_be_present):
+    def assertCatalogPresence(self, catalogs, src, should_be_present):
         present = False
         for catalog in catalogs:
-            if str(catalog.path) == path:
+            if str(catalog.src) == src:
                 present = True
         self.assertEqual(should_be_present, present)
 

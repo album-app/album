@@ -28,6 +28,7 @@ class CatalogManager(metaclass=Singleton):
         """ Adds a catalog to the configuration."""
         self.catalog_collection.config_file_dict["catalogs"].append(path)
         self.catalog_collection.save()
+        self.catalog_collection.reload()
 
         module_logger().info('Added catalog %s!' % path)
 
@@ -35,5 +36,6 @@ class CatalogManager(metaclass=Singleton):
         """Removes a catalog from a configuration"""
         self.catalog_collection.config_file_dict["catalogs"].remove(path)
         self.catalog_collection.save()
+        self.catalog_collection.reload()
 
         module_logger().info('Removed catalog %s!' % path)
