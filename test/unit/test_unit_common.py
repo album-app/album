@@ -9,7 +9,9 @@ from unittest.mock import patch
 import git
 
 import album_runner
-from album.ci.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
+from album.ci.controller.release_manager import ReleaseManager
+from album.ci.controller.zenodo_manager import ZenodoManager
+from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core import AlbumClass
 from album.core.controller.catalog_manager import CatalogManager
 from album.core.controller.conda_manager import CondaManager
@@ -87,6 +89,8 @@ class TestUnitCommon(unittest.TestCase):
         TestUnitCommon._delete(SolutionsDb)
         TestUnitCommon._delete(TaskManager)
         TestUnitCommon._delete(TestManager)
+        TestUnitCommon._delete(ReleaseManager)
+        TestUnitCommon._delete(ZenodoManager)
 
     @staticmethod
     def _delete(singleton):

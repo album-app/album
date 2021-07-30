@@ -4,7 +4,7 @@ from pathlib import Path
 
 from album.core.model.configuration import Configuration
 
-from album.ci.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
+from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove, unzip_archive
@@ -119,9 +119,6 @@ class Catalog:
         Returns:
             Absolute path to the solution file.
 
-        Raises:
-            FileNotFoundError: If download=False and resolved solution is not already cached.
-
         """
         tree_leaf_node = self.catalog_index.resolve_by_doi(doi)
 
@@ -229,7 +226,11 @@ class Catalog:
 
     @staticmethod
     def get_zip_name(g, n, v):
-        return "_".join([g, n, v]) + ".zip"
+        return Catalog.get_zip_name_prefix(g, n, v) + ".zip"
+
+    @staticmethod
+    def get_zip_name_prefix(g, n, v):
+        return "_".join([g, n, v])
 
     def get_doi_cache_file(self, doi):
         """Gets the cache path of a solution given a doi.
@@ -441,13 +442,10 @@ class Catalog:
         """
         path = Path(path) if path else self.path
 
-        if force_download:
-            force_remove(path)
-
         module_logger().debug("Download catalog %s to the path %s..." % (self.id, str(path)))
 
         if not self.is_local:
-            repo = download_repository(self.src, str(path))
+            repo = download_repository(self.src, str(path), force_download=force_download)
 
             return repo
 

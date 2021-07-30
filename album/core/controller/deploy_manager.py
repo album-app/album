@@ -105,7 +105,9 @@ class DeployManager(metaclass=Singleton):
 
     def retrieve_head_name(self):
         """Retrieves the branch (head) name for the merge request of the solution file."""
-        return "_".join([self._active_solution["group"], self._active_solution["name"], self._active_solution["version"]])
+        return "_".join(
+            [self._active_solution["group"], self._active_solution["name"], self._active_solution["version"]]
+        )
 
     def _create_merge_request(self, file_paths, dry_run=False, trigger_pipeline=True, email=None, username=None):
         """Creates a merge request to the catalog repository for the album object.
@@ -136,7 +138,7 @@ class DeployManager(metaclass=Singleton):
 
         commit_msg = "Adding new/updated %s" % self.retrieve_head_name()
 
-        add_files_commit_and_push(new_head, file_paths, commit_msg, dry_run, trigger_pipeline, email, username)
+        add_files_commit_and_push(new_head, file_paths, commit_msg, not dry_run, trigger_pipeline, email, username)
 
     def _get_cache_suffix(self):
         return Path(self._repo.working_tree_dir).joinpath(

@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock, call
 
 from album.core.model.default_values import DefaultValues
 
-from album.ci.zenodo_api import ZenodoAPI
+from album.ci.utils.zenodo_api import ZenodoAPI
 from album.core.controller.deploy_manager import DeployManager
 from test.unit.test_unit_common import TestGitCommon
 
@@ -63,7 +63,8 @@ class TestDeployManager(TestGitCommon):
                                    trigger_pipeline=False)
 
         # assert
-        self.assertEqual(self.test_catalog_collection.catalogs[1], self.deploy_manager._catalog)  # correct catalog chosen
+        self.assertEqual(self.test_catalog_collection.catalogs[1],
+                         self.deploy_manager._catalog)  # correct catalog chosen
         get_catalog_by_id.assert_called_once_with(os.path.basename(self.tmp_dir.name))  # correct id requested
         get_catalog_by_url.assert_not_called()  # catalog given by id not url
         _copy_folder_in_local_catalog.assert_called_once_with(Path("None"))  # local ->  copy locally
@@ -117,7 +118,8 @@ class TestDeployManager(TestGitCommon):
                                    trigger_pipeline=False)
 
         # assert
-        self.assertEqual(self.test_catalog_collection.catalogs[0], self.deploy_manager._catalog)  # correct catalog chosen
+        self.assertEqual(self.test_catalog_collection.catalogs[0],
+                         self.deploy_manager._catalog)  # correct catalog chosen
         get_catalog_by_url.assert_called_once_with(DefaultValues.catalog_url.value)  # correct url requested
         get_catalog_by_id.assert_not_called()  # catalog given by url, not id
         _copy_solution_in_catalog.assert_not_called()  # catalog remote -> do not copy
@@ -170,7 +172,8 @@ class TestDeployManager(TestGitCommon):
                                    trigger_pipeline=False)
 
         # assert
-        self.assertEqual(self.test_catalog_collection.catalogs[0], self.deploy_manager._catalog)  # correct catalog chosen
+        self.assertEqual(self.test_catalog_collection.catalogs[0],
+                         self.deploy_manager._catalog)  # correct catalog chosen
         _copy_solution_in_catalog.assert_not_called()  # remote -> do not copy in catalog
         get_catalog_by_id.assert_not_called()  # catalog not given by id
         get_catalog_by_url.assert_not_called()  # catalog not given by url
@@ -190,7 +193,7 @@ class TestDeployManager(TestGitCommon):
         self.assertEqual("tsg_tsn_tsv", self.deploy_manager.retrieve_head_name())
 
     @patch('album.core.controller.deploy_manager.add_files_commit_and_push', return_value=True)
-    def test__create_merge_request(self, git_mock):
+    def test__create_merge_request(self, add_files_commit_and_push_mock):
         self.create_tmp_repo()
 
         self.deploy_manager.catalog_collection = self.test_catalog_collection
@@ -199,8 +202,11 @@ class TestDeployManager(TestGitCommon):
 
         self.deploy_manager._create_merge_request([self.closed_tmp_file.name], dry_run=True)
 
-        git_mock.assert_called_once_with(self.repo.heads[1], [self.closed_tmp_file.name],
-                                         "Adding new/updated tsg_tsn_tsv", True, True, None, None)
+        add_files_commit_and_push_mock.assert_called_once_with(
+            self.repo.heads[1], [self.closed_tmp_file.name],
+            "Adding new/updated tsg_tsn_tsv", False, True, None,
+            None
+        )
 
     @patch('album.core.model.album_base.AlbumClass.get_deploy_dict')
     def test__create_yaml_file_in_repo(self, deploy_dict_mock):

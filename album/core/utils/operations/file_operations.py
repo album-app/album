@@ -319,6 +319,7 @@ def copy_folder(folder_to_copy, destination, copy_root_folder=True):
             copy_folder(root.joinpath(d), destination.joinpath(d), copy_root_folder=False)
         for fi in files:
             copy(root.joinpath(fi), destination)
+        break
 
     return destination
 
@@ -368,7 +369,7 @@ def zip_paths(paths_to_include, zip_archive_file):
             else:
                 raise FileNotFoundError("Could not find file %s" % str(file))
 
-        zip_folder(tmp_folder, zip_archive_file)
+        return zip_folder(tmp_folder, zip_archive_file)
 
 
 def unzip_archive(zip_archive_file, target_folder=None):

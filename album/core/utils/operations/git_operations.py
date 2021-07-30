@@ -3,19 +3,20 @@ from pathlib import Path
 
 import git
 
+from album.core.utils.operations.file_operations import force_remove
 from album_runner import logging
 
 module_logger = logging.get_active_logger
 
 
-def checkout_branch(git_repo_path, branch_name):
+def checkout_branch(git_repo, branch_name):
     """Checks out a branch on a repository.
 
     First, local refs are taken, then refs pointing to origin.
 
     Args:
-        git_repo_path:
-            The path to a repository
+        git_repo:
+            The repository
         branch_name:
             The name of the branch to check out
 
@@ -26,16 +27,14 @@ def checkout_branch(git_repo_path, branch_name):
         IndexError when the branch is no where available.
 
     """
-    repo = git.Repo(git_repo_path)
-    module_logger().debug("Repository found in %s..." % git_repo_path)
-
     try:  # checkout branch locally
-        module_logger().debug("Found the following branches locally: \n %s..." % "\n".join([h.name for h in repo.heads]))
-        head = repo.heads[branch_name]
+        module_logger().debug("Found the following branches locally: \n %s..." % "\n".join([h.name for h in git_repo.heads]))
+        head = git_repo.heads[branch_name]
+        head.checkout()
         return head
     except IndexError as e:
         module_logger().debug("Branch name not in local repository! Checking origin...")
-        for remote in repo.remotes:  # checkout branch remote and track
+        for remote in git_repo.remotes:  # checkout branch remote and track
             try:
                 module_logger().debug("Trying remote: %s..." % remote.name)
                 head = remote.refs[branch_name].checkout("--track")
@@ -92,7 +91,7 @@ def retrieve_single_file_from_head(head, pattern):
     return abs_path_solution_file[0]
 
 
-def add_files_commit_and_push(head, file_paths, commit_message, dry_run=False, trigger_pipeline=True,
+def add_files_commit_and_push(head, file_paths, commit_message, push=False, trigger_pipeline=True,
                               email=None, username=None):
     """Adds files in a given path to a git head and commits.
 
@@ -103,8 +102,8 @@ def add_files_commit_and_push(head, file_paths, commit_message, dry_run=False, t
             The path of the files to add
         commit_message:
             The commit message
-        dry_run:
-            Boolean option to switch on dry-run, not doing actual pushing
+        push:
+            Boolean option to switch on/off pushing to repository remote
         trigger_pipeline:
             Boolean option to switch on pipeline triggering after pushing
         username:
@@ -121,7 +120,7 @@ def add_files_commit_and_push(head, file_paths, commit_message, dry_run=False, t
     if email or username:
         configure_git(repo, email, username)
 
-    if repo.index.diff() or repo.untracked_files:
+    if repo.index.diff(None) or repo.untracked_files:
         module_logger().info('Creating a merge request...')
 
         for file_path in file_paths:
@@ -142,7 +141,7 @@ def add_files_commit_and_push(head, file_paths, commit_message, dry_run=False, t
             cmd = cmd_option + cmd_push_option + ['-f', 'origin', head]
 
             module_logger().debug("Running command: repo.git.push(%s)..." % (", ".join(str(x) for x in cmd)))
-            if not dry_run:
+            if push:
                 repo.git.push(cmd)
 
         except git.GitCommandError:
@@ -171,6 +170,8 @@ def configure_git(repo, email, username):
         repo.config_writer().set_value("user", "name", username).release()
     if email:
         repo.config_writer().set_value("user", "email", email).release()
+    if not (username and email):
+        module_logger().warning("Neither username nor email given! Doing nothing...")
 
     return repo
 
@@ -186,7 +187,7 @@ def create_new_head(repo, name):
     return new_head
 
 
-def download_repository(repo_url, git_folder_path):
+def download_repository(repo_url, git_folder_path, force_download=True):
     """Downloads or updates the repository behind a url, returns repository object on success.
 
     If repository already cached, head is detached to origin HEAD for a clean start for new branches.
@@ -196,6 +197,8 @@ def download_repository(repo_url, git_folder_path):
             The URL to the git.
         git_folder_path:
             The complete path to clone to
+        force_download:
+            Boolean, indicates whether to force delete existing folder before cloning
 
     Returns:
         The repository object
@@ -219,8 +222,11 @@ def download_repository(repo_url, git_folder_path):
 
         # checkout remote HEAD for a clean start for new branches
         repo.remote().refs.HEAD.checkout()
-
     else:
+
+        if force_download:
+            force_remove(git_folder_path)
+
         module_logger().info("Download repository from %s in %s..." % (repo_url, git_folder_path))
         repo = git.Repo.clone_from(repo_url, git_folder_path)
 

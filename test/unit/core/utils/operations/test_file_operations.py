@@ -256,7 +256,8 @@ class TestFileOperations(TestUnitCommon):
         create_path_recursively(target_unzip)
 
         # archive
-        zip_paths([source_dir, tmp_file], target_zip)
+        r = zip_paths([source_dir, tmp_file], target_zip)
+        self.assertEqual(str(target_zip), r)
 
         # unzip
         unzip_archive(target_zip, target_unzip)
@@ -280,7 +281,8 @@ class TestFileOperations(TestUnitCommon):
         create_path_recursively(target_unzip)
 
         # archive
-        zip_folder(source_dir, target_zip)
+        r = zip_folder(source_dir, target_zip)
+        self.assertEqual(str(target_zip), r)
 
         # unzip
         unzip_archive(target_zip, target_unzip)
