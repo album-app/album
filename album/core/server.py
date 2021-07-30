@@ -12,7 +12,7 @@ from album.core.controller.run_manager import RunManager
 from album.core.controller.search_manager import SearchManager
 from album.core.controller.task_manager import TaskManager
 from album.core.controller.test_manager import TestManager
-from album.core.model.catalog_collection import CatalogCollection
+from album.core.model.catalog_collection import CatalogCollection, module_logger
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.model.solutions_db import SolutionsDb
@@ -87,7 +87,26 @@ class AlbumServer(metaclass=Singleton):
 
         @self.app.route("/index")
         def get_index():
-            return self.catalog_collection.get_search_index()
+            catalog_dict = {}
+            for catalog in self.catalog_collection.catalogs:
+                self._write_catalog_to_dict(catalog_dict, catalog)
+                catalog_dict[catalog.id]["solutions"] = catalog.catalog_index.get_leaves_dict_list()
+            return catalog_dict
+
+        @self.app.route("/catalogs")
+        def get_catalogs():
+            catalog_dict = {}
+            for catalog in self.catalog_collection.catalogs:
+                self._write_catalog_to_dict(catalog_dict, catalog)
+            return catalog_dict
+
+        @self.app.route("/recently-launched")
+        def get_recently_launched_solutions():
+            return {"solutions": self.solutions_db.get_recently_launched_solutions()}
+
+        @self.app.route("/recently-installed")
+        def get_recently_installed_solutions():
+            return {"solutions": self.solutions_db.get_recently_installed_solutions()}
 
         @self.app.route('/run/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/run/<catalog>/<group>/<name>/<version>')
@@ -129,13 +148,15 @@ class AlbumServer(metaclass=Singleton):
                 abort(404, description=f"Task not found with id {task_id}")
             return self.task_manager.get_status(task)
 
-        @self.app.route('/add-catalog/<url>')
-        def add_catalog(url):
+        @self.app.route('/add-catalog')
+        def add_catalog():
+            url = request.args.get("path")
             self.catalog_manager.add(url)
             return {}
 
-        @self.app.route('/remove-catalog/<url>')
-        def remove_catalog(url):
+        @self.app.route('/remove-catalog')
+        def remove_catalog():
+            url = request.args.get("path")
             self.catalog_manager.remove(url)
             return {}
 
@@ -150,6 +171,13 @@ class AlbumServer(metaclass=Singleton):
                 raise RuntimeError('Not running with the Werkzeug Server')
             func()
             return 'Server shutting down...'
+
+    @staticmethod
+    def _write_catalog_to_dict(catalog_dict, catalog):
+        catalog_dict[catalog.id] = {}
+        catalog_dict[catalog.id]["src"] = str(catalog.src) if catalog.src else None
+        catalog_dict[catalog.id]["path"] = str(catalog.path) if catalog.path else None
+        catalog_dict[catalog.id]["is_local"] = catalog.is_local
 
     def _run_solution_method(self, catalog, group, name, version, method):
         solution_path = self.get_solution_path_or_abort(catalog, group, name, version)

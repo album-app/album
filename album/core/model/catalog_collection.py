@@ -38,6 +38,9 @@ class CatalogCollection(metaclass=Singleton):
     def setup(self):
         self.configuration = Configuration()
         self.config_file_path = self.configuration.configuration_file_path
+        self.reload()
+
+    def reload(self):
         self.config_file_dict = self._load_configuration()
         self.catalogs = self._get_catalogs()
         self.local_catalog = self._get_local_catalog()

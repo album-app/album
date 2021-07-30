@@ -307,6 +307,9 @@ def copy_folder(folder_to_copy, destination, copy_root_folder=True):
     folder_to_copy = Path(folder_to_copy)
     destination = Path(destination)
 
+    if os.path.exists(destination) and os.path.samefile(folder_to_copy, destination):
+        return destination
+
     if copy_root_folder:
         destination = destination.joinpath(folder_to_copy.name)
 
@@ -328,6 +331,8 @@ def copy(file, path_to):
     """Copies a file A to either folder B or file B. Makes sure folder structure for target exists."""
     file = Path(file)
     path_to = Path(path_to)
+    if os.path.exists(path_to) and os.path.samefile(file, path_to):
+        return path_to
     create_path_recursively(path_to.parent)
 
     return Path(shutil.copy(file, path_to))
