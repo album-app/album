@@ -98,7 +98,6 @@ cmdline linux:
     - python -m album deploy -h
     - python -m album remove -h
     - python -m album repl -h
-    - python -m album containerize -h
     - python -m album server -h
     - python -m album add-catalog -h
     - python -m album remove-catalog -h

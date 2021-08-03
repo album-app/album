@@ -1,10 +1,10 @@
 import unittest
 
+from test.integration.ci import test_integration_ci
 from test.integration.core import test_integration_remove, test_integration_server, test_integration_run, \
-    test_integration_search, test_integration_test, test_integration_repl, test_integration_containerize, \
+    test_integration_search, test_integration_test, test_integration_repl, \
     test_integration_install, test_integration_catalog_features, test_integration_deploy
 
-from test.integration.ci import test_integration_ci
 
 def main():
     loader = unittest.TestLoader()
@@ -12,7 +12,6 @@ def main():
 
     # ### integration
     suite.addTests(loader.loadTestsFromModule(test_integration_catalog_features))
-    suite.addTests(loader.loadTestsFromModule(test_integration_containerize))
     suite.addTests(loader.loadTestsFromModule(test_integration_deploy))
     suite.addTests(loader.loadTestsFromModule(test_integration_install))
     suite.addTests(loader.loadTestsFromModule(test_integration_remove))
