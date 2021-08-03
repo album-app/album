@@ -1,14 +1,12 @@
-import os
 import sys
 import unittest
-from copy import deepcopy
 from pathlib import Path
 
 from album.ci.argument_parsing import main
 from album.ci.controller.release_manager import ReleaseManager
+from album.core.controller.catalog_manager import CatalogManager
 from album.core.controller.deploy_manager import DeployManager
 from album.core.model.catalog import Catalog
-from album.core.model.catalog_collection import CatalogCollection
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import copy_folder
 from test.integration.test_integration_common import TestIntegrationCommon
@@ -28,8 +26,8 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
     def fake_deploy(self):
         self._catalog = Catalog(catalog_id=self.name, path=self.path, src=self.src)
 
-        self._catalog_collection = CatalogCollection()
-        self._catalog_collection.catalogs.append(self._catalog)
+        self._catalog_manager = CatalogManager()
+        self._catalog_manager.catalogs.append(self._catalog)
 
         self._deploy_manager = DeployManager()
         self._deploy_manager.deploy(

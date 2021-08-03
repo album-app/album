@@ -52,17 +52,17 @@ class Configuration(metaclass=Singleton):
                 DefaultValues.config_file_name.value)
         conda_path = DefaultValues.conda_path.value
         if conda_path is not DefaultValues.conda_default_executable.value:
-            self.conda_executable = self.__build_conda_executable(conda_path)
+            self.conda_executable = self._build_conda_executable(conda_path)
         else:
             self.conda_executable = conda_path
 
     @staticmethod
-    def __build_conda_executable(conda_path):
+    def _build_conda_executable(conda_path):
         operation_system = sys.platform
         if operation_system == 'linux' or operation_system == 'darwin':
-            return str(Path(conda_path).joinpath("bin").joinpath("conda"))
+            return str(Path(conda_path).joinpath("bin", "conda"))
         else:
-            return str(Path(conda_path).joinpath("Scripts").joinpath("conda.exe"))
+            return str(Path(conda_path).joinpath("Scripts", "conda.exe"))
 
     @property
     def base_cache_path(self):
@@ -100,11 +100,6 @@ class Configuration(metaclass=Singleton):
     def get_solution_path_suffix(g, n, v):
         """Returns the suffix path for an album giving its group, name and version"""
         return Path("").joinpath(DefaultValues.cache_path_solution_prefix.value, g, n, v)
-
-    @staticmethod
-    def get_doi_solution_path_suffix(doi):
-        """Returns the suffix path for an album giving its doi"""
-        return Path("").joinpath(DefaultValues.cache_path_doi_solution_prefix.value, doi)
 
     def get_cache_path_catalog(self, catalog_id):
         """Get the cache path to the catalog with a certain ID. Catalog independent!

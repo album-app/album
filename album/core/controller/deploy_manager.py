@@ -4,7 +4,7 @@ from pathlib import Path
 from album.core.concept.singleton import Singleton
 
 from album.core import load
-from album.core.model.catalog_collection import CatalogCollection
+from album.core.controller.catalog_manager import CatalogManager
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, copy_folder, zip_paths
 from album.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push
@@ -23,7 +23,7 @@ class DeployManager(metaclass=Singleton):
     In this case, no merge request will be created!
 
     Attributes:
-        catalog_collection:
+        catalog_manager:
             Holding all configured catalogs.
 
     Notes:
@@ -31,10 +31,10 @@ class DeployManager(metaclass=Singleton):
 
     """
     # singletons
-    catalog_collection = None
+    catalog_manager = None
 
     def __init__(self):
-        self.catalog_collection = CatalogCollection()
+        self.catalog_manager = CatalogManager()
         self._catalog = None
         self._active_solution = None
         self._repo = None
@@ -72,13 +72,13 @@ class DeployManager(metaclass=Singleton):
         self._active_solution = load(path_to_solution)
 
         if catalog:  # case catalog given
-            self._catalog = self.catalog_collection.get_catalog_by_id(catalog)
+            self._catalog = self.catalog_manager.get_catalog_by_id(catalog)
         elif self._active_solution["deploy"] and self._active_solution["deploy"]["catalog"]:
-            self._catalog = self.catalog_collection.get_catalog_by_url(
+            self._catalog = self.catalog_manager.get_catalog_by_url(
                 self._active_solution["deploy"]["catalog"]["url"]
             )
         else:
-            self._catalog = self.catalog_collection.get_default_deployment_catalog()
+            self._catalog = self.catalog_manager.get_default_deployment_catalog()
             module_logger().warning("No catalog specified. Deploying to default catalog %s!" % self._catalog.id)
 
         if self._catalog.is_local:
@@ -86,7 +86,7 @@ class DeployManager(metaclass=Singleton):
             self._copy_folder_in_local_catalog(deploy_path)
             self._catalog.add(self._active_solution, force_overwrite=True)
         else:
-            dwnld_path = Path(self.catalog_collection.configuration.cache_path_download).joinpath(self._catalog.id)
+            dwnld_path = Path(self.catalog_manager.configuration.cache_path_download).joinpath(self._catalog.id)
             self._repo = self._catalog.download(dwnld_path, force_download=True)
 
             if not self._repo:

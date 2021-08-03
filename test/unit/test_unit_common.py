@@ -13,7 +13,6 @@ from album.ci.controller.release_manager import ReleaseManager
 from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core import AlbumClass
-from album.core.controller.catalog_manager import CatalogManager
 from album.core.controller.conda_manager import CondaManager
 from album.core.controller.deploy_manager import DeployManager
 from album.core.controller.install_manager import InstallManager
@@ -23,7 +22,7 @@ from album.core.controller.run_manager import RunManager
 from album.core.controller.search_manager import SearchManager
 from album.core.controller.task_manager import TaskManager
 from album.core.controller.test_manager import TestManager
-from album.core.model.catalog_collection import CatalogCollection
+from album.core.controller.catalog_manager import CatalogManager
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.model.solutions_db import SolutionsDb
@@ -77,7 +76,6 @@ class TestUnitCommon(unittest.TestCase):
         album_runner.logging._active_logger = {}
         TestUnitCommon._delete(AlbumServer)
         TestUnitCommon._delete(Configuration)
-        TestUnitCommon._delete(CatalogCollection)
         TestUnitCommon._delete(CatalogManager)
         TestUnitCommon._delete(CondaManager)
         TestUnitCommon._delete(DeployManager)
@@ -151,9 +149,9 @@ class TestUnitCommon(unittest.TestCase):
             configuration_file_path=self.test_catalog_collection_config_file.name
         )
 
-        self.test_catalog_collection = CatalogCollection()
+        self.test_catalog_manager = CatalogManager()
 
-        self.assertEqual(len(self.test_catalog_collection.local_catalog), 0)
+        self.assertEqual(len(self.test_catalog_manager.local_catalog), 0)
 
     @patch('album.core.model.environment.Environment.__init__', return_value=None)
     @patch('album.core.model.album_base.AlbumClass.get_deploy_dict')

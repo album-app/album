@@ -5,14 +5,13 @@ from flask import Flask, request
 from werkzeug.exceptions import abort
 
 from album.core.concept.singleton import Singleton
-from album.core.controller.catalog_manager import CatalogManager
 from album.core.controller.install_manager import InstallManager
 from album.core.controller.remove_manager import RemoveManager
 from album.core.controller.run_manager import RunManager
 from album.core.controller.search_manager import SearchManager
 from album.core.controller.task_manager import TaskManager
 from album.core.controller.test_manager import TestManager
-from album.core.model.catalog_collection import CatalogCollection, module_logger
+from album.core.controller.catalog_manager import CatalogManager
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.model.solutions_db import SolutionsDb
@@ -26,11 +25,10 @@ class AlbumServer(metaclass=Singleton):
 
     port = DefaultValues.server_port
 
-    # load singletons
+    # init singletons
     configuration = None
-    catalog_collection = None
-    resolve_manager = None
     catalog_manager = None
+    resolve_manager = None
     install_manager = None
     remove_manager = None
     run_manager = None
@@ -47,7 +45,6 @@ class AlbumServer(metaclass=Singleton):
     def setup(self, port):
         self.port = port
         self.configuration = Configuration()
-        self.catalog_collection = CatalogCollection()
         self.catalog_manager = CatalogManager()
         self.install_manager = InstallManager()
         self.remove_manager = RemoveManager()
@@ -77,8 +74,8 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route("/config")
         def get_config():
             return {
-                "album_config_path": str(self.catalog_collection.config_file_path),
-                "album_config": self.catalog_collection.config_file_dict,
+                "album_config_path": str(self.catalog_manager.config_file_path),
+                "album_config": self.catalog_manager.config_file_dict,
                 "cache_base": str(self.configuration.base_cache_path),
                 "cache_solutions": str(self.configuration.cache_path_solution),
                 "cache_apps": str(self.configuration.cache_path_app),
@@ -88,7 +85,7 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route("/index")
         def get_index():
             catalog_dict = {}
-            for catalog in self.catalog_collection.catalogs:
+            for catalog in self.catalog_manager.catalogs:
                 self._write_catalog_to_dict(catalog_dict, catalog)
                 catalog_dict[catalog.id]["solutions"] = catalog.catalog_index.get_leaves_dict_list()
             return catalog_dict
@@ -96,7 +93,7 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route("/catalogs")
         def get_catalogs():
             catalog_dict = {}
-            for catalog in self.catalog_collection.catalogs:
+            for catalog in self.catalog_manager.catalogs:
                 self._write_catalog_to_dict(catalog_dict, catalog)
             return catalog_dict
 
@@ -213,9 +210,9 @@ class AlbumServer(metaclass=Singleton):
 
     def _get_solution_path(self, catalog, group, name, version):
         if catalog is None:
-            solution = self.catalog_collection.resolve_dependency({"group": group, "name": name, "version": version})
+            solution = self.catalog_manager.resolve_dependency({"group": group, "name": name, "version": version})
         else:
-            solution = self.catalog_collection.resolve_directly(catalog_id=catalog, group=group, name=name, version=version)
+            solution = self.catalog_manager.resolve_directly(catalog_id=catalog, group=group, name=name, version=version)
         if solution is None:
             module_logger().error(f"Solution not found: {catalog}:{group}:{name}:{version}")
             return None

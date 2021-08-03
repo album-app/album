@@ -47,24 +47,23 @@ class TestDeployManager(TestGitCommon):
         self.deploy_manager._create_merge_request = _create_merge_request
 
         download_catalog = MagicMock(return_value="aRepository")
-        self.test_catalog_collection.catalogs[0].download = download_catalog
+        self.test_catalog_manager.catalogs[0].download = download_catalog
 
-        get_catalog_by_id = MagicMock(return_value=self.test_catalog_collection.catalogs[1])
-        self.test_catalog_collection.get_catalog_by_id = get_catalog_by_id
+        get_catalog_by_id = MagicMock(return_value=self.test_catalog_manager.catalogs[1])
+        self.test_catalog_manager.get_catalog_by_id = get_catalog_by_id
 
         get_catalog_by_url = MagicMock(return_value=None)
-        self.test_catalog_collection.get_catalog_by_url = get_catalog_by_url
+        self.test_catalog_manager.get_catalog_by_url = get_catalog_by_url
 
         # call
-        self.deploy_manager.catalog_collection = self.test_catalog_collection
+        self.deploy_manager.catalog_manager = self.test_catalog_manager
         self.deploy_manager.deploy(deploy_path="None",
                                    catalog=os.path.basename(self.tmp_dir.name),
                                    dry_run=False,
                                    trigger_pipeline=False)
 
         # assert
-        self.assertEqual(self.test_catalog_collection.catalogs[1],
-                         self.deploy_manager._catalog)  # correct catalog chosen
+        self.assertEqual(self.test_catalog_manager.catalogs[1], self.deploy_manager._catalog)  # correct catalog chosen
         get_catalog_by_id.assert_called_once_with(os.path.basename(self.tmp_dir.name))  # correct id requested
         get_catalog_by_url.assert_not_called()  # catalog given by id not url
         _copy_folder_in_local_catalog.assert_called_once_with(Path("None"))  # local ->  copy locally
@@ -99,27 +98,26 @@ class TestDeployManager(TestGitCommon):
         self.deploy_manager._create_merge_request = _create_merge_request
 
         download_catalog = MagicMock(return_value="aRepository")
-        self.test_catalog_collection.catalogs[0].download = download_catalog
+        self.test_catalog_manager.catalogs[0].download = download_catalog
 
-        get_catalog_by_url = MagicMock(return_value=self.test_catalog_collection.catalogs[0])
-        self.test_catalog_collection.get_catalog_by_url = get_catalog_by_url
+        get_catalog_by_url = MagicMock(return_value=self.test_catalog_manager.catalogs[0])
+        self.test_catalog_manager.get_catalog_by_url = get_catalog_by_url
 
         get_catalog_by_id = MagicMock(None)
-        self.test_catalog_collection.get_catalog_by_id = get_catalog_by_id
+        self.test_catalog_manager.get_catalog_by_id = get_catalog_by_id
 
         # call
         self.active_solution.__setattr__("deploy", {
             "catalog": {"url": DefaultValues.catalog_url.value}
         })
-        self.deploy_manager.catalog_collection = self.test_catalog_collection
+        self.deploy_manager.catalog_manager = self.test_catalog_manager
         self.deploy_manager.deploy(deploy_path="myPath",
                                    catalog=None,
                                    dry_run=False,
                                    trigger_pipeline=False)
 
         # assert
-        self.assertEqual(self.test_catalog_collection.catalogs[0],
-                         self.deploy_manager._catalog)  # correct catalog chosen
+        self.assertEqual(self.test_catalog_manager.catalogs[0], self.deploy_manager._catalog)  # correct catalog chosen
         get_catalog_by_url.assert_called_once_with(DefaultValues.catalog_url.value)  # correct url requested
         get_catalog_by_id.assert_not_called()  # catalog given by url, not id
         _copy_solution_in_catalog.assert_not_called()  # catalog remote -> do not copy
@@ -156,24 +154,23 @@ class TestDeployManager(TestGitCommon):
         self.deploy_manager._create_merge_request = _create_solution_merge_request
 
         download_catalog = MagicMock(return_value="aRepository")
-        self.test_catalog_collection.catalogs[0].download = download_catalog
+        self.test_catalog_manager.catalogs[0].download = download_catalog
 
-        get_catalog_by_url = MagicMock(return_value=self.test_catalog_collection.catalogs[0])
-        self.test_catalog_collection.get_catalog_by_url = get_catalog_by_url
+        get_catalog_by_url = MagicMock(return_value=self.test_catalog_manager.catalogs[0])
+        self.test_catalog_manager.get_catalog_by_url = get_catalog_by_url
 
         get_catalog_by_id = MagicMock(None)
-        self.test_catalog_collection.get_catalog_by_id = get_catalog_by_id
+        self.test_catalog_manager.get_catalog_by_id = get_catalog_by_id
 
         # call
-        self.deploy_manager.catalog_collection = self.test_catalog_collection
+        self.deploy_manager.catalog_manager = self.test_catalog_manager
         self.deploy_manager.deploy(deploy_path="myPath",
                                    catalog=None,
                                    dry_run=False,
                                    trigger_pipeline=False)
 
         # assert
-        self.assertEqual(self.test_catalog_collection.catalogs[0],
-                         self.deploy_manager._catalog)  # correct catalog chosen
+        self.assertEqual(self.test_catalog_manager.catalogs[0], self.deploy_manager._catalog)  # correct catalog chosen
         _copy_solution_in_catalog.assert_not_called()  # remote -> do not copy in catalog
         get_catalog_by_id.assert_not_called()  # catalog not given by id
         get_catalog_by_url.assert_not_called()  # catalog not given by url
@@ -187,7 +184,7 @@ class TestDeployManager(TestGitCommon):
         )
 
     def test_retrieve_head_name(self):
-        self.deploy_manager.catalog_collection = self.test_catalog_collection
+        self.deploy_manager.catalog_manager = self.test_catalog_manager
         self.deploy_manager._active_solution = self.active_solution
 
         self.assertEqual("tsg_tsn_tsv", self.deploy_manager.retrieve_head_name())
@@ -196,7 +193,7 @@ class TestDeployManager(TestGitCommon):
     def test__create_merge_request(self, add_files_commit_and_push_mock):
         self.create_tmp_repo()
 
-        self.deploy_manager.catalog_collection = self.test_catalog_collection
+        self.deploy_manager.catalog_manager = self.test_catalog_manager
         self.deploy_manager._repo = self.repo
         self.deploy_manager._active_solution = self.active_solution
 
@@ -214,7 +211,7 @@ class TestDeployManager(TestGitCommon):
 
         self.create_tmp_repo()
 
-        self.deploy_manager._catalog = self.test_catalog_collection.catalogs[1]
+        self.deploy_manager._catalog = self.test_catalog_manager.catalogs[1]
         self.deploy_manager._repo = self.repo
         self.deploy_manager._active_solution = self.active_solution
 
@@ -236,7 +233,7 @@ class TestDeployManager(TestGitCommon):
         self.create_tmp_repo()
         self.deploy_manager._repo = self.repo
         self.deploy_manager._active_solution = self.active_solution
-        self.deploy_manager._catalog = self.test_catalog_collection.local_catalog
+        self.deploy_manager._catalog = self.test_catalog_manager.local_catalog
 
         result = Path(self.repo.working_tree_dir).joinpath(
             DefaultValues.cache_path_solution_prefix.value,
@@ -261,7 +258,7 @@ class TestDeployManager(TestGitCommon):
         self.create_tmp_repo()
         self.deploy_manager._repo = self.repo
         self.deploy_manager._active_solution = self.active_solution
-        self.deploy_manager._catalog = self.test_catalog_collection.local_catalog
+        self.deploy_manager._catalog = self.test_catalog_manager.local_catalog
 
         tmp_dir = Path(self.tmp_dir.name)
         target_dir = Path(self.repo.working_tree_dir).joinpath(
@@ -282,7 +279,7 @@ class TestDeployManager(TestGitCommon):
     @patch('album.core.controller.deploy_manager.copy', return_value="absPathCopyFile")
     def test__copy_folder_in_local_catalog_file(self, copy_mock, copy_file_mock):
         self.deploy_manager._active_solution = self.active_solution
-        self.deploy_manager._catalog = self.test_catalog_collection.local_catalog
+        self.deploy_manager._catalog = self.test_catalog_manager.local_catalog
 
         solution_file_to_deploy_locally = Path(self.tmp_dir.name).joinpath("nice_file.py")
         solution_file_to_deploy_locally.touch()
@@ -291,7 +288,7 @@ class TestDeployManager(TestGitCommon):
 
         copy_mock.assert_called_once_with(
             solution_file_to_deploy_locally,
-            self.test_catalog_collection.local_catalog.get_solution_path(
+            self.test_catalog_manager.local_catalog.get_solution_path(
                 "tsg",
                 "tsn",
                 "tsv"
@@ -303,7 +300,7 @@ class TestDeployManager(TestGitCommon):
     @patch('album.core.controller.deploy_manager.copy', return_value="absPathCopyFile")
     def test__copy_folder_in_local_catalog_folder(self, copy_mock, copy_file_mock):
         self.deploy_manager._active_solution = self.active_solution
-        self.deploy_manager._catalog = self.test_catalog_collection.local_catalog
+        self.deploy_manager._catalog = self.test_catalog_manager.local_catalog
 
         solution_folder_to_deploy_locally = Path(self.tmp_dir.name)
         solution_folder_to_deploy_locally.joinpath("nice_file.py").touch()
@@ -313,7 +310,7 @@ class TestDeployManager(TestGitCommon):
 
         copy_file_mock.assert_called_once_with(
             solution_folder_to_deploy_locally,
-            self.test_catalog_collection.local_catalog.get_solution_path(
+            self.test_catalog_manager.local_catalog.get_solution_path(
                 "tsg",
                 "tsn",
                 "tsv"
@@ -328,7 +325,7 @@ class TestDeployManager(TestGitCommon):
         self.create_tmp_repo()
         self.deploy_manager._repo = self.repo
         self.deploy_manager._active_solution = self.active_solution
-        self.deploy_manager._catalog = self.test_catalog_collection.local_catalog
+        self.deploy_manager._catalog = self.test_catalog_manager.local_catalog
 
         solution_folder_to_deploy_locally = Path(self.tmp_dir.name)
         solution_file_to_deploy_locally = Path(self.tmp_dir.name).joinpath("nice_file.py")
@@ -336,7 +333,7 @@ class TestDeployManager(TestGitCommon):
 
         # result
         r = Path(self.repo.working_tree_dir).joinpath(
-            self.test_catalog_collection.local_catalog.get_solution_zip_suffix("tsg", "tsn", "tsv")
+            self.test_catalog_manager.local_catalog.get_solution_zip_suffix("tsg", "tsn", "tsv")
         )
 
         # copy and zip a folder

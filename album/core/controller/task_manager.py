@@ -4,9 +4,6 @@ import threading
 from threading import Thread
 
 from album.core.concept.singleton import Singleton
-from album.core.controller.catalog_manager import CatalogManager
-from album.core.controller.resolve_manager import ResolveManager
-from album.core.model.catalog_collection import CatalogCollection
 from album.core.model.log_handler import LogHandler
 from album.core.model.task import Task
 from album_runner import logging
@@ -18,10 +15,6 @@ class TaskManager(metaclass=Singleton):
     """Class for retrieving the status of a solution.
     """
 
-    resolve_manager = None
-    catalog_manager = None
-    catalog_collection = None
-
     server_queue = None
     num_fetch_threads = 3
 
@@ -30,9 +23,6 @@ class TaskManager(metaclass=Singleton):
     workers_initialized = False
 
     def __init__(self):
-        self.resolve_manager = ResolveManager()
-        self.catalog_collection = CatalogCollection()
-        self.catalog_manager = CatalogManager()
         self.tasks = {}
         self.task_count = 0
         self.server_queue = queue.Queue()

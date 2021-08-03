@@ -18,7 +18,7 @@ class TestSolutionDb(TestUnitCommon):
 
     def test_next_id(self):
         self.test_solutions_db.add_solution(
-            self.test_catalog_collection.local_catalog.id, "grp", "name", "version", None
+            self.test_catalog_manager.local_catalog.id, "grp", "name", "version", None
         )
 
         self.assertEqual(2, self.test_solutions_db.next_id())

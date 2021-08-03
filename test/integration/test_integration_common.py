@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import album.core as album
 from album.core.controller.conda_manager import CondaManager
-from album.core.model.catalog_collection import CatalogCollection
+from album.core.controller.catalog_manager import CatalogManager
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
@@ -53,6 +53,12 @@ class TestIntegrationCommon(unittest.TestCase):
             self.test_catalog_collection.local_catalog.id + "_group_solution3_noparent_0.1.0",
             self.test_catalog_collection.local_catalog.id + "_group_solution6_noparent_test_0.1.0",
             self.test_catalog_collection.local_catalog.id + "_group_solution7_long_routines_0.1.0",
+            self.test_catalog_collection.local_catalog.id + "_group_solution1_app1_0.1.0",
+            self.test_catalog_collection.local_catalog.id + "_group_solution2_app1_0.1.0",
+            self.test_catalog_collection.local_catalog.id + "_group_solution4_app2_0.1.0",
+            self.test_catalog_collection.local_catalog.id + "_group_solution5_app2_0.1.0",
+            self.test_catalog_collection.local_catalog.id + "_group_solution_with_steps_0.1.0",
+            self.test_catalog_collection.local_catalog.id + "_solution_with_steps_grouped_0.1.0"
         ]
         for e in env_names:
             if CondaManager().environment_exists(e):
@@ -87,7 +93,7 @@ class TestIntegrationCommon(unittest.TestCase):
         configuration = Configuration()
         configuration.setup(self.tmp_dir.name, self.test_configuration_file.name)
 
-        self.test_catalog_collection = CatalogCollection()
+        self.test_catalog_collection = CatalogManager()
         self.test_catalog_collection.setup()
 
         self.assertEqual(len(self.test_catalog_collection.local_catalog), 0)

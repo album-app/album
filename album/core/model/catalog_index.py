@@ -215,56 +215,6 @@ class CatalogIndex:
                 leaves_dict_list.append(leaf_dict)
         return leaves_dict_list
 
-    # untested
-    def resolve_by_name(self, name):
-        search_result_list = []
-        for groups in self.index.children:
-            search_result = self._find_node_by_name(groups, name)
-
-            if search_result:
-                if len(search_result.children) > 1:
-                    module_logger().warning("Found several versions! Taking the latest one...")
-                # always use the latest version
-                search_result_list.append(search_result.children[-1])
-
-        if not search_result_list:
-            raise RuntimeError("Could not resolve album!")
-
-        if len(search_result_list) > 1:
-            raise RuntimeError("Found a solution named identical for different groups! Please be more specific!")
-
-        # returns the album leaf node
-        return search_result_list[0]
-
-    # untested
-    def resolve_by_name_and_group(self, name, group):
-        search_result = self._find_node_by_name_and_group(self.index, name, group, maxlevel=2)
-
-        if search_result:
-            if len(search_result.children) > 1:
-                module_logger().warning("Found several versions! Taking the latest one...")
-
-        # returns the album leaf node
-        return search_result.children[-1]
-
-    # untested
-    def resolve_by_name_and_version(self, name, version):
-        search_result_list = []
-        for groups in self.index.children:
-            # search result in a grp must be unique
-            search_result = self._find_node_by_name_and_version(groups, name, version)
-            if search_result:
-                search_result_list.append(search_result)
-
-        if not search_result_list:
-            raise RuntimeError("Could not resolve album!")
-
-        if len(search_result_list) > 1:
-            raise RuntimeError("Found a solution named identical for different groups! Please be more specific!")
-
-        # returns the album leaf node
-        return search_result_list[0]
-
     def resolve_by_name_version_and_group(self, name, version, group):
         """Resolves a solution by its name, version and group.
 
@@ -340,7 +290,7 @@ class CatalogIndex:
         if export_format == "JSON":
             write_dict_to_json(path, leaves_dict)
         else:
-            raise RuntimeError("Unsupported format \"%s\"" % export_format)
+            raise NotImplementedError("Unsupported format \"%s\"" % export_format)
 
     def __len__(self):
         leaves = self.index.leaves

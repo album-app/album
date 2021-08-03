@@ -72,7 +72,7 @@ class TestResolveManager(TestUnitCommon):
         r = self.resolve_manager.resolve_and_load("pathToAValidFile")
 
         expected = [
-            {"path": "copiedFilePath", "catalog": self.test_catalog_collection.local_catalog},
+            {"path": "copiedFilePath", "catalog": self.test_catalog_manager.local_catalog},
             self.active_solution
         ]
 
@@ -80,7 +80,7 @@ class TestResolveManager(TestUnitCommon):
         self.assertEqual(expected, r)
 
         _check_file_or_url.assert_called_once_with("pathToAValidFile")  # check local input
-        set_environment.assert_called_once_with(self.test_catalog_collection.local_catalog.id)  # use correct catalog
+        set_environment.assert_called_once_with(self.test_catalog_manager.local_catalog.id)  # use correct catalog
         load_mock.assert_called_once_with("copiedFilePath")  # load with correct path
         get_attributes_from_string.assert_not_called()  # do not go into remote
 
@@ -102,7 +102,7 @@ class TestResolveManager(TestUnitCommon):
         _catalog.id = "aNiceId"
 
         resolve = MagicMock(return_value={"path": "aValidPath", "catalog": _catalog})
-        self.test_catalog_collection.resolve = resolve
+        self.test_catalog_manager.resolve = resolve
 
         # call
         r = self.resolve_manager.resolve_and_load("grp:name:version")
@@ -117,7 +117,7 @@ class TestResolveManager(TestUnitCommon):
 
         _check_file_or_url.assert_called_once_with("grp:name:version")  # locally checked
         get_attributes_from_string.assert_called_once_with("grp:name:version")  # extract attrs-dict from input
-        resolve.assert_called_once_with("attrs_object", update=False)  # resolve with correct attrs-dict
+        resolve.assert_called_once_with("attrs_object")  # resolve with correct attrs-dict
         load_mock.assert_called_once_with("aValidPath")  # load with the resolved path
         set_environment.assert_called_once_with(_catalog.id)  # set environment with correct id
 
@@ -133,7 +133,7 @@ class TestResolveManager(TestUnitCommon):
         _catalog.id = "aNiceId"
 
         resolve_directly = MagicMock(return_value={"path": "aValidPath", "catalog": _catalog})
-        self.test_catalog_collection.resolve_directly = resolve_directly
+        self.test_catalog_manager.resolve_directly = resolve_directly
 
         set_environment = MagicMock(return_value=None)
         self.active_solution.set_environment = set_environment
@@ -161,7 +161,7 @@ class TestResolveManager(TestUnitCommon):
         _catalog.id = "aNiceId"
 
         resolve_directly = MagicMock(return_value=None)
-        self.test_catalog_collection.resolve_directly = resolve_directly
+        self.test_catalog_manager.resolve_directly = resolve_directly
 
         set_environment = MagicMock(return_value=None)
         self.active_solution.set_environment = set_environment
@@ -337,7 +337,7 @@ class TestResolveManager(TestUnitCommon):
         _catalog.id = "aNiceId"
 
         resolve_directly = MagicMock(return_value={"path": "aValidPath", "catalog": _catalog})
-        self.test_catalog_collection.resolve_directly = resolve_directly
+        self.test_catalog_manager.resolve_directly = resolve_directly
 
         set_environment = MagicMock(return_value=None)
         self.active_solution.set_environment = set_environment
@@ -371,7 +371,7 @@ class TestResolveManager(TestUnitCommon):
         self.resolve_manager.solution_db.get_solutions_by_grp_name_version = get_solutions_by_grp_name_version
 
         resolve_directly = MagicMock(return_value=None)
-        self.test_catalog_collection.resolve_directly = resolve_directly
+        self.test_catalog_manager.resolve_directly = resolve_directly
 
         set_environment = MagicMock(return_value=None)
         self.active_solution.set_environment = set_environment
@@ -399,7 +399,7 @@ class TestResolveManager(TestUnitCommon):
         self.resolve_manager.solution_db.get_solutions_by_grp_name_version = get_solutions_by_grp_name_version
 
         get_catalog_by_id = MagicMock(return_value=_catalog)
-        self.test_catalog_collection.get_catalog_by_id = get_catalog_by_id
+        self.test_catalog_manager.get_catalog_by_id = get_catalog_by_id
 
         set_environment = MagicMock(return_value=None)
         self.active_solution.set_environment = set_environment
@@ -431,7 +431,7 @@ class TestResolveManager(TestUnitCommon):
         self.resolve_manager.solution_db.get_solutions_by_grp_name_version = get_solutions_by_grp_name_version
 
         get_catalog_by_id = MagicMock(return_value=None)
-        self.test_catalog_collection.get_catalog_by_id = get_catalog_by_id
+        self.test_catalog_manager.get_catalog_by_id = get_catalog_by_id
 
         set_environment = MagicMock(return_value=None)
         self.active_solution.set_environment = set_environment

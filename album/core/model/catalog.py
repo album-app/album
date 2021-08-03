@@ -340,6 +340,9 @@ class Catalog:
         except ConnectionError:
             module_logger().warning("Could not refresh index. Connection error!")
             return False
+        except ValueError:
+            module_logger().warning("Could not refresh index. Invalid format!")
+            return False
         except Exception as e:
             module_logger().warning("Could not refresh index. Unknown reason!")
             module_logger().warning(e)

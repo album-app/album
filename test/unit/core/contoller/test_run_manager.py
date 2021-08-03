@@ -39,7 +39,7 @@ class TestRunManager(TestUnitCommon):
         _resolve_installed = MagicMock(return_value={"path": Path(self.closed_tmp_file.name), "catalog": None})
         self.run_manager.resolve_manager._resolve_installed = _resolve_installed
 
-        self.run_manager.resolve_manager.catalog_collection = self.test_catalog_collection
+        self.run_manager.resolve_manager.catalog_collection = self.test_catalog_manager
 
         # test
         self.run_manager.run(self.closed_tmp_file.name)
@@ -162,7 +162,7 @@ class TestRunManager(TestUnitCommon):
         self.run_manager.run_queue = run_queue
 
         # call
-        self.run_manager.resolve_manager.catalog_collection = self.test_catalog_collection
+        self.run_manager.resolve_manager.catalog_collection = self.test_catalog_manager
         que = Queue()
         steps = [{"name": "Step1", },
                  {"name": "Step2", }]
@@ -208,7 +208,7 @@ class TestRunManager(TestUnitCommon):
         self.run_manager.run_queue = run_queue
 
         # call
-        self.run_manager.resolve_manager.catalog_collection = self.test_catalog_collection
+        self.run_manager.resolve_manager.catalog_collection = self.test_catalog_manager
         que = Queue()
         steps = [{"name": "Step1", },
                  {"name": "Step2", }]
@@ -258,7 +258,7 @@ class TestRunManager(TestUnitCommon):
         self.run_manager.run_queue = run_queue
 
         # call
-        self.run_manager.resolve_manager.catalog_collection = self.test_catalog_collection
+        self.run_manager.resolve_manager.catalog_collection = self.test_catalog_manager
         que = Queue()
         steps = [{"name": "Step1", }]
 
@@ -315,7 +315,7 @@ class TestRunManager(TestUnitCommon):
         self.run_manager.resolve_args = resolve_args
 
         # call
-        self.run_manager.resolve_manager.catalog_collection = self.test_catalog_collection
+        self.run_manager.resolve_manager.catalog_collection = self.test_catalog_manager
         r = self.run_manager.create_solution_run_with_parent_script_standalone(self.active_solution, [])
 
         # assert

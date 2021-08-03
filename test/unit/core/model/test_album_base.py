@@ -36,7 +36,7 @@ channels:
 
     def test_set_cache_paths(self):
         self.create_test_config()
-        config = self.test_catalog_collection.configuration
+        config = self.test_catalog_manager.configuration
 
         active_solution = AlbumClass(self.solution_default_dict)
 

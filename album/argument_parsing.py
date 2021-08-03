@@ -2,7 +2,7 @@ import argparse
 import sys
 
 from album.core.commandline import add_catalog, remove_catalog, containerize, deploy, \
-    install, remove, repl, run, search, start_server, test
+    install, remove, repl, run, search, start_server, test, update
 from album_runner import logging
 from album_runner.logging import debug_settings
 
@@ -111,6 +111,16 @@ def create_parser():
     parser.create_file_command_parser(
         'remove-catalog', remove_catalog,
         'remove a catalog from your local album configuration file'
+    )
+    p = parser.create_file_command_parser(
+        'update-catalog', update,
+        'update the catalog index file. Either all catalogs configured, or a specific one.'
+    )
+    p.add_argument(
+        '--catalog-id',
+        required=False,
+        help='The catalog id (also name) of the catalog to update!',
+        default=None
     )
     parser.create_file_command_parser(
         'test', test, 'execute a solutions test routine.')

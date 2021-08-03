@@ -2,7 +2,7 @@ import operator
 
 from album.core.concept.singleton import Singleton
 
-from album.core.model.catalog_collection import CatalogCollection
+from album.core.controller.catalog_manager import CatalogManager
 from album_runner import logging
 
 module_logger = logging.get_active_logger
@@ -13,15 +13,15 @@ class SearchManager(metaclass=Singleton):
     to be findable in a search request.
 
      Attributes:
-         catalog_collection:
+         catalog_manager:
             Holds all the catalogs of the album framework installation.
 
     """
     # singletons
-    catalog_collection = None
+    catalog_manager = None
 
     def __init__(self):
-        self.catalog_collection = CatalogCollection()
+        self.catalog_manager = CatalogManager()
 
     def search(self, keywords):
         """Function corresponding to the `search` subcommand of `album`.
@@ -31,7 +31,7 @@ class SearchManager(metaclass=Singleton):
         """
         module_logger().debug("Searching with following arguments %s..." % ", ".join(keywords))
 
-        search_index = self.catalog_collection.get_search_index()
+        search_index = self.catalog_manager.get_search_index()
         match_score = {}
         for catalog_id, catalog_leaves in search_index.items():
             for solution in catalog_leaves:
