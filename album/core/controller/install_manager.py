@@ -28,7 +28,7 @@ class InstallManager(metaclass=Singleton):
 
     def __init__(self):
         self.resolve_manager = ResolveManager()
-        self.configuration = self.resolve_manager.catalog_collection.configuration
+        self.configuration = self.resolve_manager.catalog_manager.configuration
 
     def install(self, path):
         """Function corresponding to the `install` subcommand of `album`."""
@@ -69,9 +69,9 @@ class InstallManager(metaclass=Singleton):
 
     def add_to_local_catalog(self, active_solution, path):
         """Force adds the installation to the local catalog to be cached for running"""
-        self.resolve_manager.catalog_collection.local_catalog.add(active_solution, force_overwrite=True)
+        self.resolve_manager.catalog_manager.local_catalog.add(active_solution, force_overwrite=True)
         # get the install location
-        install_location = self.resolve_manager.catalog_collection.local_catalog.get_solution_path(
+        install_location = self.resolve_manager.catalog_manager.local_catalog.get_solution_path(
             active_solution.group, active_solution.name, active_solution.version
         )
 
@@ -118,7 +118,7 @@ class InstallManager(metaclass=Singleton):
 
     def install_dependency(self, dependency):
         """Calls `install` for a solution declared in a dependency block"""
-        script_path = self.resolve_manager.catalog_collection.resolve_dependency(dependency)["path"]
+        script_path = self.resolve_manager.catalog_manager.resolve_dependency(dependency)["path"]
         # recursive installation call
         catalog_id = self.install(script_path)
 

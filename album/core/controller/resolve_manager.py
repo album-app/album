@@ -3,11 +3,10 @@ import os
 import re
 import sys
 from pathlib import Path
-from zipfile import ZipFile
 
 from album.core import load
 from album.core.concept.singleton import Singleton
-from album.core.model.catalog_collection import CatalogCollection
+from album.core.controller.catalog_manager import CatalogManager
 from album.core.model.default_values import DefaultValues
 from album.core.model.solutions_db import SolutionsDb
 from album.core.utils.operations.file_operations import unzip_archive, copy, copy_folder, force_remove, \
@@ -28,12 +27,12 @@ class ResolveManager(metaclass=Singleton):
 
     """
     # singletons
-    catalog_collection = None
+    catalog_manager = None
 
     def __init__(self):
-        self.catalog_collection = CatalogCollection()
-        self.configuration = self.catalog_collection.configuration
-        self.tmp_cache_dir = self.catalog_collection.configuration.cache_path_tmp
+        self.catalog_manager = CatalogManager()
+        self.configuration = self.catalog_manager.configuration
+        self.tmp_cache_dir = self.catalog_manager.configuration.cache_path_tmp
         self.solution_db = SolutionsDb()
 
     def clean_resolve_tmp(self):
@@ -78,7 +77,7 @@ class ResolveManager(metaclass=Singleton):
         if path:
             active_solution = load(path)
 
-            catalog = self.catalog_collection.local_catalog
+            catalog = self.catalog_manager.local_catalog
 
             active_solution.set_environment(catalog.id)
 
@@ -90,7 +89,7 @@ class ResolveManager(metaclass=Singleton):
         else:
             attrs = self.get_attributes_from_string(str_input)
 
-            resolve = self.catalog_collection.resolve(attrs, update=False)
+            resolve = self.catalog_manager.resolve(attrs)
 
             if not resolve:
                 raise LookupError("Solution cannot be resolved in any catalog!")
@@ -123,7 +122,7 @@ class ResolveManager(metaclass=Singleton):
             raise LookupError("Dependency %s:%s:%s seems not to be installed! Please install solution first!"
                               % (solution_attrs["group"], solution_attrs["name"], solution_attrs["version"]))
 
-        resolve_catalog = self.catalog_collection.resolve_directly(
+        resolve_catalog = self.catalog_manager.resolve_directly(
             solution_installed[0]["catalog_id"],
             solution_attrs["group"],
             solution_attrs["name"],
@@ -149,7 +148,7 @@ class ResolveManager(metaclass=Singleton):
         if not solution_installed:
             raise LookupError("Solution seems not to be installed! Please install solution first!")
 
-        catalog = self.catalog_collection.get_catalog_by_id(solution_installed[0]["catalog_id"])
+        catalog = self.catalog_manager.get_catalog_by_id(solution_installed[0]["catalog_id"])
 
         active_solution.set_environment(catalog.id)
 
@@ -179,7 +178,7 @@ class ResolveManager(metaclass=Singleton):
         if not solution_installed:
             raise LookupError("Solution seems not to be installed! Please install solution first!")
 
-        resolve = self.catalog_collection.resolve_directly(
+        resolve = self.catalog_manager.resolve_directly(
             solution_installed["catalog_id"], attrs_dict["group"], attrs_dict["name"], attrs_dict["version"]
         )
 
@@ -341,7 +340,7 @@ class ResolveManager(metaclass=Singleton):
                         return False
         # If a "TypeError" exception was raised, it almost certainly has the
         # error message "embedded NUL character" indicating an invalid pathname.
-        except TypeError as exc:
+        except TypeError:
             return False
         # If no exception was raised, all path components and hence this
         # pathname itself are valid. (Praise be to the curmudgeonly python.)

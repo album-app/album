@@ -1,24 +1,19 @@
-from album.core import load_and_push_solution, pop_active_solution, get_active_solution
 from album.core.controller.catalog_manager import CatalogManager
+
+from album.core import load_and_push_solution, pop_active_solution, get_active_solution
 from album.core.controller.deploy_manager import DeployManager
 from album.core.controller.install_manager import InstallManager
 from album.core.controller.remove_manager import RemoveManager
 from album.core.controller.run_manager import RunManager
 from album.core.controller.search_manager import SearchManager
-from album.core.server import AlbumServer
 from album.core.controller.test_manager import TestManager
+from album.core.server import AlbumServer
 from album_runner import logging
 from album_runner.logging import debug_settings
 
 module_logger = logging.get_active_logger
 
-# NOTE: Singleton instances should already be initialized at this point! Look at __main__.py!
-# Calling Singleton classes gives back the already initialized instances only!
-
-# ToDo: environment purge method
-# ToDo: reusable versioned environments?
-# ToDo: test for windows
-# ToDo: subprocess logging (https://www.endpoint.com/blog/2015/01/28/getting-realtime-output-using-python)
+# NOTE: Calling Singleton classes gives back the already initialized instances only!
 
 
 def add_catalog(args):
@@ -27,6 +22,10 @@ def add_catalog(args):
 
 def remove_catalog(args):
     CatalogManager().remove(args.path)
+
+
+def update(args):
+    CatalogManager().update_any(args.catalog_id)
 
 
 def deploy(args):

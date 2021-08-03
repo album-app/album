@@ -1,6 +1,8 @@
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 from album.core.model.configuration import Configuration, DefaultValues
 from test.unit.test_unit_common import TestUnitCommon
@@ -45,20 +47,55 @@ class TestConfiguration(TestUnitCommon):
             self.conf.cache_path_tmp
         )
 
+    @unittest.skipUnless(sys.platform.startswith("win"), "requires Windoofs")
+    def test__build_conda_executable_windows(self):
+        r = self.conf._build_conda_executable("myPathToConda")
+
+        expected = Path("myPathToConda").joinpath("Scripts", "conda.exe")
+        self.assertEqual(r, str(expected))
+
+    @unittest.skipUnless(sys.platform == 'linux' or sys.platform == 'darwin', "requires a proper OS")
+    def test__build_conda_executable_linux(self):
+        r = self.conf._build_conda_executable("myPathToConda")
+
+        expected = Path("myPathToConda").joinpath("bin", "conda")
+        self.assertEqual(r, str(expected))
+
     def test_extract_catalog_name(self):
         catalog_name = "https://gitlab.com/album-app/capture-knowledge.ext"
 
         self.assertEqual(self.conf.extract_catalog_name(catalog_name), "capture-knowledge")
 
-    @unittest.skip("Needs to be implemented!")
     def test_get_default_configuration(self):
-        # ToDo: implement
-        pass
+        # mocks
+        get_default_catalog_configuration = MagicMock(return_value="myNiceDefaultCatalogConfiguration")
+        self.conf.get_default_catalog_configuration = get_default_catalog_configuration
 
-    @unittest.skip("Needs to be implemented!")
+        # call
+        r = self.conf.get_default_configuration()
+
+        self.assertEqual({"catalogs": "myNiceDefaultCatalogConfiguration"}, r)
+        get_default_catalog_configuration.assert_called_once()
+
     def test_get_default_catalog_configuration(self):
-        # ToDo: implement
-        pass
+        # mocks
+        get_cache_path_catalog = MagicMock(return_value="myLocalCatalogCachePath")
+        self.conf.get_cache_path_catalog = get_cache_path_catalog
+
+        # call
+        r = self.conf.get_default_catalog_configuration()
+
+        # assert
+        self.assertEqual(["myLocalCatalogCachePath", "https://gitlab.com/album-app/catalogs/default"], r)
+        get_cache_path_catalog.assert_called_once_with("catalog_local")
+
+    @patch('album.core.model.configuration.force_remove')
+    def test_empty_tmp(self, force_remove_mock):
+        force_remove_mock.return_value = None
+        # call
+        self.conf.empty_tmp()
+
+        force_remove_mock.assert_called_once()
 
 
 if __name__ == '__main__':

@@ -172,6 +172,10 @@ class TestCatalogIndex(TestUnitCommon):
 
         export_file.close()
 
+    def test_export_unknown(self):
+        with self.assertRaises(NotImplementedError):
+            self.cs_index.export(self.closed_tmp_file.name, export_format="UNKNOWN")
+
     @patch('album.core.model.catalog_index.RenderTree', return_value="")
     def test_visualize(self, rt_mock):
         self.cs_index.visualize()

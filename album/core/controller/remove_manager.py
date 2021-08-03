@@ -82,13 +82,9 @@ class RemoveManager(metaclass=Singleton):
                 for dependency in args:
                     # ToDo: need to search through all installed installations if there is another dependency of what
                     #  we are going to delete... otherwise there will nasty resolving errors during runtime
-                    dependency_path = self.resolve_manager.catalog_collection.resolve_dependency(
-                        dependency, update=False
-                    )["path"]
+                    dependency_path = self.resolve_manager.catalog_manager.resolve_dependency(dependency)["path"]
                     self.remove(dependency_path, True)
 
         if self._active_solution.parent:
-            parent_path = self.resolve_manager.catalog_collection.resolve_dependency(
-                self._active_solution.parent, update=False
-            )["path"]
+            parent_path = self.resolve_manager.catalog_manager.resolve_dependency(self._active_solution.parent)["path"]
             self.remove(parent_path, True)

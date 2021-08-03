@@ -4,7 +4,6 @@ from album.core.concept.singleton import Singleton
 from album.core.controller.resolve_manager import ResolveManager
 from album.core.controller.run_manager import RunManager
 from album_runner import logging
-from album_runner.logging import LogLevel
 
 module_logger = logging.get_active_logger
 

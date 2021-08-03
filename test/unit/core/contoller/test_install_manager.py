@@ -24,7 +24,7 @@ class TestInstallManager(TestUnitCommon):
         # create mocks
         resolve_and_load = MagicMock(
             return_value=[
-                {"path": Path("aPath"), "catalog": self.test_catalog_collection.local_catalog}, self.active_solution
+                {"path": Path("aPath"), "catalog": self.test_catalog_manager.local_catalog}, self.active_solution
             ]
         )
         self.install_manager.resolve_manager.resolve_and_load = resolve_and_load
@@ -39,7 +39,7 @@ class TestInstallManager(TestUnitCommon):
         self.install_manager.add_to_solutions_db = add_to_solutions_db
 
         # run
-        self.install_manager.resolve_manager.catalog_collection = self.test_catalog_collection
+        self.install_manager.resolve_manager.catalog_collection = self.test_catalog_manager
         self.install_manager.install("aPath")
 
         # assert
@@ -47,7 +47,7 @@ class TestInstallManager(TestUnitCommon):
         execute_install_routine.assert_called_once()
         add_to_local_catalog.assert_called_once()
         add_to_solutions_db.assert_called_once_with(
-            self.test_catalog_collection.local_catalog.id, None, self.active_solution
+            self.test_catalog_manager.local_catalog.id, None, self.active_solution
         )
 
     @patch('album.core.model.solutions_db.SolutionsDb.get_solution')
@@ -81,17 +81,17 @@ class TestInstallManager(TestUnitCommon):
     def test_add_to_local_catalog(self, copy_folder_mock):
         # create mocks
         add = MagicMock(return_value=None)
-        self.test_catalog_collection.local_catalog.add = add
+        self.test_catalog_manager.local_catalog.add = add
 
         get_solution_path = MagicMock(return_value="aPath")
-        self.test_catalog_collection.local_catalog.get_solution_path = get_solution_path
+        self.test_catalog_manager.local_catalog.get_solution_path = get_solution_path
 
         clean_resolve_tmp = MagicMock(return_value=None)
         self.install_manager.resolve_manager.clean_resolve_tmp = clean_resolve_tmp
 
         # run
         self.active_solution.script = ""  # the script gets read during load()
-        self.install_manager.resolve_manager.catalog_collection = self.test_catalog_collection
+        self.install_manager.resolve_manager.catalog_collection = self.test_catalog_manager
         self.install_manager.add_to_local_catalog(self.active_solution, "aPathToInstall")
 
         # assert
@@ -117,7 +117,7 @@ class TestInstallManager(TestUnitCommon):
         self.install_manager.install_dependencies = install_dependencies
 
         # run
-        self.install_manager.catalog_collection = self.test_catalog_collection
+        self.install_manager.catalog_collection = self.test_catalog_manager
 
         self.install_manager._install(self.active_solution)
 
@@ -143,7 +143,7 @@ class TestInstallManager(TestUnitCommon):
 
         # run
         self.active_solution.install = lambda: "notNone"
-        self.install_manager.resolve_manager = ResolveManager(self.test_catalog_collection)
+        self.install_manager.resolve_manager = ResolveManager(self.test_catalog_manager)
 
         self.install_manager._install(self.active_solution)
 
@@ -169,7 +169,7 @@ class TestInstallManager(TestUnitCommon):
 
         # run
         self.active_solution.install = "notCallableValue"
-        self.install_manager.catalog_collection = self.test_catalog_collection
+        self.install_manager.catalog_collection = self.test_catalog_manager
 
         self.install_manager._install(self.active_solution)
 
@@ -204,13 +204,13 @@ class TestInstallManager(TestUnitCommon):
     def test_install_dependency(self):
         # mocks
         resolve_dependency = MagicMock(return_value={"path": "aPath", "catalog": None})
-        self.test_catalog_collection.resolve_dependency = resolve_dependency
+        self.test_catalog_manager.resolve_dependency = resolve_dependency
 
         install = MagicMock(return_value=None)
         self.install_manager.install = install
 
         # run
-        self.install_manager.resolve_manager.catalog_collection = self.test_catalog_collection
+        self.install_manager.resolve_manager.catalog_collection = self.test_catalog_manager
         self.install_manager.install_dependency("something")
 
         # assert
