@@ -11,6 +11,7 @@ from test.unit.test_unit_common import TestGitCommon
 class TestCiUtils(TestGitCommon):
 
     def setUp(self) -> None:
+        super().setUp()
         self.zenodoAPI = ZenodoAPI('url', 'access_token')
 
         current_path = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
