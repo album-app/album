@@ -59,7 +59,8 @@ class TestCatalog(TestUnitCommon):
 
     def setUp(self):
         super().setUp()
-        self.catalog = Catalog("test", Path(self.tmp_dir.name).joinpath("testRepo"))
+        catalog_path = Path(self.tmp_dir.name).joinpath("testRepo")
+        self.catalog = Catalog("test", catalog_path, catalog_path)
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -68,7 +69,7 @@ class TestCatalog(TestUnitCommon):
     def test__init__(self):
         new_catalog = self.catalog
         self.assertEqual(new_catalog.path, Path(self.tmp_dir.name).joinpath("testRepo"))
-        self.assertIsNone(new_catalog.src)
+        self.assertIsNotNone(new_catalog.src)
         self.assertTrue(new_catalog.is_local)
         self.assertEqual(new_catalog.id, "test")
         self.assertEqual(str(new_catalog.catalog_index.index), str(Node("test", **{"version": "0.1.0"})))
@@ -301,6 +302,7 @@ class TestCatalog(TestUnitCommon):
     @patch("album.core.model.catalog.unzip_archive", return_value=Path("a/Path"))
     def test_download_solution(self, unzip_mock, dl_mock):
         self.catalog.src = "NonsenseUrl.git"
+        self.catalog.is_local = False
 
         dl_url = "NonsenseUrl" + "/-/raw/main/solutions/g/n/v/gnv.zip"
         dl_path = self.catalog.path.joinpath(

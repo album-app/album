@@ -18,9 +18,9 @@ class TestCatalogManager(TestUnitCommon):
         super().setUp()
         self.config_file = Path(self.tmp_dir.name).joinpath("config_file")
         self.catalog_list = [
-            str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog")),
+            str(Path(self.tmp_dir.name).joinpath("my-catalogs", "test_catalog")),
             str(DefaultValues.catalog_url.value),
-            str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog2"))
+            str(Path(self.tmp_dir.name).joinpath("my-catalogs", "test_catalog2"))
         ]
 
         with open(self.config_file, "w+") as f:
@@ -40,18 +40,11 @@ class TestCatalogManager(TestUnitCommon):
             self.assertEqual(self.test_catalog_manager.config_file_dict, yaml.safe_load(f))
         self.assertEqual(self.test_catalog_manager.local_catalog, self.test_catalog_manager.catalogs[0])
 
-    def test_get_catalog_by_url(self):
+    def test_get_catalog_by_src(self):
         self.test_catalog_manager.catalogs[0].is_local = False
         self.test_catalog_manager.catalogs[0].src = "myurl"
-        c = self.test_catalog_manager.get_catalog_by_url("myurl")
+        c = self.test_catalog_manager.get_catalog_by_src("myurl")
         self.assertEqual(c.id, "test_catalog")
-
-    def test_get_catalog_by_url_local_error(self):
-        self.test_catalog_manager.catalogs[0].is_local = True
-        self.test_catalog_manager.catalogs[0].src = "myurl"
-
-        with self.assertRaises(LookupError):
-            self.test_catalog_manager.get_catalog_by_url("myurl")
 
     def test_get_catalog_by_id(self):
         expected_id = self.test_catalog_manager.catalogs[0].id

@@ -23,6 +23,7 @@ class TestIntegrationDeploy(TestIntegrationCommon):
         sys.argv = ["",
                     "deploy",
                     str(self.get_test_solution_path()),
+                    "--catalog=test_catalog",
                     "--dry-run=True",
                     "--trigger-pipeline=False",
                     "--git-name=MyName",
