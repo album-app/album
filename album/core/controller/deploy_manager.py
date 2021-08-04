@@ -77,8 +77,7 @@ class DeployManager(metaclass=Singleton):
                 self._active_solution["deploy"]["catalog"]["url"]
             )
         else:
-            self._catalog = self.catalog_manager.get_default_deployment_catalog()
-            module_logger().warning("No catalog specified. Deploying to default catalog %s!" % self._catalog.id)
+            raise RuntimeError("No catalog specified for deployment")
 
         if self._catalog.is_local:
             # copy to correct place and add to index for later usage/installation

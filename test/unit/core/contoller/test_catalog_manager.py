@@ -40,18 +40,6 @@ class TestCatalogManager(TestUnitCommon):
             self.assertEqual(self.test_catalog_manager.config_file_dict, yaml.safe_load(f))
         self.assertEqual(self.test_catalog_manager.local_catalog, self.test_catalog_manager.catalogs[0])
 
-    def test_get_default_deployment_catalog(self):
-        self.test_catalog_manager.catalogs[0].is_local = False
-        c = self.test_catalog_manager.get_default_deployment_catalog()
-        self.assertEqual(c.id, "test_catalog")
-
-    def test_get_default_deployment_catalog_no_catalog(self):
-        for c in self.test_catalog_manager.catalogs:
-            c.is_local = True
-
-        with self.assertRaises(LookupError):
-            self.test_catalog_manager.get_default_deployment_catalog()
-
     def test_get_catalog_by_url(self):
         self.test_catalog_manager.catalogs[0].is_local = False
         self.test_catalog_manager.catalogs[0].src = "myurl"

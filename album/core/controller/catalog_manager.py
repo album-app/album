@@ -49,13 +49,6 @@ class CatalogManager(metaclass=Singleton):
         self.catalogs = self._get_catalogs()
         self.local_catalog = self._get_local_catalog()
 
-    def get_default_deployment_catalog(self):
-        """Returns first catalog which is not local. This is used as default deployment catalog."""
-        for catalog in self.catalogs:
-            if not catalog.is_local:
-                return catalog
-        raise LookupError("No local catalog configured! Doing nothing...")
-
     def get_catalog_by_url(self, url):
         """Returns the catalog object of a given url if configured."""
         for catalog in self.catalogs:
