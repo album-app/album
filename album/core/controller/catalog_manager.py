@@ -1,9 +1,12 @@
+import os
+
 import validators
 
 from album.core.concept.singleton import Singleton
 # classes and methods
 from album.core.model.catalog import Catalog
 from album.core.model.configuration import Configuration
+from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml
 from album_runner import logging
 
@@ -107,23 +110,49 @@ class CatalogManager(metaclass=Singleton):
 
         catalogs = []
 
-        for catalog in cs:
-            module_logger().debug("Try to initialize the following catalog: %s..." % catalog)
+        non_deletable_catalog_in_config = False
+        for catalog_path in cs:
+            module_logger().debug("Try to initialize the following catalog: %s..." % catalog_path)
 
-            catalog_id = self.configuration.extract_catalog_name(catalog)
+            catalog_id = self.extract_catalog_name(catalog_path)
             src = None
-            path = catalog
+            path = catalog_path
 
             # if entry is a valid url, we set the default path
-            if validators.url(catalog):
-                src = catalog
+            if validators.url(catalog_path):
+                if catalog_path == DefaultValues.catalog_url.value:
+                    deletable = False
+                else:
+                    deletable = True
+                src = catalog_path
                 path = self.configuration.get_cache_path_catalog(catalog_id)
+            else:
+                if non_deletable_catalog_in_config:
+                    deletable = True
+                else:
+                    deletable = False
+                    non_deletable_catalog_in_config = True
 
-            catalogs.append(Catalog(catalog_id=catalog_id, path=path, src=src))
+            catalogs.append(Catalog(catalog_id=catalog_id, path=path, src=src, deletable=deletable))
 
         self.catalogs = catalogs
 
         return catalogs
+
+    @staticmethod
+    def extract_catalog_name(catalog_repo):
+        """Extracts a basename from a repository URL.
+
+        Args:
+            catalog_repo:
+                The repository URL or ssh string of the catalog.
+
+        Returns:
+            The basename of the repository
+
+        """
+        name, _ = os.path.splitext(os.path.basename(catalog_repo))
+        return name
 
     def _get_local_catalog(self):
         """Returns the first local catalog in the configuration (Reads yaml file from top)."""
@@ -285,15 +314,32 @@ class CatalogManager(metaclass=Singleton):
 
         module_logger().info('Added catalog %s!' % path)
 
-    def remove(self, path):
-        """Removes a catalog from a configuration"""
-        try:
-            self.config_file_dict["catalogs"].remove(path)
-        except ValueError:
-            module_logger().warning("Cannot remove catalog %s! Not configured!" % str(path))
-            return
+    def remove_by_id(self, catalog_id):
+        catalog_to_remove = self.get_catalog_by_id(catalog_id)
+
+        if not catalog_to_remove.is_deletable:
+            module_logger().warning("Cannot remove catalog! Marked as not deletable! Will do nothing...")
+            return None
+
+        path = str(catalog_to_remove.path) if catalog_to_remove.is_local else catalog_to_remove.src
+
+        self.config_file_dict["catalogs"].remove(path)
+
+        module_logger().info('Removed catalog with id %s!' % catalog_to_remove.id)
 
         self.save()
         self.reload()
 
-        module_logger().info('Removed catalog %s!' % path)
+        return catalog_to_remove
+
+    def remove(self, path):
+        """Removes a catalog from a configuration"""
+        catalog_path_to_remove = next((x for x in self.config_file_dict["catalogs"] if x == path), None)
+
+        if not catalog_path_to_remove:
+            module_logger().warning("Cannot remove catalog %s! Not configured!" % str(path))
+            return
+
+        catalog_id_to_remove = self.extract_catalog_name(catalog_path_to_remove)
+
+        self.remove_by_id(catalog_id_to_remove)

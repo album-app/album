@@ -2,12 +2,11 @@ import json
 import re
 from pathlib import Path
 
-from album.core.model.configuration import Configuration
-
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core.model.catalog_index import CatalogIndex
+from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import force_remove, unzip_archive
+from album.core.utils.operations.file_operations import unzip_archive
 from album.core.utils.operations.git_operations import download_repository
 from album.core.utils.operations.url_operations import download_resource
 from album_runner import logging
@@ -64,7 +63,7 @@ class Catalog:
     doi_solution_prefix = DefaultValues.cache_path_doi_solution_prefix.value
     gnv_solution_prefix = DefaultValues.cache_path_solution_prefix.value
 
-    def __init__(self, catalog_id, path, src=None):
+    def __init__(self, catalog_id, path, src=None, deletable=True):
         """Init routine.
 
         Args:
@@ -74,6 +73,8 @@ class Catalog:
                 The absolute path to the catalog.
             src:
                 The source of the catalog (Default: None)
+            deletable:
+                Boolean to indicate whether the catalog is deletable or not. Relevant for a collection of catalogs.
         """
         self.id = catalog_id
         self.src = src
@@ -82,6 +83,7 @@ class Catalog:
         self.path = Path(path)
         self.index_path = self.path.joinpath(DefaultValues.catalog_index_file_name.value)
         self.solution_list_path = self.path.joinpath(DefaultValues.catalog_solution_list_file_name.value)
+        self.is_deletable = deletable
 
         # initialize the index
         self.load_index()

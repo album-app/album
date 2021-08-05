@@ -1,4 +1,3 @@
-import os
 import sys
 from pathlib import Path
 
@@ -41,20 +40,27 @@ class Configuration(metaclass=Singleton):
         self.setup(None, None)
 
     def setup(self, base_cache_path, configuration_file_path):
+        # base root path where everything lives
         if base_cache_path:
             self.base_cache_path = Path(base_cache_path)
         else:
             self.base_cache_path = DefaultValues.app_data_dir.value
+
+        # path where the album configuration file lives
         if configuration_file_path:
             self.configuration_file_path = Path(configuration_file_path)
         else:
             self.configuration_file_path = DefaultValues.app_config_dir.value.joinpath(
                 DefaultValues.config_file_name.value)
+
+        # conda executable
         conda_path = DefaultValues.conda_path.value
         if conda_path is not DefaultValues.conda_default_executable.value:
             self.conda_executable = self._build_conda_executable(conda_path)
         else:
             self.conda_executable = conda_path
+
+        self.empty_tmp()
 
     @staticmethod
     def _build_conda_executable(conda_path):
@@ -127,21 +133,6 @@ class Configuration(metaclass=Singleton):
             str(self.get_cache_path_catalog(DefaultValues.local_catalog_name.value)),
             DefaultValues.catalog.value,
         ]
-
-    @staticmethod
-    def extract_catalog_name(catalog_repo):
-        """Extracts a basename from a repository URL.
-
-        Args:
-            catalog_repo:
-                The repository URL or ssh string of the catalog.
-
-        Returns:
-            The basename of the repository
-
-        """
-        name, _ = os.path.splitext(os.path.basename(catalog_repo))
-        return name
 
     def empty_tmp(self):
         """Removes the content of the tmp folder"""

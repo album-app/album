@@ -54,7 +54,6 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         self.assertEqual(200, res_status.status_code)
         self.assertCatalogPresence(self.test_catalog_collection.catalogs, catalog_to_be_added, False)
 
-
         # check that solution is not installed
 
         res_status = client.get(f'/status/{catalog}/{group}/{name}/{version}')

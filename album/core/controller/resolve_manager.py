@@ -348,4 +348,3 @@ class ResolveManager(metaclass=Singleton):
             return True
         # If any other exception was raised, this is an unrelated fatal issue
         # (e.g., a bug). Permit this exception to unwind the call stack.
-

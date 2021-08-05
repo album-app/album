@@ -7,7 +7,6 @@ from album.core.concept.singleton import Singleton
 from album.core.controller.resolve_manager import ResolveManager
 from album.core.utils.script import create_solution_script
 from album_runner import logging
-from album_runner.logging import LogLevel
 
 module_logger = logging.get_active_logger
 
@@ -53,7 +52,7 @@ class RunManager(metaclass=Singleton):
         # builds the queue
         self.build_queue(active_solution, que, run_immediately)
 
-        # run queue
+        # runs the queue
         self.run_queue(que)
 
         module_logger().info("Finished running \"%s\"" % active_solution["name"])
@@ -412,6 +411,7 @@ class RunManager(metaclass=Singleton):
         """Pushes a new logger to the stack before running the solution and pops it afterwards."""
         logging.configure_logging(active_solution['name'])
         module_logger().info("Starting solution \"%s\"..." % active_solution['name'])
+        module_logger().info("Citation information: %s" % active_solution['cite'])
         active_solution.environment.run_scripts(scripts)
         logging.pop_active_logger()
 

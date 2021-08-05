@@ -74,6 +74,11 @@ class TestCatalogManager(TestUnitCommon):
         with self.assertRaises(LookupError):
             self.test_catalog_manager.get_catalog_by_id("aFaultyId")
 
+    def test_extract_catalog_name(self):
+        catalog_name = "https://gitlab.com/album-app/capture-knowledge.ext"
+
+        self.assertEqual(self.test_catalog_manager.extract_catalog_name(catalog_name), "capture-knowledge")
+
     def test_save(self):
         self.test_catalog_manager.config_file_dict = {
             "catalogs": [str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog_save"))]
@@ -128,6 +133,10 @@ class TestCatalogManager(TestUnitCommon):
         c = self.test_catalog_manager._get_catalogs()
 
         self.assertEqual(len(c), 3)
+
+        self.assertFalse(c[0].is_deletable)
+        self.assertFalse(c[1].is_deletable)
+        self.assertTrue(c[2].is_deletable)
 
     def test__get_local_catalog_no_catalog(self):
         for c in self.test_catalog_manager.catalogs:
@@ -307,7 +316,7 @@ class TestCatalogManager(TestUnitCommon):
         # assert
         resolve.assert_called_once_with("g", "n", "v")
 
-    def test_remove(self):
+    def test_remove_by_id(self):
         # mocks
         save = MagicMock()
         self.test_catalog_manager.save = save
@@ -316,28 +325,95 @@ class TestCatalogManager(TestUnitCommon):
         self.test_catalog_manager.reload = reload
 
         # call
-        self.test_catalog_manager.remove(self.catalog_list[0])
+        self.test_catalog_manager.remove_by_id(self.test_catalog_manager.catalogs[2].id)
 
         # assert
         expected_list = deepcopy(self.catalog_list)
-        expected_list.pop(0)
+        expected_list.pop(2)
 
         self.assertEqual({"catalogs": expected_list}, self.test_catalog_manager.config_file_dict)
 
         save.assert_called_once()
         reload.assert_called_once()
 
-    def test_remove_invalid_path(self):
+    def test_remove_by_id_url(self):
         # mocks
         save = MagicMock()
         self.test_catalog_manager.save = save
 
+        reload = MagicMock()
+        self.test_catalog_manager.reload = reload
+
+        self.test_catalog_manager.catalogs[1].is_deletable = True
+
         # call
-        self.test_catalog_manager.remove("aWrongPathOfACatalogToRemove")
+        self.test_catalog_manager.remove_by_id(self.test_catalog_manager.catalogs[1].id)
+
+        # assert
+        expected_list = deepcopy(self.catalog_list)
+        expected_list.pop(1)
+
+        self.assertEqual({"catalogs": expected_list}, self.test_catalog_manager.config_file_dict)
+
+        save.assert_called_once()
+        reload.assert_called_once()
+
+    def test_remove_by_id_undeletable(self):
+        # mocks
+        save = MagicMock()
+        self.test_catalog_manager.save = save
+
+        reload = MagicMock()
+        self.test_catalog_manager.reload = reload
+
+        # call
+        x = self.test_catalog_manager.remove_by_id(self.test_catalog_manager.catalogs[0].id)
+
+        # assert
+        self.assertIsNone(x)
+        self.assertEqual({"catalogs": self.catalog_list}, self.test_catalog_manager.config_file_dict)  # nothing changed
+
+        save.assert_not_called()
+        reload.assert_not_called()
+
+    def test_remove_by_id_invalid_id(self):
+        # mocks
+        save = MagicMock()
+        self.test_catalog_manager.save = save
+
+        reload = MagicMock()
+        self.test_catalog_manager.reload = reload
+
+        # call
+        with self.assertRaises(LookupError):
+            self.test_catalog_manager.remove_by_id("aWrongIdOfACatalogToRemove")
 
         # assert
         self.assertEqual({"catalogs": self.catalog_list}, self.test_catalog_manager.config_file_dict)  # nothing changed
         save.assert_not_called()
+        reload.assert_not_called()
+
+    def test_remove(self):
+        # mock
+        remove_by_id = MagicMock()
+        self.test_catalog_manager.remove_by_id = remove_by_id
+
+        # call
+        self.test_catalog_manager.remove(self.catalog_list[0])
+
+        # assert
+        remove_by_id.assert_called_once_with(self.test_catalog_manager.catalogs[0].id)
+
+    def test_remove_not_configured(self):
+        # mocks
+        remove_by_id = MagicMock()
+        self.test_catalog_manager.remove_by_id = remove_by_id
+
+        # call
+        self.test_catalog_manager.remove("wrongPath")
+
+        # assert
+        remove_by_id.assert_not_called()
 
     def test_add(self):
         # mocks

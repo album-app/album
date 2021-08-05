@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from album.core.model.configuration import Configuration, DefaultValues
+from album.core.utils.operations.file_operations import create_path_recursively
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -18,6 +19,26 @@ class TestConfiguration(TestUnitCommon):
 
     def tearDown(self) -> None:
         super().tearDown()
+
+    def test_setup(self):
+        # prepare
+        base_path = Path(self.tmp_dir.name).joinpath("base_path")
+        c_path = base_path.joinpath(DefaultValues.cache_path_tmp_prefix.value)
+        create_path_recursively(c_path)
+        leftover_file = c_path.joinpath("a_leftover_file")
+        leftover_file.touch()
+
+        # assert preparation
+        self.assertTrue(leftover_file.exists())
+
+        # call
+        self.conf.setup(base_cache_path=base_path,
+                        configuration_file_path=Path(self.tmp_dir.name).joinpath("conf_file_folder"))
+
+        # assert
+        self.assertFalse(leftover_file.exists())
+        self.assertEqual(DefaultValues.conda_path.value, self.conf.conda_executable)
+        self.assertEqual(base_path, self.conf.base_cache_path)
 
     def test_base_cache_path(self):
         new_tmp_dir = tempfile.TemporaryDirectory(dir=self.tmp_dir.name)
@@ -60,11 +81,6 @@ class TestConfiguration(TestUnitCommon):
 
         expected = Path("myPathToConda").joinpath("bin", "conda")
         self.assertEqual(r, str(expected))
-
-    def test_extract_catalog_name(self):
-        catalog_name = "https://gitlab.com/album-app/capture-knowledge.ext"
-
-        self.assertEqual(self.conf.extract_catalog_name(catalog_name), "capture-knowledge")
 
     def test_get_default_configuration(self):
         # mocks

@@ -1,7 +1,6 @@
 import operator
 
 from album.core.concept.singleton import Singleton
-
 from album.core.controller.catalog_manager import CatalogManager
 from album_runner import logging
 

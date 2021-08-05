@@ -92,15 +92,18 @@ cmdline linux:
   extends: .linux_base_template
   stage: build
   script:
-    - python -m album -h
-    - python -m album run -h
-    - python -m album install -h
-    - python -m album deploy -h
-    - python -m album remove -h
-    - python -m album repl -h
-    - python -m album server -h
-    - python -m album add-catalog -h
-    - python -m album remove-catalog -h
+    # album commands
+    - album -h
+    - album run -h
+    - album install -h
+    - album deploy -h
+    - album remove -h
+    - album repl -h
+    - album server -h
+    - album add-catalog -h
+    - album remove-catalog -h
+    # album catalog admin
+    - album-catalog-admin -h
 
 unit tests linux:
   extends: .linux_base_template
