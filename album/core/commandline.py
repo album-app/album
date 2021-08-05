@@ -1,6 +1,5 @@
+from album.core import get_active_solution
 from album.core.controller.catalog_manager import CatalogManager
-
-from album.core import load_and_push_solution, pop_active_solution, get_active_solution
 from album.core.controller.deploy_manager import DeployManager
 from album.core.controller.install_manager import InstallManager
 from album.core.controller.remove_manager import RemoveManager
@@ -12,6 +11,7 @@ from album_runner import logging
 from album_runner.logging import debug_settings
 
 module_logger = logging.get_active_logger
+
 
 # NOTE: Calling Singleton classes gives back the already initialized instances only!
 

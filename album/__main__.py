@@ -1,8 +1,7 @@
-from album_runner import logging
-from album_runner.logging import debug_settings
-
 import album
 from album.argument_parsing import main
+from album_runner import logging
+from album_runner.logging import debug_settings
 
 module_logger = logging.get_active_logger
 

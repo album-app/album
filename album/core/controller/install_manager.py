@@ -5,7 +5,6 @@ from album.core.controller.resolve_manager import ResolveManager
 from album.core.utils.operations.file_operations import copy_folder
 from album.core.utils.script import create_solution_script
 from album_runner import logging
-from album_runner.logging import LogLevel
 
 module_logger = logging.get_active_logger
 
@@ -95,7 +94,8 @@ class InstallManager(metaclass=Singleton):
             logging.pop_active_logger()
         else:
             module_logger().info(
-                'No \"install\" routine configured for solution %s! Will execute nothing! Installation complete!' % active_solution['name']
+                'No \"install\" routine configured for solution %s! Will execute nothing! Installation complete!' %
+                active_solution['name']
             )
 
         return parent_catalog_id

@@ -5,13 +5,13 @@ from flask import Flask, request
 from werkzeug.exceptions import abort
 
 from album.core.concept.singleton import Singleton
+from album.core.controller.catalog_manager import CatalogManager
 from album.core.controller.install_manager import InstallManager
 from album.core.controller.remove_manager import RemoveManager
 from album.core.controller.run_manager import RunManager
 from album.core.controller.search_manager import SearchManager
 from album.core.controller.task_manager import TaskManager
 from album.core.controller.test_manager import TestManager
-from album.core.controller.catalog_manager import CatalogManager
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.model.solutions_db import SolutionsDb
@@ -175,6 +175,7 @@ class AlbumServer(metaclass=Singleton):
         catalog_dict[catalog.id]["src"] = str(catalog.src) if catalog.src else None
         catalog_dict[catalog.id]["path"] = str(catalog.path) if catalog.path else None
         catalog_dict[catalog.id]["is_local"] = catalog.is_local
+        catalog_dict[catalog.id]["is_deletable"] = catalog.is_deletable
 
     def _run_solution_method(self, catalog, group, name, version, method):
         solution_path = self.get_solution_path_or_abort(catalog, group, name, version)

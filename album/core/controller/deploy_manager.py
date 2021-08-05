@@ -1,9 +1,8 @@
 import os
 from pathlib import Path
 
-from album.core.concept.singleton import Singleton
-
 from album.core import load
+from album.core.concept.singleton import Singleton
 from album.core.controller.catalog_manager import CatalogManager
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, copy_folder, zip_paths

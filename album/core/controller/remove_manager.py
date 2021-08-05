@@ -1,4 +1,4 @@
-from album.core import load, pop_active_solution
+from album.core import pop_active_solution
 from album.core.concept.singleton import Singleton
 from album.core.controller.resolve_manager import ResolveManager
 from album.core.utils.operations.file_operations import force_remove

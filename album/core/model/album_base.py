@@ -2,7 +2,6 @@ import copy
 from pathlib import Path
 
 from album.core.model.configuration import Configuration
-
 from album.core.model.environment import Environment
 from album_runner import AlbumRunner
 from album_runner import logging
@@ -41,7 +40,7 @@ class AlbumClass(AlbumRunner):
                         arg[key] = "%s_function" % key
         return solution_dict
 
-    # setup- and API-keywords in the album_runner
+    # Note: setup- and API-keywords in the album_runner
 
     def __init__(self, attrs=None):
         """Sets object attributes in setup_keywords.
