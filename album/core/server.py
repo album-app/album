@@ -177,11 +177,6 @@ class AlbumServer(metaclass=Singleton):
         catalog_dict[catalog.id]["is_local"] = catalog.is_local
         catalog_dict[catalog.id]["is_deletable"] = catalog.is_deletable
 
-    def _run_solution_method(self, catalog, group, name, version, method):
-        solution_path = self.get_solution_path_or_abort(catalog, group, name, version)
-        sys.argv = self._get_arguments(request.get_json(), solution_path)
-        return method(solution_path)
-
     def _run_solution_method_async(self, catalog, group, name, version, method):
         task = Task()
         if catalog is None:
@@ -202,21 +197,4 @@ class AlbumServer(metaclass=Singleton):
                 command_args.append(f"--{key}")
                 command_args.append(str(request_data[key]))
         return command_args
-
-    def get_solution_path_or_abort(self, catalog, group, name, version):
-        solution_path = self._get_solution_path(catalog, group, name, version)
-        if solution_path is None:
-            abort(404, description=f"Solution not found: {catalog}:{group}:{name}:{version}")
-        return solution_path
-
-    def _get_solution_path(self, catalog, group, name, version):
-        if catalog is None:
-            solution = self.catalog_manager.resolve_dependency({"group": group, "name": name, "version": version})
-        else:
-            solution = self.catalog_manager.resolve_directly(catalog_id=catalog, group=group, name=name, version=version)
-        if solution is None:
-            module_logger().error(f"Solution not found: {catalog}:{group}:{name}:{version}")
-            return None
-        else:
-            return str(solution['path'])
 

@@ -70,8 +70,6 @@ class TestServer(flask_unittest.ClientTestCase, TestUnitCommon):
         self.assertEqual(1, route.call_count)
 
     def __test_solution_route(self, client, route, route_mock):
-        _get_solution_path = MagicMock(return_value="/my/solution/path.py")
-        self.server._get_solution_path = _get_solution_path
         json = self.getJSONResponse(client, "/%s/catalog/group/name/version" % route)
         self.assertIsNotNone(json)
         self.server.task_manager.server_queue.join()
