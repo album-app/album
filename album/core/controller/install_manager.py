@@ -32,7 +32,7 @@ class InstallManager(metaclass=Singleton):
     def install(self, path):
         """Function corresponding to the `install` subcommand of `album`."""
         # Load solution
-        resolve, active_solution = self.resolve_manager.resolve_and_load(path)
+        resolve, active_solution = self.resolve_manager.resolve_download_load(path)
 
         if not resolve["catalog"]:
             module_logger().debug('album loaded locally: %s...' % str(active_solution))

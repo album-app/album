@@ -71,34 +71,24 @@ class ResolveManager(metaclass=Singleton):
 
         """
 
-        # always first resolve outside any catalog
-        path = self._check_file_or_url(str_input)
+        resolve = self._resolve(str_input)
+        active_solution = self._load_solution(resolve)
+        return [resolve, active_solution]
 
-        if path:
-            active_solution = load(path)
+    def resolve_download_load(self, str_input):
+        """
 
-            catalog = self.catalog_manager.local_catalog
+        Args:
+            str_input:
+                What to resolve. Either path, doi, group:name:version or dictionary
 
-            active_solution.set_environment(catalog.id)
+        Returns:
+            list with resolve result and loaded album.
 
-            resolve = {
-                "path": path,
-                "catalog": catalog
-            }
+        """
 
-        else:
-            attrs = self.get_attributes_from_string(str_input)
-
-            resolve = self.catalog_manager.resolve(attrs)
-
-            if not resolve:
-                raise LookupError("Solution cannot be resolved in any catalog!")
-
-            active_solution = load(resolve["path"])
-
-            # init the album environment
-            active_solution.set_environment(resolve["catalog"].id)
-
+        resolve = self._resolve_and_download(str_input)
+        active_solution = self._load_solution(resolve)
         return [resolve, active_solution]
 
     def resolve_dependency_and_load(self, solution_attrs, load_solution=True):
@@ -132,12 +122,33 @@ class ResolveManager(metaclass=Singleton):
         active_solution = None
 
         if load_solution:
-            active_solution = load(resolve_catalog["path"])
-
-            # init the album environment
-            active_solution.set_environment(resolve_catalog["catalog"].id)
+            active_solution = self._load_solution(resolve_catalog)
 
         return [resolve_catalog, active_solution]
+
+    def _resolve(self, str_input):
+        # always first resolve outside any catalog
+        path = self._check_file_or_url(str_input)
+        if path:
+            catalog = self.catalog_manager.local_catalog
+            resolve = {
+                "path": path,
+                "catalog": catalog
+            }
+
+        else:
+            attrs = self.get_attributes_from_string(str_input)
+            resolve = self.catalog_manager.resolve(attrs)
+            if not resolve:
+                raise LookupError("Solution cannot be resolved in any catalog!")
+        return resolve
+
+    def _resolve_and_download(self, str_input):
+        resolve = self._resolve(str_input)
+        if not Path(resolve["path"]).exists():
+            attrs = self.get_attributes_from_string(str_input)
+            resolve["catalog"].download_solution(attrs["group"], attrs["name"], attrs["version"])
+        return resolve
 
     def _resolve_local_file(self, path):
         active_solution = load(path)
@@ -239,6 +250,13 @@ class ResolveManager(metaclass=Singleton):
                         "<group>:<name>:<version> or <catalog>:<group>:<name>:<version> or point to a valid file! Aborting...")
         module_logger().debug("Parsed %s from the input... " % attrs_dict)
         return attrs_dict
+
+    @staticmethod
+    def _load_solution(resolve):
+        active_solution = load(resolve["path"])
+        # init the album environment
+        active_solution.set_environment(resolve["catalog"].id)
+        return active_solution
 
     @staticmethod
     def get_gnv_from_input(str_input: str):
