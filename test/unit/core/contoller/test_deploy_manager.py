@@ -270,7 +270,7 @@ class TestDeployManager(TestGitCommon):
 
         # copy and zip a file
         self.deploy_manager._copy_and_zip(solution_file_to_deploy_locally)
-        zip_path_mock.assert_called_once_with([solution_file_to_deploy_locally], r)
+        zip_path_mock.assert_called_once()
         zip_folder.assert_not_called()
 
 

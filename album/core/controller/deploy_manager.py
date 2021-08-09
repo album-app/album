@@ -1,11 +1,12 @@
 import os
+import tempfile
 from pathlib import Path
 
 from album.core import load
 from album.core.concept.singleton import Singleton
 from album.core.controller.catalog_manager import CatalogManager
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, copy_folder, zip_paths
+from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, zip_paths
 from album.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push
 from album_runner import logging
 
@@ -184,11 +185,13 @@ class DeployManager(metaclass=Singleton):
     def _copy_and_zip(self, folder_path):
         """Copies the deploy-file or -folder to the catalog repository."""
         zip_path = self._get_cache_suffix()
-
         if folder_path.is_dir():
             return zip_folder(folder_path, zip_path)
         if folder_path.is_file():
-            return zip_paths([folder_path], zip_path)
+            tmp_dir = tempfile.TemporaryDirectory()
+            tmp_solution_file = Path(tmp_dir.name).joinpath(DefaultValues.solution_default_name.value)
+            copy(folder_path, tmp_solution_file)
+            return zip_paths([tmp_solution_file], zip_path)
 
     def _copy_cover_to_local_src(self, folder_path):
         """Copies all cover files to the repo."""
