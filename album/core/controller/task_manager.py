@@ -102,5 +102,5 @@ class TaskManager(metaclass=Singleton):
     @staticmethod
     def _run_task(task):
         sys.argv = task.sysarg
-        return task.method(task.solution_path)
+        return task.method(*task.args)
 

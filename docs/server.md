@@ -15,12 +15,12 @@ Using the server
 - Get configuration parameters of the album installation the server is running on:
 
   `http://192.0.0.1:1234/config`
-- Add a catalog to the album installation the server is running on:
+- Add a catalog to the album installation the server is running on (the path can be a local folder or a URL - make sure to encode it, for example using [this tool](https://www.urlencoder.org/):
 
-  `http://192.0.0.1:1234/add-catalog/URL`
+  `http://192.0.0.1:1234/add-catalog?path=URL_OR_PARH_ENCODED`
 - Remove a catalog from the album installation the server is running on:
 
-  `http://192.0.0.1:1234/remove-catalog/URL`
+  `http://192.0.0.1:1234/remove-catalog?path=URL_OR_PATH_ENCODED`
 - Search for solutions:
 
   `http://192.0.0.1:1234/search/keyword`
@@ -41,6 +41,9 @@ These calls will immediately return a JSON message indicating that the process w
 - Test a solution, specified by the catalog name, the group name, the solution name and it's version:
 
   `http://192.0.0.1:1234/test/<catalog>/<group>/<name>/<version>`
+- Deploy a solution from a given path to a specific catalog:
+
+  `http://192.0.0.1:1234/deploy?path=PATH_TO_SOLUTION&catalog_id=CATALOG_ID`
 
 ### Tracking process of an asynchronous task
 - Status of a task, specified by task id (check return value of asynchronous calls), returns a status and all the log entries associated with this task.

@@ -12,7 +12,7 @@ class Task:
 
     id = None
     method = None
-    solution_path = None
+    args = tuple()
     sysarg = []
     log_handler: LogHandler = None
     status: Status = None

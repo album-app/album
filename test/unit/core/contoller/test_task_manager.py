@@ -80,15 +80,15 @@ class TestTaskManager(TestUnitCommon):
         self.assertEqual("Running command: echo test...", task.log_handler.records[0].msg)
         self.assertEqual("test", task.log_handler.records[1].msg)
 
-    def _log_to_active_logger_via_thread(self, path):
+    def _log_to_active_logger_via_thread(self):
         thread = Thread(target=self._log_to_active_logger_in_thread, args=(threading.current_thread().ident, ))
         thread.start()
         thread.join()
 
-    def _log_to_active_logger_via_subcommand(self, path):
+    def _log_to_active_logger_via_subcommand(self):
         subcommand.run(["echo", "test"])
 
-    def _log_to_active_logger(self, path):
+    def _log_to_active_logger(self):
         logging.configure_logging("test", loglevel=LogLevel.INFO)
         logging.get_active_logger().info("test")
         logging.pop_active_logger()

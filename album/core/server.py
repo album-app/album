@@ -1,11 +1,13 @@
 import json
-import sys
+from distutils import util
+from pathlib import Path
 
 from flask import Flask, request
 from werkzeug.exceptions import abort
 
 from album.core.concept.singleton import Singleton
 from album.core.controller.catalog_manager import CatalogManager
+from album.core.controller.deploy_manager import DeployManager
 from album.core.controller.install_manager import InstallManager
 from album.core.controller.remove_manager import RemoveManager
 from album.core.controller.run_manager import RunManager
@@ -35,6 +37,7 @@ class AlbumServer(metaclass=Singleton):
     search_manager = None
     test_manager = None
     task_manager = None
+    deploy_manager = None
     solutions_db = None
 
     app = None
@@ -52,6 +55,7 @@ class AlbumServer(metaclass=Singleton):
         self.search_manager = SearchManager()
         self.test_manager = TestManager()
         self.task_manager = TaskManager()
+        self.deploy_manager = DeployManager()
         self.solutions_db = SolutionsDb()
 
     def start(self, test_config=None):
@@ -130,6 +134,24 @@ class AlbumServer(metaclass=Singleton):
             task = self._run_solution_method_async(catalog, group, name, version, self.test_manager.test)
             return {"id": task.id, "msg": "process started"}
 
+        @self.app.route('/deploy')
+        def deploy():
+            solution_path = request.args.get("path")
+            catalog = request.args.get("catalog_id")
+            if solution_path is None:
+                abort(404, description=f"`path` argument missing")
+            if not Path(solution_path).exists():
+                abort(404, description=f"Solution not found: {solution_path}")
+            if catalog is None:
+                abort(404, description=f"`catalog_id` argument missing")
+            dryrun = bool(util.strtobool(request.args.get("dryrun", default="false")))
+            trigger_pipeline = False
+            task = Task()
+            task.args = (solution_path, catalog, dryrun, trigger_pipeline)
+            task.method = self.deploy_manager.deploy
+            self.task_manager.register_task(task)
+            return {"id": task.id, "msg": "process started"}
+
         @self.app.route('/status/<catalog>/<group>/<name>/<version>')
         def status_solution(catalog, group, name, version):
             installed = self.solutions_db.is_installed(catalog, group, name, version)
@@ -148,13 +170,18 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route('/add-catalog')
         def add_catalog():
             url = request.args.get("path")
+            id = request.args.get("id")
             self.catalog_manager.add(url)
             return {}
 
         @self.app.route('/remove-catalog')
         def remove_catalog():
-            url = request.args.get("path")
-            self.catalog_manager.remove(url)
+            url = request.args.get("path", default=None)
+            id = request.args.get("id", default=None)
+            if id is None:
+                self.catalog_manager.remove(url)
+            else:
+                self.catalog_manager.remove_by_id(id)
             return {}
 
         @self.app.route('/search/<keywords>')
@@ -180,10 +207,21 @@ class AlbumServer(metaclass=Singleton):
     def _run_solution_method_async(self, catalog, group, name, version, method):
         task = Task()
         if catalog is None:
-            task.solution_path = ":".join([group, name, version])
+            solution_path = ":".join([group, name, version])
         else:
-            task.solution_path = ":".join([catalog, group, name, version])
-        task.sysarg = self._get_arguments(request.get_json(), task.solution_path)
+            solution_path = ":".join([catalog, group, name, version])
+        task.args = (solution_path, )
+        task.sysarg = self._get_arguments(request.get_json(), solution_path)
+        task.method = method
+        self.task_manager.register_task(task)
+        return task
+
+    def _run_path_method_async(self, path, args, method):
+        task = Task()
+        command_args = [str(path)]
+        for arg in args:
+            command_args.append(arg)
+        task.sysarg = command_args
         task.method = method
         self.task_manager.register_task(task)
         return task
