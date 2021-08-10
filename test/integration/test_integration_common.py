@@ -85,7 +85,7 @@ class TestIntegrationCommon(unittest.TestCase):
             delete=False, mode="w", dir=self.tmp_dir.name
         )
         test_config_init = self.test_config_init + "- %s" % str(Path(self.tmp_dir.name).joinpath(
-            DefaultValues.catalog_folder_prefix.value, "test_catalog")
+            "my-catalogs", "test_catalog")
         )
         self.test_configuration_file.writelines(test_config_init)
         self.test_configuration_file.close()

@@ -1,6 +1,10 @@
 import json
+import os
 import re
+import shutil
 from pathlib import Path
+
+import validators
 
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core.model.catalog_index import CatalogIndex
@@ -45,17 +49,17 @@ class Catalog:
         id:
             The ID of the catalog. Usually a string. Can be compared to a name.
         src:
-            The online src of the catalog. Usually a gitlab/github link. If none set the catalog is local.
+            The source of the catalog. Gitlab/github link or path.
         catalog_index:
             The Index object of the catalog. A tree like structure.
         is_local:
             Boolean indicating whether the catalog is remote or local.
         path:
-            The path to the catalog on the disk.
+            The path to the catalog cache.
         index_path:
-            The path to the catalog index on the disk. Relative to the path attribute.
+            The path to the catalog index cache. Relative to the path attribute.
         solution_list_path:
-            The path to the catalog solution list on the disk. Relative to the path attribute.
+            The path to the catalog solution list cache. Relative to the path attribute.
 
     """
 
@@ -79,14 +83,17 @@ class Catalog:
         self.id = catalog_id
         self.src = src
         self.catalog_index = None
-        self.is_local = True
         self.path = Path(path)
+        self.is_local = not validators.url(str(src))
         self.index_path = self.path.joinpath(DefaultValues.catalog_index_file_name.value)
         self.solution_list_path = self.path.joinpath(DefaultValues.catalog_solution_list_file_name.value)
         self.is_deletable = deletable
 
         # initialize the index
         self.load_index()
+
+    def is_cache_only(self):
+        return Path(self.src).exists() and self.path.exists() and os.path.samefile(self.src, self.path)
 
     def resolve(self, group, name, version):
         """Resolves (also: finds, looks up) a solution in the catalog, returning the absolute path to the solution file.
@@ -302,10 +309,17 @@ class Catalog:
             The absolute path of the downloaded solution.
 
         """
-        url = get_solution_src(self.src, group, name, version)
-
-        solution_zip_file = self.get_solution_zip(group, name, version)
-        download_resource(url, solution_zip_file)
+        if self.is_local:
+            url = Path(self.src).joinpath(DefaultValues.cache_path_solution_prefix.value, group, name, version)\
+                .joinpath(self.get_zip_name(group, name, version))
+            solution_zip_file = self.get_solution_zip(group, name, version)
+            if not solution_zip_file.parent.exists():
+                solution_zip_file.parent.mkdir(parents=True)
+            shutil.copy(url, solution_zip_file)
+        else:
+            url = get_solution_src(self.src, group, name, version)
+            solution_zip_file = self.get_solution_zip(group, name, version)
+            download_resource(url, solution_zip_file)
 
         solution_zip_path = unzip_archive(solution_zip_file)
         solution_path = solution_zip_path.joinpath(DefaultValues.solution_default_name.value)
@@ -314,23 +328,25 @@ class Catalog:
 
     def load_index(self):
         """Loads the index from file or src. If a file and src exists routine tries to update the index."""
-        if self.index_path.is_file() or self.src is None:
-            # load catalog from already cached file
-            if self.src:
+        if self.index_path.is_file() or self.is_local:
+            if not self.is_local:
                 self.refresh_index()
-            self.catalog_index = CatalogIndex(self.id, self.index_path)
+            else:
+                if not self.is_cache_only():
+                    # copy catalog from local resource
+                    self.copy_index()
         else:
             # load catalog from remote src
             self.download_index()
-            self.catalog_index = CatalogIndex(self.id, self.index_path)
+        self.catalog_index = CatalogIndex(self.id, self.index_path)
         self.is_local = True
 
-        if self.src:
+        if validators.url(str(self.src)):
             self.is_local = False
 
     def refresh_index(self):
         """Routine to refresh the catalog index. (actively calling the src)"""
-        if not self.src:
+        if self.is_local:
             self.catalog_index = CatalogIndex(self.id, self.index_path)
             return True
 
@@ -419,6 +435,21 @@ class Catalog:
     def visualize(self):
         """Visualizes the catalog on the command line"""
         self.catalog_index.visualize()
+
+    def copy_index(self):
+        """Copy the index file of the catalog."""
+        src_path = Path(self.src)
+        src = src_path.joinpath(DefaultValues.catalog_index_file_name.value)
+        if not src.exists() or not self.index_path.exists():
+            return
+        if not self.index_path.parent.exists():
+            self.index_path.parent.mkdir(parents=True)
+        shutil.copyfile(src, self.index_path)
+        with open(self.index_path, "r") as f:
+            try:
+                json.load(f)
+            except ValueError as e:
+                raise ValueError("Wrong index format!") from e
 
     def download_index(self):
         """Downloads the index file of the catalog."""

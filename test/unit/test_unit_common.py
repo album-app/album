@@ -168,18 +168,6 @@ class TestZenodoCommon(TestUnitCommon):
     access_token_environment_name = 'ZENODO_ACCESS_TOKEN'
     base_url = ZenodoDefaultUrl.sandbox_url.value
 
-    @classmethod
-    def setUpClass(cls):
-        """On inherited classes, run our `setUp` method"""
-        if cls is not TestZenodoCommon and cls.setUp is not TestZenodoCommon.setUp:
-            orig_set_up = cls.setUp
-
-            def set_up_override(self, *args, **kwargs):
-                TestZenodoCommon.setUp(self)
-                return orig_set_up(self, *args, **kwargs)
-
-            cls.setUp = set_up_override
-
     def set_environment_attribute(self, attr_name, env_name):
         try:
             setattr(self, attr_name, os.environ[env_name])
@@ -210,21 +198,6 @@ class TestGitCommon(TestUnitCommon):
     """Base class for all Unittest using a album object"""
 
     repo = None
-
-    @classmethod
-    def setUpClass(cls):
-        """On inherited classes, run our `setUp` method"""
-        if cls is not TestGitCommon and cls.setUp is not TestGitCommon.setUp:
-            orig_set_up = cls.setUp
-
-            def set_up_override(self, *args, **kwargs):
-                TestGitCommon.setUp(self)
-                return orig_set_up(self, *args, **kwargs)
-
-            cls.setUp = set_up_override
-
-    def setUp(self):
-        super().setUp()
 
     def tearDown(self) -> None:
         if self.repo:

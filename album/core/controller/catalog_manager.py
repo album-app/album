@@ -49,20 +49,13 @@ class CatalogManager(metaclass=Singleton):
         self.catalogs = self._get_catalogs()
         self.local_catalog = self._get_local_catalog()
 
-    def get_default_deployment_catalog(self):
-        """Returns first catalog which is not local. This is used as default deployment catalog."""
-        for catalog in self.catalogs:
-            if not catalog.is_local:
-                return catalog
-        raise LookupError("No local catalog configured! Doing nothing...")
-
-    def get_catalog_by_url(self, url):
+    def get_catalog_by_src(self, src):
         """Returns the catalog object of a given url if configured."""
         for catalog in self.catalogs:
-            if catalog.src == url:
+            if catalog.src == src:
                 if not catalog.is_local:
                     return catalog
-        raise LookupError("Catalog with URL \"%s\" not configured!" % url)
+        raise LookupError("Catalog with source \"%s\" not configured!" % src)
 
     def get_catalog_by_id(self, cat_id):
         """Looks up a catalog by its id and returns it."""
@@ -115,8 +108,8 @@ class CatalogManager(metaclass=Singleton):
             module_logger().debug("Try to initialize the following catalog: %s..." % catalog_path)
 
             catalog_id = self.extract_catalog_name(catalog_path)
-            src = None
-            path = catalog_path
+            src = catalog_path
+            path = self.configuration.get_cache_path_catalog(catalog_id)
 
             # if entry is a valid url, we set the default path
             if validators.url(catalog_path):
@@ -124,8 +117,6 @@ class CatalogManager(metaclass=Singleton):
                     deletable = False
                 else:
                     deletable = True
-                src = catalog_path
-                path = self.configuration.get_cache_path_catalog(catalog_id)
             else:
                 if non_deletable_catalog_in_config:
                     deletable = True
@@ -321,7 +312,7 @@ class CatalogManager(metaclass=Singleton):
             module_logger().warning("Cannot remove catalog! Marked as not deletable! Will do nothing...")
             return None
 
-        path = str(catalog_to_remove.path) if catalog_to_remove.is_local else catalog_to_remove.src
+        path = catalog_to_remove.src
 
         self.config_file_dict["catalogs"].remove(path)
 

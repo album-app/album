@@ -25,6 +25,7 @@ class TestZenodoEntry(unittest.TestCase):
 class TestZenodoDeposit(TestZenodoCommon):
 
     def setUp(self):
+        super().setUp()
         self.init_dict = {
             "metadata": ZenodoMetadata({"title": "unit_test"}).__dict__,
             "files": [

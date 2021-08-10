@@ -1,11 +1,12 @@
 import os
+import tempfile
 from pathlib import Path
 
 from album.core import load
 from album.core.concept.singleton import Singleton
 from album.core.controller.catalog_manager import CatalogManager
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, copy_folder, zip_paths
+from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, zip_paths
 from album.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push
 from album_runner import logging
 
@@ -36,6 +37,7 @@ class DeployManager(metaclass=Singleton):
         self.catalog_manager = CatalogManager()
         self._catalog = None
         self._active_solution = None
+        self._catalog_local_src = None
         self._repo = None
 
     def deploy(self, deploy_path, catalog, dry_run, trigger_pipeline, git_email=None, git_name=None):
@@ -73,28 +75,36 @@ class DeployManager(metaclass=Singleton):
         if catalog:  # case catalog given
             self._catalog = self.catalog_manager.get_catalog_by_id(catalog)
         elif self._active_solution["deploy"] and self._active_solution["deploy"]["catalog"]:
-            self._catalog = self.catalog_manager.get_catalog_by_url(
-                self._active_solution["deploy"]["catalog"]["url"]
+            self._catalog = self.catalog_manager.get_catalog_by_src(
+                self._active_solution["deploy"]["catalog"]["src"]
             )
         else:
-            self._catalog = self.catalog_manager.get_default_deployment_catalog()
-            module_logger().warning("No catalog specified. Deploying to default catalog %s!" % self._catalog.id)
+            raise RuntimeError("No catalog specified for deployment")
 
         if self._catalog.is_local:
-            # copy to correct place and add to index for later usage/installation
-            self._copy_folder_in_local_catalog(deploy_path)
-            self._catalog.add(self._active_solution, force_overwrite=True)
+            if self._catalog.is_cache_only():
+                raise RuntimeError("Cannot deploy to catalog only used for caching")
+            self._catalog_local_src = self._catalog.src
+            # zip solution folder, create a yml file and copy the cover
+            self._copy_and_zip(deploy_path)
+            self._create_yaml_file_in_local_src()
+            self._copy_cover_to_local_src(deploy_path)
+            self._catalog.catalog_index.update(self._active_solution.get_deploy_dict())
+            self._catalog.catalog_index.save()
+            self._catalog.catalog_index.export(self._catalog.solution_list_path)
+            self._catalog.refresh_index()
         else:
             dwnld_path = Path(self.catalog_manager.configuration.cache_path_download).joinpath(self._catalog.id)
-            self._repo = self._catalog.download(dwnld_path, force_download=True)
+            repo = self._catalog.download(dwnld_path, force_download=True)
+            self._repo = self._update_repo(repo)
 
             if not self._repo:
                 raise FileNotFoundError("Catalog repository not found. Did the download of the catalog fail?")
 
             # zip solution folder, create a yml file and copy the cover
             solution_zip = self._copy_and_zip(deploy_path)
-            yml_file = self._create_yaml_file_in_repo()
-            cover_files = self._copy_cover_to_repo(deploy_path)
+            yml_file = self._create_yaml_file_in_local_src()
+            cover_files = self._copy_cover_to_local_src(deploy_path)
 
             # merge request files:
             mr_files = [yml_file, solution_zip] + cover_files
@@ -107,6 +117,10 @@ class DeployManager(metaclass=Singleton):
         return "_".join(
             [self._active_solution["group"], self._active_solution["name"], self._active_solution["version"]]
         )
+
+    def _update_repo(self, repo):
+        self._catalog_local_src = repo.working_tree_dir
+        return repo
 
     def _create_merge_request(self, file_paths, dry_run=False, trigger_pipeline=True, email=None, username=None):
         """Creates a merge request to the catalog repository for the album object.
@@ -140,7 +154,7 @@ class DeployManager(metaclass=Singleton):
         add_files_commit_and_push(new_head, file_paths, commit_msg, not dry_run, trigger_pipeline, email, username)
 
     def _get_cache_suffix(self):
-        return Path(self._repo.working_tree_dir).joinpath(
+        return Path(self._catalog_local_src).joinpath(
             self._catalog.get_solution_zip_suffix(
                 self._active_solution['group'],
                 self._active_solution["name"],
@@ -148,14 +162,14 @@ class DeployManager(metaclass=Singleton):
             )
         )
 
-    def _create_yaml_file_in_repo(self):
+    def _create_yaml_file_in_local_src(self):
         """Creates a yaml file in the given repo for the given solution.
 
         Returns:
             The Path to the created markdown file.
 
         """
-        yaml_path = Path(self._repo.working_tree_dir).joinpath(
+        yaml_path = Path(self._catalog_local_src).joinpath(
             DefaultValues.catalog_yaml_prefix.value,
             self._active_solution['group'],
             self._active_solution["name"],
@@ -171,13 +185,15 @@ class DeployManager(metaclass=Singleton):
     def _copy_and_zip(self, folder_path):
         """Copies the deploy-file or -folder to the catalog repository."""
         zip_path = self._get_cache_suffix()
-
         if folder_path.is_dir():
             return zip_folder(folder_path, zip_path)
         if folder_path.is_file():
-            return zip_paths([folder_path], zip_path)
+            tmp_dir = tempfile.TemporaryDirectory()
+            tmp_solution_file = Path(tmp_dir.name).joinpath(DefaultValues.solution_default_name.value)
+            copy(folder_path, tmp_solution_file)
+            return zip_paths([tmp_solution_file], zip_path)
 
-    def _copy_cover_to_repo(self, folder_path):
+    def _copy_cover_to_local_src(self, folder_path):
         """Copies all cover files to the repo."""
         target_path = self._get_cache_suffix().parent
         cover_list = []
@@ -191,22 +207,3 @@ class DeployManager(metaclass=Singleton):
                 cover_list.append(copy(cover_path, target_path.joinpath(cover_name)))
 
         return cover_list
-
-    def _copy_folder_in_local_catalog(self, path):
-        """Copies a solution folder in the local catalog thereby renaming it."""
-        grp = self._active_solution.group
-        name = self._active_solution.name
-        version = self._active_solution.version
-
-        abs_path_solution_folder = self._catalog.get_solution_path(grp, name, version).joinpath(
-            "_".join([grp, name, version])
-        )
-
-        if path.is_file():
-            abs_path_solution_file = abs_path_solution_folder.joinpath(DefaultValues.solution_default_name.value)
-
-            module_logger().debug("Copying %s to %s..." % (path, abs_path_solution_file))
-            return copy(path, abs_path_solution_file)
-
-        module_logger().debug("Copying %s to %s..." % (path, abs_path_solution_folder))
-        return copy_folder(path, abs_path_solution_folder, copy_root_folder=False)

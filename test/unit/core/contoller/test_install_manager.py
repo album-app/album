@@ -27,7 +27,7 @@ class TestInstallManager(TestUnitCommon):
                 {"path": Path("aPath"), "catalog": self.test_catalog_manager.local_catalog}, self.active_solution
             ]
         )
-        self.install_manager.resolve_manager.resolve_and_load = resolve_and_load
+        self.install_manager.resolve_manager.resolve_download_load = resolve_and_load
 
         execute_install_routine = MagicMock(return_value=None)
         self.install_manager._install = execute_install_routine
