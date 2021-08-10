@@ -77,6 +77,28 @@
       - ${CONDA_PREFIX}/pkgs/urls.txt
       - ${PIP_CACHE_DIR}
 
+# Macos base template
+#
+# Installs miniconda in a fresh tmp directory and activates it.
+#
+.macos_base_template:
+  tags:
+    - macos
+    - shell
+  before_script:
+    - echo "$(uname)"
+    - sw_vers
+    - rm -rf /tmp/album-tests
+    - mkdir /tmp/album-tests
+    - curl https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh --output /tmp/album-tests/miniconda.sh
+    - bash /tmp/album-tests/miniconda.sh -b -p /tmp/album-tests/miniconda
+    - export PATH=$PATH:/tmp/album-tests/miniconda/bin/
+    - echo $PATH
+    - conda env create -f album.yml
+    - source /tmp/album-tests/miniconda/bin/activate
+    - conda activate album
+    - python -V
+
 #----------------------------
 # stages
 #----------------------------
@@ -107,6 +129,23 @@ cmdline linux:
     # album catalog admin
     - album-catalog-admin -h
 
+cmdline macos:
+  extends: .macos_base_template
+  stage: build
+  script:
+    # album commands
+    - album -h
+    - album run -h
+    - album install -h
+    - album deploy -h
+    - album uninstall -h
+    - album repl -h
+    - album server -h
+    - album add-catalog -h
+    - album remove-catalog -h
+    # album catalog admin
+    - album-catalog-admin -h
+
 unit tests linux:
   extends: .linux_base_template
   stage: test
@@ -115,6 +154,18 @@ unit tests linux:
 
 integration tests linux:
   extends: .linux_base_template
+  stage: test
+  script:
+    - python -m unittest test/integration/run_all_integration.py
+
+unit tests macos:
+  extends: .macos_base_template
+  stage: test
+  script:
+    - python -m unittest test/unit/run_all_unit.py
+
+integration tests macos:
+  extends: .macos_base_template
   stage: test
   script:
     - python -m unittest test/integration/run_all_integration.py
