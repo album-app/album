@@ -48,8 +48,8 @@ class TestConfiguration(TestUnitCommon):
 
         # assert
         self.assertEqual(
-            self.conf.base_cache_path,
-            Path(new_tmp_dir.name)
+            Path(new_tmp_dir.name),
+            self.conf.base_cache_path
         )
         self.assertEqual(
             Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_solution_prefix.value),
@@ -66,6 +66,10 @@ class TestConfiguration(TestUnitCommon):
         self.assertEqual(
             Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value),
             self.conf.cache_path_tmp
+        )
+        self.assertEqual(
+            Path(new_tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value),
+            self.conf.catalog_collection_path
         )
 
     @unittest.skipUnless(sys.platform.startswith("win"), "requires Windoofs")

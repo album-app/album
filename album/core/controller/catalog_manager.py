@@ -1,13 +1,16 @@
-import os
+from pathlib import Path
 
-import validators
-
+from album.core import load
 from album.core.concept.singleton import Singleton
 # classes and methods
+from album.core.controller.migration_manager import MigrationManager
 from album.core.model.catalog import Catalog
+from album.core.model.catalog_index import CatalogIndex
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml
+from album.core.utils.operations.file_operations import copy_folder
+from album.core.utils.operations.resolve_operations import get_attributes_from_string, _check_file_or_url, \
+    check_requirement, _load_solution, clean_resolve_tmp
 from album_runner import logging
 
 module_logger = logging.get_active_logger
@@ -16,8 +19,8 @@ module_logger = logging.get_active_logger
 class CatalogManager(metaclass=Singleton):
     """The Album Catalog Collection class.
 
-    An album framework installation instance can hold arbitrarily many catalogs. This class collects all configured
-    catalogs and is mainly responsible to resolve (look up) solutions in all these catalogs.
+    An album framework installation instance can hold arbitrarily many catalogs. This class holds all configured
+    catalogs in memory and is mainly responsible to resolve (look up) solutions in all these catalogs.
     It is not responsible for resolving local paths and files or remembering what is already installed!
     Please use the resolve manager for this!
     Additionally, catalogs can be configured via this class.
@@ -28,127 +31,87 @@ class CatalogManager(metaclass=Singleton):
 
     """
     # Singletons
+    migration_manager = None
+    catalog_collection = None
     configuration = None
+    tmp_cache_dir = None
 
     def __init__(self):
         super().__init__()
-        self.config_file_path = None
-        self.config_file_dict = None
-        self.catalogs = None
-        self.local_catalog = None
         self.setup()
 
     # necessary for server-test-architecture (see class TestServer - AlbumServer object)
     def setup(self):
         self.configuration = Configuration()
-        self.config_file_path = self.configuration.configuration_file_path
-        self.reload()
+        self.tmp_cache_dir = self.configuration.cache_path_tmp
+        self.migration_manager = MigrationManager()
+        self._load_or_create_collection()
 
-    def reload(self):
-        self.config_file_dict = self._load_configuration()
-        self.catalogs = self._get_catalogs()
-        self.local_catalog = self._get_local_catalog()
+    def _load_or_create_collection(self):
+        collection_meta = self.configuration.get_collection_meta_dict()
+        newly_created = not self.configuration.get_collection_db_path().exists()
+        self.catalog_collection = self.migration_manager.migrate_or_create_collection(
+            path=self.configuration.get_collection_db_path(),
+            initial_name=DefaultValues.catalog_collection_name.value,
+            initial_version=collection_meta["catalog_collection_version"]
+        )
+        if newly_created:
+            self.create_local_catalog()
+            self.add_initial_catalogs()
+
+    def create_local_catalog(self):
+        catalogs = self.configuration.get_initial_catalogs()
+        name = DefaultValues.local_catalog_name.value
+        local_path = catalogs[name]
+        self.create_new_catalog(local_path, name)
+
+    def add_initial_catalogs(self):
+        catalogs = self.configuration.get_initial_catalogs()
+        for catalog in catalogs.keys():
+            self.add_catalog_to_collection(catalogs[catalog])
+
+    def get_catalog_by_id(self, catalog_id):
+        """Looks up a catalog by its id and returns it."""
+        catalog = self.catalog_collection.get_catalog(catalog_id)
+        if not catalog:
+            raise LookupError("Catalog with id \"%s\" not configured!" % catalog_id)
+        return self._as_catalog(catalog)
 
     def get_catalog_by_src(self, src):
         """Returns the catalog object of a given url if configured."""
-        for catalog in self.catalogs:
-            if catalog.src == src:
-                if not catalog.is_local:
-                    return catalog
-        raise LookupError("Catalog with source \"%s\" not configured!" % src)
+        catalog_dict = self.catalog_collection.get_catalog_by_src(src)
+        if not catalog_dict:
+            raise LookupError("Catalog with src \"%s\" not configured!" % src)
+        return self._as_catalog(catalog_dict)
 
-    def get_catalog_by_id(self, cat_id):
+    def get_catalog_by_name(self, name):
         """Looks up a catalog by its id and returns it."""
-        for catalog in self.catalogs:
-            if catalog.id == cat_id:
-                return catalog
-        raise LookupError("Catalog with ID \"%s\" not configured!" % cat_id)
+        catalog_dict = self.catalog_collection.get_catalog_by_name(name)
+        if not catalog_dict:
+            raise LookupError("Catalog with name \"%s\" not configured!" % name)
+        return self._as_catalog(catalog_dict)
 
-    def save(self, config_file_dict=None):
-        """Saves the configuration dictionary to disk. Uses the file path specified in the Configuration object."""
-        module_logger().info("Saving configuration file in %s..." % self.config_file_path)
-        if not config_file_dict:
-            config_file_dict = self.config_file_dict
+    def get_catalog_by_path(self, path):
+        """Looks up a catalog by its id and returns it."""
+        catalog_dict = self.catalog_collection.get_catalog_by_path(path)
+        if not catalog_dict:
+            raise LookupError("Catalog with path \"%s\" not configured!" % path)
+        return self._as_catalog(catalog_dict)
 
-        module_logger().debug("Configuration looks like: %s..." % config_file_dict)
-
-        return write_dict_to_yml(self.config_file_path, config_file_dict)
-
-    def _load_configuration(self):
-        """Loads a configuration.
-
-         Either from disk (if the path specified in the Configuration object is a valid file)
-         or from default values.
-
-         """
-        if self.config_file_path.is_file():
-            module_logger().info("Load configuration from file %s..." % self.config_file_path)
-            config_file_dict = get_dict_from_yml(self.config_file_path)
-            if not config_file_dict:
-                raise IOError("Empty configuration file!")
-        else:
-            module_logger().info("Creating default configuration...")
-            config_file_dict = self.configuration.get_default_configuration()
-            module_logger().info("Saving default configuration in file %s..." % self.config_file_path)
-            self.save(config_file_dict)
-
-        return config_file_dict
-
-    def _get_catalogs(self):
+    def get_catalogs(self):
         """Creates the catalog objects from the catalogs specified in the configuration."""
-        try:
-            cs = self.config_file_dict["catalogs"]
-        except KeyError:
-            raise RuntimeError("No catalogs configured!")
-
         catalogs = []
+        catalog_list = self.catalog_collection.get_all_catalogs()
 
-        non_deletable_catalog_in_config = False
-        for catalog_path in cs:
-            module_logger().debug("Try to initialize the following catalog: %s..." % catalog_path)
-
-            catalog_id = self.extract_catalog_name(catalog_path)
-            src = catalog_path
-            path = self.configuration.get_cache_path_catalog(catalog_id)
-
-            # if entry is a valid url, we set the default path
-            if validators.url(catalog_path):
-                if catalog_path == DefaultValues.catalog_url.value:
-                    deletable = False
-                else:
-                    deletable = True
-            else:
-                if non_deletable_catalog_in_config:
-                    deletable = True
-                else:
-                    deletable = False
-                    non_deletable_catalog_in_config = True
-
-            catalogs.append(Catalog(catalog_id=catalog_id, path=path, src=src, deletable=deletable))
-
-        self.catalogs = catalogs
+        for catalog_entry in catalog_list:
+            catalogs.append(self._as_catalog(catalog_entry))
 
         return catalogs
 
-    @staticmethod
-    def extract_catalog_name(catalog_repo):
-        """Extracts a basename from a repository URL.
-
-        Args:
-            catalog_repo:
-                The repository URL or ssh string of the catalog.
-
-        Returns:
-            The basename of the repository
-
-        """
-        name, _ = os.path.splitext(os.path.basename(catalog_repo))
-        return name
-
-    def _get_local_catalog(self):
-        """Returns the first local catalog in the configuration (Reads yaml file from top)."""
+    def get_local_catalog(self):
+        """Returns the first local catalog in the configuration (Reads db table from top)."""
         local_catalog = None
-        for catalog in self.catalogs:
+        for catalog in self.get_catalogs():
             if catalog.is_local:
                 local_catalog = catalog
                 break
@@ -156,20 +119,9 @@ class CatalogManager(metaclass=Singleton):
         if local_catalog is None:
             raise RuntimeError("Misconfiguration of catalogs. There must be at least one local catalog!")
 
-        self.local_catalog = local_catalog
-
         return local_catalog
 
-    def get_search_index(self):
-        """Allow searching through all depth 3 leaves (solution entries) of all configured catalogs."""
-        catalog_indices_dict = {}
-        for catalog in self.catalogs:
-            module_logger().debug("Load catalog leaves for catalog: %s..." % catalog.id)
-            catalog_indices_dict[catalog.id] = catalog.catalog_index.get_leaves_dict_list()
-
-        return catalog_indices_dict
-
-    def resolve(self, solution_attr):
+    def resolve_in_catalogs(self, solution_attr):
         """Resolves a dictionary holding solution attributes (group, name, version, etc.) and
         returns the path to the solution.py file on the current system.
 
@@ -182,17 +134,18 @@ class CatalogManager(metaclass=Singleton):
 
         """
         # resolve local catalog first!
-        path_to_solution = self._resolve_in_catalog(self.local_catalog, solution_attr)
+        local_catalog = self.get_local_catalog()
+        path_to_solution = self._resolve_in_catalog(local_catalog, solution_attr)
 
         if path_to_solution:
             return {
                 "path": path_to_solution,
-                "catalog": self.local_catalog
+                "catalog": local_catalog
             }
         else:
             # resolve in order of catalogs specified in config file
-            for catalog in self.catalogs:
-                if catalog.id == self.local_catalog.id:
+            for catalog in self.get_catalogs():
+                if catalog.name == local_catalog.name:
                     continue  # skip local catalog as it already has been checked
 
                 path_to_solution = self._resolve_in_catalog(catalog, solution_attr)
@@ -209,128 +162,406 @@ class CatalogManager(metaclass=Singleton):
         if "doi" in solution_attr.keys():
             raise NotImplementedError
         else:
-            self._check_requirement(solution_attr)
+            check_requirement(solution_attr)
 
             group = solution_attr["group"]
             name = solution_attr["name"]
             version = solution_attr["version"]
 
-            path_to_solution = catalog.resolve(group, name, version)
+            path_to_solution = self.resolve(catalog, group, name, version)
 
         return path_to_solution
 
-    @staticmethod
-    def _check_requirement(solution_attr):
-        if not all([k in solution_attr.keys() for k in ["name", "version", "group"]]):
-            raise ValueError("Cannot resolve dependency! Either a DOI or name, group and version must be specified!")
+    def resolve(self, catalog, group, name, version):
+        """Resolves (also: finds, looks up) a solution in the catalog, returning the absolute path to the solution file.
 
-    def resolve_dependency(self, dependency):
+        Args:
+            catalog:
+                The catalog object where the solution belongs to.
+            group:
+                The group where the solution belongs to.
+            name:
+                The name of the solution
+            version:
+                The version of the solution
+
+        Returns: the path to the solution file.
+
+        """
+        solution_entry = self.catalog_collection.get_solution_by_catalog_grp_name_version(catalog.catalog_id, name, version, group)
+
+        if solution_entry:
+            path_to_solution = catalog.get_solution_file(group, name, version)
+
+            return path_to_solution
+
+        return None  # could not resolve
+
+    def add_to_local_catalog(self, active_solution, path):
+        """Force adds the installation to the local catalog to be cached for running"""
+        self.add_or_replace_solution_in_collection(self.get_local_catalog(), active_solution, path)
+        clean_resolve_tmp(self.tmp_cache_dir)
+
+    def add_or_replace_solution_in_collection(self, catalog, active_solution, path):
+        self.catalog_collection.add_or_replace_solution(catalog.catalog_id, active_solution["group"], active_solution["name"],
+                                                active_solution["version"], active_solution.get_deploy_dict())
+        # get the install location
+        install_location = catalog.get_solution_path(
+            active_solution.group, active_solution.name, active_solution.version
+        )
+        copy_folder(path, install_location, copy_root_folder=False)
+
+    def resolve_doi(self, doi):
+        """Resolves an album via doi. Returns the absolute path to the solution.
+
+        Args:
+            doi:
+                The doi of the solution
+
+        Returns:
+            Absolute path to the solution file.
+
+        """
+        solution_entry = self.catalog_collection.get_solution_by_doi(doi)
+
+        if solution_entry:
+            path_to_solution = self.catalog_collection.get_catalog(solution_entry["catalog_id"]).get_solution_file(
+                solution_entry["group"],
+                solution_entry["name"],
+                solution_entry["version"]
+            )
+
+            return path_to_solution
+
+        return None  # could not resolve
+
+    @staticmethod
+    def create_new_catalog(local_path, name):
+        if not local_path.exists():
+            local_path.mkdir(parents=True)
+        with open(local_path.joinpath(DefaultValues.catalog_index_file_json.value), 'w') as meta:
+            meta.writelines("{\"name\": \"" + name + "\", \"version\": \"" + CatalogIndex.version + "\"}")
+
+    @staticmethod
+    def _update(catalog: Catalog):
+        r = catalog.refresh_index()
+        module_logger().info('Updated catalog %s!' % catalog.name)
+
+        return r
+
+    def update_by_name(self, catalog_name):
+        catalog = self.get_catalog_by_name(catalog_name)
+
+        return self._update(catalog)
+
+    def update_all(self):
+        catalog_r = []
+        for catalog in self.get_catalogs():
+            try:
+                r = self._update(catalog)
+                catalog_r.append(r)
+            except Exception:
+                module_logger().warning("Failed to update catalog %s!" % catalog.name)
+                catalog_r.append(False)
+                pass
+
+        return catalog_r
+
+    def update_any(self, catalog_name=None):
+        if catalog_name:
+            self.update_by_name(catalog_name)
+        else:
+            self.update_all()
+
+    def add_catalog_to_collection(self, identifier):
+        """ Adds a catalog."""
+        catalog = self._create_catalog_from_src(identifier)
+        if not catalog.is_cache():
+            self.migration_manager.convert_catalog(catalog)
+        self.add_catalog_to_collection_index(catalog)
+        self._create_catalog_cache_if_missing(catalog)
+        module_logger().info('Added catalog %s!' % identifier)
+        return catalog
+
+    def add_catalog_to_collection_index(self, catalog: Catalog) -> int:
+        catalog.catalog_id = self.catalog_collection.insert_catalog(catalog.name, str(catalog.src), str(catalog.path),
+                                               int(catalog.is_deletable))
+        if not catalog.is_cache():
+            self._add_catalog_solutions_to_collection_index(catalog)
+        return catalog.catalog_id
+
+    def _add_catalog_solutions_to_collection_index(self, catalog):
+        if not catalog.catalog_index:
+            catalog.load_index()
+        solutions = catalog.catalog_index.get_all_solutions()
+        for solution in solutions:
+            self.catalog_collection.add_or_replace_solution(catalog.catalog_id, solution["group"], solution["name"],
+                                                            solution["version"], solution)
+
+    def _create_catalog_from_src(self, src):
+        catalog_meta_information = Catalog.retrieve_catalog_meta_information(src)
+        catalog_path = self.configuration.get_cache_path_catalog(catalog_meta_information["name"])
+        catalog = Catalog(None, catalog_meta_information["name"], catalog_path, src=src)
+        return catalog
+
+    @staticmethod
+    def _create_catalog_cache_if_missing(catalog):
+        if not catalog.path.exists():
+            catalog.path.mkdir(parents=True)
+
+    def remove_catalog_from_collection_by_path(self, path):
+        catalog_dict = self.catalog_collection.get_catalog_by_path(path)
+        if not catalog_dict:
+            module_logger().warning(f"Cannot remove catalog, catalog with path {path} not found!")
+            return None
+
+        catalog_to_remove = self._as_catalog(catalog_dict)
+
+        if not catalog_to_remove:
+            module_logger().warning("Cannot remove catalog with path \"%s\"! Not configured!" % str(path))
+            return
+
+        if not catalog_to_remove.is_deletable:
+            module_logger().warning("Cannot remove catalog! Marked as not deletable! Will do nothing...")
+            return None
+
+        self.catalog_collection.remove_entire_catalog(catalog_to_remove.catalog_id)
+
+        return catalog_to_remove
+
+    def remove_catalog_from_collection_by_name(self, name):
+        catalog_dict = self.catalog_collection.get_catalog_by_name(name)
+
+        if not catalog_dict:
+            raise LookupError("Cannot remove catalog with name \"%s\", not found!" % str(name))
+
+        catalog_to_remove = self._as_catalog(catalog_dict)
+
+        if not catalog_to_remove:
+            raise LookupError("Cannot remove catalog with name \"%s\"! Not configured!" % str(name))
+
+        if not catalog_to_remove.is_deletable:
+            module_logger().warning("Cannot remove catalog! Marked as not deletable! Will do nothing...")
+            return None
+
+        self.catalog_collection.remove_entire_catalog(catalog_to_remove.catalog_id)
+
+        return catalog_to_remove
+
+    def remove_catalog_from_collection_by_src(self, src):
+
+        catalog_to_remove = self._as_catalog(self.catalog_collection.get_catalog_by_src(src))
+
+        if not catalog_to_remove:
+            module_logger().warning("Cannot remove catalog with source \"%s\"! Not configured!" % str(src))
+            return
+
+        if not catalog_to_remove.is_deletable:
+            module_logger().warning("Cannot remove catalog! Marked as not deletable! Will do nothing...")
+            return None
+
+        self.catalog_collection.remove_entire_catalog(catalog_to_remove.catalog_id)
+
+        return catalog_to_remove
+
+    def remove_solution(self, catalog, solution):
+        self.catalog_collection.remove_solution(catalog.catalog_id, solution['group'], solution['name'], solution['version'])
+
+    def resolve_require_installation_and_load(self, str_input):
+        """Resolves an input. Expects solution to be installed.
+
+        Args:
+            str_input:
+
+        Returns:
+
+        """
+        resolve, solution_entry = self._resolve(str_input)
+
+        if not solution_entry or not solution_entry["installed"]:
+            raise LookupError("Solution seems not to be installed! Please install solution first!")
+
+        active_solution = load(resolve["path"])
+
+        active_solution.set_environment(resolve["catalog"].name)
+
+        return [resolve, active_solution]
+
+    def resolve_download_and_load(self, str_input):
+        """
+
+        Args:
+            str_input:
+                What to resolve. Either path, doi, group:name:version or dictionary
+
+        Returns:
+            list with resolve result and loaded album.
+
+        """
+
+        resolve, solution_entry = self._resolve(str_input)
+
+        if not Path(resolve["path"]).exists():
+            resolve["catalog"].retrieve_solution(
+                solution_entry["group"], solution_entry["name"], solution_entry["version"]
+            )
+
+        active_solution = _load_solution(resolve)
+        return [resolve, active_solution]
+
+    def resolve_dependency_and_load(self, solution_attrs, load_solution=True):
+        """Resolves a dependency, expecting it to be installed (live inside a catalog)
+
+        Args:
+            solution_attrs:
+                The solution attributes to resolve for. must hold grp, name, version.
+            load_solution:
+                Whether to immediately load the solution or not.
+        Returns:
+            resolving dictionary.
+
+        """
+        # check if solution is installed
+        solution_entries = self.catalog_collection.get_solutions_by_grp_name_version(
+            solution_attrs["group"], solution_attrs["name"], solution_attrs["version"]
+        )
+
+        if solution_entries and len(solution_entries) > 1:
+            module_logger().warning("Found multiple entries of dependency %s:%s:%s "
+                                    % (solution_attrs["group"], solution_attrs["name"], solution_attrs["version"]))
+
+        if not solution_entries or not solution_entries[0]["installed"]:
+            raise LookupError("Dependency %s:%s:%s seems not to be installed! Please install solution first!"
+                              % (solution_attrs["group"], solution_attrs["name"], solution_attrs["version"]))
+
+        first_solution = solution_entries[0]
+
+        catalog = self.get_catalog_by_id(first_solution["catalog_id"])
+
+        resolve = {
+            "path": catalog.get_solution_file(
+                first_solution["group"], first_solution["name"], first_solution["version"]
+            ),
+            "catalog": catalog
+        }
+
+        active_solution = None
+
+        if load_solution:
+            active_solution = _load_solution(resolve)
+
+        return [resolve, active_solution]
+
+    def _resolve(self, str_input):
+        # always first resolve outside any catalog
+        path = _check_file_or_url(str_input, self.configuration.cache_path_tmp)
+        if path:
+            solution_entry = self.search_local_file(path)  # requires loading
+
+            catalog = self.get_local_catalog()
+            resolve = {
+                "path": path,
+                "catalog": catalog,
+            }
+        else:
+            solution_entry = self.search(str_input)
+
+            if not solution_entry:
+                raise LookupError("Solution cannot be resolved in any catalog!")
+
+            catalog = self.get_catalog_by_id(solution_entry["catalog_id"])
+
+            resolve = {
+                "path": catalog.get_solution_file(
+                    solution_entry["group"], solution_entry["name"], solution_entry["version"]
+                ),
+                "catalog": catalog
+            }
+
+        return [resolve, solution_entry]
+
+    def search_local_file(self, path):
+        active_solution = load(path)
+        solution_entry = self.catalog_collection.get_solution_by_catalog_grp_name_version(
+            self.get_local_catalog().catalog_id,
+            active_solution["group"],
+            active_solution["name"],
+            active_solution["version"]
+        )
+
+        return solution_entry
+
+    def search(self, str_input):
+        attrs = get_attributes_from_string(str_input)
+
+        solution_entry = None
+        if "doi" in attrs:  # case doi
+            solution_entry = self.catalog_collection.get_solution_by_doi(attrs["doi"])
+        else:
+            if "catalog" not in attrs:
+                solution_entry = self._search_in_local_catalog(attrs)  # resolve in local catalog first!
+
+            if not solution_entry:
+                if "catalog" in attrs:  # resolve in specific catalog
+                    catalog_id = self.get_catalog_by_name(attrs["catalog"]).catalog_id
+                    solution_entry = self._search_in_specific_catalog(catalog_id, attrs)
+                else:
+                    solution_entries = self._search_in_catalogs(attrs)  # resolve anywhere
+
+                    if solution_entries and len(solution_entries) > 1:
+                        module_logger().warning("Found several solutions... taking the first one! ")
+
+                    if solution_entries:
+                        solution_entry = solution_entries[0]
+
+        return solution_entry
+
+    def _search_in_local_catalog(self, attrs):
+        return self._search_in_specific_catalog(self.get_local_catalog().catalog_id, attrs)
+
+    def _search_in_specific_catalog(self, catalog_id, attrs):
+        check_requirement(attrs)
+        group = attrs["group"]
+        name = attrs["name"]
+        version = attrs["version"]
+        solution_entry = self.catalog_collection.get_solution_by_catalog_grp_name_version(
+            catalog_id, group, name, version)
+        return solution_entry
+
+    def _search_in_catalogs(self, attrs):
+        check_requirement(attrs)
+        group = attrs["group"]
+        name = attrs["name"]
+        version = attrs["version"]
+
+        solution_entries = self.catalog_collection.get_solutions_by_grp_name_version(group, name, version)
+
+        return solution_entries if solution_entries else None
+
+    def resolve_dependency(self, dependency, update=True):
         """Resolves the album and returns the path to the solution.py file on the current system.
         Throws error if not resolvable!"""
 
-        r = self.resolve(dependency)
+        r = self.resolve(dependency, update)
 
         if not r:
             raise ValueError("Could not resolve solution: %s" % dependency)
 
         return r
 
-    def resolve_directly(self, catalog_id, group, name, version):
-        """Resolves a solution given its group, name, version only looking through a specific catalog.
+    def get_index_as_dict(self):
+        catalogs = self.catalog_collection.get_all_catalogs()
+        for catalog in catalogs:
+            catalog["solutions"] = self.catalog_collection.get_solutions_by_catalog(catalog["catalog_id"])
+        return {
+            "catalogs": catalogs
+        }
 
-        Args:
-            catalog_id:
-                The catalog to search the solution in.
-            group:
-                The group affiliation of the solution.
-            name:
-                The name of the solution.
-            version:
-                The version of the solution.
-
-        Returns:
-            Dictionary holding the path to the solution and the catalog the solution has been resolved in.
-
-        """
-        for catalog in self.catalogs:
-            if catalog.id == catalog_id:
-
-                path_to_solution = catalog.resolve(group, name, version)
-
-                if path_to_solution:
-                    return {
-                        "path": path_to_solution,
-                        "catalog": catalog
-                    }
-
-        return None
+    def get_catalogs_as_dict(self):
+        return {
+            "catalogs": self.catalog_collection.get_all_catalogs()
+        }
 
     @staticmethod
-    def _update(catalog: Catalog):
-        r = catalog.refresh_index()
-        module_logger().info('Updated catalog %s!' % catalog.id)
-
-        return r
-
-    def update_by_id(self, catalog_id):
-        catalog = self.get_catalog_by_id(catalog_id)
-
-        return self._update(catalog)
-
-    def update_all(self):
-        catalog_r = []
-        for catalog in self.catalogs:
-            try:
-                r = self._update(catalog)
-                catalog_r.append(r)
-            except Exception:
-                module_logger().warning("Failed to update catalog %s!" % catalog.id)
-                catalog_r.append(False)
-                pass
-
-        return catalog_r
-
-    def update_any(self, catalog_id=None):
-        if catalog_id:
-            self.update_by_id(catalog_id)
-        else:
-            self.update_all()
-
-    def add(self, path):
-        """ Adds a catalog to the configuration."""
-        # todo: check if valid catalog
-        self.config_file_dict["catalogs"].append(path)
-        self.save()
-        self.reload()
-
-        module_logger().info('Added catalog %s!' % path)
-
-    def remove_by_id(self, catalog_id):
-        catalog_to_remove = self.get_catalog_by_id(catalog_id)
-
-        if not catalog_to_remove.is_deletable:
-            module_logger().warning("Cannot remove catalog! Marked as not deletable! Will do nothing...")
-            return None
-
-        path = catalog_to_remove.src
-
-        self.config_file_dict["catalogs"].remove(path)
-
-        module_logger().info('Removed catalog with id %s!' % catalog_to_remove.id)
-
-        self.save()
-        self.reload()
-
-        return catalog_to_remove
-
-    def remove(self, path):
-        """Removes a catalog from a configuration"""
-        catalog_path_to_remove = next((x for x in self.config_file_dict["catalogs"] if x == path), None)
-
-        if not catalog_path_to_remove:
-            module_logger().warning("Cannot remove catalog %s! Not configured!" % str(path))
-            return
-
-        catalog_id_to_remove = self.extract_catalog_name(catalog_path_to_remove)
-
-        self.remove_by_id(catalog_id_to_remove)
+    def _as_catalog(catalog_dict):
+        return Catalog(catalog_dict['catalog_id'], catalog_dict['name'], catalog_dict['path'], catalog_dict['src'], bool(catalog_dict['deletable']))

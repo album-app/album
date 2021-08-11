@@ -16,7 +16,6 @@ from album.core.controller.task_manager import TaskManager
 from album.core.controller.test_manager import TestManager
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
-from album.core.model.solutions_db import SolutionsDb
 from album.core.model.task import Task
 from album_runner import logging
 
@@ -27,19 +26,6 @@ class AlbumServer(metaclass=Singleton):
 
     port = DefaultValues.server_port
 
-    # init singletons
-    configuration = None
-    catalog_manager = None
-    resolve_manager = None
-    install_manager = None
-    remove_manager = None
-    run_manager = None
-    search_manager = None
-    test_manager = None
-    task_manager = None
-    deploy_manager = None
-    solutions_db = None
-
     app = None
 
     def __init__(self, port):
@@ -47,16 +33,6 @@ class AlbumServer(metaclass=Singleton):
 
     def setup(self, port):
         self.port = port
-        self.configuration = Configuration()
-        self.catalog_manager = CatalogManager()
-        self.install_manager = InstallManager()
-        self.remove_manager = RemoveManager()
-        self.run_manager = RunManager()
-        self.search_manager = SearchManager()
-        self.test_manager = TestManager()
-        self.task_manager = TaskManager()
-        self.deploy_manager = DeployManager()
-        self.solutions_db = SolutionsDb()
 
     def start(self, test_config=None):
         module_logger().info('Starting server..')
@@ -78,115 +54,112 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route("/config")
         def get_config():
             return {
-                "album_config_path": str(self.catalog_manager.config_file_path),
-                "album_config": self.catalog_manager.config_file_dict,
-                "cache_base": str(self.configuration.base_cache_path),
-                "cache_solutions": str(self.configuration.cache_path_solution),
-                "cache_apps": str(self.configuration.cache_path_app),
-                "cache_downloads": str(self.configuration.cache_path_download)
+                "album_config_path": str(CatalogManager().catalog_collection.config_file_path),
+                "album_config": CatalogManager().catalog_collection.config_file_dict,
+                "cache_base": str(Configuration().base_cache_path),
+                "cache_solutions": str(Configuration().cache_path_solution),
+                "cache_apps": str(Configuration().cache_path_app),
+                "cache_downloads": str(Configuration().cache_path_download)
             }
 
         @self.app.route("/index")
         def get_index():
-            catalog_dict = {}
-            for catalog in self.catalog_manager.catalogs:
-                self._write_catalog_to_dict(catalog_dict, catalog)
-                catalog_dict[catalog.id]["solutions"] = catalog.catalog_index.get_leaves_dict_list()
-            return catalog_dict
+            return CatalogManager().get_index_as_dict()
 
         @self.app.route("/catalogs")
         def get_catalogs():
-            catalog_dict = {}
-            for catalog in self.catalog_manager.catalogs:
-                self._write_catalog_to_dict(catalog_dict, catalog)
-            return catalog_dict
+            return CatalogManager().get_catalogs_as_dict()
 
         @self.app.route("/recently-launched")
         def get_recently_launched_solutions():
-            return {"solutions": self.solutions_db.get_recently_launched_solutions()}
+            return {"solutions": CatalogManager().catalog_collection.get_recently_launched_solutions()}
 
         @self.app.route("/recently-installed")
         def get_recently_installed_solutions():
-            return {"solutions": self.solutions_db.get_recently_installed_solutions()}
+            return {"solutions": CatalogManager().catalog_collection.get_recently_installed_solutions()}
 
         @self.app.route('/run/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/run/<catalog>/<group>/<name>/<version>')
         def run(catalog, group, name, version):
             module_logger().info(f"Server call: /run/{catalog}/{group}/{name}/{version}")
-            task = self._run_solution_method_async(catalog, group, name, version, self.run_manager.run)
+            task = self._run_solution_method_async(catalog, group, name, version, RunManager().run)
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/install/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/install/<catalog>/<group>/<name>/<version>')
         def install(catalog, group, name, version):
-            task = self._run_solution_method_async(catalog, group, name, version, self.install_manager.install)
+            task = self._run_solution_method_async(catalog, group, name, version, InstallManager().install)
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/remove/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/remove/<catalog>/<group>/<name>/<version>')
         def remove(catalog, group, name, version):
-            task = self._run_solution_method_async(catalog, group, name, version, self.remove_manager.remove)
+            task = self._run_solution_method_async(catalog, group, name, version, RemoveManager().remove)
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/test/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/test/<catalog>/<group>/<name>/<version>')
         def test(catalog, group, name, version):
-            task = self._run_solution_method_async(catalog, group, name, version, self.test_manager.test)
+            task = self._run_solution_method_async(catalog, group, name, version, TestManager().test)
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/deploy')
         def deploy():
             solution_path = request.args.get("path")
-            catalog = request.args.get("catalog_id")
+            catalog_name = request.args.get("catalog_name")
             if solution_path is None:
                 abort(404, description=f"`path` argument missing")
             if not Path(solution_path).exists():
                 abort(404, description=f"Solution not found: {solution_path}")
-            if catalog is None:
-                abort(404, description=f"`catalog_id` argument missing")
+            if catalog_name is None:
+                abort(404, description=f"`catalog_name` argument missing")
             dryrun = bool(util.strtobool(request.args.get("dryrun", default="false")))
             trigger_pipeline = False
             task = Task()
-            task.args = (solution_path, catalog, dryrun, trigger_pipeline)
-            task.method = self.deploy_manager.deploy
-            self.task_manager.register_task(task)
+            task.args = (solution_path, catalog_name, dryrun, trigger_pipeline)
+            task.method = DeployManager().deploy
+            TaskManager().register_task(task)
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/status/<catalog>/<group>/<name>/<version>')
         def status_solution(catalog, group, name, version):
-            installed = self.solutions_db.is_installed(catalog, group, name, version)
-            res = {
-                "installed": installed
-            }
-            return res
+            try:
+                catalog_manager = CatalogManager()
+                catalog_id = catalog_manager.get_catalog_by_name(catalog).catalog_id
+                installed = catalog_manager.catalog_collection.is_installed(catalog_id, group, name, version)
+                return {
+                    "installed": installed
+                }
+            except LookupError as e:
+                abort(404, description=f"Solution not found")
 
         @self.app.route('/status/<task_id>')
         def status_task(task_id):
-            task = self.task_manager.get_task(str(task_id))
+            task = TaskManager().get_task(str(task_id))
             if task is None:
                 abort(404, description=f"Task not found with id {task_id}")
-            return self.task_manager.get_status(task)
+            return TaskManager().get_status(task)
 
         @self.app.route('/add-catalog')
         def add_catalog():
-            url = request.args.get("path")
-            id = request.args.get("id")
-            self.catalog_manager.add(url)
-            return {}
+            url = request.args.get("src")
+            name = request.args.get("name")
+            catalog_id = CatalogManager().add_catalog_to_collection(url).catalog_id
+            return {"catalog_id": catalog_id}
 
         @self.app.route('/remove-catalog')
         def remove_catalog():
-            url = request.args.get("path", default=None)
-            id = request.args.get("id", default=None)
-            if id is None:
-                self.catalog_manager.remove(url)
+            url = request.args.get("src", default=None)
+            name = request.args.get("name", default=None)
+            if name is None:
+                CatalogManager().remove_catalog_from_collection_by_src(url)
             else:
-                self.catalog_manager.remove_by_id(id)
+                CatalogManager().remove_catalog_from_collection_by_name(name)
             return {}
 
         @self.app.route('/search/<keywords>')
         def search(keywords):
-            return self.search_manager.search(keywords)
+            return SearchManager().search(keywords)
 
         @self.app.route('/shutdown', methods=['GET'])
         def shutdown():
@@ -195,14 +168,6 @@ class AlbumServer(metaclass=Singleton):
                 raise RuntimeError('Not running with the Werkzeug Server')
             func()
             return 'Server shutting down...'
-
-    @staticmethod
-    def _write_catalog_to_dict(catalog_dict, catalog):
-        catalog_dict[catalog.id] = {}
-        catalog_dict[catalog.id]["src"] = str(catalog.src) if catalog.src else None
-        catalog_dict[catalog.id]["path"] = str(catalog.path) if catalog.path else None
-        catalog_dict[catalog.id]["is_local"] = catalog.is_local
-        catalog_dict[catalog.id]["is_deletable"] = catalog.is_deletable
 
     def _run_solution_method_async(self, catalog, group, name, version, method):
         task = Task()
@@ -213,7 +178,7 @@ class AlbumServer(metaclass=Singleton):
         task.args = (solution_path, )
         task.sysarg = self._get_arguments(request.get_json(), solution_path)
         task.method = method
-        self.task_manager.register_task(task)
+        TaskManager().register_task(task)
         return task
 
     def _run_path_method_async(self, path, args, method):
@@ -223,7 +188,7 @@ class AlbumServer(metaclass=Singleton):
             command_args.append(arg)
         task.sysarg = command_args
         task.method = method
-        self.task_manager.register_task(task)
+        TaskManager().register_task(task)
         return task
 
     @staticmethod

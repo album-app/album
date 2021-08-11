@@ -7,11 +7,10 @@ from stat import *
 from unittest.mock import patch
 
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import FileOperationError, get_zenodo_metadata, \
-    set_zenodo_metadata_in_solutionfile, get_dict_from_yml, write_dict_to_yml, create_empty_file_recursively, \
+from album.core.utils.operations.file_operations import FileOperationError, \
+    get_dict_from_yml, write_dict_to_yml, create_empty_file_recursively, \
     create_path_recursively, write_dict_to_json, force_remove, zip_folder, unzip_archive, copy, \
     copy_folder, zip_paths, rand_folder_name
-
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -27,62 +26,6 @@ class TestFileOperations(TestUnitCommon):
     def set_dummy_solution_path(self):
         current_path = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
         self.dummysolution = str(current_path.joinpath("..", "..", "..", "..", "resources", "solution0_dummy.py"))
-
-    def test_get_zenodo_metadata(self):
-        doi = get_zenodo_metadata(self.dummysolution, "doi")
-        self.assertEqual("", doi)
-
-    def test_get_zenodo_metadata_wrong_format(self):
-
-        with open(self.closed_tmp_file.name, mode="w") as file:
-            with open(self.dummysolution) as d:
-                lines = d.readlines()
-                file.writelines([x.replace(" ", "") for x in lines])
-
-        with self.assertRaises(FileOperationError):
-            get_zenodo_metadata(self.closed_tmp_file.name, "doi")
-
-    def test_get_zenodo_metadata_no_doi(self):
-        with open(self.closed_tmp_file.name, mode="w") as file:
-            with open(self.dummysolution) as d:
-                lines = d.readlines()
-                lines.remove("    doi=\"\",\n")
-                file.writelines(lines)
-
-        self.assertIsNone(get_zenodo_metadata(self.closed_tmp_file.name, "doi"))
-
-    @patch('album.core.utils.operations.file_operations.shutil.copy', return_value=True)
-    def test_set_zenodo_metadata_in_solutionfile(self, shutil_mock):
-        file_path = set_zenodo_metadata_in_solutionfile(self.dummysolution, "theDoi", "theID")
-
-        with open(file_path) as f:
-            lines = f.readlines()
-            self.assertIn("    doi=\"\",\n", lines)
-            self.assertIn("    deposit_id=\"\",\n", lines)
-
-        # needs to be this path - see @set_zenodo_metadata_in_solutionfile
-        new_file_path = str(DefaultValues.app_cache_dir.value.joinpath("solution0_dummy_tmp.py"))
-
-        with open(new_file_path) as f:
-            lines = f.readlines()
-            self.assertIn("    doi=\"theDoi\",\n", lines)
-            self.assertNotIn("    doi=\"\",\n", lines)
-            self.assertIn("    deposit_id=\"theID\",\n", lines)
-            self.assertNotIn("    deposit_id=\"\",\n", lines)
-
-        shutil_mock.assert_called_once()
-
-    @patch('album.core.utils.operations.file_operations.shutil.copy', return_value=True)
-    def test_set_zenodo_metadata_in_solutionfile_wrong_format(self, shutil_mock):
-        with open(self.closed_tmp_file.name, mode="w") as file:
-            with open(self.dummysolution) as d:
-                lines = d.readlines()
-                file.writelines([x.replace(" ", "") for x in lines])
-
-        with self.assertRaises(FileOperationError):
-            set_zenodo_metadata_in_solutionfile(self.closed_tmp_file.name, "theDoi", "theID")
-
-        shutil_mock.assert_not_called()
 
     def test_get_dict_from_yml(self):
         tmp_folder = pathlib.Path(self.tmp_dir.name)

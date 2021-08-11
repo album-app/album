@@ -1,8 +1,7 @@
 import sys
 
 from album.core.concept.singleton import Singleton
-from album.core.controller.resolve_manager import ResolveManager
-from album.core.utils.operations.file_operations import copy_folder
+from album.core.controller.catalog_manager import CatalogManager
 from album.core.utils.script import create_solution_script
 from album_runner import logging
 
@@ -18,64 +17,58 @@ class InstallManager(metaclass=Singleton):
     After installation the solution is marked as installed in a local catalog.
 
     Attributes:
-        resolve_manager:
+        catalog_manager:
             Holding all configured catalogs. Resolves inside our outside catalogs.
 
     """
     # singletons
-    resolve_manager = None
+    catalog_manager = None
 
     def __init__(self):
-        self.resolve_manager = ResolveManager()
-        self.configuration = self.resolve_manager.catalog_manager.configuration
+        self.catalog_manager = CatalogManager()
+        self.configuration = self.catalog_manager.configuration
 
     def install(self, path):
         """Function corresponding to the `install` subcommand of `album`."""
         # Load solution
-        resolve, active_solution = self.resolve_manager.resolve_download_load(path)
+        resolve, active_solution = self.catalog_manager.resolve_download_and_load(path)
 
         if not resolve["catalog"]:
             module_logger().debug('album loaded locally: %s...' % str(active_solution))
         else:
-            module_logger().debug('album loaded from catalog %s: %s...' % (resolve["catalog"].id, str(active_solution)))
+            module_logger().debug('album loaded from catalog %s: %s...' % (resolve["catalog"].catalog_id, str(active_solution)))
 
         # execute installation routine
         parent_catalog_id = self._install(active_solution)
 
+        #TODO this is messy and needs to be cleaned up
         if not resolve["catalog"] or resolve["catalog"].is_local:  # case where a solution file is directly given
-            self.add_to_local_catalog(active_solution, resolve["path"].parent)
+            self.catalog_manager.add_to_local_catalog(active_solution, resolve["path"].parent)
+        else:
+            self.update_in_collection_index(resolve["catalog"].catalog_id, parent_catalog_id, active_solution)
 
-        self.add_to_solutions_db(resolve["catalog"].id, parent_catalog_id, active_solution)
-
+        self.catalog_manager.catalog_collection.update_solution(
+            resolve["catalog"].catalog_id, {"installed": 1, "group": active_solution["group"], "name": active_solution["name"], "version": active_solution["version"]}
+        )
         module_logger().info('Installed %s!' % active_solution['name'])
 
-        return resolve["catalog"].id
+        return resolve["catalog"].catalog_id
 
-    def add_to_solutions_db(self, catalog_id, parent_catalog_id, active_solution):
+    def update_in_collection_index(self, catalog_id, parent_catalog_id, active_solution):
         parent_id = None
 
         if active_solution.parent:
             parent = active_solution.parent
 
-            parent_entry = self.resolve_manager.solution_db.get_solution(
+            parent_entry = self.catalog_manager.catalog_collection.get_solution_by_catalog_grp_name_version(
                 parent_catalog_id, parent["group"], parent["name"], parent["version"]
             )
             parent_id = parent_entry["solution_id"]
 
-        self.resolve_manager.solution_db.add_solution(
-            catalog_id, active_solution["group"], active_solution["name"], active_solution["version"], parent_id
+        #FIXME figure out how to add the parent. can it be in a different catalog? if yes, add catalog and parent_id?!
+        self.catalog_manager.catalog_collection.update_solution(
+            catalog_id, active_solution["group"], active_solution["name"], active_solution["version"]
         )
-
-    def add_to_local_catalog(self, active_solution, path):
-        """Force adds the installation to the local catalog to be cached for running"""
-        self.resolve_manager.catalog_manager.local_catalog.add(active_solution, force_overwrite=True)
-        # get the install location
-        install_location = self.resolve_manager.catalog_manager.local_catalog.get_solution_path(
-            active_solution.group, active_solution.name, active_solution.version
-        )
-
-        copy_folder(path, install_location, copy_root_folder=False)
-        self.resolve_manager.clean_resolve_tmp()
 
     def _install(self, active_solution):
         # install environment
@@ -118,7 +111,8 @@ class InstallManager(metaclass=Singleton):
 
     def install_dependency(self, dependency):
         """Calls `install` for a solution declared in a dependency block"""
-        script_path = self.resolve_manager.catalog_manager.resolve_dependency(dependency)["path"]
+        script_path = self
+        self.catalog_manager.resolve_dependency(dependency)["path"]
         # recursive installation call
         catalog_id = self.install(script_path)
 

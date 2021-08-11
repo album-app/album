@@ -1,186 +1,510 @@
 import json
-import unittest.mock
+import tempfile
+import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
-from anytree import Node
-
-from album.core.model.catalog import CatalogIndex
-from album.core.model.default_values import DefaultValues
-from test.unit.core.model.test_catalog import sample_index, empty_index
+from album.core.model.catalog_index import CatalogIndex
 from test.unit.test_unit_common import TestUnitCommon
 
 
-class TestCatalogIndex(TestUnitCommon):
+class TestCatalogIndexNew(TestUnitCommon):
+
     def setUp(self):
         super().setUp()
-        # fill index file
-        cs_file = Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_index_file_name.value)
-        with open(cs_file, "w+") as f:
-            f.write(sample_index)
-        self.cs_file = cs_file
+        self.create_test_config()
+        self.catalog_index = CatalogIndex("test", Path(self.tmp_dir.name).joinpath("test_db_file"))
 
-        # fill empty_index file
-        self.cs_file_index_empty = Path(self.tmp_dir.name).joinpath("empty_index_file")
-        with open(self.cs_file_index_empty, "w+") as f:
-            f.write(empty_index)
+    def fill_solution(self):
+        self.assertTrue(self.catalog_index.is_table_empty("solution"))
 
-        # fill emtpy_file
-        self.cs_file_empty = Path(self.tmp_dir.name).joinpath("empty_file")
-        self.cs_file_empty.touch()
+        solution_id1_dict = self.solution_default_dict.copy()
+        solution_id1 = self.catalog_index._insert_solution(solution_id1_dict)
 
-        self.cs_index = CatalogIndex("test", self.cs_file)
+        solution_id2_dict = solution_id1_dict.copy()
+        solution_id2_dict["group"] = "anotherGroup"
+        solution_id2 = self.catalog_index._insert_solution(solution_id2_dict)
 
-    def tearDown(self) -> None:
-        super().tearDown()
+        self.assertFalse(self.catalog_index.is_table_empty("solution"))
+        self.assertEqual(1, solution_id1)
+        self.assertEqual(2, solution_id2)
 
-    def test__init__(self):
-        self.assertEqual(1, len(self.cs_index))
+        return solution_id1, solution_id2
 
-    def test__init__index_given(self):
-        cs_index = CatalogIndex("test", self.cs_file, index=Node("IndexGiven", **{"version": "0.1.0"}))
+    def fill_tags(self):
+        self.assertTrue(self.catalog_index.is_table_empty("tag"))
 
-        self.assertEqual(0, len(cs_index))
+        tag_id1 = self.catalog_index.insert_tag("myTag1", "manual")
+        tag_id2 = self.catalog_index.insert_tag("myTag1", "automatic")
+        tag_id3 = self.catalog_index.insert_tag("myTag2", "manual")
 
-    def test__len__(self):
-        self.assertEqual(1, len(self.cs_index))
+        self.assertFalse(self.catalog_index.is_table_empty("tag"))
 
-        attrs = {
-            "group": "group0",
-            "name": "name0",
-            "version": "version0"
-        }
+        return tag_id1, tag_id2, tag_id3
 
-        self.cs_index.update(node_attrs=attrs)
+    @patch("album.core.model.catalog_index.CatalogIndex.update_name_version")
+    def test_create(self, update_name_version_mock):
+        # mock
+        path = tempfile.mktemp("test_db", ".db")
 
-        self.assertEqual(2, len(self.cs_index))
+        catalog_index = CatalogIndex("test2", path)
 
-    def test_load(self):
-        self.assertEqual(1, len(self.cs_index))
-        self.cs_index.load(self.cs_file_index_empty)
-        self.assertEqual(0, len(self.cs_index))
+        # assert
+        self.assertTrue(catalog_index.is_created())
+        update_name_version_mock.assert_called_once_with("test2", "0.1.0")
 
-    def test_load_empty_file(self):
-        self.assertEqual(1, len(self.cs_index))
-        self.cs_index.load(self.cs_file_empty)
-        self.assertEqual(1, len(self.cs_index))
+    def test_is_empty(self):
+        self.assertTrue(self.catalog_index.is_empty())
+
+    def test_is_table_empty(self):
+        self.assertTrue(self.catalog_index.is_table_empty("tag"))
+        self.assertTrue(self.catalog_index.is_table_empty("solution"))
+        self.assertTrue(self.catalog_index.is_table_empty("solution_tag"))
+
+    # ### catalog_index ###
+
+    def test_update_name_version(self):
+        # pre-assert
+        self.assertEqual("test", self.catalog_index.get_name())
+
+        # call
+        self.catalog_index.update_name_version("myName", self.catalog_index.version)
+
+        # assert
+        self.assertEqual("myName", self.catalog_index.get_name())
+
+    def test_get_name(self):
+        self.assertEqual("test", self.catalog_index.get_name())
+
+    def test_get_version(self):
+        self.assertEqual("0.1.0", self.catalog_index.get_version())
+
+    # ### tag ###
+
+    def test_insert_tag(self):
+        self.assertTrue(self.catalog_index.is_table_empty("tag"))
+
+        # call
+        tag_id1 = self.catalog_index.insert_tag("myTag", "manual")
+        tag_id2 = self.catalog_index.insert_tag("myTag", "automatic")
+        tag_id3 = self.catalog_index.insert_tag("myTag2", "manual")
+
+        # assert
+        self.assertEqual(1, tag_id1)
+        self.assertEqual(2, tag_id2)
+        self.assertEqual(3, tag_id3)
+        self.assertEqual(4, self.catalog_index.next_id("tag"))
+        self.assertFalse(self.catalog_index.is_table_empty("tag"))
+
+    def test_insert_tag_twice(self):
+        self.assertTrue(self.catalog_index.is_table_empty("tag"))
+
+        tag_id = self.catalog_index.insert_tag("myTag", "manual")
+        twice = self.catalog_index.insert_tag("myTag", "manual")
+
+        self.assertEqual(1, tag_id)
+        self.assertIsNone(twice)
+
+    def test_get_tag(self):
+        tag_id1, tag_id2, tag_id3 = self.fill_tags()
+
+        # call
+        tag = self.catalog_index.get_tag(2)
+
+        # assert
+        self.assertEqual(tag_id2, tag["tag_id"])
+        self.assertEqual("myTag1", tag["name"])
+        self.assertEqual("automatic", tag["assignment_type"])
+        self.assertIsNotNone(tag["hash"])
+
+    def test_get_tags_by_hash(self):
+        tag_id = self.catalog_index.next_id("tag")
+        self.catalog_index.get_cursor().execute(
+            "INSERT INTO tag values (?, ?, ?, ?)",
+            (tag_id, "tag_name", "assignment_type", "abcdefghij")
+        )
+
+        # call
+        tag = self.catalog_index.get_tag_by_hash("abcdefghij")
+
+        # assert
+        self.assertEqual(tag_id, tag["tag_id"])
+
+    def test_get_tags_by_name(self):
+        tag_id1, tag_id2, tag_id3 = self.fill_tags()
+
+        # call
+        tags = self.catalog_index.get_tags_by_name("myTag1")
+
+        # assert
+        self.assertEqual(2, len(tags))
+        self.assertEqual(tag_id1, tags[0]["tag_id"])
+        self.assertEqual(tag_id2, tags[1]["tag_id"])
+
+    def test_get_tag_by_name_and_type(self):
+        tag_id1, tag_id2, tag_id3 = self.fill_tags()
+
+        # call
+        tag = self.catalog_index.get_tag_by_name_and_type("myTag1", "automatic")
+
+        # assert
+        self.assertEqual(tag_id2, tag["tag_id"])
+        self.assertEqual("myTag1", tag["name"])
+        self.assertEqual("automatic", tag["assignment_type"])
+
+    def test_remove_tag(self):
+        tag_id1, tag_id2, tag_id3 = self.fill_tags()
+
+        tag = self.catalog_index.get_tag(tag_id2)
+        self.assertEqual("automatic", tag["assignment_type"])
+
+        # call
+        self.catalog_index.remove_tag(tag_id2)
+
+        # assert
+        tag1 = self.catalog_index.get_tag(tag_id1)
+        tag2 = self.catalog_index.get_tag(tag_id2)
+        tag3 = self.catalog_index.get_tag(tag_id3)
+
+        self.assertIsNone(tag2)
+        # tag 2 and 3 should stay!
+        self.assertEqual("myTag1", tag1["name"])
+        self.assertEqual("manual", tag1["assignment_type"])
+        self.assertEqual("myTag2", tag3["name"])
+
+    def test_remove_tag_by_name(self):
+        tag_id1, tag_id2, tag_id3 = self.fill_tags()
+
+        tag = self.catalog_index.get_tag(tag_id2)
+        self.assertEqual("automatic", tag["assignment_type"])
+
+        # call
+        self.catalog_index.remove_tag_by_name("myTag1")
+
+        # assert
+        tag1 = self.catalog_index.get_tag(tag_id2)
+        tag2 = self.catalog_index.get_tag(tag_id2)
+        tag3 = self.catalog_index.get_tag(tag_id3)
+
+        self.assertIsNone(tag1)
+        self.assertIsNone(tag2)
+        self.assertEqual("myTag2", tag3["name"])
+
+    def test_remove_tag_by_name_and_type(self):
+        tag_id1, tag_id2, tag_id3 = self.fill_tags()
+
+        # call
+        self.catalog_index.remove_tag_by_name_and_type("myTag1", "automatic")
+
+        # assert
+        tag2 = self.catalog_index.get_tag(tag_id2)
+        self.assertIsNone(tag2)
+
+        tag1 = self.catalog_index.get_tag(tag_id1)
+        self.assertEqual("myTag1", tag1["name"])
+        self.assertEqual("manual", tag1["assignment_type"])
+
+        tag3 = self.catalog_index.get_tag(tag_id3)
+        self.assertEqual("myTag2", tag3["name"])
+
+    # ### solution_tag ###
+
+    def test_insert_solution_tags(self):
+
+        solution_id, _ = self.fill_solution()
+        tag_id1, tag_id2, tag_id3 = self.fill_tags()
+
+        self.assertTrue(self.catalog_index.is_table_empty("solution_tag"))
+
+        # call
+        solution_tag_id1 = self.catalog_index.insert_solution_tag(solution_id, tag_id2)
+        solution_tag_id2 = self.catalog_index.insert_solution_tag(solution_id, tag_id3)
+
+        # assert
+        self.assertEqual(1, solution_tag_id1)
+        self.assertEqual(2, solution_tag_id2)
+        self.assertFalse(self.catalog_index.is_table_empty("solution_tag"))
+        self.assertEqual(3, self.catalog_index.next_id("solution_tag"))
+
+    def test_insert_solution_tag_twice(self):
+
+        solution_id, _ = self.fill_solution()
+        tag_id1 = self.catalog_index.insert_tag("myTag1", "manual")
+
+        self.assertTrue(self.catalog_index.is_table_empty("solution_tag"))
+
+        # call
+        solution_tag_id = self.catalog_index.insert_solution_tag(solution_id, tag_id1)
+        self.assertIsNotNone(solution_tag_id)
+
+        # call twice
+        solution_tag_id_twice = self.catalog_index.insert_solution_tag(solution_id, tag_id1)
+        self.assertIsNone(solution_tag_id_twice)
+
+    def test_get_solution_tag_by_hash(self):
+
+        solution_tag_id = self.catalog_index.next_id("solution_tag")
+        self.catalog_index.get_cursor().execute(
+            "INSERT INTO solution_tag values (?, ?, ?, ?)",
+            (solution_tag_id, 1, 1, "abcdefghij")
+        )
+
+        # call
+        solution_tag = self.catalog_index.get_solution_tag_by_hash("abcdefghij")
+
+        # assert
+        self.assertEqual(solution_tag_id, solution_tag["solution_tag_id"])
+
+    def test_get_solution_tag_by_solution_id_and_tag_id(self):
+        solution_id, _ = self.fill_solution()
+        tag_id1, _, _ = self.fill_tags()
+
+        self.assertTrue(self.catalog_index.is_table_empty("solution_tag"))
+        solution_tag_id1 = self.catalog_index.insert_solution_tag(solution_id, tag_id1)
+        self.assertFalse(self.catalog_index.is_table_empty("solution_tag"))
+
+        # call
+        solution_tag = self.catalog_index.get_solution_tag_by_solution_id_and_tag_id(solution_id, tag_id1)
+
+        # assert
+        self.assertEqual(solution_tag_id1, solution_tag["solution_tag_id"])
+
+    def test_get_solution_tags(self):
+        solution_id, _ = self.fill_solution()
+        tag_id1, tag_id2, tag_id3 = self.fill_tags()
+
+        self.assertTrue(self.catalog_index.is_table_empty("solution_tag"))
+
+        solution_tag_id1 = self.catalog_index.insert_solution_tag(solution_id, tag_id2)
+        solution_tag_id2 = self.catalog_index.insert_solution_tag(solution_id, tag_id3)
+
+        self.assertFalse(self.catalog_index.is_table_empty("solution_tag"))
+
+        # call
+        ids = self.catalog_index.get_solution_tags(solution_id)
+
+        # assert
+        self.assertEqual([tag_id2, tag_id3], ids)
+
+    def test_remove_solution_tags(self):
+        solution_id1, solution_id2 = self.fill_solution()
+        tag_id1, tag_id2, tag_id3 = self.fill_tags()
+
+        self.assertTrue(self.catalog_index.is_table_empty("solution_tag"))
+
+        solution_tag_id1 = self.catalog_index.insert_solution_tag(solution_id1, tag_id2)
+        solution_tag_id2 = self.catalog_index.insert_solution_tag(solution_id1, tag_id3)
+        solution_tag_id3 = self.catalog_index.insert_solution_tag(solution_id2, tag_id1)
+
+        self.assertFalse(self.catalog_index.is_table_empty("solution_tag"))
+
+        # call
+        self.catalog_index.remove_solution_tags(solution_id1)
+
+        # assert
+        self.assertFalse(self.catalog_index.is_table_empty("solution_tag"))
+        self.assertEqual([], self.catalog_index.get_solution_tags(solution_id1))
+        self.assertEqual([tag_id1], self.catalog_index.get_solution_tags(solution_id2))
+
+    # ### solution ###
+
+    def test_insert_solution(self):
+        self.assertTrue(self.catalog_index.is_table_empty("solution"))
+
+        # call
+        solution_id1 = self.catalog_index._insert_solution(self.solution_default_dict)
+
+        solution2_default_dict = self.solution_default_dict.copy()
+        solution2_default_dict["group"] = "newGrp"
+        solution_id2 = self.catalog_index._insert_solution(solution2_default_dict)
+
+        # assert
+        self.assertEqual(1, solution_id1)
+        self.assertEqual(2, solution_id2)
+        self.assertFalse(self.catalog_index.is_table_empty("solution"))
+
+    def test_get_solution(self):
+        solution_id1, _ = self.fill_solution()
+
+        # call
+        solution = self.catalog_index.get_solution(solution_id1)
+
+        # assert
+        self.assertEqual("tsn", solution["name"])
+
+    def test_get_solution_by_doi(self):
+        raise NotImplementedError
+
+    def test_get_solution_by_group_name_version(self):
+        solution_id1, _ = self.fill_solution()
+
+        # call
+        solution = self.catalog_index.get_solution_by_group_name_version("tsg", "tsn", "tsv")
+
+        # assert
+        self.assertEqual(solution_id1, solution["solution_id"])
+
+    def test_get_solution_by_doi(self):
+        default_dict = self.solution_default_dict.copy()
+        default_dict["doi"] = "testDoi"
+        solution_id1 = self.catalog_index._insert_solution(default_dict)
+
+        # call
+        solution = self.catalog_index.get_solution_by_doi("testDoi")
+
+        # assert
+        self.assertEqual(solution_id1, solution["solution_id"])
+
+    def test__update_solution(self):
+        # prepare
+        self.assertTrue(self.catalog_index.is_table_empty("solution"))
+
+        self.catalog_index._insert_solution(self.solution_default_dict)
+
+        solution = self.catalog_index.get_solution_by_group_name_version(
+            self.solution_default_dict["group"],
+            self.solution_default_dict["name"],
+            self.solution_default_dict["version"]
+        )
+        self.assertEqual("d1", solution["description"])
+
+        solution_update_default_dict = self.solution_default_dict.copy()
+        solution_update_default_dict["description"] = "aNewD"
+
+        # call
+        self.catalog_index._update_solution(solution_update_default_dict)
+
+        # assert
+        updated_sol = self.catalog_index.get_solution_by_group_name_version(
+            solution_update_default_dict["group"],
+            solution_update_default_dict["name"],
+            solution_update_default_dict["version"]
+        )
+
+        self.assertEqual("aNewD", updated_sol["description"])
+
+    def test_remove_solution(self):
+        solution_id1, solution_id2 = self.fill_solution()
+
+        # call
+        self.catalog_index.remove_solution(solution_id1)
+
+        # assert
+        self.assertIsNotNone(self.catalog_index.get_solution(solution_id2))
+        self.assertIsNone(self.catalog_index.get_solution(solution_id1))
+
+    def test_remove_solution_by_group_name_version(self):
+        # mocks
+        get_solution_by_group_name_version = MagicMock(return_value={"solution_id": 1})
+        self.catalog_index.get_solution_by_group_name_version = get_solution_by_group_name_version
+
+        remove_solution = MagicMock(return_value=None)
+        self.catalog_index.remove_solution = remove_solution
+
+        # call
+        self.catalog_index.remove_solution_by_group_name_version("a", "b", "c")
+
+        # assert
+        get_solution_by_group_name_version.assert_called_once_with("a", "b", "c")
+        remove_solution.assert_called_once_with(1)
+
+    # ### catalog_features ###
+
+    @unittest.skip("Needs to be implemented!")
+    def test_insert(self):
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_remove(self):
+        pass
 
     def test_update(self):
-        node_attrs = {"name": "myname", "group": "mygroup", "version": "myversion"}
+        # mocks
+        get_solution_by_group_name_version = MagicMock(return_value=None)
+        self.catalog_index.get_solution_by_group_name_version = get_solution_by_group_name_version
 
-        self.cs_index.load(self.cs_file_index_empty)
-        self.assertEqual(len(self.cs_index), 0)
-        self.cs_index.update(node_attrs)
-        self.assertEqual(len(self.cs_index), 1)
+        insert_tag = MagicMock(return_value=None)
+        self.catalog_index.insert_tag = insert_tag
 
-        self.assertIsNotNone(self.cs_index._find_node_by_name_version_and_group(
-            self.cs_index.index, "myname", "myversion", "mygroup")
-        )
+        update_solution = MagicMock()
+        self.catalog_index._update_solution = update_solution
 
-    def test_update_overwrite_old(self):
-        res = self.cs_index._find_node_by_name_version_and_group(
-            self.cs_index.index, "testName", "testVersion", "testGroup"
-        )
-        self.assertIsNotNone(res)
-        self.assertFalse(hasattr(res, "newAttr"))
-        self.assertEqual(1, len(self.cs_index))
+        insert_solution = MagicMock()
+        self.catalog_index._insert_solution = insert_solution
 
-        # updated version
-        node_attrs = {"name": "testName", "group": "testGroup", "version": "testVersion", "newAttr": "newAttrVal"}
-        self.cs_index.update(node_attrs)
+        check_requirements = MagicMock(return_value=["g", "n", "v"])
+        self.catalog_index.check_requirements = check_requirements
 
-        # check changes
-        self.assertEqual(1, len(self.cs_index))
-        res = self.cs_index._find_node_by_name_version_and_group(
-            self.cs_index.index, "testName", "testVersion", "testGroup"
-        )
-        self.assertIsNotNone(res)
-        self.assertEqual(res.newAttr, "newAttrVal")
+        attrs = self.solution_default_dict.copy()
+        attrs["tags"] = ["niceTag1", "niceTag2"]
 
-    def test_update_add_version(self):
-        res = self.cs_index._find_node_by_name_version_and_group(
-            self.cs_index.index, "testName", "testVersion", "testGroup"
-        )
-        self.assertIsNotNone(res)
-        self.assertEqual(1, len(self.cs_index))
+        # call
+        self.catalog_index.update(attrs)
 
-        # updated version
-        node_attrs = {"name": "testName", "group": "testGroup", "version": "testVersion2"}
-        self.cs_index.update(node_attrs)
+        # assert
+        check_requirements.assert_called_once_with(attrs)
+        self.assertEqual(2, insert_tag.call_count)
+        get_solution_by_group_name_version.assert_called_once_with("g", "n", "v")
+        insert_solution.assert_called_once_with(attrs)
+        update_solution.assert_not_called()
 
-        # check
-        self.assertEqual(2, len(self.cs_index))
-        self.assertIsNotNone(self.cs_index._find_node_by_name_version_and_group(
-            self.cs_index.index, "testName", "testVersion", "testGroup"
-        ))
-        self.assertIsNotNone(self.cs_index._find_node_by_name_version_and_group(
-            self.cs_index.index, "testName", "testVersion2", "testGroup"
-        ))
+    def test_update_solution_exists(self):
+        # mocks
+        get_solution_by_group_name_version = MagicMock(return_value="aNiceSolution")
+        self.catalog_index.get_solution_by_group_name_version = get_solution_by_group_name_version
 
-    def test_save(self):
-        self.assertTrue(self.cs_file_empty.stat().st_size == 0)
-        self.cs_index.save(self.cs_file_empty)
-        self.assertTrue(self.cs_file_empty.stat().st_size > 0)
+        insert_tag = MagicMock(return_value=None)
+        self.catalog_index.insert_tag = insert_tag
 
-        self.cs_index.load(self.cs_file_empty)
-        self.assertEqual(1, len(self.cs_index))
+        update_solution = MagicMock()
+        self.catalog_index._update_solution = update_solution
 
-    def test_get_leaves_dict_list(self):
-        l_dict_list = self.cs_index.get_leaves_dict_list()
-        self.assertEqual(len(l_dict_list), 1)
+        insert_solution = MagicMock()
+        self.catalog_index._insert_solution = insert_solution
 
-    def test_resolve_by_name_version_and_group(self):
-        self.assertIsNotNone(
-            self.cs_index.resolve_by_name_version_and_group("testName", "testVersion", "testGroup")
-        )
+        check_requirements = MagicMock(return_value=["g", "n", "v"])
+        self.catalog_index.check_requirements = check_requirements
 
-    def test_resolve_by_name_version_and_group_no_leaf(self):
-        r = self.cs_index.resolve_by_name_version_and_group("testName", "testVersion", "testGroup")
-        self.assertIsNotNone(r)
-        Node("wrongNode", parent=r)  # resolving not a leaf any more
-        with self.assertRaises(RuntimeError):
-            self.cs_index.resolve_by_name_version_and_group("testName", "testVersion", "testGroup")
+        attrs = self.solution_default_dict.copy()
+        attrs["tags"] = ["niceTag1", "niceTag2"]
 
-    def test_resolve_by_doi(self):
-        self.assertIsNotNone(
-            self.cs_index.resolve_by_doi("doi0")
-        )
+        # call
+        self.catalog_index.update(attrs)
 
-    def test_test_resolve_by_doi_no_leaf(self):
-        r = self.cs_index.resolve_by_doi("doi0")
-        self.assertIsNotNone(r)
-        Node("wrongNode", parent=r)  # resolving not a leaf any more
+        # assert
+        check_requirements.assert_called_once_with(attrs)
+        self.assertEqual(2, insert_tag.call_count)
+        get_solution_by_group_name_version.assert_called_once_with("g", "n", "v")
+        update_solution.assert_called_once_with(attrs)
+        insert_solution.assert_not_called()
 
-        with self.assertRaises(RuntimeError) as context:
-            self.cs_index.resolve_by_doi("doi0")
-            self.assertIn("Ambiguous results", str(context.exception))
+    def test_export(self):
+        solution_id1, solution_id2 = self.fill_solution()
+        tag_id1, tag_id2, tag_id3 = self.fill_tags()
 
-    @patch('album.core.model.catalog.CatalogIndex._find_all_nodes_by_attribute')
-    def test_test_resolve_by_doi_two_doi(self, fanba_mock):
-        fanba_mock.side_effect = [[Node("new1"), Node("new2")]]
+        solution_tag_id1 = self.catalog_index.insert_solution_tag(solution_id1, tag_id2)
+        solution_tag_id2 = self.catalog_index.insert_solution_tag(solution_id1, tag_id3)
+        solution_tag_id3 = self.catalog_index.insert_solution_tag(solution_id2, tag_id1)
 
-        with self.assertRaises(RuntimeError) as context:
-            self.cs_index.resolve_by_doi("doi0")
-            self.assertIn("Found several results", str(context.exception))
+        # call
+        p = Path(self.tmp_dir.name).joinpath("export_index")
+        self.catalog_index.export(p)
 
-    def test_export_json(self):
-        self.cs_index.export(self.closed_tmp_file.name, export_format="JSON")
-        export_file = open(self.closed_tmp_file.name)
-        export_file_lines = export_file.readlines()[0]
+        # assert
+        with open(p) as export_file:
+            r = export_file.readlines()
 
-        self.assertEqual(json.dumps(self.cs_index.get_leaves_dict_list()), export_file_lines)
+        import_list = json.loads(r[0])
 
-        export_file.close()
+        solution1_import = json.loads(import_list[0])
+        self.assertEqual("tsg", solution1_import["group"])
+        self.assertEqual([tag_id2, tag_id3], solution1_import["tags"])
 
-    def test_export_unknown(self):
-        with self.assertRaises(NotImplementedError):
-            self.cs_index.export(self.closed_tmp_file.name, export_format="UNKNOWN")
+        solution2_import = json.loads(import_list[1])
+        self.assertEqual("anotherGroup", solution2_import["group"])
+        self.assertEqual([tag_id1], solution2_import["tags"])
 
-    @patch('album.core.model.catalog_index.RenderTree', return_value="")
-    def test_visualize(self, rt_mock):
-        self.cs_index.visualize()
-        rt_mock.assert_called_once_with(self.cs_index.index)
+    def test__len__(self):
+        solution_id1, solution_id2 = self.fill_solution()
 
-
-if __name__ == '__main__':
-    unittest.main()
+        self.assertEqual(2, len(self.catalog_index))

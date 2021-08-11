@@ -17,11 +17,11 @@ module_logger = logging.get_active_logger
 
 
 def add_catalog(args):
-    CatalogManager().add(args.path)
+    CatalogManager().add_catalog_to_collection(args.src)
 
 
 def remove_catalog(args):
-    CatalogManager().remove(args.path)
+    CatalogManager().remove_catalog_from_collection_by_src(args.src)
 
 
 def update(args):

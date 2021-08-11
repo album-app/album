@@ -1,6 +1,6 @@
 from album.core import pop_active_solution
 from album.core.concept.singleton import Singleton
-from album.core.controller.resolve_manager import ResolveManager
+from album.core.controller.catalog_manager import CatalogManager
 from album.core.utils.operations.file_operations import force_remove
 from album_runner import logging
 
@@ -14,15 +14,15 @@ class RemoveManager(metaclass=Singleton):
     During removal of a solution its environment will be removed and all additional downloads are removed from the disk.
 
     Attributes:
-        resolve_manager:
+        catalog_manager:
             Holding all configured catalogs. Resolves inside our outside catalogs.
 
     """
     # singletons
-    resolve_manager = None
+    catalog_manager = None
 
     def __init__(self):
-        self.resolve_manager = ResolveManager()
+        self.catalog_manager = CatalogManager()
         self._active_solution = None
 
     def remove(self, path, rm_dep=False):
@@ -47,12 +47,7 @@ class RemoveManager(metaclass=Singleton):
         # what if solutions depend on solutions from a different catalog?
         # -> ignore this dependency then?
 
-        try:
-            resolve, self._active_solution = self.resolve_manager.resolve_installed_and_load(path)
-        except ValueError:
-            raise ValueError("Solution points to a local file which has not been installed yet. "
-                             "Please point to an installation from the catalog or install the solution. "
-                             "Aborting...")
+        resolve, self._active_solution = self.catalog_manager.resolve_require_installation_and_load(path)
 
         if rm_dep:
             self.remove_dependencies()
@@ -61,8 +56,7 @@ class RemoveManager(metaclass=Singleton):
 
         self.remove_disc_content()
 
-        if resolve["catalog"].is_local:
-            resolve["catalog"].remove(self._active_solution)
+        self.catalog_manager.remove_solution(resolve['catalog'], self._active_solution)
 
         pop_active_solution()
 
@@ -82,9 +76,9 @@ class RemoveManager(metaclass=Singleton):
                 for dependency in args:
                     # ToDo: need to search through all installed installations if there is another dependency of what
                     #  we are going to delete... otherwise there will nasty resolving errors during runtime
-                    dependency_path = self.resolve_manager.catalog_manager.resolve_dependency(dependency)["path"]
+                    dependency_path = self.catalog_manager.resolve_dependency(dependency)["path"]
                     self.remove(dependency_path, True)
 
         if self._active_solution.parent:
-            parent_path = self.resolve_manager.catalog_manager.resolve_dependency(self._active_solution.parent)["path"]
+            parent_path = self.catalog_manager.resolve_dependency(self._active_solution.parent)["path"]
             self.remove(parent_path, True)

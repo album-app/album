@@ -14,26 +14,28 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
 
     def setUp(self):
         super().setUp()
-        self.catalog_configuration = CatalogManager()
+        self.catalog_configuration = CatalogManager().configuration
 
     def test_add_remove_catalog(self):
         # prepare
         self.assertIsNotNone(self.catalog_configuration)
-        initial_catalogs = self.catalog_configuration.config_file_dict["catalogs"].copy()
+        initial_catalogs = self.catalog_configuration.get_initial_catalogs().copy()
         self.assertIsNotNone(initial_catalogs)
         initial_len = len(initial_catalogs)
 
         # gather arguments add
-        somedir = str(Path(self.tmp_dir.name).joinpath("catalog_integration_test"))
+        new_catalog = Path(self.tmp_dir.name).joinpath("catalog_integration_test")
+        CatalogManager.create_new_catalog(new_catalog, "catalog_integration_test")
+        somedir = str(new_catalog)
         sys.argv = ["", "add-catalog", somedir]
 
         # call
         self.assertIsNone(main())
 
         # assert
-        catalogs = CatalogManager().config_file_dict["catalogs"]
+        catalogs = CatalogManager().catalog_collection.get_all_catalogs()
         self.assertEqual(initial_len + 1, len(catalogs))
-        self.assertEqual(somedir, catalogs[len(catalogs) - 1])
+        self.assertEqual(somedir, catalogs[len(catalogs) - 1]["src"])
 
         # gather arguments remove
         sys.argv = ["", "remove-catalog", somedir]
@@ -42,8 +44,10 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
-        catalogs = CatalogManager().config_file_dict["catalogs"]
-        self.assertEqual(initial_catalogs, catalogs)
+        catalogs = CatalogManager().catalog_collection.get_all_catalogs()
+        self.assertEqual(initial_len, len(catalogs))
+        for catalog in catalogs:
+            self.assertIsNotNone(initial_catalogs.get(catalog["name"], None))
 
 
 if __name__ == '__main__':

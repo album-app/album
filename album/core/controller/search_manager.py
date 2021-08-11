@@ -11,16 +11,11 @@ class SearchManager(metaclass=Singleton):
     """Class responsible for searching with keywords through all configured catalogs. Solutions must not be installed
     to be findable in a search request.
 
-     Attributes:
-         catalog_manager:
-            Holds all the catalogs of the album framework installation.
 
     """
-    # singletons
-    catalog_manager = None
 
     def __init__(self):
-        self.catalog_manager = CatalogManager()
+        self.catalog_collection = CatalogManager().catalog_collection
 
     def search(self, keywords):
         """Function corresponding to the `search` subcommand of `album`.
@@ -30,22 +25,21 @@ class SearchManager(metaclass=Singleton):
         """
         module_logger().debug("Searching with following arguments %s..." % ", ".join(keywords))
 
-        search_index = self.catalog_manager.get_search_index()
+        search_index = self.catalog_collection.get_all_solutions()
         match_score = {}
-        for catalog_id, catalog_leaves in search_index.items():
-            for solution in catalog_leaves:
-                group, name, version = solution['solution_group'], solution["solution_name"], solution["solution_version"]
+        for solution_entry in search_index:
+            group, name, version = solution_entry['group'], solution_entry["name"], solution_entry["version"]
+            catalog_id = solution_entry["catalog_id"]
+            unique_id = "_".join([str(catalog_id), group, name, version])
 
-                unique_id = "_".join([catalog_id, group, name, version])
-
-                # todo: nice searching algorithm here
-                for keyword in keywords:
-                    solution_result = keyword in solution["description"]
-                    if solution_result:
-                        if unique_id in match_score.keys():
-                            match_score[unique_id] = match_score[unique_id] + 1
-                        else:
-                            match_score[unique_id] = 1
+            # todo: nice searching algorithm here
+            for keyword in keywords:
+                solution_result = keyword in solution_entry["description"]
+                if solution_result:
+                    if unique_id in match_score.keys():
+                        match_score[unique_id] = match_score[unique_id] + 1
+                    else:
+                        match_score[unique_id] = 1
 
         sorted_results = sorted(match_score.items(), key=operator.itemgetter(1))
         module_logger().info('Search results for "%s"...' % keywords)

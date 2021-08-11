@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from album.core.controller.conda_manager import CondaManager
 from album.core.model.album_base import AlbumClass
+from album.core.model.configuration import Configuration
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -36,27 +37,27 @@ channels:
 
     def test_set_cache_paths(self):
         self.create_test_config()
-        config = self.test_catalog_manager.configuration
+        config = Configuration()
 
         active_solution = AlbumClass(self.solution_default_dict)
 
-        active_solution.set_cache_paths("catalog_id_solution_lives_in")
+        active_solution.set_cache_paths("catalog_name_solution_lives_in")
 
         self.assertEqual(
             Path(config.cache_path_download).joinpath(
-                "catalog_id_solution_lives_in", "tsg", "tsn", "tsv"
+                "catalog_name_solution_lives_in", "tsg", "tsn", "tsv"
             ),
             active_solution.cache_path_download
         )
         self.assertEqual(
             Path(config.cache_path_app).joinpath(
-                "catalog_id_solution_lives_in", "tsg", "tsn", "tsv"
+                "catalog_name_solution_lives_in", "tsg", "tsn", "tsv"
             ),
             active_solution.cache_path_app
         )
         self.assertEqual(
             Path(config.cache_path_solution).joinpath(
-                "catalog_id_solution_lives_in", "tsg", "tsn", "tsv"
+                "catalog_name_solution_lives_in", "tsg", "tsn", "tsv"
             ),
             active_solution.cache_path_solution
         )
@@ -69,12 +70,12 @@ channels:
 
         active_solution = AlbumClass(self.solution_default_dict)
 
-        active_solution.set_environment("catalog_id_solution_lives_in")
+        active_solution.set_environment("catalog_name_solution_lives_in")
 
         # assert
         environment_init_mock.assert_called_once_with(
             active_solution.dependencies,
-            environment_name="catalog_id_solution_lives_in_tsg_tsn_tsv",
+            environment_name="catalog_name_solution_lives_in_tsg_tsn_tsv",
             cache_path=active_solution.cache_path_solution
         )
 

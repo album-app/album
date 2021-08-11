@@ -1,19 +1,13 @@
-import threading
 import unittest.mock
 from logging import getLogger
-from threading import Thread
 
-from album.core.controller.task_manager import TaskManager
 from album.core.model.log_handler import LogHandler
-from album.core.model.task import Task
-from album.core.utils import subcommand
 from album_runner import logging
 from album_runner.logging import LogLevel
-from test.global_exception_watcher import GlobalExceptionWatcher
 from test.unit.test_unit_common import TestUnitCommon
 
 
-class TestTaskManager(TestUnitCommon):
+class TestLogHandler(TestUnitCommon):
 
     def test_handler(self):
         self.logger.setLevel(20)

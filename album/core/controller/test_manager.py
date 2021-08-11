@@ -1,7 +1,7 @@
 from queue import Queue
 
 from album.core.concept.singleton import Singleton
-from album.core.controller.resolve_manager import ResolveManager
+from album.core.controller.catalog_manager import CatalogManager
 from album.core.controller.run_manager import RunManager
 from album_runner import logging
 
@@ -14,22 +14,22 @@ class TestManager(metaclass=Singleton):
     Solutions must be installed to run their testing routine.
 
      Attributes:
-         resolve_manager:
+         catalog_manager:
             Holding all configured catalogs. Resolves inside our outside catalogs.
 
     """
     # singletons
-    resolve_manager = None
+    catalog_manager = None
     run_manager = None
 
     def __init__(self):
-        self.resolve_manager = ResolveManager()
+        self.catalog_manager = CatalogManager()
         self.run_manager = RunManager()
 
     def test(self, path):
         """Function corresponding to the `test` subcommand of `album`."""
         try:
-            resolve, active_solution = self.resolve_manager.resolve_installed_and_load(path)
+            resolve, active_solution = self.catalog_manager.resolve_require_installation_and_load(path)
         except ValueError:
             raise ValueError("Solution points to a local file which has not been installed yet. "
                              "Please point to an installation from the catalog or install the solution. "

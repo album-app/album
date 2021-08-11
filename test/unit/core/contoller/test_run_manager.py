@@ -5,9 +5,7 @@ from queue import Queue
 from unittest.mock import MagicMock, call
 from unittest.mock import patch
 
-from album.core.controller.resolve_manager import ResolveManager
 from album.core.controller.run_manager import RunManager
-from album_runner.logging import LogLevel
 from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
 
 
@@ -16,6 +14,7 @@ class TestRunManager(TestUnitCommon):
         super().setUp()
         """Setup things necessary for all tests of this class"""
         self.create_test_config()
+        self.create_test_catalog_manager()
         self.create_test_solution_no_env()
         self.run_manager = RunManager()
 
@@ -28,7 +27,7 @@ class TestRunManager(TestUnitCommon):
         catalog.id = "niceId"
 
         resolve_installed_and_load = MagicMock(return_value=[{"path": "aPath", "catalog": catalog}, self.active_solution])
-        self.run_manager.resolve_manager.resolve_installed_and_load = resolve_installed_and_load
+        self.run_manager.catalog_manager.resolve_require_installation_and_load = resolve_installed_and_load
 
         with open(self.closed_tmp_file.name, mode="w") as f:
             f.write("A valid solution file!")
@@ -37,9 +36,8 @@ class TestRunManager(TestUnitCommon):
         self.run_manager._run = _run
 
         _resolve_installed = MagicMock(return_value={"path": Path(self.closed_tmp_file.name), "catalog": None})
-        self.run_manager.resolve_manager._resolve_installed = _resolve_installed
 
-        self.run_manager.resolve_manager.catalog_collection = self.test_catalog_manager
+        self.run_manager.catalog_manager._resolve_installed = _resolve_installed
 
         # test
         self.run_manager.run(self.closed_tmp_file.name)
@@ -147,7 +145,7 @@ class TestRunManager(TestUnitCommon):
         catalog = EmptyTestClass()
         catalog.id = "niceId"
         resolve_dependency_and_load = MagicMock(return_value=[{"path": "aPath", "catalog": catalog}, self.active_solution])
-        self.run_manager.resolve_manager.resolve_dependency_and_load = resolve_dependency_and_load
+        self.run_manager.catalog_manager.resolve_dependency_and_load = resolve_dependency_and_load
 
         create_solution_run_collection_script = MagicMock(return_value="runScriptCollection")
         self.run_manager.create_solution_run_collection_script = create_solution_run_collection_script
@@ -162,7 +160,6 @@ class TestRunManager(TestUnitCommon):
         self.run_manager.run_queue = run_queue
 
         # call
-        self.run_manager.resolve_manager.catalog_collection = self.test_catalog_manager
         que = Queue()
         steps = [{"name": "Step1", },
                  {"name": "Step2", }]
@@ -193,7 +190,7 @@ class TestRunManager(TestUnitCommon):
         catalog.id = "niceId"
 
         resolve_dependency_and_load = MagicMock(return_value=[{"path": "aPath", "catalog": catalog}, self.active_solution])
-        self.run_manager.resolve_manager.resolve_dependency_and_load = resolve_dependency_and_load
+        self.run_manager.catalog_manager.resolve_dependency_and_load = resolve_dependency_and_load
 
         create_solution_run_collection_script = MagicMock(return_value="runScriptCollection")
         self.run_manager.create_solution_run_collection_script = create_solution_run_collection_script
@@ -208,7 +205,6 @@ class TestRunManager(TestUnitCommon):
         self.run_manager.run_queue = run_queue
 
         # call
-        self.run_manager.resolve_manager.catalog_collection = self.test_catalog_manager
         que = Queue()
         steps = [{"name": "Step1", },
                  {"name": "Step2", }]
@@ -243,7 +239,7 @@ class TestRunManager(TestUnitCommon):
 
 
         resolve_dependency_and_load = MagicMock(return_value=[{"path": "aPath", "catalog": catalog}, self.active_solution])
-        self.run_manager.resolve_manager.resolve_dependency_and_load = resolve_dependency_and_load
+        self.run_manager.catalog_manager.resolve_dependency_and_load = resolve_dependency_and_load
 
         create_solution_run_collection_script = MagicMock(return_value="runScriptCollection")
         self.run_manager.create_solution_run_collection_script = create_solution_run_collection_script
@@ -258,7 +254,6 @@ class TestRunManager(TestUnitCommon):
         self.run_manager.run_queue = run_queue
 
         # call
-        self.run_manager.resolve_manager.catalog_collection = self.test_catalog_manager
         que = Queue()
         steps = [{"name": "Step1", }]
 
@@ -306,7 +301,7 @@ class TestRunManager(TestUnitCommon):
         catalog = EmptyTestClass()
         catalog.id = "niceId"
         resolve_dependency_and_load = MagicMock(return_value=[{"path": "aPath", "catalog": catalog}, self.active_solution])
-        self.run_manager.resolve_manager.resolve_dependency_and_load = resolve_dependency_and_load
+        self.run_manager.catalog_manager.resolve_dependency_and_load = resolve_dependency_and_load
 
         create_solution_run_with_parent_scrip = MagicMock(return_value="aScript")
         self.run_manager.create_solution_run_with_parent_script = create_solution_run_with_parent_scrip
@@ -315,7 +310,6 @@ class TestRunManager(TestUnitCommon):
         self.run_manager.resolve_args = resolve_args
 
         # call
-        self.run_manager.resolve_manager.catalog_collection = self.test_catalog_manager
         r = self.run_manager.create_solution_run_with_parent_script_standalone(self.active_solution, [])
 
         # assert
@@ -333,7 +327,7 @@ class TestRunManager(TestUnitCommon):
         # mock
         load_mock.return_value = self.active_solution
         catalog = EmptyTestClass()
-        catalog.id = "niceId"
+        catalog.name = "niceName"
 
         resolve_args = MagicMock(return_value=["parent_args", "active_solution_args"])
         self.run_manager.resolve_args = resolve_args

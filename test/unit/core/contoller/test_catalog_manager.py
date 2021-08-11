@@ -4,135 +4,111 @@ from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-import yaml
-
+from album.core import AlbumClass
 from album.core.controller.catalog_manager import CatalogManager
-from album.core.model.configuration import Configuration
+from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
 
 
 class TestCatalogManager(TestUnitCommon):
 
     def setUp(self):
         super().setUp()
-        self.config_file = Path(self.tmp_dir.name).joinpath("config_file")
+        self.create_test_config()
+        test_catalog1_name = "test_catalog"
+        test_catalog1_src = Path(self.tmp_dir.name).joinpath("my-catalogs", test_catalog1_name)
+        test_catalog2_name = "test_catalog2"
+        test_catalog2_src = Path(self.tmp_dir.name).joinpath("my-catalogs", "test_catalog2")
+        test_catalog1_src.mkdir(parents=True)
+        test_catalog2_src.mkdir(parents=True)
+        with open(test_catalog1_src.joinpath(DefaultValues.catalog_index_file_json.value), 'w') as file:
+            file.writelines("{\"name\": \"" + test_catalog1_name + "\", \"version\": \"0.1.0\"}")
+
+        with open(test_catalog2_src.joinpath(DefaultValues.catalog_index_file_json.value), 'w') as file:
+            file.writelines("{\"name\": \"" + test_catalog2_name + "\", \"version\": \"0.1.0\"}")
+
         self.catalog_list = [
-            str(Path(self.tmp_dir.name).joinpath("my-catalogs", "test_catalog")),
-            str(DefaultValues.catalog_url.value),
-            str(Path(self.tmp_dir.name).joinpath("my-catalogs", "test_catalog2"))
+            {
+                'catalog_id': 1,
+                'deletable': 0,
+                'name': test_catalog1_name,
+                'path': str(Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, test_catalog1_name)),
+                'src': str(test_catalog1_src)
+            },
+            {
+                'catalog_id': 2,
+                'deletable': 1,
+                'name': "default",
+                'path': str(Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, "default")),
+                'src': str(DefaultValues.default_catalog_src.value)
+            },
+            {
+                'catalog_id': 3,
+                'deletable': 1,
+                'name': test_catalog2_name,
+                'path': str(Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, "test_catalog2")),
+                'src': str(test_catalog2_src)
+            }
         ]
+        with patch("album.core.controller.catalog_manager.CatalogManager.add_initial_catalogs") as add_initial_catalogs_mock:
+            self.test_catalog_manager = CatalogManager()
 
-        with open(self.config_file, "w+") as f:
-            f.write("""catalogs: \n- %s\n- %s\n- %s""" % tuple(self.catalog_list))
+        for catalog in self.catalog_list:
+            self.test_catalog_manager.catalog_collection.insert_catalog(
+                catalog["name"],
+                catalog["src"],
+                catalog["path"],
+                catalog["deletable"]
+            )
+        self.assertEqual(self.catalog_list, self.test_catalog_manager.catalog_collection.get_all_catalogs())
 
-        config = Configuration()
-        config.setup(
-            base_cache_path=self.tmp_dir.name,
-            configuration_file_path=Path(self.tmp_dir.name).joinpath("config_file")
-        )
-        self.test_catalog_manager = CatalogManager()
-
-    def test__init__(self):
-        self.assertTrue(self.config_file.is_file())
-        self.assertEqual(len(self.test_catalog_manager.catalogs), 3)
-        with open(self.config_file, "r") as f:
-            self.assertEqual(self.test_catalog_manager.config_file_dict, yaml.safe_load(f))
-        self.assertEqual(self.test_catalog_manager.local_catalog, self.test_catalog_manager.catalogs[0])
+        self.create_test_solution_no_env()
 
     def test_get_catalog_by_src(self):
-        self.test_catalog_manager.catalogs[0].is_local = False
-        self.test_catalog_manager.catalogs[0].src = "myurl"
-        c = self.test_catalog_manager.get_catalog_by_src("myurl")
-        self.assertEqual(c.id, "test_catalog")
+        c = self.test_catalog_manager.get_catalog_by_src(str(DefaultValues.default_catalog_src.value))
+        self.assertEqual(c.name, "default")
 
-    def test_get_catalog_by_id(self):
-        expected_id = self.test_catalog_manager.catalogs[0].id
+    def test_get_catalog_by_name(self):
+        expected_name = self.test_catalog_manager.get_catalogs()[0].name
 
-        self.assertEqual(expected_id, self.test_catalog_manager.get_catalog_by_id(expected_id).id)
+        self.assertEqual(expected_name, self.test_catalog_manager.get_catalog_by_name(expected_name).name)
 
-    def test_get_catalog_by_id_not_configured(self):
+    def test_get_catalog_by_name_not_configured(self):
         with self.assertRaises(LookupError):
-            self.test_catalog_manager.get_catalog_by_id("aFaultyId")
+            self.test_catalog_manager.get_catalog_by_name("aFaultyId")
 
-    def test_extract_catalog_name(self):
-        catalog_name = "https://gitlab.com/album-app/capture-knowledge.ext"
-
-        self.assertEqual(self.test_catalog_manager.extract_catalog_name(catalog_name), "capture-knowledge")
-
-    def test_save(self):
-        self.test_catalog_manager.config_file_dict = {
-            "catalogs": [str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog_save"))]
-        }
-        self.test_catalog_manager.save()
-        with open(self.config_file, "r") as f:
-            self.assertEqual(
-                yaml.safe_load(f),
-                yaml.safe_load(
-                    "{'catalogs': ['%s']}" % str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog_save")))
-            )
-
-    @patch('album.core.controller.catalog_manager.get_dict_from_yml', return_value={""})
-    def test__load_configuration(self, get_dict_mock):
-        config_file_dict = self.test_catalog_manager._load_configuration()
-
-        get_dict_mock.assert_called_once()
-
-        self.assertEqual(config_file_dict, {""})
-
-    @patch('album.core.controller.catalog_manager.get_dict_from_yml', return_value={})
-    def test__load_configuration_empty_file(self, get_dict_mock):
-
-        with self.assertRaises(IOError):
-            self.test_catalog_manager._load_configuration()
-
-        get_dict_mock.assert_called_once()
-
-    def test__load_configuration_no_file(self):
-        # mocks
-        save_mock = MagicMock(return_value=None)
-        self.test_catalog_manager.save = save_mock
-
-        get_default_configuration = MagicMock(return_value="Called")
-        self.test_catalog_manager.configuration.get_default_configuration = get_default_configuration
-
-        self.test_catalog_manager.config_file_path = Path("doesNotExist")
-        r = self.test_catalog_manager._load_configuration()
-
-        get_default_configuration.assert_called_once()
-        save_mock.assert_called_once_with("Called")
-
-        self.assertEqual(r, "Called")
-
-    def test__get_catalogs_no_catalogs(self):
-        self.test_catalog_manager.config_file_dict = {}
-
-        with self.assertRaises(RuntimeError):
-            self.test_catalog_manager._get_catalogs()
+    def test_get_catalog_by_path(self):
+        c = self.test_catalog_manager.get_catalog_by_path(self.catalog_list[0]['path'])
+        self.assertEqual(c.name, self.catalog_list[0]['name'])
 
     def test__get_catalogs(self):
-        c = self.test_catalog_manager._get_catalogs()
+        c = self.test_catalog_manager.get_catalogs()
 
         self.assertEqual(len(c), 3)
 
         self.assertFalse(c[0].is_deletable)
-        self.assertFalse(c[1].is_deletable)
+        self.assertTrue(c[1].is_deletable)
         self.assertTrue(c[2].is_deletable)
 
-    def test__get_local_catalog_no_catalog(self):
-        for c in self.test_catalog_manager.catalogs:
-            c.is_local = False
-
-        with self.assertRaises(RuntimeError):
-            self.test_catalog_manager._get_local_catalog()
+    @unittest.skip("Needs to be implemented")
+    def test__get_catalogs_no_catalogs(self):
+        pass
 
     def test__get_local_catalog(self):
-        r = self.test_catalog_manager._get_local_catalog()
+        r = self.test_catalog_manager.get_local_catalog()
 
-        self.assertEqual(r, self.test_catalog_manager.catalogs[0])
+        local_catalog = self.test_catalog_manager.get_catalogs()[0]
+        self.assertEqual(r.catalog_id, local_catalog.catalog_id)
+        self.assertEqual(r.name, local_catalog.name)
+        self.assertEqual(r.src, local_catalog.src)
+
+    @unittest.skip("Needs to be implemented")
+    def test__get_local_catalog_no_catalog(self):
+        pass
 
     @patch('album.core.model.catalog.Catalog.refresh_index')
-    def test_resolve(self, refresh_index_mock):
+    def test_resolve_in_catalogs(self, refresh_index_mock):
         # mocks
         _resolve_in_catalog = MagicMock(return_value=None)
         self.test_catalog_manager._resolve_in_catalog = _resolve_in_catalog
@@ -140,7 +116,7 @@ class TestCatalogManager(TestUnitCommon):
         solution_attr = dict()
 
         # call
-        r = self.test_catalog_manager.resolve(solution_attr)
+        r = self.test_catalog_manager.resolve_in_catalogs(solution_attr)
 
         self.assertIsNone(r)
         self.assertEqual(3, _resolve_in_catalog.call_count)
@@ -154,17 +130,12 @@ class TestCatalogManager(TestUnitCommon):
         solution_attr = dict()
 
         # call
-        r = self.test_catalog_manager.resolve(solution_attr)
+        r = self.test_catalog_manager.resolve_in_catalogs(solution_attr)
 
-        _resolve_in_catalog.assert_called_once_with(self.test_catalog_manager.local_catalog, solution_attr)
+        _resolve_in_catalog.assert_called_once()
 
-        self.assertDictEqual(
-            {
-                "path": "aPath",
-                "catalog": self.test_catalog_manager.local_catalog
-            },
-            r
-        )
+        self.assertEqual("aPath", r["path"])
+        self.assertEqual(self.test_catalog_manager.get_local_catalog().catalog_id, r["catalog"].catalog_id)
 
     def test_resolve_locally_not_found(self):
         # mocks
@@ -174,30 +145,40 @@ class TestCatalogManager(TestUnitCommon):
 
         solution_attr = dict()
 
-        r = self.test_catalog_manager.resolve(solution_attr)
+        r = self.test_catalog_manager.resolve_in_catalogs(solution_attr)
 
-        self.assertEqual(r, {
-            "path": "path",
-            "catalog": self.test_catalog_manager.catalogs[1]
-        })
+        self.assertEqual(r["path"], "path")
+        catalog1 = self.test_catalog_manager.get_catalogs()[1]
+        self.assertEqual(r["catalog"].name, catalog1.name)
+        self.assertEqual(r["catalog"].src, catalog1.src)
+        self.assertEqual(r["catalog"].path, catalog1.path)
         self.assertEqual(2, _resolve_in_catalog.call_count)
 
-    @patch('album.core.model.catalog.Catalog.resolve_doi', return_value=None)
-    @patch('album.core.model.catalog.Catalog.resolve', return_value=None)
-    def test__resolve_in_catalog_no_doi_no_group(self, catalog_resolve_mock, catalog_resolve_doi_mock):
+    def test__resolve_in_catalog_no_doi_no_group(self):
+        # mocks
+        resolve_mock = MagicMock(return_value=None)
+        resolve_doi_mock = MagicMock(return_value=None)
+        self.test_catalog_manager.resolve = resolve_mock
+        self.test_catalog_manager.resolve_doi = resolve_doi_mock
+
+
         solution_attr = dict()
         solution_attr["name"] = "name"
         solution_attr["version"] = "version"
 
         with self.assertRaises(ValueError):
-            self.test_catalog_manager._resolve_in_catalog(self.test_catalog_manager.local_catalog, solution_attr)
+            self.test_catalog_manager._resolve_in_catalog(self.test_catalog_manager.get_local_catalog(), solution_attr)
 
-        catalog_resolve_mock.assert_not_called()
-        catalog_resolve_doi_mock.assert_not_called()
+        resolve_mock.assert_not_called()
+        resolve_doi_mock.assert_not_called()
 
-    @patch('album.core.model.catalog.Catalog.resolve_doi', return_value=None)
-    @patch('album.core.model.catalog.Catalog.resolve', return_value=None)
-    def test__resolve_in_catalog_with_doi(self, catalog_resolve_mock, catalog_resolve_doi_mock):
+    def test__resolve_in_catalog_with_doi(self):
+        # mocks
+        resolve_mock = MagicMock(return_value=None)
+        resolve_doi_mock = MagicMock(return_value=None)
+        self.test_catalog_manager.resolve = resolve_mock
+        self.test_catalog_manager.resolve_doi = resolve_doi_mock
+
         solution_attr = dict()
         solution_attr["group"] = "group"
         solution_attr["name"] = "name"
@@ -205,239 +186,53 @@ class TestCatalogManager(TestUnitCommon):
         solution_attr["doi"] = "aNiceDoi"
 
         with self.assertRaises(NotImplementedError):
-            self.test_catalog_manager._resolve_in_catalog(self.test_catalog_manager.local_catalog, solution_attr)
+            self.test_catalog_manager._resolve_in_catalog(self.test_catalog_manager.get_local_catalog(), solution_attr)
 
-    @patch('album.core.model.catalog.Catalog.resolve_doi', return_value=None)
-    @patch('album.core.model.catalog.Catalog.resolve', return_value="pathToSolutionFile")
-    def test__resolve_in_catalog_found_first_catalog(self, catalog_resolve_mock, catalog_resolve_doi_mock):
+    def test__resolve_in_catalog_found_first_catalog(self):
+        # mocks
+        resolve_mock = MagicMock(return_value="pathToSolutionFile")
+        resolve_doi_mock = MagicMock(return_value=None)
+        self.test_catalog_manager.resolve = resolve_mock
+        self.test_catalog_manager.resolve_doi = resolve_doi_mock
+
         solution_attr = dict()
         solution_attr["group"] = "group"
         solution_attr["name"] = "name"
         solution_attr["version"] = "version"
 
-        r = self.test_catalog_manager._resolve_in_catalog(self.test_catalog_manager.catalogs[0], solution_attr)
+        r = self.test_catalog_manager._resolve_in_catalog(self.test_catalog_manager.get_catalogs()[0], solution_attr)
 
         self.assertEqual("pathToSolutionFile", r)
-        catalog_resolve_mock.assert_called_once()
-        catalog_resolve_doi_mock.assert_not_called()
-
-    def test_resolve_dependency_raise_error(self):
-
-        # mocks
-        resolve_mock = MagicMock(return_value=None)
-        self.test_catalog_manager.resolve = resolve_mock
-
-        with self.assertRaises(ValueError):
-            r = self.test_catalog_manager.resolve_dependency(dict())
-            self.assertIsNone(r)
-
         resolve_mock.assert_called_once()
+        resolve_doi_mock.assert_not_called()
 
-    def test_resolve_dependency_found(self):
+    def test__update(self):
         # mocks
-        resolve_mock = MagicMock(return_value={"something"})
-        self.test_catalog_manager.resolve = resolve_mock
-
-        r = self.test_catalog_manager.resolve_dependency(dict())
-
-        self.assertEqual({"something"}, r)
-        resolve_mock.assert_called_once()
-
-    def test_get_search_index(self):
-        # mock
-        get_leaves_dict_list = MagicMock(return_value=["someLeafs"])
-        for c in self.test_catalog_manager.catalogs:
-            c.catalog_index.get_leaves_dict_list = get_leaves_dict_list
-
-        r = self.test_catalog_manager.get_search_index()
-
-        self.assertEqual({
-            "test_catalog": ["someLeafs"],
-            "default": ["someLeafs"],
-            "test_catalog2": ["someLeafs"],
-        }, r)
-
-        self.assertEqual(3, get_leaves_dict_list.call_count)
-
-    def test__check_requirement(self):
-        self.assertIsNone(self.test_catalog_manager._check_requirement(self.solution_default_dict))
-        sol_dict = deepcopy(self.solution_default_dict)
-        sol_dict.pop("version")
-        with self.assertRaises(ValueError):
-            self.assertTrue(self.test_catalog_manager._check_requirement(sol_dict))
-
-    def test_resolve_directly_not_found(self):
-        # mocks
-        resolve = MagicMock(return_value=None)
-
-        for c in self.test_catalog_manager.catalogs:
-            c.resolve = resolve
+        refresh_index = MagicMock(return_value=True)
+        local_catalog = self.test_catalog_manager.get_local_catalog()
+        local_catalog.refresh_index = refresh_index
 
         # call
-        r = self.test_catalog_manager.resolve_directly(self.test_catalog_manager.local_catalog.id, "g", "n", "v")
-
-        # check
-        self.assertIsNone(r)
-        # assert
-        resolve.assert_called_once_with("g", "n", "v")
-
-    def test_resolve_directly(self):
-        # mocks
-        expected = {"path": "aPathToTheSolution", "catalog": self.test_catalog_manager.local_catalog}
-        resolve = MagicMock(return_value="aPathToTheSolution")
-
-        for c in self.test_catalog_manager.catalogs:
-            c.resolve = resolve
-
-        # call
-        r = self.test_catalog_manager.resolve_directly(self.test_catalog_manager.local_catalog.id, "g", "n", "v")
-
-        # check
-        self.assertEqual(expected, r)
-        # assert
-        resolve.assert_called_once_with("g", "n", "v")
-
-    def test_remove_by_id(self):
-        # mocks
-        save = MagicMock()
-        self.test_catalog_manager.save = save
-
-        reload = MagicMock()
-        self.test_catalog_manager.reload = reload
-
-        # call
-        self.test_catalog_manager.remove_by_id(self.test_catalog_manager.catalogs[2].id)
+        r = self.test_catalog_manager._update(local_catalog)
 
         # assert
-        expected_list = deepcopy(self.catalog_list)
-        expected_list.pop(2)
+        self.assertTrue(r)
+        refresh_index.assert_called_once()
 
-        self.assertEqual({"catalogs": expected_list}, self.test_catalog_manager.config_file_dict)
-
-        save.assert_called_once()
-        reload.assert_called_once()
-
-    def test_remove_by_id_url(self):
+    def test_update_by_name(self):
         # mocks
-        save = MagicMock()
-        self.test_catalog_manager.save = save
+        _update = MagicMock(return_value=True)
+        self.test_catalog_manager._update = _update
 
-        reload = MagicMock()
-        self.test_catalog_manager.reload = reload
-
-        self.test_catalog_manager.catalogs[1].is_deletable = True
+        get_catalog_by_id = MagicMock(return_value="myCatalog")
+        self.test_catalog_manager.get_catalog_by_name = get_catalog_by_id
 
         # call
-        self.test_catalog_manager.remove_by_id(self.test_catalog_manager.catalogs[1].id)
+        self.test_catalog_manager.update_by_name("aNiceName")
 
         # assert
-        expected_list = deepcopy(self.catalog_list)
-        expected_list.pop(1)
-
-        self.assertEqual({"catalogs": expected_list}, self.test_catalog_manager.config_file_dict)
-
-        save.assert_called_once()
-        reload.assert_called_once()
-
-    def test_remove_by_id_undeletable(self):
-        # mocks
-        save = MagicMock()
-        self.test_catalog_manager.save = save
-
-        reload = MagicMock()
-        self.test_catalog_manager.reload = reload
-
-        # call
-        x = self.test_catalog_manager.remove_by_id(self.test_catalog_manager.catalogs[0].id)
-
-        # assert
-        self.assertIsNone(x)
-        self.assertEqual({"catalogs": self.catalog_list}, self.test_catalog_manager.config_file_dict)  # nothing changed
-
-        save.assert_not_called()
-        reload.assert_not_called()
-
-    def test_remove_by_id_invalid_id(self):
-        # mocks
-        save = MagicMock()
-        self.test_catalog_manager.save = save
-
-        reload = MagicMock()
-        self.test_catalog_manager.reload = reload
-
-        # call
-        with self.assertRaises(LookupError):
-            self.test_catalog_manager.remove_by_id("aWrongIdOfACatalogToRemove")
-
-        # assert
-        self.assertEqual({"catalogs": self.catalog_list}, self.test_catalog_manager.config_file_dict)  # nothing changed
-        save.assert_not_called()
-        reload.assert_not_called()
-
-    def test_remove(self):
-        # mock
-        remove_by_id = MagicMock()
-        self.test_catalog_manager.remove_by_id = remove_by_id
-
-        # call
-        self.test_catalog_manager.remove(self.catalog_list[0])
-
-        # assert
-        remove_by_id.assert_called_once_with(self.test_catalog_manager.catalogs[0].id)
-
-    def test_remove_not_configured(self):
-        # mocks
-        remove_by_id = MagicMock()
-        self.test_catalog_manager.remove_by_id = remove_by_id
-
-        # call
-        self.test_catalog_manager.remove("wrongPath")
-
-        # assert
-        remove_by_id.assert_not_called()
-
-    def test_add(self):
-        # mocks
-        save = MagicMock()
-        self.test_catalog_manager.save = save
-
-        reload = MagicMock()
-        self.test_catalog_manager.reload = reload
-
-        # call
-        self.test_catalog_manager.add("aNiceCatalog")
-
-        # assert
-        expected_list = deepcopy(self.catalog_list)
-        expected_list.append("aNiceCatalog")
-        self.assertEqual({"catalogs": expected_list}, self.test_catalog_manager.config_file_dict)
-
-        save.assert_called_once()
-        reload.assert_called_once()
-
-    def test_update_any_no_id(self):
-        # mocks
-        update_all = MagicMock(return_value=None)
-        self.test_catalog_manager.update_all = update_all
-        update_by_id = MagicMock(return_value=None)
-        self.test_catalog_manager.update_by_id = update_by_id
-
-        # call
-        self.test_catalog_manager.update_any()
-        update_all.assert_called_once()
-        update_by_id.assert_not_called()
-
-    def test_update_any(self):
-        # mocks
-        update_all = MagicMock(return_value=None)
-        self.test_catalog_manager.update_all = update_all
-        update_by_id = MagicMock(return_value=None)
-        self.test_catalog_manager.update_by_id = update_by_id
-
-        # call
-        self.test_catalog_manager.update_any("aNiceCatalogID")
-        update_all.assert_not_called()
-        update_by_id.assert_called_once()
+        get_catalog_by_id.assert_called_once_with("aNiceName")
+        _update.assert_called_once_with("myCatalog")
 
     def test_update_all(self):
         # mocks
@@ -463,32 +258,250 @@ class TestCatalogManager(TestUnitCommon):
         self.assertEqual(3, _update.call_count)
         self.assertEqual([True, False, True], r)
 
-    def test_update_by_id(self):
+    def test_update_any(self):
         # mocks
-        _update = MagicMock(return_value=True)
-        self.test_catalog_manager._update = _update
-
-        get_catalog_by_id = MagicMock(return_value="myCatalog")
-        self.test_catalog_manager.get_catalog_by_id = get_catalog_by_id
+        update_all = MagicMock(return_value=None)
+        self.test_catalog_manager.update_all = update_all
+        update_by_name = MagicMock(return_value=None)
+        self.test_catalog_manager.update_by_name = update_by_name
 
         # call
-        self.test_catalog_manager.update_by_id("aNiceId")
+        self.test_catalog_manager.update_any("aNiceCatalogID")
+        update_all.assert_not_called()
+        update_by_name.assert_called_once()
 
-        # assert
-        get_catalog_by_id.assert_called_once_with("aNiceId")
-        _update.assert_called_once_with("myCatalog")
-
-    def test__update(self):
+    def test_update_any_no_id(self):
         # mocks
-        refresh_index = MagicMock(return_value=True)
-        self.test_catalog_manager.local_catalog.refresh_index = refresh_index
+        update_all = MagicMock(return_value=None)
+        self.test_catalog_manager.update_all = update_all
+        update_by_id = MagicMock(return_value=None)
+        self.test_catalog_manager.update_by_id = update_by_id
 
         # call
-        r = self.test_catalog_manager._update(self.test_catalog_manager.local_catalog)
+        self.test_catalog_manager.update_any()
+        update_all.assert_called_once()
+        update_by_id.assert_not_called()
+
+    def test_add(self):
+        catalog_name = "aNiceCatalog"
+        catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", catalog_name)
+        catalog_src.mkdir(parents=True)
+        with open(catalog_src.joinpath(DefaultValues.catalog_index_file_json.value), 'w') as config:
+            config.writelines("{\"name\": \"" + catalog_name + "\", \"version\": \"0.1.0\"}")
+
+        # call
+        self.test_catalog_manager.add_catalog_to_collection(catalog_src)
 
         # assert
-        self.assertTrue(r)
-        refresh_index.assert_called_once()
+        expected_list = deepcopy(self.catalog_list)
+        expected_list.append({
+            "catalog_id": 4,
+            "deletable": 1,
+            "name": catalog_name,
+            "path": str(Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, catalog_name)),
+            "src": str(catalog_src),
+        })
+        self.assertEqual(expected_list, self.test_catalog_manager.catalog_collection.get_all_catalogs())
+
+    def test_remove_catalog_from_collection(self):
+        # mock
+        remove_by_name = MagicMock()
+        self.test_catalog_manager.remove_catalog_from_collection_by_name = remove_by_name
+
+        # call
+        self.test_catalog_manager.remove_catalog_from_collection_by_name(self.catalog_list[0]['name'])
+
+        # assert
+        remove_by_name.assert_called_once_with(self.test_catalog_manager.catalog_collection.get_all_catalogs()[0]['name'])
+
+    def test_remove_catalog_from_collection_not_configured(self):
+        # mocks
+        remove_by_id = MagicMock()
+        self.test_catalog_manager._remove_by_name = remove_by_id
+
+        # call
+        self.test_catalog_manager.remove_catalog_from_collection_by_path("wrongPath")
+
+        # assert
+        remove_by_id.assert_not_called()
+
+    def test__remove_by_path(self):
+        # mock
+        remove_by_path = MagicMock()
+        self.test_catalog_manager.remove_catalog_from_collection_by_path = remove_by_path
+
+        # call
+        self.test_catalog_manager.remove_catalog_from_collection_by_path(self.catalog_list[0]['path'])
+
+        # assert
+        remove_by_path.assert_called_once_with(self.test_catalog_manager.catalog_collection.get_all_catalogs()[0]['path'])
+
+    def test__remove_by_name(self):
+        # call
+        catalogs = self.test_catalog_manager.catalog_collection.get_all_catalogs()
+        self.test_catalog_manager.remove_catalog_from_collection_by_name(catalogs[2]["name"])
+
+        # assert
+        expected_list = deepcopy(self.catalog_list)
+        expected_list.pop(2)
+
+        catalogs = self.test_catalog_manager.catalog_collection.get_all_catalogs()
+        self.assertEqual(expected_list, catalogs)
+
+    def test__remove_by_name_url(self):
+        self.test_catalog_manager.remove_catalog_from_collection_by_name(self.test_catalog_manager.get_catalogs()[1].name)
+
+        # assert
+        expected_list = deepcopy(self.catalog_list)
+        expected_list.pop(1)
+
+        self.assertEqual(expected_list, self.test_catalog_manager.catalog_collection.get_all_catalogs())
+
+    def test__remove_by_name_undeletable(self):
+        # call
+        catalogs = self.test_catalog_manager.catalog_collection.get_all_catalogs()
+        x = self.test_catalog_manager.remove_catalog_from_collection_by_name(catalogs[0]['name'])
+
+        # assert
+        self.assertIsNone(x)
+        self.assertEqual(self.catalog_list, self.test_catalog_manager.catalog_collection.get_all_catalogs())  # nothing changed
+
+    def test__remove_by_name_invalid_name(self):
+        # call
+        with self.assertRaises(LookupError):
+            self.test_catalog_manager.remove_catalog_from_collection_by_name("aWrongIdOfACatalogToRemove")
+
+        # assert
+        self.assertEqual(self.catalog_list, self.test_catalog_manager.catalog_collection.get_all_catalogs())  # nothing changed
+
+    def test_remove_by_src(self):
+        # mock
+        remove_by_src = MagicMock()
+        self.test_catalog_manager.remove_catalog_from_collection_by_src = remove_by_src
+
+        # call
+        self.test_catalog_manager.remove_catalog_from_collection_by_src(self.catalog_list[0]['src'])
+
+        # assert
+        remove_by_src.assert_called_once_with(
+            self.test_catalog_manager.catalog_collection.get_all_catalogs()[0]['src'])
+
+    @patch('album.core.utils.operations.resolve_operations.load')
+    @patch('album.core.controller.catalog_manager.Catalog.get_solution_file')
+    def test_resolve_dependency_and_load(self, get_solution_file_mock, load_mock):
+        # mocks
+        load_mock.return_value = self.active_solution
+
+        get_solutions_by_grp_name_version = MagicMock(return_value=[{"catalog_id": "aNiceId", "installed": True, "group": "g", "name": "n", "version": "v"}])
+        self.test_catalog_manager.catalog_collection.get_solutions_by_grp_name_version = get_solutions_by_grp_name_version
+        get_catalog_by_id_mock = MagicMock(return_value=Catalog("aNiceId", "aNiceName", "aValidPath"))
+        self.test_catalog_manager.get_catalog_by_id = get_catalog_by_id_mock
+
+        _catalog = EmptyTestClass()
+        _catalog.catalog_id = "aNiceId"
+        _catalog.name = "aNiceName"
+
+        get_solution_file_mock.return_value = "aValidPath"
+
+        set_environment = MagicMock(return_value=None)
+        self.active_solution.set_environment = set_environment
+
+        # call
+        r = self.test_catalog_manager.resolve_dependency_and_load({"group": "g", "name": "n", "version": "v"})
+
+        self.assertEqual(get_solution_file_mock.return_value, r[0]["path"])
+        self.assertEqual(self.active_solution, r[1])
+
+        get_solutions_by_grp_name_version.assert_called_once_with("g", "n", "v")
+        get_solution_file_mock.assert_called_once_with("g", "n", "v")
+        load_mock.assert_called_once_with("aValidPath")
+        set_environment.assert_called_once_with(_catalog.name)
+        get_catalog_by_id_mock.assert_called_once_with("aNiceId")
+
+    @patch('album.core.utils.operations.resolve_operations.load')
+    def test_resolve_dependency_and_load_error(self, load_mock):
+        # mocks
+        load_mock.return_value = self.active_solution
+
+        get_solutions_by_grp_name_version = MagicMock(return_value=None)
+        self.test_catalog_manager.catalog_collection.get_solutions_by_grp_name_version = get_solutions_by_grp_name_version
+
+        _catalog = EmptyTestClass()
+        _catalog.id = "aNiceId"
+
+        resolve_directly = MagicMock(return_value=None)
+        self.test_catalog_manager.resolve_in_catalog = resolve_directly
+
+        set_environment = MagicMock(return_value=None)
+        self.active_solution.set_environment = set_environment
+
+        # call
+        with self.assertRaises(LookupError):
+            self.test_catalog_manager.resolve_dependency_and_load({"group": "g", "name": "n", "version": "v"})
+
+        get_solutions_by_grp_name_version.assert_called_once_with("g", "n", "v")
+        resolve_directly.assert_not_called()
+        load_mock.assert_not_called()
+        set_environment.assert_not_called()
+
+    @unittest.skip("Needs to be implemented!")
+    def test_resolve_require_installation_and_load_valid_path(self):
+        pass
+
+    @patch('album.core.controller.catalog_manager._check_file_or_url')
+    @patch('album.core.controller.catalog_manager.load')
+    def test_resolve_require_installation_and_load_grp_name_version(self, load_mock, _check_file_or_url_mock):
+        # mocks
+        search_mock = MagicMock(return_value={"catalog_id": 1, "group": "grp", "name": "name", "version": "version", "installed": True})
+        self.test_catalog_manager.search = search_mock
+        load_mock.return_value = AlbumClass({"group": "grp", "name": "name", "version": "version"})
+        _check_file_or_url_mock.return_value = None
+
+        # call
+        self.test_catalog_manager.resolve_require_installation_and_load("grp:name:version")
+
+        # assert
+        _check_file_or_url_mock.assert_called_once_with("grp:name:version", self.test_catalog_manager.tmp_cache_dir)
+
+    @patch('album.core.controller.catalog_manager.copy_folder', return_value=None)
+    @patch('album.core.controller.catalog_manager.clean_resolve_tmp', return_value=None)
+    def test_add_to_local_catalog(self, clean_resolve_tmp, copy_folder_mock):
+        # run
+        self.active_solution.script = ""  # the script gets read during load()
+        self.test_catalog_manager.add_to_local_catalog(self.active_solution, "aPathToInstall")
+
+        # assert
+        path = self.test_catalog_manager.get_local_catalog().get_solution_path(self.active_solution["group"], self.active_solution["name"], self.active_solution["version"])
+        copy_folder_mock.assert_called_once_with("aPathToInstall", path, copy_root_folder=False)
+        clean_resolve_tmp.assert_called_once()
+
+    @unittest.skip("Needs to be implemented!")
+    def test_resolve_download_and_load(self):
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test__resolve(self):
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_search_local_file(self):
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_search(self):
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test__search_in_local_catalog(self):
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test__search_in_specific_catalog(self):
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test__search_in_catalogs(self):
+        pass
 
 
 if __name__ == '__main__':

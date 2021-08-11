@@ -29,13 +29,14 @@ class TestIntegrationInstall(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert solution was added to local catalog
-        self.assertEqual(len(self.test_catalog_collection.local_catalog), 1)
+        collection = self.test_catalog_manager.catalog_collection
+        self.assertEqual(1, len(collection.get_solutions_by_catalog(self.test_catalog_manager.get_local_catalog().catalog_id)))
 
         # assert solution is in the right place and has the right name
         self.assertTrue(
             Path(self.tmp_dir.name).joinpath(
                 DefaultValues.catalog_folder_prefix.value,
-                self.test_catalog_collection.local_catalog.id,
+                str(self.test_catalog_manager.get_local_catalog().name),
                 DefaultValues.cache_path_solution_prefix.value,
                 "group", "name", "0.1.0", "solution.py"
             ).exists()

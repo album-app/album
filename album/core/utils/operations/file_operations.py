@@ -12,7 +12,6 @@ from zipfile import ZipFile
 
 import yaml
 
-from album.core.model.default_values import DefaultValues
 from album.core.utils.subcommand import run
 from album_runner import logging
 
@@ -66,159 +65,6 @@ def to_executable(argument_parsing):
     return executable
 
 
-def extract_argparse(file):
-    """Extracts the argument parsing from a python file.
-
-    Args:
-        file:
-            The file to extract argument parsing from.
-
-    Returns:
-        list of all arguments.
-    """
-    argument_parsing = ["global args\n"]
-
-    # one could think of autoformat stuff to be sure indents are correct - because the following should NOT happen
-    # arser.add_argument(\'--mkldnn\', action=\'store_true\', help=\'for
-    # mxnet, force MXNET_SUBGRAPH_BACKEND = "MKLDNN"\') <-- wrong indent, but allowed by python parser. Would be fixed
-    # with autoformat.
-
-    # string = auto_format(file)
-
-    with open(file, 'r') as f:
-        # search for argparse line
-        while True:
-            line = f.readline()
-            if not line:
-                break
-
-            # store line indent to begin with
-            previous_indent = get_line_indent(line)
-
-            # all lines which follow should belong to argument parsing
-            if "argparse.ArgumentParser" in line:
-                argument_parsing.append(line.strip() + '\n')
-                while True:
-                    line = f.readline()
-                    if not line:
-                        break
-                    if ".add_argument(" in line:  # adding argument
-                        argument_parsing.append(line.strip() + '\n')
-                    elif ".parse_args(" in line:  # end of collecting arguments
-                        argument_parsing.append("args = " + line.strip() + '\n')
-                        return to_executable(argument_parsing)
-                    elif previous_indent < get_line_indent(line):  # linebreak within add_argument command
-                        argument_parsing[-1] = argument_parsing[-1][:-1] + line.strip() + '\n'
-                        continue
-                    elif is_comment(line) or is_blank_line(line):  # blank lines or comments are skipped
-                        continue
-                    else:  # conditional argument parsing or some logic between two add_argument commands is prohibited
-                        raise FileOperationError("Argument parsing went wrong! Illegal sequence of commands. ",
-                                                 "Argument parsing went wrong! "
-                                                 "Detected line '{}' after ArgumentParser initiation.".format(line))
-                    # set new indent
-                    previous_indent = get_line_indent(line)
-    return ""
-
-
-def get_zenodo_metadata(file, metadata):
-    def extract_metadata(l):
-        tmp = l.replace(metadata + "=", "").split("#")[0].strip().replace("\"", "")
-        if tmp[-1] == ",":
-            tmp = tmp[:-1]
-
-        return tmp
-
-    with open(file, 'r') as f:
-        # search for argparse line
-        while True:
-            line = f.readline()
-            if not line:
-                break
-
-            # safety feature - no one should simply have "metadata=" written somewhere else!
-            if "setup(\n" == line:
-                setup_indent = get_line_indent(line)
-                while True:
-                    line = f.readline()
-                    if not line:
-                        return None
-                    elif setup_indent < get_line_indent(line):  # setup line
-                        if line.startswith(indent_to_space(setup_indent + 1) + metadata + "="):
-                            deposit_id = extract_metadata(line)
-                            return deposit_id
-                    elif is_comment(line) or is_blank_line(line):  # blank lines or comments are skipped
-                        continue
-                    elif setup_indent == get_line_indent(line) and line == ')\n' \
-                            or line == indent_to_space(setup_indent + 1) + '})\n':  # album.setup call finished
-                        break
-                    else:
-                        raise FileOperationError("Retrieving doi failed. ",
-                                                 "Retrieving doi failed! File wrongly formatted? "
-                                                 "Detected line '{}' after \"setup(\" initiation.".format(line))
-
-
-def set_zenodo_metadata_in_solutionfile(file, doi, deposit_id):
-    module_logger().debug("Set doi %s and deposit_id: %s in file %s..." % (doi, deposit_id, file))
-
-    solution_name, solution_ext = os.path.splitext(os.path.basename(file))
-    solution_name_full = solution_name + "_tmp" + solution_ext
-
-    new_file_path = DefaultValues.app_cache_dir.value.joinpath(solution_name_full)
-    create_path_recursively(new_file_path.parent)
-    new_file = new_file_path.open('w+')
-
-    with open(file, 'r') as f:
-        # search for argparse line
-        while True:
-            line = f.readline()
-            new_file.write(line)
-            if not line:
-                break
-
-            # all lines which follow should belong to setup(
-            if "setup(\n" == line:
-                setup_indent = get_line_indent(line)
-
-                # add doi
-                doi_line = indent_to_space(setup_indent + 1) + "doi=\"%s\",\n" % doi
-                new_file.write(doi_line)
-
-                # add deposit_id
-                deposit_id_line = indent_to_space(setup_indent + 1) + "deposit_id=\"%s\",\n" % deposit_id
-                new_file.write(deposit_id_line)
-
-                # add other lines and delete old doi entry if exists
-                while True:
-                    line = f.readline()
-                    if not line:
-                        break
-                    elif is_comment(line) or is_blank_line(line):  # blank lines or comments are skipped
-                        continue
-                    elif setup_indent < get_line_indent(line):  # setup line
-                        if line.startswith(indent_to_space(setup_indent + 1) + "doi="):  # old doi
-                            continue
-                        if line.startswith(indent_to_space(setup_indent + 1) + "deposit_id="):  # old deposit_id
-                            continue
-                        new_file.write(line)
-                    elif setup_indent == get_line_indent(line) and line == ')\n' \
-                            or line == indent_to_space(setup_indent + 1) + '})\n':  # album.setup call finished
-                        new_file.write(line)
-                        break
-                    else:
-                        new_file.close()
-                        os.remove(str(new_file_path))
-                        raise FileOperationError("Writing doi failed. ",
-                                                 "Writing doi failed! File wrongly formatted? "
-                                                 "Detected line '{}' after \"setup(\" initiation.".format(line))
-
-    new_file.close()
-
-    shutil.copy(str(new_file_path), file)
-
-    return file
-
-
 def get_dict_from_yml(yml_file):
     """Reads a dictionary from a file in yml format."""
     with open(yml_file, 'r') as yml_f:
@@ -241,7 +87,7 @@ def write_dict_to_yml(yml_file, d):
     return True
 
 
-def get_yml_entry(d, key, allow_none=True):
+def get_dict_entry(d, key, allow_none=True, message=None):
     """Receive an entry from a dictionary.
 
     Args:
@@ -251,6 +97,9 @@ def get_yml_entry(d, key, allow_none=True):
             The key.
         allow_none:
             boolean flag indicating whether to allow key to exist or not.
+        message:
+            When allow_none false this is the message printed in the exception.
+
 
     Returns:
         The value or None
@@ -264,7 +113,7 @@ def get_yml_entry(d, key, allow_none=True):
     except KeyError:
         val = None
         if not allow_none:
-            raise
+            raise KeyError(message)
 
     return val
 
@@ -278,6 +127,16 @@ def write_dict_to_json(json_file, d):
         json_f.write(json.dumps(d))
 
     return True
+
+
+def get_dict_from_json(json_file):
+    """Reads dictionary from JSON file."""
+    json_file = Path(json_file)
+
+    with open(json_file, 'r') as json_f:
+        d = json.load(json_f)
+
+    return d
 
 
 def create_empty_file_recursively(path_to_file):
@@ -303,7 +162,7 @@ def create_paths_recursively(paths):
         create_path_recursively(p)
 
 
-def copy_folder(folder_to_copy, destination, copy_root_folder=True):
+def copy_folder(folder_to_copy, destination, copy_root_folder=True, force_copy=False):
     folder_to_copy = Path(folder_to_copy)
     destination = Path(destination)
 
@@ -312,6 +171,9 @@ def copy_folder(folder_to_copy, destination, copy_root_folder=True):
 
     if copy_root_folder:
         destination = destination.joinpath(folder_to_copy.name)
+
+    if force_copy:
+        force_remove(destination)
 
     create_path_recursively(destination)
 
@@ -331,8 +193,10 @@ def copy(file, path_to):
     """Copies a file A to either folder B or file B. Makes sure folder structure for target exists."""
     file = Path(file)
     path_to = Path(path_to)
+
     if os.path.exists(path_to) and os.path.samefile(file, path_to):
         return path_to
+
     create_path_recursively(path_to.parent)
 
     return Path(shutil.copy(file, path_to))

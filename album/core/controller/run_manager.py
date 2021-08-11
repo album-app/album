@@ -4,7 +4,7 @@ from queue import Queue, Empty
 
 from album.core import load
 from album.core.concept.singleton import Singleton
-from album.core.controller.resolve_manager import ResolveManager
+from album.core.controller.catalog_manager import CatalogManager
 from album.core.utils.script import create_solution_script
 from album_runner import logging
 
@@ -19,21 +19,21 @@ class RunManager(metaclass=Singleton):
     dependency checking, and more.
 
      Attributes:
-         resolve_manager:
+         catalog_manager:
             Holding all configured catalogs. Resolves inside our outside catalogs.
 
     """
     # singletons
-    resolve_manager = None
+    catalog_manager = None
 
     def __init__(self):
-        self.resolve_manager = ResolveManager()
+        self.catalog_manager = CatalogManager()
         self.init_script = ""
 
     def run(self, path, run_immediately=False):
         """Function corresponding to the `run` subcommand of `album`."""
 
-        resolve, active_solution = self.resolve_manager.resolve_installed_and_load(path)
+        resolve, active_solution = self.catalog_manager.resolve_require_installation_and_load(path)
 
         if not resolve["catalog"]:
             module_logger().debug('album loaded locally: %s...' % str(active_solution))
@@ -155,10 +155,10 @@ class RunManager(metaclass=Singleton):
 
         for step in steps:
             module_logger().debug('resolving step \"%s\"...' % step["name"])
-            _, step_solution = self.resolve_manager.resolve_dependency_and_load(step, load_solution=True)
+            _, step_solution = self.catalog_manager.resolve_dependency_and_load(step, load_solution=True)
 
             if step_solution["parent"]:  # collect steps as long as they have the same parent
-                current_parent_script_resolve, _ = self.resolve_manager.resolve_dependency_and_load(
+                current_parent_script_resolve, _ = self.catalog_manager.resolve_dependency_and_load(
                     step_solution["parent"],
                     load_solution=False
                 )
@@ -260,7 +260,7 @@ class RunManager(metaclass=Singleton):
 
         """
         module_logger().debug('Creating album script with parent \"%s\"...' % active_solution.parent["name"])
-        _, parent_solution = self.resolve_manager.resolve_dependency_and_load(
+        _, parent_solution = self.catalog_manager.resolve_dependency_and_load(
             active_solution.parent,
             load_solution=True
         )
@@ -291,7 +291,7 @@ class RunManager(metaclass=Singleton):
         """
         # load parent & steps
         parent_solution = load(solution_collection["parent_script_path"])
-        parent_solution.set_environment(solution_collection["parent_script_catalog"].id)
+        parent_solution.set_environment(solution_collection["parent_script_catalog"].name)
         steps_solution = solution_collection["steps_solution"]
         steps = solution_collection["steps"]
 
