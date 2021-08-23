@@ -6,6 +6,7 @@ from album.core.concept.database import Database
 from album.core.model.album_base import AlbumClass
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
+from album.core.model.group_name_version import GroupNameVersion
 from album.core.utils.operations.file_operations import get_dict_entry, write_dict_to_json
 
 
@@ -245,21 +246,21 @@ class CollectionIndex(Database):
 
         return solution
 
-    def get_solution_by_catalog_grp_name_version(self, catalog_id, grp, name, version):
+    def get_solution_by_catalog_grp_name_version(self, catalog_id, group_name_version: GroupNameVersion):
         r = self.get_cursor().execute(
             "SELECT * FROM collection "
             "WHERE catalog_id=:catalog_id AND \"group\"=:group AND name=:name AND version=:version",
             {
                 "catalog_id": catalog_id,
-                "group": grp,
-                "name": name,
-                "version": version,
+                "group": group_name_version.group,
+                "name": group_name_version.name,
+                "version": group_name_version.version,
             }
         ).fetchall()
 
         if len(r) > 1:
-            raise KeyError("Database error. Please reinstall the solution %s:%s:%s from catalog %s !"
-                           % (grp, name, version, catalog_id))
+            raise KeyError("Database error. Please reinstall the solution %s from catalog %s !"
+                           % (group_name_version.group, catalog_id))
 
         installed_solution = None
         for row in r:
@@ -267,15 +268,15 @@ class CollectionIndex(Database):
 
         return installed_solution
 
-    def get_solutions_by_grp_name_version(self, grp, name, version):
+    def get_solutions_by_grp_name_version(self, group_name_version: GroupNameVersion):
         installed_solutions_list = []
         cursor = self.get_cursor()
         for row in cursor.execute(
                 "SELECT * FROM collection WHERE \"group\"=:group AND name=:name AND version=:version",
                 {
-                    "group": grp,
-                    "name": name,
-                    "version": version,
+                    "group": group_name_version.group,
+                    "name": group_name_version.name,
+                    "version": group_name_version.version,
                 }
         ):
             installed_solutions_list.append(dict(row))
@@ -334,25 +335,25 @@ class CollectionIndex(Database):
         keys.append("installed")
         return keys
 
-    def add_or_replace_solution(self, catalog_id, grp, name, version, solution_attrs):
-        solution = self.get_solution_by_catalog_grp_name_version(catalog_id, grp, name, version)
+    def add_or_replace_solution(self, catalog_id, group_name_version: GroupNameVersion, solution_attrs):
+        solution = self.get_solution_by_catalog_grp_name_version(catalog_id, group_name_version)
         if solution:
             self.update_solution(catalog_id, solution_attrs)
         else:
             self.insert_solution(catalog_id, solution_attrs)
 
-    def remove_solution(self, catalog_id, grp, name, version):
+    def remove_solution(self, catalog_id, group_name_version: GroupNameVersion):
         self.get_cursor().execute(
             "DELETE FROM collection "
             "WHERE catalog_id=:catalog_id AND \"group\"=:group AND name=:name AND version=:version",
             {
                 "catalog_id": catalog_id,
-                "group": grp,
-                "name": name,
-                "version": version,
+                "group": group_name_version.group,
+                "name": group_name_version.name,
+                "version": group_name_version.version,
             }
         )
-        #TODO remove associated entries in other tables
+        # TODO remove associated entries in other tables
 
     def insert_collection_tag(self, catalog_id, tag_id, tag_name, assignment_type, hash_val):
         if self.get_collection_tag_by_catalog_id_and_tag_id(catalog_id, tag_id, tag_name, assignment_type):
@@ -497,10 +498,10 @@ class CollectionIndex(Database):
 
         return None
 
-    def is_installed(self, catalog_id, grp, name, version):
-        r = self.get_solution_by_catalog_grp_name_version(catalog_id, grp, name, version)
+    def is_installed(self, catalog_id, group_name_version: GroupNameVersion):
+        r = self.get_solution_by_catalog_grp_name_version(catalog_id, group_name_version)
         if not r:
-            raise LookupError(f"Solution {catalog_id}:{grp}:{name}:{version} not found!")
+            raise LookupError(f"Solution {catalog_id}:{group_name_version} not found!")
         return True if r["installed"] else False
 
     # ### catalog_collection features ###

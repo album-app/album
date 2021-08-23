@@ -1,7 +1,7 @@
 import operator
 
 from album.core.concept.singleton import Singleton
-from album.core.controller.catalog_manager import CatalogManager
+from album.core.controller.collection_manager import CollectionManager
 from album_runner import logging
 
 module_logger = logging.get_active_logger
@@ -15,7 +15,7 @@ class SearchManager(metaclass=Singleton):
     """
 
     def __init__(self):
-        self.catalog_collection = CatalogManager().catalog_collection
+        self.catalog_collection = CollectionManager().catalog_collection
 
     def search(self, keywords):
         """Function corresponding to the `search` subcommand of `album`.

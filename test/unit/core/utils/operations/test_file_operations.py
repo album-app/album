@@ -4,11 +4,9 @@ import pathlib
 import unittest.mock
 from pathlib import Path
 from stat import *
-from unittest.mock import patch
 
-from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import FileOperationError, \
-    get_dict_from_yml, write_dict_to_yml, create_empty_file_recursively, \
+from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, \
+    create_empty_file_recursively, \
     create_path_recursively, write_dict_to_json, force_remove, zip_folder, unzip_archive, copy, \
     copy_folder, zip_paths, rand_folder_name
 from test.unit.test_unit_common import TestUnitCommon

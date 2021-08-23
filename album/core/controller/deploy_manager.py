@@ -4,10 +4,11 @@ from pathlib import Path
 
 from album.core import load
 from album.core.concept.singleton import Singleton
-from album.core.controller.catalog_manager import CatalogManager
+from album.core.controller.collection_manager import CollectionManager
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, zip_paths
 from album.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push
+from album.core.utils.operations.resolve_operations import solution_to_group_name_version
 from album_runner import logging
 
 module_logger = logging.get_active_logger
@@ -23,7 +24,7 @@ class DeployManager(metaclass=Singleton):
     In this case, no merge request will be created!
 
     Attributes:
-        catalog_manager:
+        collection_manager:
             Holding all configured catalogs.
 
     Notes:
@@ -31,10 +32,10 @@ class DeployManager(metaclass=Singleton):
 
     """
     # singletons
-    catalog_manager = None
+    collection_manager = None
 
     def __init__(self):
-        self.catalog_manager = CatalogManager()
+        self.collection_manager = CollectionManager()
         self._catalog = None
         self._active_solution = None
         self._catalog_local_src = None
@@ -73,9 +74,9 @@ class DeployManager(metaclass=Singleton):
         self._active_solution = load(path_to_solution)
 
         if catalog_name:  # case catalog given
-            self._catalog = self.catalog_manager.get_catalog_by_name(catalog_name)
+            self._catalog = self.collection_manager.catalogs().get_by_name(catalog_name)
         elif self._active_solution["deploy"] and self._active_solution["deploy"]["catalog"]:
-            self._catalog = self.catalog_manager.get_catalog_by_src(
+            self._catalog = self.collection_manager.catalogs().get_by_src(
                 self._active_solution["deploy"]["catalog"]["src"]
             )
         else:
@@ -96,7 +97,7 @@ class DeployManager(metaclass=Singleton):
             self._catalog.catalog_index.export(self._catalog.solution_list_path)
             self._catalog.refresh_index()
         else:
-            dwnld_path = Path(self.catalog_manager.configuration.cache_path_download).joinpath(self._catalog.name)
+            dwnld_path = Path(self.collection_manager.configuration.cache_path_download).joinpath(self._catalog.name)
             repo = self._catalog.retrieve_catalog(dwnld_path, force_retrieve=True)
             self._repo = self._update_repo(repo)
 
@@ -158,9 +159,7 @@ class DeployManager(metaclass=Singleton):
     def _get_cache_suffix(self):
         return Path(self._catalog_local_src).joinpath(
             self._catalog.get_solution_zip_suffix(
-                self._active_solution['group'],
-                self._active_solution["name"],
-                self._active_solution["version"]
+                solution_to_group_name_version(self._active_solution)
             )
         )
 

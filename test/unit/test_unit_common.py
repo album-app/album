@@ -13,7 +13,7 @@ from album.ci.controller.release_manager import ReleaseManager
 from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core import AlbumClass
-from album.core.controller.catalog_manager import CatalogManager
+from album.core.controller.collection_manager import CollectionManager
 from album.core.controller.conda_manager import CondaManager
 from album.core.controller.deploy_manager import DeployManager
 from album.core.controller.install_manager import InstallManager
@@ -71,7 +71,7 @@ class TestUnitCommon(unittest.TestCase):
         album_runner.logging._active_logger = {}
         TestUnitCommon._delete(AlbumServer)
         TestUnitCommon._delete(Configuration)
-        TestUnitCommon._delete(CatalogManager)
+        TestUnitCommon._delete(CollectionManager)
         TestUnitCommon._delete(CondaManager)
         TestUnitCommon._delete(DeployManager)
         TestUnitCommon._delete(InstallManager)
@@ -129,8 +129,8 @@ class TestUnitCommon(unittest.TestCase):
         self.create_test_config_in_tmp_dir(self.tmp_dir.name)
 
     def create_test_catalog_manager(self):
-        self.test_catalog_manager = CatalogManager()
-        self.catalog_collection = self.test_catalog_manager.catalog_collection
+        self.collection_manager = CollectionManager()
+        self.catalog_collection = self.collection_manager.catalog_collection
 
     @patch('album.core.model.environment.Environment.__init__', return_value=None)
     @patch('album.core.model.album_base.AlbumClass.get_deploy_dict')

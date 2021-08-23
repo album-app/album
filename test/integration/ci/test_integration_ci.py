@@ -4,7 +4,7 @@ from pathlib import Path
 
 from album.ci.argument_parsing import main
 from album.ci.controller.release_manager import ReleaseManager
-from album.core.controller.catalog_manager import CatalogManager
+from album.core.controller.collection_manager import CollectionManager
 from album.core.controller.deploy_manager import DeployManager
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
@@ -26,7 +26,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
     def fake_deploy(self):
         self._catalog = Catalog(None, name=self.name, path=self.path, src=self.src)
 
-        CatalogManager().add_catalog_to_collection_index(self._catalog)
+        CollectionManager().catalogs()._add_to_index(self._catalog)
 
         deploy_manager = DeployManager()
         deploy_manager.deploy(

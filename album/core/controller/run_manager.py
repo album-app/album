@@ -4,11 +4,12 @@ from queue import Queue, Empty
 
 from album.core import load
 from album.core.concept.singleton import Singleton
-from album.core.controller.catalog_manager import CatalogManager
+from album.core.controller.collection_manager import CollectionManager
 from album.core.utils.script import create_solution_script
 from album_runner import logging
 
 module_logger = logging.get_active_logger
+from album.core.model.resolve_result import ResolveResult
 
 
 class RunManager(metaclass=Singleton):
@@ -27,20 +28,20 @@ class RunManager(metaclass=Singleton):
     catalog_manager = None
 
     def __init__(self):
-        self.catalog_manager = CatalogManager()
+        self.catalog_manager = CollectionManager()
         self.init_script = ""
 
     def run(self, path, run_immediately=False):
         """Function corresponding to the `run` subcommand of `album`."""
 
-        resolve, active_solution = self.catalog_manager.resolve_require_installation_and_load(path)
+        resolve_result = self.catalog_manager.resolve_require_installation_and_load(path)
 
-        if not resolve["catalog"]:
-            module_logger().debug('album loaded locally: %s...' % str(active_solution))
+        if not resolve_result.catalog:
+            module_logger().debug('album loaded locally: %s...' % str(resolve_result.active_solution))
         else:
-            module_logger().debug('album loaded from catalog: %s...' % str(active_solution))
+            module_logger().debug('album loaded from catalog: %s...' % str(resolve_result.active_solution))
 
-        self._run(active_solution, run_immediately)
+        self._run(resolve_result.active_solution, run_immediately)
 
     def _run(self, active_solution, run_immediately=False):
         """Run an already loaded solution which consists of multiple steps (= other solution)."""
@@ -155,15 +156,12 @@ class RunManager(metaclass=Singleton):
 
         for step in steps:
             module_logger().debug('resolving step \"%s\"...' % step["name"])
-            _, step_solution = self.catalog_manager.resolve_dependency_and_load(step, load_solution=True)
+            resolve_result = self.catalog_manager.resolve_dependency_require_installation_and_load(step)
 
-            if step_solution["parent"]:  # collect steps as long as they have the same parent
-                current_parent_script_resolve, _ = self.catalog_manager.resolve_dependency_and_load(
-                    step_solution["parent"],
-                    load_solution=False
-                )
-                current_parent_script_path = current_parent_script_resolve["path"]
-                current_parent_script_catalog = current_parent_script_resolve["catalog"]
+            if resolve_result.active_solution.parent:  # collect steps as long as they have the same parent
+                current_parent_script_resolve = self.catalog_manager.resolve_dependency_require_installation(resolve_result.active_solution.parent)
+                current_parent_script_path = current_parent_script_resolve.path
+                current_parent_script_catalog = current_parent_script_resolve.catalog
 
                 # check whether the step has the same parent as the previous steps
                 if same_parent_step_collection["parent_script_path"] and \
@@ -181,7 +179,7 @@ class RunManager(metaclass=Singleton):
                     same_parent_step_collection["parent_script_catalog"] = current_parent_script_catalog
 
                     # overwrite old steps
-                    same_parent_step_collection["steps_solution"] = [step_solution]
+                    same_parent_step_collection["steps_solution"] = [resolve_result.active_solution]
                     same_parent_step_collection["steps"] = [step]
 
                 else:  # same or new parent
@@ -192,7 +190,7 @@ class RunManager(metaclass=Singleton):
                     same_parent_step_collection["parent_script_catalog"] = current_parent_script_catalog
 
                     # append another step to the steps already having the same parent
-                    same_parent_step_collection["steps_solution"].append(step_solution)
+                    same_parent_step_collection["steps_solution"].append(resolve_result.active_solution)
                     same_parent_step_collection["steps"].append(step)
 
             else:  # add a step without collection (also parent)
@@ -211,7 +209,7 @@ class RunManager(metaclass=Singleton):
                 step_args = self._get_args(step)
 
                 # add step without parent
-                que.put(self.create_solution_run_script_standalone(step_solution, step_args))
+                que.put(self.create_solution_run_script_standalone(resolve_result.active_solution, step_args))
 
         # put rest to queue
         if same_parent_step_collection["parent_script_path"]:
@@ -260,20 +258,17 @@ class RunManager(metaclass=Singleton):
 
         """
         module_logger().debug('Creating album script with parent \"%s\"...' % active_solution.parent["name"])
-        _, parent_solution = self.catalog_manager.resolve_dependency_and_load(
-            active_solution.parent,
-            load_solution=True
-        )
+        parent_solution_resolve = self.catalog_manager.resolve_dependency_require_installation_and_load(active_solution.parent)
 
         # handle arguments
-        parent_args, active_solution_args = self.resolve_args(parent_solution, [active_solution], [None], args)
+        parent_args, active_solution_args = self.resolve_args(parent_solution_resolve.active_solution, [active_solution], [None], args)
 
         # create script
         scripts = self.create_solution_run_with_parent_script(
-            parent_solution, parent_args, [active_solution], active_solution_args
+            parent_solution_resolve.active_solution, parent_args, [active_solution], active_solution_args
         )
 
-        return [parent_solution, scripts]
+        return [parent_solution_resolve.active_solution, scripts]
 
     def create_solution_run_collection_script(self, solution_collection):
         """Creates the execution script for a collection of hip solutions all having the same parent dependency.

@@ -3,7 +3,8 @@ import unittest
 from pathlib import Path
 
 from album.argument_parsing import main
-from album.core.controller.catalog_manager import CatalogManager
+from album.core.controller.catalog_handler import CatalogHandler
+from album.core.controller.collection_manager import CollectionManager
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -14,7 +15,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
 
     def setUp(self):
         super().setUp()
-        self.catalog_configuration = CatalogManager().configuration
+        self.catalog_configuration = CollectionManager().configuration
 
     def test_add_remove_catalog(self):
         # prepare
@@ -25,7 +26,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
 
         # gather arguments add
         new_catalog = Path(self.tmp_dir.name).joinpath("catalog_integration_test")
-        CatalogManager.create_new_catalog(new_catalog, "catalog_integration_test")
+        CatalogHandler.create_new_catalog(new_catalog, "catalog_integration_test")
         somedir = str(new_catalog)
         sys.argv = ["", "add-catalog", somedir]
 
@@ -33,7 +34,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
-        catalogs = CatalogManager().catalog_collection.get_all_catalogs()
+        catalogs = CollectionManager().catalog_collection.get_all_catalogs()
         self.assertEqual(initial_len + 1, len(catalogs))
         self.assertEqual(somedir, catalogs[len(catalogs) - 1]["src"])
 
@@ -44,7 +45,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
-        catalogs = CatalogManager().catalog_collection.get_all_catalogs()
+        catalogs = CollectionManager().catalog_collection.get_all_catalogs()
         self.assertEqual(initial_len, len(catalogs))
         for catalog in catalogs:
             self.assertIsNotNone(initial_catalogs.get(catalog["name"], None))

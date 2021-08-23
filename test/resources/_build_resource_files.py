@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from album.core.controller.catalog_manager import CatalogManager
+from album.core.controller.collection_manager import CollectionManager
 from album.core.model.catalog_index_new import CatalogIndex
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations import file_operations
@@ -18,7 +18,7 @@ def build_empty_catalog(name, path):
     if path.exists():
         file_operations.force_remove(path)
     path.mkdir(parents=True)
-    CatalogManager.create_new_catalog(path)
+    CatalogHandler.create_new_catalog(path)
     db_file = path.joinpath(DefaultValues.catalog_index_file_name.value)
     catalog_index = CatalogIndex(name, db_file)
     catalog_index.get_connection().commit()

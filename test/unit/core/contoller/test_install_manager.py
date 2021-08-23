@@ -4,6 +4,8 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from album.core.controller.install_manager import InstallManager
+from album.core.model.resolve_result import ResolveResult
+from album.core.model.group_name_version import GroupNameVersion
 from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
 
 
@@ -22,17 +24,15 @@ class TestInstallManager(TestUnitCommon):
     def test_install(self):
         # create mocks
         resolve_and_load = MagicMock(
-            return_value=[
-                {"path": Path("aPath"), "catalog": self.test_catalog_manager.get_local_catalog()}, self.active_solution
-            ]
+            return_value= ResolveResult(path=Path("aPath"), catalog=self.collection_manager.catalogs().get_local_catalog(), active_solution=self.active_solution)
         )
-        self.test_catalog_manager.resolve_download_and_load = resolve_and_load
+        self.collection_manager.resolve_download_and_load = resolve_and_load
 
         execute_install_routine = MagicMock(return_value=None)
         self.install_manager._install = execute_install_routine
 
         add_to_local_catalog = MagicMock(return_value=None)
-        self.install_manager.catalog_manager.add_to_local_catalog = add_to_local_catalog
+        self.install_manager.catalog_manager.add_solution_to_local_catalog = add_to_local_catalog
 
         update_in_collection_index = MagicMock(return_value=None)
         self.install_manager.update_in_collection_index = update_in_collection_index
@@ -60,8 +60,8 @@ class TestInstallManager(TestUnitCommon):
 
     @patch('album.core.model.collection_index.CollectionIndex.get_solution_by_catalog_grp_name_version')
     @patch('album.core.model.collection_index.CollectionIndex.update_solution')
-    def test_add_to_solutions_db_parent(self, add_solution_mock, get_solution_mock):
-        add_solution_mock.return_value = None
+    def test_add_to_solutions_db_parent(self, update_solution_mock, get_solution_mock):
+        update_solution_mock.return_value = None
         get_solution_mock.return_value = {"solution_id": 100}
 
         self.active_solution.parent = {"group": "grp", "name": "pName", "version": "pVersion"}
@@ -69,10 +69,10 @@ class TestInstallManager(TestUnitCommon):
         self.install_manager.update_in_collection_index("cat_id", "cat_parent_id", self.active_solution)
 
         #FIXME currently not checking for parent information to be added
-        add_solution_mock.assert_called_once_with(
-            "cat_id", self.active_solution["group"], self.active_solution["name"], self.active_solution["version"]
+        update_solution_mock.assert_called_once_with(
+            "cat_id", self.active_solution.group, self.active_solution.name, self.active_solution.version
         )
-        get_solution_mock.assert_called_once_with("cat_parent_id", "grp", "pName", "pVersion")
+        get_solution_mock.assert_called_once_with("cat_parent_id", GroupNameVersion("grp", "pName", "pVersion"))
 
     def test__install_no_routine(self):
         self.active_solution.environment = EmptyTestClass()
@@ -170,7 +170,7 @@ class TestInstallManager(TestUnitCommon):
 
     def test_install_dependency(self):
         # mocks
-        resolve_dependency = MagicMock(return_value={"path": "aPath", "catalog": None})
+        resolve_dependency = MagicMock(return_value=ResolveResult(path="aPath", catalog=None))
         self.install_manager.catalog_manager.resolve_dependency = resolve_dependency
 
         install = MagicMock(return_value=None)

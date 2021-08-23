@@ -6,7 +6,9 @@ from pathlib import Path
 
 from album.core import AlbumClass
 from album.core.concept.database import Database
+from album.core.model.group_name_version import GroupNameVersion
 from album.core.utils.operations.file_operations import get_dict_entry, write_dict_to_json
+from album.core.utils.operations.resolve_operations import dict_to_group_name_version
 
 
 class CatalogIndex(Database):
@@ -279,16 +281,12 @@ class CatalogIndex(Database):
             solution = dict(r)
         return solution
 
-    def get_solution_by_group_name_version(self, group, name, version):
+    def get_solution_by_group_name_version(self, group_name_version: GroupNameVersion):
         """Resolves a solution by its name, version and group.
 
         Args:
-            group:
-                The group affiliation of the solution.
-            name:
-                The name of the solution.
-            version:
-                The version of the solution.
+            group_name_version:
+                The group affiliation, name, and version of the solution.
 
         Returns:
             None or row not found.
@@ -299,9 +297,9 @@ class CatalogIndex(Database):
         r = cursor.execute(
             "SELECT * FROM solution WHERE \"group\"=:group AND name=:name AND version=:version",
             {
-                "group": group,
-                "name": name,
-                "version": version,
+                "group": group_name_version.group,
+                "name": group_name_version.name,
+                "version": group_name_version.version,
             }
         ).fetchone()
 
@@ -390,8 +388,8 @@ class CatalogIndex(Database):
             }
         )
 
-    def remove_solution_by_group_name_version(self, group, name, version):
-        solution_dict = self.get_solution_by_group_name_version(group, name, version)
+    def remove_solution_by_group_name_version(self, group_name_version: GroupNameVersion):
+        solution_dict = self.get_solution_by_group_name_version(group_name_version)
         if solution_dict:
             self.remove_solution(solution_dict["solution_id"])
 
@@ -421,13 +419,12 @@ class CatalogIndex(Database):
                 The solution attributes. Must hold group, name, version.
 
         """
-        group, name, version = self.check_requirements(solution_attrs)
 
         # insert tags
         for tag in solution_attrs["tags"]:
             self.insert_tag(tag, "manual")
 
-        if self.get_solution_by_group_name_version(group, name, version):
+        if self.get_solution_by_group_name_version(dict_to_group_name_version(solution_attrs)):
             self._update_solution(solution_attrs)
         else:
             self._insert_solution(solution_attrs)
@@ -460,17 +457,6 @@ class CatalogIndex(Database):
             write_dict_to_json(path, json_dumps_list)
         else:
             raise NotImplementedError("Unsupported format \"%s\"" % export_format)
-
-    @staticmethod
-    def check_requirements(solution_attrs):
-        for key in AlbumClass.deploy_keys:
-            get_dict_entry(solution_attrs, key, allow_none=False, message="Key %s in solution not set!" % key)
-
-        group = solution_attrs["group"]
-        name = solution_attrs["name"]
-        version = solution_attrs["version"]
-
-        return group, name, version
 
     def __len__(self):
         r = self.get_cursor().execute("SELECT COUNT(*) FROM solution").fetchone()

@@ -1,28 +1,28 @@
 import errno
-import hashlib
 import os
 import re
 import sys
 from pathlib import Path
 
+from album.core import load, AlbumClass
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.url_operations import is_url, download
-
-from album.core import load
+from album.core.model.group_name_version import GroupNameVersion
+from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import force_remove, \
     create_path_recursively, rand_folder_name, check_zip, unzip_archive, copy, copy_folder
+from album.core.utils.operations.url_operations import is_url, download
 from album_runner import logging
 
 module_logger = logging.get_active_logger
 
 
-def clean_resolve_tmp(tmp_cache_dir):
+def clean_resolve_tmp(tmp_cache_dir) -> None:
     """Cleans the temporary directory which might have been used during resolving."""
     force_remove(tmp_cache_dir)
     create_path_recursively(tmp_cache_dir)
 
 
-def get_attributes_from_string(str_input: str):
+def get_attributes_from_string(str_input: str) -> dict:
     """Interprets a string input if in valid format and returns necessary attributes dictionary.
 
     Args:
@@ -51,10 +51,10 @@ def get_attributes_from_string(str_input: str):
     return attrs_dict
 
 
-def _load_solution(resolve):
-    active_solution = load(resolve["path"])
+def _load_solution(resolve: ResolveResult) -> AlbumClass:
+    active_solution = load(resolve.path)
     # init the album environment
-    active_solution.set_environment(resolve["catalog"].name)
+    active_solution.set_environment(resolve.catalog.name)
     return active_solution
 
 
@@ -192,16 +192,19 @@ def _check_file_or_url(path, tmp_cache_dir):
         return p
 
 
-def check_requirement(solution_attr):
+def dict_to_group_name_version(solution_attr) -> GroupNameVersion:
     if not all([k in solution_attr.keys() for k in ["name", "version", "group"]]):
         raise ValueError("Cannot resolve dependency! Either a DOI or name, group and version must be specified!")
-
-    return None
-
-
-def get_zip_name(g, n, v):
-    return get_zip_name_prefix(g, n, v) + ".zip"
+    return GroupNameVersion(group=solution_attr["group"], name=solution_attr["name"], version=solution_attr["version"])
 
 
-def get_zip_name_prefix(g, n, v):
-    return "_".join([g, n, v])
+def solution_to_group_name_version(solution) -> GroupNameVersion:
+    return GroupNameVersion(group=solution.group, name=solution.name, version=solution.version)
+
+
+def get_zip_name(group_name_version: GroupNameVersion):
+    return get_zip_name_prefix(group_name_version) + ".zip"
+
+
+def get_zip_name_prefix(group_name_version: GroupNameVersion):
+    return "_".join([group_name_version.group, group_name_version.name, group_name_version.version])

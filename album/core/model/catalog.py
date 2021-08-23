@@ -8,10 +8,11 @@ from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
+from album.core.model.group_name_version import GroupNameVersion
 from album.core.utils.operations.file_operations import unzip_archive, copy, copy_folder, get_dict_from_json, \
     write_dict_to_json
 from album.core.utils.operations.git_operations import download_repository, init_repository
-from album.core.utils.operations.resolve_operations import get_zip_name
+from album.core.utils.operations.resolve_operations import get_zip_name, dict_to_group_name_version
 from album.core.utils.operations.url_operations import download_resource
 from album_runner import logging
 
@@ -37,11 +38,12 @@ def get_index_dir(src):
 
 
 # todo: this is not good! Think of smth. clever here
-def get_solution_src(src, grp, name, version):
+def get_solution_src(src, group_name_version: GroupNameVersion):
     """Gets the download link for a solution in an index."""
     # todo: "main" is still hardcoded! :(
     return re.sub(r"\.git$", "", src) + "/-/raw/main/solutions/%s/%s/%s/%s" \
-           % (grp, name, version, "%s%s%s%s" % (grp, name, version, ".zip"))
+           % (group_name_version.group, group_name_version.name, group_name_version.version, 
+              "%s%s%s%s" % (group_name_version.group, group_name_version.name, group_name_version.version, ".zip"))
 
 
 class Catalog:
@@ -113,24 +115,20 @@ class Catalog:
         """Returns Boolean indicating whether the catalog is remote or local."""
         return not validators.url(str(self.src))
 
-    def resolve(self, group, name, version):
+    def resolve(self, group_name_version: GroupNameVersion):
         """Resolves (also: finds, looks up) a solution in the catalog, returning the absolute path to the solution file.
 
         Args:
-            group:
-                The group where the solution belongs to.
-            name:
-                The name of the solution
-            version:
-                The version of the solution
+            group_name_version:
+                The group affiliation, name, and version of the solution.
 
         Returns: the path to the solution file.
 
         """
-        solution_entry = self.catalog_index.get_solution_by_group_name_version(group, name, version)
+        solution_entry = self.catalog_index.get_solution_by_group_name_version(group_name_version)
 
         if solution_entry:
-            path_to_solution = self.get_solution_file(group, name, version)
+            path_to_solution = self.get_solution_file(group_name_version)
 
             return path_to_solution
 
@@ -151,84 +149,67 @@ class Catalog:
 
         if solution_entry:
             path_to_solution = self.get_solution_file(
-                solution_entry["group"],
-                solution_entry["name"],
-                solution_entry["version"]
+                dict_to_group_name_version(solution_entry)
             )
 
             return path_to_solution
 
         return None  # could not resolve
 
-    def get_solution_path(self, g, n, v):
+    def get_solution_path(self, group_name_version: GroupNameVersion):
         """Gets the cache path of a solution given its group, name and version.
 
         Args:
-            g:
-                The group affiliation of the solution.
-            n:
-                The name of the solution.
-            v:
-                The version of the solution.
+            group_name_version:
+                The group affiliation, name, and version of the solution.
 
         Returns:
             The absolute path to the cache folder of the solution.
 
         """
-        return self.path.joinpath(Configuration.get_solution_path_suffix(g, n, v))
+        return self.path.joinpath(Configuration.get_solution_path_suffix(group_name_version))
 
-    def get_solution_file(self, g, n, v):
+    def get_solution_file(self, group_name_version: GroupNameVersion):
         """Gets the file to the solution.py file of the extracted solution.zip living inside the catalog.
 
         Args:
-            g:
-                The group affiliation of the solution.
-            n:
-                The name of the solution.
-            v:
-                The version of the solution.
+            group_name_version:
+                The group affiliation, name, and version of the solution.
 
         Returns:
             The path where the file is supposed to be once the zip is extracted during installation.
 
         """
-        p = self.get_solution_path(g, n, v).joinpath(DefaultValues.solution_default_name.value)
+        p = self.get_solution_path(group_name_version).joinpath(DefaultValues.solution_default_name.value)
 
         return p
 
-    def get_solution_zip(self, g, n, v):
+    def get_solution_zip(self, group_name_version: GroupNameVersion):
         """Gets the cache zip of a solution given its group, name and version living inside the catalog.
 
         Args:
-            g:
-                The group affiliation of the solution.
-            n:
-                The name of the solution.
-            v:
-                The version of the solution.
+            group_name_version:
+                The group affiliation, name, and version of the solution.
 
         Returns:
             The absolute path to the solution.py cache file.
 
         """
-        return self.get_solution_path(g, n, v).joinpath(get_zip_name(g, n, v))
+        return self.get_solution_path(group_name_version).joinpath(get_zip_name(group_name_version))
 
-    def get_solution_zip_suffix(self, g, n, v):
+    @staticmethod
+    def get_solution_zip_suffix(group_name_version: GroupNameVersion):
         """Gets the cache zip suffix of a solution given its group, name and version living inside the catalog.
 
         Args:
-            g:
-                The group affiliation of the solution.
-            n:
-                The name of the solution.
-            v:
-                The version of the solution.
+            group_name_version:
+                The group affiliation, name, and version of the solution.
 
         Returns:
             The absolute path to the cache folder of the solution.
 
         """
-        return Path("").joinpath(Configuration.get_solution_path_suffix(g, n, v), get_zip_name(g, n, v))
+        return Path("").joinpath(Configuration.get_solution_path_suffix(group_name_version), get_zip_name(group_name_version))
 
     # todo: write tests
     def download_solution_via_doi(self, doi, solution_name):
@@ -270,17 +251,12 @@ class Catalog:
 
         return self.path.joinpath(self.doi_solution_prefix, doi)
 
-    def retrieve_solution(self, group, name, version):
+    def retrieve_solution(self, group_name_version: GroupNameVersion):
         """Downloads or copies a solution from the catalog to the local resource (cache path of the catalog).
 
         Args:
-            group:
-                The group affiliation of the solution.
-            name:
-                The name of the solution.
-            version:
-                The version of the solution.
-
+            group_name_version:
+                The group affiliation, name, and version of the solution.
         Returns:
             The absolute path of the downloaded solution.
 
@@ -289,13 +265,13 @@ class Catalog:
             raise RuntimeError("Cannot download from a cache catalog!")
 
         elif self.is_local():  # src to copy from
-            src_path = Path(self.src).joinpath(self.get_solution_zip_suffix(group, name, version))
-            solution_zip_file = self.get_solution_zip(group, name, version)
+            src_path = Path(self.src).joinpath(self.get_solution_zip_suffix(group_name_version))
+            solution_zip_file = self.get_solution_zip(group_name_version)
             copy(src_path, solution_zip_file)
 
         else:  # src to download from
-            url = get_solution_src(self.src, group, name, version)
-            solution_zip_file = self.get_solution_zip(group, name, version)
+            url = get_solution_src(self.src, group_name_version)
+            solution_zip_file = self.get_solution_zip(group_name_version)
             download_resource(url, solution_zip_file)
 
         solution_zip_path = unzip_archive(solution_zip_file)
@@ -389,7 +365,7 @@ class Catalog:
             solution_attrs["deposit_id"] = getattr(active_solution, "deposit_id")
 
         if self.catalog_index.get_solution_by_group_name_version(
-                solution_attrs["group"], solution_attrs["name"], solution_attrs["version"]
+                dict_to_group_name_version(solution_attrs)
         ) is not None:
             if force_overwrite:
                 module_logger().warning("Solution already exists! Overwriting...")
@@ -414,7 +390,7 @@ class Catalog:
             if not self.catalog_index:
                 self.load_index()
             solution_entry = self.catalog_index.remove_solution_by_group_name_version(
-                solution_attrs["group"], solution_attrs["name"], solution_attrs["version"]
+                dict_to_group_name_version(solution_attrs)
             )
             if solution_entry:
                 self.catalog_index.export(self.solution_list_path)

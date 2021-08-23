@@ -42,7 +42,7 @@ class MigrationManager(metaclass=Singleton):
         self.migrate_catalog_locally(catalog_meta_information["version"], CatalogIndex.version)
 
     def _merge_catalog(self, catalog):
-        catalog_entry = self.catalog_collection.get_catalog_by_name(catalog.name)
+        catalog_entry = self.catalog_collection.get_by_name(catalog.name)
         catalog_id = catalog_entry["catalog_id"]
         # get changes
         catalog_solution_changes, collection_solution_changes = self.get_changes_solution(catalog)
@@ -107,7 +107,7 @@ class MigrationManager(metaclass=Singleton):
             )
 
     def get_changes_solution(self, catalog: Catalog):
-        catalog_entry = self.catalog_collection.get_catalog_by_name(catalog.name)
+        catalog_entry = self.catalog_collection.get_by_name(catalog.name)
         catalog_id = catalog_entry["catalog_id"]
 
         collection_solution_entries = self.catalog_collection.get_solutions_by_catalog(catalog_id)
@@ -119,7 +119,7 @@ class MigrationManager(metaclass=Singleton):
         return self._get_changes_solution(hash_set_collection_solution, hash_set_catalog_solution, catalog)
 
     def get_changes_tag(self, catalog: Catalog):
-        catalog_entry = self.catalog_collection.get_catalog_by_name(catalog.name)
+        catalog_entry = self.catalog_collection.get_by_name(catalog.name)
         catalog_id = catalog_entry["catalog_id"]
 
         collection_tag_entries = self.catalog_collection.get_collection_tags_by_catalog_id(catalog_id)
@@ -133,7 +133,7 @@ class MigrationManager(metaclass=Singleton):
 
     def _get_changes_solution_tag(self, set_collection, set_catalog, catalog):
         diff_set = set(set_collection) ^ set(set_catalog)
-        collection_catalog_id = self.catalog_collection.get_catalog_by_name(catalog.name)["catalog_id"],
+        collection_catalog_id = self.catalog_collection.get_by_name(catalog.name)["catalog_id"],
         catalog_changes = []
         collection_changes = []
 
@@ -170,7 +170,7 @@ class MigrationManager(metaclass=Singleton):
             return catalog_changes, collection_changes
 
     def get_changes_solution_tag(self, catalog: Catalog):
-        catalog_entry = self.catalog_collection.get_catalog_by_name(catalog.name)
+        catalog_entry = self.catalog_collection.get_by_name(catalog.name)
         catalog_id = catalog_entry["catalog_id"]
 
         collection_solution_tag_entries = self.catalog_collection.get_collection_solution_tags_by_catalog_id(catalog_id)
@@ -183,7 +183,7 @@ class MigrationManager(metaclass=Singleton):
 
     def _get_changes_tag(self, set_collection, set_catalog, catalog):
         diff_set = set(set_collection) ^ set(set_catalog)
-        collection_catalog_id = self.catalog_collection.get_catalog_by_name(catalog.name)["catalog_id"],
+        collection_catalog_id = self.catalog_collection.get_by_name(catalog.name)["catalog_id"],
         catalog_changes = []
         collection_changes = []
 
@@ -226,7 +226,7 @@ class MigrationManager(metaclass=Singleton):
             solution = catalog.catalog_index.get_solution_by_hash(h)
             if solution:
                 old_collection_solution = self.catalog_collection.get_solution_by_catalog_grp_name_version(
-                    self.catalog_collection.get_catalog_by_name(catalog.name)["catalog_id"],
+                    self.catalog_collection.get_by_name(catalog.name)["catalog_id"],
                     solution["group"],
                     solution["name"],
                     solution["version"]

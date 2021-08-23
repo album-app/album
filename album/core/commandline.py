@@ -1,5 +1,5 @@
 from album.core import get_active_solution
-from album.core.controller.catalog_manager import CatalogManager
+from album.core.controller.collection_manager import CollectionManager
 from album.core.controller.deploy_manager import DeployManager
 from album.core.controller.install_manager import InstallManager
 from album.core.controller.remove_manager import RemoveManager
@@ -17,15 +17,15 @@ module_logger = logging.get_active_logger
 
 
 def add_catalog(args):
-    CatalogManager().add_catalog_to_collection(args.src)
+    CollectionManager().catalogs().add_by_src(args.src)
 
 
 def remove_catalog(args):
-    CatalogManager().remove_catalog_from_collection_by_src(args.src)
+    CollectionManager().catalogs().remove_from_index_by_src(args.src)
 
 
 def update(args):
-    CatalogManager().update_any(args.catalog_id)
+    CollectionManager().catalogs().update_any(args.catalog_id)
 
 
 def deploy(args):

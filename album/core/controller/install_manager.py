@@ -1,7 +1,8 @@
 import sys
 
 from album.core.concept.singleton import Singleton
-from album.core.controller.catalog_manager import CatalogManager
+from album.core.controller.collection_manager import CollectionManager
+from album.core.utils.operations.resolve_operations import dict_to_group_name_version
 from album.core.utils.script import create_solution_script
 from album_runner import logging
 
@@ -25,34 +26,37 @@ class InstallManager(metaclass=Singleton):
     catalog_manager = None
 
     def __init__(self):
-        self.catalog_manager = CatalogManager()
+        self.catalog_manager = CollectionManager()
         self.configuration = self.catalog_manager.configuration
 
     def install(self, path):
         """Function corresponding to the `install` subcommand of `album`."""
         # Load solution
-        resolve, active_solution = self.catalog_manager.resolve_download_and_load(path)
+        resolve_result = self.catalog_manager.resolve_download_and_load(path)
+        solution = resolve_result.active_solution
+        catalog = resolve_result.catalog
 
-        if not resolve["catalog"]:
-            module_logger().debug('album loaded locally: %s...' % str(active_solution))
+        if not catalog:
+            module_logger().debug('album loaded locally: %s...' % str(solution))
         else:
-            module_logger().debug('album loaded from catalog %s: %s...' % (resolve["catalog"].catalog_id, str(active_solution)))
+            module_logger().debug('album loaded from catalog %s: %s...' % (catalog.catalog_id, str(
+                solution)))
 
         # execute installation routine
-        parent_catalog_id = self._install(active_solution)
+        parent_catalog_id = self._install(solution)
 
         #TODO this is messy and needs to be cleaned up
-        if not resolve["catalog"] or resolve["catalog"].is_local:  # case where a solution file is directly given
-            self.catalog_manager.add_to_local_catalog(active_solution, resolve["path"].parent)
+        if not catalog or catalog.is_local:  # case where a solution file is directly given
+            self.catalog_manager.add_solution_to_local_catalog(solution, resolve_result.path.parent)
         else:
-            self.update_in_collection_index(resolve["catalog"].catalog_id, parent_catalog_id, active_solution)
+            self.update_in_collection_index(catalog.catalog_id, parent_catalog_id, solution)
 
         self.catalog_manager.catalog_collection.update_solution(
-            resolve["catalog"].catalog_id, {"installed": 1, "group": active_solution["group"], "name": active_solution["name"], "version": active_solution["version"]}
+            catalog.catalog_id, {"installed": 1, "group": solution["group"], "name": solution["name"], "version": solution["version"]}
         )
-        module_logger().info('Installed %s!' % active_solution['name'])
+        module_logger().info('Installed %s!' % solution['name'])
 
-        return resolve["catalog"].catalog_id
+        return catalog.catalog_id
 
     def update_in_collection_index(self, catalog_id, parent_catalog_id, active_solution):
         parent_id = None
@@ -61,7 +65,7 @@ class InstallManager(metaclass=Singleton):
             parent = active_solution.parent
 
             parent_entry = self.catalog_manager.catalog_collection.get_solution_by_catalog_grp_name_version(
-                parent_catalog_id, parent["group"], parent["name"], parent["version"]
+                parent_catalog_id, dict_to_group_name_version(parent)
             )
             parent_id = parent_entry["solution_id"]
 
@@ -112,7 +116,7 @@ class InstallManager(metaclass=Singleton):
     def install_dependency(self, dependency):
         """Calls `install` for a solution declared in a dependency block"""
         script_path = self
-        self.catalog_manager.resolve_dependency(dependency)["path"]
+        self.catalog_manager.resolve_dependency(dependency).path
         # recursive installation call
         catalog_id = self.install(script_path)
 

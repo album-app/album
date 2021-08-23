@@ -25,10 +25,10 @@ class TestIntegrationSearch(TestIntegrationCommon):
         # populate tmp_index!
         h = load(self.get_test_solution_path())
         h["description"] = "keyword1"
-        local_catalog = self.test_catalog_manager.get_local_catalog()
-        self.test_catalog_manager.add_to_local_catalog(h, self.get_test_solution_path())
+        local_catalog = self.collection_manager.catalogs().get_local_catalog()
+        self.collection_manager.add_solution_to_local_catalog(h, self.get_test_solution_path())
 
-        self.assertEqual(1, len(self.test_catalog_manager.catalog_collection.get_solutions_by_catalog(local_catalog.catalog_id)))
+        self.assertEqual(1, len(self.collection_manager.catalog_collection.get_solutions_by_catalog(local_catalog.catalog_id)))
 
         # define and run search
         sys.argv = ["", "search", "keyword1"]

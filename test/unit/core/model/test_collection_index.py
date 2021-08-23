@@ -2,6 +2,7 @@ import unittest
 from pathlib import Path
 
 from album.core.model.collection_index import CollectionIndex
+from album.core.model.group_name_version import GroupNameVersion
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -157,7 +158,7 @@ class TestCollectionIndex(TestUnitCommon):
         )
 
         r = self.test_catalog_collection.get_solution_by_catalog_grp_name_version(
-            "catalog_id_exceptionell", "grp_exceptionell", "name_exceptionell", "version_exceptionell"
+            "catalog_id_exceptionell", GroupNameVersion("grp_exceptionell", "name_exceptionell", "version_exceptionell")
         )
         r.pop("install_date")
 
@@ -180,7 +181,7 @@ class TestCollectionIndex(TestUnitCommon):
         self.test_catalog_collection.insert_solution("cat3", self._get_solution_attrs(3, "grp", "name", "version"))
         self.test_catalog_collection.insert_solution("cat1", self._get_solution_attrs(4, "grp_d", "name_d", "version_d"))
 
-        r = self.test_catalog_collection.get_solutions_by_grp_name_version("grp", "name", "version")
+        r = self.test_catalog_collection.get_solutions_by_grp_name_version(GroupNameVersion("grp", "name", "version"))
 
         for i in range(1, 4):
             expected = self._get_expected_attrs({
@@ -224,12 +225,12 @@ class TestCollectionIndex(TestUnitCommon):
         self.test_catalog_collection.insert_solution("cat2", self._get_solution_attrs(2, "grp", "name", "version"))
         self.test_catalog_collection.insert_solution("cat1", self._get_solution_attrs(3, "grp_d", "name_d", "version_d"))
 
-        self.test_catalog_collection.remove_solution("cat2", "grp", "name", "version")
+        self.test_catalog_collection.remove_solution("cat2", GroupNameVersion("grp", "name", "version"))
 
         self.assertEqual(2, len(self.test_catalog_collection.get_all_solutions()))
         self.assertEqual(4, self.test_catalog_collection.next_id("collection"))
 
-        self.test_catalog_collection.remove_solution("cat1", "grp_d", "name_d", "version_d")
+        self.test_catalog_collection.remove_solution("cat1", GroupNameVersion("grp_d", "name_d", "version_d"))
         self.assertEqual(1, len(self.test_catalog_collection.get_all_solutions()))
 
         self.assertEqual(2, self.test_catalog_collection.next_id("collection"))
@@ -285,7 +286,7 @@ class TestCollectionIndex(TestUnitCommon):
         self.test_catalog_collection.insert_solution("cat2", self._get_solution_attrs(2, "grp", "name", "version"))
         self.test_catalog_collection.insert_solution("cat1", self._get_solution_attrs(3, "grp_d", "name_d", "version_d"))
 
-        self.assertFalse(self.test_catalog_collection.is_installed("cat1", "grp", "name", "version"))
+        self.assertFalse(self.test_catalog_collection.is_installed("cat1", GroupNameVersion("grp", "name", "version")))
 
     @unittest.skip("Needs to be implemented!")
     def test_remove_entire_catalog(self):

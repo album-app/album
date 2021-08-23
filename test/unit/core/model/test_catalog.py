@@ -5,10 +5,12 @@ from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-from album.core.controller.catalog_manager import CatalogManager
+from album.core.controller.catalog_handler import CatalogHandler
+from album.core.controller.collection_manager import CollectionManager
 from album.core.model.album_base import AlbumClass
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
+from album.core.model.group_name_version import GroupNameVersion
 from test.unit.test_unit_common import TestUnitCommon
 
 empty_index = """{
@@ -40,7 +42,7 @@ class TestCatalog(TestUnitCommon):
     def setUp(self):
         super().setUp()
         catalog_src = Path(self.tmp_dir.name).joinpath("testRepo")
-        CatalogManager.create_new_catalog(catalog_src, "test")
+        CatalogHandler.create_new_catalog(catalog_src, "test")
         catalog_path = Path(self.tmp_dir.name).joinpath("testPath")
         catalog_path.mkdir(parents=True)
         self.catalog = Catalog(0, "test", catalog_src, catalog_path)
@@ -154,7 +156,7 @@ class TestCatalog(TestUnitCommon):
     @patch('album.core.model.catalog.Catalog.get_solution_file')
     def test_resolve_nothing_found(self, get_solution_file_mock):
         get_solution_file_mock.return_value = None
-        self.assertIsNone(self.catalog.resolve("a", "b", "c"))
+        self.assertIsNone(self.catalog.resolve(GroupNameVersion("a", "b", "c")))
 
     @patch('album.core.model.catalog.Catalog.get_solution_file')
     def test_resolve_doi_nothing_found(self, get_solution_file_mock):
@@ -166,7 +168,7 @@ class TestCatalog(TestUnitCommon):
         self.populate_index()
         get_solution_file_mock.side_effect = [Path(self.closed_tmp_file.name)]
 
-        search_result = self.catalog.resolve("group0", "name0", "version0")
+        search_result = self.catalog.resolve(GroupNameVersion("group0", "name0", "version0"))
 
         self.assertEqual(search_result, Path(self.closed_tmp_file.name))
 
@@ -238,14 +240,14 @@ class TestCatalog(TestUnitCommon):
 
     def test_get_solution_path(self):
         self.assertEqual(
-            self.catalog.get_solution_path("g", "n", "v"),
+            self.catalog.get_solution_path(GroupNameVersion("g", "n", "v")),
             self.catalog.path.joinpath(self.catalog.gnv_solution_prefix, "g", "n", "v")
         )
 
     def test_get_solution_zip(self):
         res = self.catalog.path.joinpath(DefaultValues.cache_path_solution_prefix.value, "g", "n", "v", "g_n_v.zip")
 
-        self.assertEqual(res, self.catalog.get_solution_zip("g", "n", "v"))
+        self.assertEqual(res, self.catalog.get_solution_zip(GroupNameVersion("g", "n", "v")))
 
     @unittest.skip("Needs to be implemented!")
     def test_download_solution_via_doi(self):
@@ -265,7 +267,7 @@ class TestCatalog(TestUnitCommon):
         )
         res = Path("a/Path").joinpath(DefaultValues.solution_default_name.value)
 
-        self.assertEqual(res, self.catalog.retrieve_solution("g", "n", "v"))
+        self.assertEqual(res, self.catalog.retrieve_solution(GroupNameVersion("g", "n", "v")))
         dl_mock.assert_called_once_with(dl_url, dl_path)
         unzip_mock.assert_called_once_with(dl_path)
 

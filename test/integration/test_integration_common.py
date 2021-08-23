@@ -8,8 +8,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 import album.core as album
+from album.core.controller.catalog_handler import CatalogHandler
 from album.core.controller.conda_manager import CondaManager
-from album.core.controller.catalog_manager import CatalogManager
+from album.core.controller.collection_manager import CollectionManager
 from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
 from album.core.utils.operations.file_operations import copy
@@ -37,18 +38,18 @@ class TestIntegrationCommon(unittest.TestCase):
         # load singletons with test configuration
         self.create_test_config()
 
-        self.test_catalog_manager = CatalogManager()
-        self.test_collection = self.test_catalog_manager.catalog_collection
+        self.collection_manager = CollectionManager()
+        self.test_collection = self.collection_manager.catalog_collection
         self.assertTrue(self.test_collection.is_empty())
 
     def add_test_catalog(self):
         path = Path(self.tmp_dir.name).joinpath("my-catalogs", "test_catalog")
-        CatalogManager.create_new_catalog(path, "test_catalog")
-        self.test_catalog_manager.add_catalog_to_collection(path)
+        CatalogHandler.create_new_catalog(path, "test_catalog")
+        self.collection_manager.catalogs().add_by_src(path)
 
     def tearDown(self) -> None:
         # clean all environments specified in test-resources
-        local_catalog_id = str(self.test_catalog_manager.get_local_catalog().catalog_id)
+        local_catalog_id = str(self.collection_manager.catalogs().get_local_catalog().catalog_id)
         env_names = [
             local_catalog_id + "_group_name_0.1.0",
             local_catalog_id + "_group_app1_0.1.0",
@@ -114,22 +115,22 @@ class TestIntegrationCommon(unittest.TestCase):
         # add to local catalog
         a = album.load(path)
 
-        local_catalog = self.test_catalog_manager.get_local_catalog()
+        local_catalog = self.collection_manager.catalogs().get_local_catalog()
         if create_environment:
             env_name = "_".join([local_catalog.name, a["group"], a["name"], a["version"]])
             Environment(None, env_name, "unusedCachePath").install()
 
         # add to collection, assign to local catalog
         len_catalog_before = len(self.test_collection.get_solutions_by_catalog(local_catalog.catalog_id))
-        self.test_catalog_manager.add_to_local_catalog(a, path)
-        self.test_catalog_manager.catalog_collection.update_solution(local_catalog.catalog_id, 
-                 {"group": a["group"], "name": a["name"], "version": a["version"], "installed": 1})
+        self.collection_manager.add_solution_to_local_catalog(a, path)
+        self.collection_manager.catalog_collection.update_solution(local_catalog.catalog_id,
+                                                                   {"group": a["group"], "name": a["name"], "version": a["version"], "installed": 1})
         self.assertEqual(len_catalog_before + 1, len(self.test_collection.get_solutions_by_catalog(local_catalog.catalog_id)))
 
         # copy to correct folder
         copy(
             path,
-            self.test_catalog_manager.get_local_catalog().path.joinpath(
+            self.collection_manager.catalogs().get_local_catalog().path.joinpath(
                 DefaultValues.cache_path_solution_prefix.value,
                 a["group"],
                 a["name"],
