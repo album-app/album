@@ -2,7 +2,7 @@ import argparse
 import sys
 
 from album.core.commandline import add_catalog, remove_catalog, deploy, \
-    install, remove, repl, run, search, start_server, test, update
+    install, remove, repl, run, search, start_server, test, update, clone
 from album_runner import logging
 from album_runner.logging import debug_settings
 
@@ -116,6 +116,20 @@ def create_parser():
         '--catalog-id',
         required=False,
         help='The catalog id (also name) of the catalog to update!',
+        default=None
+    )
+    p = parser.create_command_parser('clone', clone, 'clone an album solution or catalog template')
+    p.add_argument('src', type=str, help='path for the solution file, group:name:version or name of the catalog template')
+    p.add_argument(
+        '--target_dir',
+        required=True,
+        help='The target directory where the solution or catalog will be added to',
+        default=None
+    )
+    p.add_argument(
+        '--name',
+        required=True,
+        help='The new name of the cloned solution or catalog',
         default=None
     )
     parser.create_file_command_parser(

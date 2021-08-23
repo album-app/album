@@ -1,4 +1,5 @@
 from album.core import get_active_solution
+from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection_manager import CollectionManager
 from album.core.controller.deploy_manager import DeployManager
 from album.core.controller.install_manager import InstallManager
@@ -54,6 +55,10 @@ def start_server(args):
 
 def test(args):
     TestManager().test(args.path)
+
+
+def clone(args):
+    CloneManager().clone(args.src, args.target_dir, args.name)
 
 
 def repl(args):

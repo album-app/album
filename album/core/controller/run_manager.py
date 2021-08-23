@@ -10,7 +10,6 @@ from album.core.utils.script import create_solution_script
 from album_runner import logging
 
 module_logger = logging.get_active_logger
-from album.core.model.resolve_result import ResolveResult
 
 
 class RunManager(metaclass=Singleton):
