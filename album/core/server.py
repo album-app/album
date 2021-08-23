@@ -6,6 +6,7 @@ from flask import Flask, request
 from werkzeug.exceptions import abort
 
 from album.core.concept.singleton import Singleton
+from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection_manager import CollectionManager
 from album.core.controller.deploy_manager import DeployManager
 from album.core.controller.install_manager import InstallManager
@@ -119,6 +120,23 @@ class AlbumServer(metaclass=Singleton):
             task = Task()
             task.args = (solution_path, catalog_name, dryrun, trigger_pipeline)
             task.method = DeployManager().deploy
+            TaskManager().register_task(task)
+            return {"id": task.id, "msg": "process started"}
+
+        @self.app.route('/clone')
+        def clone():
+            src = request.args.get("src")
+            target_dir = request.args.get("target_dir")
+            name = request.args.get("name")
+            if src is None:
+                abort(404, description=f"`src` argument missing")
+            if target_dir is None:
+                abort(404, description=f"`target_dir` argument missing")
+            if name is None:
+                abort(404, description=f"`name` argument missing")
+            task = Task()
+            task.args = (src, target_dir, name)
+            task.method = CloneManager().clone
             TaskManager().register_task(task)
             return {"id": task.id, "msg": "process started"}
 

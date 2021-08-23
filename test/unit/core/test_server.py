@@ -52,16 +52,23 @@ class TestServer(flask_unittest.ClientTestCase, TestUnitCommon):
 
     @patch("album.core.controller.collection_manager.CatalogHandler.add_by_src", return_value=Catalog(1, "", ""))
     def test_add_catalog(self, client, route):
-        json = self.getJSONResponse(client, "/%s?src=CATALOG_URL" % "add-catalog")
+        json = self.getJSONResponse(client, "/add-catalog?src=CATALOG_URL")
         self.assertIsNotNone(json)
         self.assertEqual(1, json["catalog_id"])
         self.assertEqual(3, route.call_count)
 
     @patch("album.core.controller.collection_manager.CatalogHandler.remove_from_index_by_src", return_value=None)
     def test_remove_catalog(self, client, route):
-        json = self.getJSONResponse(client, "/%s?src=CATALOG_URL" % "remove-catalog")
+        json = self.getJSONResponse(client, "/remove-catalog?src=CATALOG_URL")
         self.assertIsNotNone(json)
         self.assertEqual(1, route.call_count)
+
+    @patch("album.core.controller.clone_manager.CloneManager.clone", return_value=None)
+    def test_clone_catalog(self, client, route):
+        json = self.getJSONResponse(client, f"/clone?src=catalog&target_dir={self.tmp_dir.name}&name=my-name")
+        self.assertIsNotNone(json)
+        TaskManager().server_queue.join()
+        route.assert_called_once_with("catalog", self.tmp_dir.name, "my-name")
 
     @patch("album.core.controller.search_manager.SearchManager.search", return_value={})
     def test_search(self, client, route):
