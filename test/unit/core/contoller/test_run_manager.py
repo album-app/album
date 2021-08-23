@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from album.core.model.resolve_result import ResolveResult
 from album.core.controller.run_manager import RunManager
+from album.core.model.solution_collection import SolutionCollection
 from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
 
 
@@ -221,12 +222,12 @@ class TestRunManager(TestUnitCommon):
         self.assertEqual(0, _get_args.call_count)  # 0 times arguments resolved
         self.assertEqual(0, create_solution_run_script_standalone.call_count)  # 0 times standalone script created
 
-        create_solution_run_collection_script.assert_called_once_with({
-            "parent_script_path": "aPathParent",
-            "parent_script_catalog": catalog,
-            "steps_solution": [self.active_solution, self.active_solution],
-            "steps": steps
-        })
+        create_solution_run_collection_script.assert_called_once_with(SolutionCollection(
+            parent_script_path="aPathParent",
+            parent_script_catalog=catalog,
+            steps_solution=[self.active_solution, self.active_solution],
+            steps=steps
+        ))
         run_queue.assert_not_called()
 
         # result
@@ -340,12 +341,12 @@ class TestRunManager(TestUnitCommon):
 
         # prepare
         self.active_solution.parent = {"name": "aParent"}
-        p = {
-            "parent_script_path": "aPathToaParent",
-            "parent_script_catalog": catalog,
-            "steps_solution": [self.active_solution, self.active_solution],
-            "steps": ["step1", "step2"]
-        }
+        p = SolutionCollection(
+            parent_script_path="aPathToaParent",
+            parent_script_catalog=catalog,
+            steps_solution=[self.active_solution, self.active_solution],
+            steps=["step1", "step2"]
+        )
 
         # call
         r = self.run_manager.create_solution_run_collection_script(p)
