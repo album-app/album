@@ -26,7 +26,12 @@ def remove_catalog(args):
 
 
 def update(args):
-    CollectionManager().catalogs().update_any(args.catalog_id)
+    CollectionManager().catalogs().update_any(getattr(args, "catalog_name", None))
+
+
+def upgrade(args):
+    module_logger().info(CollectionManager().catalogs().update_collection(getattr(args, "catalog_name", None),
+                                                                          dry_run=getattr(args, "dry_run", False)))
 
 
 def deploy(args):

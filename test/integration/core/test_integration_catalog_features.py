@@ -3,9 +3,12 @@ import unittest
 from pathlib import Path
 
 from album.argument_parsing import main
+from album.core import AlbumClass
 from album.core.controller.catalog_handler import CatalogHandler
 from album.core.controller.collection_manager import CollectionManager
+from album.core.model.catalog_updates import ChangeType
 from test.integration.test_integration_common import TestIntegrationCommon
+from test.unit.test_unit_common import TestUnitCommon
 
 
 class TestIntegrationCatalogFeatures(TestIntegrationCommon):
@@ -49,6 +52,78 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         self.assertEqual(initial_len, len(catalogs))
         for catalog in catalogs:
             self.assertIsNotNone(initial_catalogs.get(catalog["name"], None))
+
+    def test_update_collection(self):
+        catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", "my-catalog")
+        CatalogHandler.create_new_catalog(catalog_src, "my-catalog")
+        catalog = self.collection_manager.catalogs().add_by_src(catalog_src)
+        self.assertTrue(catalog.is_local())
+        solution_dict = TestUnitCommon.get_solution_dict()
+        solution = AlbumClass(solution_dict)
+
+        # check that initially no updates are available
+
+        dif = self.collection_manager.catalogs().update_collection(catalog.name, dry_run=True)
+
+        self.assertIsNotNone(dif)
+        self.assertEqual(1, len(dif))
+        self.assertIsNotNone(dif[0].catalog_attribute_changes)
+        self.assertIsNotNone(dif[0].solution_changes)
+        self.assertEqual(0, len(dif[0].catalog_attribute_changes))
+        self.assertEqual(0, len(dif[0].solution_changes))
+
+        # add new solution to catalog
+        catalog.add(solution)
+
+        dif = self.collection_manager.catalogs().update_collection(catalog.name, dry_run=True)
+
+        self.assertEqual(0, len(dif[0].catalog_attribute_changes))
+        self.assertEqual(1, len(dif[0].solution_changes))
+        self.assertEqual(ChangeType.ADDED, dif[0].solution_changes[0].change_type)
+
+        # update collection
+
+        dif = self.collection_manager.catalogs().update_collection(catalog.name, dry_run=False)
+
+        self.assertEqual(0, len(dif[0].catalog_attribute_changes))
+        self.assertEqual(1, len(dif[0].solution_changes))
+        self.assertEqual(ChangeType.ADDED, dif[0].solution_changes[0].change_type)
+
+        dif = self.collection_manager.catalogs().update_collection(catalog.name, dry_run=True)
+
+        self.assertEqual(0, len(dif[0].catalog_attribute_changes))
+        self.assertEqual(0, len(dif[0].solution_changes))
+
+    def test_update_upgrade(self):
+        initial_len = len(CollectionManager().catalog_collection.get_all_catalogs())
+
+        # add catalog
+        catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", "my-catalog")
+        CatalogHandler.create_new_catalog(catalog_src, "my-catalog")
+        catalog = self.collection_manager.catalogs().add_by_src(catalog_src)
+        catalog.load_index()
+        self.assertTrue(catalog.is_local())
+
+        # add new solution to catalog
+        solution_dict = TestUnitCommon.get_solution_dict()
+        solution = AlbumClass(solution_dict)
+        catalog.add(solution)
+        catalogs = CollectionManager().catalog_collection.get_all_catalogs()
+        self.assertEqual(initial_len + 1, len(catalogs))
+        self.assertEqual(1, len(catalog.catalog_index.get_all_solutions()))
+
+        # update collection
+        sys.argv = ["", "update"]
+        self.assertIsNone(main())
+
+        # upgrade collection
+        sys.argv = ["", "upgrade"]
+        self.assertIsNone(main())
+
+        # assert
+        catalogs = CollectionManager().catalog_collection.get_all_catalogs()
+        self.assertEqual(1, len(catalog.catalog_index.get_all_solutions()))
+        self.assertEqual(1, len(CollectionManager().catalog_collection.get_solutions_by_catalog(catalog.catalog_id)))
 
 
 if __name__ == '__main__':

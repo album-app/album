@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from typing import List, Optional
 
 from album.core import AlbumClass
 from album.core.concept.database import Database
@@ -196,7 +197,7 @@ class CatalogIndex(Database):
                 solutions.append(dict(s))
         return solutions
 
-    def get_solution_tag_by_hash(self, hash_value):
+    def get_solution_tag_by_hash(self, hash_value) -> Optional[dict]:
         r = self.get_cursor().execute(
             "SELECT * FROM solution_tag WHERE hash=:hash_value",
             {
@@ -208,7 +209,7 @@ class CatalogIndex(Database):
             solution_tag = dict(r)
         return solution_tag
 
-    def get_solution_tag_by_solution_id_and_tag_id(self, solution_id, tag_id):
+    def get_solution_tag_by_solution_id_and_tag_id(self, solution_id, tag_id) -> Optional[dict]:
         r = self.get_cursor().execute(
             "SELECT * FROM solution_tag WHERE solution_id=:solution_id AND tag_id=:tag_id",
             {
@@ -220,7 +221,7 @@ class CatalogIndex(Database):
             solution_tag = dict(r)
         return solution_tag
 
-    def get_solution_tags(self, solution_id):
+    def get_solution_tags(self, solution_id) -> List[int]:
         tag_ids = []
         r = self.get_cursor().execute(
             "SELECT * FROM solution_tag WHERE solution_id=:solution_id",
@@ -233,7 +234,7 @@ class CatalogIndex(Database):
 
         return tag_ids
 
-    def remove_solution_tags(self, solution_id):
+    def remove_solution_tags(self, solution_id) -> None:
         self.get_cursor().execute(
             "DELETE FROM solution_tag WHERE solution_id=:solution_id",
             {
@@ -243,7 +244,7 @@ class CatalogIndex(Database):
 
     # ### solution ###
 
-    def _insert_solution(self, solution_attrs):
+    def _insert_solution(self, solution_attrs) -> int:
         hash_val = self.create_hash(":".join([json.dumps(solution_attrs[k]) for k in solution_attrs.keys()]))
         solution_id = self.next_id("solution")
         self.get_cursor().execute(
@@ -268,9 +269,10 @@ class CatalogIndex(Database):
                 hash_val
             )
         )
+        self.save()
         return solution_id
 
-    def get_solution(self, solution_id):
+    def get_solution(self, solution_id) -> Optional[dict]:
         r = self.get_cursor().execute(
             "SELECT * FROM solution WHERE solution_id=:solution_id",
             {
@@ -281,7 +283,7 @@ class CatalogIndex(Database):
             solution = dict(r)
         return solution
 
-    def get_solution_by_group_name_version(self, group_name_version: GroupNameVersion):
+    def get_solution_by_group_name_version(self, group_name_version: GroupNameVersion) -> Optional[dict]:
         """Resolves a solution by its name, version and group.
 
         Args:
@@ -308,7 +310,7 @@ class CatalogIndex(Database):
             solution = dict(r)
         return solution
 
-    def get_solution_by_doi(self, doi):
+    def get_solution_by_doi(self, doi) -> Optional[dict]:
         """Resolves a solution by its DOI.
 
         Args:
@@ -337,7 +339,7 @@ class CatalogIndex(Database):
             solution = dict(r)
         return solution
 
-    def _update_solution(self, solution_attrs):
+    def _update_solution(self, solution_attrs) -> None:
         hash_val = self.create_hash(":".join([json.dumps(solution_attrs[k]) for k in solution_attrs.keys()]))
 
         self.get_cursor().execute(
@@ -375,6 +377,7 @@ class CatalogIndex(Database):
                 "hash_val": hash_val
             }
         )
+        self.save()
 
     def remove_solution(self, solution_id):
         # delete tags first

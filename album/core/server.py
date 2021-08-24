@@ -176,6 +176,36 @@ class AlbumServer(metaclass=Singleton):
                 CollectionManager().catalogs().remove_from_index_by_name(name)
             return {}
 
+        @self.app.route('/upgrade')
+        def upgrade():
+            src = request.args.get("src", default=None)
+            name = request.args.get("name", default=None)
+            dry_run = request.args.get("dry_run", default=False)
+            if name is None and src is None:
+                res = CollectionManager().catalogs().update_collection(dry_run=dry_run)
+            elif name is None:
+                catalog = CollectionManager().catalogs().get_by_src(src)
+                res = CollectionManager().catalogs().update_collection(catalog_name=catalog.name, dry_run=dry_run)
+            else:
+                res = CollectionManager().catalogs().update_collection(catalog_name=name, dry_run=dry_run)
+            r = []
+            for update_obj in res:
+                r.append(update_obj.as_dict())
+            return {"changes": r}
+
+        @self.app.route('/update')
+        def update():
+            src = request.args.get("src", default=None)
+            name = request.args.get("name", default=None)
+            if name is None and src is None:
+                CollectionManager().catalogs().update_any()
+            elif name is None:
+                catalog = CollectionManager().catalogs().get_by_src(src)
+                CollectionManager().catalogs().update_any(catalog.name)
+            else:
+                CollectionManager().catalogs().update_any(name)
+            return {}
+
         @self.app.route('/search/<keywords>')
         def search(keywords):
             return SearchManager().search(keywords)

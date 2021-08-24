@@ -1,12 +1,13 @@
 import unittest
 from copy import deepcopy
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 from unittest.mock import patch
 
 from album.core import AlbumClass
 from album.core.controller.collection_manager import CollectionManager
 from album.core.model.catalog import Catalog
+from album.core.model.catalog_updates import CatalogUpdates
 from album.core.model.default_values import DefaultValues
 from album.core.model.group_name_version import GroupNameVersion
 from album.core.utils.operations.resolve_operations import dict_to_group_name_version
@@ -184,6 +185,68 @@ class TestCatalogManager(TestUnitCommon):
         self.collection_manager.catalogs().update_any()
         update_all.assert_called_once()
         update_by_id.assert_not_called()
+
+    def test_update_collection_dry_run(self):
+        # mocks
+        catalog = self.collection_manager.catalogs().get_local_catalog()
+        _get_divergence_between_catalog_and_collection = MagicMock(return_value=CatalogUpdates(catalog))
+        _update_collection_from_catalog = MagicMock(return_value=None)
+        self.collection_manager.catalogs()._get_divergence_between_catalog_and_collection = _get_divergence_between_catalog_and_collection
+        self.collection_manager.catalogs()._update_collection_from_catalog = _update_collection_from_catalog
+
+        # call
+        res = self.collection_manager.catalogs().update_collection(dry_run=True)
+
+        # assert
+        self.assertEqual(3, len(res))
+        self.assertEqual(3, _get_divergence_between_catalog_and_collection.call_count)
+        self.assertEqual([call(catalog_name=catalog.name), call(catalog_name='default'), call(catalog_name='test_catalog2')],
+                         _get_divergence_between_catalog_and_collection.call_args_list)
+        _update_collection_from_catalog.assert_not_called()
+
+    def test_update_collection(self):
+        # mocks
+        catalog = self.collection_manager.catalogs().get_local_catalog()
+        _update_collection_from_catalog = MagicMock(return_value=CatalogUpdates(catalog))
+        self.collection_manager.catalogs()._update_collection_from_catalog = _update_collection_from_catalog
+
+        # call
+        res = self.collection_manager.catalogs().update_collection()
+
+        # assert
+        self.assertEqual(3, len(res))
+        self.assertEqual(3, _update_collection_from_catalog.call_count)
+        self.assertEqual([call(catalog_name=catalog.name), call(catalog_name='default'), call(catalog_name='test_catalog2')],
+                         _update_collection_from_catalog.call_args_list)
+
+    def test_update_collection_specific_catalog(self):
+        # mocks
+        catalog = self.collection_manager.catalogs().get_local_catalog()
+        _update_collection_from_catalog = MagicMock(return_value=CatalogUpdates(catalog))
+        self.collection_manager.catalogs()._update_collection_from_catalog = _update_collection_from_catalog
+
+        # call
+        res = self.collection_manager.catalogs().update_collection(catalog_name=catalog.name)
+
+        # assert
+        self.assertEqual(1, len(res))
+        _update_collection_from_catalog.assert_called_once_with(catalog.name)
+
+    def test_update_collection_specific_catalog_dry_run(self):
+        # mocks
+        catalog = self.collection_manager.catalogs().get_local_catalog()
+        _get_divergence_between_catalog_and_collection = MagicMock(return_value=CatalogUpdates(catalog))
+        _update_collection_from_catalog = MagicMock(return_value=CatalogUpdates(catalog))
+        self.collection_manager.catalogs()._get_divergence_between_catalog_and_collection = _get_divergence_between_catalog_and_collection
+        self.collection_manager.catalogs()._update_collection_from_catalog = _update_collection_from_catalog
+
+        # call
+        res = self.collection_manager.catalogs().update_collection(catalog_name=catalog.name, dry_run=True)
+
+        # assert
+        self.assertEqual(1, len(res))
+        _get_divergence_between_catalog_and_collection.assert_called_once_with(catalog.name)
+        _update_collection_from_catalog.assert_not_called()
 
     def test_add(self):
         catalog_name = "aNiceCatalog"

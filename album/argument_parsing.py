@@ -2,7 +2,7 @@ import argparse
 import sys
 
 from album.core.commandline import add_catalog, remove_catalog, deploy, \
-    install, remove, repl, run, search, start_server, test, update, clone
+    install, remove, repl, run, search, start_server, test, update, clone, upgrade
 from album_runner import logging
 from album_runner.logging import debug_settings
 
@@ -108,16 +108,12 @@ def create_parser():
         'remove-catalog', remove_catalog,
         'remove a catalog from your local album configuration file'
     )
-    p = parser.create_catalog_command_parser(
-        'update-catalog', update,
-        'update the catalog index file. Either all catalogs configured, or a specific one.'
-    )
-    p.add_argument(
-        '--catalog-id',
-        required=False,
-        help='The catalog id (also name) of the catalog to update!',
-        default=None
-    )
+    p = parser.create_command_parser('update', update,
+                                           'update the catalog index files. Either all catalogs configured, or a specific one.')
+    p.add_argument('src', type=str, help='src of the catalog', nargs='?')
+    p = parser.create_command_parser('upgrade', upgrade,
+                                           'upgrade the local collection from the catalog index files. Either all catalogs configured, or a specific one.')
+    p.add_argument('src', type=str, help='src of the catalog', nargs='?')
     p = parser.create_command_parser('clone', clone, 'clone an album solution or catalog template')
     p.add_argument('src', type=str, help='path for the solution file, group:name:version or name of the catalog template')
     p.add_argument(

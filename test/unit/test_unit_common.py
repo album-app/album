@@ -37,7 +37,17 @@ class TestUnitCommon(unittest.TestCase):
     def setUp(self):
         """Could initialize default values for each test class. use `_<name>` to skip property setting."""
 
-        self.solution_default_dict = {
+        self.solution_default_dict = self.get_solution_dict()
+        self.attrs = {}
+        self.captured_output = StringIO()
+        self.configure_test_logging(self.captured_output)
+        self.tmp_dir = tempfile.TemporaryDirectory()
+        self.closed_tmp_file = tempfile.NamedTemporaryFile(delete=False)
+        self.closed_tmp_file.close()
+
+    @staticmethod
+    def get_solution_dict():
+        return {
             'group': "tsg",
             'name': "tsn",
             'description': "d1",
@@ -58,12 +68,6 @@ class TestUnitCommon(unittest.TestCase):
             'title': "t1",
             'timestamp': "",
         }
-        self.attrs = {}
-        self.captured_output = StringIO()
-        self.configure_test_logging(self.captured_output)
-        self.tmp_dir = tempfile.TemporaryDirectory()
-        self.closed_tmp_file = tempfile.NamedTemporaryFile(delete=False)
-        self.closed_tmp_file.close()
 
     @staticmethod
     def tear_down_singletons():

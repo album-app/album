@@ -1,6 +1,7 @@
 import os
 import re
 from pathlib import Path
+from typing import Optional
 
 import validators
 
@@ -96,7 +97,7 @@ class Catalog:
         self.name = name
         self.src = src
         self.version = None  # is set automatically with the index
-        self.catalog_index = None
+        self.catalog_index: Optional[CatalogIndex] = None
         self.path = Path(path)
 
         self.is_deletable = deletable
@@ -309,10 +310,10 @@ class Catalog:
 
         return database_version
 
-    def refresh_index(self):
+    def refresh_index(self) -> bool:
         """Routine to refresh the catalog index. Downloads or copies the index_file !"""
         if self.is_cache():
-            return True
+            return False
 
         if self.is_local():  # case src not downloadable
             self.copy_index()
@@ -364,6 +365,8 @@ class Catalog:
         if hasattr(active_solution, "deposit_id"):
             solution_attrs["deposit_id"] = getattr(active_solution, "deposit_id")
 
+        if not self.catalog_index:
+            self.load_index()
         if self.catalog_index.get_solution_by_group_name_version(
                 dict_to_group_name_version(solution_attrs)
         ) is not None:

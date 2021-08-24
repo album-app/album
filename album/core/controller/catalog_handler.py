@@ -1,10 +1,14 @@
+from typing import List
+
 from album.core.controller.migration_manager import MigrationManager
 from album.core.controller.solution_handler import SolutionHandler
 from album.core.model.catalog import Catalog
 from album.core.model.catalog_index import CatalogIndex
+from album.core.model.catalog_updates import CatalogUpdates, SolutionChange, ChangeType
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
+from album.core.utils.operations.resolve_operations import solution_to_group_name_version, dict_to_group_name_version
 from album_runner import logging
 
 module_logger = logging.get_active_logger
@@ -41,11 +45,6 @@ class CatalogHandler:
     def _add_to_index(self, catalog: Catalog) -> int:
         catalog.catalog_id = self.catalog_collection.insert_catalog(catalog.name, str(catalog.src), str(catalog.path),
                                                int(catalog.is_deletable))
-        if not catalog.is_cache():
-            if not catalog.catalog_index:
-                catalog.load_index()
-            solutions = catalog.catalog_index.get_all_solutions()
-            self.solution_handler.add_solutions_to_catalog(catalog.catalog_id, solutions)
         return catalog.catalog_id
 
     def get_by_id(self, catalog_id):
@@ -107,10 +106,9 @@ class CatalogHandler:
             meta.writelines("{\"name\": \"" + name + "\", \"version\": \"" + CatalogIndex.version + "\"}")
 
     @staticmethod
-    def _update(catalog: Catalog):
+    def _update(catalog: Catalog) -> bool:
         r = catalog.refresh_index()
         module_logger().info('Updated catalog %s!' % catalog.name)
-
         return r
 
     def update_by_name(self, catalog_name):
@@ -207,6 +205,92 @@ class CatalogHandler:
         return {
             "catalogs": self.catalog_collection.get_all_catalogs()
         }
+
+    def update_collection(self, catalog_name=None, dry_run: bool = False) -> List[CatalogUpdates]:
+        if dry_run:
+            if catalog_name:
+                return [self._get_divergence_between_catalog_and_collection(
+                    catalog_name)]
+            else:
+                return self._get_divergence_between_catalogs_and_collection()
+        else:
+            if catalog_name:
+                return [self._update_collection_from_catalog(catalog_name)]
+            else:
+                return self._update_collection_from_catalogs()
+
+    def _get_divergence_between_catalogs_and_collection(self) -> List[CatalogUpdates]:
+        res = []
+        for catalog in self.get_all():
+            res.append(self._get_divergence_between_catalog_and_collection(catalog_name=catalog.name))
+        return res
+
+    def _get_divergence_between_catalog_and_collection(self, catalog_name) -> CatalogUpdates:
+        catalog = self.get_by_name(catalog_name)
+        res = CatalogUpdates(catalog)
+        if catalog.is_cache():
+            # cache catalog is always up to date since src and path are the same
+            return res
+        solutions_in_collection = self.catalog_collection.get_solutions_by_catalog(catalog.catalog_id)
+        if not catalog.catalog_index:
+            catalog.load_index()
+        solutions_in_catalog = catalog.catalog_index.get_all_solutions()
+        res.solution_changes = self._compare_solutions(solutions_in_collection, solutions_in_catalog)
+        return res
+
+    def _compare_solutions(self, solutions_old, solutions_new):
+        res = []
+        dict_old = {}
+        dict_new = {}
+        for solution in solutions_old:
+            dict_old[solution["solution_id"]] = solution
+        for solution in solutions_new:
+            dict_new[solution["solution_id"]] = solution
+        for solution_id in dict_old:
+            solution_old = dict_old[solution_id]
+            # check if solution got removed
+            if solution_id not in dict_new:
+                gnv = dict_to_group_name_version(solution_old)
+                change = SolutionChange(gnv, ChangeType.REMOVED)
+                res.append(change)
+            else:
+                # check if solution got changed
+                if solution_old["hash"] != dict_new[solution_id]["hash"]:
+                    gnv = dict_to_group_name_version(solution_old)
+                    change = SolutionChange(gnv, ChangeType.CHANGED)
+                    res.append(change)
+        # check if solution got added
+        for solution_id in dict_new:
+            if solution_id not in dict_old:
+                gnv = dict_to_group_name_version(dict_new[solution_id])
+                change = SolutionChange(gnv, ChangeType.ADDED)
+                res.append(change)
+        return res
+
+    def _update_collection_from_catalogs(self) -> List[CatalogUpdates]:
+        res = []
+        for catalog in self.get_all():
+            res.append(self._update_collection_from_catalog(catalog_name=catalog.name))
+        return res
+
+    def _update_collection_from_catalog(self, catalog_name) -> CatalogUpdates:
+        divergence = self._get_divergence_between_catalog_and_collection(catalog_name)
+        #TODO apply changes to catalog attributes
+        for change in divergence.solution_changes:
+            if change.change_type is ChangeType.ADDED:
+                self.catalog_collection.add_or_replace_solution(
+                    divergence.catalog.catalog_id,
+                    change.group_name_version,
+                    divergence.catalog.catalog_index.get_solution_by_group_name_version(change.group_name_version))
+            elif change.change_type is ChangeType.REMOVED:
+                self.catalog_collection.remove_solution(divergence.catalog.catalog_id, change.group_name_version)
+            elif change.change_type is ChangeType.CHANGED:
+                self.catalog_collection.remove_solution(divergence.catalog.catalog_id, change.group_name_version)
+                self.catalog_collection.add_or_replace_solution(
+                    divergence.catalog.catalog_id,
+                    change.group_name_version,
+                    divergence.catalog.catalog_index.get_solution_by_group_name_version(change.group_name_version))
+        return divergence
 
     @staticmethod
     def _as_catalog(catalog_dict):
