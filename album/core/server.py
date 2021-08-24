@@ -123,19 +123,52 @@ class AlbumServer(metaclass=Singleton):
             TaskManager().register_task(task)
             return {"id": task.id, "msg": "process started"}
 
+        @self.app.route('/clone/<group>/<name>/<version>', defaults={'catalog': None})
+        @self.app.route('/clone/<catalog>/<group>/<name>/<version>')
+        def clone_solution(catalog, group, name, version):
+            target_dir = request.args.get("target_dir")
+            new_name = request.args.get("name")
+            if target_dir is None:
+                abort(404, description=f"`target_dir` argument missing")
+            if new_name is None:
+                abort(404, description=f"`name` argument missing")
+            args = [target_dir, new_name]
+            task = self._run_solution_method_async(catalog, GroupNameVersion(group, name, version), CloneManager().clone, args)
+            return {"id": task.id, "msg": "process started"}
+
         @self.app.route('/clone')
-        def clone():
-            src = request.args.get("src")
+        def clone_solution_py_path():
             target_dir = request.args.get("target_dir")
             name = request.args.get("name")
-            if src is None:
-                abort(404, description=f"`src` argument missing")
+            path = request.args.get("path")
+            if target_dir is None:
+                abort(404, description=f"`target_dir` argument missing")
+            if name is None:
+                abort(404, description=f"`name` argument missing")
+            if path is None:
+                abort(404, description=f"`path` argument missing")
+            args = [target_dir, name]
+            task = Task()
+            task_args = [path]
+            if args:
+                for arg in args:
+                    task_args.append(arg)
+            task.args = tuple(task_args)
+            task.sysarg = self._get_arguments(request.get_json(), path)
+            task.method = CloneManager().clone
+            TaskManager().register_task(task)
+            return {"id": task.id, "msg": "process started"}
+
+        @self.app.route('/clone/<template_name>')
+        def clone_catalog(template_name):
+            target_dir = request.args.get("target_dir")
+            name = request.args.get("name")
             if target_dir is None:
                 abort(404, description=f"`target_dir` argument missing")
             if name is None:
                 abort(404, description=f"`name` argument missing")
             task = Task()
-            task.args = (src, target_dir, name)
+            task.args = tuple([template_name, target_dir, name])
             task.method = CloneManager().clone
             TaskManager().register_task(task)
             return {"id": task.id, "msg": "process started"}
@@ -218,13 +251,17 @@ class AlbumServer(metaclass=Singleton):
             func()
             return 'Server shutting down...'
 
-    def _run_solution_method_async(self, catalog, group_name_version: GroupNameVersion, method):
+    def _run_solution_method_async(self, catalog, group_name_version: GroupNameVersion, method, args=None):
         task = Task()
         if catalog is None:
             solution_path = str(group_name_version)
         else:
             solution_path = ":".join([catalog, str(group_name_version)])
-        task.args = (solution_path, )
+        task_args = [solution_path]
+        if args:
+            for arg in args:
+                task_args.append(arg)
+        task.args = tuple(task_args)
         task.sysarg = self._get_arguments(request.get_json(), solution_path)
         task.method = method
         TaskManager().register_task(task)

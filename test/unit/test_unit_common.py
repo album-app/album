@@ -13,6 +13,7 @@ from album.ci.controller.release_manager import ReleaseManager
 from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core import AlbumClass
+from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection_manager import CollectionManager
 from album.core.controller.conda_manager import CondaManager
 from album.core.controller.deploy_manager import DeployManager
@@ -87,6 +88,7 @@ class TestUnitCommon(unittest.TestCase):
         TestUnitCommon._delete(ReleaseManager)
         TestUnitCommon._delete(ZenodoManager)
         TestUnitCommon._delete(MigrationManager)
+        TestUnitCommon._delete(CloneManager)
 
     @staticmethod
     def _delete(singleton):

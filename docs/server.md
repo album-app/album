@@ -50,9 +50,18 @@ These calls will immediately return a JSON message indicating that the process w
 - Test a solution, specified by the catalog name, the group name, the solution name and it's version:
 
   `http://192.0.0.1:1234/test/<catalog>/<group>/<name>/<version>`
+- Clone a solution, specified by the catalog name, the group name, the solution name and it's version into a given target directory:
+
+  `http://192.0.0.1:1234/clone/<catalog>/<group>/<name>/<version>?target_dir=TARGET_DIR&name=NEW_SOLUTION_NAME`
+- Clone a solution, specified by it's path (local or URL, encoded) into a given target directory:
+
+  `http://192.0.0.1:1234/clone?path=SOLUTION_PATH_OR_URL&target_dir=TARGET_DIR&name=NEW_SOLUTION_NAME`
+- Clone a catalog template into a given target directory (available catalog templates are the names of all repositories in [this group](https://gitlab.com/album-app/catalogs/templates)):
+
+  `http://192.0.0.1:1234/clone/<template_name>?target_dir=TARGET_DIR&name=NEW_CATALOG_NAME`
 - Deploy a solution from a given path to a specific catalog:
 
-  `http://192.0.0.1:1234/deploy?path=PATH_TO_SOLUTION&catalog_id=CATALOG_ID`
+  `http://192.0.0.1:1234/deploy?path=PATH_TO_SOLUTION&catalog_name=CATALOG_NAME`
 
 ### Tracking process of an asynchronous task
 - Status of a task, specified by task id (check return value of asynchronous calls), returns a status and all the log entries associated with this task.

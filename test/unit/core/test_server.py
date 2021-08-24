@@ -65,10 +65,24 @@ class TestServer(flask_unittest.ClientTestCase, TestUnitCommon):
 
     @patch("album.core.controller.clone_manager.CloneManager.clone", return_value=None)
     def test_clone_catalog(self, client, route):
-        json = self.getJSONResponse(client, f"/clone?src=catalog&target_dir={self.tmp_dir.name}&name=my-name")
+        json = self.getJSONResponse(client, f"/clone/catalog?target_dir={self.tmp_dir.name}&name=my-name")
         self.assertIsNotNone(json)
         TaskManager().server_queue.join()
         route.assert_called_once_with("catalog", self.tmp_dir.name, "my-name")
+
+    @patch("album.core.controller.clone_manager.CloneManager.clone", return_value=None)
+    def test_clone_solution(self, client, route):
+        json = self.getJSONResponse(client, f"/clone/group/name/version?target_dir={self.tmp_dir.name}&name=my-name")
+        self.assertIsNotNone(json)
+        TaskManager().server_queue.join()
+        route.assert_called_once_with("group:name:version", self.tmp_dir.name, "my-name")
+
+    @patch("album.core.controller.clone_manager.CloneManager.clone", return_value=None)
+    def test_clone_solution_by_path(self, client, route):
+        json = self.getJSONResponse(client, f"/clone?path=my-path&target_dir={self.tmp_dir.name}&name=my-name")
+        self.assertIsNotNone(json)
+        TaskManager().server_queue.join()
+        route.assert_called_once_with("my-path", self.tmp_dir.name, "my-name")
 
     @patch("album.core.controller.search_manager.SearchManager.search", return_value={})
     def test_search(self, client, route):
