@@ -1,11 +1,9 @@
-import os
+import pkgutil
 from datetime import datetime
-from pathlib import Path
 
 from album.core.concept.database import Database
-from album.core.model.default_values import DefaultValues
 from album.core.model.group_name_version import GroupNameVersion
-from album.core.utils.operations.file_operations import get_dict_entry, write_dict_to_json
+from album.core.utils.operations.file_operations import get_dict_entry
 
 
 class CollectionIndex(Database):
@@ -16,10 +14,8 @@ class CollectionIndex(Database):
         super().__init__(path)
 
     def create(self):
-        current_path = Path(os.path.dirname(os.path.realpath(__file__)))
-        with open(current_path.joinpath("..", "database", "catalog_collection_schema.sql")) as schema_file:
-            schema = schema_file.read()
-            self.get_cursor().executescript(schema)
+        data = pkgutil.get_data('album.core', 'database/catalog_collection_schema.sql')
+        self.get_cursor().executescript(data.decode("utf-8"))
         self.update_name_version(self.name, self.version)
         self.get_connection().commit()
 

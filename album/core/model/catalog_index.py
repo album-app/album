@@ -1,8 +1,7 @@
 import datetime
 import hashlib
 import json
-import os
-from pathlib import Path
+import pkgutil
 from typing import List, Optional
 
 from album.core import AlbumClass
@@ -31,11 +30,8 @@ class CatalogIndex(Database):
         super().__init__(path)
 
     def create(self):
-        current_path = Path(os.path.dirname(os.path.realpath(__file__)))
-        with open(current_path.joinpath("..", "database", "catalog_index_schema.sql")) as schema_file:
-            schema = schema_file.read()
-            self.get_cursor().executescript(schema)
-
+        data = pkgutil.get_data('album.core', 'database/catalog_index_schema.sql')
+        self.get_cursor().executescript(data.decode("utf-8"))
         self.update_name_version(self.name, self.version)
         self.get_connection().commit()
 
