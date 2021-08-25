@@ -30,8 +30,11 @@ def update(args):
 
 
 def upgrade(args):
-    module_logger().info(CollectionManager().catalogs().update_collection(getattr(args, "catalog_name", None),
-                                                                          dry_run=getattr(args, "dry_run", False)))
+    updates = CollectionManager().catalogs().update_collection(getattr(args, "catalog_name", None),
+                                                                  dry_run=getattr(args, "dry_run", False))
+    module_logger().info("Applied the following updates:")
+    for change in updates:
+        module_logger().info(str(change))
 
 
 def deploy(args):

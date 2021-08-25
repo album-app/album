@@ -199,6 +199,8 @@ class CatalogHandler:
 
         self.catalog_collection.remove_entire_catalog(catalog_to_remove.catalog_id)
 
+        module_logger().info("Removed catalog with source %s" % str(src))
+
         return catalog_to_remove
 
     def get_all_as_dict(self):

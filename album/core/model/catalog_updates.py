@@ -67,3 +67,8 @@ class CatalogUpdates:
             },
             "solution_changes": solution_changes_as_dict
         }
+
+    def __str__(self) -> str:
+        return str(self.as_dict())
+
+
