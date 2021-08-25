@@ -1,3 +1,5 @@
+import json
+
 from album.core import get_active_solution
 from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection_manager import CollectionManager
@@ -34,7 +36,7 @@ def upgrade(args):
                                                                   dry_run=getattr(args, "dry_run", False))
     module_logger().info("Applied the following updates:")
     for change in updates:
-        module_logger().info(str(change))
+        module_logger().info(json.dumps(change.as_dict(), sort_keys=True, indent=4))
 
 
 def deploy(args):
@@ -70,7 +72,7 @@ def clone(args):
 
 
 def index(args):
-    module_logger().info(CollectionManager().get_index_as_dict())
+    module_logger().info(json.dumps(CollectionManager().get_index_as_dict(), sort_keys=True, indent=4))
 
 
 def repl(args):
