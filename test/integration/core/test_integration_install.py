@@ -42,6 +42,26 @@ class TestIntegrationInstall(TestIntegrationCommon):
             ).exists()
         )
 
+    def test_install_from_url(self):
+        # gather arguments
+        sys.argv = ["", "install", "https://gitlab.com/album-app/catalogs/capture-knowledge-dev/-/raw/main/app-fiji/solution.py"]
+
+        self.assertIsNone(main())
+
+        # assert solution was added to local catalog
+        collection = self.collection_manager.catalog_collection
+        self.assertEqual(1, len(collection.get_solutions_by_catalog(self.collection_manager.catalogs().get_local_catalog().catalog_id)))
+
+        # assert solution is in the right place and has the right name
+        self.assertTrue(
+            Path(self.tmp_dir.name).joinpath(
+                DefaultValues.catalog_folder_prefix.value,
+                str(self.collection_manager.catalogs().get_local_catalog().name),
+                DefaultValues.cache_path_solution_prefix.value,
+                "ida-mdc", "app-fiji", "0.1.0", "solution.py"
+            ).exists()
+        )
+
     @unittest.skip("Needs to be implemented!")
     def test_install_with_dependencies(self):
         # ToDo: implement

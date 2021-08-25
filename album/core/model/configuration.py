@@ -35,12 +35,12 @@ class Configuration(metaclass=Singleton):
     """
 
     def __init__(self):
+        self.is_setup = False
         self.configuration_file_path = None
-        self.base_cache_path = None
         self.conda_executable = None
-        self.setup(None)
 
-    def setup(self, base_cache_path, configuration_file_path=None):
+    def setup(self, base_cache_path=None, configuration_file_path=None):
+        self.is_setup = True
         # base root path where everything lives
         if base_cache_path:
             self.base_cache_path = Path(base_cache_path)
