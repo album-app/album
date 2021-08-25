@@ -1,4 +1,7 @@
+from pathlib import Path
 from typing import List
+
+import validators
 
 from album.core.controller.migration_manager import MigrationManager
 from album.core.controller.solution_handler import SolutionHandler
@@ -139,6 +142,8 @@ class CatalogHandler:
         catalog_meta_information = Catalog.retrieve_catalog_meta_information(src)
         catalog_path = self.configuration.get_cache_path_catalog(catalog_meta_information["name"])
         catalog = Catalog(None, catalog_meta_information["name"], catalog_path, src=src)
+        if catalog.is_local():
+            catalog.src = Path(catalog.src).absolute()
         return catalog
 
     @staticmethod
@@ -187,11 +192,20 @@ class CatalogHandler:
 
     def remove_from_index_by_src(self, src):
 
-        catalog_to_remove = self._as_catalog(self.catalog_collection.get_catalog_by_src(src))
+        if not validators.url(str(src)):
+            if Path(src).exists():
+                src = str(Path(src).absolute())
+            else:
+                module_logger().warning("Cannot remove catalog with source \"%s\"! Not configured!" % str(src))
+                return None
 
-        if not catalog_to_remove:
+        catalog_attrs = self.catalog_collection.get_catalog_by_src(src)
+
+        if not catalog_attrs:
             module_logger().warning("Cannot remove catalog with source \"%s\"! Not configured!" % str(src))
-            return
+            return None
+
+        catalog_to_remove = self._as_catalog(catalog_attrs)
 
         if not catalog_to_remove.is_deletable:
             module_logger().warning("Cannot remove catalog! Marked as not deletable! Will do nothing...")
