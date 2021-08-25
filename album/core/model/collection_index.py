@@ -516,6 +516,7 @@ class CollectionIndex(Database):
                 "catalog_id": catalog_id
             }
         )
+        self.get_connection().commit()
 
     def __len__(self):
         r = self.get_cursor().execute("SELECT COUNT(*) FROM collection").fetchone()
