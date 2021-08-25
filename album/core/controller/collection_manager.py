@@ -1,6 +1,9 @@
 from pathlib import Path
 from typing import Optional
 
+from album.core.model.collection_index import CollectionIndex
+from album.core.utils.operations.file_operations import write_dict_to_json
+
 from album.core import load
 from album.core.concept.singleton import Singleton
 # classes and methods
@@ -46,10 +49,18 @@ class CollectionManager(metaclass=Singleton):
     def _load_or_create_collection(self):
         collection_meta = self.configuration.get_collection_meta_dict()
         newly_created = not self.configuration.get_collection_db_path().exists()
+        if collection_meta:
+            collection_version = collection_meta["catalog_collection_version"]
+        else:
+            if newly_created:
+                collection_version = CollectionIndex.version
+                self.write_version_to_yml(self.configuration.get_collection_meta_path(), "my-collection", collection_version)
+            else:
+                raise RuntimeError("Album collection database file found, but no meta file specifying the database version.")
         self.catalog_collection = self.migration_manager.migrate_or_create_collection(
             path=self.configuration.get_collection_db_path(),
             initial_name=DefaultValues.catalog_collection_name.value,
-            initial_version=collection_meta["catalog_collection_version"]
+            initial_version=collection_version
         )
         self.solution_handler = SolutionHandler(self.catalog_collection)
         self.catalog_handler = CatalogHandler(self.configuration, self.catalog_collection, self.solution_handler)
@@ -57,10 +68,10 @@ class CollectionManager(metaclass=Singleton):
             self.catalog_handler.create_local_catalog()
             self.catalog_handler.add_initial_catalogs()
 
-    def catalogs(self):
+    def catalogs(self) -> CatalogHandler:
         return self.catalog_handler
 
-    def solutions(self):
+    def solutions(self) -> SolutionHandler:
         return self.solution_handler
 
     def add_solution_to_local_catalog(self, active_solution, path):
@@ -236,3 +247,10 @@ class CollectionManager(metaclass=Singleton):
         solution_entries = self.catalog_collection.get_solutions_by_grp_name_version(dict_to_group_name_version(attrs))
 
         return solution_entries if solution_entries else None
+
+    @staticmethod
+    def write_version_to_yml(path, name, version) -> None:
+        write_dict_to_json(path, {
+            "catalog_collection_name": name,
+            "catalog_collection_version": version
+        })

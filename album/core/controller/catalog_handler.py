@@ -277,19 +277,7 @@ class CatalogHandler:
         divergence = self._get_divergence_between_catalog_and_collection(catalog_name)
         #TODO apply changes to catalog attributes
         for change in divergence.solution_changes:
-            if change.change_type is ChangeType.ADDED:
-                self.catalog_collection.add_or_replace_solution(
-                    divergence.catalog.catalog_id,
-                    change.group_name_version,
-                    divergence.catalog.catalog_index.get_solution_by_group_name_version(change.group_name_version))
-            elif change.change_type is ChangeType.REMOVED:
-                self.catalog_collection.remove_solution(divergence.catalog.catalog_id, change.group_name_version)
-            elif change.change_type is ChangeType.CHANGED:
-                self.catalog_collection.remove_solution(divergence.catalog.catalog_id, change.group_name_version)
-                self.catalog_collection.add_or_replace_solution(
-                    divergence.catalog.catalog_id,
-                    change.group_name_version,
-                    divergence.catalog.catalog_index.get_solution_by_group_name_version(change.group_name_version))
+            self.solution_handler.apply_change(divergence.catalog, change)
         return divergence
 
     @staticmethod

@@ -1,3 +1,5 @@
+from album.core import AlbumClass
+from album.core.model.catalog_updates import ChangeType
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.group_name_version import GroupNameVersion
 from album.core.utils.operations.file_operations import copy_folder
@@ -57,7 +59,7 @@ class SolutionHandler:
 
     def add_or_replace(self, catalog, active_solution, path):
         deploy_dict = active_solution.get_deploy_dict()
-        self.catalog_collection.add_or_replace_solution(catalog.catalog_id, dict_to_group_name_version(deploy_dict), deploy_dict)
+        self.catalog_collection.add_or_replace_solution(catalog.catalog_id, dict_to_group_name_version(deploy_dict), deploy_dict, self.get_solution_keys())
         # get the install location
         install_location = catalog.get_solution_path(dict_to_group_name_version(deploy_dict))
         copy_folder(path, install_location, copy_root_folder=False)
@@ -68,3 +70,37 @@ class SolutionHandler:
 
     def remove_solution(self, catalog, solution):
         self.catalog_collection.remove_solution(catalog.catalog_id, solution_to_group_name_version(solution))
+
+    def update_solution(self, catalog, solution, attrs):
+        self.catalog_collection.update_solution(catalog.catalog_id, solution_to_group_name_version(solution), attrs, self.get_solution_keys())
+
+    @staticmethod
+    def get_solution_keys():
+        keys = AlbumClass.deploy_keys.copy()
+        keys.remove("authors")
+        keys.remove("tags")
+        keys.remove("args")
+        keys.remove("cite")
+        keys.remove("covers")
+        keys.remove("sample_inputs")
+        keys.remove("sample_outputs")
+        keys.append("hash")
+        keys.append("installed")
+        return keys
+
+    def apply_change(self, catalog, change):
+        if change.change_type is ChangeType.ADDED:
+            self.catalog_collection.add_or_replace_solution(
+                catalog.catalog_id,
+                change.group_name_version,
+                catalog.catalog_index.get_solution_by_group_name_version(change.group_name_version),
+                self.get_solution_keys())
+        elif change.change_type is ChangeType.REMOVED:
+            self.catalog_collection.remove_solution(catalog.catalog_id, change.group_name_version)
+        elif change.change_type is ChangeType.CHANGED:
+            self.catalog_collection.remove_solution(catalog.catalog_id, change.group_name_version)
+            self.catalog_collection.add_or_replace_solution(
+                catalog.catalog_id,
+                change.group_name_version,
+                catalog.catalog_index.get_solution_by_group_name_version(change.group_name_version),
+                self.get_solution_keys())

@@ -1,6 +1,7 @@
 import unittest
 from pathlib import Path
 
+from album.core.controller.solution_handler import SolutionHandler
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.group_name_version import GroupNameVersion
 from test.unit.test_unit_common import TestUnitCommon
@@ -215,7 +216,7 @@ class TestCollectionIndex(TestUnitCommon):
         r = self.test_catalog_collection.get_solution(2)
         self.assertIsNone(r["last_execution"])
 
-        self.test_catalog_collection.update_solution("cat2", {"group": "grp", "name": "name", "version": "version"})
+        self.test_catalog_collection.update_solution("cat2", GroupNameVersion("grp", "name", "version"), {}, SolutionHandler.get_solution_keys())
 
         r = self.test_catalog_collection.get_solution(2)
         self.assertIsNotNone(r["last_execution"])

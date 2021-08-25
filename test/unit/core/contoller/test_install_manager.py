@@ -4,8 +4,10 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from album.core.controller.install_manager import InstallManager
+from album.core.model.catalog import Catalog
 from album.core.model.resolve_result import ResolveResult
 from album.core.model.group_name_version import GroupNameVersion
+from album.core.utils.operations.resolve_operations import solution_to_group_name_version
 from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
 
 
@@ -47,20 +49,22 @@ class TestInstallManager(TestUnitCommon):
         update_in_collection_index.assert_not_called()
 
     @patch('album.core.model.collection_index.CollectionIndex.get_solution')
-    @patch('album.core.model.collection_index.CollectionIndex.update_solution')
-    def test_add_to_solutions_db_no_parent(self, add_solution_mock, get_solution_mock):
-        add_solution_mock.return_value = None
+    @patch('album.core.controller.solution_handler.SolutionHandler.update_solution')
+    @patch('album.core.controller.catalog_handler.CatalogHandler.get_by_id', return_value=Catalog("cat_id", "", ""))
+    def test_add_to_solutions_db_no_parent(self, get_by_id_mock, update_solution_mock, get_solution_mock):
+        update_solution_mock.return_value = None
 
         self.install_manager.update_in_collection_index("cat_id", None, self.active_solution)
 
-        add_solution_mock.assert_called_once_with(
-            "cat_id", self.active_solution["group"], self.active_solution["name"], self.active_solution["version"]
+        update_solution_mock.assert_called_once_with(
+            get_by_id_mock.return_value, solution_to_group_name_version(self.active_solution), self.active_solution
         )
         get_solution_mock.assert_not_called()
 
     @patch('album.core.model.collection_index.CollectionIndex.get_solution_by_catalog_grp_name_version')
-    @patch('album.core.model.collection_index.CollectionIndex.update_solution')
-    def test_add_to_solutions_db_parent(self, update_solution_mock, get_solution_mock):
+    @patch('album.core.controller.solution_handler.SolutionHandler.update_solution')
+    @patch('album.core.controller.catalog_handler.CatalogHandler.get_by_id', return_value=Catalog("cat_id", "", ""))
+    def test_add_to_solutions_db_parent(self, get_by_id_mock, update_solution_mock, get_solution_mock):
         update_solution_mock.return_value = None
         get_solution_mock.return_value = {"solution_id": 100}
 
@@ -70,7 +74,7 @@ class TestInstallManager(TestUnitCommon):
 
         #FIXME currently not checking for parent information to be added
         update_solution_mock.assert_called_once_with(
-            "cat_id", self.active_solution.group, self.active_solution.name, self.active_solution.version
+            get_by_id_mock.return_value, solution_to_group_name_version(self.active_solution), self.active_solution
         )
         get_solution_mock.assert_called_once_with("cat_parent_id", GroupNameVersion("grp", "pName", "pVersion"))
 

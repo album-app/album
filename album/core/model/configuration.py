@@ -38,9 +38,9 @@ class Configuration(metaclass=Singleton):
         self.configuration_file_path = None
         self.base_cache_path = None
         self.conda_executable = None
-        self.setup(None, None)
+        self.setup(None)
 
-    def setup(self, base_cache_path, configuration_file_path):
+    def setup(self, base_cache_path, configuration_file_path=None):
         # base root path where everything lives
         if base_cache_path:
             self.base_cache_path = Path(base_cache_path)
@@ -143,11 +143,16 @@ class Configuration(metaclass=Singleton):
 
     def get_collection_meta_dict(self):
         """Returns the metadata of the collection as a dict."""
-        catalog_collection_json = self.catalog_collection_path.parent.joinpath(
-            DefaultValues.catalog_collection_json_name.value
-        )
+        catalog_collection_json = self.get_collection_meta_path()
+        if not catalog_collection_json.exists():
+            return None
         catalog_collection_dict = get_dict_from_json(catalog_collection_json)
         return catalog_collection_dict
+
+    def get_collection_meta_path(self):
+        return self.catalog_collection_path.parent.joinpath(
+            DefaultValues.catalog_collection_json_name.value
+        )
 
     def get_initial_catalogs(self):
         """Returns the catalogs initially added to the collection as a dict."""
@@ -159,3 +164,4 @@ class Configuration(metaclass=Singleton):
     def empty_tmp(self):
         """Removes the content of the tmp folder"""
         force_remove(self.cache_path_tmp)
+

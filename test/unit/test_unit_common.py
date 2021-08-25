@@ -148,15 +148,9 @@ class TestUnitCommon(unittest.TestCase):
 
     @staticmethod
     def create_test_config_in_tmp_dir(tmp_dir_name):
-        test_catalog_collection_config_file = Path(tmp_dir_name).joinpath(
-            DefaultValues.catalog_collection_json_name.value)
-        test_config_init = "{\"catalog_collection_version\": \"0.1.0\"}"
-        with open(test_catalog_collection_config_file, 'w') as file:
-            file.writelines(test_config_init)
         config = Configuration()
         config.setup(
-            base_cache_path=tmp_dir_name,
-            configuration_file_path=test_catalog_collection_config_file.name
+            base_cache_path=tmp_dir_name
         )
 
     @staticmethod

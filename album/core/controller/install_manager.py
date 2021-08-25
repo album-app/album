@@ -2,7 +2,7 @@ import sys
 
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection_manager import CollectionManager
-from album.core.utils.operations.resolve_operations import dict_to_group_name_version
+from album.core.utils.operations.resolve_operations import dict_to_group_name_version, solution_to_group_name_version
 from album.core.utils.script import create_solution_script
 from album_runner import logging
 
@@ -51,9 +51,7 @@ class InstallManager(metaclass=Singleton):
         else:
             self.update_in_collection_index(catalog.catalog_id, parent_catalog_id, solution)
 
-        self.catalog_manager.catalog_collection.update_solution(
-            catalog.catalog_id, {"installed": 1, "group": solution["group"], "name": solution["name"], "version": solution["version"]}
-        )
+        self.catalog_manager.solutions().update_solution(catalog, solution, {"installed": 1})
         module_logger().info('Installed %s!' % solution['name'])
 
         return catalog.catalog_id
@@ -70,8 +68,10 @@ class InstallManager(metaclass=Singleton):
             parent_id = parent_entry["solution_id"]
 
         #FIXME figure out how to add the parent. can it be in a different catalog? if yes, add catalog and parent_id?!
-        self.catalog_manager.catalog_collection.update_solution(
-            catalog_id, active_solution["group"], active_solution["name"], active_solution["version"]
+        self.catalog_manager.solutions().update_solution(
+            self.catalog_manager.catalogs().get_by_id(catalog_id),
+            solution_to_group_name_version(active_solution),
+            active_solution
         )
 
     def _install(self, active_solution):
@@ -115,8 +115,7 @@ class InstallManager(metaclass=Singleton):
 
     def install_dependency(self, dependency):
         """Calls `install` for a solution declared in a dependency block"""
-        script_path = self
-        self.catalog_manager.resolve_dependency(dependency).path
+        script_path = self.catalog_manager.resolve_dependency(dependency).path
         # recursive installation call
         catalog_id = self.install(script_path)
 

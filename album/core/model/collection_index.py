@@ -3,8 +3,6 @@ from datetime import datetime
 from pathlib import Path
 
 from album.core.concept.database import Database
-from album.core.model.album_base import AlbumClass
-from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.model.group_name_version import GroupNameVersion
 from album.core.utils.operations.file_operations import get_dict_entry, write_dict_to_json
@@ -297,17 +295,17 @@ class CollectionIndex(Database):
             solutions_list.append(dict(row))
         return solutions_list
 
-    def update_solution(self, catalog_id, solution_attrs):
+    def update_solution(self, catalog_id, group_name_version: GroupNameVersion, solution_attrs, supported_attrs):
         exec_str = "UPDATE collection SET last_execution=:cur_date"
         exec_args = {
             "cur_date": datetime.now().isoformat(),
             "catalog_id": catalog_id,
-            "group": solution_attrs["group"],
-            "name": solution_attrs["name"],
-            "version": solution_attrs["version"]
+            "group": group_name_version.group,
+            "name": group_name_version.name,
+            "version": group_name_version.version
         }
 
-        for key in self.get_solution_keys():
+        for key in supported_attrs:
             if key in solution_attrs:
                 col = self._as_db_col(key)
                 exec_str += f", {col}=:{key}"
@@ -322,23 +320,10 @@ class CollectionIndex(Database):
 
         self.get_connection().commit()
 
-    def get_solution_keys(self):
-        keys = AlbumClass.deploy_keys.copy()
-        keys.remove("authors")
-        keys.remove("tags")
-        keys.remove("args")
-        keys.remove("cite")
-        keys.remove("covers")
-        keys.remove("sample_inputs")
-        keys.remove("sample_outputs")
-        keys.append("hash")
-        keys.append("installed")
-        return keys
-
-    def add_or_replace_solution(self, catalog_id, group_name_version: GroupNameVersion, solution_attrs):
+    def add_or_replace_solution(self, catalog_id, group_name_version: GroupNameVersion, solution_attrs, supported_attrs):
         solution = self.get_solution_by_catalog_grp_name_version(catalog_id, group_name_version)
         if solution:
-            self.update_solution(catalog_id, solution_attrs)
+            self.update_solution(catalog_id, solution_attrs, supported_attrs)
         else:
             self.insert_solution(catalog_id, solution_attrs)
 
@@ -541,17 +526,6 @@ class CollectionIndex(Database):
         r = r[0]
 
         return r
-
-    @staticmethod
-    def write_version_to_yml(name, version):
-        d = {
-            "catalog_collection_name": name,
-            "catalog_collection_version": version
-        }
-        write_dict_to_json(
-            Path(Configuration().catalog_collection_path).joinpath(DefaultValues.catalog_collection_json_name.value),
-            d
-        )
 
     @staticmethod
     def _as_db_col(key):
