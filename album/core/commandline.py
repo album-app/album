@@ -66,6 +66,10 @@ def clone(args):
     CloneManager().clone(args.src, args.target_dir, args.name)
 
 
+def index(args):
+    module_logger().info(CollectionManager().get_index_as_dict())
+
+
 def repl(args):
     """Function corresponding to the `repl` subcommand of `album`."""
     # Load solution

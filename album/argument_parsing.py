@@ -2,7 +2,7 @@ import argparse
 import sys
 
 from album.core.commandline import add_catalog, remove_catalog, deploy, \
-    install, remove, repl, run, search, start_server, test, update, clone, upgrade
+    install, remove, repl, run, search, start_server, test, update, clone, upgrade, index
 from album_runner import logging
 from album_runner.logging import debug_settings
 
@@ -128,6 +128,7 @@ def create_parser():
         help='The new name of the cloned solution or catalog',
         default=None
     )
+    parser.create_command_parser('index', index, 'print the index of the local album collection')
     parser.create_file_command_parser(
         'test', test, 'execute a solutions test routine.')
     p = parser.create_command_parser('server', start_server,
