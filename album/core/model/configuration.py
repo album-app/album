@@ -37,8 +37,16 @@ class Configuration(metaclass=Singleton):
     def __init__(self):
         self.is_setup = False
         self.configuration_file_path = None
-        self.conda_executable = None
+        # conda executable
+        conda_path = DefaultValues.conda_path.value
+        if conda_path is not DefaultValues.conda_default_executable.value:
+            self.conda_executable = self._build_conda_executable(conda_path)
+        else:
+            self.conda_executable = conda_path
 
+    # TODO since setting base_cache_path creates the album directories in the cache path, this should not be called
+    #  multiple times. maybe Configuration should not be a Singleton at all or maybe creating the directories should
+    #  not be part of the configuration implementation..
     def setup(self, base_cache_path=None, configuration_file_path=None):
         self.is_setup = True
         # base root path where everything lives
@@ -53,13 +61,6 @@ class Configuration(metaclass=Singleton):
         else:
             self.configuration_file_path = DefaultValues.app_config_dir.value.joinpath(
                 DefaultValues.config_file_name.value)
-
-        # conda executable
-        conda_path = DefaultValues.conda_path.value
-        if conda_path is not DefaultValues.conda_default_executable.value:
-            self.conda_executable = self._build_conda_executable(conda_path)
-        else:
-            self.conda_executable = conda_path
 
         self.empty_tmp()
 

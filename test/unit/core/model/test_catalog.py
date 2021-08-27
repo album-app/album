@@ -45,6 +45,7 @@ class TestCatalog(TestUnitCommon):
         CatalogHandler.create_new_catalog(catalog_src, "test")
         catalog_path = Path(self.tmp_dir.name).joinpath("testPath")
         catalog_path.mkdir(parents=True)
+        self.create_test_config()
         self.catalog = Catalog(0, "test", catalog_src, catalog_path)
         self.catalog.load_index()
 
