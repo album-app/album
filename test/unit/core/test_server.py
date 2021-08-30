@@ -50,14 +50,14 @@ class TestServer(flask_unittest.ClientTestCase, TestUnitCommon):
     def test_test(self, client, route):
         self.__test_solution_route(client, "test", route)
 
-    @patch("album.core.controller.collection_manager.CatalogHandler.add_by_src", return_value=Catalog(1, "", ""))
+    @patch("album.core.controller.collection.collection_manager.CatalogHandler.add_by_src", return_value=Catalog(1, "", ""))
     def test_add_catalog(self, client, route):
         json = self.getJSONResponse(client, "/add-catalog?src=CATALOG_URL")
         self.assertIsNotNone(json)
         self.assertEqual(1, json["catalog_id"])
         self.assertEqual(3, route.call_count)
 
-    @patch("album.core.controller.collection_manager.CatalogHandler.remove_from_index_by_src", return_value=None)
+    @patch("album.core.controller.collection.collection_manager.CatalogHandler.remove_from_index_by_src", return_value=None)
     def test_remove_catalog(self, client, route):
         json = self.getJSONResponse(client, "/remove-catalog?src=CATALOG_URL")
         self.assertIsNotNone(json)

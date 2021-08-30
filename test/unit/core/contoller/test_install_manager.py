@@ -34,7 +34,7 @@ class TestInstallManager(TestUnitCommon):
         self.install_manager._install = execute_install_routine
 
         add_to_local_catalog = MagicMock(return_value=None)
-        self.install_manager.catalog_manager.add_solution_to_local_catalog = add_to_local_catalog
+        self.install_manager.collection_manager.add_solution_to_local_catalog = add_to_local_catalog
 
         update_in_collection_index = MagicMock(return_value=None)
         self.install_manager.update_in_collection_index = update_in_collection_index
@@ -49,8 +49,8 @@ class TestInstallManager(TestUnitCommon):
         update_in_collection_index.assert_not_called()
 
     @patch('album.core.model.collection_index.CollectionIndex.get_solution')
-    @patch('album.core.controller.solution_handler.SolutionHandler.update_solution')
-    @patch('album.core.controller.catalog_handler.CatalogHandler.get_by_id', return_value=Catalog("cat_id", "", ""))
+    @patch('album.core.controller.collection.solution_handler.SolutionHandler.update_solution')
+    @patch('album.core.controller.collection.catalog_handler.CatalogHandler.get_by_id', return_value=Catalog("cat_id", "", ""))
     def test_add_to_solutions_db_no_parent(self, get_by_id_mock, update_solution_mock, get_solution_mock):
         update_solution_mock.return_value = None
 
@@ -62,8 +62,8 @@ class TestInstallManager(TestUnitCommon):
         get_solution_mock.assert_not_called()
 
     @patch('album.core.model.collection_index.CollectionIndex.get_solution_by_catalog_grp_name_version')
-    @patch('album.core.controller.solution_handler.SolutionHandler.update_solution')
-    @patch('album.core.controller.catalog_handler.CatalogHandler.get_by_id', return_value=Catalog("cat_id", "", ""))
+    @patch('album.core.controller.collection.solution_handler.SolutionHandler.update_solution')
+    @patch('album.core.controller.collection.catalog_handler.CatalogHandler.get_by_id', return_value=Catalog("cat_id", "", ""))
     def test_add_to_solutions_db_parent(self, get_by_id_mock, update_solution_mock, get_solution_mock):
         update_solution_mock.return_value = None
         get_solution_mock.return_value = {"solution_id": 100}
@@ -175,7 +175,7 @@ class TestInstallManager(TestUnitCommon):
     def test_install_dependency(self):
         # mocks
         resolve_dependency = MagicMock(return_value=ResolveResult(path="aPath", catalog=None))
-        self.install_manager.catalog_manager.resolve_dependency = resolve_dependency
+        self.install_manager.collection_manager.resolve_dependency = resolve_dependency
 
         install = MagicMock(return_value=None)
         self.install_manager.install = install

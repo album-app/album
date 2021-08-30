@@ -4,7 +4,7 @@ from pathlib import Path
 
 from album.core import load
 from album.core.concept.singleton import Singleton
-from album.core.controller.collection_manager import CollectionManager
+from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, zip_paths
 from album.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push

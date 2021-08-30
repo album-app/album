@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from album.core.controller.solution_handler import SolutionHandler
+from album.core.controller.collection.solution_handler import SolutionHandler
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.group_name_version import GroupNameVersion
 from test.unit.test_unit_common import TestUnitCommon

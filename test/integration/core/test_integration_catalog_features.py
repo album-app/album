@@ -4,8 +4,8 @@ from pathlib import Path
 
 from album.argument_parsing import main
 from album.core import AlbumClass
-from album.core.controller.catalog_handler import CatalogHandler
-from album.core.controller.collection_manager import CollectionManager
+from album.core.controller.collection.catalog_handler import CatalogHandler
+from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.model.catalog_updates import ChangeType
 from test.integration.test_integration_common import TestIntegrationCommon
 from test.unit.test_unit_common import TestUnitCommon

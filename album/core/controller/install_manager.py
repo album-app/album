@@ -1,7 +1,7 @@
 import sys
 
 from album.core.concept.singleton import Singleton
-from album.core.controller.collection_manager import CollectionManager
+from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.utils.operations.resolve_operations import dict_to_group_name_version, solution_to_group_name_version
 from album.core.utils.script import create_solution_script
 from album_runner import logging

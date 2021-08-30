@@ -5,7 +5,6 @@ from time import time, sleep
 
 import flask_unittest
 
-from album.core.controller.catalog_handler import CatalogHandler
 from album.core.controller.task_manager import TaskManager
 from album.core.model.default_values import DefaultValues
 from album.core.model.group_name_version import GroupNameVersion

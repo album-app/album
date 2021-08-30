@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, call
 from unittest.mock import patch
 
 from album.core import AlbumClass
-from album.core.controller.collection_manager import CollectionManager
+from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.model.catalog import Catalog
 from album.core.model.catalog_updates import CatalogUpdates
 from album.core.model.default_values import DefaultValues
@@ -54,7 +54,7 @@ class TestCatalogManager(TestUnitCommon):
                 'src': str(test_catalog2_src)
             }
         ]
-        with patch("album.core.controller.collection_manager.CatalogHandler.add_initial_catalogs") as add_initial_catalogs_mock:
+        with patch("album.core.controller.collection.collection_manager.CatalogHandler.add_initial_catalogs") as add_initial_catalogs_mock:
             self.collection_manager = CollectionManager()
 
         for catalog in self.catalog_list:
@@ -353,7 +353,7 @@ class TestCatalogManager(TestUnitCommon):
             self.collection_manager.catalog_collection.get_all_catalogs()[0]['src'])
 
     @patch('album.core.utils.operations.resolve_operations.load')
-    @patch('album.core.controller.catalog_handler.Catalog.get_solution_file')
+    @patch('album.core.controller.collection.catalog_handler.Catalog.get_solution_file')
     def test_resolve_dependency_and_load(self, get_solution_file_mock, load_mock):
         # mocks
         load_mock.return_value = self.active_solution
@@ -414,8 +414,8 @@ class TestCatalogManager(TestUnitCommon):
     def test_resolve_require_installation_and_load_valid_path(self):
         pass
 
-    @patch('album.core.controller.collection_manager._check_file_or_url')
-    @patch('album.core.controller.collection_manager.load')
+    @patch('album.core.controller.collection.collection_manager._check_file_or_url')
+    @patch('album.core.controller.collection.collection_manager.load')
     def test_resolve_require_installation_and_load_grp_name_version(self, load_mock, _check_file_or_url_mock):
         # mocks
         search_mock = MagicMock(return_value={"catalog_id": 1, "group": "grp", "name": "name", "version": "version", "installed": True})
@@ -429,8 +429,8 @@ class TestCatalogManager(TestUnitCommon):
         # assert
         _check_file_or_url_mock.assert_called_once_with("grp:name:version", self.collection_manager.tmp_cache_dir)
 
-    @patch('album.core.controller.solution_handler.copy_folder', return_value=None)
-    @patch('album.core.controller.collection_manager.clean_resolve_tmp', return_value=None)
+    @patch('album.core.controller.collection.solution_handler.copy_folder', return_value=None)
+    @patch('album.core.controller.collection.collection_manager.clean_resolve_tmp', return_value=None)
     def test_add_to_local_catalog(self, clean_resolve_tmp, copy_folder_mock):
         # run
         self.active_solution.script = ""  # the script gets read during load()

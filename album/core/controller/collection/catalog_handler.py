@@ -4,17 +4,18 @@ from typing import List
 import validators
 
 from album.core.controller.migration_manager import MigrationManager
-from album.core.controller.solution_handler import SolutionHandler
+from album.core.controller.collection.solution_handler import SolutionHandler
 from album.core.model.catalog import Catalog
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.catalog_updates import CatalogUpdates, SolutionChange, ChangeType
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.resolve_operations import solution_to_group_name_version, dict_to_group_name_version
+from album.core.utils.operations.resolve_operations import dict_to_group_name_version
 from album_runner import logging
 
 module_logger = logging.get_active_logger
+
 
 class CatalogHandler:
 

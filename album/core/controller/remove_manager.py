@@ -1,6 +1,6 @@
 from album.core import pop_active_solution
 from album.core.concept.singleton import Singleton
-from album.core.controller.collection_manager import CollectionManager
+from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.utils.operations.file_operations import force_remove
 from album_runner import logging
 

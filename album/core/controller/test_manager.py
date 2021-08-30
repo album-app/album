@@ -1,7 +1,7 @@
 from queue import Queue
 
 from album.core.concept.singleton import Singleton
-from album.core.controller.collection_manager import CollectionManager
+from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.run_manager import RunManager
 from album_runner import logging
 

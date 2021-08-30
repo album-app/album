@@ -4,7 +4,7 @@ from pathlib import Path
 
 from album.ci.argument_parsing import main
 from album.ci.controller.release_manager import ReleaseManager
-from album.core.controller.collection_manager import CollectionManager
+from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.deploy_manager import DeployManager
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues

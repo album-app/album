@@ -1,8 +1,8 @@
 from pathlib import Path
 
 from album.core.concept.singleton import Singleton
-from album.core.controller.catalog_handler import CatalogHandler
-from album.core.controller.collection_manager import CollectionManager
+from album.core.controller.collection.catalog_handler import CatalogHandler
+from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations import url_operations, file_operations
 from album_runner import logging

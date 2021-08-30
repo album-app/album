@@ -4,7 +4,7 @@ from queue import Queue, Empty
 
 from album.core import load
 from album.core.concept.singleton import Singleton
-from album.core.controller.collection_manager import CollectionManager
+from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.model.solution_collection import SolutionCollection
 from album.core.utils.script import create_solution_script
 from album_runner import logging

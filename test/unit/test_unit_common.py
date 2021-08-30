@@ -14,7 +14,7 @@ from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core import AlbumClass
 from album.core.controller.clone_manager import CloneManager
-from album.core.controller.collection_manager import CollectionManager
+from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.conda_manager import CondaManager
 from album.core.controller.deploy_manager import DeployManager
 from album.core.controller.install_manager import InstallManager

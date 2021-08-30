@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 
-from album.core.controller.collection_manager import CollectionManager
 from album.core.model.catalog_index_new import CatalogIndex
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations import file_operations

@@ -7,7 +7,7 @@ from werkzeug.exceptions import abort
 
 from album.core.concept.singleton import Singleton
 from album.core.controller.clone_manager import CloneManager
-from album.core.controller.collection_manager import CollectionManager
+from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.deploy_manager import DeployManager
 from album.core.controller.install_manager import InstallManager
 from album.core.controller.remove_manager import RemoveManager

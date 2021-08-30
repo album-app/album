@@ -7,9 +7,9 @@ from album.core.utils.operations.file_operations import write_dict_to_json
 from album.core import load
 from album.core.concept.singleton import Singleton
 # classes and methods
-from album.core.controller.catalog_handler import CatalogHandler
+from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.migration_manager import MigrationManager
-from album.core.controller.solution_handler import SolutionHandler
+from album.core.controller.collection.solution_handler import SolutionHandler
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult

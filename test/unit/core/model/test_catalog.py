@@ -5,8 +5,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-from album.core.controller.catalog_handler import CatalogHandler
-from album.core.controller.collection_manager import CollectionManager
+from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.album_base import AlbumClass
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
