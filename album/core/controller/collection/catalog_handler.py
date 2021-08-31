@@ -255,7 +255,21 @@ class CatalogHandler:
         res.solution_changes = self._compare_solutions(solutions_in_collection, solutions_in_catalog)
         return res
 
-    def _compare_solutions(self, solutions_old, solutions_new):
+    def _update_collection_from_catalogs(self) -> List[CatalogUpdates]:
+        res = []
+        for catalog in self.get_all():
+            res.append(self._update_collection_from_catalog(catalog_name=catalog.name))
+        return res
+
+    def _update_collection_from_catalog(self, catalog_name) -> CatalogUpdates:
+        divergence = self._get_divergence_between_catalog_and_collection(catalog_name)
+        #TODO apply changes to catalog attributes
+        for change in divergence.solution_changes:
+            self.solution_handler.apply_change(divergence.catalog, change)
+        return divergence
+
+    @staticmethod
+    def _compare_solutions(solutions_old, solutions_new):
         res = []
         dict_old = {}
         dict_new = {}
@@ -283,19 +297,6 @@ class CatalogHandler:
                 change = SolutionChange(gnv, ChangeType.ADDED)
                 res.append(change)
         return res
-
-    def _update_collection_from_catalogs(self) -> List[CatalogUpdates]:
-        res = []
-        for catalog in self.get_all():
-            res.append(self._update_collection_from_catalog(catalog_name=catalog.name))
-        return res
-
-    def _update_collection_from_catalog(self, catalog_name) -> CatalogUpdates:
-        divergence = self._get_divergence_between_catalog_and_collection(catalog_name)
-        #TODO apply changes to catalog attributes
-        for change in divergence.solution_changes:
-            self.solution_handler.apply_change(divergence.catalog, change)
-        return divergence
 
     @staticmethod
     def _as_catalog(catalog_dict):
