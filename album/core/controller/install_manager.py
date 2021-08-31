@@ -18,21 +18,21 @@ class InstallManager(metaclass=Singleton):
     After installation the solution is marked as installed in a local catalog.
 
     Attributes:
-        catalog_manager:
+        collection_manager:
             Holding all configured catalogs. Resolves inside our outside catalogs.
 
     """
     # singletons
-    catalog_manager = None
+    collection_manager = None
 
     def __init__(self):
-        self.catalog_manager = CollectionManager()
-        self.configuration = self.catalog_manager.configuration
+        self.collection_manager = CollectionManager()
+        self.configuration = self.collection_manager.configuration
 
     def install(self, path):
         """Function corresponding to the `install` subcommand of `album`."""
         # Load solution
-        resolve_result = self.catalog_manager.resolve_download_and_load(path)
+        resolve_result = self.collection_manager.resolve_download_and_load(path)
         solution = resolve_result.active_solution
         catalog = resolve_result.catalog
 
@@ -47,11 +47,11 @@ class InstallManager(metaclass=Singleton):
 
         #TODO this is messy and needs to be cleaned up
         if not catalog or catalog.is_local:  # case where a solution file is directly given
-            self.catalog_manager.add_solution_to_local_catalog(solution, resolve_result.path.parent)
+            self.collection_manager.add_solution_to_local_catalog(solution, resolve_result.path.parent)
         else:
             self.update_in_collection_index(catalog.catalog_id, parent_catalog_id, solution)
 
-        self.catalog_manager.solutions().update_solution(catalog, solution, {"installed": 1})
+        self.collection_manager.solutions().update_solution(catalog, solution, {"installed": 1})
         module_logger().info('Installed %s!' % solution['name'])
 
         return catalog.catalog_id
@@ -62,14 +62,14 @@ class InstallManager(metaclass=Singleton):
         if active_solution.parent:
             parent = active_solution.parent
 
-            parent_entry = self.catalog_manager.catalog_collection.get_solution_by_catalog_grp_name_version(
+            parent_entry = self.collection_manager.catalog_collection.get_solution_by_catalog_grp_name_version(
                 parent_catalog_id, dict_to_group_name_version(parent)
             )
             parent_id = parent_entry["solution_id"]
 
         #FIXME figure out how to add the parent. can it be in a different catalog? if yes, add catalog and parent_id?!
-        self.catalog_manager.solutions().update_solution(
-            self.catalog_manager.catalogs().get_by_id(catalog_id),
+        self.collection_manager.solutions().update_solution(
+            self.collection_manager.catalogs().get_by_id(catalog_id),
             solution_to_group_name_version(active_solution),
             active_solution
         )
@@ -97,6 +97,7 @@ class InstallManager(metaclass=Singleton):
 
         return parent_catalog_id
 
+    # TODO rename install_parent
     def install_dependencies(self, active_solution):
         """Handle dependencies in album dependency block"""
         parent_catalog_id = None
@@ -115,7 +116,7 @@ class InstallManager(metaclass=Singleton):
 
     def install_dependency(self, dependency):
         """Calls `install` for a solution declared in a dependency block"""
-        script_path = self.catalog_manager.resolve_dependency(dependency).path
+        script_path = self.collection_manager.resolve_dependency(dependency).path
         # recursive installation call
         catalog_id = self.install(script_path)
 

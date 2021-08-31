@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import validators
 
@@ -111,6 +111,7 @@ class CatalogHandler:
 
     @staticmethod
     def _update(catalog: Catalog) -> bool:
+        # TODO call migration manager
         r = catalog.refresh_index()
         module_logger().info('Updated catalog %s!' % catalog.name)
         return r
@@ -172,7 +173,7 @@ class CatalogHandler:
 
         return catalog_to_remove
 
-    def remove_from_index_by_name(self, name):
+    def remove_from_index_by_name(self, name) -> Optional[Catalog]:
         catalog_dict = self.catalog_collection.get_catalog_by_name(name)
 
         if not catalog_dict:
@@ -249,8 +250,7 @@ class CatalogHandler:
             # cache catalog is always up to date since src and path are the same
             return res
         solutions_in_collection = self.catalog_collection.get_solutions_by_catalog(catalog.catalog_id)
-        if not catalog.catalog_index:
-            catalog.load_index()
+        catalog.load_index()
         solutions_in_catalog = catalog.catalog_index.get_all_solutions()
         res.solution_changes = self._compare_solutions(solutions_in_collection, solutions_in_catalog)
         return res

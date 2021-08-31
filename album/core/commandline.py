@@ -77,6 +77,7 @@ def index(args):
 
 def repl(args):
     """Function corresponding to the `repl` subcommand of `album`."""
+    # this loads a solution, opens python session in terminal, and lets you run python commands in the environment of the solution
     # Load solution
     solution_script = open(args.path).read()
     exec(solution_script)

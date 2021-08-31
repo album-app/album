@@ -281,6 +281,7 @@ class Catalog:
         return solution_path
 
     def load_index(self):
+        # TODO use migration manager
         """Loads the index from file or src. If a file and src exists routine tries to update the index."""
         if self.is_cache():
             raise RuntimeError("Cache catalog does not have it's own index - all solutions are indexed in the collection index.")
