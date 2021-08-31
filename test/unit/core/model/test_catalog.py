@@ -23,9 +23,9 @@ class TestCatalog(TestUnitCommon):
     @patch('album.core.model.album_base.Environment.__init__', return_value=None)
     def populate_index(self, _, r=10):
         for i in range(0, r):
-            d = {}
+            d = self.get_solution_dict()
 
-            for key in AlbumClass.deploy_keys:
+            for key in ["group", "name", "version", "doi", "deposit_id"]:
                 d[key] = "%s%s" % (key, str(i))
 
             solution = AlbumClass(d)

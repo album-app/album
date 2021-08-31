@@ -82,14 +82,12 @@ class SolutionHandler:
         keys.remove("args")
         keys.remove("cite")
         keys.remove("covers")
-        keys.remove("sample_inputs")
-        keys.remove("sample_outputs")
         keys.append("hash")
         keys.append("installed")
         return keys
 
     def apply_change(self, catalog, change):
-        # TODO handle other tables (tags etc)
+        # FIXME handle other tables (tags etc)
         if change.change_type is ChangeType.ADDED:
             self.catalog_collection.add_or_replace_solution(
                 catalog.catalog_id,

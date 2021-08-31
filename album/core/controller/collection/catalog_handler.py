@@ -169,7 +169,7 @@ class CatalogHandler:
             module_logger().warning("Cannot remove catalog! Marked as not deletable! Will do nothing...")
             return None
 
-        self.catalog_collection.remove_entire_catalog(catalog_to_remove.catalog_id)
+        self.catalog_collection.remove_catalog(catalog_to_remove.catalog_id)
 
         return catalog_to_remove
 
@@ -188,7 +188,7 @@ class CatalogHandler:
             module_logger().warning("Cannot remove catalog! Marked as not deletable! Will do nothing...")
             return None
 
-        self.catalog_collection.remove_entire_catalog(catalog_to_remove.catalog_id)
+        self.catalog_collection.remove_catalog(catalog_to_remove.catalog_id)
 
         return catalog_to_remove
 
@@ -213,7 +213,7 @@ class CatalogHandler:
             module_logger().warning("Cannot remove catalog! Marked as not deletable! Will do nothing...")
             return None
 
-        self.catalog_collection.remove_entire_catalog(catalog_to_remove.catalog_id)
+        self.catalog_collection.remove_catalog(catalog_to_remove.catalog_id)
 
         module_logger().info("Removed catalog with source %s" % str(src))
 

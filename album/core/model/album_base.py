@@ -17,7 +17,7 @@ class AlbumClass(AlbumRunner):
     deploy_keys = [
         'group', 'name', 'description', 'version', 'format_version', 'tested_album_version',
         'min_album_version', 'license', 'git_repo', 'authors', 'cite', 'tags', 'documentation',
-        'covers', 'sample_inputs', 'sample_outputs', 'args', 'title', 'timestamp'
+        'covers', 'args', 'title', 'timestamp'
     ]
 
     def get_deploy_dict(self):

@@ -9,8 +9,7 @@ CREATE TABLE IF NOT EXISTS tag
 (
     tag_id          INTEGER PRIMARY KEY,
     name            TEXT not null,
-    assignment_type TEXT,
-    hash            TEXT not null
+    assignment_type TEXT
 );
 
 CREATE TABLE IF NOT EXISTS cover
@@ -19,7 +18,6 @@ CREATE TABLE IF NOT EXISTS cover
     solution_id     INTEGER not null,
     source          TEXT not null,
     description     TEXT,
-    hash            TEXT not null,
     FOREIGN KEY (solution_id) REFERENCES solution (solution_id)
 );
 
@@ -27,25 +25,22 @@ CREATE TABLE IF NOT EXISTS citation
 (
     citation_id     INTEGER PRIMARY KEY,
     text            TEXT not null,
-    doi             TEXT,
-    hash            TEXT not null
+    doi             TEXT
 );
 
 CREATE TABLE IF NOT EXISTS author
 (
     author_id     INTEGER PRIMARY KEY,
-    text            TEXT not null,
-    hash            TEXT not null
+    name            TEXT not null
 );
 
 CREATE TABLE IF NOT EXISTS argument
 (
     argument_id     INTEGER PRIMARY KEY,
     name            TEXT not null,
-    type            TEXT not null,
-    description     TEXT,
-    default_value   TEXT,
-    hash            TEXT not null
+    type            TEXT,
+    description     TEXT not null,
+    default_value   TEXT
 );
 
 CREATE TABLE IF NOT EXISTS solution
@@ -74,7 +69,6 @@ CREATE TABLE IF NOT EXISTS solution_tag
     solution_tag_id INTEGER PRIMARY KEY,
     solution_id     INTEGER,
     tag_id          INTEGER,
-    hash            TEXT not null,
     FOREIGN KEY (solution_id) REFERENCES solution (solution_id),
     FOREIGN KEY (tag_id) REFERENCES tag (tag_id)
 );
@@ -84,7 +78,6 @@ CREATE TABLE IF NOT EXISTS solution_author
     solution_author_id INTEGER PRIMARY KEY,
     solution_id        INTEGER,
     author_id          INTEGER,
-    hash               TEXT not null,
     FOREIGN KEY (solution_id) REFERENCES solution (solution_id),
     FOREIGN KEY (author_id) REFERENCES author (author_id)
 );
@@ -94,7 +87,6 @@ CREATE TABLE IF NOT EXISTS solution_citation
     solution_citation_id INTEGER PRIMARY KEY,
     solution_id          INTEGER,
     citation_id          INTEGER,
-    hash                 TEXT not null,
     FOREIGN KEY (solution_id) REFERENCES solution (solution_id),
     FOREIGN KEY (citation_id) REFERENCES citation (citation_id)
 );
@@ -104,7 +96,6 @@ CREATE TABLE IF NOT EXISTS solution_argument
     solution_argument_id INTEGER PRIMARY KEY,
     solution_id          INTEGER,
     argument_id          INTEGER,
-    hash                 TEXT not null,
     FOREIGN KEY (solution_id) REFERENCES solution (solution_id),
     FOREIGN KEY (argument_id) REFERENCES argument (argument_id)
 );

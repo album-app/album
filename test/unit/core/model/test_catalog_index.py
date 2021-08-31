@@ -33,16 +33,6 @@ class TestCatalogIndex(TestUnitCommon):
 
         return solution_id1, solution_id2
 
-    def fill_tags(self):
-        self.assertTrue(self.catalog_index.is_table_empty("tag"))
-
-        tag_id1 = self.catalog_index.insert_tag("myTag1", "manual")
-        tag_id2 = self.catalog_index.insert_tag("myTag1", "automatic")
-        tag_id3 = self.catalog_index.insert_tag("myTag2", "manual")
-
-        self.assertFalse(self.catalog_index.is_table_empty("tag"))
-
-        return tag_id1, tag_id2, tag_id3
 
     @patch("album.core.model.catalog_index.CatalogIndex.update_name_version")
     def test_create(self, update_name_version_mock):
@@ -80,233 +70,6 @@ class TestCatalogIndex(TestUnitCommon):
 
     def test_get_version(self):
         self.assertEqual("0.1.0", self.catalog_index.get_version())
-
-    # ### tag ###
-
-    def test_insert_tag(self):
-        self.assertTrue(self.catalog_index.is_table_empty("tag"))
-
-        # call
-        tag_id1 = self.catalog_index.insert_tag("myTag", "manual")
-        tag_id2 = self.catalog_index.insert_tag("myTag", "automatic")
-        tag_id3 = self.catalog_index.insert_tag("myTag2", "manual")
-
-        # assert
-        self.assertEqual(1, tag_id1)
-        self.assertEqual(2, tag_id2)
-        self.assertEqual(3, tag_id3)
-        self.assertEqual(4, self.catalog_index.next_id("tag"))
-        self.assertFalse(self.catalog_index.is_table_empty("tag"))
-
-    def test_insert_tag_twice(self):
-        self.assertTrue(self.catalog_index.is_table_empty("tag"))
-
-        tag_id = self.catalog_index.insert_tag("myTag", "manual")
-        twice = self.catalog_index.insert_tag("myTag", "manual")
-
-        self.assertEqual(1, tag_id)
-        self.assertIsNone(twice)
-
-    def test_get_tag(self):
-        tag_id1, tag_id2, tag_id3 = self.fill_tags()
-
-        # call
-        tag = self.catalog_index.get_tag(2)
-
-        # assert
-        self.assertEqual(tag_id2, tag["tag_id"])
-        self.assertEqual("myTag1", tag["name"])
-        self.assertEqual("automatic", tag["assignment_type"])
-        self.assertIsNotNone(tag["hash"])
-
-    def test_get_tags_by_hash(self):
-        tag_id = self.catalog_index.next_id("tag")
-        self.catalog_index.get_cursor().execute(
-            "INSERT INTO tag values (?, ?, ?, ?)",
-            (tag_id, "tag_name", "assignment_type", "abcdefghij")
-        )
-
-        # call
-        tag = self.catalog_index.get_tag_by_hash("abcdefghij")
-
-        # assert
-        self.assertEqual(tag_id, tag["tag_id"])
-
-    def test_get_tags_by_name(self):
-        tag_id1, tag_id2, tag_id3 = self.fill_tags()
-
-        # call
-        tags = self.catalog_index.get_tags_by_name("myTag1")
-
-        # assert
-        self.assertEqual(2, len(tags))
-        self.assertEqual(tag_id1, tags[0]["tag_id"])
-        self.assertEqual(tag_id2, tags[1]["tag_id"])
-
-    def test_get_tag_by_name_and_type(self):
-        tag_id1, tag_id2, tag_id3 = self.fill_tags()
-
-        # call
-        tag = self.catalog_index.get_tag_by_name_and_type("myTag1", "automatic")
-
-        # assert
-        self.assertEqual(tag_id2, tag["tag_id"])
-        self.assertEqual("myTag1", tag["name"])
-        self.assertEqual("automatic", tag["assignment_type"])
-
-    def test_remove_tag(self):
-        tag_id1, tag_id2, tag_id3 = self.fill_tags()
-
-        tag = self.catalog_index.get_tag(tag_id2)
-        self.assertEqual("automatic", tag["assignment_type"])
-
-        # call
-        self.catalog_index.remove_tag(tag_id2)
-
-        # assert
-        tag1 = self.catalog_index.get_tag(tag_id1)
-        tag2 = self.catalog_index.get_tag(tag_id2)
-        tag3 = self.catalog_index.get_tag(tag_id3)
-
-        self.assertIsNone(tag2)
-        # tag 2 and 3 should stay!
-        self.assertEqual("myTag1", tag1["name"])
-        self.assertEqual("manual", tag1["assignment_type"])
-        self.assertEqual("myTag2", tag3["name"])
-
-    def test_remove_tag_by_name(self):
-        tag_id1, tag_id2, tag_id3 = self.fill_tags()
-
-        tag = self.catalog_index.get_tag(tag_id2)
-        self.assertEqual("automatic", tag["assignment_type"])
-
-        # call
-        self.catalog_index.remove_tag_by_name("myTag1")
-
-        # assert
-        tag1 = self.catalog_index.get_tag(tag_id2)
-        tag2 = self.catalog_index.get_tag(tag_id2)
-        tag3 = self.catalog_index.get_tag(tag_id3)
-
-        self.assertIsNone(tag1)
-        self.assertIsNone(tag2)
-        self.assertEqual("myTag2", tag3["name"])
-
-    def test_remove_tag_by_name_and_type(self):
-        tag_id1, tag_id2, tag_id3 = self.fill_tags()
-
-        # call
-        self.catalog_index.remove_tag_by_name_and_type("myTag1", "automatic")
-
-        # assert
-        tag2 = self.catalog_index.get_tag(tag_id2)
-        self.assertIsNone(tag2)
-
-        tag1 = self.catalog_index.get_tag(tag_id1)
-        self.assertEqual("myTag1", tag1["name"])
-        self.assertEqual("manual", tag1["assignment_type"])
-
-        tag3 = self.catalog_index.get_tag(tag_id3)
-        self.assertEqual("myTag2", tag3["name"])
-
-    # ### solution_tag ###
-
-    def test_insert_solution_tags(self):
-
-        solution_id, _ = self.fill_solution()
-        tag_id1, tag_id2, tag_id3 = self.fill_tags()
-
-        self.assertTrue(self.catalog_index.is_table_empty("solution_tag"))
-
-        # call
-        solution_tag_id1 = self.catalog_index.insert_solution_tag(solution_id, tag_id2)
-        solution_tag_id2 = self.catalog_index.insert_solution_tag(solution_id, tag_id3)
-
-        # assert
-        self.assertEqual(1, solution_tag_id1)
-        self.assertEqual(2, solution_tag_id2)
-        self.assertFalse(self.catalog_index.is_table_empty("solution_tag"))
-        self.assertEqual(3, self.catalog_index.next_id("solution_tag"))
-
-    def test_insert_solution_tag_twice(self):
-
-        solution_id, _ = self.fill_solution()
-        tag_id1 = self.catalog_index.insert_tag("myTag1", "manual")
-
-        self.assertTrue(self.catalog_index.is_table_empty("solution_tag"))
-
-        # call
-        solution_tag_id = self.catalog_index.insert_solution_tag(solution_id, tag_id1)
-        self.assertIsNotNone(solution_tag_id)
-
-        # call twice
-        solution_tag_id_twice = self.catalog_index.insert_solution_tag(solution_id, tag_id1)
-        self.assertIsNone(solution_tag_id_twice)
-
-    def test_get_solution_tag_by_hash(self):
-
-        solution_tag_id = self.catalog_index.next_id("solution_tag")
-        self.catalog_index.get_cursor().execute(
-            "INSERT INTO solution_tag values (?, ?, ?, ?)",
-            (solution_tag_id, 1, 1, "abcdefghij")
-        )
-
-        # call
-        solution_tag = self.catalog_index.get_solution_tag_by_hash("abcdefghij")
-
-        # assert
-        self.assertEqual(solution_tag_id, solution_tag["solution_tag_id"])
-
-    def test_get_solution_tag_by_solution_id_and_tag_id(self):
-        solution_id, _ = self.fill_solution()
-        tag_id1, _, _ = self.fill_tags()
-
-        self.assertTrue(self.catalog_index.is_table_empty("solution_tag"))
-        solution_tag_id1 = self.catalog_index.insert_solution_tag(solution_id, tag_id1)
-        self.assertFalse(self.catalog_index.is_table_empty("solution_tag"))
-
-        # call
-        solution_tag = self.catalog_index.get_solution_tag_by_solution_id_and_tag_id(solution_id, tag_id1)
-
-        # assert
-        self.assertEqual(solution_tag_id1, solution_tag["solution_tag_id"])
-
-    def test_get_solution_tags(self):
-        solution_id, _ = self.fill_solution()
-        tag_id1, tag_id2, tag_id3 = self.fill_tags()
-
-        self.assertTrue(self.catalog_index.is_table_empty("solution_tag"))
-
-        solution_tag_id1 = self.catalog_index.insert_solution_tag(solution_id, tag_id2)
-        solution_tag_id2 = self.catalog_index.insert_solution_tag(solution_id, tag_id3)
-
-        self.assertFalse(self.catalog_index.is_table_empty("solution_tag"))
-
-        # call
-        ids = self.catalog_index.get_solution_tags(solution_id)
-
-        # assert
-        self.assertEqual([tag_id2, tag_id3], ids)
-
-    def test_remove_solution_tags(self):
-        solution_id1, solution_id2 = self.fill_solution()
-        tag_id1, tag_id2, tag_id3 = self.fill_tags()
-
-        self.assertTrue(self.catalog_index.is_table_empty("solution_tag"))
-
-        solution_tag_id1 = self.catalog_index.insert_solution_tag(solution_id1, tag_id2)
-        solution_tag_id2 = self.catalog_index.insert_solution_tag(solution_id1, tag_id3)
-        solution_tag_id3 = self.catalog_index.insert_solution_tag(solution_id2, tag_id1)
-
-        self.assertFalse(self.catalog_index.is_table_empty("solution_tag"))
-
-        # call
-        self.catalog_index.remove_solution_tags(solution_id1)
-
-        # assert
-        self.assertFalse(self.catalog_index.is_table_empty("solution_tag"))
-        self.assertEqual([], self.catalog_index.get_solution_tags(solution_id1))
-        self.assertEqual([tag_id1], self.catalog_index.get_solution_tags(solution_id2))
 
     # ### solution ###
 
@@ -422,9 +185,6 @@ class TestCatalogIndex(TestUnitCommon):
         get_solution_by_group_name_version = MagicMock(return_value=None)
         self.catalog_index.get_solution_by_group_name_version = get_solution_by_group_name_version
 
-        insert_tag = MagicMock(return_value=None)
-        self.catalog_index.insert_tag = insert_tag
-
         update_solution = MagicMock()
         self.catalog_index._update_solution = update_solution
 
@@ -439,7 +199,6 @@ class TestCatalogIndex(TestUnitCommon):
 
         # assert
         as_group_name_version.assert_called_once_with(attrs)
-        self.assertEqual(2, insert_tag.call_count)
         get_solution_by_group_name_version.assert_called_once_with(as_group_name_version.return_value)
         insert_solution.assert_called_once_with(attrs)
         update_solution.assert_not_called()
@@ -450,9 +209,6 @@ class TestCatalogIndex(TestUnitCommon):
         get_solution_by_group_name_version = MagicMock(return_value="aNiceSolution")
         self.catalog_index.get_solution_by_group_name_version = get_solution_by_group_name_version
 
-        insert_tag = MagicMock(return_value=None)
-        self.catalog_index.insert_tag = insert_tag
-
         update_solution = MagicMock()
         self.catalog_index._update_solution = update_solution
 
@@ -467,18 +223,12 @@ class TestCatalogIndex(TestUnitCommon):
 
         # assert
         as_group_name_version.assert_called_once_with(attrs)
-        self.assertEqual(2, insert_tag.call_count)
         get_solution_by_group_name_version.assert_called_once_with(as_group_name_version.return_value)
         update_solution.assert_called_once_with(attrs)
         insert_solution.assert_not_called()
 
     def test_export(self):
         solution_id1, solution_id2 = self.fill_solution()
-        tag_id1, tag_id2, tag_id3 = self.fill_tags()
-
-        solution_tag_id1 = self.catalog_index.insert_solution_tag(solution_id1, tag_id2)
-        solution_tag_id2 = self.catalog_index.insert_solution_tag(solution_id1, tag_id3)
-        solution_tag_id3 = self.catalog_index.insert_solution_tag(solution_id2, tag_id1)
 
         # call
         p = Path(self.tmp_dir.name).joinpath("export_index")
@@ -492,11 +242,9 @@ class TestCatalogIndex(TestUnitCommon):
 
         solution1_import = json.loads(import_list[0])
         self.assertEqual("tsg", solution1_import["group"])
-        self.assertEqual([tag_id2, tag_id3], solution1_import["tags"])
 
         solution2_import = json.loads(import_list[1])
         self.assertEqual("anotherGroup", solution2_import["group"])
-        self.assertEqual([tag_id1], solution2_import["tags"])
 
     def test__len__(self):
         solution_id1, solution_id2 = self.fill_solution()

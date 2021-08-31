@@ -81,9 +81,6 @@ channels:
 
     def test_get_deploy_dict(self):
         active_solution = AlbumClass(self.solution_default_dict)
-
-        self.solution_default_dict["args"][0].pop("action")
-
         self.assertEqual(self.solution_default_dict, active_solution.get_deploy_dict())
 
     def test_get_deploy_dict_additional_values(self):

@@ -121,9 +121,16 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
-        catalogs = CollectionManager().catalog_collection.get_all_catalogs()
-        self.assertEqual(1, len(catalog.catalog_index.get_all_solutions()))
-        self.assertEqual(1, len(CollectionManager().catalog_collection.get_solutions_by_catalog(catalog.catalog_id)))
+        solutions = CollectionManager().catalog_collection.get_solutions_by_catalog(catalog.catalog_id)
+        print(solutions)
+        self.assertEqual(1, len(solutions))
+
+        # compare solution in collection to original solution
+        solution_in_collection = solutions[0]
+        for key in solution.deploy_keys:
+            if key == "timestamp":
+                continue
+            self.assertEqual(solution[key], solution_in_collection[key])
 
 
 if __name__ == '__main__':

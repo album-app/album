@@ -76,112 +76,6 @@ class CatalogIndex(Database):
 
         return cur_version
 
-    # ### tag ###
-
-    def insert_tag(self, tag_name, assignment_type):
-        if self.get_tag_by_name_and_type(tag_name, assignment_type):
-            return None
-
-        hash_val = hashlib.md5(":".join([tag_name, assignment_type]).encode('utf-8')).hexdigest()
-
-        tag_id = self.next_id("tag")
-        self.get_cursor().execute(
-            "INSERT INTO tag values (?, ?, ?, ?)",
-            (tag_id, tag_name, assignment_type, hash_val)
-        )
-
-        return tag_id
-
-    def get_tag(self, tag_id):
-        r = self.get_cursor().execute(
-            "SELECT * FROM tag WHERE tag_id=:tag_id",
-            {
-                "tag_id": tag_id,
-            }).fetchone()
-        tag = None
-        if r:
-            tag = dict(r)
-        return tag
-
-    def get_tag_by_hash(self, tag_hash):
-        r = self.get_cursor().execute(
-            "SELECT * FROM tag WHERE hash=:tag_hash",
-            {
-                "tag_hash": tag_hash,
-            }).fetchone()
-        tag = None
-        if r:
-            tag = dict(r)
-        return tag
-
-    def get_tags_by_name(self, tag_name):
-        r = self.get_cursor().execute(
-            "SELECT * FROM tag WHERE name=:tag_name",
-            {
-                "tag_name": tag_name,
-            }).fetchall()
-        tags = []
-        for _r in r:
-            tags.append(dict(_r))
-        return tags
-
-    def get_tag_by_name_and_type(self, tag_name, assignment_type):
-        r = self.get_cursor().execute(
-            "SELECT * FROM tag WHERE name=:tag_name AND assignment_type=:assignment_type",
-            {
-                "tag_name": tag_name,
-                "assignment_type": assignment_type
-            }).fetchone()
-
-        tag = None
-        if r:
-            tag = dict(r)
-        return tag
-
-    def remove_tag(self, tag_id):
-        self.get_cursor().execute(
-            "DELETE FROM tag WHERE tag_id=:tag_id",
-            {
-                "tag_id": tag_id
-            }
-        )
-
-    def remove_tag_by_name(self, tag_name):
-        self.get_cursor().execute(
-            "DELETE FROM tag WHERE name=:tag_name",
-            {
-                "tag_name": tag_name
-            }
-        )
-
-    def remove_tag_by_name_and_type(self, tag_name, assignment_type):
-        self.get_cursor().execute(
-            "DELETE FROM tag WHERE name=:tag_name AND assignment_type=:assignment_type",
-            {
-                "tag_name": tag_name,
-                "assignment_type": assignment_type
-            }
-        )
-
-    # ### solution_tag ###
-
-    def insert_solution_tag(self, solution_id, tag_id):
-        tag_ids = self.get_solution_tags(solution_id)
-
-        if tag_id in tag_ids:
-            return None
-
-        hash_val = self.create_hash(":".join([json.dumps(solution_id), json.dumps(tag_id)]))
-
-        solution_tag_id = self.next_id("solution_tag")
-
-        self.get_cursor().execute(
-            "INSERT INTO solution_tag values (?, ?, ?, ?)",
-            (solution_tag_id, solution_id, tag_id, hash_val)
-        )
-
-        return solution_tag_id
-
     def get_all_solutions(self):
         r = self.get_cursor().execute(
             "SELECT * FROM solution",
@@ -190,55 +84,10 @@ class CatalogIndex(Database):
         solutions = []
         if r:
             for s in r:
-                solutions.append(dict(s))
+                solution = dict(s)
+                self._append_metadata_to_solution_dict(solution)
+                solutions.append(solution)
         return solutions
-
-    def get_solution_tag_by_hash(self, hash_value) -> Optional[dict]:
-        r = self.get_cursor().execute(
-            "SELECT * FROM solution_tag WHERE hash=:hash_value",
-            {
-                "hash_value": hash_value,
-            }).fetchone()
-
-        solution_tag = None
-        if r:
-            solution_tag = dict(r)
-        return solution_tag
-
-    def get_solution_tag_by_solution_id_and_tag_id(self, solution_id, tag_id) -> Optional[dict]:
-        r = self.get_cursor().execute(
-            "SELECT * FROM solution_tag WHERE solution_id=:solution_id AND tag_id=:tag_id",
-            {
-                "solution_id": solution_id,
-                "tag_id": tag_id
-            }).fetchone()
-        solution_tag = None
-        if r:
-            solution_tag = dict(r)
-        return solution_tag
-
-    def get_solution_tags(self, solution_id) -> List[int]:
-        tag_ids = []
-        r = self.get_cursor().execute(
-            "SELECT * FROM solution_tag WHERE solution_id=:solution_id",
-            {
-                "solution_id": solution_id,
-            }).fetchall()
-
-        for row in r:
-            tag_ids.append(row["tag_id"])
-
-        return tag_ids
-
-    def remove_solution_tags(self, solution_id) -> None:
-        self.get_cursor().execute(
-            "DELETE FROM solution_tag WHERE solution_id=:solution_id",
-            {
-                "solution_id": solution_id
-            }
-        )
-
-    # ### solution ###
 
     def _insert_solution(self, solution_attrs) -> int:
         hash_val = self.create_hash(":".join([json.dumps(solution_attrs[k]) for k in solution_attrs.keys()]))
@@ -265,8 +114,116 @@ class CatalogIndex(Database):
                 hash_val
             )
         )
+        for author in solution_attrs["authors"]:
+            author_id = self._insert_author(author)
+            solution_author_id = self.next_id("solution_author")
+            self.get_cursor().execute(
+                "INSERT INTO solution_author values (?, ?, ?)",
+                (
+                    solution_author_id,
+                    solution_id,
+                    author_id
+                )
+            )
+        for tag in solution_attrs["tags"]:
+            tag_id = self._insert_tag(tag)
+            solution_tag_id = self.next_id("solution_tag")
+            self.get_cursor().execute(
+                "INSERT INTO solution_tag values (?, ?, ?)",
+                (
+                    solution_tag_id,
+                    solution_id,
+                    tag_id
+                )
+            )
+        for argument in solution_attrs["args"]:
+            argument_id = self._insert_argument(argument)
+            solution_argument_id = self.next_id("solution_argument")
+            self.get_cursor().execute(
+                "INSERT INTO solution_argument values (?, ?, ?)",
+                (
+                    solution_argument_id,
+                    solution_id,
+                    argument_id
+                )
+            )
+        for citation in solution_attrs["cite"]:
+            citation_id = self._insert_citation(citation)
+            solution_citation_id = self.next_id("solution_citation")
+            self.get_cursor().execute(
+                "INSERT INTO solution_citation values (?, ?, ?)",
+                (
+                    solution_citation_id,
+                    solution_id,
+                    citation_id
+                )
+            )
+        for cover in solution_attrs["covers"]:
+            self._insert_cover(cover, solution_id)
         self.save()
         return solution_id
+
+    def _insert_author(self, author):
+        author_id = self.next_id("author")
+        self.get_cursor().execute(
+            "INSERT INTO author values (?, ?)",
+            (
+                author_id,
+                author
+            )
+        )
+        return author_id
+
+    def _insert_tag(self, tag):
+        tag_id = self.next_id("tag")
+        self.get_cursor().execute(
+            "INSERT INTO tag values (?, ?, ?)",
+            (
+                tag_id,
+                tag,
+                "manual"
+            )
+        )
+        return tag_id
+
+    def _insert_argument(self, argument):
+        argument_id = self.next_id("argument")
+        self.get_cursor().execute(
+            "INSERT INTO argument values (?, ?, ?, ?, ?)",
+            (
+                argument_id,
+                argument["name"],
+                get_dict_entry(argument, "type"),
+                argument["description"],
+                get_dict_entry(argument, "default_value")
+            )
+        )
+        return argument_id
+
+    def _insert_citation(self, citation):
+        citation_id = self.next_id("citation")
+        self.get_cursor().execute(
+            "INSERT INTO citation values (?, ?, ?)",
+            (
+                citation_id,
+                citation["text"],
+                get_dict_entry(citation, "doi")
+            )
+        )
+        return citation_id
+
+    def _insert_cover(self, cover, solution_id):
+        cover_id = self.next_id("cover")
+        self.get_cursor().execute(
+            "INSERT INTO cover values (?, ?, ?, ?)",
+            (
+                cover_id,
+                solution_id,
+                cover["source"],
+                cover["description"]
+            )
+        )
+        return cover_id
 
     def get_solution(self, solution_id) -> Optional[dict]:
         r = self.get_cursor().execute(
@@ -277,6 +234,7 @@ class CatalogIndex(Database):
         solution = None
         if r:
             solution = dict(r)
+            self._append_metadata_to_solution_dict(solution)
         return solution
 
     def get_solution_by_group_name_version(self, group_name_version: GroupNameVersion) -> Optional[dict]:
@@ -293,7 +251,8 @@ class CatalogIndex(Database):
         cursor = self.get_cursor()
 
         r = cursor.execute(
-            "SELECT * FROM solution WHERE \"group\"=:group AND name=:name AND version=:version",
+            "SELECT s.* FROM solution s "
+            "WHERE s.\"group\"=:group AND s.name=:name AND s.version=:version",
             {
                 "group": group_name_version.group,
                 "name": group_name_version.name,
@@ -304,7 +263,16 @@ class CatalogIndex(Database):
         solution = None
         if r:
             solution = dict(r)
+            self._append_metadata_to_solution_dict(solution)
         return solution
+
+    def _append_metadata_to_solution_dict(self, solution):
+        solution_id = solution["solution_id"]
+        solution["authors"] = self._get_authors_by_solution(solution_id)
+        solution["covers"] = self._get_covers_by_solution(solution_id)
+        solution["args"] = self._get_arguments_by_solution(solution_id)
+        solution["cite"] = self._get_citations_by_solution(solution_id)
+        solution["tags"] = self._get_tags_by_solution(solution_id)
 
     def get_solution_by_doi(self, doi) -> Optional[dict]:
         """Resolves a solution by its DOI.
@@ -376,10 +344,6 @@ class CatalogIndex(Database):
         self.save()
 
     def remove_solution(self, solution_id):
-        # delete tags first
-        self.remove_solution_tags(solution_id)
-
-        # delete solution afterwards
         self.get_cursor().execute(
             "DELETE FROM solution WHERE solution_id=:solution_id",
             {
@@ -387,27 +351,70 @@ class CatalogIndex(Database):
             }
         )
 
+        self.get_cursor().execute(
+            "DELETE FROM cover WHERE solution_id=:solution_id",
+            {
+                "solution_id": solution_id
+            }
+        )
+
+        self.get_cursor().execute(
+            "DELETE FROM solution_tag WHERE solution_id=:solution_id",
+            {
+                "solution_id": solution_id
+            }
+        )
+
+        self.get_cursor().execute(
+            "DELETE FROM solution_author WHERE solution_id=:solution_id",
+            {
+                "solution_id": solution_id
+            }
+        )
+
+        self.get_cursor().execute(
+            "DELETE FROM solution_citation WHERE solution_id=:solution_id",
+            {
+                "solution_id": solution_id
+            }
+        )
+
+        self.get_cursor().execute(
+            "DELETE FROM solution_argument WHERE solution_id=:solution_id",
+            {
+                "solution_id": solution_id
+            }
+        )
+
+        self.get_cursor().execute(
+            "DELETE FROM tag "
+            "WHERE NOT EXISTS (SELECT st.tag_id FROM solution_tag st "
+            "WHERE tag.tag_id = st.tag_id)")
+
+        self.get_cursor().execute(
+            "DELETE FROM argument "
+            "WHERE NOT EXISTS (SELECT sa.argument_id FROM solution_argument sa "
+            "WHERE argument.argument_id = sa.argument_id)")
+
+        self.get_cursor().execute(
+            "DELETE FROM citation "
+            "WHERE NOT EXISTS (SELECT sc.citation_id FROM solution_citation sc "
+            "WHERE citation.citation_id = sc.citation_id)")
+
+        self.get_cursor().execute(
+            "DELETE FROM author "
+            "WHERE NOT EXISTS (SELECT sa.author_id FROM solution_author sa "
+            "WHERE author.author_id = sa.author_id)")
+
+        self.save()
+
+
     def remove_solution_by_group_name_version(self, group_name_version: GroupNameVersion):
         solution_dict = self.get_solution_by_group_name_version(group_name_version)
         if solution_dict:
             self.remove_solution(solution_dict["solution_id"])
 
     # ### catalog_features ###
-
-    def insert(self, active_solution: AlbumClass):
-        solution_attrs = active_solution.get_deploy_dict()
-
-        # insert tags if not already present
-        # insert solution
-        # insert solution-tag connection
-        # return solution id
-        return 1
-
-    def remove(self, active_solution: AlbumClass):
-        solution_attrs = active_solution.get_deploy_dict()
-
-        # remove solution-tag connection
-        # remove solution
 
     def update(self, solution_attrs: dict):
         """Updates a catalog to include a solution as a node with the attributes given.
@@ -418,11 +425,6 @@ class CatalogIndex(Database):
                 The solution attributes. Must hold group, name, version.
 
         """
-
-        # insert tags
-        for tag in solution_attrs["tags"]:
-            self.insert_tag(tag, "manual")
-
         if self.get_solution_by_group_name_version(dict_to_group_name_version(solution_attrs)):
             self._update_solution(solution_attrs)
         else:
@@ -450,7 +452,7 @@ class CatalogIndex(Database):
             json_dumps_list = []
             for solution in r:
                 solution = dict(solution)
-                solution["tags"] = self.get_solution_tags(solution["solution_id"])
+                self._append_metadata_to_solution_dict(solution)
                 json_dumps_list.append(json.dumps(solution))
 
             write_dict_to_json(path, json_dumps_list)
@@ -462,6 +464,90 @@ class CatalogIndex(Database):
         r = r[0]
 
         return r
+
+    def _get_authors_by_solution(self, solution_id):
+        cursor = self.get_cursor()
+        r = cursor.execute(
+            "SELECT a.* FROM author a "
+            "JOIN solution_author sa ON sa.author_id = a.author_id "
+            "WHERE sa.solution_id=:solution_id",
+            {
+                "solution_id": solution_id
+            }
+        ).fetchall()
+
+        res = []
+        for row in r:
+            res.append(row["name"])
+
+        return res
+
+    def _get_tags_by_solution(self, solution_id):
+        cursor = self.get_cursor()
+        r = cursor.execute(
+            "SELECT t.* FROM tag t "
+            "JOIN solution_tag st ON st.tag_id = t.tag_id "
+            "WHERE st.solution_id=:solution_id",
+            {
+                "solution_id": solution_id
+            }
+        ).fetchall()
+
+        res = []
+        for row in r:
+            res.append(row["name"])
+
+        return res
+
+    def _get_citations_by_solution(self, solution_id):
+        cursor = self.get_cursor()
+        r = cursor.execute(
+            "SELECT c.* FROM citation c "
+            "JOIN solution_citation sc ON sc.citation_id = c.citation_id "
+            "WHERE sc.solution_id=:solution_id",
+            {
+                "solution_id": solution_id
+            }
+        ).fetchall()
+
+        res = []
+        for row in r:
+            res.append(dict(row))
+
+        return res
+
+    def _get_arguments_by_solution(self, solution_id):
+        cursor = self.get_cursor()
+        r = cursor.execute(
+            "SELECT a.* FROM argument a "
+            "JOIN solution_argument sa ON sa.argument_id = a.argument_id "
+            "WHERE sa.solution_id=:solution_id",
+            {
+                "solution_id": solution_id
+            }
+        ).fetchall()
+
+        res = []
+        for row in r:
+            res.append(dict(row))
+
+        return res
+
+    def _get_covers_by_solution(self, solution_id):
+        cursor = self.get_cursor()
+        r = cursor.execute(
+            "SELECT c.* FROM cover c "
+            "WHERE c.solution_id=:solution_id",
+            {
+                "solution_id": solution_id
+            }
+        ).fetchall()
+
+        res = []
+        for row in r:
+            res.append(dict(row))
+
+        return res
 
     @staticmethod
     def create_hash(string_representation):
