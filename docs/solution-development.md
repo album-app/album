@@ -1,72 +1,48 @@
 album solution development guide
 ================================
 
-Write a solution file.
+## Write solutions
+### Tips for writing solutions
+- We recommend making a separate repository for developing your solutions (see our [default](https://gitlab.com/album-app/catalogs/default) and [default-dev](https://gitlab.com/album-app/catalogs/default) repositories as an example - `default` can be created via the `clone` command demonstrated below, `default-dev` does not have a fixed structure, it's just the source from where we deploy solutions into the catalog) 
+- We recommend keeping solutions short - develop the tool or algorithm separately - the solution is just a thin wrapper describing how to use the tool or algorithm.
 
-Here is an example solution file:
-
+### How to start
+You can use any existing solution as a template to write your own:
 ```
-    from album_runner import setup
-    from io import StringIO
+album clone [solution-file-or-url] --target-dir [parent-dir-of-new-solution] --name [name-of-new-solution]
+album clone [group:name:version] --target-dir [parent-dir-of-new-solution] --name [name-of-new-solution]
+```
+It copies a solution into the provided directory with the provided new name.
 
-    env_file = StringIO("""name: demo-solution
-    channels:
-      - conda-forge
-      - defaults
-    dependencies:
-      - python=3.6
-      - pip
-      - git
-      - pip:
-          - git+https://gitlab.com/album-app/album-runner.git
-    """)
+Make sure to replace all the relevant content, including `authors` with your (and your coworker's) name. Attributing the authors of the tool or algorithm the solution is using should happen in the `cite` tag.
 
-
-    def init():
-        pass
-
-
-    def install():
-        pass
-
-
-    def run():
-        print('The solution finished running')
-
-
-    def close():
-        pass
-
-
-    setup(group="ida-mdc",
-          name="demo-solution",
-          version="0.1.0",
-          format_version="0.3.0",
-          title="A demo solution",
-          description="This demo solution doesn't do anything",
-          authors="Kyle Harrington",
-          cite=["TBA"],
-          git_repo="https://github.com/ida-mdc/capture-knowledge",
-          tags=["vascu", "ec", "app"],
-          license="ApacheV2.0",
-          documentation="",
-          covers=[{
-              "description": "Dummy cover image.",
-              "source": "cover.png"
-          }],
-          sample_inputs=[],
-          sample_outputs=[],
-          min_album_version="0.1.0",
-          tested_album_version="0.1.0",
-          args=[],
-          install=install,
-          init=init,
-          run=run,
-          close=close,
-          dependencies={'environment_file': env_file})
+We provide templates for several languages:
+Python:
+```
+album clone album:template-python:0.1.0-SNAPSHOT --target-dir [parent-dir-of-new-solution] --name [name-of-new-solution]
+```
+Java:
+```
+album clone album:template-java:0.1.0-SNAPSHOT --target-dir [parent-dir-of-new-solution] --name [name-of-new-solution]
+```
+R:
+```
+album clone album:template-r:0.1.0-SNAPSHOT --target-dir [parent-dir-of-new-solution] --name [name-of-new-solution]
 ```
 
-## Tips for developing solutions
+### Testing your solution
+You can install and run the new solution with these commands:
+```
+album install [path-to-solution]
+album run [path-to-solution] --my-parameter [parameter-value]
+```
+
+### Setup parameters
+The setup parameters are derived from the [bioimage.io]() specification.
+
+* ``
+
+### Solution API
 
 Some useful paths and variables for a solution to use
 
@@ -75,4 +51,45 @@ get_active_solution().environment_cache_path
 get_active_solution().environment_path
 get_active_solution().environment_name
 get_active_solution().download_cache_path
+```
+
+# Create your own catalog
+Use this command to create a new catalog based on any template from [here](https://gitlab.com/album-app/catalogs/templates) - it will be copied into the provided directory with the provided new name.
+```
+album clone [catalog-template-name] --target-dir [parent-dir-of-new-catalog] --name [name-of-new-catalog]
+```
+The most basic template is this one:
+```
+album clone catalog --target-dir [parent-dir-of-new-catalog] --name [name-of-new-catalog]
+```
+If you want to build a catalog website using Gatsby (this can easily be done via gitlab or github CI), use this template:
+```
+album clone catalog-gatsby --target-dir [parent-dir-of-new-catalog] --name [name-of-new-catalog]
+```
+You can upload the newly created directory to gitlab or githab and make it easy for others to use your catalog as well.
+
+
+## Deploy a new solution (version) into a catalog
+Once the solution is working and the catalog exists, add the catalog to your local collection:
+```
+album add-catalog [path-to-new-catalog]
+```
+Now deploy the solution into this catalog:
+```
+album deploy [solution-file] --catalog [catalog-name]
+```
+Anyone who has this catalog in their collection and wants to use this new solution (including yourself) has to first..
+
+.. update their local catalog cache:
+```
+album update
+```
+..  and then upgrade their local collection:
+```
+album upgrade
+```
+Now you should be able to install and run this solution via these commands:
+```
+album install [group:name:version-of-your-new-solution]
+album run [group:name:version-of-your-new-solution]
 ```

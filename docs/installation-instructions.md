@@ -1,17 +1,19 @@
 album installation
 ================================
 
+## .. for using album via command line
+
 `album` can be installed with the following instructions:
 
 Prerequisites:
 
-- git
-- miniconda <https://docs.conda.io/en/latest/miniconda.html>
+- a Conda installation, i.e. [Miniconda](https://docs.conda.io/en/latest/miniconda.html)
 
 Steps:
 
-1. Clone the repository https://gitlab.com/album-app/album.git
-2. `cd album`
-3. `conda env create -f album.yml`
-4. `conda activate album`
-   
+1. `conda env create -f https://gitlab.com/album-app/album/-/raw/main/album.yml`
+2. `conda activate album`
+
+## .. for using album via GUI
+
+- Please visit the [album-app](https://gitlab.com/album-app/album-app) page for instructions
