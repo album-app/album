@@ -57,10 +57,8 @@ def create_parser():
     p.add_argument(
         '--dry-run',
         required=False,
-        help='Boolean to indicate a dry run and only show what would happen. Choose between %s.'
-             ' Default is False' % ", ".join([str(True), str(False)]),
-        default=False,
-        type=(lambda choice: bool(choice))
+        help='Parameter to indicate a dry run and only show what would happen.',
+        action='store_true'
     )
     p.add_argument(
         '--catalog',
@@ -114,6 +112,12 @@ def create_parser():
     p = parser.create_command_parser('upgrade', upgrade,
                                            'upgrade the local collection from the catalog index files. Either all catalogs configured, or a specific one.')
     p.add_argument('src', type=str, help='src of the catalog', nargs='?')
+    p.add_argument(
+        '--dry-run',
+        required=False,
+        help='Parameter to indicate a dry run and only show what would happen.',
+        action='store_true'
+    )
     p = parser.create_command_parser('clone', clone, 'clone an album solution or catalog template')
     p.add_argument('src', type=str, help='path for the solution file, group:name:version or name of the catalog template')
     p.add_argument(
