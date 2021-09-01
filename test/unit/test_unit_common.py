@@ -13,19 +13,19 @@ from album.ci.controller.release_manager import ReleaseManager
 from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core import AlbumClass
+from album.core.controller.clone_manager import CloneManager
+from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.conda_manager import CondaManager
 from album.core.controller.deploy_manager import DeployManager
 from album.core.controller.install_manager import InstallManager
+from album.core.controller.migration_manager import MigrationManager
 from album.core.controller.remove_manager import RemoveManager
-from album.core.controller.resolve_manager import ResolveManager
 from album.core.controller.run_manager import RunManager
 from album.core.controller.search_manager import SearchManager
 from album.core.controller.task_manager import TaskManager
 from album.core.controller.test_manager import TestManager
-from album.core.controller.catalog_manager import CatalogManager
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
-from album.core.model.solutions_db import SolutionsDb
 from album.core.server import AlbumServer
 from album.core.utils.operations.file_operations import force_remove
 from album_runner.logging import pop_active_logger, LogLevel, configure_logging
@@ -35,34 +35,10 @@ from test.global_exception_watcher import GlobalExceptionWatcher
 class TestUnitCommon(unittest.TestCase):
     """Base class for all Unittest using a album object"""
 
-    test_config_init = """catalogs:
-    - %s
-    """ % DefaultValues.catalog_url.value
-    test_catalog_collection_config_file = None
-
-    solution_default_dict = {
-        'group': "tsg",
-        'name': "tsn",
-        'description': "d1",
-        'version': "tsv",
-        'format_version': "f1",
-        'tested_album_version': "t1",
-        'min_album_version': "mhv1",
-        'license': "l1",
-        'git_repo': "g1",
-        'authors': "a1",
-        'cite': "c1",
-        'tags': "t1",
-        'documentation': "do1",
-        'covers': "co1",
-        'sample_inputs': "si1",
-        'sample_outputs': "so1",
-        'args': [{"action": None}],
-        'title': "t1",
-    }
-
     def setUp(self):
         """Could initialize default values for each test class. use `_<name>` to skip property setting."""
+
+        self.solution_default_dict = self.get_solution_dict()
         self.attrs = {}
         self.captured_output = StringIO()
         self.configure_test_logging(self.captured_output)
@@ -71,24 +47,46 @@ class TestUnitCommon(unittest.TestCase):
         self.closed_tmp_file.close()
 
     @staticmethod
+    def get_solution_dict():
+        return {
+            'group': "tsg",
+            'name': "tsn",
+            'description': "d1",
+            'version': "tsv",
+            'format_version': "f1",
+            'tested_album_version': "t1",
+            'min_album_version': "mhv1",
+            'license': "l1",
+            'git_repo': "g1",
+            'authors': ["a1", "a2"],
+            'cite': [{"text": "c1"}],
+            'tags': ["t1"],
+            'documentation': "do1",
+            'covers': [{"source": "co1", "description": ""}],
+            'args': [{"name": "a1", "type": "string", "description": ""}],
+            'title': "t1",
+            'timestamp': "",
+        }
+
+    @staticmethod
     def tear_down_singletons():
         # this is here to make sure all mocks are reset each time a test is executed
         album_runner.logging._active_logger = {}
         TestUnitCommon._delete(AlbumServer)
         TestUnitCommon._delete(Configuration)
-        TestUnitCommon._delete(CatalogManager)
+        TestUnitCommon._delete(CollectionManager)
         TestUnitCommon._delete(CondaManager)
         TestUnitCommon._delete(DeployManager)
         TestUnitCommon._delete(InstallManager)
         TestUnitCommon._delete(RemoveManager)
-        TestUnitCommon._delete(ResolveManager)
         TestUnitCommon._delete(RunManager)
         TestUnitCommon._delete(SearchManager)
-        TestUnitCommon._delete(SolutionsDb)
         TestUnitCommon._delete(TaskManager)
         TestUnitCommon._delete(TestManager)
         TestUnitCommon._delete(ReleaseManager)
         TestUnitCommon._delete(ZenodoManager)
+        TestUnitCommon._delete(MigrationManager)
+        TestUnitCommon._delete(CloneManager)
 
     @staticmethod
     def _delete(singleton):
@@ -102,9 +100,6 @@ class TestUnitCommon(unittest.TestCase):
             logger = pop_active_logger()
             if logger == logging.getLogger():
                 break
-
-        if self.test_catalog_collection_config_file:
-            Path(self.test_catalog_collection_config_file.name).unlink()
 
         Path(self.closed_tmp_file.name).unlink()
         self.tear_down_singletons()
@@ -134,24 +129,12 @@ class TestUnitCommon(unittest.TestCase):
         logs = logs.strip()
         return logs.split("\n")
 
-    @patch('album.core.model.catalog.Catalog.refresh_index', return_value=None)
-    def create_test_config(self, _):
-        self.test_catalog_collection_config_file = tempfile.NamedTemporaryFile(
-            delete=False, mode="w", dir=self.tmp_dir.name
-        )
-        self.test_config_init += "- " + self.tmp_dir.name
-        self.test_catalog_collection_config_file.writelines(self.test_config_init)
-        self.test_catalog_collection_config_file.close()
+    def create_test_config(self):
+        self.create_test_config_in_tmp_dir(self.tmp_dir.name)
 
-        config = Configuration()
-        config.setup(
-            base_cache_path=self.tmp_dir.name,
-            configuration_file_path=self.test_catalog_collection_config_file.name
-        )
-
-        self.test_catalog_manager = CatalogManager()
-
-        self.assertEqual(len(self.test_catalog_manager.local_catalog), 0)
+    def create_test_catalog_manager(self):
+        self.collection_manager = CollectionManager()
+        self.catalog_collection = self.collection_manager.catalog_collection
 
     @patch('album.core.model.environment.Environment.__init__', return_value=None)
     @patch('album.core.model.album_base.AlbumClass.get_deploy_dict')
@@ -160,6 +143,20 @@ class TestUnitCommon(unittest.TestCase):
         self.active_solution = AlbumClass(deploy_dict_mock.return_value)
         self.active_solution.init = lambda: None
         self.active_solution.args = []
+
+    @staticmethod
+    def create_test_config_in_tmp_dir(tmp_dir_name):
+        config = Configuration()
+        config.setup(
+            base_cache_path=tmp_dir_name
+        )
+
+    @staticmethod
+    def get_catalog_db_from_resources(catalog_name):
+        current_path = Path(os.path.dirname(os.path.realpath(__file__)))
+        path = current_path.joinpath("..", "resources", "catalogs", "unit", catalog_name,
+                                     DefaultValues.catalog_index_file_name.value)
+        return path
 
 
 class TestZenodoCommon(TestUnitCommon):

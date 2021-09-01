@@ -4,7 +4,7 @@ from pathlib import Path
 
 from album.ci.argument_parsing import main
 from album.ci.controller.release_manager import ReleaseManager
-from album.core.controller.catalog_manager import CatalogManager
+from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.deploy_manager import DeployManager
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
@@ -16,7 +16,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
 
     def setUp(self):
         super().setUp()
-        self.src = DefaultValues.catalog_url.value
+        self.src = DefaultValues.default_catalog_src.value
         self.name = "myTestCatalog"
         self.path = Path(self.tmp_dir.name).joinpath("test_catalog")
 
@@ -24,21 +24,20 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
         super().tearDown()
 
     def fake_deploy(self):
-        self._catalog = Catalog(catalog_id=self.name, path=self.path, src=self.src)
+        self._catalog = Catalog(None, name=self.name, path=self.path, src=self.src)
 
-        self._catalog_manager = CatalogManager()
-        self._catalog_manager.catalogs.append(self._catalog)
+        CollectionManager().catalogs()._add_to_index(self._catalog)
 
-        self._deploy_manager = DeployManager()
-        self._deploy_manager.deploy(
+        deploy_manager = DeployManager()
+        deploy_manager.deploy(
             deploy_path=self.get_test_solution_path(),
-            catalog=self.name,
+            catalog_name=self.name,
             dry_run=True,
             trigger_pipeline=False,
             git_email="myCiUserEmail",
             git_name="myCiUserName",
         )
-        copy_folder(self._deploy_manager._repo.working_tree_dir, self.path, copy_root_folder=False)
+        copy_folder(deploy_manager._repo.working_tree_dir, self.path, copy_root_folder=False)
 
         self.assertTrue(self.path.is_dir() and self.path.stat().st_size > 0)
 
@@ -123,7 +122,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
             str(self.path),
             self.src,
             "--branch_name=%s" % branch_name,
-            "--dry-run=True",
+            "--dry-run",
             "--ci_user_name=myCiUserName",
             "--ci_user_email=myCiUserEmail"
         ]
@@ -147,12 +146,12 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
             str(self.path),
             self.src,
             "--branch_name=%s" % branch_name,
-            "--dry-run=True",
+            "--dry-run",
             "--ci_user_name=myCiUserName",
             "--ci_user_email=myCiUserEmail"
         ]
 
         # run
         with self.assertRaises(RuntimeError) as context:
-            self.assertIsNone(main())
+            main()
             self.assertEqual("Diff shows no changes to the repository. Aborting...", str(context.exception))

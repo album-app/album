@@ -5,6 +5,9 @@ from time import time, sleep
 
 import flask_unittest
 
+from album.core.controller.task_manager import TaskManager
+from album.core.model.default_values import DefaultValues
+from album.core.model.group_name_version import GroupNameVersion
 from album.core.model.task import Task
 from album.core.server import AlbumServer
 from album_runner import logging
@@ -30,61 +33,88 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
 
     def test_server(self, client):
 
-        # sanity checks
-        self.assertEqual(self.test_solution_db.instance, self.server.solutions_db.instance)
-
         # setting up test
         logging.set_loglevel(LogLevel.INFO)
+        task_manager = TaskManager()
 
         # add remote catalog
 
         remote_catalog = "https://gitlab.com/album-app/catalogs/templates/catalog"
-        self.assertCatalogPresence(self.test_catalog_collection.catalogs, remote_catalog, False)
-        res__add_catalog = client.get("/add-catalog?path=" + urllib.parse.quote(remote_catalog))
-        self.assertEqual(200, res__add_catalog.status_code)
-        self.assertCatalogPresence(self.test_catalog_collection.catalogs, remote_catalog, True)
+        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), remote_catalog, False)
+        res_add_catalog = client.get("/add-catalog?src=" + urllib.parse.quote(remote_catalog))
+        self.assertEqual(200, res_add_catalog.status_code)
+        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), remote_catalog, True)
 
         # remove remote catalog
 
-        res_remove_catalog = client.get("/remove-catalog?path=" + urllib.parse.quote(remote_catalog))
+        res_remove_catalog = client.get("/remove-catalog?src=" + urllib.parse.quote(remote_catalog))
         self.assertEqual(200, res_remove_catalog.status_code)
-        self.assertCatalogPresence(self.test_catalog_collection.catalogs, remote_catalog, False)
+        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), remote_catalog, False)
 
-        # add local catalog
+        # clone catalog template
 
         local_catalog_name = "mycatalog"
-        local_catalog_path = Path(self.tmp_dir.name).joinpath(local_catalog_name)
-        local_catalog_path.mkdir(parents=True)
-        local_catalog = str(local_catalog_path)
-        self.assertCatalogPresence(self.test_catalog_collection.catalogs, local_catalog, False)
-        res__add_catalog = client.get("/add-catalog?path=" + urllib.parse.quote(local_catalog))
-        self.assertEqual(200, res__add_catalog.status_code)
-        self.assertCatalogPresence(self.test_catalog_collection.catalogs, local_catalog, True)
+        local_catalogs_path = Path(self.tmp_dir.name).joinpath("my-catalogs")
+        local_catalogs = str(local_catalogs_path)
+        local_catalog_path = local_catalogs_path.joinpath(local_catalog_name)
+        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), local_catalogs, False)
 
-        # deploy, install, and run solution
+        res_clone_catalog = client.get(f"/clone/catalog?target_dir={urllib.parse.quote(local_catalogs)}&name={local_catalog_name}")
+        self.assertEqual(200, res_clone_catalog.status_code)
+        self._finish_taskmanager_with_timeout(task_manager, 30)
+        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), local_catalog_path, False)
+        self.assertTrue(local_catalogs_path.exists())
+        self.assertTrue(local_catalog_path.exists())
+        self.assertTrue(local_catalog_path.joinpath(DefaultValues.catalog_index_file_json.value).exists())
+
+        # add catalog
+
+        res_add_catalog = client.get("/add-catalog?src=" + urllib.parse.quote(str(local_catalog_path)))
+        self.assertEqual(200, res_add_catalog.status_code)
+        catalog_id = res_add_catalog.json["catalog_id"]
+        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), str(local_catalog_path), True)
+
+        # clone solution
 
         group = "group"
         name = "solution7_long_routines"
         version = "0.1.0"
+        clone_src = self.get_test_solution_path(f"{name}.py")
+        solution_target_dir = Path(self.tmp_dir.name).joinpath("my-solutions")
+        solution_target_name = "my-" + name
+        solution_target_file = solution_target_dir.joinpath(solution_target_name, DefaultValues.solution_default_name.value)
 
         # assert that it's not installed
         res_status = client.get(f'/status/{local_catalog_name}/{group}/{name}/{version}')
-        self.assertEqual(200, res_status.status_code)
-        self.assertFalse(res_status.json["installed"])
-        # TODO check that it also does not yet exist
+        self.assertEqual(404, res_status.status_code)
+
+        res_clone_solution = client.get(f"/clone?path={clone_src}&target_dir={urllib.parse.quote(str(solution_target_dir))}&name={solution_target_name}")
+        self.assertEqual(200, res_clone_solution.status_code)
+        self._finish_taskmanager_with_timeout(task_manager, 30)
+
+        self.assertTrue(solution_target_dir.exists())
+        self.assertTrue(solution_target_dir.joinpath(solution_target_name).exists())
+        self.assertTrue(solution_target_file.exists())
 
         # deploy solution to catalog
 
-        path_to_solution = urllib.parse.quote(self.get_test_solution_path(f"{name}.py"))
-        res_deploy = client.get(f"/deploy?path={path_to_solution}&catalog_id={local_catalog_name}")
+        path_to_solution = urllib.parse.quote(str(solution_target_file))
+        res_deploy = client.get(f"/deploy?path={path_to_solution}&catalog_name={local_catalog_name}")
         self.assertEqual(200, res_deploy.status_code)
         self.assertIsNotNone(res_deploy.json)
-        task_deploy_id = res_deploy.json["id"]
-        self.assertEqual("0", task_deploy_id)
+        self.assertIsNotNone(res_deploy.json["id"])
 
-        self._finish_taskmanager_with_timeout(30)
+        self._finish_taskmanager_with_timeout(task_manager, 30)
 
-        res_index = client.get('/index')
+        # update catalog cache
+
+        res_update_catalog = client.get("/update?src=" + urllib.parse.quote(str(local_catalog_path)))
+        self.assertEqual(200, res_update_catalog.status_code)
+
+        # upgrade collection
+
+        res_update_catalog = client.get("/upgrade?src=" + urllib.parse.quote((str(local_catalog_path))))
+        self.assertEqual(200, res_update_catalog.status_code)
 
         # check that solution exists, but is not installed
 
@@ -98,14 +128,12 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         res_install = client.get(f'/install/{local_catalog_name}/{group}/{name}/{version}')
         self.assertEqual(200, res_install.status_code)
         self.assertIsNotNone(res_install.json)
-        task_install_id = res_install.json["id"]
-        self.assertEqual("1", task_install_id)
+        self.assertIsNotNone(res_deploy.json["id"])
 
-        self._finish_taskmanager_with_timeout(60)
+        self._finish_taskmanager_with_timeout(task_manager, 60)
 
         # check that solution is installed
-
-        self.assertTrue(self.server.solutions_db.is_installed(local_catalog_name, group, name, version))
+        self.assertTrue(self.collection_manager.catalog_collection.is_installed(catalog_id, GroupNameVersion(group, name, version)))
         res_status = client.get(f'/status/{local_catalog_name}/{group}/{name}/{version}')
         self.assertEqual(200, res_status.status_code)
         self.assertIsNotNone(res_status.json)
@@ -127,21 +155,21 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         task_run_id = res_run.json["id"]
         task_test_id = res_test.json["id"]
 
-        self.assertEqual("2", task_run_id)
-        self.assertEqual("3", task_test_id)
+        self.assertIsNotNone(task_run_id)
+        self.assertIsNotNone(task_test_id)
 
-        self.assertTrue(self.server.task_manager.server_queue.unfinished_tasks)
+        self.assertTrue(task_manager.server_queue.unfinished_tasks)
 
         # wait for completion of tasks
-        self._finish_taskmanager_with_timeout(30)
+        self._finish_taskmanager_with_timeout(task_manager, 30)
 
-        self.assertEqual(Task.Status.FINISHED, self.server.task_manager.get_task(task_run_id).status)
-        self.assertEqual(Task.Status.FINISHED, self.server.task_manager.get_task(task_test_id).status)
+        self.assertEqual(Task.Status.FINISHED, task_manager.get_task(task_run_id).status)
+        self.assertEqual(Task.Status.FINISHED, task_manager.get_task(task_test_id).status)
 
         # check that tasks were executed properly
 
-        run_logs = self.server.task_manager.get_task(task_run_id).log_handler
-        test_logs = self.server.task_manager.get_task(task_test_id).log_handler
+        run_logs = task_manager.get_task(task_run_id).log_handler
+        test_logs = task_manager.get_task(task_test_id).log_handler
         self.assertIsNotNone(run_logs)
         self.assertIsNotNone(test_logs)
         self.assertTrue(len(run_logs.records) > 0)
@@ -152,21 +180,22 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         self.assertTrue(self.includes_msg(test_logs.records, "solution7_long_routines_test_end"))
 
         # remove catalog
-        res_status = client.get("/remove-catalog?path=" + urllib.parse.quote(remote_catalog))
+        res_status = client.get("/remove-catalog?src=" + urllib.parse.quote((str(local_catalog_path))))
         self.assertEqual(200, res_status.status_code)
-        self.assertCatalogPresence(self.test_catalog_collection.catalogs, remote_catalog, False)
+        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), remote_catalog, False)
 
         # check that solution is not accessible any more
-        # TODO
+        res_status = client.get(f'/status/{local_catalog_name}/{group}/{name}/{version}')
+        self.assertEqual(404, res_status.status_code)
 
-    def _finish_taskmanager_with_timeout(self, timeout):
+    def _finish_taskmanager_with_timeout(self, task_manager, timeout):
         # since queue.join has no timeout, we are doing something else to check if the queue is processed
         # self.server.task_manager.server_queue.join()
         stop = time() + timeout
-        while self.server.task_manager.server_queue.unfinished_tasks and time() < stop:
+        while task_manager.server_queue.unfinished_tasks and time() < stop:
             sleep(1)
         # make sure tasks are finished
-        self.assertFalse(self.server.task_manager.server_queue.unfinished_tasks)
+        self.assertFalse(task_manager.server_queue.unfinished_tasks)
 
     @staticmethod
     def includes_msg(records, msg):

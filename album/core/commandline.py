@@ -1,5 +1,8 @@
+import json
+
 from album.core import get_active_solution
-from album.core.controller.catalog_manager import CatalogManager
+from album.core.controller.clone_manager import CloneManager
+from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.deploy_manager import DeployManager
 from album.core.controller.install_manager import InstallManager
 from album.core.controller.remove_manager import RemoveManager
@@ -17,15 +20,27 @@ module_logger = logging.get_active_logger
 
 
 def add_catalog(args):
-    CatalogManager().add(args.path)
+    CollectionManager().catalogs().add_by_src(args.src)
 
 
 def remove_catalog(args):
-    CatalogManager().remove(args.path)
+    CollectionManager().catalogs().remove_from_index_by_src(args.src)
 
 
 def update(args):
-    CatalogManager().update_any(args.catalog_id)
+    CollectionManager().catalogs().update_any(getattr(args, "catalog_name", None))
+
+
+def upgrade(args):
+    dry_run = getattr(args, "dry_run", False)
+    updates = CollectionManager().catalogs().update_collection(getattr(args, "catalog_name", None),
+                                                               dry_run=dry_run)
+    if dry_run:
+        module_logger().info("An upgrade would apply the following updates:")
+    else:
+        module_logger().info("Applied the following updates:")
+    for change in updates:
+        module_logger().info(json.dumps(change.as_dict(), sort_keys=True, indent=4))
 
 
 def deploy(args):
@@ -56,8 +71,17 @@ def test(args):
     TestManager().test(args.path)
 
 
+def clone(args):
+    CloneManager().clone(args.src, args.target_dir, args.name)
+
+
+def index(args):
+    module_logger().info(json.dumps(CollectionManager().get_index_as_dict(), sort_keys=True, indent=4))
+
+
 def repl(args):
     """Function corresponding to the `repl` subcommand of `album`."""
+    # this loads a solution, opens python session in terminal, and lets you run python commands in the environment of the solution
     # Load solution
     solution_script = open(args.path).read()
     exec(solution_script)

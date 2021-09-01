@@ -11,7 +11,7 @@ class TestIntegrationDeploy(TestIntegrationCommon):
     def tearDown(self) -> None:
         # try to avoid git-removal windows errors
         try:
-            force_remove(self.test_catalog_collection.configuration.cache_path_download, warning=False)
+            force_remove(self.collection_manager.configuration.cache_path_download, warning=False)
         except TimeoutError:
             # todo: fixme! rather sooner than later!
             if sys.platform == 'win32' or sys.platform == 'cygwin':
@@ -19,12 +19,13 @@ class TestIntegrationDeploy(TestIntegrationCommon):
         super().tearDown()
 
     def test_deploy(self):
+        self.add_test_catalog()
         # gather arguments
         sys.argv = ["",
                     "deploy",
                     str(self.get_test_solution_path()),
                     "--catalog=test_catalog",
-                    "--dry-run=True",
+                    "--dry-run",
                     "--trigger-pipeline=False",
                     "--git-name=MyName",
                     "--git-email=MyEmail",

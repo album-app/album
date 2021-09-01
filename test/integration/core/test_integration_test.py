@@ -35,7 +35,7 @@ class TestIntegrationTest(TestIntegrationCommon):
     def test_test(self):
 
         # create solution6_noparent_test environment
-        env_name = self.test_catalog_collection.local_catalog.id + "_group_solution6_noparent_test_0.1.0"
+        env_name = self.collection_manager.catalogs().get_local_catalog().name + "_group_solution6_noparent_test_0.1.0"
         Environment(None, env_name, "unusedCachePath").install()
 
         self.fake_install(self.get_test_solution_path("solution6_noparent_test.py"))

@@ -1,7 +1,7 @@
 from queue import Queue
 
 from album.core.concept.singleton import Singleton
-from album.core.controller.resolve_manager import ResolveManager
+from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.run_manager import RunManager
 from album_runner import logging
 
@@ -14,35 +14,35 @@ class TestManager(metaclass=Singleton):
     Solutions must be installed to run their testing routine.
 
      Attributes:
-         resolve_manager:
+         catalog_manager:
             Holding all configured catalogs. Resolves inside our outside catalogs.
 
     """
     # singletons
-    resolve_manager = None
+    catalog_manager = None
     run_manager = None
 
     def __init__(self):
-        self.resolve_manager = ResolveManager()
+        self.catalog_manager = CollectionManager()
         self.run_manager = RunManager()
 
     def test(self, path):
         """Function corresponding to the `test` subcommand of `album`."""
         try:
-            resolve, active_solution = self.resolve_manager.resolve_installed_and_load(path)
+            resolve_result = self.catalog_manager.resolve_require_installation_and_load(path)
         except ValueError:
             raise ValueError("Solution points to a local file which has not been installed yet. "
                              "Please point to an installation from the catalog or install the solution. "
                              "Aborting...")
 
-        if not resolve["catalog"]:
-            module_logger().debug('album loaded locally: %s...' % str(active_solution))
+        if not resolve_result.catalog:
+            module_logger().debug('album loaded locally: %s...' % str(resolve_result.active_solution))
         else:
-            module_logger().debug('album loaded from catalog: %s...' % str(active_solution))
+            module_logger().debug('album loaded from catalog: %s...' % str(resolve_result.active_solution))
 
-        self._test(active_solution)
+        self._test(resolve_result.active_solution)
 
-        module_logger().info('Test run for %s!' % active_solution['name'])
+        module_logger().info('Test run for %s!' % resolve_result.active_solution['name'])
 
     def _test(self, active_solution):
         if active_solution['pre_test'] and callable(active_solution['pre_test']) \

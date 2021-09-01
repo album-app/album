@@ -8,7 +8,7 @@ from album_runner import logging
 
 module_logger = logging.get_active_logger
 
-
+# TODO rename solution
 class AlbumClass(AlbumRunner):
     """Extension of a album-runner album class."""
 
@@ -17,7 +17,7 @@ class AlbumClass(AlbumRunner):
     deploy_keys = [
         'group', 'name', 'description', 'version', 'format_version', 'tested_album_version',
         'min_album_version', 'license', 'git_repo', 'authors', 'cite', 'tags', 'documentation',
-        'covers', 'sample_inputs', 'sample_outputs', 'args', 'title'
+        'covers', 'args', 'title', 'timestamp'
     ]
 
     def get_deploy_dict(self):
@@ -65,23 +65,23 @@ class AlbumClass(AlbumRunner):
         matches = [arg for arg in self['args'] if arg['name'] == k]
         return matches[0]
 
-    def set_environment(self, catalog_id):
+    def set_environment(self, catalog_name):
         """Initializes the Environment of the solution. This is not an installation!"""
-        environment_name = self.get_environment_name(catalog_id)
-        self.set_cache_paths(catalog_id)
+        environment_name = self.get_environment_name(catalog_name)
+        self.set_cache_paths(catalog_name)
         self.environment = Environment(
             self.dependencies, environment_name=environment_name, cache_path=self.cache_path_solution
         )
 
-    def set_cache_paths(self, catalog_id):
-        """Sets the available cache paths of the album object, given its catalog_id (where it lives)."""
+    def set_cache_paths(self, catalog_name):
+        """Sets the available cache paths of the album object, given its catalog_name (where it lives)."""
 
         # Note: cache paths need the catalog the album live in - otherwise there might be problems with solutions
         # of different catalogs doing similar operations (e.g. downloads) as they might share the same cache path.
         path_suffix = Path("").joinpath(self["group"], self["name"], self["version"])
-        self.cache_path_download = Configuration().cache_path_download.joinpath(catalog_id, path_suffix)
-        self.cache_path_app = Configuration().cache_path_app.joinpath(catalog_id, path_suffix)
-        self.cache_path_solution = Configuration().cache_path_solution.joinpath(catalog_id, path_suffix)
+        self.cache_path_download = Configuration().cache_path_download.joinpath(str(catalog_name), path_suffix)
+        self.cache_path_app = Configuration().cache_path_app.joinpath(str(catalog_name), path_suffix)
+        self.cache_path_solution = Configuration().cache_path_solution.joinpath(str(catalog_name), path_suffix)
 
-    def get_environment_name(self, catalog_id):
-        return "_".join([catalog_id, self["group"], self["name"], self["version"]])
+    def get_environment_name(self, catalog_name):
+        return "_".join([str(catalog_name), self["group"], self["name"], self["version"]])

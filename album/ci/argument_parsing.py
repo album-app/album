@@ -83,10 +83,8 @@ def create_parser():
     p.add_argument(
         '--dry-run',
         required=False,
-        help='Dry-run option. If True, no merge request will be created, only information is shown. Choose between %s' %
-             ", ".join([str(True), str(False)]),
-        default=False,
-        type=(lambda choice: bool(choice)),
+        help='Dry-run option. If this argument is added, no merge request will be created, only information is shown.',
+        action='store_true'
     )
     p.add_argument(
         '--trigger-pipeline',

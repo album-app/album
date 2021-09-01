@@ -6,7 +6,8 @@ from flask import Flask, request
 from werkzeug.exceptions import abort
 
 from album.core.concept.singleton import Singleton
-from album.core.controller.catalog_manager import CatalogManager
+from album.core.controller.clone_manager import CloneManager
+from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.deploy_manager import DeployManager
 from album.core.controller.install_manager import InstallManager
 from album.core.controller.remove_manager import RemoveManager
@@ -16,7 +17,7 @@ from album.core.controller.task_manager import TaskManager
 from album.core.controller.test_manager import TestManager
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
-from album.core.model.solutions_db import SolutionsDb
+from album.core.model.group_name_version import GroupNameVersion
 from album.core.model.task import Task
 from album_runner import logging
 
@@ -27,19 +28,6 @@ class AlbumServer(metaclass=Singleton):
 
     port = DefaultValues.server_port
 
-    # init singletons
-    configuration = None
-    catalog_manager = None
-    resolve_manager = None
-    install_manager = None
-    remove_manager = None
-    run_manager = None
-    search_manager = None
-    test_manager = None
-    task_manager = None
-    deploy_manager = None
-    solutions_db = None
-
     app = None
 
     def __init__(self, port):
@@ -47,16 +35,6 @@ class AlbumServer(metaclass=Singleton):
 
     def setup(self, port):
         self.port = port
-        self.configuration = Configuration()
-        self.catalog_manager = CatalogManager()
-        self.install_manager = InstallManager()
-        self.remove_manager = RemoveManager()
-        self.run_manager = RunManager()
-        self.search_manager = SearchManager()
-        self.test_manager = TestManager()
-        self.task_manager = TaskManager()
-        self.deploy_manager = DeployManager()
-        self.solutions_db = SolutionsDb()
 
     def start(self, test_config=None):
         module_logger().info('Starting server..')
@@ -78,115 +56,192 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route("/config")
         def get_config():
             return {
-                "album_config_path": str(self.catalog_manager.config_file_path),
-                "album_config": self.catalog_manager.config_file_dict,
-                "cache_base": str(self.configuration.base_cache_path),
-                "cache_solutions": str(self.configuration.cache_path_solution),
-                "cache_apps": str(self.configuration.cache_path_app),
-                "cache_downloads": str(self.configuration.cache_path_download)
+                "album_config_path": str(CollectionManager().catalog_collection.config_file_path),
+                "album_config": CollectionManager().catalog_collection.config_file_dict,
+                "cache_base": str(Configuration().base_cache_path),
+                "cache_solutions": str(Configuration().cache_path_solution),
+                "cache_apps": str(Configuration().cache_path_app),
+                "cache_downloads": str(Configuration().cache_path_download)
             }
 
         @self.app.route("/index")
         def get_index():
-            catalog_dict = {}
-            for catalog in self.catalog_manager.catalogs:
-                self._write_catalog_to_dict(catalog_dict, catalog)
-                catalog_dict[catalog.id]["solutions"] = catalog.catalog_index.get_leaves_dict_list()
-            return catalog_dict
+            return CollectionManager().get_index_as_dict()
 
         @self.app.route("/catalogs")
         def get_catalogs():
-            catalog_dict = {}
-            for catalog in self.catalog_manager.catalogs:
-                self._write_catalog_to_dict(catalog_dict, catalog)
-            return catalog_dict
+            return CollectionManager().catalogs().get_all_as_dict()
 
         @self.app.route("/recently-launched")
         def get_recently_launched_solutions():
-            return {"solutions": self.solutions_db.get_recently_launched_solutions()}
+            return {"solutions": CollectionManager().catalog_collection.get_recently_launched_solutions()}
 
         @self.app.route("/recently-installed")
         def get_recently_installed_solutions():
-            return {"solutions": self.solutions_db.get_recently_installed_solutions()}
+            return {"solutions": CollectionManager().catalog_collection.get_recently_installed_solutions()}
 
         @self.app.route('/run/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/run/<catalog>/<group>/<name>/<version>')
         def run(catalog, group, name, version):
             module_logger().info(f"Server call: /run/{catalog}/{group}/{name}/{version}")
-            task = self._run_solution_method_async(catalog, group, name, version, self.run_manager.run)
+            task = self._run_solution_method_async(catalog, GroupNameVersion(group, name, version), RunManager().run)
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/install/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/install/<catalog>/<group>/<name>/<version>')
         def install(catalog, group, name, version):
-            task = self._run_solution_method_async(catalog, group, name, version, self.install_manager.install)
+            task = self._run_solution_method_async(catalog, GroupNameVersion(group, name, version), InstallManager().install)
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/remove/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/remove/<catalog>/<group>/<name>/<version>')
         def remove(catalog, group, name, version):
-            task = self._run_solution_method_async(catalog, group, name, version, self.remove_manager.remove)
+            task = self._run_solution_method_async(catalog, GroupNameVersion(group, name, version), RemoveManager().remove)
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/test/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/test/<catalog>/<group>/<name>/<version>')
         def test(catalog, group, name, version):
-            task = self._run_solution_method_async(catalog, group, name, version, self.test_manager.test)
+            task = self._run_solution_method_async(catalog, GroupNameVersion(group, name, version), TestManager().test)
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/deploy')
         def deploy():
             solution_path = request.args.get("path")
-            catalog = request.args.get("catalog_id")
+            catalog_name = request.args.get("catalog_name")
             if solution_path is None:
                 abort(404, description=f"`path` argument missing")
             if not Path(solution_path).exists():
                 abort(404, description=f"Solution not found: {solution_path}")
-            if catalog is None:
-                abort(404, description=f"`catalog_id` argument missing")
+            if catalog_name is None:
+                abort(404, description=f"`catalog_name` argument missing")
             dryrun = bool(util.strtobool(request.args.get("dryrun", default="false")))
             trigger_pipeline = False
             task = Task()
-            task.args = (solution_path, catalog, dryrun, trigger_pipeline)
-            task.method = self.deploy_manager.deploy
-            self.task_manager.register_task(task)
+            task.args = (solution_path, catalog_name, dryrun, trigger_pipeline)
+            task.method = DeployManager().deploy
+            TaskManager().register_task(task)
+            return {"id": task.id, "msg": "process started"}
+
+        @self.app.route('/clone/<group>/<name>/<version>', defaults={'catalog': None})
+        @self.app.route('/clone/<catalog>/<group>/<name>/<version>')
+        def clone_solution(catalog, group, name, version):
+            target_dir = request.args.get("target_dir")
+            new_name = request.args.get("name")
+            if target_dir is None:
+                abort(404, description=f"`target_dir` argument missing")
+            if new_name is None:
+                abort(404, description=f"`name` argument missing")
+            args = [target_dir, new_name]
+            task = self._run_solution_method_async(catalog, GroupNameVersion(group, name, version), CloneManager().clone, args)
+            return {"id": task.id, "msg": "process started"}
+
+        @self.app.route('/clone')
+        def clone_solution_py_path():
+            target_dir = request.args.get("target_dir")
+            name = request.args.get("name")
+            path = request.args.get("path")
+            if target_dir is None:
+                abort(404, description=f"`target_dir` argument missing")
+            if name is None:
+                abort(404, description=f"`name` argument missing")
+            if path is None:
+                abort(404, description=f"`path` argument missing")
+            args = [target_dir, name]
+            task = Task()
+            task_args = [path]
+            if args:
+                for arg in args:
+                    task_args.append(arg)
+            task.args = tuple(task_args)
+            task.sysarg = self._get_arguments(request.get_json(), path)
+            task.method = CloneManager().clone
+            TaskManager().register_task(task)
+            return {"id": task.id, "msg": "process started"}
+
+        @self.app.route('/clone/<template_name>')
+        def clone_catalog(template_name):
+            target_dir = request.args.get("target_dir")
+            name = request.args.get("name")
+            if target_dir is None:
+                abort(404, description=f"`target_dir` argument missing")
+            if name is None:
+                abort(404, description=f"`name` argument missing")
+            task = Task()
+            task.args = tuple([template_name, target_dir, name])
+            task.method = CloneManager().clone
+            TaskManager().register_task(task)
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/status/<catalog>/<group>/<name>/<version>')
         def status_solution(catalog, group, name, version):
-            installed = self.solutions_db.is_installed(catalog, group, name, version)
-            res = {
-                "installed": installed
-            }
-            return res
+            try:
+                catalog_manager = CollectionManager()
+                catalog_id = catalog_manager.catalog_handler.get_by_name(catalog).catalog_id
+                installed = catalog_manager.catalog_collection.is_installed(catalog_id, GroupNameVersion(group, name, version))
+                return {
+                    "installed": installed
+                }
+            except LookupError as e:
+                abort(404, description=f"Solution not found")
 
         @self.app.route('/status/<task_id>')
         def status_task(task_id):
-            task = self.task_manager.get_task(str(task_id))
+            task = TaskManager().get_task(str(task_id))
             if task is None:
                 abort(404, description=f"Task not found with id {task_id}")
-            return self.task_manager.get_status(task)
+            return TaskManager().get_status(task)
 
         @self.app.route('/add-catalog')
         def add_catalog():
-            url = request.args.get("path")
-            id = request.args.get("id")
-            self.catalog_manager.add(url)
-            return {}
+            url = request.args.get("src")
+            name = request.args.get("name")
+            catalog_id = CollectionManager().catalogs().add_by_src(url).catalog_id
+            return {"catalog_id": catalog_id}
 
         @self.app.route('/remove-catalog')
         def remove_catalog():
-            url = request.args.get("path", default=None)
-            id = request.args.get("id", default=None)
-            if id is None:
-                self.catalog_manager.remove(url)
+            url = request.args.get("src", default=None)
+            name = request.args.get("name", default=None)
+            if name is None:
+                CollectionManager().catalogs().remove_from_index_by_src(url)
             else:
-                self.catalog_manager.remove_by_id(id)
+                CollectionManager().catalogs().remove_from_index_by_name(name)
+            return {}
+
+        @self.app.route('/upgrade')
+        def upgrade():
+            src = request.args.get("src", default=None)
+            name = request.args.get("name", default=None)
+            dry_run = request.args.get("dry_run", default=False)
+            if name is None and src is None:
+                res = CollectionManager().catalogs().update_collection(dry_run=dry_run)
+            elif name is None:
+                catalog = CollectionManager().catalogs().get_by_src(src)
+                res = CollectionManager().catalogs().update_collection(catalog_name=catalog.name, dry_run=dry_run)
+            else:
+                res = CollectionManager().catalogs().update_collection(catalog_name=name, dry_run=dry_run)
+            r = []
+            for update_obj in res:
+                r.append(update_obj.as_dict())
+            return {"changes": r}
+
+        @self.app.route('/update')
+        def update():
+            src = request.args.get("src", default=None)
+            name = request.args.get("name", default=None)
+            if name is None and src is None:
+                CollectionManager().catalogs().update_any()
+            elif name is None:
+                catalog = CollectionManager().catalogs().get_by_src(src)
+                CollectionManager().catalogs().update_any(catalog.name)
+            else:
+                CollectionManager().catalogs().update_any(name)
             return {}
 
         @self.app.route('/search/<keywords>')
         def search(keywords):
-            return self.search_manager.search(keywords)
+            return SearchManager().search(keywords)
 
         @self.app.route('/shutdown', methods=['GET'])
         def shutdown():
@@ -196,24 +251,20 @@ class AlbumServer(metaclass=Singleton):
             func()
             return 'Server shutting down...'
 
-    @staticmethod
-    def _write_catalog_to_dict(catalog_dict, catalog):
-        catalog_dict[catalog.id] = {}
-        catalog_dict[catalog.id]["src"] = str(catalog.src) if catalog.src else None
-        catalog_dict[catalog.id]["path"] = str(catalog.path) if catalog.path else None
-        catalog_dict[catalog.id]["is_local"] = catalog.is_local
-        catalog_dict[catalog.id]["is_deletable"] = catalog.is_deletable
-
-    def _run_solution_method_async(self, catalog, group, name, version, method):
+    def _run_solution_method_async(self, catalog, group_name_version: GroupNameVersion, method, args=None):
         task = Task()
         if catalog is None:
-            solution_path = ":".join([group, name, version])
+            solution_path = str(group_name_version)
         else:
-            solution_path = ":".join([catalog, group, name, version])
-        task.args = (solution_path, )
+            solution_path = ":".join([catalog, str(group_name_version)])
+        task_args = [solution_path]
+        if args:
+            for arg in args:
+                task_args.append(arg)
+        task.args = tuple(task_args)
         task.sysarg = self._get_arguments(request.get_json(), solution_path)
         task.method = method
-        self.task_manager.register_task(task)
+        TaskManager().register_task(task)
         return task
 
     def _run_path_method_async(self, path, args, method):
@@ -223,7 +274,7 @@ class AlbumServer(metaclass=Singleton):
             command_args.append(arg)
         task.sysarg = command_args
         task.method = method
-        self.task_manager.register_task(task)
+        TaskManager().register_task(task)
         return task
 
     @staticmethod

@@ -24,6 +24,19 @@ class TestIntegrationRun(TestIntegrationCommon):
         # assert
         self.assertIsNone(album.get_active_solution())
 
+    def test_run_with_group_name_version(self):
+        # create test environment
+        solution = self.fake_install(self.get_test_solution_path())
+
+        # gather arguments
+        sys.argv = ["", "run", ":".join([solution["group"], solution["name"], solution["version"]])]
+
+        # run
+        self.assertIsNone(main())
+
+        # assert
+        self.assertIsNone(album.get_active_solution())
+
     def test_run_no_run_routine(self):
         self.fake_install(self.get_test_solution_path("solution0_dummy_no_routines.py"), create_environment=False)
 

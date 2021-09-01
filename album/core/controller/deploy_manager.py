@@ -4,10 +4,12 @@ from pathlib import Path
 
 from album.core import load
 from album.core.concept.singleton import Singleton
-from album.core.controller.catalog_manager import CatalogManager
+from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.model.default_values import DefaultValues
+from album.core.utils.operations import file_operations
 from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, zip_paths
 from album.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push
+from album.core.utils.operations.resolve_operations import solution_to_group_name_version
 from album_runner import logging
 
 module_logger = logging.get_active_logger
@@ -23,7 +25,7 @@ class DeployManager(metaclass=Singleton):
     In this case, no merge request will be created!
 
     Attributes:
-        catalog_manager:
+        collection_manager:
             Holding all configured catalogs.
 
     Notes:
@@ -31,16 +33,16 @@ class DeployManager(metaclass=Singleton):
 
     """
     # singletons
-    catalog_manager = None
+    collection_manager = None
 
     def __init__(self):
-        self.catalog_manager = CatalogManager()
+        self.collection_manager = CollectionManager()
         self._catalog = None
         self._active_solution = None
         self._catalog_local_src = None
         self._repo = None
 
-    def deploy(self, deploy_path, catalog, dry_run, trigger_pipeline, git_email=None, git_name=None):
+    def deploy(self, deploy_path, catalog_name, dry_run, trigger_pipeline, git_email=None, git_name=None):
         """Function corresponding to the `deploy` subcommand of `album`.
 
         Generates the yml for a album and creates a merge request to the catalog only
@@ -50,7 +52,7 @@ class DeployManager(metaclass=Singleton):
             deploy_path:
                 Path to a directory or a file.
                 If directory: Must contain "solution.py" file.
-            catalog:
+            catalog_name:
                 The catalog to deploy to. Either specify via argument in deploy-call, via url in solution or use
                 default catalog.
             dry_run:
@@ -72,17 +74,19 @@ class DeployManager(metaclass=Singleton):
 
         self._active_solution = load(path_to_solution)
 
-        if catalog:  # case catalog given
-            self._catalog = self.catalog_manager.get_catalog_by_id(catalog)
+        if catalog_name:  # case catalog given
+            self._catalog = self.collection_manager.catalogs().get_by_name(catalog_name)
         elif self._active_solution["deploy"] and self._active_solution["deploy"]["catalog"]:
-            self._catalog = self.catalog_manager.get_catalog_by_src(
+            self._catalog = self.collection_manager.catalogs().get_by_src(
                 self._active_solution["deploy"]["catalog"]["src"]
             )
         else:
             raise RuntimeError("No catalog specified for deployment")
 
-        if self._catalog.is_local:
-            if self._catalog.is_cache_only():
+        self._catalog.load_index()
+
+        if self._catalog.is_local():
+            if self._catalog.is_cache():
                 raise RuntimeError("Cannot deploy to catalog only used for caching")
             self._catalog_local_src = self._catalog.src
             # zip solution folder, create a yml file and copy the cover
@@ -90,12 +94,13 @@ class DeployManager(metaclass=Singleton):
             self._create_yaml_file_in_local_src()
             self._copy_cover_to_local_src(deploy_path)
             self._catalog.catalog_index.update(self._active_solution.get_deploy_dict())
-            self._catalog.catalog_index.save()
+            self._catalog.catalog_index.get_connection().commit()
             self._catalog.catalog_index.export(self._catalog.solution_list_path)
+            self._catalog.copy_index_from_cache_to_src()
             self._catalog.refresh_index()
         else:
-            dwnld_path = Path(self.catalog_manager.configuration.cache_path_download).joinpath(self._catalog.id)
-            repo = self._catalog.download(dwnld_path, force_download=True)
+            dwnld_path = Path(self.collection_manager.configuration.cache_path_download).joinpath(self._catalog.name)
+            repo = self._catalog.retrieve_catalog(dwnld_path, force_retrieve=True)
             self._repo = self._update_repo(repo)
 
             if not self._repo:
@@ -156,9 +161,7 @@ class DeployManager(metaclass=Singleton):
     def _get_cache_suffix(self):
         return Path(self._catalog_local_src).joinpath(
             self._catalog.get_solution_zip_suffix(
-                self._active_solution['group'],
-                self._active_solution["name"],
-                self._active_solution["version"]
+                solution_to_group_name_version(self._active_solution)
             )
         )
 
@@ -200,10 +203,10 @@ class DeployManager(metaclass=Singleton):
 
         if hasattr(self._active_solution, "covers"):
             for cover in self._active_solution["covers"]:
-                cover = Path(cover)
-                cover_name = os.path.split(cover)[-1]
-
-                cover_path = folder_path.joinpath(cover)  # relative paths only
-                cover_list.append(copy(cover_path, target_path.joinpath(cover_name)))
-
+                cover_name = cover["source"]
+                cover_path = folder_path.joinpath(cover_name)  # relative paths only
+                if cover_path.exists():
+                    cover_list.append(copy(cover_path, target_path.joinpath(cover_name)))
+                else:
+                    module_logger().warn(f"Cannot find cover {cover_path.absolute()}, proceeding without copying it.")
         return cover_list

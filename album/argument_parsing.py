@@ -2,7 +2,7 @@ import argparse
 import sys
 
 from album.core.commandline import add_catalog, remove_catalog, deploy, \
-    install, remove, repl, run, search, start_server, test, update
+    install, remove, repl, run, search, start_server, test, update, clone, upgrade, index
 from album_runner import logging
 from album_runner.logging import debug_settings
 
@@ -57,15 +57,13 @@ def create_parser():
     p.add_argument(
         '--dry-run',
         required=False,
-        help='Boolean to indicate a dry run and only show what would happen. Choose between %s.'
-             ' Default is False' % ", ".join([str(True), str(False)]),
-        default=False,
-        type=(lambda choice: bool(choice))
+        help='Parameter to indicate a dry run and only show what would happen.',
+        action='store_true'
     )
     p.add_argument(
         '--catalog',
         required=False,
-        help='Specify a catalog ID to deploy to. Must be configured! '
+        help='Specify a catalog name to deploy to. Must be configured! '
              '\"catalog_local\" refers to the local catalog. Default is None',
         default=None)
     p.add_argument(
@@ -100,24 +98,41 @@ def create_parser():
         default=False,
         type=(lambda choice: bool(choice))
     )
-    parser.create_file_command_parser(
+    parser.create_catalog_command_parser(
         'add-catalog', add_catalog,
         'add a catalog to your local album configuration file'
     )
-    parser.create_file_command_parser(
+    parser.create_catalog_command_parser(
         'remove-catalog', remove_catalog,
         'remove a catalog from your local album configuration file'
     )
-    p = parser.create_file_command_parser(
-        'update-catalog', update,
-        'update the catalog index file. Either all catalogs configured, or a specific one.'
-    )
+    p = parser.create_command_parser('update', update,
+                                           'update the catalog index files. Either all catalogs configured, or a specific one.')
+    p.add_argument('src', type=str, help='src of the catalog', nargs='?')
+    p = parser.create_command_parser('upgrade', upgrade,
+                                           'upgrade the local collection from the catalog index files. Either all catalogs configured, or a specific one.')
+    p.add_argument('src', type=str, help='src of the catalog', nargs='?')
     p.add_argument(
-        '--catalog-id',
+        '--dry-run',
         required=False,
-        help='The catalog id (also name) of the catalog to update!',
+        help='Parameter to indicate a dry run and only show what would happen.',
+        action='store_true'
+    )
+    p = parser.create_command_parser('clone', clone, 'clone an album solution or catalog template')
+    p.add_argument('src', type=str, help='path for the solution file, group:name:version or name of the catalog template')
+    p.add_argument(
+        '--target-dir',
+        required=True,
+        help='The target directory where the solution or catalog will be added to',
         default=None
     )
+    p.add_argument(
+        '--name',
+        required=True,
+        help='The new name of the cloned solution or catalog',
+        default=None
+    )
+    parser.create_command_parser('index', index, 'print the index of the local album collection')
     parser.create_file_command_parser(
         'test', test, 'execute a solutions test routine.')
     p = parser.create_command_parser('server', start_server,
@@ -172,12 +187,21 @@ class AlbumParser(ArgumentParser):
         return parser
 
     def create_file_command_parser(self, command_name, command_function, command_help):
-        """Creates a parser for a album command dealing with a album file.
+        """Creates a parser for a album command dealing with an album file.
 
         Parser is specified by a name, a function and a help description.
         """
         parser = self.create_command_parser(command_name, command_function, command_help)
         parser.add_argument('path', type=str, help='path for the solution file')
+        return parser
+
+    def create_catalog_command_parser(self, command_name, command_function, command_help):
+        """Creates a parser for a album command dealing with an album catalog.
+
+        Parser is specified by a name, a function and a help description.
+        """
+        parser = self.create_command_parser(command_name, command_function, command_help)
+        parser.add_argument('src', type=str, help='src of the catalog')
         return parser
 
 

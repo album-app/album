@@ -1,4 +1,5 @@
 import sys
+from typing import Optional
 
 from album.core.model.album_base import AlbumClass
 from album_runner import logging
@@ -30,7 +31,7 @@ def push_active_solution(solution_object):
     _active_solution.insert(0, solution_object)
 
 
-def get_parent_solution():
+def get_parent_solution() -> Optional[AlbumClass]:
     """Return the parent solution of the currently active solution."""
     global _active_solution
     if len(_active_solution) > 1:
@@ -38,7 +39,7 @@ def get_parent_solution():
     return None
 
 
-def get_active_solution():
+def get_active_solution() -> Optional[AlbumClass]:
     """Return the currently active solution, which is defined globally."""
     global _active_solution
     if len(_active_solution) > 0:
@@ -56,7 +57,7 @@ def pop_active_solution():
         return None
 
 
-def load_and_push_solution(path):
+def load_and_push_solution(path) -> Optional[AlbumClass]:
     """Load album script"""
     module_logger().debug(f'Loading solution from {path}...')
     with open(path, "r") as f:
@@ -67,7 +68,7 @@ def load_and_push_solution(path):
     return active_solution
 
 
-def load(path):
+def load(path) -> Optional[AlbumClass]:
     module_logger().debug(f'Loading solution from {path}...')
     with open(path, "r") as f:
         solution = f.read()

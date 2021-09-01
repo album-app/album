@@ -5,9 +5,11 @@ from album.ci.utils.ci_utils import get_ssh_url
 from album.core.concept.singleton import Singleton
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_yml_entry
+from album.core.model.group_name_version import GroupNameVersion
+from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_dict_entry
 from album.core.utils.operations.git_operations import checkout_branch, add_files_commit_and_push, \
     retrieve_single_file_from_head, configure_git
+from album.core.utils.operations.resolve_operations import get_zip_name, get_zip_name_prefix, dict_to_group_name_version
 from album_runner import logging
 
 module_logger = logging.get_active_logger
@@ -20,8 +22,9 @@ class ReleaseManager(metaclass=Singleton):
         self.catalog_path = catalog_path
         self.catalog_src = catalog_src
 
-        self.catalog = Catalog(catalog_id=self.catalog_name, path=catalog_path, src=self.catalog_src)
-        self.catalog_repo = self.catalog.download(force_download=True)
+        self.catalog = Catalog(None, name=self.catalog_name, path=catalog_path, src=self.catalog_src)
+        self.catalog_repo = self.catalog.retrieve_catalog(force_retrieve=True)
+        self.catalog.load_index()
 
     def configure_repo(self, user_name, user_email):
         configure_git(self.catalog_repo, user_email, user_name)
@@ -34,9 +37,10 @@ class ReleaseManager(metaclass=Singleton):
             self.catalog_repo.remote().set_url(get_ssh_url(project_path, self.catalog_src))
 
     @staticmethod
-    def _get_zip_path(group, name, version):
-        zip_name = Catalog.get_zip_name(group, name, version)
-        return Path("").joinpath(DefaultValues.cache_path_solution_prefix.value, group, name, version, zip_name)
+    def _get_zip_path(group_name_version: GroupNameVersion):
+        zip_name = get_zip_name(group_name_version)
+        return Path("").joinpath(DefaultValues.cache_path_solution_prefix.value, group_name_version.group,
+                                 group_name_version.name, group_name_version.version, zip_name)
 
     @staticmethod
     def _get_yml_dict(head):
@@ -54,9 +58,9 @@ class ReleaseManager(metaclass=Singleton):
         yml_dict, yml_file_path = self._get_yml_dict(head)
 
         # retrieve the deposit from zenodo by id
-        zip_path = self._get_zip_path(yml_dict["group"], yml_dict["name"], yml_dict["version"])
-        deposit_name = Catalog.get_zip_name_prefix(yml_dict["group"], yml_dict["name"], yml_dict["version"])
-        deposit_id = get_yml_entry(yml_dict, "deposit_id", allow_none=False)
+        zip_path = self._get_zip_path(dict_to_group_name_version(yml_dict))
+        deposit_name = get_zip_name_prefix(dict_to_group_name_version(yml_dict))
+        deposit_id = get_dict_entry(yml_dict, "deposit_id", allow_none=False)
         deposit = zenodo_manager.zenodo_get_unpublished_deposit_by_id(
             deposit_name, deposit_id, expected_files=[zip_path]
         )
@@ -79,10 +83,10 @@ class ReleaseManager(metaclass=Singleton):
             deposit_id = None
 
         # extract deposit name
-        deposit_name = Catalog.get_zip_name_prefix(yml_dict["group"], yml_dict["name"], yml_dict["version"])
+        deposit_name = get_zip_name_prefix(dict_to_group_name_version(yml_dict))
 
         # get the solution file to release
-        zip_path = self._get_zip_path(yml_dict["group"], yml_dict["name"], yml_dict["version"])
+        zip_path = self._get_zip_path(dict_to_group_name_version(yml_dict))
         solution_zip = retrieve_single_file_from_head(head, str(zip_path))
 
         # get the release deposit. Either a new one or an existing one to perform an update on
@@ -110,10 +114,10 @@ class ReleaseManager(metaclass=Singleton):
 
         yml_dict, yml_file_path = self._get_yml_dict(head)
 
-        zip_path = self._get_zip_path(yml_dict["group"], yml_dict["name"], yml_dict["version"])
+        zip_path = self._get_zip_path(dict_to_group_name_version(yml_dict))
         solution_zip = retrieve_single_file_from_head(head, str(zip_path))
 
-        commit_files = [yml_file_path, solution_zip, self.catalog.index_path, self.catalog.solution_list_path]
+        commit_files = [yml_file_path, solution_zip, self.catalog._index_path, self.catalog.solution_list_path]
         if not all([Path(f).is_file() for f in commit_files]):
             raise FileNotFoundError("Invalid deploy request or broken catalog repository!")
 

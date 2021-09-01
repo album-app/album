@@ -1,6 +1,6 @@
 from album.core import pop_active_solution
 from album.core.concept.singleton import Singleton
-from album.core.controller.resolve_manager import ResolveManager
+from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.utils.operations.file_operations import force_remove
 from album_runner import logging
 
@@ -14,16 +14,15 @@ class RemoveManager(metaclass=Singleton):
     During removal of a solution its environment will be removed and all additional downloads are removed from the disk.
 
     Attributes:
-        resolve_manager:
+        collection_manager:
             Holding all configured catalogs. Resolves inside our outside catalogs.
 
     """
     # singletons
-    resolve_manager = None
+    collection_manager = None
 
     def __init__(self):
-        self.resolve_manager = ResolveManager()
-        self._active_solution = None
+        self.collection_manager = CollectionManager()
 
     def remove(self, path, rm_dep=False):
         """Removes a solution from the disk. Thereby uninstalling its environment and deleting all its downloads.
@@ -47,44 +46,39 @@ class RemoveManager(metaclass=Singleton):
         # what if solutions depend on solutions from a different catalog?
         # -> ignore this dependency then?
 
-        try:
-            resolve, self._active_solution = self.resolve_manager.resolve_installed_and_load(path)
-        except ValueError:
-            raise ValueError("Solution points to a local file which has not been installed yet. "
-                             "Please point to an installation from the catalog or install the solution. "
-                             "Aborting...")
+        resolve_result = self.collection_manager.resolve_require_installation_and_load(path)
 
         if rm_dep:
-            self.remove_dependencies()
+            self.remove_dependencies(resolve_result.active_solution)
 
-        self._active_solution.environment.remove()
+        resolve_result.active_solution.environment.remove()
 
-        self.remove_disc_content()
+        self.remove_disc_content(resolve_result.active_solution)
 
-        if resolve["catalog"].is_local:
-            resolve["catalog"].remove(self._active_solution)
+        self.collection_manager.solutions().remove_solution(resolve_result.catalog, resolve_result.active_solution)
 
         pop_active_solution()
 
-        module_logger().info("Removed %s!" % self._active_solution['name'])
+        module_logger().info("Removed %s!" % resolve_result.active_solution['name'])
 
-    def remove_disc_content(self):
-        force_remove(self._active_solution.environment.cache_path)
-        force_remove(self._active_solution.cache_path_download)
-        force_remove(self._active_solution.cache_path_app)
-        force_remove(self._active_solution.cache_path_solution)
+    @staticmethod
+    def remove_disc_content(solution):
+        force_remove(solution.environment.cache_path)
+        force_remove(solution.cache_path_download)
+        force_remove(solution.cache_path_app)
+        force_remove(solution.cache_path_solution)
 
-    def remove_dependencies(self):
+    def remove_dependencies(self, solution):
         """Recursive call to remove all dependencies"""
-        if self._active_solution.dependencies:
-            if 'album' in self._active_solution.dependencies:
-                args = self._active_solution.dependencies['album']
+        if solution.dependencies:
+            if 'album' in solution.dependencies:
+                args = solution.dependencies['album']
                 for dependency in args:
                     # ToDo: need to search through all installed installations if there is another dependency of what
                     #  we are going to delete... otherwise there will nasty resolving errors during runtime
-                    dependency_path = self.resolve_manager.catalog_manager.resolve_dependency(dependency)["path"]
+                    dependency_path = self.collection_manager.resolve_dependency(dependency)["path"]
                     self.remove(dependency_path, True)
 
-        if self._active_solution.parent:
-            parent_path = self.resolve_manager.catalog_manager.resolve_dependency(self._active_solution.parent)["path"]
+        if solution.parent:
+            parent_path = self.collection_manager.resolve_dependency(solution.parent)["path"]
             self.remove(parent_path, True)

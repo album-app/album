@@ -4,7 +4,8 @@ from queue import Queue, Empty
 
 from album.core import load
 from album.core.concept.singleton import Singleton
-from album.core.controller.resolve_manager import ResolveManager
+from album.core.controller.collection.collection_manager import CollectionManager
+from album.core.model.solution_collection import SolutionCollection
 from album.core.utils.script import create_solution_script
 from album_runner import logging
 
@@ -19,28 +20,28 @@ class RunManager(metaclass=Singleton):
     dependency checking, and more.
 
      Attributes:
-         resolve_manager:
+         catalog_manager:
             Holding all configured catalogs. Resolves inside our outside catalogs.
 
     """
     # singletons
-    resolve_manager = None
+    catalog_manager = None
 
     def __init__(self):
-        self.resolve_manager = ResolveManager()
+        self.catalog_manager = CollectionManager()
         self.init_script = ""
 
     def run(self, path, run_immediately=False):
         """Function corresponding to the `run` subcommand of `album`."""
 
-        resolve, active_solution = self.resolve_manager.resolve_installed_and_load(path)
+        resolve_result = self.catalog_manager.resolve_require_installation_and_load(path)
 
-        if not resolve["catalog"]:
-            module_logger().debug('album loaded locally: %s...' % str(active_solution))
+        if not resolve_result.catalog:
+            module_logger().debug('album loaded locally: %s...' % str(resolve_result.active_solution))
         else:
-            module_logger().debug('album loaded from catalog: %s...' % str(active_solution))
+            module_logger().debug('album loaded from catalog: %s...' % str(resolve_result.active_solution))
 
-        self._run(active_solution, run_immediately)
+        self._run(resolve_result.active_solution, run_immediately)
 
     def _run(self, active_solution, run_immediately=False):
         """Run an already loaded solution which consists of multiple steps (= other solution)."""
@@ -76,26 +77,6 @@ class RunManager(metaclass=Singleton):
                 que.task_done()
         except Empty:
             module_logger().info("Currently nothing more to run!")
-
-    @staticmethod
-    def empty_collection():
-        """Returns an empty album-collection dictionary.
-
-        Returns:
-            dictionary consisting of the entries:
-                    Parent_script_path: path to the parent dependency script.
-                steps_solution:
-                    The hip solution objects of all steps.
-                steps:
-                    The step description of the step. Must holds the argument keyword.
-
-        """
-        return {
-            "parent_script_path": None,
-            "parent_script_catalog": None,
-            "steps_solution": [],
-            "steps": []
-        }
 
     def build_queue(self, active_solution, que, run_immediately=False):
         """Builds the queue of an active-album object.
@@ -151,23 +132,20 @@ class RunManager(metaclass=Singleton):
 
         """
         # start with an empty collection of steps with the same parent
-        same_parent_step_collection = self.empty_collection()
+        same_parent_step_collection = SolutionCollection()
 
         for step in steps:
             module_logger().debug('resolving step \"%s\"...' % step["name"])
-            _, step_solution = self.resolve_manager.resolve_dependency_and_load(step, load_solution=True)
+            resolve_result = self.catalog_manager.resolve_dependency_require_installation_and_load(step)
 
-            if step_solution["parent"]:  # collect steps as long as they have the same parent
-                current_parent_script_resolve, _ = self.resolve_manager.resolve_dependency_and_load(
-                    step_solution["parent"],
-                    load_solution=False
-                )
-                current_parent_script_path = current_parent_script_resolve["path"]
-                current_parent_script_catalog = current_parent_script_resolve["catalog"]
+            if resolve_result.active_solution.parent:  # collect steps as long as they have the same parent
+                current_parent_script_resolve = self.catalog_manager.resolve_dependency_require_installation(resolve_result.active_solution.parent)
+                current_parent_script_path = current_parent_script_resolve.path
+                current_parent_script_catalog = current_parent_script_resolve.catalog
 
                 # check whether the step has the same parent as the previous steps
-                if same_parent_step_collection["parent_script_path"] and \
-                        same_parent_step_collection["parent_script_path"] != current_parent_script_path:
+                if same_parent_step_collection.parent_script_path and \
+                        same_parent_step_collection.parent_script_path != current_parent_script_path:
 
                     # put old collection to queue
                     que.put(self.create_solution_run_collection_script(same_parent_step_collection))
@@ -177,31 +155,31 @@ class RunManager(metaclass=Singleton):
                         self.run_queue(que)
 
                     # set new parent
-                    same_parent_step_collection["parent_script_path"] = current_parent_script_path
-                    same_parent_step_collection["parent_script_catalog"] = current_parent_script_catalog
+                    same_parent_step_collection.parent_script_path = current_parent_script_path
+                    same_parent_step_collection.parent_script_catalog = current_parent_script_catalog
 
                     # overwrite old steps
-                    same_parent_step_collection["steps_solution"] = [step_solution]
-                    same_parent_step_collection["steps"] = [step]
+                    same_parent_step_collection.steps_solution = [resolve_result.active_solution]
+                    same_parent_step_collection.steps = [step]
 
                 else:  # same or new parent
                     module_logger().debug('Pushed step \"%s\" in queue...' % step["name"])
 
                     # set parent
-                    same_parent_step_collection["parent_script_path"] = current_parent_script_path
-                    same_parent_step_collection["parent_script_catalog"] = current_parent_script_catalog
+                    same_parent_step_collection.parent_script_path = current_parent_script_path
+                    same_parent_step_collection.parent_script_catalog = current_parent_script_catalog
 
                     # append another step to the steps already having the same parent
-                    same_parent_step_collection["steps_solution"].append(step_solution)
-                    same_parent_step_collection["steps"].append(step)
+                    same_parent_step_collection.steps_solution.append(resolve_result.active_solution)
+                    same_parent_step_collection.steps.append(step)
 
             else:  # add a step without collection (also parent)
                 # put collection (if any) to queue
-                if same_parent_step_collection["parent_script_path"]:
+                if same_parent_step_collection.parent_script_path:
                     que.put(self.create_solution_run_collection_script(same_parent_step_collection))
 
                 # empty the collection for possible next steps
-                same_parent_step_collection = self.empty_collection()
+                same_parent_step_collection = SolutionCollection()
 
                 # run the old collection immediately
                 if run_immediately:
@@ -211,10 +189,10 @@ class RunManager(metaclass=Singleton):
                 step_args = self._get_args(step)
 
                 # add step without parent
-                que.put(self.create_solution_run_script_standalone(step_solution, step_args))
+                que.put(self.create_solution_run_script_standalone(resolve_result.active_solution, step_args))
 
         # put rest to queue
-        if same_parent_step_collection["parent_script_path"]:
+        if same_parent_step_collection.parent_script_path:
             que.put(self.create_solution_run_collection_script(same_parent_step_collection))
 
         # run the old collection immediately
@@ -260,49 +238,41 @@ class RunManager(metaclass=Singleton):
 
         """
         module_logger().debug('Creating album script with parent \"%s\"...' % active_solution.parent["name"])
-        _, parent_solution = self.resolve_manager.resolve_dependency_and_load(
-            active_solution.parent,
-            load_solution=True
-        )
+        parent_solution_resolve = self.catalog_manager.resolve_dependency_require_installation_and_load(active_solution.parent)
 
         # handle arguments
-        parent_args, active_solution_args = self.resolve_args(parent_solution, [active_solution], [None], args)
+        parent_args, active_solution_args = self.resolve_args(parent_solution_resolve.active_solution, [active_solution], [None], args)
 
         # create script
         scripts = self.create_solution_run_with_parent_script(
-            parent_solution, parent_args, [active_solution], active_solution_args
+            parent_solution_resolve.active_solution, parent_args, [active_solution], active_solution_args
         )
 
-        return [parent_solution, scripts]
+        return [parent_solution_resolve.active_solution, scripts]
 
-    def create_solution_run_collection_script(self, solution_collection):
+    def create_solution_run_collection_script(self, solution_collection: SolutionCollection):
         """Creates the execution script for a collection of hip solutions all having the same parent dependency.
 
         Args:
-            solution_collection:
-                dictionary consisting of the entries:
-                    Parent_script_path: path to the parent dependency script.
-                    steps_solution: The hip solution objects of all steps.
-                    steps: The step description of the step. Must holds the argument keyword.
-
+            solution_collection
         Returns:
             The hip solution shared parent object and its scripts.
 
         """
         # load parent & steps
-        parent_solution = load(solution_collection["parent_script_path"])
-        parent_solution.set_environment(solution_collection["parent_script_catalog"].id)
-        steps_solution = solution_collection["steps_solution"]
-        steps = solution_collection["steps"]
-
+        parent_solution = load(solution_collection.parent_script_path)
+        parent_solution.set_environment(solution_collection.parent_script_catalog.name)
         module_logger().debug('Creating script for steps (%s) with parent \"%s\"...' % (
-            ", ".join([s["name"] for s in steps_solution]), parent_solution["name"]))
+            ", ".join([s["name"] for s in solution_collection.steps_solution]), parent_solution["name"]))
 
         # handle arguments
-        parsed_parent_args, parsed_steps_args_list = self.resolve_args(parent_solution, steps_solution, steps)
+        parsed_parent_args, parsed_steps_args_list = self.resolve_args(parent_solution,
+                                                                       solution_collection.steps_solution,
+                                                                       solution_collection.steps)
 
         # create script
-        scripts = self.create_solution_run_with_parent_script(parent_solution, parsed_parent_args, steps_solution,
+        scripts = self.create_solution_run_with_parent_script(parent_solution, parsed_parent_args,
+                                                              solution_collection.steps_solution,
                                                               parsed_steps_args_list)
 
         return [parent_solution, scripts]

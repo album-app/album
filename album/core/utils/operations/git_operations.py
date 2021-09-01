@@ -211,17 +211,7 @@ def download_repository(repo_url, git_folder_path, force_download=True):
     if Path.exists(git_folder_path.joinpath(".git")):
         module_logger().info("Found existing repository in %s. Trying to update..." % git_folder_path)
 
-        repo = git.Repo(git_folder_path)
-
-        # remove all eventual changes made local
-        repo.git.add('*')
-        repo.git.reset('--hard')
-
-        # update the remote
-        repo.remote().update()
-
-        # checkout remote HEAD for a clean start for new branches
-        repo.remote().refs.HEAD.checkout()
+        repo = init_repository(git_folder_path)
     else:
 
         if force_download:
@@ -229,5 +219,23 @@ def download_repository(repo_url, git_folder_path, force_download=True):
 
         module_logger().info("Download repository from %s in %s..." % (repo_url, git_folder_path))
         repo = git.Repo.clone_from(repo_url, git_folder_path)
+
+    return repo
+
+
+def init_repository(path):
+    path = Path(path)
+
+    repo = git.Repo(path)
+
+    # remove all eventual changes made local
+    repo.git.add('*')
+    repo.git.reset('--hard')
+
+    # update the remote
+    repo.remote().update()
+
+    # checkout remote HEAD for a clean start for new branches
+    repo.remote().refs.HEAD.checkout()
 
     return repo

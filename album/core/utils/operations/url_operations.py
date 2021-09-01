@@ -66,6 +66,7 @@ def is_url(str_input: str):
 
 def download(str_input, base):
     """Downloads a solution file into a temporary file."""
+    Path(base).mkdir(exist_ok=True, parents=True)
     new_file, file_name = tempfile.mkstemp(dir=base)
     with request.urlopen(str_input) as response, open(file_name, 'wb') as out_file:
         shutil.copyfileobj(response, out_file)
