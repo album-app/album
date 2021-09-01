@@ -63,7 +63,7 @@ def create_parser():
     p.add_argument(
         '--catalog',
         required=False,
-        help='Specify a catalog ID to deploy to. Must be configured! '
+        help='Specify a catalog name to deploy to. Must be configured! '
              '\"catalog_local\" refers to the local catalog. Default is None',
         default=None)
     p.add_argument(
@@ -121,7 +121,7 @@ def create_parser():
     p = parser.create_command_parser('clone', clone, 'clone an album solution or catalog template')
     p.add_argument('src', type=str, help='path for the solution file, group:name:version or name of the catalog template')
     p.add_argument(
-        '--target_dir',
+        '--target-dir',
         required=True,
         help='The target directory where the solution or catalog will be added to',
         default=None

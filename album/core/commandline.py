@@ -32,9 +32,13 @@ def update(args):
 
 
 def upgrade(args):
+    dry_run = getattr(args, "dry_run", False)
     updates = CollectionManager().catalogs().update_collection(getattr(args, "catalog_name", None),
-                                                                  dry_run=getattr(args, "dry_run", False))
-    module_logger().info("Applied the following updates:")
+                                                               dry_run=dry_run)
+    if dry_run:
+        module_logger().info("An upgrade would apply the following updates:")
+    else:
+        module_logger().info("Applied the following updates:")
     for change in updates:
         module_logger().info(json.dumps(change.as_dict(), sort_keys=True, indent=4))
 

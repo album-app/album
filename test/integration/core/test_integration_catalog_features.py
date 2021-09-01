@@ -60,6 +60,9 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         self.assertTrue(catalog.is_local())
         solution_dict = TestUnitCommon.get_solution_dict()
         solution = AlbumClass(solution_dict)
+        solution2_dict = solution_dict.copy()
+        solution2_dict["name"] = "something else"
+        solution2 = AlbumClass(solution2_dict)
 
         # check that initially no updates are available
 
@@ -74,11 +77,12 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
 
         # add new solution to catalog
         catalog.add(solution)
+        catalog.add(solution2)
 
         dif = self.collection_manager.catalogs().update_collection(catalog.name, dry_run=True)
 
         self.assertEqual(0, len(dif[0].catalog_attribute_changes))
-        self.assertEqual(1, len(dif[0].solution_changes))
+        self.assertEqual(2, len(dif[0].solution_changes))
         self.assertEqual(ChangeType.ADDED, dif[0].solution_changes[0].change_type)
 
         # update collection
@@ -86,7 +90,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         dif = self.collection_manager.catalogs().update_collection(catalog.name, dry_run=False)
 
         self.assertEqual(0, len(dif[0].catalog_attribute_changes))
-        self.assertEqual(1, len(dif[0].solution_changes))
+        self.assertEqual(2, len(dif[0].solution_changes))
         self.assertEqual(ChangeType.ADDED, dif[0].solution_changes[0].change_type)
 
         dif = self.collection_manager.catalogs().update_collection(catalog.name, dry_run=True)

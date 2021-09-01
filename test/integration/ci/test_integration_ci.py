@@ -122,7 +122,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
             str(self.path),
             self.src,
             "--branch_name=%s" % branch_name,
-            "--dry-run=True",
+            "--dry-run",
             "--ci_user_name=myCiUserName",
             "--ci_user_email=myCiUserEmail"
         ]
@@ -146,12 +146,12 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
             str(self.path),
             self.src,
             "--branch_name=%s" % branch_name,
-            "--dry-run=True",
+            "--dry-run",
             "--ci_user_name=myCiUserName",
             "--ci_user_email=myCiUserEmail"
         ]
 
         # run
-        # with self.assertRaises(RuntimeError) as context:
-        self.assertIsNone(main())
-            # self.assertEqual("Diff shows no changes to the repository. Aborting...", str(context.exception))
+        with self.assertRaises(RuntimeError) as context:
+            main()
+            self.assertEqual("Diff shows no changes to the repository. Aborting...", str(context.exception))

@@ -25,7 +25,7 @@ class TestIntegrationDeploy(TestIntegrationCommon):
                     "deploy",
                     str(self.get_test_solution_path()),
                     "--catalog=test_catalog",
-                    "--dry-run=True",
+                    "--dry-run",
                     "--trigger-pipeline=False",
                     "--git-name=MyName",
                     "--git-email=MyEmail",

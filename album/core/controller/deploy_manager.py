@@ -6,6 +6,7 @@ from album.core import load
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.model.default_values import DefaultValues
+from album.core.utils.operations import file_operations
 from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, zip_paths
 from album.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push
 from album.core.utils.operations.resolve_operations import solution_to_group_name_version
@@ -95,6 +96,7 @@ class DeployManager(metaclass=Singleton):
             self._catalog.catalog_index.update(self._active_solution.get_deploy_dict())
             self._catalog.catalog_index.get_connection().commit()
             self._catalog.catalog_index.export(self._catalog.solution_list_path)
+            self._catalog.copy_index_from_cache_to_src()
             self._catalog.refresh_index()
         else:
             dwnld_path = Path(self.collection_manager.configuration.cache_path_download).joinpath(self._catalog.name)
@@ -201,10 +203,10 @@ class DeployManager(metaclass=Singleton):
 
         if hasattr(self._active_solution, "covers"):
             for cover in self._active_solution["covers"]:
-                cover = Path(cover)
-                cover_name = os.path.split(cover)[-1]
-
-                cover_path = folder_path.joinpath(cover)  # relative paths only
-                cover_list.append(copy(cover_path, target_path.joinpath(cover_name)))
-
+                cover_name = cover["source"]
+                cover_path = folder_path.joinpath(cover_name)  # relative paths only
+                if cover_path.exists():
+                    cover_list.append(copy(cover_path, target_path.joinpath(cover_name)))
+                else:
+                    module_logger().warn(f"Cannot find cover {cover_path.absolute()}, proceeding without copying it.")
         return cover_list

@@ -79,7 +79,7 @@ class CatalogIndex(Database):
     def get_all_solutions(self):
         r = self.get_cursor().execute(
             "SELECT * FROM solution",
-            {})
+            {}).fetchall()
 
         solutions = []
         if r:
@@ -350,7 +350,6 @@ class CatalogIndex(Database):
                 "solution_id": solution_id
             }
         )
-
         self.get_cursor().execute(
             "DELETE FROM cover WHERE solution_id=:solution_id",
             {

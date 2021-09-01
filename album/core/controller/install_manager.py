@@ -1,5 +1,6 @@
 import sys
 
+from album.core import AlbumClass
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.utils.operations.resolve_operations import dict_to_group_name_version, solution_to_group_name_version
@@ -37,16 +38,15 @@ class InstallManager(metaclass=Singleton):
         catalog = resolve_result.catalog
 
         if not catalog:
-            module_logger().debug('album loaded locally: %s...' % str(solution))
+            module_logger().debug('solution loaded locally: %s...' % str(solution))
         else:
-            module_logger().debug('album loaded from catalog %s: %s...' % (catalog.catalog_id, str(
+            module_logger().debug('solution loaded from catalog %s: %s...' % (catalog.catalog_id, str(
                 solution)))
 
         # execute installation routine
         parent_catalog_id = self._install(solution)
 
-        #TODO this is messy and needs to be cleaned up
-        if not catalog or catalog.is_local:  # case where a solution file is directly given
+        if not catalog or catalog.is_cache():  # case where a solution file is directly given
             self.collection_manager.add_solution_to_local_catalog(solution, resolve_result.path.parent)
         else:
             self.update_in_collection_index(catalog.catalog_id, parent_catalog_id, solution)
@@ -56,7 +56,7 @@ class InstallManager(metaclass=Singleton):
 
         return catalog.catalog_id
 
-    def update_in_collection_index(self, catalog_id, parent_catalog_id, active_solution):
+    def update_in_collection_index(self, catalog_id, parent_catalog_id, active_solution: AlbumClass):
         parent_id = None
 
         if active_solution.parent:
@@ -71,7 +71,7 @@ class InstallManager(metaclass=Singleton):
         self.collection_manager.solutions().update_solution(
             self.collection_manager.catalogs().get_by_id(catalog_id),
             solution_to_group_name_version(active_solution),
-            active_solution
+            active_solution.get_deploy_dict()
         )
 
     def _install(self, active_solution):

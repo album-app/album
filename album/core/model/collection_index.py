@@ -540,12 +540,14 @@ class CollectionIndex(Database):
     def add_or_replace_solution(self, catalog_id, group_name_version: GroupNameVersion, solution_attrs, supported_attrs):
         solution = self.get_solution_by_catalog_grp_name_version(catalog_id, group_name_version)
         if solution:
-            # FIXME instead of updating, remove old solution fully and add new version
-            self.update_solution(catalog_id, solution_attrs, supported_attrs)
-        else:
-            self.insert_solution(catalog_id, solution_attrs)
+            self.remove_solution(catalog_id, group_name_version)
+        self.insert_solution(catalog_id, solution_attrs)
 
     def remove_solution(self, catalog_id, group_name_version: GroupNameVersion):
+        solution = self.get_solution_by_catalog_grp_name_version(catalog_id, group_name_version)
+        if not solution:
+            return
+        solution_id = solution["collection_id"]
         self.get_cursor().execute(
             "DELETE FROM collection "
             "WHERE catalog_id=:catalog_id AND \"group\"=:group AND name=:name AND version=:version",
@@ -556,7 +558,63 @@ class CollectionIndex(Database):
                 "version": group_name_version.version,
             }
         )
-        # FIXME remove associated entries in other tables
+
+        self.get_cursor().execute(
+            "DELETE FROM collection_cover WHERE collection_id=:collection_id",
+            {
+                "collection_id": solution_id
+            }
+        )
+
+        self.get_cursor().execute(
+            "DELETE FROM collection_solution_tag WHERE collection_id=:collection_id",
+            {
+                "collection_id": solution_id
+            }
+        )
+
+        self.get_cursor().execute(
+            "DELETE FROM collection_solution_author WHERE collection_id=:collection_id",
+            {
+                "collection_id": solution_id
+            }
+        )
+
+        self.get_cursor().execute(
+            "DELETE FROM collection_solution_citation WHERE collection_id=:collection_id",
+            {
+                "collection_id": solution_id
+            }
+        )
+
+        self.get_cursor().execute(
+            "DELETE FROM collection_solution_argument WHERE collection_id=:collection_id",
+            {
+                "collection_id": solution_id
+            }
+        )
+
+        self.get_cursor().execute(
+            "DELETE FROM collection_tag "
+            "WHERE NOT EXISTS (SELECT st.collection_tag_id FROM collection_solution_tag st "
+            "WHERE collection_tag.collection_tag_id = st.collection_tag_id)")
+
+        self.get_cursor().execute(
+            "DELETE FROM collection_argument "
+            "WHERE NOT EXISTS (SELECT sa.collection_argument_id FROM collection_solution_argument sa "
+            "WHERE collection_argument.collection_argument_id = sa.collection_argument_id)")
+
+        self.get_cursor().execute(
+            "DELETE FROM collection_citation "
+            "WHERE NOT EXISTS (SELECT sc.collection_citation_id FROM collection_solution_citation sc "
+            "WHERE collection_citation.collection_citation_id = sc.collection_citation_id)")
+
+        self.get_cursor().execute(
+            "DELETE FROM collection_author "
+            "WHERE NOT EXISTS (SELECT sa.collection_author_id FROM collection_solution_author sa "
+            "WHERE collection_author.collection_author_id = sa.collection_author_id)")
+
+        self.get_connection().commit()
 
     def insert_collection_tag(self, catalog_id, tag_id, tag_name, assignment_type, hash_val):
         if self.get_collection_tag_by_catalog_id_and_tag_id(catalog_id, tag_id, tag_name, assignment_type):

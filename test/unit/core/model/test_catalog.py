@@ -261,7 +261,7 @@ class TestCatalog(TestUnitCommon):
                                "http://NonsenseUrl.git")
         self.catalog.is_cache = MagicMock(return_value=False)
 
-        dl_url = "http://NonsenseUrl" + "/-/raw/main/solutions/g/n/v/gnv.zip"
+        dl_url = "http://NonsenseUrl" + "/-/raw/main/solutions/g/n/v/g_n_v.zip"
         dl_path = self.catalog.path.joinpath(
             DefaultValues.cache_path_solution_prefix.value, "g", "n", "v", "g_n_v.zip"
         )

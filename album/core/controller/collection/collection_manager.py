@@ -69,6 +69,8 @@ class CollectionManager(metaclass=Singleton):
         if newly_created:
             self.catalog_handler.create_local_catalog()
             self.catalog_handler.add_initial_catalogs()
+            self.catalog_handler.update_any()
+            self.catalog_handler.update_collection()
 
     def catalogs(self) -> CatalogHandler:
         return self.catalog_handler
@@ -100,7 +102,10 @@ class CollectionManager(metaclass=Singleton):
         """
         resolve_result = self._resolve(str_input)
 
-        if not resolve_result.solution_attrs or not resolve_result.solution_attrs["installed"]:
+        if not resolve_result.solution_attrs:
+            raise LookupError("Solution not found!")
+
+        if not resolve_result.solution_attrs["installed"]:
             raise LookupError("Solution seems not to be installed! Please install solution first!")
 
         active_solution = load(resolve_result.path)

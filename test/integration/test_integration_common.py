@@ -5,9 +5,11 @@ import tempfile
 import unittest.mock
 from io import StringIO
 from pathlib import Path
+from typing import Optional
 from unittest.mock import patch
 
 import album.core as album
+from album.core import AlbumClass
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.conda_manager import CondaManager
 from album.core.controller.collection.collection_manager import CollectionManager
@@ -41,7 +43,7 @@ class TestIntegrationCommon(unittest.TestCase):
 
         self.collection_manager = CollectionManager()
         self.test_collection = self.collection_manager.catalog_collection
-        self.assertTrue(self.test_collection.is_empty())
+        self.assertFalse(self.test_collection.is_empty())
 
     def add_test_catalog(self):
         path = Path(self.tmp_dir.name).joinpath("my-catalogs", "test_catalog")
@@ -112,7 +114,7 @@ class TestIntegrationCommon(unittest.TestCase):
         path = current_path.joinpath("..", "resources", solution_file)
         return str(path.resolve())
 
-    def fake_install(self, path, create_environment=True):
+    def fake_install(self, path, create_environment=True) -> Optional[AlbumClass]:
         # add to local catalog
         a = album.load(path)
 
@@ -138,3 +140,4 @@ class TestIntegrationCommon(unittest.TestCase):
                 DefaultValues.solution_default_name.value
             )
         )
+        return a

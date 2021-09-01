@@ -57,7 +57,7 @@ class TestInstallManager(TestUnitCommon):
         self.install_manager.update_in_collection_index("cat_id", None, self.active_solution)
 
         update_solution_mock.assert_called_once_with(
-            get_by_id_mock.return_value, solution_to_group_name_version(self.active_solution), self.active_solution
+            get_by_id_mock.return_value, solution_to_group_name_version(self.active_solution), self.active_solution.get_deploy_dict()
         )
         get_solution_mock.assert_not_called()
 
@@ -74,7 +74,7 @@ class TestInstallManager(TestUnitCommon):
 
         #FIXME currently not checking for parent information to be added
         update_solution_mock.assert_called_once_with(
-            get_by_id_mock.return_value, solution_to_group_name_version(self.active_solution), self.active_solution
+            get_by_id_mock.return_value, solution_to_group_name_version(self.active_solution), self.active_solution.get_deploy_dict()
         )
         get_solution_mock.assert_called_once_with("cat_parent_id", GroupNameVersion("grp", "pName", "pVersion"))
 

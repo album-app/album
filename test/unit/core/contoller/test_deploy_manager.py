@@ -228,7 +228,7 @@ class TestDeployManager(TestGitCommon):
     @patch('album.core.controller.deploy_manager.copy', return_value="absPathCopyOfCover")
     def test__copy_cover_to_local_src(self, copy_mock):
         # set covers
-        self.active_solution["covers"] = ["example_cover1.png", "example_cover2.png"]
+        self.active_solution["covers"] = [{"source": "example_cover1.png"}, {"source": "example_cover2.png"}]
 
         # prepare fake covers and solution_file
         Path(self.tmp_dir.name).joinpath("example_cover1.png").touch()

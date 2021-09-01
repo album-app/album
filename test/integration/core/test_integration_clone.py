@@ -18,7 +18,7 @@ class TestIntegrationClone(TestIntegrationCommon):
         self.fake_install(input_path)
         target_dir = Path(self.tmp_dir.name).joinpath("my_catalog")
 
-        sys.argv = ["", "clone", input_path, "--target_dir", str(target_dir), "--name", "my_solution"]
+        sys.argv = ["", "clone", input_path, "--target-dir", str(target_dir), "--name", "my_solution"]
 
         # run
         self.assertIsNone(main())
@@ -28,10 +28,22 @@ class TestIntegrationClone(TestIntegrationCommon):
         # self.assertIn(f"INFO - Copied solution {str(input_path)} to {self.tmp_dir.name}/my_catalog/my_solution/solution.py", self.captured_output.getvalue())
         self.assertTrue(target_dir.joinpath("my_solution", DefaultValues.solution_default_name.value).exists())
 
+    def test_clone_solution_template(self):
+
+        target_dir = Path(self.tmp_dir.name).joinpath("my_catalog")
+
+        sys.argv = ["", "clone", "album:template-r:0.1.0-SNAPSHOT", "--target-dir", str(target_dir), "--name", "my_solution"]
+
+        # run
+        self.assertIsNone(main())
+
+        # assert
+        self.assertTrue(target_dir.joinpath("my_solution", DefaultValues.solution_default_name.value).exists())
+
     def test_clone_catalog_template(self):
         target_dir = Path(self.tmp_dir.name).joinpath("my_catalogs")
 
-        sys.argv = ["", "clone", "catalog", "--target_dir", str(target_dir), "--name", "my_catalog"]
+        sys.argv = ["", "clone", "catalog", "--target-dir", str(target_dir), "--name", "my_catalog"]
 
         # run
         self.assertIsNone(main())
@@ -43,7 +55,7 @@ class TestIntegrationClone(TestIntegrationCommon):
         self.assertTrue(target_path.joinpath("album_solution_list.json").exists())
 
     def test_clone_non_existing_solution(self):
-        sys.argv = ["", "clone", "weirdPath", "--target_dir", str(Path(self.tmp_dir.name)), "--name", "my_solution"]
+        sys.argv = ["", "clone", "weirdPath", "--target-dir", str(Path(self.tmp_dir.name)), "--name", "my_solution"]
 
         # run
         with self.assertRaises(LookupError):

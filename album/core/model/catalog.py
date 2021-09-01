@@ -44,7 +44,7 @@ def get_solution_src(src, group_name_version: GroupNameVersion):
     # todo: "main" is still hardcoded! :(
     return re.sub(r"\.git$", "", src) + "/-/raw/main/solutions/%s/%s/%s/%s" \
            % (group_name_version.group, group_name_version.name, group_name_version.version, 
-              "%s%s%s%s" % (group_name_version.group, group_name_version.name, group_name_version.version, ".zip"))
+              "%s_%s_%s%s" % (group_name_version.group, group_name_version.name, group_name_version.version, ".zip"))
 
 
 class Catalog:
@@ -288,7 +288,7 @@ class Catalog:
         if not self._index_path.is_file():  # only download/copy from src if index does not exist yet
             if self.is_local():  # case where src is not downloadable
                 # copy catalog from local resource to cache location
-                self.copy_index()
+                self.copy_index_from_src_to_cache()
             else:
                 # load catalog from remote src
                 self.download_index()
@@ -317,7 +317,7 @@ class Catalog:
             return False
 
         if self.is_local():  # case src not downloadable
-            self.copy_index()
+            self.copy_index_from_src_to_cache()
         else:
             try:
                 self.download_index()
@@ -407,8 +407,8 @@ class Catalog:
         """Visualizes the catalog on the command line"""
         self.catalog_index.visualize()
 
-    def copy_index(self):
-        """Copy the index file if a catalog and its metadata to the catalog cache folder."""
+    def copy_index_from_src_to_cache(self):
+        """Copy the index file of a catalog and its metadata to the catalog cache folder."""
         src_path_index = Path(self.src).joinpath(DefaultValues.catalog_index_file_name.value)
         src_path_meta = Path(self.src).joinpath(DefaultValues.catalog_index_file_json.value)
 
@@ -422,6 +422,16 @@ class Catalog:
             return FileNotFoundError("Could not find file %s..." % src_path_meta)
 
         copy(src_path_meta, self._meta_path)
+
+    def copy_index_from_cache_to_src(self):
+        """Copy the index file if a catalog and its metadata from the catalog cache folder into the source folder."""
+        src_path_index = Path(self.src).joinpath(DefaultValues.catalog_index_file_name.value)
+        if not src_path_index.exists():
+            if not self._index_path.parent.exists():
+                self._index_path.parent.mkdir(parents=True)
+        copy(self._index_path, src_path_index)
+        src_path_solution_list = Path(self.src).joinpath(DefaultValues.catalog_solution_list_file_name.value)
+        copy(self.solution_list_path, src_path_solution_list)
 
     def download_index(self):
         """Downloads the index file of the catalog and its metadata."""
