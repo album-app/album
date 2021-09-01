@@ -497,7 +497,7 @@ class CollectionIndex(Database):
     def get_recently_installed_solutions(self):
         solutions_list = []
         cursor = self.get_cursor()
-        for row in cursor.execute("SELECT * FROM collection ORDER BY install_date"):
+        for row in cursor.execute("SELECT * FROM collection ORDER BY install_date").fetchall():
             solution = dict(row)
             self._append_metadata_to_solution(solution)
             solutions_list.append(solution)
@@ -506,7 +506,7 @@ class CollectionIndex(Database):
     def get_recently_launched_solutions(self):
         solutions_list = []
         cursor = self.get_cursor()
-        for row in cursor.execute("SELECT * FROM collection WHERE last_execution IS NOT NULL ORDER BY last_execution"):
+        for row in cursor.execute("SELECT * FROM collection WHERE last_execution IS NOT NULL ORDER BY last_execution").fetchall():
             solution = dict(row)
             self._append_metadata_to_solution(solution)
             solutions_list.append(solution)

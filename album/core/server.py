@@ -35,6 +35,7 @@ class AlbumServer(metaclass=Singleton):
 
     def setup(self, port):
         self.port = port
+        CollectionManager()  # this ensures that the configuration is accessible
 
     def start(self, test_config=None):
         module_logger().info('Starting server..')
@@ -56,8 +57,7 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route("/config")
         def get_config():
             return {
-                "album_config_path": str(CollectionManager().catalog_collection.config_file_path),
-                "album_config": CollectionManager().catalog_collection.config_file_dict,
+                "album_config_path": str(Configuration().configuration_file_path),
                 "cache_base": str(Configuration().base_cache_path),
                 "cache_solutions": str(Configuration().cache_path_solution),
                 "cache_apps": str(Configuration().cache_path_app),
@@ -262,7 +262,7 @@ class AlbumServer(metaclass=Singleton):
             for arg in args:
                 task_args.append(arg)
         task.args = tuple(task_args)
-        task.sysarg = self._get_arguments(request.get_json(), solution_path)
+        task.sysarg = self._get_arguments(request.args, solution_path)
         task.method = method
         TaskManager().register_task(task)
         return task
@@ -281,9 +281,8 @@ class AlbumServer(metaclass=Singleton):
     def _get_arguments(args_json, solution_path):
         command_args = [str(solution_path)]
         if args_json:
-            request_data = json.loads(args_json)
-            for key in request_data:
+            for key in args_json:
                 command_args.append(f"--{key}")
-                command_args.append(str(request_data[key]))
+                command_args.append(str(args_json[key]))
         return command_args
 

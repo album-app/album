@@ -37,6 +37,21 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         logging.set_loglevel(LogLevel.INFO)
         task_manager = TaskManager()
 
+        # check index route
+
+        res_index = client.get("/index")
+        self.assertEqual(200, res_index.status_code)
+
+        # check catalogs route
+
+        res_catalogs = client.get("/catalogs")
+        self.assertEqual(200, res_catalogs.status_code)
+
+        # check config route
+
+        res_config = client.get("/config")
+        self.assertEqual(200, res_config.status_code)
+
         # add remote catalog
 
         remote_catalog = "https://gitlab.com/album-app/catalogs/templates/catalog"
