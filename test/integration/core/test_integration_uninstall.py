@@ -6,12 +6,12 @@ from album.core.utils.operations.file_operations import create_path_recursively
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
-class TestIntegrationRemove(TestIntegrationCommon):
+class TestIntegrationUninstall(TestIntegrationCommon):
 
     def tearDown(self) -> None:
         super().tearDown()
 
-    def test_remove(self):
+    def test_uninstall(self):
         self.assertEqual(0, len(self.collection_manager.catalog_collection.get_solutions_by_catalog(self.collection_manager.catalogs().get_local_catalog().catalog_id)))
 
         self.fake_install(self.get_test_solution_path(), create_environment=False)
@@ -35,13 +35,16 @@ class TestIntegrationRemove(TestIntegrationCommon):
         create_path_recursively(p.parent)
         p.touch()
 
-        sys.argv = ["", "remove", self.get_test_solution_path()]
+        sys.argv = ["", "uninstall", self.get_test_solution_path()]
 
         self.assertIsNone(main())
 
         # assert that solution is removed from the catalog
-        self.assertIn("Removed name", self.captured_output.getvalue())
-        self.assertEqual(0, len(self.collection_manager.catalog_collection.get_solutions_by_catalog(self.collection_manager.catalogs().get_local_catalog().catalog_id)))
+        self.assertIn("Uninstalled name", self.captured_output.getvalue())
+        solutions = self.collection_manager.catalog_collection.get_solutions_by_catalog(
+            self.collection_manager.catalogs().get_local_catalog().catalog_id)
+        self.assertEqual(1, len(solutions))
+        self.assertEqual(0, solutions[0]["installed"])
 
         # assert that the correct paths are deleted
         self.assertFalse(
@@ -61,7 +64,7 @@ class TestIntegrationRemove(TestIntegrationCommon):
         )
 
     def test_remove_solution_not_installed(self):
-        sys.argv = ["", "remove", self.get_test_solution_path()]
+        sys.argv = ["", "uninstall", self.get_test_solution_path()]
 
         with self.assertRaises(LookupError):
             main()

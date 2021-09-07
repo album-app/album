@@ -19,7 +19,6 @@ from album.core.controller.conda_manager import CondaManager
 from album.core.controller.deploy_manager import DeployManager
 from album.core.controller.install_manager import InstallManager
 from album.core.controller.migration_manager import MigrationManager
-from album.core.controller.remove_manager import RemoveManager
 from album.core.controller.run_manager import RunManager
 from album.core.controller.search_manager import SearchManager
 from album.core.controller.task_manager import TaskManager
@@ -78,7 +77,6 @@ class TestUnitCommon(unittest.TestCase):
         TestUnitCommon._delete(CondaManager)
         TestUnitCommon._delete(DeployManager)
         TestUnitCommon._delete(InstallManager)
-        TestUnitCommon._delete(RemoveManager)
         TestUnitCommon._delete(RunManager)
         TestUnitCommon._delete(SearchManager)
         TestUnitCommon._delete(TaskManager)

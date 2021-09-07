@@ -44,9 +44,9 @@ These calls will immediately return a JSON message indicating that the process w
 - Run a solution, specified by the catalog name, the group name, the solution name and it's version:
 
   `http://192.0.0.1:1234/run/<catalog>/<group>/<name>/<version>`
-- Remove a solution, specified by the catalog name, the group name, the solution name and it's version:
+- Uninstall a solution, specified by the catalog name, the group name, the solution name and it's version:
 
-  `http://192.0.0.1:1234/remove/<catalog>/<group>/<name>/<version>`
+  `http://192.0.0.1:1234/uninstall/<catalog>/<group>/<name>/<version>`
 - Test a solution, specified by the catalog name, the group name, the solution name and it's version:
 
   `http://192.0.0.1:1234/test/<catalog>/<group>/<name>/<version>`

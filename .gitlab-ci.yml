@@ -99,7 +99,7 @@ cmdline linux:
     - album run -h
     - album install -h
     - album deploy -h
-    - album remove -h
+    - album uninstall -h
     - album repl -h
     - album server -h
     - album add-catalog -h

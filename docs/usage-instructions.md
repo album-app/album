@@ -27,8 +27,14 @@ A solution can include a test routine which should help verify that your system 
 album test [solution-file-or-url]
 album test [group:name:version]
 ```
+A solution can be uninstalled via one of these commands - this will remove all local files associated with the solution:
+```
+album uninstall [solution-file-or-url]
+album uninstall [group:name:version]
+```
 
 ## Catalogs
+
 A catalog holds a set of solutions together. This could be a set of thematically matching solutions or maybe the solution collection of a research group. A catalog should include all existing versions of the same solution.
 It can live in a git repository, e.g. on github or gitlab, on a network drive or just locally on your hard rive.
 
