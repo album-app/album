@@ -74,7 +74,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         local_catalog_path = local_catalogs_path.joinpath(local_catalog_name)
         self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), local_catalogs, False)
 
-        res_clone_catalog = client.get(f"/clone/catalog?target_dir={urllib.parse.quote(local_catalogs)}&name={local_catalog_name}")
+        res_clone_catalog = client.get(f"/clone/template:catalog?target_dir={urllib.parse.quote(local_catalogs)}&name={local_catalog_name}")
         self.assertEqual(200, res_clone_catalog.status_code)
         self._finish_taskmanager_with_timeout(task_manager, 30)
         self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), local_catalog_path, False)
