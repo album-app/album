@@ -18,15 +18,25 @@ class CloneManager(metaclass=Singleton):
         self.collection_manager = CollectionManager()
         pass
 
-    def clone(self, path, target_dir, name):
-        """Function corresponding to the `clone` subcommand of `album`."""
+    def clone(self, path: str, target_dir: str, name:str) -> None:
+        """
+        Function corresponding to the `clone` subcommand of `album`.
+
+        Args:
+            path: the source of the clone command - a solution (group:name:version, path, or URL to file) or a catalog template string (i.e. template:catalog)
+            target_dir: the directory where the cloned solution or catalog will be added to
+            name: the name of the solution or catalog to be created
+
+        """
         target_path = Path(target_dir).joinpath(name)
-        try:
+        if path.startswith("template:"):
+            try:
+                self._try_cloning_catalog_template(path[len("template:"):], target_path, name)
+            except (LookupError, ValueError):
+                raise LookupError("Cannot resolve %s - make sure it's a valid name of a template located in %s!",
+                                  (path, DefaultValues.catalog_template_url.value))
+        else:
             self._try_cloning_solution(path, target_path)
-        except (LookupError, ValueError):
-            if not self._try_cloning_catalog_template(path, target_path, name):
-                raise LookupError("Cannot resolve %s - make sure it's a valid path to a solution or the name of a "
-                                  "template located in %s!", (path, DefaultValues.catalog_template_url.value))
 
     def _try_cloning_solution(self, path, target_path):
         resolve_result = self.collection_manager.resolve_download_and_load(path)

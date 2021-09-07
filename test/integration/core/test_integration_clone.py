@@ -43,7 +43,7 @@ class TestIntegrationClone(TestIntegrationCommon):
     def test_clone_catalog_template(self):
         target_dir = Path(self.tmp_dir.name).joinpath("my_catalogs")
 
-        sys.argv = ["", "clone", "catalog", "--target-dir", str(target_dir), "--name", "my_catalog"]
+        sys.argv = ["", "clone", "template:catalog", "--target-dir", str(target_dir), "--name", "my_catalog"]
 
         # run
         self.assertIsNone(main())
@@ -58,7 +58,7 @@ class TestIntegrationClone(TestIntegrationCommon):
         sys.argv = ["", "clone", "weirdPath", "--target-dir", str(Path(self.tmp_dir.name)), "--name", "my_solution"]
 
         # run
-        with self.assertRaises(LookupError):
+        with self.assertRaises(ValueError):
             self.assertIsNone(main())
 
 
