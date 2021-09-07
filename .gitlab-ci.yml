@@ -56,6 +56,7 @@
     - conda init bash
     - source ~/.bashrc
     - conda activate album
+    - pip uninstall -y album
     - pip install https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
     - which python
     - pwd
@@ -98,7 +99,7 @@ cmdline linux:
     - album run -h
     - album install -h
     - album deploy -h
-    - album remove -h
+    - album uninstall -h
     - album repl -h
     - album server -h
     - album add-catalog -h
@@ -122,12 +123,12 @@ unit tests windows:
   extends: .windows_base_template
   stage: test
   script:
-    - $cmnd = powershell.exe -command {conda env create --force -f album.yml 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit.py 2>&1 | Write-Host; exit(0)}
+    - $cmnd = powershell.exe -command {conda env create --force -f album.yml 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip uninstall -y album 2>&1 | Write-Host; pip install https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit.py 2>&1 | Write-Host; exit(0)}
     - if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}
 
 integration tests windows:
   extends: .windows_base_template
   stage: test
   script:
-    - $cmnd = powershell.exe -command {conda env create --force -f album.yml 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration.py 2>&1 | Write-Host; exit(0)}
+    - $cmnd = powershell.exe -command {conda env create --force -f album.yml 2>&1 | Write-Host; conda activate album 2>&1 | pip uninstall -y album 2>&1 | Write-Host; Write-Host; pip install https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration.py 2>&1 | Write-Host; exit(0)}
     - if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}

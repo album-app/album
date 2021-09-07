@@ -126,7 +126,7 @@ class TestIntegrationCommon(unittest.TestCase):
         # add to collection, assign to local catalog
         len_catalog_before = len(self.test_collection.get_solutions_by_catalog(local_catalog.catalog_id))
         self.collection_manager.add_solution_to_local_catalog(a, path)
-        self.collection_manager.solutions().update_solution(local_catalog, solution_to_group_name_version(a), {"installed": 1})
+        self.collection_manager.solutions().set_installed(local_catalog, a)
         self.assertEqual(len_catalog_before + 1, len(self.test_collection.get_solutions_by_catalog(local_catalog.catalog_id)))
 
         # copy to correct folder

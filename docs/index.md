@@ -27,6 +27,8 @@ see [development guide](development-guide).
 ### Use solutions
 * `album install [solution-file-or-url]` - Install a solution.
 * `album install [group:name:version]` - Lookup and install a solution identified via group, name and version.
+* `album uninstall [solution-file-or-url]` - Uninstall a solution.
+* `album uninstall [group:name:version]` - Lookup and uninstall a solution identified via group, name and version.
 * `album run [solution-file-or-url]` - Run a solution.
 * `album run [group:name:version]` - Lookup and run a solution identified via group, name and version.
 * `album test [solution-file-or-url]` - Test if a solution behaves on your system as expected.

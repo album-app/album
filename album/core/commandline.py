@@ -5,7 +5,6 @@ from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.deploy_manager import DeployManager
 from album.core.controller.install_manager import InstallManager
-from album.core.controller.remove_manager import RemoveManager
 from album.core.controller.run_manager import RunManager
 from album.core.controller.search_manager import SearchManager
 from album.core.controller.test_manager import TestManager
@@ -51,8 +50,8 @@ def install(args):
     InstallManager().install(args.path)
 
 
-def remove(args):
-    RemoveManager().remove(args.path, args.remove_deps)
+def uninstall(args):
+    InstallManager().uninstall(args.path, args.uninstall_deps)
 
 
 def run(args):

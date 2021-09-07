@@ -10,7 +10,6 @@ from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.deploy_manager import DeployManager
 from album.core.controller.install_manager import InstallManager
-from album.core.controller.remove_manager import RemoveManager
 from album.core.controller.run_manager import RunManager
 from album.core.controller.search_manager import SearchManager
 from album.core.controller.task_manager import TaskManager
@@ -93,10 +92,10 @@ class AlbumServer(metaclass=Singleton):
             task = self._run_solution_method_async(catalog, GroupNameVersion(group, name, version), InstallManager().install)
             return {"id": task.id, "msg": "process started"}
 
-        @self.app.route('/remove/<group>/<name>/<version>', defaults={'catalog': None})
-        @self.app.route('/remove/<catalog>/<group>/<name>/<version>')
-        def remove(catalog, group, name, version):
-            task = self._run_solution_method_async(catalog, GroupNameVersion(group, name, version), RemoveManager().remove)
+        @self.app.route('/uninstall/<group>/<name>/<version>', defaults={'catalog': None})
+        @self.app.route('/uninstall/<catalog>/<group>/<name>/<version>')
+        def uninstall(catalog, group, name, version):
+            task = self._run_solution_method_async(catalog, GroupNameVersion(group, name, version), InstallManager().uninstall)
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/test/<group>/<name>/<version>', defaults={'catalog': None})

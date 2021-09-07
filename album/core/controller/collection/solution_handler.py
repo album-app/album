@@ -68,6 +68,9 @@ class SolutionHandler:
         for solution in solutions:
             self.catalog_collection.add_or_replace_solution(catalog_id, dict_to_group_name_version(solution), solution)
 
+    def set_uninstalled(self, catalog, solution):
+        self.update_solution(catalog, solution, {"installed": 0})
+
     def remove_solution(self, catalog, solution):
         self.catalog_collection.remove_solution(catalog.catalog_id, solution_to_group_name_version(solution))
 
@@ -103,3 +106,7 @@ class SolutionHandler:
                 change.group_name_version,
                 catalog.catalog_index.get_solution_by_group_name_version(change.group_name_version),
                 self.get_solution_keys())
+
+    def set_installed(self, catalog, solution):
+        self.update_solution(catalog, solution, {"installed": 1})
+

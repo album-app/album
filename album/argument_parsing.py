@@ -2,7 +2,7 @@ import argparse
 import sys
 
 from album.core.commandline import add_catalog, remove_catalog, deploy, \
-    install, remove, repl, run, search, start_server, test, update, clone, upgrade, index
+    install, repl, run, search, start_server, test, update, clone, upgrade, index, uninstall
 from album_runner import logging
 from album_runner.logging import debug_settings
 
@@ -88,9 +88,9 @@ def create_parser():
     )
 
     parser.create_file_command_parser('install', install, 'install an album solution')
-    p = parser.create_file_command_parser('remove', remove, 'remove an album solution')
+    p = parser.create_file_command_parser('uninstall', uninstall, 'uninstall an album solution')
     p.add_argument(
-        '--remove-deps',
+        '--uninstall-deps',
         required=False,
         help=
         'Boolean to additionally remove all album dependencies. Choose between %s'

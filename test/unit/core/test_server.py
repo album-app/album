@@ -42,9 +42,9 @@ class TestServer(flask_unittest.ClientTestCase, TestUnitCommon):
     def test_install(self, client, route):
         self.__test_solution_route(client, "install", route)
 
-    @patch("album.core.controller.remove_manager.RemoveManager.remove", return_value=None)
-    def test_remove(self, client, route):
-        self.__test_solution_route(client, "remove", route)
+    @patch("album.core.controller.install_manager.InstallManager.uninstall", return_value=None)
+    def test_uninstall(self, client, route):
+        self.__test_solution_route(client, "uninstall", route)
 
     @patch("album.core.controller.test_manager.TestManager.test", return_value=None)
     def test_test(self, client, route):
