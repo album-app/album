@@ -89,6 +89,7 @@
     - echo "$(uname)"
     - sw_vers
     - tmpdir=$(mktemp -d /tmp/album-test.XXXXXX)
+    - echo $tmpdir
     - curl https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh --output $tmpdir/miniconda.sh
     - bash $tmpdir/miniconda.sh -b -p $tmpdir/miniconda
     - export PATH=$PATH:$tmpdir/miniconda/bin/
@@ -98,6 +99,7 @@
     - conda activate album
     - python -V
   after_script:
+    - echo $tmpdir
     - rm -rf $tmpdir
 
 #----------------------------
