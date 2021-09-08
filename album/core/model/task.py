@@ -1,6 +1,16 @@
 from enum import unique, IntEnum
+from logging import Handler, LogRecord
 
-from album.core.model.log_handler import LogHandler
+
+class LogHandler(Handler):
+    records = []
+
+    def __init__(self):
+        super().__init__()
+        self.records = []
+
+    def emit(self, record: LogRecord) -> None:
+        self.records.append(record)
 
 
 class Task:
@@ -16,4 +26,3 @@ class Task:
     sysarg = []
     log_handler: LogHandler = None
     status: Status = None
-

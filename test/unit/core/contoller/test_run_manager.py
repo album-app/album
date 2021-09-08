@@ -6,8 +6,7 @@ from unittest.mock import MagicMock, call
 from unittest.mock import patch
 
 from album.core.model.resolve_result import ResolveResult
-from album.core.controller.run_manager import RunManager
-from album.core.model.solution_collection import SolutionCollection
+from album.core.controller.run_manager import RunManager, SolutionCollection
 from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
 
 

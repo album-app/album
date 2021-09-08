@@ -11,12 +11,10 @@ module_logger = logging.get_active_logger
 
 
 class CloneManager(metaclass=Singleton):
-    """Class handling the creation of new catalogs and solutions.
-    """
+    """Class handling the creation of new catalogs and solutions."""
 
     def __init__(self):
         self.collection_manager = CollectionManager()
-        pass
 
     def clone(self, path: str, target_dir: str, name:str) -> None:
         """

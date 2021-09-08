@@ -1,18 +1,17 @@
 from pathlib import Path
 from typing import Optional
 
-from album.core.model.collection_index import CollectionIndex
-from album.core.utils.operations.file_operations import write_dict_to_json
-
 from album.core import load
 from album.core.concept.singleton import Singleton
 # classes and methods
 from album.core.controller.collection.catalog_handler import CatalogHandler
-from album.core.controller.migration_manager import MigrationManager
 from album.core.controller.collection.solution_handler import SolutionHandler
+from album.core.controller.migration_manager import MigrationManager
+from album.core.model.collection_index import CollectionIndex
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
+from album.core.utils.operations.file_operations import write_dict_to_json
 from album.core.utils.operations.resolve_operations import clean_resolve_tmp, _check_file_or_url, _load_solution, \
     get_attributes_from_string, dict_to_group_name_version, solution_to_group_name_version
 from album_runner import logging
@@ -37,7 +36,6 @@ class CollectionManager(metaclass=Singleton):
     # Singletons
     catalog_collection = None
     configuration = None
-    tmp_cache_dir = None
 
     def __init__(self):
         super().__init__()
@@ -49,18 +47,22 @@ class CollectionManager(metaclass=Singleton):
         self._load_or_create_collection()
 
     def _load_or_create_collection(self):
-        collection_meta = self.configuration.get_collection_meta_dict()
-        newly_created = not self.configuration.get_collection_db_path().exists()
+        collection_meta = self.configuration.get_catalog_collection_meta_dict()
+        newly_created = not self.configuration.get_catalog_collection_path().exists()
         if collection_meta:
             collection_version = collection_meta["catalog_collection_version"]
         else:
             if newly_created:
                 collection_version = CollectionIndex.version
-                self.write_version_to_yml(self.configuration.get_collection_meta_path(), "my-collection", collection_version)
+                self.write_version_to_yml(
+                    self.configuration.get_catalog_collection_meta_path(), "my-collection", collection_version
+                )
             else:
-                raise RuntimeError("Album collection database file found, but no meta file specifying the database version.")
+                raise RuntimeError(
+                    "Album collection database file found, but no meta file specifying the database version."
+                )
         self.catalog_collection = self.migration_manager.migrate_or_create_collection(
-            path=self.configuration.get_collection_db_path(),
+            path=self.configuration.get_catalog_collection_path(),
             initial_name=DefaultValues.catalog_collection_name.value,
             initial_version=collection_version
         )

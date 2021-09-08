@@ -1,9 +1,6 @@
 class GroupNameVersion:
-    group: str
-    name: str
-    version: str
 
-    def __init__(self, group, name, version) -> None:
+    def __init__(self, group: str, name: str, version: str) -> None:
         self.group = group
         self.name = name
         self.version = version
@@ -12,4 +9,6 @@ class GroupNameVersion:
         return f"{self.group}:{self.name}:{self.version}"
 
     def __eq__(self, o: object) -> bool:
-        return isinstance(o, GroupNameVersion) and o.group == self.group and o.name == self.name and o.version == self.version
+        return isinstance(
+            o, GroupNameVersion
+        ) and o.group == self.group and o.name == self.name and o.version == self.version

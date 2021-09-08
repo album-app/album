@@ -96,17 +96,9 @@ class Configuration(metaclass=Singleton):
             ]
         )
 
-    @property
-    def conda_executable(self):
-        return self._conda_executable
-
-    @conda_executable.setter
-    def conda_executable(self, value):
-        self._conda_executable = value
-
     @staticmethod
     def get_solution_path_suffix(gnv: GroupNameVersion) -> Path:
-        """Returns the suffix path for an album giving its group, name and version"""
+        """Returns the suffix path for a solution giving its group, name and version"""
         return Path("").joinpath(DefaultValues.cache_path_solution_prefix.value, gnv.group, gnv.name, gnv.version)
 
     def get_cache_path_catalog(self, catalog_id):
@@ -120,37 +112,21 @@ class Configuration(metaclass=Singleton):
         """
         return self.base_cache_path.joinpath(DefaultValues.catalog_folder_prefix.value, catalog_id)
 
-    def get_default_configuration(self):
-        """Creates the default album configuration dict which will be written in the album configuration yaml file."""
-        config_file_dict = {
-            "catalogs": self.get_default_catalog_configuration(),
-            # here more defaults can follow
-        }
-
-        return config_file_dict
-
-    def get_default_catalog_configuration(self):
-        """Returns the default catalog configuration."""
-        return [
-            str(self.get_cache_path_catalog(DefaultValues.local_catalog_name.value)),
-            DefaultValues.default_catalog_src.value,
-        ]
-
-    def get_collection_db_path(self):
+    def get_catalog_collection_path(self):
         """Returns the path of the collection database file."""
         collection_db_path = Path(self.catalog_collection_path).joinpath(
             DefaultValues.catalog_collection_db_name.value)
         return collection_db_path
 
-    def get_collection_meta_dict(self):
+    def get_catalog_collection_meta_dict(self):
         """Returns the metadata of the collection as a dict."""
-        catalog_collection_json = self.get_collection_meta_path()
+        catalog_collection_json = self.get_catalog_collection_meta_path()
         if not catalog_collection_json.exists():
             return None
         catalog_collection_dict = get_dict_from_json(catalog_collection_json)
         return catalog_collection_dict
 
-    def get_collection_meta_path(self):
+    def get_catalog_collection_meta_path(self):
         return self.catalog_collection_path.parent.joinpath(
             DefaultValues.catalog_collection_json_name.value
         )
@@ -165,4 +141,3 @@ class Configuration(metaclass=Singleton):
     def empty_tmp(self):
         """Removes the content of the tmp folder"""
         force_remove(self.cache_path_tmp)
-
