@@ -80,6 +80,7 @@
 # Macos base template
 #
 # Installs miniconda in a fresh tmp directory and activates it.
+# DO NOT ALLOW JOBS TO BE RUN IN PARALLEL!
 #
 .macos_base_template:
   tags:
@@ -90,6 +91,7 @@
     - sw_vers
     - tmpdir=$(mktemp -d /tmp/album-test.XXXXXX)
     - echo $tmpdir
+    - echo $tmpdir > /tmp/tmpdir
     - curl https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh --output $tmpdir/miniconda.sh
     - bash $tmpdir/miniconda.sh -b -p $tmpdir/miniconda
     - export PATH=$PATH:$tmpdir/miniconda/bin/
@@ -99,6 +101,7 @@
     - conda activate album
     - python -V
   after_script:
+    - tmpdir=$(</tmp/tmpdir)
     - echo $tmpdir
     - rm -rf $tmpdir
 
