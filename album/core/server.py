@@ -34,7 +34,6 @@ class AlbumServer(metaclass=Singleton):
 
     def setup(self, port):
         self.port = port
-        CollectionManager()  # this ensures that the configuration is accessible
 
     def start(self, test_config=None):
         module_logger().info('Starting server..')

@@ -2,9 +2,8 @@ import datetime
 import hashlib
 import json
 import pkgutil
-from typing import List, Optional
+from typing import Optional
 
-from album.core import AlbumClass
 from album.core.concept.database import Database
 from album.core.model.group_name_version import GroupNameVersion
 from album.core.utils.operations.file_operations import get_dict_entry, write_dict_to_json
@@ -406,7 +405,6 @@ class CatalogIndex(Database):
             "WHERE author.author_id = sa.author_id)")
 
         self.save()
-
 
     def remove_solution_by_group_name_version(self, group_name_version: GroupNameVersion):
         solution_dict = self.get_solution_by_group_name_version(group_name_version)

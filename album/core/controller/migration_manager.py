@@ -25,7 +25,9 @@ class MigrationManager(metaclass=Singleton):
         else:
             # todo: execute catalog_collection migration scripts if necessary!
             # write version to catalog_collection_json!
-            raise NotImplementedError(f"Cannot migrate collection from version {curr_version} to version {target_version}.")
+            raise NotImplementedError(
+                "Cannot migrate collection from version %s to version %s." % (curr_version, target_version)
+            )
 
     def migrate_catalog_locally(self, curr_version, target_version):
         if curr_version == target_version:
@@ -34,7 +36,9 @@ class MigrationManager(metaclass=Singleton):
             # todo: execute catalog migration scripts if necessary!
             # write version to LOKAL catalog_json! (not remote as it is of c. not possible)
             # update version in the corresponding collection_catalog entry
-            raise NotImplementedError(f"Cannot migrate catalog from version {curr_version} to version {target_version}.")
+            raise NotImplementedError(
+                "Cannot migrate collection from version %s to version %s." % (curr_version, target_version)
+            )
 
     def convert_catalog(self, catalog: Catalog):
         # read catalog_json to get version

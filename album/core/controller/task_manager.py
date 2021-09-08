@@ -4,8 +4,7 @@ import threading
 from threading import Thread
 
 from album.core.concept.singleton import Singleton
-from album.core.model.log_handler import LogHandler
-from album.core.model.task import Task
+from album.core.model.task import Task, LogHandler
 from album_runner import logging
 
 module_logger = logging.get_active_logger

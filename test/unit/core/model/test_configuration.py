@@ -2,7 +2,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from album.core.model.configuration import Configuration, DefaultValues
 from album.core.utils.operations.file_operations import create_path_recursively
@@ -86,28 +86,25 @@ class TestConfiguration(TestUnitCommon):
         expected = Path("myPathToConda").joinpath("bin", "conda")
         self.assertEqual(r, str(expected))
 
-    def test_get_default_configuration(self):
-        # mocks
-        get_default_catalog_configuration = MagicMock(return_value="myNiceDefaultCatalogConfiguration")
-        self.conf.get_default_catalog_configuration = get_default_catalog_configuration
+    @unittest.skip("Needs to be implemented!")
+    def test_get_catalog_collection_path(self):
+        # todo: implement
+        pass
 
-        # call
-        r = self.conf.get_default_configuration()
+    @unittest.skip("Needs to be implemented!")
+    def test_get_catalog_collection_meta_dict(self):
+        # todo: implement
+        pass
 
-        self.assertEqual({"catalogs": "myNiceDefaultCatalogConfiguration"}, r)
-        get_default_catalog_configuration.assert_called_once()
+    @unittest.skip("Needs to be implemented!")
+    def test_get_catalog_collection_meta_path(self):
+        # todo: implement
+        pass
 
-    def test_get_default_catalog_configuration(self):
-        # mocks
-        get_cache_path_catalog = MagicMock(return_value="myLocalCatalogCachePath")
-        self.conf.get_cache_path_catalog = get_cache_path_catalog
-
-        # call
-        r = self.conf.get_default_catalog_configuration()
-
-        # assert
-        self.assertEqual(["myLocalCatalogCachePath", "https://gitlab.com/album-app/catalogs/default"], r)
-        get_cache_path_catalog.assert_called_once_with("catalog_local")
+    @unittest.skip("Needs to be implemented!")
+    def test_get_initial_catalogs(self):
+        # todo: implement
+        pass
 
     @patch('album.core.model.configuration.force_remove')
     def test_empty_tmp(self, force_remove_mock):

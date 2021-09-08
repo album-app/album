@@ -478,11 +478,15 @@ class Catalog:
     def retrieve_catalog_meta_information(identifier):
         if validators.url(str(identifier)):
             _, meta_src = get_index_url(identifier)
-            meta_file = download_resource(meta_src, Configuration().cache_path_download.joinpath(DefaultValues.catalog_index_file_json.value))
+            meta_file = download_resource(
+                meta_src, Configuration().cache_path_download.joinpath(DefaultValues.catalog_index_file_json.value)
+            )
         elif Path(identifier).exists():
             _, meta_src = get_index_dir(identifier)
             if meta_src.exists():
-                meta_file = copy(meta_src, Configuration().cache_path_download.joinpath(DefaultValues.catalog_index_file_json.value))
+                meta_file = copy(
+                    meta_src, Configuration().cache_path_download.joinpath(DefaultValues.catalog_index_file_json.value)
+                )
             else:
                 raise RuntimeError("Cannot retrieve meta information for the catalog!")
         else:

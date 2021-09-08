@@ -3,8 +3,8 @@ from typing import List, Optional
 
 import validators
 
-from album.core.controller.migration_manager import MigrationManager
 from album.core.controller.collection.solution_handler import SolutionHandler
+from album.core.controller.migration_manager import MigrationManager
 from album.core.model.catalog import Catalog
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.catalog_updates import CatalogUpdates, SolutionChange, ChangeType
@@ -18,6 +18,7 @@ module_logger = logging.get_active_logger
 
 
 class CatalogHandler:
+    """Helper class responsible for catalog handling."""
 
     def __init__(self, configuration: Configuration, collection: CollectionIndex, solution_handler: SolutionHandler):
         self.catalog_collection = collection
@@ -48,7 +49,7 @@ class CatalogHandler:
 
     def _add_to_index(self, catalog: Catalog) -> int:
         catalog.catalog_id = self.catalog_collection.insert_catalog(catalog.name, str(catalog.src), str(catalog.path),
-                                               int(catalog.is_deletable))
+                                                                    int(catalog.is_deletable))
         return catalog.catalog_id
 
     def get_by_id(self, catalog_id):
@@ -140,18 +141,18 @@ class CatalogHandler:
         else:
             self.update_all()
 
-    def _create_catalog_from_src(self, src):
-        catalog_meta_information = Catalog.retrieve_catalog_meta_information(src)
-        catalog_path = self.configuration.get_cache_path_catalog(catalog_meta_information["name"])
-        catalog = Catalog(None, catalog_meta_information["name"], catalog_path, src=src)
-        if catalog.is_local():
-            catalog.src = Path(catalog.src).absolute()
-        return catalog
-
-    @staticmethod
-    def _create_catalog_cache_if_missing(catalog):
-        if not catalog.path.exists():
-            catalog.path.mkdir(parents=True)
+    def update_collection(self, catalog_name=None, dry_run: bool = False) -> List[CatalogUpdates]:
+        if dry_run:
+            if catalog_name:
+                return [self._get_divergence_between_catalog_and_collection(
+                    catalog_name)]
+            else:
+                return self._get_divergence_between_catalogs_and_collection()
+        else:
+            if catalog_name:
+                return [self._update_collection_from_catalog(catalog_name)]
+            else:
+                return self._update_collection_from_catalogs()
 
     def remove_from_index_by_path(self, path):
         catalog_dict = self.catalog_collection.get_catalog_by_path(path)
@@ -224,18 +225,18 @@ class CatalogHandler:
             "catalogs": self.catalog_collection.get_all_catalogs()
         }
 
-    def update_collection(self, catalog_name=None, dry_run: bool = False) -> List[CatalogUpdates]:
-        if dry_run:
-            if catalog_name:
-                return [self._get_divergence_between_catalog_and_collection(
-                    catalog_name)]
-            else:
-                return self._get_divergence_between_catalogs_and_collection()
-        else:
-            if catalog_name:
-                return [self._update_collection_from_catalog(catalog_name)]
-            else:
-                return self._update_collection_from_catalogs()
+    def _create_catalog_from_src(self, src):
+        catalog_meta_information = Catalog.retrieve_catalog_meta_information(src)
+        catalog_path = self.configuration.get_cache_path_catalog(catalog_meta_information["name"])
+        catalog = Catalog(None, catalog_meta_information["name"], catalog_path, src=src)
+        if catalog.is_local():
+            catalog.src = Path(catalog.src).absolute()
+        return catalog
+
+    @staticmethod
+    def _create_catalog_cache_if_missing(catalog):
+        if not catalog.path.exists():
+            catalog.path.mkdir(parents=True)
 
     def _get_divergence_between_catalogs_and_collection(self) -> List[CatalogUpdates]:
         res = []
@@ -263,7 +264,7 @@ class CatalogHandler:
 
     def _update_collection_from_catalog(self, catalog_name) -> CatalogUpdates:
         divergence = self._get_divergence_between_catalog_and_collection(catalog_name)
-        #TODO apply changes to catalog attributes
+        # TODO apply changes to catalog attributes
         for change in divergence.solution_changes:
             self.solution_handler.apply_change(divergence.catalog, change)
         return divergence
@@ -300,4 +301,5 @@ class CatalogHandler:
 
     @staticmethod
     def _as_catalog(catalog_dict):
-        return Catalog(catalog_dict['catalog_id'], catalog_dict['name'], catalog_dict['path'], catalog_dict['src'], bool(catalog_dict['deletable']))
+        return Catalog(catalog_dict['catalog_id'], catalog_dict['name'], catalog_dict['path'], catalog_dict['src'],
+                       bool(catalog_dict['deletable']))

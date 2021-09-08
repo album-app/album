@@ -3,8 +3,7 @@ import unittest
 from test.unit.test_unit_common import TestUnitCommon
 
 
-class TestMigrationManager(TestUnitCommon):
-
+class TestCondaManager(TestUnitCommon):
     def setUp(self):
         pass
 
@@ -12,17 +11,16 @@ class TestMigrationManager(TestUnitCommon):
         super().tearDown()
 
     @unittest.skip("Needs to be implemented!")
-    def test_migrate_or_create_collection(self):
+    def test_clone(self):
+        # todo: implement
         pass
 
     @unittest.skip("Needs to be implemented!")
-    def test_migrate_catalog_collection(self):
+    def test__try_cloning_solution(self):
+        # todo: implement
         pass
 
     @unittest.skip("Needs to be implemented!")
-    def test_migrate_catalog_locally(self):
-        pass
-
-    @unittest.skip("Needs to be implemented!")
-    def test_convert_catalog(self):
+    def test__try_cloning_catalog_template(self):
+        # todo: implement
         pass
