@@ -88,16 +88,17 @@
   before_script:
     - echo "$(uname)"
     - sw_vers
-    - rm -rf /tmp/album-tests
-    - mkdir /tmp/album-tests
-    - curl https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh --output /tmp/album-tests/miniconda.sh
-    - bash /tmp/album-tests/miniconda.sh -b -p /tmp/album-tests/miniconda
-    - export PATH=$PATH:/tmp/album-tests/miniconda/bin/
+    - tmpdir=$(mktemp -d /tmp/album-test.XXXXXX)
+    - curl https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh --output $tmpdir/miniconda.sh
+    - bash $tmpdir/miniconda.sh -b -p $tmpdir/miniconda
+    - export PATH=$PATH:$tmpdir/miniconda/bin/
     - echo $PATH
     - conda env create -f album.yml
-    - source /tmp/album-tests/miniconda/bin/activate
+    - source $tmpdir/miniconda/bin/activate
     - conda activate album
     - python -V
+  after_script:
+    - rm -rf $tmpdir
 
 #----------------------------
 # stages
