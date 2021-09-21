@@ -133,25 +133,3 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
         r = ReleaseManager.instance.catalog_repo.index.diff(None)
 
         self.assertEqual([], r)
-
-    def test_push_changes_no_changes_made(self):
-        # fake deploy to test catalog
-        branch_name = self.fake_deploy()
-
-        # gather arguments
-        sys.argv = [
-            "",
-            "push",
-            self.name,
-            str(self.path),
-            self.src,
-            "--branch_name=%s" % branch_name,
-            "--dry-run",
-            "--ci_user_name=myCiUserName",
-            "--ci_user_email=myCiUserEmail"
-        ]
-
-        # run
-        with self.assertRaises(RuntimeError) as context:
-            main()
-            self.assertEqual("Diff shows no changes to the repository. Aborting...", str(context.exception))
