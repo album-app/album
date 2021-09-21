@@ -130,7 +130,7 @@ class TestUnitCommon(unittest.TestCase):
     def create_test_config(self):
         self.create_test_config_in_tmp_dir(self.tmp_dir.name)
 
-    def create_test_catalog_manager(self):
+    def create_test_collection_manager(self):
         self.collection_manager = CollectionManager()
         self.catalog_collection = self.collection_manager.catalog_collection
 

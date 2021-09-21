@@ -6,6 +6,7 @@ from typing import Optional
 import validators
 
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
+from album.core.controller.migration_manager import MigrationManager
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
@@ -68,7 +69,7 @@ class Catalog:
             The path to the catalog cache.
         _meta_path:
             The path to the catalog meta cache. Relative to the path attribute.
-        _index_path:
+        index_path:
             The path to the catalog index cache. Relative to the path attribute.
         solution_list_path:
             The path to the catalog solution list cache. Relative to the path attribute.
@@ -106,7 +107,7 @@ class Catalog:
         self._meta_path = self.path.joinpath(DefaultValues.catalog_index_file_json.value)
 
         # initialize the index
-        self._index_path = self.path.joinpath(DefaultValues.catalog_index_file_name.value)
+        self.index_path = self.path.joinpath(DefaultValues.catalog_index_file_name.value)
 
     def is_cache(self):
         """Returns Boolean indicating whether the catalog is used for caching only."""
@@ -281,11 +282,10 @@ class Catalog:
         return solution_path
 
     def load_index(self):
-        # TODO use migration manager
         """Loads the index from file or src. If a file and src exists routine tries to update the index."""
         if self.is_cache():
             raise RuntimeError("Cache catalog does not have it's own index - all solutions are indexed in the collection index.")
-        if not self._index_path.is_file():  # only download/copy from src if index does not exist yet
+        if not self.index_path.is_file():  # only download/copy from src if index does not exist yet
             if self.is_local():  # case where src is not downloadable
                 # copy catalog from local resource to cache location
                 self.copy_index_from_src_to_cache()
@@ -293,7 +293,7 @@ class Catalog:
                 # load catalog from remote src
                 self.download_index()
 
-        self.catalog_index = CatalogIndex(self.name, self._index_path)
+        self.catalog_index = MigrationManager().create_catalog_index(self.index_path, self.name, CatalogIndex.version)
         self.version = self.get_version()
 
     def get_version(self):
@@ -312,7 +312,7 @@ class Catalog:
         return database_version
 
     def refresh_index(self) -> bool:
-        """Routine to refresh the catalog index. Downloads or copies the index_file !"""
+        """Routine to refresh the catalog index. Downloads or copies the index_file."""
         if self.is_cache():
             return False
 
@@ -327,19 +327,16 @@ class Catalog:
             except ConnectionError:
                 module_logger().warning("Could not refresh index. Connection error!")
                 return False
-            except ValueError:
-                module_logger().warning("Could not refresh index. Invalid format!")
-                return False
             except Exception as e:
                 module_logger().warning("Could not refresh index. Unknown reason!")
                 module_logger().warning(e)
                 return False
 
-        self.catalog_index = CatalogIndex(self.name, self._index_path)
+        self.catalog_index = MigrationManager().create_catalog_index(self.index_path, self.name, CatalogIndex.version)
         return True
 
     def add(self, active_solution, force_overwrite=False):
-        """Adds an active solution_object to the index.
+        """Adds an active solution_object to the index. Does not copy anything from A to B.
 
         Args:
             active_solution:
@@ -361,7 +358,7 @@ class Catalog:
                 if force_overwrite:
                     module_logger().warning("Solution already exists! Overwriting...")
                 else:
-                    raise RuntimeError("DOI already exists in Index! Aborting...")
+                    raise RuntimeError("DOI already exists in catalog! Aborting...")
 
         if hasattr(active_solution, "deposit_id"):
             solution_attrs["deposit_id"] = getattr(active_solution, "deposit_id")
@@ -374,11 +371,11 @@ class Catalog:
             if force_overwrite:
                 module_logger().warning("Solution already exists! Overwriting...")
             else:
-                raise RuntimeError("Solution already exists in Index! Aborting...")
+                raise RuntimeError("Solution already exists in catalog! Aborting...")
 
         self.catalog_index.update(solution_attrs)
+        self.catalog_index.save()
         self.catalog_index.export(self.solution_list_path)
-        #FIXME copy solution files into right place!
 
     def remove(self, active_solution):
         """Removes a solution from a catalog. Only for local catalogs.
@@ -403,20 +400,16 @@ class Catalog:
         else:
             module_logger().warning("Cannot remove entries from a remote catalog! Doing nothing...")
 
-    def visualize(self):
-        """Visualizes the catalog on the command line"""
-        self.catalog_index.visualize()
-
     def copy_index_from_src_to_cache(self):
         """Copy the index file of a catalog and its metadata to the catalog cache folder."""
         src_path_index = Path(self.src).joinpath(DefaultValues.catalog_index_file_name.value)
         src_path_meta = Path(self.src).joinpath(DefaultValues.catalog_index_file_json.value)
 
         if not src_path_index.exists():
-            if not self._index_path.parent.exists():
-                self._index_path.parent.mkdir(parents=True)
+            if not self.index_path.parent.exists():
+                self.index_path.parent.mkdir(parents=True)
         else:
-            copy(src_path_index, self._index_path)
+            copy(src_path_index, self.index_path)
 
         if not src_path_meta.exists():
             return FileNotFoundError("Could not find file %s..." % src_path_meta)
@@ -427,9 +420,9 @@ class Catalog:
         """Copy the index file if a catalog and its metadata from the catalog cache folder into the source folder."""
         src_path_index = Path(self.src).joinpath(DefaultValues.catalog_index_file_name.value)
         if not src_path_index.exists():
-            if not self._index_path.parent.exists():
-                self._index_path.parent.mkdir(parents=True)
-        copy(self._index_path, src_path_index)
+            if not self.index_path.parent.exists():
+                self.index_path.parent.mkdir(parents=True)
+        copy(self.index_path, src_path_index)
         src_path_solution_list = Path(self.src).joinpath(DefaultValues.catalog_solution_list_file_name.value)
         copy(self.solution_list_path, src_path_solution_list)
 
@@ -438,7 +431,7 @@ class Catalog:
         src, meta_src = get_index_url(self.src)
 
         try:
-            download_resource(src, self._index_path)
+            download_resource(src, self.index_path)
         except AssertionError:
             # TODO ignore that catalogs might not have a database index for now
             pass

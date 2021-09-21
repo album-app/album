@@ -194,7 +194,7 @@ class TestCatalog(TestUnitCommon):
         shutil.copy(self.get_catalog_db_from_resources("minimal-solution"), cs_file)
 
         self.assertTrue(len(self.catalog.catalog_index) == 10)  # its the old catalog
-        self.catalog._index_path = cs_file  # path to "new" catalog
+        self.catalog.index_path = cs_file  # path to "new" catalog
         self.catalog.load_index()
         self.assertTrue(len(self.catalog.catalog_index) == 1)  # now is the "new" catalog
 
@@ -202,7 +202,7 @@ class TestCatalog(TestUnitCommon):
         cs_file = Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_index_file_name.value)
         shutil.copy(self.get_catalog_db_from_resources("empty"), cs_file)
 
-        self.catalog._index_path = cs_file
+        self.catalog.index_path = cs_file
         self.catalog.load_index()
         self.assertTrue(len(self.catalog.catalog_index) == 0)
 
@@ -223,7 +223,7 @@ class TestCatalog(TestUnitCommon):
         self.catalog = Catalog(self.catalog.catalog_id, self.catalog.name, self.catalog.path,
                                "https://gitlab.com/album-app/capture-knowledge/-/raw/main/catalog_index?inline=false")
         self.catalog.download_index()
-        self.assertNotEqual(self.catalog._index_path.stat().st_size, 0)
+        self.assertNotEqual(self.catalog.index_path.stat().st_size, 0)
 
     def test_download_index_not_downloadable(self):
         self.catalog = Catalog(self.catalog.catalog_id, self.catalog.name, self.catalog.path,

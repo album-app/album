@@ -85,7 +85,7 @@ class ReleaseManager(metaclass=Singleton):
         # extract deposit name
         deposit_name = get_zip_name_prefix(dict_to_group_name_version(yml_dict))
 
-        # get the solution file to release
+        # get the solution zip to release
         zip_path = self._get_zip_path(dict_to_group_name_version(yml_dict))
         solution_zip = retrieve_single_file_from_head(head, str(zip_path))
 
@@ -117,7 +117,7 @@ class ReleaseManager(metaclass=Singleton):
         zip_path = self._get_zip_path(dict_to_group_name_version(yml_dict))
         solution_zip = retrieve_single_file_from_head(head, str(zip_path))
 
-        commit_files = [yml_file_path, solution_zip, self.catalog._index_path, self.catalog.solution_list_path]
+        commit_files = [yml_file_path, solution_zip, self.catalog.index_path, self.catalog.solution_list_path]
         if not all([Path(f).is_file() for f in commit_files]):
             raise FileNotFoundError("Invalid deploy request or broken catalog repository!")
 

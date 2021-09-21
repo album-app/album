@@ -15,7 +15,7 @@ class TestRunManager(TestUnitCommon):
         super().setUp()
         """Setup things necessary for all tests of this class"""
         self.create_test_config()
-        self.create_test_catalog_manager()
+        self.create_test_collection_manager()
         self.create_test_solution_no_env()
         self.run_manager = RunManager()
 

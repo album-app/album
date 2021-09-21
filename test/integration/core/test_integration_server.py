@@ -23,7 +23,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
     app = server.init_server({'TESTING': True})
 
     def setUp(self, client) -> None:
-        self.server.setup(self.port)
+        self.server.setup(self.port, None)
         TestIntegrationCommon.setUp(self)
         flask_unittest.ClientTestCase.setUp(self, client)
 
@@ -74,7 +74,9 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         local_catalog_path = local_catalogs_path.joinpath(local_catalog_name)
         self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), local_catalogs, False)
 
-        res_clone_catalog = client.get(f"/clone/template:catalog?target_dir={urllib.parse.quote(local_catalogs)}&name={local_catalog_name}")
+        res_clone_catalog = client.get(
+            f"/clone/template:catalog?target_dir={urllib.parse.quote(local_catalogs)}&name={local_catalog_name}"
+        )
         self.assertEqual(200, res_clone_catalog.status_code)
         self._finish_taskmanager_with_timeout(task_manager, 30)
         self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), local_catalog_path, False)
@@ -97,13 +99,19 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         clone_src = self.get_test_solution_path(f"{name}.py")
         solution_target_dir = Path(self.tmp_dir.name).joinpath("my-solutions")
         solution_target_name = "my-" + name
-        solution_target_file = solution_target_dir.joinpath(solution_target_name, DefaultValues.solution_default_name.value)
+        solution_target_file = solution_target_dir.joinpath(
+            solution_target_name,
+            DefaultValues.solution_default_name.value
+        )
 
         # assert that it's not installed
         res_status = client.get(f'/status/{local_catalog_name}/{group}/{name}/{version}')
         self.assertEqual(404, res_status.status_code)
 
-        res_clone_solution = client.get(f"/clone?path={clone_src}&target_dir={urllib.parse.quote(str(solution_target_dir))}&name={solution_target_name}")
+        res_clone_solution = client.get(
+            f"/clone?path={clone_src}&target_dir"
+            f"={urllib.parse.quote(str(solution_target_dir))}&name={solution_target_name}"
+        )
         self.assertEqual(200, res_clone_solution.status_code)
         self._finish_taskmanager_with_timeout(task_manager, 30)
 
@@ -148,7 +156,9 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         self._finish_taskmanager_with_timeout(task_manager, 60)
 
         # check that solution is installed
-        self.assertTrue(self.collection_manager.catalog_collection.is_installed(catalog_id, GroupNameVersion(group, name, version)))
+        self.assertTrue(
+            self.collection_manager.catalog_collection.is_installed(catalog_id, GroupNameVersion(group, name, version))
+        )
         res_status = client.get(f'/status/{local_catalog_name}/{group}/{name}/{version}')
         self.assertEqual(200, res_status.status_code)
         self.assertIsNotNone(res_status.json)

@@ -61,7 +61,7 @@ class CollectionManager(metaclass=Singleton):
                 raise RuntimeError(
                     "Album collection database file found, but no meta file specifying the database version."
                 )
-        self.catalog_collection = self.migration_manager.migrate_or_create_collection(
+        self.catalog_collection = self.migration_manager.create_collection_index(
             path=self.configuration.get_catalog_collection_path(),
             initial_name=DefaultValues.catalog_collection_name.value,
             initial_version=collection_version

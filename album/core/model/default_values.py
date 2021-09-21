@@ -46,3 +46,4 @@ class DefaultValues(Enum):
 
     # server
     server_port = 5476  # default port used to launch server
+    server_host = "127.0.0.1"  # default host used to launch server. Set to 0.0.0.0 when used in docker

@@ -3,12 +3,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch, MagicMock, call
 
-from album.core.model.default_values import DefaultValues
-
 from album.ci.utils.zenodo_api import ZenodoAPI
 from album.core.controller.deploy_manager import DeployManager
+from album.core.model.default_values import DefaultValues
 from album.core.model.group_name_version import GroupNameVersion
-from test.unit.test_unit_common import TestGitCommon
+from test.unit.test_unit_common import TestGitCommon, EmptyTestClass
 
 
 class TestDeployManager(TestGitCommon):
@@ -17,10 +16,10 @@ class TestDeployManager(TestGitCommon):
         self.zenodoAPI = ZenodoAPI('url', 'access_token')
         self.create_test_config()
         self.create_test_solution_no_env()
-        self.create_test_catalog_manager()
+        self.create_test_collection_manager()
 
         # add remote catalog
-        self.collection_manager.catalogs().add_by_src(DefaultValues.default_catalog_src.value)
+        self.remote_catalog = self.collection_manager.catalogs().add_by_src(DefaultValues.default_catalog_src.value)
 
         # add local catalog
         catalog_path = Path(self.tmp_dir.name).joinpath("local_catalog")
@@ -35,32 +34,23 @@ class TestDeployManager(TestGitCommon):
         super().tearDown()
 
     @patch('album.core.controller.deploy_manager.load')
-    @patch('album.core.model.catalog.download_repository')
-    def test_deploy_catalog_name_given_and_local(self, download_catalog, load_mock):
-
+    def test_deploy_catalog_name_given_and_local(self, load_mock):
         # mocks
         load_mock.return_value = self.active_solution
 
-        _copy_and_zip = MagicMock(return_value="solution_zip")
-        self.deploy_manager._copy_and_zip = _copy_and_zip
+        _deploy_to_local_catalog = MagicMock(return_value=None)
+        self.deploy_manager._deploy_to_local_catalog = _deploy_to_local_catalog
 
-        _copy_cover_to_local_src = MagicMock(return_value=["cover1", "cover2"])
-        self.deploy_manager._copy_cover_to_local_src = _copy_cover_to_local_src
+        _deploy_to_remote_catalog = MagicMock(return_value=None)
+        self.deploy_manager._deploy_to_remote_catalog = _deploy_to_remote_catalog
 
-        _create_yaml_file_in_local_src = MagicMock(return_value="copiedYmlFilePath")
-        self.deploy_manager._create_yaml_file_in_local_src = _create_yaml_file_in_local_src
+        get_by_name = MagicMock(return_value=self.local_catalog)
+        self.collection_manager.catalogs().get_by_name = get_by_name
 
-        _create_merge_request = MagicMock(return_value=None)
-        self.deploy_manager._create_merge_request = _create_merge_request
-
-        get_catalog_by_id = MagicMock(return_value=self.local_catalog)
-        self.collection_manager.catalogs().get_by_name = get_catalog_by_id
-
-        get_catalog_by_src = MagicMock(return_value=None)
-        self.collection_manager.catalogs().get_by_src = get_catalog_by_src
+        get_by_src = MagicMock(return_value=None)
+        self.collection_manager.catalogs().get_by_src = get_by_src
 
         # call
-        self.deploy_manager.collection_manager = self.collection_manager
         self.deploy_manager.deploy(deploy_path="None",
                                    catalog_name=os.path.basename(self.tmp_dir.name),
                                    dry_run=False,
@@ -68,86 +58,133 @@ class TestDeployManager(TestGitCommon):
 
         # assert
         self.assertEqual(self.local_catalog, self.deploy_manager._catalog)  # correct catalog chosen
-        get_catalog_by_id.assert_called_once_with(os.path.basename(self.tmp_dir.name))  # correct id requested
-        get_catalog_by_src.assert_not_called()  # catalog given by id not url
-        _copy_and_zip.called_once()  # remote -> zip to repo
-        _copy_cover_to_local_src.called_once()  # remote -> cover outside zip
-        _create_yaml_file_in_local_src.called_once()  # local -> no yaml
-        _create_merge_request.assert_not_called()  # local -> no merge request
-        download_catalog.assert_not_called()  # local -> no download
+        get_by_name.assert_called_once_with(os.path.basename(self.tmp_dir.name))  # correct id requested
+        get_by_src.assert_not_called()  # catalog given by id not url
+
+        _deploy_to_local_catalog.assert_called_once_with(Path("None"))
+        _deploy_to_remote_catalog.assert_not_called()
 
     @patch('album.core.controller.deploy_manager.load')
-    @patch('album.core.model.catalog.Catalog.retrieve_catalog_meta_information', return_value={"name": "", "version": "0.1.0"})
-    def test_deploy_catalog_in_active_solution(self, catalog_meta, load_mock):
-
-        deploy_catalog = self.collection_manager.catalogs().get_all()[1]
-
+    def test_deploy_catalog_name_given_and_remote(self, load_mock):
         # mocks
         load_mock.return_value = self.active_solution
 
+        _deploy_to_local_catalog = MagicMock(return_value=None)
+        self.deploy_manager._deploy_to_local_catalog = _deploy_to_local_catalog
+
+        _deploy_to_remote_catalog = MagicMock(return_value=None)
+        self.deploy_manager._deploy_to_remote_catalog = _deploy_to_remote_catalog
+
+        get_by_name = MagicMock(return_value=self.remote_catalog)
+        self.collection_manager.catalogs().get_by_name = get_by_name
+
+        get_by_src = MagicMock(return_value=None)
+        self.collection_manager.catalogs().get_by_src = get_by_src
+
+        # call
+        self.deploy_manager.deploy(deploy_path="None",
+                                   catalog_name=os.path.basename(self.tmp_dir.name),
+                                   dry_run=False,
+                                   trigger_pipeline=False)
+
+        # assert
+        self.assertEqual(self.remote_catalog, self.deploy_manager._catalog)  # correct catalog chosen
+        get_by_name.assert_called_once_with(os.path.basename(self.tmp_dir.name))  # correct id requested
+        get_by_src.assert_not_called()  # catalog given by id not url
+
+        _deploy_to_local_catalog.assert_not_called()
+        _deploy_to_remote_catalog.assert_called_once_with(Path("None"), False, False, None, None)
+
+    def test__deploy_to_local_catalog(self):
+        # prepare
+        self.deploy_manager._catalog = self.local_catalog
+        self.deploy_manager._active_solution = self.active_solution
+
+        # mocks
+        _deploy_routine_in_local_src = MagicMock(return_value=None)
+        self.deploy_manager._deploy_routine_in_local_src = _deploy_routine_in_local_src
+
+        _create_merge_request = MagicMock(return_value=None)
+        self.deploy_manager._create_merge_request = _create_merge_request
+
+        # catalog mocks
+        add = MagicMock(return_value=None)
+        self.local_catalog.add = add
+
+        copy_index_from_cache_to_src = MagicMock(return_value=None)
+        self.local_catalog.copy_index_from_cache_to_src = copy_index_from_cache_to_src
+
+        # call
+        self.deploy_manager._deploy_to_local_catalog(deploy_path="None")
+
+        # assert
+        _deploy_routine_in_local_src.assert_called_once_with("None")
+        add.assert_called_once_with(self.active_solution)  # index updated
+        copy_index_from_cache_to_src.assert_called_once()
+
+        _create_merge_request.assert_not_called()  # local -> no merge request
+
+    def test__deploy_to_remote_catalog(self):
+        # prepare
+        self.deploy_manager._catalog = self.remote_catalog
+        self.deploy_manager._active_solution = self.active_solution
+
+        # mocks
+        _deploy_routine_in_local_src = MagicMock(
+            return_value=["solution_zip", "dockerfile", "copiedYmlFilePath", ["cover1", "cover2"]]
+        )
+        self.deploy_manager._deploy_routine_in_local_src = _deploy_routine_in_local_src
+
+        _create_merge_request = MagicMock(return_value=None)
+        self.deploy_manager._create_merge_request = _create_merge_request
+
+        # catalog_mocks
+        add = MagicMock(return_value=None)
+        self.remote_catalog.add = add
+
+        repo = EmptyTestClass()
+        repo.working_tree_dir = "myLocalPathOfTheRemoteCatalog"
+        retrieve_catalog = MagicMock(return_value=repo)
+        self.remote_catalog.retrieve_catalog = retrieve_catalog
+
+        # call
+        self.deploy_manager._deploy_to_remote_catalog("None", False, False)
+
+        # assert
+        retrieve_catalog.assert_called_once()
+        self.assertEqual("myLocalPathOfTheRemoteCatalog", self.deploy_manager._catalog_local_src)
+        _deploy_routine_in_local_src.assert_called_once_with("None")
+        _create_merge_request.assert_called_once_with(
+            ["copiedYmlFilePath", "solution_zip", "dockerfile"] + ["cover1", "cover2"], False, False, None, None
+        )
+
+    def test__deploy_routine_in_local_src(self):
+        # mocks
         _copy_and_zip = MagicMock(return_value="solution_zip")
         self.deploy_manager._copy_and_zip = _copy_and_zip
 
         _copy_cover_to_local_src = MagicMock(return_value=["cover1", "cover2"])
         self.deploy_manager._copy_cover_to_local_src = _copy_cover_to_local_src
 
+        _create_docker_file_in_local_src = MagicMock(return_value="dockerfile")
+        self.deploy_manager._create_docker_file_in_local_src = _create_docker_file_in_local_src
+
         _create_yaml_file_in_local_src = MagicMock(return_value="copiedYmlFilePath")
         self.deploy_manager._create_yaml_file_in_local_src = _create_yaml_file_in_local_src
 
-        _create_merge_request = MagicMock(return_value=None)
-        self.deploy_manager._create_merge_request = _create_merge_request
-
-        update_repo = MagicMock(side_effect=lambda repo: repo)
-        self.deploy_manager._update_repo = update_repo
-
-        download_catalog = MagicMock(return_value="aRepository")
-        deploy_catalog.retrieve_catalog = download_catalog
-
-        get_catalog_by_src = MagicMock(return_value=deploy_catalog)
-        self.collection_manager.catalogs().get_by_src = get_catalog_by_src
-
-        get_catalog_by_id = MagicMock(None)
-        self.collection_manager.catalogs().get_by_name = get_catalog_by_id
-
         # call
-        self.active_solution.__setattr__("deploy", {
-            "catalog": {"src": DefaultValues.default_catalog_src.value}
-        })
-        self.deploy_manager.collection_manager = self.collection_manager
-        self.deploy_manager.deploy(deploy_path="myPath",
-                                   catalog_name=None,
-                                   dry_run=False,
-                                   trigger_pipeline=False)
+        self.deploy_manager._deploy_routine_in_local_src("None")
 
         # assert
-        self.assertEqual(deploy_catalog, self.deploy_manager._catalog)  # correct catalog chosen
-        get_catalog_by_src.assert_called_once_with(DefaultValues.default_catalog_src.value)  # correct url requested
-        get_catalog_by_id.assert_not_called()  # catalog given by url, not id
-        download_catalog.assert_called_once()  # remote -> download
-        catalog_meta.assert_called_once()  # remote -> download
-        _copy_and_zip.assert_called_once_with(Path("myPath"))  # remote -> zip to repo
-        _copy_cover_to_local_src.assert_called_once_with(Path("myPath"))  # remote -> cover outside zip
-        _create_yaml_file_in_local_src.assert_called_once_with()  # remote -> create yaml
-        _create_merge_request.assert_called_once_with(  # remote -> create MR
-            ["copiedYmlFilePath", "solution_zip"] + ["cover1", "cover2"], False, False, None, None
-        )
+        _copy_and_zip.assert_called_once_with("None")
+        _create_docker_file_in_local_src.assert_called_once()  # docker file created
+        _create_yaml_file_in_local_src.assert_called_once()  # yml created
+        _copy_cover_to_local_src.assert_called_once_with("None")  # cover copied
 
     @patch('album.core.controller.deploy_manager.load')
     def test_deploy_catalog_not_given(self, load_mock):
         # mocks
         load_mock.return_value = self.active_solution
-
-        _copy_and_zip = MagicMock(return_value="solution_zip")
-        self.deploy_manager._copy_and_zip = _copy_and_zip
-
-        _copy_cover_to_local_src = MagicMock(return_value=["cover1", "cover2"])
-        self.deploy_manager._copy_cover_to_local_src = _copy_cover_to_local_src
-
-        _create_yaml_file_in_local_src = MagicMock(return_value="copiedYmlFilePath")
-        self.deploy_manager._create_yaml_file_in_local_src = _create_yaml_file_in_local_src
-
-        _create_solution_merge_request = MagicMock(return_value=None)
-        self.deploy_manager._create_merge_request = _create_solution_merge_request
 
         get_catalog_by_src = MagicMock(return_value=self.collection_manager.catalogs().get_local_catalog())
         self.collection_manager.catalogs().get_by_src = get_catalog_by_src
@@ -156,7 +193,6 @@ class TestDeployManager(TestGitCommon):
         self.collection_manager.catalogs().get_by_name = get_catalog_by_id
 
         # call
-        self.deploy_manager.collection_manager = self.collection_manager
         with self.assertRaises(RuntimeError):
             self.deploy_manager.deploy(deploy_path="myPath",
                                        catalog_name=None,
@@ -173,10 +209,10 @@ class TestDeployManager(TestGitCommon):
     def test__create_merge_request(self, add_files_commit_and_push_mock):
         self.create_tmp_repo()
 
-        self.deploy_manager.collection_manager = self.collection_manager
         self.deploy_manager._repo = self.repo
         self.deploy_manager._active_solution = self.active_solution
 
+        # call
         self.deploy_manager._create_merge_request([self.closed_tmp_file.name], dry_run=True)
 
         add_files_commit_and_push_mock.assert_called_once_with(
@@ -192,7 +228,8 @@ class TestDeployManager(TestGitCommon):
         self.create_tmp_repo()
 
         self.deploy_manager._catalog = self.collection_manager.catalogs().get_all()[0]
-        self.deploy_manager._repo = self.deploy_manager._update_repo(self.repo)
+        self.deploy_manager._repo = self.repo
+        self.deploy_manager._catalog_local_src = self.repo.working_tree_dir
         self.deploy_manager._active_solution = self.active_solution
 
         y_path = self.deploy_manager._create_yaml_file_in_local_src()
@@ -206,12 +243,13 @@ class TestDeployManager(TestGitCommon):
         self.assertEqual(["group: tsg\n", "name: tsn\n", "version: tsv\n"], f_content)
 
     @patch('album.core.model.album_base.AlbumClass.get_deploy_dict')
-    def test__get_cache_suffix(self, deploy_dict_mock):
+    def test__get_absolute_zip_path(self, deploy_dict_mock):
         deploy_dict_mock.return_value = {"name": "tsn", "group": "tsg", "version": "tsv"}
 
         # prepare
         self.create_tmp_repo()
-        self.deploy_manager._repo = self.deploy_manager._update_repo(self.repo)
+        self.deploy_manager._repo = self.repo
+        self.deploy_manager._catalog_local_src = self.repo.working_tree_dir
         self.deploy_manager._active_solution = self.active_solution
         self.deploy_manager._catalog = self.collection_manager.catalogs().get_local_catalog()
 
@@ -223,7 +261,7 @@ class TestDeployManager(TestGitCommon):
             "_".join(["tsg", "tsn", "tsv"]) + ".zip"
         )
 
-        self.assertEqual(result, self.deploy_manager._get_cache_suffix())
+        self.assertEqual(result, self.deploy_manager._get_absolute_zip_path())
 
     @patch('album.core.controller.deploy_manager.copy', return_value="absPathCopyOfCover")
     def test__copy_cover_to_local_src(self, copy_mock):
@@ -236,7 +274,8 @@ class TestDeployManager(TestGitCommon):
         Path(self.tmp_dir.name).joinpath(DefaultValues.solution_default_name.value).touch()
 
         self.create_tmp_repo()
-        self.deploy_manager._repo = self.deploy_manager._update_repo(self.repo)
+        self.deploy_manager._repo = self.repo
+        self.deploy_manager._catalog_local_src = self.repo.working_tree_dir
         self.deploy_manager._active_solution = self.active_solution
         self.deploy_manager._catalog = self.collection_manager.catalogs().get_local_catalog()
 
@@ -249,17 +288,24 @@ class TestDeployManager(TestGitCommon):
         )
 
         # assert
-        self.assertEqual(["absPathCopyOfCover", "absPathCopyOfCover"], self.deploy_manager._copy_cover_to_local_src(tmp_dir))
+        self.assertEqual(["absPathCopyOfCover", "absPathCopyOfCover"],
+                         self.deploy_manager._copy_cover_to_local_src(tmp_dir))
 
         calls = [call(tmp_dir.joinpath("example_cover1.png"), target_dir.joinpath("example_cover1.png")),
                  call(tmp_dir.joinpath("example_cover2.png"), target_dir.joinpath("example_cover2.png"))]
         copy_mock.assert_has_calls(calls)
 
+    @unittest.skip("Needs to be implemented!")
+    def test__create_docker_file_in_local_src(self):
+        # todo: implement
+        pass
+
     @patch('album.core.controller.deploy_manager.zip_folder', return_value="absPathZipFile")
     @patch('album.core.controller.deploy_manager.zip_paths', return_value="absPathZipFile")
     def test__copy_and_zip(self, zip_path_mock, zip_folder):
         self.create_tmp_repo()
-        self.deploy_manager._repo = self.deploy_manager._update_repo(self.repo)
+        self.deploy_manager._repo = self.repo
+        self.deploy_manager._catalog_local_src = self.repo.working_tree_dir
         self.deploy_manager._active_solution = self.active_solution
         self.deploy_manager._catalog = self.collection_manager.catalogs().get_local_catalog()
 
@@ -269,7 +315,8 @@ class TestDeployManager(TestGitCommon):
 
         # result
         r = Path(self.repo.working_tree_dir).joinpath(
-            self.collection_manager.catalogs().get_local_catalog().get_solution_zip_suffix(GroupNameVersion("tsg", "tsn", "tsv"))
+            self.collection_manager.catalogs().get_local_catalog().get_solution_zip_suffix(
+                GroupNameVersion("tsg", "tsn", "tsv"))
         )
 
         # copy and zip a folder
