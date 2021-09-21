@@ -1,15 +1,16 @@
-import os
+import pkgutil
 import tempfile
 from pathlib import Path
 
+import album
 from album.core import load
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
+from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations import file_operations
-from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, zip_paths
+from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, zip_paths, copy_in_file
 from album.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push
-from album.core.utils.operations.resolve_operations import solution_to_group_name_version
+from album.core.utils.operations.resolve_operations import solution_to_group_name_version, get_zip_name
 from album_runner import logging
 
 module_logger = logging.get_active_logger
@@ -74,58 +75,85 @@ class DeployManager(metaclass=Singleton):
 
         self._active_solution = load(path_to_solution)
 
-        if catalog_name:  # case catalog given
+        # case catalog given
+        if catalog_name:
             self._catalog = self.collection_manager.catalogs().get_by_name(catalog_name)
+
+        # case catalog in solution file specified
         elif self._active_solution["deploy"] and self._active_solution["deploy"]["catalog"]:
             self._catalog = self.collection_manager.catalogs().get_by_src(
                 self._active_solution["deploy"]["catalog"]["src"]
             )
+
+        # case no catalog given
         else:
             raise RuntimeError("No catalog specified for deployment")
 
         self._catalog.load_index()
 
         if self._catalog.is_local():
-            if self._catalog.is_cache():
-                raise RuntimeError("Cannot deploy to catalog only used for caching")
-            self._catalog_local_src = self._catalog.src
-            # zip solution folder, create a yml file and copy the cover
-            self._copy_and_zip(deploy_path)
-            self._create_yaml_file_in_local_src()
-            self._copy_cover_to_local_src(deploy_path)
-            self._catalog.catalog_index.update(self._active_solution.get_deploy_dict())
-            self._catalog.catalog_index.get_connection().commit()
-            self._catalog.catalog_index.export(self._catalog.solution_list_path)
-            self._catalog.copy_index_from_cache_to_src()
-            self._catalog.refresh_index()
+            self._deploy_to_local_catalog(deploy_path)
         else:
-            dwnld_path = Path(self.collection_manager.configuration.cache_path_download).joinpath(self._catalog.name)
-            repo = self._catalog.retrieve_catalog(dwnld_path, force_retrieve=True)
-            self._repo = self._update_repo(repo)
+            self._deploy_to_remote_catalog(deploy_path, dry_run, trigger_pipeline, git_email, git_name)
 
-            if not self._repo:
-                raise FileNotFoundError("Catalog repository not found. Did the download of the catalog fail?")
+    def _deploy_to_remote_catalog(self, deploy_path, dry_run, trigger_pipeline, git_email=None, git_name=None):
+        """Routine to deploy tp a remote catalog."""
+        dl_path = Path(self.collection_manager.configuration.cache_path_download).joinpath(self._catalog.name)
 
-            # zip solution folder, create a yml file and copy the cover
-            solution_zip = self._copy_and_zip(deploy_path)
-            yml_file = self._create_yaml_file_in_local_src()
-            cover_files = self._copy_cover_to_local_src(deploy_path)
+        self._repo = self._catalog.retrieve_catalog(dl_path, force_retrieve=True)
+        self._catalog_local_src = self._repo.working_tree_dir
 
-            # merge request files:
-            mr_files = [yml_file, solution_zip] + cover_files
+        if not self._repo:
+            raise FileNotFoundError("Catalog repository not found. Did the download of the catalog fail?")
 
-            # create merge request
-            self._create_merge_request(mr_files, dry_run, trigger_pipeline, git_email, git_name)
+        # include files/folders in catalog
+        solution_zip, docker_file, yml_file, cover_files = self._deploy_routine_in_local_src(deploy_path)
+
+        # merge request files:
+        mr_files = [yml_file, solution_zip, docker_file] + cover_files
+
+        # create merge request
+        self._create_merge_request(mr_files, dry_run, trigger_pipeline, git_email, git_name)
+
+    def _deploy_to_local_catalog(self, deploy_path):
+        """Routine to deploy to a local catalog."""
+        # check for cache catalog only
+        if self._catalog.is_cache():
+            raise RuntimeError("Cannot deploy to catalog only used for caching! Aborting...")
+
+        self._catalog_local_src = self._catalog.src
+
+        # update the index
+        self._catalog.add(self._active_solution)
+
+        # include files/folders in catalog
+        self._deploy_routine_in_local_src(deploy_path)
+
+        # copy to source
+        self._catalog.copy_index_from_cache_to_src()
+
+        # refresh the local index of the catalog
+        self._catalog.refresh_index()
+
+    def _deploy_routine_in_local_src(self, deploy_path):
+        """Performs all routines a deploy process needs to do locally.
+
+        Returns:
+            solution zip file, solution docker file, solution yml file, and solution cover files.
+
+        """
+        solution_zip = self._copy_and_zip(deploy_path)
+        docker_file = self._create_docker_file_in_local_src()
+        yml_file = self._create_yaml_file_in_local_src()
+        cover_files = self._copy_cover_to_local_src(deploy_path)
+
+        return solution_zip, docker_file, yml_file, cover_files
 
     def retrieve_head_name(self):
         """Retrieves the branch (head) name for the merge request of the solution file."""
         return "_".join(
             [self._active_solution["group"], self._active_solution["name"], self._active_solution["version"]]
         )
-
-    def _update_repo(self, repo):
-        self._catalog_local_src = repo.working_tree_dir
-        return repo
 
     def _create_merge_request(self, file_paths, dry_run=False, trigger_pipeline=True, email=None, username=None):
         """Creates a merge request to the catalog repository for the album object.
@@ -158,7 +186,8 @@ class DeployManager(metaclass=Singleton):
 
         add_files_commit_and_push(new_head, file_paths, commit_msg, not dry_run, trigger_pipeline, email, username)
 
-    def _get_cache_suffix(self):
+    def _get_absolute_zip_path(self):
+        """ Gets the absolute path to the zip."""
         return Path(self._catalog_local_src).joinpath(
             self._catalog.get_solution_zip_suffix(
                 solution_to_group_name_version(self._active_solution)
@@ -185,28 +214,71 @@ class DeployManager(metaclass=Singleton):
 
         return yaml_path
 
+    def _create_docker_file_in_local_src(self):
+        """Uses the template to create a docker file for the solution which gets deployed.
+
+        Returns:
+            The path to the docker file.
+        """
+        gnv = solution_to_group_name_version(self._active_solution)
+        zip_name = get_zip_name(gnv)
+
+        solution_path_suffix = Path("").joinpath(Configuration.get_solution_path_suffix(gnv))
+        docker_file = Path(self._catalog_local_src).joinpath(solution_path_suffix, "Dockerfile")
+
+        docker_file_stream = pkgutil.get_data('docker', 'Dockerfile_solution_template').decode()
+
+        docker_file_stream = docker_file_stream.replace("<version>", album.__version__)
+        docker_file_stream = docker_file_stream.replace("<name>", zip_name)
+        docker_file_stream = docker_file_stream.replace("<run_name>", str(gnv))
+        author = self._active_solution.authors if self._active_solution.authors else "\"\""
+        docker_file_stream = docker_file_stream.replace("<maintainer>", author)
+
+        # replace template with entries and copy dockerfile to deploy_src
+        module_logger().info('writing docker file to: %s...' % str(docker_file))
+        copy_in_file(docker_file_stream, docker_file)
+
+        return docker_file
+
     def _copy_and_zip(self, folder_path):
-        """Copies the deploy-file or -folder to the catalog repository."""
-        zip_path = self._get_cache_suffix()
+        """Copies the deploy-file or -folder to the catalog repository.
+
+        Returns:
+            The path to the zip.
+
+        """
+        zip_path = self._get_absolute_zip_path()
+        module_logger().info('creating zip file in: %s...' % str(zip_path))
+
         if folder_path.is_dir():
             return zip_folder(folder_path, zip_path)
         if folder_path.is_file():
             tmp_dir = tempfile.TemporaryDirectory()
             tmp_solution_file = Path(tmp_dir.name).joinpath(DefaultValues.solution_default_name.value)
+
             copy(folder_path, tmp_solution_file)
-            return zip_paths([tmp_solution_file], zip_path)
+            zip_path = zip_paths([tmp_solution_file], zip_path)
+
+            tmp_dir.cleanup()
+
+            return zip_path
 
     def _copy_cover_to_local_src(self, folder_path):
-        """Copies all cover files to the repo."""
-        target_path = self._get_cache_suffix().parent
+        """Copies all cover files to the repo.
+
+        Returns:
+            The cover list containing absolute paths of the new location.
+        """
+        target_path = self._get_absolute_zip_path().parent
         cover_list = []
 
         if hasattr(self._active_solution, "covers"):
+            module_logger().info('copying cover file to: %s...' % str(target_path))
             for cover in self._active_solution["covers"]:
                 cover_name = cover["source"]
                 cover_path = folder_path.joinpath(cover_name)  # relative paths only
                 if cover_path.exists():
                     cover_list.append(copy(cover_path, target_path.joinpath(cover_name)))
                 else:
-                    module_logger().warn(f"Cannot find cover {cover_path.absolute()}, proceeding without copying it.")
+                    module_logger().warn(f"Cannot find cover {cover_path.absolute()}, proceeding without copying it...")
         return cover_list

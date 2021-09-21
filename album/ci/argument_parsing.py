@@ -72,7 +72,7 @@ def create_parser():
     p = parser.create_branch_command_parser(
         'update',
         update_index,
-        'Updates the index of the catalog repository to include the solution of a catalog repository deployment branch'
+        'Updates the index of the catalog repository to include the solution of a catalog repository deployment branch.'
     )
 
     p = parser.create_branch_command_parser(

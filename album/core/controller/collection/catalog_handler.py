@@ -41,7 +41,12 @@ class CatalogHandler:
         """ Adds a catalog."""
         catalog = self._create_catalog_from_src(identifier)
         if not catalog.is_cache():
-            self.migration_manager.convert_catalog(catalog)
+            catalog_meta_information = Catalog.retrieve_catalog_meta_information(catalog.src)
+            self.migration_manager.migrate_catalog_index_db(
+                catalog.index_path,
+                catalog_meta_information["version"],
+                CatalogIndex.version
+            )
         self._add_to_index(catalog)
         self._create_catalog_cache_if_missing(catalog)
         module_logger().info('Added catalog %s!' % identifier)

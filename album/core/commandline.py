@@ -63,7 +63,7 @@ def search(args):
 
 
 def start_server(args):
-    AlbumServer(args.port).start()
+    AlbumServer(args.port, args.host).start()
 
 
 def test(args):

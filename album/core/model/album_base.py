@@ -8,6 +8,7 @@ from album_runner import logging
 
 module_logger = logging.get_active_logger
 
+
 # TODO rename solution
 class AlbumClass(AlbumRunner):
     """Extension of a album-runner album class."""

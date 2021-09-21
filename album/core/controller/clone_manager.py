@@ -16,7 +16,7 @@ class CloneManager(metaclass=Singleton):
     def __init__(self):
         self.collection_manager = CollectionManager()
 
-    def clone(self, path: str, target_dir: str, name:str) -> None:
+    def clone(self, path: str, target_dir: str, name: str) -> None:
         """
         Function corresponding to the `clone` subcommand of `album`.
 
@@ -29,21 +29,23 @@ class CloneManager(metaclass=Singleton):
         target_path = Path(target_dir).joinpath(name)
         if path.startswith("template:"):
             try:
-                self._try_cloning_catalog_template(path[len("template:"):], target_path, name)
+                self._clone_catalog_template(path[len("template:"):], target_path, name)
             except (LookupError, ValueError):
                 raise LookupError("Cannot resolve %s - make sure it's a valid name of a template located in %s!",
                                   (path, DefaultValues.catalog_template_url.value))
         else:
-            self._try_cloning_solution(path, target_path)
+            self._clone_solution(path, target_path)
 
-    def _try_cloning_solution(self, path, target_path):
+    def _clone_solution(self, path, target_path):
+        """Copies a solution (by resolving and downloading) to a given target path."""
         resolve_result = self.collection_manager.resolve_download_and_load(path)
         target_path_solution = target_path.joinpath(DefaultValues.solution_default_name.value)
         file_operations.copy(resolve_result.path, target_path_solution)
         module_logger().info('Copied solution %s to %s!' % (resolve_result.path, target_path_solution))
 
     @staticmethod
-    def _try_cloning_catalog_template(template_name, target_path, name):
+    def _clone_catalog_template(template_name, target_path, name):
+        """Clones a template by looking up the template name in the template catalog"""
         template_url = f"{DefaultValues.catalog_template_url.value}/{template_name}/-/archive/main/{template_name}-main.zip"
         if url_operations.is_downloadable(template_url):
             target_path.mkdir(parents=True)
@@ -57,5 +59,3 @@ class CloneManager(metaclass=Singleton):
             module_logger().info('Downloaded template from %s to %s!' % (template_url, target_path))
             return True
         return False
-
-

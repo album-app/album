@@ -14,14 +14,6 @@ module_logger = logging.get_active_logger
 class InstallManager(metaclass=Singleton):
     """Class handling the installation and uninstallation process of a solution.
 
-    During installation the conda environment (e.g. solutions target environment) the solution is supposed to
-    be run in gets created and its dependencies installed. Additionally, the album-runner will be added to the target
-    environment. This lightweight program interprets the solution and runs the installation in the target environment.
-    After installation the solution is marked as installed in a local catalog.
-
-    When solutions are not required any more they can be deinstalled, either with their dependencies or without.
-    During removal of a solution its environment will be removed and all additional downloads are removed from the disk.
-
     Attributes:
         collection_manager:
             Holding all configured catalogs. Resolves inside our outside catalogs.

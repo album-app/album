@@ -18,15 +18,6 @@ from album_runner import logging
 module_logger = logging.get_active_logger
 enc = sys.getfilesystemencoding()
 
-
-class FileOperationError(Exception):
-    """Exception class for argument extraction"""
-
-    def __init__(self, short_message, long_message):
-        self.short_message = short_message
-        self.long_message = long_message
-
-
 # def auto_format(file):
 #    """Autformats file to pep8 standard."""
 #    fixed_file = autopep8.fix_file(file)

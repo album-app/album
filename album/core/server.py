@@ -1,4 +1,3 @@
-import json
 from distutils import util
 from pathlib import Path
 
@@ -24,21 +23,22 @@ module_logger = logging.get_active_logger
 
 
 class AlbumServer(metaclass=Singleton):
-
-    port = DefaultValues.server_port
+    port = DefaultValues.server_port.value
+    host = DefaultValues.server_port.value
 
     app = None
 
-    def __init__(self, port):
-        self.setup(port)
+    def __init__(self, port, host=None):
+        self.setup(port, host)
 
-    def setup(self, port):
+    def setup(self, port, host):
         self.port = port
+        self.host = host
 
     def start(self, test_config=None):
         module_logger().info('Starting server..')
         self.init_server(test_config)
-        self.app.run(port=self.port)
+        self.app.run(port=self.port, host=self.host)
 
     def init_server(self, test_config=None):
         self.app = Flask(__name__, instance_relative_config=True)
@@ -88,13 +88,21 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route('/install/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/install/<catalog>/<group>/<name>/<version>')
         def install(catalog, group, name, version):
-            task = self._run_solution_method_async(catalog, GroupNameVersion(group, name, version), InstallManager().install)
+            task = self._run_solution_method_async(
+                catalog,
+                GroupNameVersion(group, name, version),
+                InstallManager().install
+            )
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/uninstall/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/uninstall/<catalog>/<group>/<name>/<version>')
         def uninstall(catalog, group, name, version):
-            task = self._run_solution_method_async(catalog, GroupNameVersion(group, name, version), InstallManager().uninstall)
+            task = self._run_solution_method_async(
+                catalog,
+                GroupNameVersion(group, name, version),
+                InstallManager().uninstall
+            )
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/test/<group>/<name>/<version>', defaults={'catalog': None})
@@ -131,7 +139,11 @@ class AlbumServer(metaclass=Singleton):
             if new_name is None:
                 abort(404, description=f"`name` argument missing")
             args = [target_dir, new_name]
-            task = self._run_solution_method_async(catalog, GroupNameVersion(group, name, version), CloneManager().clone, args)
+            task = self._run_solution_method_async(
+                catalog,
+                GroupNameVersion(group, name, version),
+                CloneManager().clone, args
+            )
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/clone')
@@ -176,7 +188,10 @@ class AlbumServer(metaclass=Singleton):
             try:
                 catalog_manager = CollectionManager()
                 catalog_id = catalog_manager.catalog_handler.get_by_name(catalog).catalog_id
-                installed = catalog_manager.catalog_collection.is_installed(catalog_id, GroupNameVersion(group, name, version))
+                installed = catalog_manager.catalog_collection.is_installed(
+                    catalog_id,
+                    GroupNameVersion(group, name, version)
+                )
                 return {
                     "installed": installed
                 }
@@ -265,7 +280,8 @@ class AlbumServer(metaclass=Singleton):
         TaskManager().register_task(task)
         return task
 
-    def _run_path_method_async(self, path, args, method):
+    @staticmethod
+    def _run_path_method_async(path, args, method):
         task = Task()
         command_args = [str(path)]
         for arg in args:
@@ -283,4 +299,3 @@ class AlbumServer(metaclass=Singleton):
                 command_args.append(f"--{key}")
                 command_args.append(str(args_json[key]))
         return command_args
-

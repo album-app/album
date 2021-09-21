@@ -137,7 +137,8 @@ def create_parser():
         'test', test, 'execute a solutions test routine.')
     p = parser.create_command_parser('server', start_server,
                                      'start an album server')
-    p.add_argument('port', type=int, default=8080, help='Port')
+    p.add_argument('--port', type=int, required=False, default=8080, help='Port')
+    p.add_argument('--host', type=str, required=False, default="127.0.0.1", help='Host')
     return parser.parser
 
 

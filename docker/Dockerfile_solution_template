@@ -1,0 +1,8 @@
+# syntax=docker/dockerfile:1
+FROM albumsolutions/album:<version>
+COPY . /tmp
+RUN ["/bin/bash","-c", "sed -i '$ d' /album/docker/entrypoint.sh ; source /album/docker/entrypoint.sh ; album install /tmp/<name>; sed -i 's/<solution call>/<run_name>/' /album/docker/entrypoint-solution.sh"]
+ENTRYPOINT ["/album/docker/entrypoint-solution.sh"]
+CMD [""]
+LABEL MAINTAINER=<maintainer>
+
