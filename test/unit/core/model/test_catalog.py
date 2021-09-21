@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from album.core.controller.collection.catalog_handler import CatalogHandler
-from album.core.model.album_base import AlbumClass
+from album.core.model.solution import Solution
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
 from album.core.model.group_name_version import GroupNameVersion
@@ -20,7 +20,7 @@ empty_index = """{
 
 class TestCatalog(TestUnitCommon):
 
-    @patch('album.core.model.album_base.Environment.__init__', return_value=None)
+    @patch('album.core.model.solution.Environment.__init__', return_value=None)
     def populate_index(self, _, r=10):
         for i in range(0, r):
             d = self.get_solution_dict()
@@ -28,7 +28,7 @@ class TestCatalog(TestUnitCommon):
             for key in ["group", "name", "version", "doi", "deposit_id"]:
                 d[key] = "%s%s" % (key, str(i))
 
-            solution = AlbumClass(d)
+            solution = Solution(d)
 
             # set a doi
             setattr(solution, "doi", "doi%s" % str(i))
@@ -70,10 +70,10 @@ class TestCatalog(TestUnitCommon):
         self.assertEqual(len(self.catalog.catalog_index), 10)
 
         d = {}
-        for key in AlbumClass.deploy_keys:
+        for key in Solution.deploy_keys:
             d[key] = "%s%s" % (key, "new")
 
-        solution = AlbumClass(d)
+        solution = Solution(d)
 
         # this doi is already in index
         setattr(solution, "doi", "doi1")
@@ -87,10 +87,10 @@ class TestCatalog(TestUnitCommon):
         self.assertEqual(len(self.catalog.catalog_index), 10)
 
         d = {}
-        for key in AlbumClass.deploy_keys:
+        for key in Solution.deploy_keys:
             d[key] = "%s%s" % (key, "0")
 
-        solution = AlbumClass(d)
+        solution = Solution(d)
 
         with self.assertRaises(RuntimeError):
             self.catalog.add(solution)
@@ -103,10 +103,10 @@ class TestCatalog(TestUnitCommon):
         get_solution_cache_file_mock.side_effect = [Path(self.closed_tmp_file.name)]
 
         d = {}
-        for key in AlbumClass.deploy_keys:
+        for key in Solution.deploy_keys:
             d[key] = "%s%s" % (key, "0")
 
-        solution = AlbumClass(d)
+        solution = Solution(d)
 
         self.catalog.add(solution, force_overwrite=True)
         self.assertEqual(len(self.catalog.catalog_index), 10)
@@ -116,10 +116,10 @@ class TestCatalog(TestUnitCommon):
         self.assertEqual(len(self.catalog.catalog_index), 10)
 
         d = {}
-        for key in AlbumClass.deploy_keys:
+        for key in Solution.deploy_keys:
             d[key] = "%s%s" % (key, "0")
 
-        solution = AlbumClass(d)
+        solution = Solution(d)
 
         self.catalog.remove(solution)
         self.assertEqual(len(self.catalog.catalog_index), 9)
@@ -129,10 +129,10 @@ class TestCatalog(TestUnitCommon):
         self.assertEqual(len(self.catalog.catalog_index), 10)
 
         d = {}
-        for key in AlbumClass.deploy_keys:
+        for key in Solution.deploy_keys:
             d[key] = "%s%s" % (key, "new")
 
-        solution = AlbumClass(d)
+        solution = Solution(d)
 
         self.catalog.remove(solution)
         self.assertIn("WARNING - Solution not installed!", self.get_logs()[-1])
@@ -143,10 +143,10 @@ class TestCatalog(TestUnitCommon):
         self.assertEqual(len(self.catalog.catalog_index), 10)
 
         d = {}
-        for key in AlbumClass.deploy_keys:
+        for key in Solution.deploy_keys:
             d[key] = "%s%s" % (key, "0")
 
-        solution = AlbumClass(d)
+        solution = Solution(d)
 
         self.catalog.is_local = MagicMock(return_value=False)
         self.catalog.remove(solution)

@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from album.argument_parsing import main
-from album.core import AlbumClass
+from album.core import Solution
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.model.catalog_updates import ChangeType
@@ -38,6 +38,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
 
         # assert
         catalogs = CollectionManager().catalog_collection.get_all_catalogs()
+        catalog_cache_path_to_be_deleted = catalogs[-1]["path"]
         self.assertEqual(initial_len + 1, len(catalogs))
         self.assertEqual(somedir, catalogs[len(catalogs) - 1]["src"])
 
@@ -52,6 +53,8 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         self.assertEqual(initial_len, len(catalogs))
         for catalog in catalogs:
             self.assertIsNotNone(initial_catalogs.get(catalog["name"], None))
+        self.assertFalse(Path(catalog_cache_path_to_be_deleted).exists())  # cache path deleted
+        self.assertTrue(new_catalog.exists())  # src path still available!
 
     def test_update_collection(self):
         catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", "my-catalog")
@@ -59,10 +62,10 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         catalog = self.collection_manager.catalogs().add_by_src(catalog_src)
         self.assertTrue(catalog.is_local())
         solution_dict = TestUnitCommon.get_solution_dict()
-        solution = AlbumClass(solution_dict)
+        solution = Solution(solution_dict)
         solution2_dict = solution_dict.copy()
         solution2_dict["name"] = "something else"
-        solution2 = AlbumClass(solution2_dict)
+        solution2 = Solution(solution2_dict)
 
         # check that initially no updates are available
 
@@ -110,7 +113,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
 
         # add new solution to catalog
         solution_dict = TestUnitCommon.get_solution_dict()
-        solution = AlbumClass(solution_dict)
+        solution = Solution(solution_dict)
         catalog.add(solution)
         catalogs = CollectionManager().catalog_collection.get_all_catalogs()
         self.assertEqual(initial_len + 1, len(catalogs))

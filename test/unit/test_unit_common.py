@@ -12,7 +12,7 @@ import album_runner
 from album.ci.controller.release_manager import ReleaseManager
 from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
-from album.core import AlbumClass
+from album.core import Solution
 from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.conda_manager import CondaManager
@@ -135,10 +135,10 @@ class TestUnitCommon(unittest.TestCase):
         self.catalog_collection = self.collection_manager.catalog_collection
 
     @patch('album.core.model.environment.Environment.__init__', return_value=None)
-    @patch('album.core.model.album_base.AlbumClass.get_deploy_dict')
+    @patch('album.core.model.solution.Solution.get_deploy_dict')
     def create_test_solution_no_env(self, deploy_dict_mock, _):
         deploy_dict_mock.return_value = self.solution_default_dict
-        self.active_solution = AlbumClass(deploy_dict_mock.return_value)
+        self.active_solution = Solution(deploy_dict_mock.return_value)
         self.active_solution.init = lambda: None
         self.active_solution.args = []
 

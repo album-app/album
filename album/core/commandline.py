@@ -23,7 +23,7 @@ def add_catalog(args):
 
 
 def remove_catalog(args):
-    CollectionManager().catalogs().remove_from_index_by_src(args.src)
+    CollectionManager().catalogs().remove_from_collection_by_src(args.src)
 
 
 def update(args):

@@ -1,6 +1,6 @@
 import sys
 
-from album.core import AlbumClass
+from album.core import Solution
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.utils.operations.file_operations import force_remove
@@ -52,7 +52,7 @@ class InstallManager(metaclass=Singleton):
 
         return catalog.catalog_id
 
-    def update_in_collection_index(self, catalog_id, parent_catalog_id, active_solution: AlbumClass):
+    def update_in_collection_index(self, catalog_id, parent_catalog_id, active_solution: Solution):
         parent_id = None
 
         if active_solution.parent:

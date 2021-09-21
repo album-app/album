@@ -3,12 +3,12 @@ from pathlib import Path
 from unittest.mock import patch
 
 from album.core.controller.conda_manager import CondaManager
-from album.core.model.album_base import AlbumClass
+from album.core.model.solution import Solution
 from album.core.model.configuration import Configuration
 from test.unit.test_unit_common import TestUnitCommon
 
 
-class TestUnitBase(TestUnitCommon):
+class TestUnitSolution(TestUnitCommon):
 
     def tearDown(self) -> None:
         CondaManager().remove_environment("unit-test-env")
@@ -28,7 +28,7 @@ channels:
             "min_album_version": "1",
             "dependencies": {'environment_file': self.test_environment_yml}
         }
-        active_solution = AlbumClass(solution_dict)
+        active_solution = Solution(solution_dict)
 
         self.assertEqual(None, active_solution.environment)
         self.assertEqual(None, active_solution.cache_path_download)
@@ -39,7 +39,7 @@ channels:
         self.create_test_config()
         config = Configuration()
 
-        active_solution = AlbumClass(self.solution_default_dict)
+        active_solution = Solution(self.solution_default_dict)
 
         active_solution.set_cache_paths("catalog_name_solution_lives_in")
 
@@ -62,13 +62,13 @@ channels:
             active_solution.cache_path_solution
         )
 
-    @patch('album.core.model.album_base.AlbumClass.set_cache_paths')
+    @patch('album.core.model.solution.Solution.set_cache_paths')
     @patch('album.core.model.environment.Environment.__init__')
     def test_set_environment(self, environment_init_mock, _):
         # mocks
         environment_init_mock.return_value = None
 
-        active_solution = AlbumClass(self.solution_default_dict)
+        active_solution = Solution(self.solution_default_dict)
 
         active_solution.set_environment("catalog_name_solution_lives_in")
 
@@ -80,13 +80,13 @@ channels:
         )
 
     def test_get_deploy_dict(self):
-        active_solution = AlbumClass(self.solution_default_dict)
+        active_solution = Solution(self.solution_default_dict)
         self.assertEqual(self.solution_default_dict, active_solution.get_deploy_dict())
 
     def test_get_deploy_dict_additional_values(self):
         # base keys
         attrs_dict_result = {}
-        for idx, key in enumerate(AlbumClass.deploy_keys):
+        for idx, key in enumerate(Solution.deploy_keys):
             attrs_dict_result[key] = str(idx)
 
         # additional values
@@ -98,6 +98,6 @@ channels:
         attrs_dict = {**attrs_dict_result, **attrs_dict_additional}
         self.assertEqual(len(attrs_dict), len(attrs_dict_additional) + len(attrs_dict_result))
 
-        active_solution = AlbumClass(attrs_dict)
+        active_solution = Solution(attrs_dict)
 
         self.assertEqual(active_solution.get_deploy_dict(), attrs_dict_result)

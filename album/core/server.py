@@ -217,9 +217,9 @@ class AlbumServer(metaclass=Singleton):
             url = request.args.get("src", default=None)
             name = request.args.get("name", default=None)
             if name is None:
-                CollectionManager().catalogs().remove_from_index_by_src(url)
+                CollectionManager().catalogs().remove_from_collection_by_src(url)
             else:
-                CollectionManager().catalogs().remove_from_index_by_name(name)
+                CollectionManager().catalogs().remove_from_collection_by_name(name)
             return {}
 
         @self.app.route('/upgrade')

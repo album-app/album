@@ -82,7 +82,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), local_catalog_path, False)
         self.assertTrue(local_catalogs_path.exists())
         self.assertTrue(local_catalog_path.exists())
-        self.assertTrue(local_catalog_path.joinpath(DefaultValues.catalog_index_file_json.value).exists())
+        self.assertTrue(local_catalog_path.joinpath(DefaultValues.catalog_index_metafile_json.value).exists())
 
         # add catalog
 

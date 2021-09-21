@@ -27,21 +27,21 @@ def get_index_url(src):
     """Gets the download link for an index."""
     # todo: "main" is still hardcoded! :(
     index_src = re.sub(r"\.git$", "", src) + "/-/raw/main/%s" % DefaultValues.catalog_index_file_name.value
-    index_meta_src = re.sub(r"\.git$", "", src) + "/-/raw/main/%s" % DefaultValues.catalog_index_file_json.value
+    index_meta_src = re.sub(r"\.git$", "", src) + "/-/raw/main/%s" % DefaultValues.catalog_index_metafile_json.value
     return index_src, index_meta_src
 
 
 def get_index_dir(src):
-    """Gets the download link for an index."""
+    """Gets the download directory for an index."""
     # todo: "main" is still hardcoded! :(
     index_src = Path(src).joinpath(DefaultValues.catalog_index_file_name.value)
-    index_meta_src = Path(src).joinpath(DefaultValues.catalog_index_file_json.value)
+    index_meta_src = Path(src).joinpath(DefaultValues.catalog_index_metafile_json.value)
     return index_src, index_meta_src
 
 
 # todo: this is not good! Think of smth. clever here
 def get_solution_src(src, group_name_version: GroupNameVersion):
-    """Gets the download link for a solution in an index."""
+    """Gets the download link for a solution."""
     # todo: "main" is still hardcoded! :(
     return re.sub(r"\.git$", "", src) + "/-/raw/main/solutions/%s/%s/%s/%s" \
            % (group_name_version.group, group_name_version.name, group_name_version.version, 
@@ -104,7 +104,7 @@ class Catalog:
         self.is_deletable = deletable
 
         self.solution_list_path = self.path.joinpath(DefaultValues.catalog_solution_list_file_name.value)
-        self._meta_path = self.path.joinpath(DefaultValues.catalog_index_file_json.value)
+        self._meta_path = self.path.joinpath(DefaultValues.catalog_index_metafile_json.value)
 
         # initialize the index
         self.index_path = self.path.joinpath(DefaultValues.catalog_index_file_name.value)
@@ -403,7 +403,7 @@ class Catalog:
     def copy_index_from_src_to_cache(self):
         """Copy the index file of a catalog and its metadata to the catalog cache folder."""
         src_path_index = Path(self.src).joinpath(DefaultValues.catalog_index_file_name.value)
-        src_path_meta = Path(self.src).joinpath(DefaultValues.catalog_index_file_json.value)
+        src_path_meta = Path(self.src).joinpath(DefaultValues.catalog_index_metafile_json.value)
 
         if not src_path_index.exists():
             if not self.index_path.parent.exists():
@@ -472,13 +472,13 @@ class Catalog:
         if validators.url(str(identifier)):
             _, meta_src = get_index_url(identifier)
             meta_file = download_resource(
-                meta_src, Configuration().cache_path_download.joinpath(DefaultValues.catalog_index_file_json.value)
+                meta_src, Configuration().cache_path_download.joinpath(DefaultValues.catalog_index_metafile_json.value)
             )
         elif Path(identifier).exists():
             _, meta_src = get_index_dir(identifier)
             if meta_src.exists():
                 meta_file = copy(
-                    meta_src, Configuration().cache_path_download.joinpath(DefaultValues.catalog_index_file_json.value)
+                    meta_src, Configuration().cache_path_download.joinpath(DefaultValues.catalog_index_metafile_json.value)
                 )
             else:
                 raise RuntimeError("Cannot retrieve meta information for the catalog!")
