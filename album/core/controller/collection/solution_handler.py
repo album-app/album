@@ -1,4 +1,4 @@
-from album.core import AlbumClass
+from album.core import Solution
 from album.core.model.catalog_updates import ChangeType
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.group_name_version import GroupNameVersion
@@ -79,7 +79,7 @@ class SolutionHandler:
 
     @staticmethod
     def get_solution_keys():
-        keys = AlbumClass.deploy_keys.copy()
+        keys = Solution.deploy_keys.copy()
         keys.remove("authors")
         keys.remove("tags")
         keys.remove("args")

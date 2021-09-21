@@ -9,8 +9,7 @@ from album_runner import logging
 module_logger = logging.get_active_logger
 
 
-# TODO rename solution
-class AlbumClass(AlbumRunner):
+class Solution(AlbumRunner):
     """Extension of a album-runner album class."""
 
     # CAUTION: deploy_keys also used for resolving. Make sure keys do not contain callable values.
@@ -25,7 +24,7 @@ class AlbumClass(AlbumRunner):
         """Return a dictionary with the relevant deployment key/values for a given album."""
         d = {}
 
-        for k in AlbumClass.deploy_keys:
+        for k in Solution.deploy_keys:
             # deepcopy necessary. Else original album object will loose "action" attributes in its arguments
             d[k] = copy.deepcopy(self.__dict__[k])
 

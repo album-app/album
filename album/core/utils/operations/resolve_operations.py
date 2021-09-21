@@ -4,7 +4,7 @@ import re
 import sys
 from pathlib import Path
 
-from album.core import load, AlbumClass
+from album.core import load, Solution
 from album.core.model.default_values import DefaultValues
 from album.core.model.group_name_version import GroupNameVersion
 from album.core.model.resolve_result import ResolveResult
@@ -51,7 +51,7 @@ def get_attributes_from_string(str_input: str) -> dict:
     return attrs_dict
 
 
-def _load_solution(resolve: ResolveResult) -> AlbumClass:
+def _load_solution(resolve: ResolveResult) -> Solution:
     active_solution = load(resolve.path)
     # init the album environment
     active_solution.set_environment(resolve.catalog.name)

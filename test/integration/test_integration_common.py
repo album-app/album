@@ -9,7 +9,7 @@ from typing import Optional
 from unittest.mock import patch
 
 import album.core as album
-from album.core import AlbumClass
+from album.core import Solution
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.conda_manager import CondaManager
 from album.core.controller.collection.collection_manager import CollectionManager
@@ -114,7 +114,7 @@ class TestIntegrationCommon(unittest.TestCase):
         path = current_path.joinpath("..", "resources", solution_file)
         return str(path.resolve())
 
-    def fake_install(self, path, create_environment=True) -> Optional[AlbumClass]:
+    def fake_install(self, path, create_environment=True) -> Optional[Solution]:
         # add to local catalog
         a = album.load(path)
 

@@ -24,7 +24,7 @@ class TestDeployManager(TestGitCommon):
         # add local catalog
         catalog_path = Path(self.tmp_dir.name).joinpath("local_catalog")
         catalog_path.mkdir(parents=True)
-        with open(catalog_path.joinpath(DefaultValues.catalog_index_file_json.value), 'w') as meta:
+        with open(catalog_path.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as meta:
             meta.writelines("{\"name\":\"local_catalog\", \"version\": \"0.1.0\"}")
         self.local_catalog = self.collection_manager.catalogs().add_by_src(catalog_path)
 
@@ -221,7 +221,7 @@ class TestDeployManager(TestGitCommon):
             None
         )
 
-    @patch('album.core.model.album_base.AlbumClass.get_deploy_dict')
+    @patch('album.core.model.solution.Solution.get_deploy_dict')
     def test__create_yaml_file_in_local_src(self, deploy_dict_mock):
         deploy_dict_mock.return_value = {"name": "tsn", "group": "tsg", "version": "tsv"}
 
@@ -242,7 +242,7 @@ class TestDeployManager(TestGitCommon):
 
         self.assertEqual(["group: tsg\n", "name: tsn\n", "version: tsv\n"], f_content)
 
-    @patch('album.core.model.album_base.AlbumClass.get_deploy_dict')
+    @patch('album.core.model.solution.Solution.get_deploy_dict')
     def test__get_absolute_zip_path(self, deploy_dict_mock):
         deploy_dict_mock.return_value = {"name": "tsn", "group": "tsg", "version": "tsv"}
 

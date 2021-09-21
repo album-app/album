@@ -22,7 +22,7 @@ class DefaultValues(Enum):
     catalog_collection_db_name = 'catalog_collection.db'                   # the default name of the Collection DB
     catalog_collection_json_name = 'catalog_collection.json'               # the default name of the Collection JSON
     catalog_index_file_name = 'album_catalog_index.db'                     # the default index file name of the catalog_index
-    catalog_index_file_json = 'album_catalog_index.json'                   # the default index file name of the catalog_index
+    catalog_index_metafile_json = 'album_catalog_index.json'                   # the default meta file name of the catalog_index
     catalog_solution_list_file_name = 'album_solution_list.json'           # the default file name for exporting the list of solutions of a catalog
     catalog_folder_prefix = 'catalogs'                                     # base folder prefix where all not local catalogs live
     cache_path_solution_prefix = "solutions"                               # base folder prefix where solutions live

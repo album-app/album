@@ -36,7 +36,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         catalog_name = "aNiceCatalog"
         catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", catalog_name)
         catalog_src.mkdir(parents=True)
-        with open(catalog_src.joinpath(DefaultValues.catalog_index_file_json.value), 'w') as config:
+        with open(catalog_src.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as config:
             config.writelines("{\"name\": \"" + catalog_name + "\", \"version\": \"0.1.0\"}")
 
         # call
@@ -250,36 +250,41 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         _update_collection_from_catalog.assert_not_called()
 
     @unittest.skip("Needs to be implemented!")
-    def test_remove_from_index_by_path(self):
+    def test__remove_from_collection(self):
         # todo: implement
         pass
 
     @unittest.skip("Needs to be implemented!")
-    def test_remove_from_index_by_name(self):
+    def test_remove_from_collection_by_path(self):
         # todo: implement
         pass
 
-    def test_remove_from_index_by_name_undeletable(self):
+    @unittest.skip("Needs to be implemented!")
+    def test_remove_from_collection_by_name(self):
+        # todo: implement
+        pass
+
+    def test_remove_from_collection_by_name_undeletable(self):
         # call
         catalogs = self.catalog_collection.get_all_catalogs()
-        x = self.catalogHandler.remove_from_index_by_name(catalogs[0]['name'])
+        x = self.catalogHandler.remove_from_collection_by_name(catalogs[0]['name'])
 
         # assert
         self.assertIsNone(x)
         self.assertEqual(self.catalog_list,
                          self.catalog_collection.get_all_catalogs())  # nothing changed
 
-    def test_remove_from_index_by_name_invalid_name(self):
+    def test_remove_from_collection_by_name_invalid_name(self):
         # call
-        with self.assertRaises(LookupError):
-            self.catalogHandler.remove_from_index_by_name("aWrongIdOfACatalogToRemove")
+        x = self.catalogHandler.remove_from_collection_by_name("aWrongIdOfACatalogToRemove")
 
         # assert
+        self.assertIsNone(x)
         self.assertEqual(self.catalog_list,
                          self.catalog_collection.get_all_catalogs())  # nothing changed
 
     @unittest.skip("Needs to be implemented!")
-    def test_remove_from_index_by_src(self):
+    def test_remove_from_collection_by_src(self):
         # todo: implement
         pass
 

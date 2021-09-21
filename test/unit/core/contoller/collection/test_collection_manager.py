@@ -3,7 +3,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-from album.core import AlbumClass
+from album.core import Solution
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.collection.solution_handler import SolutionHandler
@@ -63,7 +63,7 @@ class TestCatalogCollectionCommon(TestUnitCommon):
     def create_empty_catalog(self, name):
         catalog_path = Path(self.tmp_dir.name).joinpath("my-catalogs", name)
         catalog_path.mkdir(parents=True)
-        with open(catalog_path.joinpath(DefaultValues.catalog_index_file_json.value), 'w') as file:
+        with open(catalog_path.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as file:
             file.writelines("{\"name\": \"" + name + "\", \"version\": \"0.1.0\"}")
 
         return catalog_path
@@ -157,7 +157,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         search_mock = MagicMock(
             return_value={"catalog_id": 1, "group": "grp", "name": "name", "version": "version", "installed": True})
         self.collection_manager._search = search_mock
-        load_mock.return_value = AlbumClass({"group": "grp", "name": "name", "version": "version"})
+        load_mock.return_value = Solution({"group": "grp", "name": "name", "version": "version"})
         _check_file_or_url_mock.return_value = None
 
         # call

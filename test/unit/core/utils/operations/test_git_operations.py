@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import album.core.utils.operations.git_operations as git_op
 from album.core.model.default_values import DefaultValues
-from album.core.model.album_base import AlbumClass
+from album.core.model.solution import Solution
 from album.core.utils.operations.file_operations import copy, force_remove
 from test.unit.test_unit_common import TestGitCommon
 
@@ -76,10 +76,10 @@ class TestGitOperations(TestGitCommon):
 
         self.assertTrue("Pattern not found!" in str(context.exception))
 
-    @patch('album.core.model.album_base.AlbumClass.get_deploy_dict', return_value={})
+    @patch('album.core.model.solution.Solution.get_deploy_dict', return_value={})
     def test_add_files_commit_and_push(self, _):
         attrs_dict = {"name": "test_solution_name", "group": "test_solution_group", "version": "test_solution_version"}
-        active_solution = AlbumClass(attrs_dict)
+        active_solution = Solution(attrs_dict)
 
         tmp_file = tempfile.NamedTemporaryFile(delete=False)
         tmp_file.close()
@@ -113,14 +113,14 @@ class TestGitOperations(TestGitCommon):
         # correct branch checked out
         self.assertEqual(self.repo.active_branch.name, "test_solution_name")
 
-    @patch('album.core.model.album_base.AlbumClass.get_deploy_dict', return_value={})
+    @patch('album.core.model.solution.Solution.get_deploy_dict', return_value={})
     def test_add_files_commit_and_push_no_diff(self, _):
         attrs_dict = {
             "name": "test_solution_name",
             "group": "mygroup",
             "version": "myversion"
         }
-        AlbumClass(attrs_dict)
+        Solution(attrs_dict)
 
         file = self.create_tmp_repo(commit_solution_file=False)
 
@@ -138,7 +138,7 @@ class TestGitOperations(TestGitCommon):
         self.assertEqual("MyName", repo.config_reader().get_value("user", "name"))
         self.assertEqual("MyEmail", repo.config_reader().get_value("user", "email"))
 
-    @patch('album.core.model.album_base.AlbumClass.get_deploy_dict', return_value={})
+    @patch('album.core.model.solution.Solution.get_deploy_dict', return_value={})
     def test_download_repository(self, _):
         # clean
         force_remove(DefaultValues.app_cache_dir.value.joinpath("test"))
@@ -150,7 +150,7 @@ class TestGitOperations(TestGitCommon):
             "group": "mygroup",
             "version": "myversion"
         }
-        solution_with_git_repo = AlbumClass(self.attrs)
+        solution_with_git_repo = Solution(self.attrs)
 
         # run
         git_op.download_repository(solution_with_git_repo["git_repo"],

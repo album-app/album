@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import validators
+from album.core.utils.operations.file_operations import force_remove
 
 from album.core.controller.collection.solution_handler import SolutionHandler
 from album.core.controller.migration_manager import MigrationManager
@@ -27,19 +28,31 @@ class CatalogHandler:
         self.migration_manager = MigrationManager()
 
     def create_local_catalog(self):
-        catalogs = self.configuration.get_initial_catalogs()
+        """Creates the local catalog on the disk from the available initial catalogs.
+
+         Does not contain a DB file. Used only when album starts the first time.
+
+         """
+        initial_catalogs = self.configuration.get_initial_catalogs()
         name = DefaultValues.local_catalog_name.value
-        local_path = catalogs[name]
+        local_path = initial_catalogs[name]
         self.create_new_catalog(local_path, name)
 
     def add_initial_catalogs(self):
-        catalogs = self.configuration.get_initial_catalogs()
-        for catalog in catalogs.keys():
-            self.add_by_src(catalogs[catalog])
+        """Adds the initial catalogs to the catalog_collection.
+
+        Copies/downloads them from their src to their local cache. (Except local_catalog)
+
+        """
+        initial_catalogs = self.configuration.get_initial_catalogs()
+        for catalog in initial_catalogs.keys():
+            self.add_by_src(initial_catalogs[catalog])
 
     def add_by_src(self, identifier):
-        """ Adds a catalog."""
+        """ Adds a catalog. Creates them from their src. (Git, network-drive, folder outside cache, etc.)"""
         catalog = self._create_catalog_from_src(identifier)
+
+        # always keep the local copy up to date
         if not catalog.is_cache():
             catalog_meta_information = Catalog.retrieve_catalog_meta_information(catalog.src)
             self.migration_manager.migrate_catalog_index_db(
@@ -47,14 +60,29 @@ class CatalogHandler:
                 catalog_meta_information["version"],
                 CatalogIndex.version
             )
+
         self._add_to_index(catalog)
         self._create_catalog_cache_if_missing(catalog)
+
         module_logger().info('Added catalog %s!' % identifier)
         return catalog
 
     def _add_to_index(self, catalog: Catalog) -> int:
-        catalog.catalog_id = self.catalog_collection.insert_catalog(catalog.name, str(catalog.src), str(catalog.path),
-                                                                    int(catalog.is_deletable))
+        """ Adds a catalog to the collection index.
+
+        Args:
+            catalog: The catalog object
+
+        Returns:
+            The database ID of the catalog.
+
+        """
+        catalog.catalog_id = self.catalog_collection.insert_catalog(
+            catalog.name,
+            str(catalog.src),
+            str(catalog.path),
+            int(catalog.is_deletable)
+        )
         return catalog.catalog_id
 
     def get_by_id(self, catalog_id):
@@ -110,9 +138,10 @@ class CatalogHandler:
 
     @staticmethod
     def create_new_catalog(local_path, name):
+        """Creates the meta-file for a new catalog on the disk."""
         if not local_path.exists():
             local_path.mkdir(parents=True)
-        with open(local_path.joinpath(DefaultValues.catalog_index_file_json.value), 'w') as meta:
+        with open(local_path.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as meta:
             meta.writelines("{\"name\": \"" + name + "\", \"version\": \"" + CatalogIndex.version + "\"}")
 
     @staticmethod
@@ -123,11 +152,13 @@ class CatalogHandler:
         return r
 
     def update_by_name(self, catalog_name):
+        """Updates a catalog by its name."""
         catalog = self.get_by_name(catalog_name)
 
         return self._update(catalog)
 
     def update_all(self):
+        """Updates all available catalogs"""
         catalog_r = []
         for catalog in self.get_all():
             try:
@@ -141,12 +172,14 @@ class CatalogHandler:
         return catalog_r
 
     def update_any(self, catalog_name=None):
+        """Updates either all catalogs or one by its name."""
         if catalog_name:
             self.update_by_name(catalog_name)
         else:
             self.update_all()
 
     def update_collection(self, catalog_name=None, dry_run: bool = False) -> List[CatalogUpdates]:
+        """Includes all new changes from a given catalog (or all catalogs) in the catalog_collection."""
         if dry_run:
             if catalog_name:
                 return [self._get_divergence_between_catalog_and_collection(
@@ -159,17 +192,11 @@ class CatalogHandler:
             else:
                 return self._update_collection_from_catalogs()
 
-    def remove_from_index_by_path(self, path):
-        catalog_dict = self.catalog_collection.get_catalog_by_path(path)
-        if not catalog_dict:
-            module_logger().warning(f"Cannot remove catalog, catalog with path {path} not found!")
-            return None
-
+    def _remove_from_collection(self, catalog_dict):
         catalog_to_remove = self._as_catalog(catalog_dict)
 
         if not catalog_to_remove:
-            module_logger().warning("Cannot remove catalog with path \"%s\"! Not configured!" % str(path))
-            return
+            raise LookupError("Cannot remove catalog! Not configured...")
 
         if not catalog_to_remove.is_deletable:
             module_logger().warning("Cannot remove catalog! Marked as not deletable! Will do nothing...")
@@ -177,28 +204,44 @@ class CatalogHandler:
 
         self.catalog_collection.remove_catalog(catalog_to_remove.catalog_id)
 
+        force_remove(catalog_to_remove.path)
+
         return catalog_to_remove
 
-    def remove_from_index_by_name(self, name) -> Optional[Catalog]:
+    def remove_from_collection_by_path(self, path):
+        """Removes a catalog given by its path from the catalog_collection.
+
+        Thereby deleting all its entries from the collection.
+
+        """
+        catalog_dict = self.catalog_collection.get_catalog_by_path(path)
+
+        if not catalog_dict:
+            module_logger().warning("Cannot remove catalog, catalog with path %s not found!" % str(path))
+            return None
+
+        catalog_to_remove = self._remove_from_collection(catalog_dict)
+
+        module_logger().info("Removed catalog with path %s." % str(path))
+
+        return catalog_to_remove
+
+    def remove_from_collection_by_name(self, name) -> Optional[Catalog]:
+        """Removes a catalog given its name from the catalog_collection."""
         catalog_dict = self.catalog_collection.get_catalog_by_name(name)
 
         if not catalog_dict:
-            raise LookupError("Cannot remove catalog with name \"%s\", not found!" % str(name))
-
-        catalog_to_remove = self._as_catalog(catalog_dict)
-
-        if not catalog_to_remove:
-            raise LookupError("Cannot remove catalog with name \"%s\"! Not configured!" % str(name))
-
-        if not catalog_to_remove.is_deletable:
-            module_logger().warning("Cannot remove catalog! Marked as not deletable! Will do nothing...")
+            module_logger().warning("Cannot remove catalog, catalog with name \"%s\", not found!" % str(name))
             return None
 
-        self.catalog_collection.remove_catalog(catalog_to_remove.catalog_id)
+        catalog_to_remove = self._remove_from_collection(catalog_dict)
+
+        module_logger().info("Removed catalog with name %s." % str(name))
 
         return catalog_to_remove
 
-    def remove_from_index_by_src(self, src):
+    def remove_from_collection_by_src(self, src):
+        """Removes a catalog given its src from the catalog_collection."""
 
         if not validators.url(str(src)):
             if Path(src).exists():
@@ -207,30 +250,26 @@ class CatalogHandler:
                 module_logger().warning("Cannot remove catalog with source \"%s\"! Not configured!" % str(src))
                 return None
 
-        catalog_attrs = self.catalog_collection.get_catalog_by_src(src)
+        catalog_dict = self.catalog_collection.get_catalog_by_src(src)
 
-        if not catalog_attrs:
+        if not catalog_dict:
             module_logger().warning("Cannot remove catalog with source \"%s\"! Not configured!" % str(src))
             return None
 
-        catalog_to_remove = self._as_catalog(catalog_attrs)
-
-        if not catalog_to_remove.is_deletable:
-            module_logger().warning("Cannot remove catalog! Marked as not deletable! Will do nothing...")
-            return None
-
-        self.catalog_collection.remove_catalog(catalog_to_remove.catalog_id)
+        catalog_to_remove = self._remove_from_collection(catalog_dict)
 
         module_logger().info("Removed catalog with source %s" % str(src))
 
         return catalog_to_remove
 
     def get_all_as_dict(self):
+        """Get all catalogs as dictionary."""
         return {
             "catalogs": self.catalog_collection.get_all_catalogs()
         }
 
     def _create_catalog_from_src(self, src):
+        """Creates the local cache path for a catalog given its src. (Network drive, git-link, etc.)"""
         catalog_meta_information = Catalog.retrieve_catalog_meta_information(src)
         catalog_path = self.configuration.get_cache_path_catalog(catalog_meta_information["name"])
         catalog = Catalog(None, catalog_meta_information["name"], catalog_path, src=src)
@@ -240,16 +279,19 @@ class CatalogHandler:
 
     @staticmethod
     def _create_catalog_cache_if_missing(catalog):
+        """Creates the path of a catalog if it is missing."""
         if not catalog.path.exists():
             catalog.path.mkdir(parents=True)
 
     def _get_divergence_between_catalogs_and_collection(self) -> List[CatalogUpdates]:
+        """Gets the divergence list between all catalogs and the catalog_collection."""
         res = []
         for catalog in self.get_all():
             res.append(self._get_divergence_between_catalog_and_collection(catalog_name=catalog.name))
         return res
 
     def _get_divergence_between_catalog_and_collection(self, catalog_name) -> CatalogUpdates:
+        """Gets the divergence between a given catalog and the catalog_collection"""
         catalog = self.get_by_name(catalog_name)
         res = CatalogUpdates(catalog)
         if catalog.is_cache():
