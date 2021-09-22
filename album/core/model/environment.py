@@ -217,10 +217,6 @@ class Environment:
         """Installs the album dependency in the environment"""
         if not self.is_installed("album-runner", min_framework_version):
             self.pip_install(DefaultValues.runner_url.value)
-            # module = "album-runner"
-            # if min_framework_version:
-            #     module += "==" + str(min_framework_version)
-            # self.pip_install(module)
 
     def pip_install(self, module, version=None):
         """Installs the given module in the environment.

@@ -1,29 +1,26 @@
 from album_runner import setup
-
-global args
+from album_runner.api.run_helper import get_args
 
 
 def album_init():
-    global args
-    args = {}
     pass
 
 
 def album_run():
-    global args
-    file = open(args.get("file"), "a")
+    args = get_args()
+
+    file = open(args.file, "a")
     file.write("app1_run\n")
-    file.write(f"app1_param={args.get('app1_param')}\n")
+    file.write(f"app1_param={args.app1_param}\n")
     file.close()
-    pass
 
 
 def album_close():
-    global args
-    file = open(args.get("file"), "a")
+    args = get_args()
+
+    file = open(args.file, "a")
     file.write("app1_close\n")
     file.close()
-    pass
 
 
 setup(
@@ -47,14 +44,10 @@ setup(
     tested_album_version="0.1.1",
     args=[{
         "name": "file",
-        "default": "",
         "description": "",
-        "action": lambda path: args.update({"file": path})
     }, {
         "name": "app1_param",
-        "default": "",
         "description": "",
-        "action": lambda path: args.update({"app1_param": path})
     }],
     init=album_init,
     run=album_run,

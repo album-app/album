@@ -61,7 +61,7 @@ class Solution(AlbumRunner):
         setattr(self, key, value)
 
     def get_arg(self, k):
-        """Get a specific named argument for this album if it exists."""
+        """Get a specific named argument for this solution if it exists."""
         matches = [arg for arg in self['args'] if arg['name'] == k]
         return matches[0]
 
@@ -84,4 +84,4 @@ class Solution(AlbumRunner):
         self.cache_path_solution = Configuration().cache_path_solution.joinpath(str(catalog_name), path_suffix)
 
     def get_environment_name(self, catalog_name):
-        return "_".join([str(catalog_name), self["group"], self["name"], self["version"]])
+        return "_".join([str(catalog_name), self.get_identifier()])

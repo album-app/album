@@ -26,8 +26,6 @@ setup(
         {
             "name": "testArg1",
             "description": "testArg1Description",
-            "default": lambda: "Useless callable",
-            "action": lambda p: p
         }
     ],
     dependencies={
