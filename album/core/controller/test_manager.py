@@ -55,7 +55,7 @@ class TestManager(metaclass=Singleton):
 
             # parse args again after pre_test() routine if necessary.
             if not active_solution["args"] == "pass-through":
-                self.run_manager.init_script += "\nparser.parse_args()\n"
+                self.run_manager.init_script += "\nget_active_solution().args = parser.parse_args()\n"
 
             # prepare run_script
             que = Queue()

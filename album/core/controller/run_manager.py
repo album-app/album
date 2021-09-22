@@ -13,11 +13,21 @@ module_logger = logging.get_active_logger
 
 class SolutionCollection:
 
-    def __init__(self, parent_script_path=None, parent_script_catalog=None, steps_solution=None, steps=None):
+    def __init__(
+            self,
+            parent_parsed_args=None,
+            parent_script_path=None,
+            parent_script_catalog=None,
+            steps_solution=None,
+            steps=None
+    ):
+        if parent_parsed_args is None:
+            parent_parsed_args = [None]
         if steps_solution is None:
             steps_solution = []
         if steps is None:
             steps = []
+        self.parent_parsed_args = parent_parsed_args
         self.parent_script_path = parent_script_path  # path to the parent dependency script.
         self.parent_script_catalog = parent_script_catalog
         self.steps_solution = steps_solution  # The solution objects of all steps.
@@ -118,15 +128,15 @@ class RunManager(metaclass=Singleton):
             # todo: discuss this!
             active_solution.init()
 
-            self.__parse_args(active_solution)
+            step_solution_parsed_args = self.__parse_args(active_solution)
             module_logger().info("Building queue for %s steps.." % len(steps))
 
             for i, step in enumerate(steps):
                 module_logger().debug("Adding step %s / %s to queue..." % (i, len(steps)))
                 if type(step) is list:
-                    self.build_steps_queue(que, step, run_immediately)
+                    self.build_steps_queue(que, step, run_immediately, step_solution_parsed_args)
                 else:
-                    self.build_steps_queue(que, [step], run_immediately)
+                    self.build_steps_queue(que, [step], run_immediately, step_solution_parsed_args)
         else:  # single element queue, no steps
             if active_solution.parent:
                 module_logger().debug("Adding step standalone album with parent to queue...")
@@ -137,10 +147,12 @@ class RunManager(metaclass=Singleton):
                 # create script without parent
                 que.put(self.create_solution_run_script_standalone(active_solution, sys.argv))
 
-    def build_steps_queue(self, que, steps, run_immediately=False):
+    def build_steps_queue(self, que, steps, run_immediately=False, step_solution_parsed_args=None):
         """Builds the queue of step-album to be executed. FIFO queue expected.
 
         Args:
+            step_solution_parsed_args:
+                Namespace object from parsing the step-solution arguments
             que:
                 The queue object.
             steps:
@@ -152,7 +164,7 @@ class RunManager(metaclass=Singleton):
 
         """
         # start with an empty collection of steps with the same parent
-        same_parent_step_collection = SolutionCollection()
+        same_parent_step_collection = SolutionCollection(step_solution_parsed_args)
 
         for step in steps:
             module_logger().debug('resolving step \"%s\"...' % step["name"])
@@ -200,14 +212,14 @@ class RunManager(metaclass=Singleton):
                     que.put(self.create_solution_run_collection_script(same_parent_step_collection))
 
                 # empty the collection for possible next steps
-                same_parent_step_collection = SolutionCollection()
+                same_parent_step_collection = SolutionCollection(step_solution_parsed_args)
 
                 # run the old collection immediately
                 if run_immediately:
                     self.run_queue(que)
 
                 # harvest arguments in the description of the step
-                step_args = self._get_args(step)
+                step_args = self._get_args(step, step_solution_parsed_args[0])
 
                 # add step without parent
                 que.put(self.create_solution_run_script_standalone(resolve_result.active_solution, step_args))
@@ -263,8 +275,13 @@ class RunManager(metaclass=Singleton):
             active_solution.parent)
 
         # handle arguments
-        parent_args, active_solution_args = self.resolve_args(parent_solution_resolve.active_solution,
-                                                              [active_solution], [None], args)
+        parent_args, active_solution_args = self.resolve_args(
+            parent_solution=parent_solution_resolve.active_solution,
+            steps_solution=[active_solution],
+            steps=[None],
+            step_solution_parsed_args=[None],
+            args=args
+        )
 
         # create script
         scripts = self.create_solution_run_with_parent_script(
@@ -289,9 +306,12 @@ class RunManager(metaclass=Singleton):
             ", ".join([s["name"] for s in solution_collection.steps_solution]), parent_solution["name"]))
 
         # handle arguments
-        parsed_parent_args, parsed_steps_args_list = self.resolve_args(parent_solution,
-                                                                       solution_collection.steps_solution,
-                                                                       solution_collection.steps)
+        parsed_parent_args, parsed_steps_args_list = self.resolve_args(
+            parent_solution=parent_solution,
+            steps_solution=solution_collection.steps_solution,
+            steps=solution_collection.steps,
+            step_solution_parsed_args=solution_collection.parent_parsed_args,
+        )
 
         # create script
         scripts = self.create_solution_run_with_parent_script(parent_solution, parsed_parent_args,
@@ -301,15 +321,15 @@ class RunManager(metaclass=Singleton):
         return [parent_solution, scripts]
 
     def create_solution_run_with_parent_script(self, parent_solution, parent_args, child_solution_list, child_args):
-        """Creates the script for the parent hip solution as well as for all its steps (chid hip solutions).
+        """Creates the script for the parent hip solution as well as for all its steps (child solutions).
 
         Args:
             parent_solution:
-                The parent hip solution object.
+                The parent solution object.
             parent_args:
                 Arguments to use for the parent call.
             child_solution_list:
-                A list of all hip solution objects to be executed with the same parent.
+                A list of all solution objects to be executed with the same parent.
             child_args:
                 List of arguments for the call of each child solution.
 
@@ -320,7 +340,6 @@ class RunManager(metaclass=Singleton):
         script_parent = create_solution_script(parent_solution,
                                                self.init_script + "\nget_active_solution().run()\n",
                                                parent_args)
-
         script_list = [script_parent]
         for child_solution, child_args in zip(child_solution_list, child_args):
             child_script = "\nmodule_logger().info(\"Started %s\")\n" % child_solution["name"]
@@ -347,13 +366,17 @@ class RunManager(metaclass=Singleton):
                 super(FileAction, self).__init__(option_strings, dest, **kwargs)
 
             def __call__(self, parser, namespace, values, option_string=None):
-                active_solution.get_arg(self.dest)['action'](values)
+                setattr(namespace, self.dest, active_solution.get_arg(self.dest)['action'](values))
 
         for element in active_solution["args"]:
-            parser.add_argument("--" + element["name"], action=FileAction)
-        parser.parse_known_args(args=sys.argv)
+            if 'action' in element.keys():
+                parser.add_argument("--" + element["name"], action=FileAction)
+            else:
+                parser.add_argument("--" + element["name"])
 
-    def resolve_args(self, parent_solution, steps_solution, steps, args=None):
+        return parser.parse_known_args(args=sys.argv)
+
+    def resolve_args(self, parent_solution, steps_solution, steps, step_solution_parsed_args, args=None):
         """Resolves arguments of all steps and their parents."""
         args = [] if args is None else args
         parsed_parent_args = None
@@ -369,8 +392,8 @@ class RunManager(metaclass=Singleton):
             step = steps[idx]
 
             if step:  # case steps argument resolving
-                step_args = self._get_args(step)
-            else:  # case single step album
+                step_args = self._get_args(step, step_solution_parsed_args[0])
+            else:  # case single step solution
                 step_args = args
 
             # add parent arguments to the step album object arguments
@@ -409,10 +432,10 @@ class RunManager(metaclass=Singleton):
         logging.pop_active_logger()
 
     @staticmethod
-    def _get_args(step):
+    def _get_args(step, args):
         """Parse callable arguments belonging to a step into a list of strings"""
         argv = [""]
         if 'args' in step:
             for param in step["args"]:
-                argv.append(f"--{param['name']}={str(param['value']())}")
+                argv.append(f"--{param['name']}={str(param['value'](args))}")
         return argv

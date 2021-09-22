@@ -24,6 +24,49 @@ class TestIntegrationRun(TestIntegrationCommon):
         # assert
         self.assertIsNone(album.get_active_solution())
 
+    def test_run_arguments(self):
+        p = self.get_test_solution_path("solution8_arguments.py")
+        self.fake_install(p)
+
+        sys.argv = ["", "run", p]  # required arguments not given
+
+        # run
+        with self.assertRaises(RuntimeError):
+            main()
+
+    def test_run_arguments_given(self):
+        # create test environment
+        p = self.get_test_solution_path("solution8_arguments.py")
+        self.fake_install(p)
+
+        # gather arguments
+        sys.argv = ["", "run", p,
+                    "--integer_arg1=5",
+                    "--integer_arg2=5000",
+                    "--string_arg1=MyChosenString",
+                    "--lambda_arg1=myFile"]
+
+        # run
+        self.assertIsNone(main())
+
+        log = self.captured_output.getvalue()
+
+        self.assertIn("integer_arg1", log)
+        self.assertIn("<class 'int'>", log)
+        self.assertIn("5", log)
+        self.assertIn("integer_arg2", log)
+        self.assertIn("<class 'int'>", log)
+        self.assertIn("5000", log)
+        self.assertIn("string_arg1", log)
+        self.assertIn("<class 'str'>", log)
+        self.assertIn("MyChosenString", log)
+        self.assertIn("lambda_arg1", log)
+        self.assertIn("<class 'str'>", log)
+        self.assertIn("MyChosenString", log)
+        self.assertIn("myFile.txt", log)
+        self.assertIn("<class 'NoneType'>", log)
+        self.assertIn("None", log)
+
     def test_run_with_group_name_version(self):
         # create test environment
         solution = self.fake_install(self.get_test_solution_path())
@@ -106,10 +149,6 @@ class TestIntegrationRun(TestIntegrationCommon):
             self.assertIsNone(album.get_active_solution())
 
     def test_run_with_grouped_steps(self):
-        # mock resolving
-        class TestCatalog:
-            id = "aCatalog"
-
         self.fake_install(self.get_test_solution_path("app1.py"))
         self.fake_install(self.get_test_solution_path("app2.py"))
         self.fake_install(self.get_test_solution_path("solution1_app1.py"))

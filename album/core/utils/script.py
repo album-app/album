@@ -48,18 +48,19 @@ def create_script(process_name, custom_code, argv):
         ArgumentError: When the arguments in the album are not supported
     """
     # Create script to run within target environment
-    script = ("import sys\n"
-               "import json\n"
-               "import argparse\n"
-               "from album_runner import *\n"
-               "from album_runner.logging import configure_logging, LogLevel, get_active_logger\n"
-               "module_logger = get_active_logger\n")
+    script = (
+        "import sys\n"
+        "import json\n"
+        "import argparse\n"
+        "from album_runner import *\n"
+        "from album_runner.logging import configure_logging, LogLevel, get_active_logger\n"
+        "module_logger = get_active_logger\n"
+    )
     # create logging
     parent_name = logging.get_active_logger().name
     script += "configure_logging(\"%s\", loglevel=%s, stream_handler=sys.stdout, " % (
         process_name, logging.to_loglevel(logging.get_loglevel_name())
-    ) + "formatter_string=\"" + r"%(name)s - %(levelname)s - %(message)s" \
-               + "\", parent_name=\"%s\")\n" % parent_name
+    ) + "formatter_string=\"" + r"%(name)s - %(levelname)s - %(message)s" + "\", parent_name=\"%s\")\n" % parent_name
     script += "print = module_logger().info\n"
     # This could have an issue with nested quotes
     argv_string = ", ".join(argv)
@@ -107,9 +108,6 @@ def __handle_args_string(args):
     # pass through to module
     if args == 'pass-through':
         __handle_pass_through()
-    # read arguments from file
-    elif args == 'read-from-file':
-        pass  # ToDo: discuss if we want this!
     else:
         message = 'Argument keyword \'%s\' not supported!' % args
         module_logger().error(message)
@@ -120,36 +118,46 @@ def __handle_pass_through():
     module_logger().info(
         'Argument parsing not specified in album solution. Passing arguments through...'
     )
-    pass
 
 
 def __handle_args_list(args, solution_object):
-    module_logger().debug(
-        'Add argument parsing for album solution to runtime script...')
+    module_logger().debug('Add argument parsing for album solution to runtime script...')
     # Add the argument handling
     script = "\nparser = argparse.ArgumentParser(description='Album Run %s')\n" % solution_object['name']
     for arg in args:
-        script += __create_action_class_string(arg)
+        if 'action' in arg.keys():
+            script += __create_action_class_string(arg)
         script += __create_parser_argument_string(arg)
-    script += "\nparser.parse_args()\n"
+    script += "\nget_active_solution().args = parser.parse_args()\n"
     return script
 
 
 def __create_parser_argument_string(arg):
-    class_name = __create_class_name(arg['name'])
-    return """
-parser.add_argument('--{name}',
-                    default='{default}',
-                    help='{description}',
-                    action={class_name})
-""".format(name=arg['name'],
-           default=arg['default'],
-           description=arg['description'],
-           class_name=class_name)
+    keys = arg.keys()
+
+    if 'default' in keys and 'action' in keys:
+        module_logger().warning("Default values cannot be automatically set when an action is provided! "
+                                "Ignoring default values...")
+
+    parse_arg = "parser.add_argument('--%s', " % arg['name']
+    if 'default' in keys:
+        parse_arg += "default='%s', " % arg['default']
+    if 'description' in keys:
+        parse_arg += "help='%s', " % arg['description']
+    if 'required' in keys:
+        parse_arg += "required=%s, " % arg['required']  # CAUTION: no ''! Boolean value
+    if 'type' in keys:
+        parse_arg += "type=%s, " % arg['type']  # CAUTION: no ''! type must be callable!
+    if 'action' in keys:
+        class_name = __get_action_class_name(arg['name'])
+        parse_arg += "action=%s, " % class_name  # CAUTION: no ''! action must be callable!
+    parse_arg += ")\n"
+
+    return parse_arg
 
 
 def __create_action_class_string(arg):
-    class_name = __create_class_name(arg['name'])
+    class_name = __get_action_class_name(arg['name'])
     return """
 class {class_name}(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
@@ -158,10 +166,11 @@ class {class_name}(argparse.Action):
         super({class_name}, self).__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        get_active_solution().get_arg(self.dest)['action'](values)
-    """.format(class_name=class_name)
+        setattr(namespace, self.dest, get_active_solution().get_arg(self.dest)['action'](values))
+        
+""".format(class_name=class_name)
 
 
-def __create_class_name(name):
+def __get_action_class_name(name):
     class_name = '%sAction' % name.capitalize()
     return class_name

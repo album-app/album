@@ -1,21 +1,23 @@
 from album_runner import setup
-global args
+from album_runner.api.run_helper import get_args
 
 
 def album_init():
-    global args
-    args = {}
     pass
 
 
 def album_run():
-    file = open(args.get("file"), "a")
+    args = get_args()
+
+    file = open(args.file, "a")
     file.write("solution3_noparent_run\n")
     file.close()
 
 
 def album_close():
-    file = open(args.get("file"), "a")
+    args = get_args()
+
+    file = open(args.file, "a")
     file.write("solution3_noparent_close\n")
     file.close()
 
@@ -41,9 +43,7 @@ setup(
     tested_album_version="0.1.1",
     args=[{
         "name": "file",
-        "default": "",
         "description": "",
-        "action": lambda path: args.update({"file": path})
     }],
     init=album_init,
     run=album_run,

@@ -52,20 +52,21 @@ class TestIntegrationCommon(unittest.TestCase):
 
     def tearDown(self) -> None:
         # clean all environments specified in test-resources
-        local_catalog_id = str(self.collection_manager.catalogs().get_local_catalog().catalog_id)
+        local_catalog_id = str(self.collection_manager.catalogs().get_local_catalog().name)
         env_names = [
-            local_catalog_id + "_group_name_0.1.0",
-            local_catalog_id + "_group_app1_0.1.0",
-            local_catalog_id + "_group_app2_0.1.0",
-            local_catalog_id + "_group_solution3_noparent_0.1.0",
-            local_catalog_id + "_group_solution6_noparent_test_0.1.0",
-            local_catalog_id + "_group_solution7_long_routines_0.1.0",
-            local_catalog_id + "_group_solution1_app1_0.1.0",
-            local_catalog_id + "_group_solution2_app1_0.1.0",
-            local_catalog_id + "_group_solution4_app2_0.1.0",
-            local_catalog_id + "_group_solution5_app2_0.1.0",
-            local_catalog_id + "_group_solution_with_steps_0.1.0",
-            local_catalog_id + "_solution_with_steps_grouped_0.1.0"
+            local_catalog_id + "_group_name_0_1_0",
+            local_catalog_id + "_group_app1_0_1_0",
+            local_catalog_id + "_group_app2_0_1_0",
+            local_catalog_id + "_group_solution1_app1_0_1_0",
+            local_catalog_id + "_group_solution2_app1_0_1_0",
+            local_catalog_id + "_group_solution3_noparent_0_1_0",
+            local_catalog_id + "_group_solution4_app2_0_1_0",
+            local_catalog_id + "_group_solution5_app2_0_1_0",
+            local_catalog_id + "_group_solution6_noparent_test_0_1_0",
+            local_catalog_id + "_group_solution7_long_routines_0_1_0",
+            local_catalog_id + "_group_solution8_arguments_0_1_0",
+            local_catalog_id + "_group_solution_with_steps_0_1_0",
+            local_catalog_id + "_solution_with_steps_grouped_0_1_0"
         ]
         for e in env_names:
             if CondaManager().environment_exists(e):
@@ -120,7 +121,7 @@ class TestIntegrationCommon(unittest.TestCase):
 
         local_catalog = self.collection_manager.catalogs().get_local_catalog()
         if create_environment:
-            env_name = "_".join([local_catalog.name, a["group"], a["name"], a["version"]])
+            env_name = "_".join([local_catalog.name, a.get_identifier()])
             Environment(None, env_name, "unusedCachePath").install()
 
         # add to collection, assign to local catalog

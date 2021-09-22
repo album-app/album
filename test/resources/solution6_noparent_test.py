@@ -1,35 +1,33 @@
-import sys
-
 from album_runner import setup
 import tempfile
 
-global args
+from album_runner.api.run_helper import get_args
 
 
 def album_init():
     print("solution6_noparent_test_init")
 
-    global args
-    args = {}
-    pass
-
 
 def album_run():
+    args = get_args()
+
     # log-output
     print("solution6_noparent_test_run")
 
     # log output in file passed as argument
-    file = open(args.get("file"), "a")
+    file = open(args.file, "a")
     file.write("solution6_noparent_test_run\n")
     file.close()
 
 
 def album_close():
+    args = get_args()
+
     # log-output
     print("solution6_noparent_test_close")
 
     # log output in file passed as argument
-    file = open(args.get("file"), "a")
+    file = open(args.file, "a")
     file.write("solution6_noparent_test_close\n")
     file.close()
 
@@ -50,11 +48,13 @@ def album_prepare_test():
 
 
 def album_test():
+    args = get_args()
+
     # log-output
     print("solution6_noparent_test_test")
 
     # here we load sys.argv
-    file = open(args.get("file"), "r")
+    file = open(args.file, "r")
     file_content = file.readlines()
     file.close()
     # and we do a test
@@ -85,9 +85,7 @@ setup(
     tested_album_version="0.1.1",
     args=[{
         "name": "file",
-        "default": "",
         "description": "",
-        "action": lambda path: args.update({"file": path})
     }],
     init=album_init,
     run=album_run,

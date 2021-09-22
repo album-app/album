@@ -5,8 +5,6 @@ global args
 
 
 def album_init():
-    global args
-    args = {}
     pass
 
 
