@@ -38,7 +38,6 @@
   cache:
     key: one-key-to-rule-them-all-windows
     paths:
-      - .cache\pip
       - .\download
 
 # Linux base template
@@ -75,7 +74,6 @@
     paths:
       - ${CONDA_PREFIX}/pkgs/*.tar.bz2
       - ${CONDA_PREFIX}/pkgs/urls.txt
-      - ${PIP_CACHE_DIR}
 
 # Macos base template
 #
