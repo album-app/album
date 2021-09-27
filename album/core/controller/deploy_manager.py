@@ -10,7 +10,7 @@ from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, zip_paths, copy_in_file
 from album.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push
-from album.core.utils.operations.resolve_operations import solution_to_group_name_version, get_zip_name
+from album.core.utils.operations.resolve_operations import solution_to_identity, get_zip_name
 from album_runner import logging
 
 module_logger = logging.get_active_logger
@@ -151,9 +151,8 @@ class DeployManager(metaclass=Singleton):
 
     def retrieve_head_name(self):
         """Retrieves the branch (head) name for the merge request of the solution file."""
-        return "_".join(
-            [self._active_solution["group"], self._active_solution["name"], self._active_solution["version"]]
-        )
+        identity = solution_to_identity(self._active_solution)
+        return "_".join([identity.group_path, identity.name_path, identity.version_path])
 
     def _create_merge_request(self, file_paths, dry_run=False, trigger_pipeline=True, email=None, username=None):
         """Creates a merge request to the catalog repository for the album object.
@@ -190,7 +189,7 @@ class DeployManager(metaclass=Singleton):
         """ Gets the absolute path to the zip."""
         return Path(self._catalog_local_src).joinpath(
             self._catalog.get_solution_zip_suffix(
-                solution_to_group_name_version(self._active_solution)
+                solution_to_identity(self._active_solution)
             )
         )
 
@@ -201,15 +200,17 @@ class DeployManager(metaclass=Singleton):
             The Path to the created markdown file.
 
         """
+        identity = solution_to_identity(self._active_solution)
+
         yaml_path = Path(self._catalog_local_src).joinpath(
             DefaultValues.catalog_yaml_prefix.value,
-            self._active_solution['group'],
-            self._active_solution["name"],
-            self._active_solution["version"],
-            "%s%s" % (self._active_solution['name'], ".yml")
+            identity.group_path,
+            identity.name_path,
+            identity.version_path,
+            "%s%s" % (identity.name_path, ".yml")
         )
 
-        module_logger().info('writing yaml file to: %s...' % yaml_path)
+        module_logger().info('Writing yaml file to: %s...' % yaml_path)
         write_dict_to_yml(yaml_path, self._active_solution.get_deploy_dict())
 
         return yaml_path
@@ -220,22 +221,22 @@ class DeployManager(metaclass=Singleton):
         Returns:
             The path to the docker file.
         """
-        gnv = solution_to_group_name_version(self._active_solution)
-        zip_name = get_zip_name(gnv)
+        identity = solution_to_identity(self._active_solution)
+        zip_name = get_zip_name(identity)
 
-        solution_path_suffix = Path("").joinpath(Configuration.get_solution_path_suffix(gnv))
+        solution_path_suffix = Path("").joinpath(Configuration.get_solution_path_suffix(identity))
         docker_file = Path(self._catalog_local_src).joinpath(solution_path_suffix, "Dockerfile")
 
         docker_file_stream = pkgutil.get_data('album.docker', 'Dockerfile_solution_template.txt').decode()
 
         docker_file_stream = docker_file_stream.replace("<version>", album.__version__)
         docker_file_stream = docker_file_stream.replace("<name>", zip_name)
-        docker_file_stream = docker_file_stream.replace("<run_name>", str(gnv))
+        docker_file_stream = docker_file_stream.replace("<run_name>", str(identity))
         author = self._active_solution.authors if self._active_solution.authors else "\"\""
         docker_file_stream = docker_file_stream.replace("<maintainer>", author)
 
         # replace template with entries and copy dockerfile to deploy_src
-        module_logger().info('writing docker file to: %s...' % str(docker_file))
+        module_logger().info('Writing docker file to: %s...' % str(docker_file))
         copy_in_file(docker_file_stream, docker_file)
 
         return docker_file
@@ -248,7 +249,7 @@ class DeployManager(metaclass=Singleton):
 
         """
         zip_path = self._get_absolute_zip_path()
-        module_logger().info('creating zip file in: %s...' % str(zip_path))
+        module_logger().info('Creating zip file in: %s...' % str(zip_path))
 
         if folder_path.is_dir():
             return zip_folder(folder_path, zip_path)
@@ -273,7 +274,7 @@ class DeployManager(metaclass=Singleton):
         cover_list = []
 
         if hasattr(self._active_solution, "covers"):
-            module_logger().info('copying cover file to: %s...' % str(target_path))
+            module_logger().info('Copying cover file to: %s...' % str(target_path))
             for cover in self._active_solution["covers"]:
                 cover_name = cover["source"]
                 cover_path = folder_path.joinpath(cover_name)  # relative paths only

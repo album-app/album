@@ -16,9 +16,9 @@ def main():
     ci_parser = create_parser()
 
     module_logger().info("Starting CI release cycle...")
-    args = ci_parser.parse_known_args()
+    args = ci_parser.parse_args()
 
-    logging.set_loglevel(args[0].log)
+    logging.set_loglevel(args.log)
 
     album_ci_command = ""
     try:
@@ -26,8 +26,7 @@ def main():
     except IndexError:
         ci_parser.error("Please provide a valid action!")
     module_logger().debug("Running %s command..." % album_ci_command)
-    sys.argv = [sys.argv[0]] + args[1]
-    args[0].func(args[0])  # execute entry point function
+    args.func(args)  # execute entry point function
 
 
 def create_parser():
@@ -46,7 +45,7 @@ def create_parser():
         'Needs the systems git configuration to be configured for ssh usage!'
     )
     p.add_argument(
-        '--ci_project_path',
+        '--ci-project-path',
         required=False,
         type=str,
         help='The project path of the git repository.'
@@ -90,11 +89,11 @@ def create_parser():
         '--trigger-pipeline',
         required=False,
         help='Trigger-CI-pipeline option. If True will trigger CI pipeline. '
-             'If program call is configured as CI pipeline itself, make sure call is not re-triggered!'
+             'If program call is configured as CI pipeline itself, make sure pipeline is not re-triggered!'
              'Default False. Choose between %s' %
              ", ".join([str(True), str(False)]),
         default=False,
-        type=(lambda choice: bool(choice)),
+        type=(lambda choice: choice.lower() in ['true', '1', 't', 'y', 'yes']),
     )
 
     return parser.parser
@@ -140,10 +139,10 @@ class AlbumCIParser(AlbumAP):
         parser.add_argument('src', type=str, help='Source of the catalog. Usually a git repository link.')
 
         parser.add_argument(
-            '--force_retrieve',
+            '--force-retrieve',
             required=False,
-            help='If True, download path for the catalog will emptied before retrieving the catalog.',
-            default=True,
+            help='If True, download path for the catalog will be force emptied before retrieving the catalog.',
+            default=False,
             type=bool,
         )
 
@@ -152,7 +151,7 @@ class AlbumCIParser(AlbumAP):
     def create_git_command_parser(self, command_name, command_function, command_help):
         parser = self.create_catalog_command_parser(command_name, command_function, command_help)
         parser.add_argument(
-            '--ci_user_name',
+            '--ci-user-name',
             required=False,
             type=str,
             help='Name to use for all ci operations. '
@@ -161,7 +160,7 @@ class AlbumCIParser(AlbumAP):
             default=os.getenv('CI_USER_NAME', None)
         )
         parser.add_argument(
-            '--ci_user_email',
+            '--ci-user-email',
             required=False,
             type=str,
             help='Email to use for all ci operations. '
@@ -175,7 +174,7 @@ class AlbumCIParser(AlbumAP):
     def create_branch_command_parser(self, command_name, command_function, command_help):
         parser = self.create_git_command_parser(command_name, command_function, command_help)
         parser.add_argument(
-            '--branch_name',
+            '--branch-name',
             required=True,
             type=str,
             help='The branch name of the solution to publish.'
@@ -188,7 +187,7 @@ class AlbumCIParser(AlbumAP):
             '--zenodo-base-url',
             required=False,
             type=str,
-            help='The base URL where to upload to. Either \"sandbox.zenodo.org\" or \"zenodo.org\"'
+            help='The base URL where to upload to. Either \"https://sandbox.zenodo.org\" or \"https://zenodo.org\"'
                  'Can be set via environment variable \"ZENODO_BASE_URL\".',
             default=os.getenv('ZENODO_BASE_URL', None)
         )
@@ -202,3 +201,6 @@ class AlbumCIParser(AlbumAP):
         )
 
         return parser
+
+if __name__ == '__main__':
+    main()

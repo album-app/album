@@ -5,8 +5,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from album.core.model.catalog_index import CatalogIndex
-from album.core.model.group_name_version import GroupNameVersion
-from album.core.utils.operations.resolve_operations import dict_to_group_name_version
+from album.core.model.identity import Identity
+from album.core.utils.operations.resolve_operations import dict_to_identity
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -104,7 +104,7 @@ class TestCatalogIndex(TestUnitCommon):
         solution_id1, _ = self.fill_solution()
 
         # call
-        solution = self.catalog_index.get_solution_by_group_name_version(GroupNameVersion("tsg", "tsn", "tsv"))
+        solution = self.catalog_index.get_solution_by_group_name_version(Identity("tsg", "tsn", "tsv"))
 
         # assert
         self.assertEqual(solution_id1, solution["solution_id"])
@@ -127,7 +127,7 @@ class TestCatalogIndex(TestUnitCommon):
         self.catalog_index._insert_solution(self.solution_default_dict)
 
         solution = self.catalog_index.get_solution_by_group_name_version(
-            dict_to_group_name_version(self.solution_default_dict)
+            dict_to_identity(self.solution_default_dict)
         )
         self.assertEqual("d1", solution["description"])
 
@@ -139,7 +139,7 @@ class TestCatalogIndex(TestUnitCommon):
 
         # assert
         updated_sol = self.catalog_index.get_solution_by_group_name_version(
-            dict_to_group_name_version(solution_update_default_dict)
+            dict_to_identity(solution_update_default_dict)
         )
 
         self.assertEqual("aNewD", updated_sol["description"])
@@ -163,10 +163,10 @@ class TestCatalogIndex(TestUnitCommon):
         self.catalog_index.remove_solution = remove_solution
 
         # call
-        self.catalog_index.remove_solution_by_group_name_version(GroupNameVersion("a", "b", "c"))
+        self.catalog_index.remove_solution_by_group_name_version(Identity("a", "b", "c"))
 
         # assert
-        get_solution_by_group_name_version.assert_called_once_with(GroupNameVersion("a", "b", "c"))
+        get_solution_by_group_name_version.assert_called_once_with(Identity("a", "b", "c"))
         remove_solution.assert_called_once_with(1)
 
     # ### catalog_features ###
@@ -179,7 +179,7 @@ class TestCatalogIndex(TestUnitCommon):
     def test_remove(self):
         pass
 
-    @patch("album.core.model.catalog_index.dict_to_group_name_version", return_value=GroupNameVersion("g", "n", "v"))
+    @patch("album.core.model.catalog_index.dict_to_identity", return_value=Identity("g", "n", "v"))
     def test_update(self, as_group_name_version):
         # mocks
         get_solution_by_group_name_version = MagicMock(return_value=None)
@@ -203,7 +203,7 @@ class TestCatalogIndex(TestUnitCommon):
         insert_solution.assert_called_once_with(attrs)
         update_solution.assert_not_called()
 
-    @patch("album.core.model.catalog_index.dict_to_group_name_version", return_value=GroupNameVersion("g", "n", "v"))
+    @patch("album.core.model.catalog_index.dict_to_identity", return_value=Identity("g", "n", "v"))
     def test_update_solution_exists(self, as_group_name_version):
         # mocks
         get_solution_by_group_name_version = MagicMock(return_value="aNiceSolution")

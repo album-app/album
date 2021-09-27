@@ -9,14 +9,14 @@ module_logger = get_active_logger
 def startup():
     __retrieve_logger()
     module_logger().info(
-        "Running album-ci version %s \n \n %s - contact via %s " %
+        "Running album-catalog-admin version %s \n \n %s - contact via %s " %
         (album.ci.__version__, album.ci.__author__, album.ci.__email__))
     main()
 
 
 def __retrieve_logger():
     """Retrieves the default album ci logger."""
-    logging.configure_logging('album_ci', loglevel=logging.LogLevel(debug_settings()))
+    logging.configure_root_logger(logging.LogLevel(debug_settings()))
 
 
 if __name__ == '__main__':

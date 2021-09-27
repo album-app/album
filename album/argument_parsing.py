@@ -51,7 +51,7 @@ def create_parser():
              'a step (True) or to wait for all steps to be prepared to run (False). Choose between %s.'
              ' Default is False' % ", ".join([str(True), str(False)]),
         default=False,
-        type=(lambda choice: bool(choice)))
+        type=(lambda choice: choice.lower() in ['true', '1', 't', 'y', 'yes']))
     parser.create_file_command_parser('repl', repl, 'get an interactive repl for an album solution')
     p = parser.create_file_command_parser('deploy', deploy, 'deploy an album solution')
     p.add_argument(
@@ -72,7 +72,7 @@ def create_parser():
         help='Boolean to indicate whether to trigger the CI of the catlog or not!'
              ' Choose between %s. Default is True' % ", ".join([str(True), str(False)]),
         default=True,
-        type=(lambda choice: bool(choice))
+        type=(lambda choice: choice.lower() in ['true', '1', 't', 'y', 'yes'])
     )
     p.add_argument(
         '--git-email',
@@ -96,7 +96,7 @@ def create_parser():
         'Boolean to additionally remove all album dependencies. Choose between %s'
         % ", ".join([str(True), str(False)]),
         default=False,
-        type=(lambda choice: bool(choice))
+        type=(lambda choice: choice.lower() in ['true', '1', 't', 'y', 'yes'])
     )
     parser.create_catalog_command_parser(
         'add-catalog', add_catalog,

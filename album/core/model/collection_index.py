@@ -2,7 +2,7 @@ import pkgutil
 from datetime import datetime
 
 from album.core.concept.database import Database
-from album.core.model.group_name_version import GroupNameVersion
+from album.core.model.identity import Identity
 from album.core.utils.operations.file_operations import get_dict_entry
 
 
@@ -454,21 +454,21 @@ class CollectionIndex(Database):
 
         return solution
 
-    def get_solution_by_catalog_grp_name_version(self, catalog_id, group_name_version: GroupNameVersion):
+    def get_solution_by_catalog_grp_name_version(self, catalog_id, identity: Identity):
         r = self.get_cursor().execute(
             "SELECT * FROM collection "
             "WHERE catalog_id=:catalog_id AND \"group\"=:group AND name=:name AND version=:version",
             {
                 "catalog_id": catalog_id,
-                "group": group_name_version.group,
-                "name": group_name_version.name,
-                "version": group_name_version.version,
+                "group": identity.group,
+                "name": identity.name,
+                "version": identity.version,
             }
         ).fetchall()
 
         if len(r) > 1:
             raise KeyError("Database error. Please reinstall the solution %s from catalog %s !"
-                           % (group_name_version.group, catalog_id))
+                           % (identity.group, catalog_id))
 
         installed_solution = None
         for row in r:
@@ -477,15 +477,15 @@ class CollectionIndex(Database):
 
         return installed_solution
 
-    def get_solutions_by_grp_name_version(self, group_name_version: GroupNameVersion):
+    def get_solutions_by_grp_name_version(self, identity: Identity):
         installed_solutions_list = []
         cursor = self.get_cursor()
         for row in cursor.execute(
                 "SELECT * FROM collection WHERE \"group\"=:group AND name=:name AND version=:version",
                 {
-                    "group": group_name_version.group,
-                    "name": group_name_version.name,
-                    "version": group_name_version.version,
+                    "group": identity.group,
+                    "name": identity.name,
+                    "version": identity.version,
                 }
         ).fetchall():
             solution = dict(row)
@@ -512,14 +512,14 @@ class CollectionIndex(Database):
             solutions_list.append(solution)
         return solutions_list
 
-    def update_solution(self, catalog_id, group_name_version: GroupNameVersion, solution_attrs, supported_attrs):
+    def update_solution(self, catalog_id, identity: Identity, solution_attrs, supported_attrs):
         exec_str = "UPDATE collection SET last_execution=:cur_date"
         exec_args = {
             "cur_date": datetime.now().isoformat(),
             "catalog_id": catalog_id,
-            "group": group_name_version.group,
-            "name": group_name_version.name,
-            "version": group_name_version.version
+            "group": identity.group,
+            "name": identity.name,
+            "version": identity.version
         }
 
         for key in supported_attrs:
@@ -537,14 +537,14 @@ class CollectionIndex(Database):
 
         self.get_connection().commit()
 
-    def add_or_replace_solution(self, catalog_id, group_name_version: GroupNameVersion, solution_attrs, supported_attrs):
-        solution = self.get_solution_by_catalog_grp_name_version(catalog_id, group_name_version)
+    def add_or_replace_solution(self, catalog_id, identity: Identity, solution_attrs, supported_attrs):
+        solution = self.get_solution_by_catalog_grp_name_version(catalog_id, identity)
         if solution:
-            self.remove_solution(catalog_id, group_name_version)
+            self.remove_solution(catalog_id, identity)
         self.insert_solution(catalog_id, solution_attrs)
 
-    def remove_solution(self, catalog_id, group_name_version: GroupNameVersion):
-        solution = self.get_solution_by_catalog_grp_name_version(catalog_id, group_name_version)
+    def remove_solution(self, catalog_id, identity: Identity):
+        solution = self.get_solution_by_catalog_grp_name_version(catalog_id, identity)
         if not solution:
             return
         solution_id = solution["collection_id"]
@@ -553,9 +553,9 @@ class CollectionIndex(Database):
             "WHERE catalog_id=:catalog_id AND \"group\"=:group AND name=:name AND version=:version",
             {
                 "catalog_id": catalog_id,
-                "group": group_name_version.group,
-                "name": group_name_version.name,
-                "version": group_name_version.version,
+                "group": identity.group,
+                "name": identity.name,
+                "version": identity.version,
             }
         )
 
@@ -759,10 +759,10 @@ class CollectionIndex(Database):
 
         return None
 
-    def is_installed(self, catalog_id, group_name_version: GroupNameVersion):
-        r = self.get_solution_by_catalog_grp_name_version(catalog_id, group_name_version)
+    def is_installed(self, catalog_id, identity: Identity):
+        r = self.get_solution_by_catalog_grp_name_version(catalog_id, identity)
         if not r:
-            raise LookupError(f"Solution {catalog_id}:{group_name_version} not found!")
+            raise LookupError(f"Solution {catalog_id}:{identity} not found!")
         return True if r["installed"] else False
 
     # ### catalog_collection features ###

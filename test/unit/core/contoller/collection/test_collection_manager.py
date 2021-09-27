@@ -11,8 +11,8 @@ from album.core.model.catalog import Catalog
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
-from album.core.model.group_name_version import GroupNameVersion
-from album.core.utils.operations.resolve_operations import dict_to_group_name_version
+from album.core.model.identity import Identity
+from album.core.utils.operations.resolve_operations import dict_to_identity
 from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
 
 
@@ -124,7 +124,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
 
         # assert
         path = self.collection_manager.catalogs().get_local_catalog().get_solution_path(
-            dict_to_group_name_version(self.solution_default_dict))
+            dict_to_identity(self.solution_default_dict))
         copy_folder_mock.assert_called_once_with("aPathToInstall", path, copy_root_folder=False)
         clean_resolve_tmp.assert_called_once()
 
@@ -199,8 +199,8 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         self.assertEqual(get_solution_file_mock.return_value, r.path)
         self.assertEqual(self.active_solution, r.active_solution)
 
-        get_solutions_by_grp_name_version.assert_called_once_with(GroupNameVersion("g", "n", "v"))
-        get_solution_file_mock.assert_called_once_with(GroupNameVersion("g", "n", "v"))
+        get_solutions_by_grp_name_version.assert_called_once_with(Identity("g", "n", "v"))
+        get_solution_file_mock.assert_called_once_with(Identity("g", "n", "v"))
         load_mock.assert_called_once_with("aValidPath")
         set_environment.assert_called_once_with(_catalog.name)
         get_catalog_by_id_mock.assert_called_once_with("aNiceId")
@@ -227,7 +227,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
             self.collection_manager.resolve_dependency_require_installation_and_load(
                 {"group": "g", "name": "n", "version": "v"})
 
-        get_solutions_by_grp_name_version.assert_called_once_with(GroupNameVersion("g", "n", "v"))
+        get_solutions_by_grp_name_version.assert_called_once_with(Identity("g", "n", "v"))
         resolve_directly.assert_not_called()
         load_mock.assert_not_called()
         set_environment.assert_not_called()

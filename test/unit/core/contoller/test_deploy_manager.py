@@ -6,7 +6,7 @@ from unittest.mock import patch, MagicMock, call
 from album.ci.utils.zenodo_api import ZenodoAPI
 from album.core.controller.deploy_manager import DeployManager
 from album.core.model.default_values import DefaultValues
-from album.core.model.group_name_version import GroupNameVersion
+from album.core.model.identity import Identity
 from test.unit.test_unit_common import TestGitCommon, EmptyTestClass
 
 
@@ -316,7 +316,7 @@ class TestDeployManager(TestGitCommon):
         # result
         r = Path(self.repo.working_tree_dir).joinpath(
             self.collection_manager.catalogs().get_local_catalog().get_solution_zip_suffix(
-                GroupNameVersion("tsg", "tsn", "tsv"))
+                Identity("tsg", "tsn", "tsv"))
         )
 
         # copy and zip a folder

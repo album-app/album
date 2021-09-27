@@ -52,8 +52,8 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
             self.name,
             str(self.path),
             self.src,
-            "--ci_user_name=myCiUserName",
-            "--ci_user_email=myCiUserEmail"
+            "--ci-user-name=myCiUserName",
+            "--ci-user-email=myCiUserEmail"
         ]
 
         # run
@@ -73,7 +73,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
             self.name,
             str(self.path),
             self.src,
-            "--ci_project_path=myGitGroup/myTestCatalog"
+            "--ci-project-path=myGitGroup/myTestCatalog"
         ]
 
         # run
@@ -91,7 +91,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
         branch_name = self.fake_deploy()
 
         # gather arguments
-        sys.argv = ["", "upload", self.name, str(self.path), self.src, "--branch_name=%s" % branch_name]
+        sys.argv = ["", "upload", self.name, str(self.path), self.src, "--branch-name=%s" % branch_name]
 
         # run
         self.assertIsNone(main())
@@ -101,7 +101,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
         branch_name = self.fake_deploy()
 
         # gather arguments
-        sys.argv = ["", "update", self.name, str(self.path), self.src, "--branch_name=%s" % branch_name]
+        sys.argv = ["", "update", self.name, str(self.path), self.src, "--branch-name=%s" % branch_name]
 
         # run
         self.assertIsNone(main())
@@ -111,7 +111,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
         branch_name = self.fake_deploy()
 
         # update index
-        sys.argv = ["", "update", self.name, str(self.path), self.src, "--branch_name=%s" % branch_name]
+        sys.argv = ["", "update", self.name, str(self.path), self.src, "--branch-name=%s" % branch_name]
         self.assertIsNone(main())
 
         # gather arguments
@@ -121,10 +121,10 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
             self.name,
             str(self.path),
             self.src,
-            "--branch_name=%s" % branch_name,
+            "--branch-name=%s" % branch_name,
             "--dry-run",
-            "--ci_user_name=myCiUserName",
-            "--ci_user_email=myCiUserEmail"
+            "--ci-user-name=myCiUserName",
+            "--ci-user-email=myCiUserEmail"
         ]
 
         # run

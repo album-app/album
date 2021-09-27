@@ -3,7 +3,7 @@ from pathlib import Path
 
 from album.core.concept.singleton import Singleton
 from album.core.model.default_values import DefaultValues
-from album.core.model.group_name_version import GroupNameVersion
+from album.core.model.identity import Identity
 from album.core.utils.operations.file_operations import create_paths_recursively, force_remove, get_dict_from_json
 from album_runner import logging
 
@@ -97,9 +97,14 @@ class Configuration(metaclass=Singleton):
         )
 
     @staticmethod
-    def get_solution_path_suffix(gnv: GroupNameVersion) -> Path:
+    def get_solution_path_suffix(identity: Identity) -> Path:
         """Returns the suffix path for a solution giving its group, name and version"""
-        return Path("").joinpath(DefaultValues.cache_path_solution_prefix.value, gnv.group, gnv.name, gnv.version)
+        return Path("").joinpath(
+            DefaultValues.cache_path_solution_prefix.value,
+            identity.group_path,
+            identity.name_path,
+            identity.version_path
+        )
 
     def get_cache_path_catalog(self, catalog_id):
         """Get the cache path to the catalog with a certain ID. Catalog independent!

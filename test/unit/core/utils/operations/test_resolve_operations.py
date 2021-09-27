@@ -6,10 +6,10 @@ from unittest.mock import patch
 
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
-from album.core.model.group_name_version import GroupNameVersion
+from album.core.model.identity import Identity
 
 from album.core.utils.operations.resolve_operations import get_doi_from_input, get_cgnv_from_input, get_gnv_from_input, \
-    get_attributes_from_string, _check_file_or_url, dict_to_group_name_version
+    get_attributes_from_string, _check_file_or_url, dict_to_identity
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -248,12 +248,12 @@ class TestResolveOperations(TestUnitCommon):
         get_gnv_from_input_mock.assert_called_once()
 
     def test_as_group_name_version(self):
-        self.assertEqual(GroupNameVersion(self.solution_default_dict["group"], self.solution_default_dict["name"],
-                              self.solution_default_dict["version"]), dict_to_group_name_version(self.solution_default_dict))
+        self.assertEqual(Identity(self.solution_default_dict["group"], self.solution_default_dict["name"],
+                                  self.solution_default_dict["version"]), dict_to_identity(self.solution_default_dict))
         sol_dict = deepcopy(self.solution_default_dict)
         sol_dict.pop("version")
         with self.assertRaises(ValueError):
-            self.assertTrue(dict_to_group_name_version(sol_dict))
+            self.assertTrue(dict_to_identity(sol_dict))
 
 
 if __name__ == '__main__':

@@ -6,11 +6,11 @@ from album.core.concept.singleton import Singleton
 from album.core.model.catalog import Catalog
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
-from album.core.model.group_name_version import GroupNameVersion
+from album.core.model.identity import Identity
 from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_dict_entry
 from album.core.utils.operations.git_operations import checkout_branch, add_files_commit_and_push, \
     retrieve_single_file_from_head, configure_git
-from album.core.utils.operations.resolve_operations import get_zip_name, get_zip_name_prefix, dict_to_group_name_version
+from album.core.utils.operations.resolve_operations import get_zip_name, get_zip_name_prefix, dict_to_identity
 from album_runner import logging
 
 module_logger = logging.get_active_logger
@@ -27,15 +27,16 @@ class ReleaseManager(metaclass=Singleton):
         self.catalog_path = catalog_path
         self.catalog_src = catalog_src
 
-        self.catalog = Catalog(None, name=self.catalog_name, path=catalog_path, src=self.catalog_src)
-        self.catalog_repo = self.catalog.retrieve_catalog(force_retrieve=force_retrieve)
-        self.catalog.load_index()
-
         self.configuration = Configuration()
         if not self.configuration.is_setup:
             self.configuration.setup()
 
+        self.catalog = Catalog(None, name=self.catalog_name, path=catalog_path, src=self.catalog_src)
+        self.catalog_repo = self.catalog.retrieve_catalog(force_retrieve=force_retrieve, update=False)
+        self.catalog.load_index()
+
     def configure_repo(self, user_name, user_email):
+        module_logger().info("Configuring repository using:\n\tusername:\t%s\n\temail:\t%s" % (user_name, user_email))
         configure_git(self.catalog_repo, user_email, user_name)
 
     def configure_ssh(self, project_path):
@@ -45,11 +46,13 @@ class ReleaseManager(metaclass=Singleton):
         if not self.catalog_repo.remote().url.startswith("git"):
             self.catalog_repo.remote().set_url(get_ssh_url(project_path, self.catalog_src))
 
-    @staticmethod
-    def _get_zip_path(group_name_version: GroupNameVersion):
-        zip_name = get_zip_name(group_name_version)
-        return Path("").joinpath(DefaultValues.cache_path_solution_prefix.value, group_name_version.group,
-                                 group_name_version.name, group_name_version.version, zip_name)
+    def _get_zip_path(self, identity: Identity):
+        zip_name = get_zip_name(identity)
+        return self.configuration.get_solution_path_suffix(identity).joinpath(zip_name)
+
+    def _get_docker_path(self, identity: Identity):
+        docker_name = "Dockerfile"
+        return self.configuration.get_solution_path_suffix(identity).joinpath(docker_name)
 
     @staticmethod
     def _get_yml_dict(head):
@@ -59,6 +62,8 @@ class ReleaseManager(metaclass=Singleton):
         return [yml_dict, yml_file_path]
 
     def zenodo_publish(self, branch_name, zenodo_base_url, zenodo_access_token):
+        zenodo_base_url, zenodo_access_token = self.__prepare_zenodo_arguments(zenodo_base_url, zenodo_access_token)
+
         zenodo_manager = ZenodoManager(zenodo_base_url, zenodo_access_token)
 
         head = checkout_branch(self.catalog_repo, branch_name)
@@ -66,18 +71,23 @@ class ReleaseManager(metaclass=Singleton):
         # get the yml file to release from current branch
         yml_dict, yml_file_path = self._get_yml_dict(head)
 
-        # retrieve the deposit from zenodo by id
-        zip_path = self._get_zip_path(dict_to_group_name_version(yml_dict))
-        deposit_name = get_zip_name_prefix(dict_to_group_name_version(yml_dict))
+        # checkout files
+        zip_path = self._get_zip_path(dict_to_identity(yml_dict))
+        docker_path = self._get_docker_path(dict_to_identity(yml_dict))
+
+        # query deposit
+        deposit_name = get_zip_name_prefix(dict_to_identity(yml_dict))
         deposit_id = get_dict_entry(yml_dict, "deposit_id", allow_none=False)
         deposit = zenodo_manager.zenodo_get_unpublished_deposit_by_id(
-            deposit_name, deposit_id, expected_files=[zip_path]
+            deposit_name, deposit_id, expected_files=[zip_path, docker_path]
         )
 
         # publish to zenodo
         deposit.publish()
 
     def zenodo_upload(self, branch_name, zenodo_base_url, zenodo_access_token):
+        zenodo_base_url, zenodo_access_token = self.__prepare_zenodo_arguments(zenodo_base_url, zenodo_access_token)
+
         zenodo_manager = ZenodoManager(zenodo_base_url, zenodo_access_token)
 
         head = checkout_branch(self.catalog_repo, branch_name)
@@ -92,11 +102,15 @@ class ReleaseManager(metaclass=Singleton):
             deposit_id = None
 
         # extract deposit name
-        deposit_name = get_zip_name_prefix(dict_to_group_name_version(yml_dict))
+        deposit_name = get_zip_name_prefix(dict_to_identity(yml_dict))
 
         # get the solution zip to release
-        zip_path = self._get_zip_path(dict_to_group_name_version(yml_dict))
+        zip_path = self._get_zip_path(dict_to_identity(yml_dict))
         solution_zip = retrieve_single_file_from_head(head, str(zip_path))
+
+        # get the docker file
+        docker_path = self._get_docker_path(dict_to_identity(yml_dict))
+        docker_file = retrieve_single_file_from_head(head, str(docker_path))
 
         # get the release deposit. Either a new one or an existing one to perform an update on
         deposit = zenodo_manager.zenodo_get_deposit(deposit_name, deposit_id, expected_files=[solution_zip])
@@ -107,7 +121,24 @@ class ReleaseManager(metaclass=Singleton):
         write_dict_to_yml(yml_file_path, yml_dict)
 
         # zenodo upload solution but not publish
-        zenodo_manager.zenodo_upload(deposit, solution_zip)
+        deposit = zenodo_manager.zenodo_upload(deposit, solution_zip)
+        zenodo_manager.zenodo_upload(deposit, docker_file)
+
+    @staticmethod
+    def __prepare_zenodo_arguments(zenodo_base_url: str, zenodo_access_token: str):
+        if zenodo_base_url is None or zenodo_access_token is None:
+            raise RuntimeError('Zenodo base URL or Zenodo access token invalid! '
+                               'See https://zenodo.org/ documentation for information!')
+
+        zenodo_base_url = zenodo_base_url.strip()
+        zenodo_access_token = zenodo_access_token.strip()
+
+        if zenodo_base_url == "" or zenodo_access_token == "":
+            raise RuntimeError("Empty zenodo base_url or zenodo_access_token!")
+
+        module_logger().info("Using zenodo URL: %s" % zenodo_base_url)
+
+        return zenodo_base_url, zenodo_access_token
 
     def update_index(self, branch_name):
         head = checkout_branch(self.catalog_repo, branch_name)
@@ -121,16 +152,21 @@ class ReleaseManager(metaclass=Singleton):
     def push_changes(self, branch_name, dry_run, trigger_pipeline, ci_user_name, ci_user_email):
         head = checkout_branch(self.catalog_repo, branch_name)
 
-        yml_dict, yml_file_path = self._get_yml_dict(head)
+        yml_dict, yml_file = self._get_yml_dict(head)
 
-        zip_path = self._get_zip_path(dict_to_group_name_version(yml_dict))
+        zip_path = self._get_zip_path(dict_to_identity(yml_dict))
         solution_zip = retrieve_single_file_from_head(head, str(zip_path))
 
-        commit_files = [yml_file_path, solution_zip, self.catalog.index_path, self.catalog.solution_list_path]
+        docker_path = self._get_docker_path(dict_to_identity(yml_dict))
+        docker_file = retrieve_single_file_from_head(head, str(docker_path))
+
+        commit_files = [
+            yml_file, solution_zip, docker_file
+        ]
         if not all([Path(f).is_file() for f in commit_files]):
             raise FileNotFoundError("Invalid deploy request or broken catalog repository!")
 
-        commit_msg = "CI updated %s" % branch_name
+        commit_msg = "Updated %s" % branch_name
         add_files_commit_and_push(
             head,
             commit_files,

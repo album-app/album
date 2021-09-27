@@ -15,7 +15,7 @@ from album.core.controller.task_manager import TaskManager
 from album.core.controller.test_manager import TestManager
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
-from album.core.model.group_name_version import GroupNameVersion
+from album.core.model.identity import Identity
 from album.core.model.task import Task
 from album_runner import logging
 
@@ -82,7 +82,7 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route('/run/<catalog>/<group>/<name>/<version>')
         def run(catalog, group, name, version):
             module_logger().info(f"Server call: /run/{catalog}/{group}/{name}/{version}")
-            task = self._run_solution_method_async(catalog, GroupNameVersion(group, name, version), RunManager().run)
+            task = self._run_solution_method_async(catalog, Identity(group, name, version), RunManager().run)
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/install/<group>/<name>/<version>', defaults={'catalog': None})
@@ -90,7 +90,7 @@ class AlbumServer(metaclass=Singleton):
         def install(catalog, group, name, version):
             task = self._run_solution_method_async(
                 catalog,
-                GroupNameVersion(group, name, version),
+                Identity(group, name, version),
                 InstallManager().install
             )
             return {"id": task.id, "msg": "process started"}
@@ -100,7 +100,7 @@ class AlbumServer(metaclass=Singleton):
         def uninstall(catalog, group, name, version):
             task = self._run_solution_method_async(
                 catalog,
-                GroupNameVersion(group, name, version),
+                Identity(group, name, version),
                 InstallManager().uninstall
             )
             return {"id": task.id, "msg": "process started"}
@@ -108,7 +108,7 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route('/test/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/test/<catalog>/<group>/<name>/<version>')
         def test(catalog, group, name, version):
-            task = self._run_solution_method_async(catalog, GroupNameVersion(group, name, version), TestManager().test)
+            task = self._run_solution_method_async(catalog, Identity(group, name, version), TestManager().test)
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/deploy')
@@ -141,7 +141,7 @@ class AlbumServer(metaclass=Singleton):
             args = [target_dir, new_name]
             task = self._run_solution_method_async(
                 catalog,
-                GroupNameVersion(group, name, version),
+                Identity(group, name, version),
                 CloneManager().clone, args
             )
             return {"id": task.id, "msg": "process started"}
@@ -190,7 +190,7 @@ class AlbumServer(metaclass=Singleton):
                 catalog_id = catalog_manager.catalog_handler.get_by_name(catalog).catalog_id
                 installed = catalog_manager.catalog_collection.is_installed(
                     catalog_id,
-                    GroupNameVersion(group, name, version)
+                    Identity(group, name, version)
                 )
                 return {
                     "installed": installed
@@ -264,7 +264,7 @@ class AlbumServer(metaclass=Singleton):
             func()
             return 'Server shutting down...'
 
-    def _run_solution_method_async(self, catalog, group_name_version: GroupNameVersion, method, args=None):
+    def _run_solution_method_async(self, catalog, group_name_version: Identity, method, args=None):
         task = Task()
         if catalog is None:
             solution_path = str(group_name_version)

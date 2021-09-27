@@ -16,7 +16,7 @@ from album.core.controller.collection.collection_manager import CollectionManage
 from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
 from album.core.utils.operations.file_operations import copy
-from album.core.utils.operations.resolve_operations import solution_to_group_name_version
+from album.core.utils.operations.resolve_operations import solution_to_identity
 from album_runner.logging import configure_logging, LogLevel
 from test.global_exception_watcher import GlobalExceptionWatcher
 from test.unit.test_unit_common import TestUnitCommon

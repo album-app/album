@@ -42,7 +42,7 @@ def checkout_branch(git_repo, branch_name):
             except IndexError:
                 module_logger().debug("Not found! Trying next...")
         module_logger().debug("Nothing left to try...")
-        raise IndexError("Branch %s not in repository!" % branch_name) from e
+        raise IndexError("Branch \"%s\" not in repository!" % branch_name) from e
 
 
 def retrieve_single_file_from_head(head, pattern):
@@ -128,19 +128,26 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, trig
             # todo: nice catching here?
             repo.git.add(file_path)
 
+        # push options
+        cmd_option = ['--set-upstream']
+
+        if trigger_pipeline:
+            cmd_push_option = ['--push-option=merge_request.create']
+        else:
+            cmd_push_option = ['--push-option=ci.skip']
+
+            # sometimes not working - prepend [skip ci] in message
+            # see https://gitlab.com/gitlab-org/gitlab/-/issues/27955
+            commit_message = "[skip ci] " + commit_message
+
+        cmd = cmd_option + cmd_push_option + ['-f', 'origin', head]
+
+        module_logger().debug("Running command: repo.git.push(%s)..." % (", ".join(str(x) for x in cmd)))
+
+        # commit
         repo.git.commit(m=commit_message)
 
         try:  # see https://docs.gitlab.com/ee/user/project/push_options.html
-            cmd_option = ['--set-upstream']
-
-            if not trigger_pipeline:
-                cmd_push_option = ['--push-option=ci.skip']
-            else:
-                cmd_push_option = ['--push-option=merge_request.create']
-
-            cmd = cmd_option + cmd_push_option + ['-f', 'origin', head]
-
-            module_logger().debug("Running command: repo.git.push(%s)..." % (", ".join(str(x) for x in cmd)))
             if push:
                 repo.git.push(cmd)
 
@@ -167,10 +174,12 @@ def configure_git(repo, email, username):
 
     """
     if username:
+        module_logger().info("Set username to \"%s\"" % username)
         repo.config_writer().set_value("user", "name", username).release()
     if email:
+        module_logger().info("Set email to \"%s\"" % email)
         repo.config_writer().set_value("user", "email", email).release()
-    if not (username and email):
+    if not username and not email:
         module_logger().warning("Neither username nor email given! Doing nothing...")
 
     return repo
@@ -187,7 +196,7 @@ def create_new_head(repo, name):
     return new_head
 
 
-def download_repository(repo_url, git_folder_path, force_download=True):
+def download_repository(repo_url, git_folder_path, force_download=True, update=True):
     """Downloads or updates the repository behind a url, returns repository object on success.
 
     If repository already cached, head is detached to origin HEAD for a clean start for new branches.
@@ -199,6 +208,8 @@ def download_repository(repo_url, git_folder_path, force_download=True):
             The complete path to clone to
         force_download:
             Boolean, indicates whether to force delete existing folder before cloning
+        update:
+            Flag to indicate whether to hard reset the repo upon initialization or not.
 
     Returns:
         The repository object
@@ -209,9 +220,12 @@ def download_repository(repo_url, git_folder_path, force_download=True):
 
     # update existing repo or clone new repo
     if Path.exists(git_folder_path.joinpath(".git")):
-        module_logger().info("Found existing repository in %s. Trying to update..." % git_folder_path)
+        module_logger().info("Found existing repository in %s..." % git_folder_path)
 
-        repo = init_repository(git_folder_path)
+        if update:
+            repo = init_repository(git_folder_path)
+        else:
+            repo = git.Repo(git_folder_path)
     else:
 
         if force_download:
@@ -224,6 +238,7 @@ def download_repository(repo_url, git_folder_path, force_download=True):
 
 
 def init_repository(path):
+    module_logger().info("Freshly initialize the repository...")
     path = Path(path)
 
     repo = git.Repo(path)

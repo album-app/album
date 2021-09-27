@@ -30,7 +30,7 @@ class TestGitOperations(TestGitCommon):
         with self.assertRaises(IndexError) as context:
             git_op.checkout_branch(self.repo, "NoValidBranch")
 
-        self.assertTrue("Branch NoValidBranch not in repository!" in str(context.exception))
+        self.assertTrue("Branch \"NoValidBranch\" not in repository!" in str(context.exception))
 
     def test__retrieve_single_file(self):
         file = self.create_tmp_repo()
