@@ -5,7 +5,6 @@ from typing import Optional
 
 import validators
 
-from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core.controller.migration_manager import MigrationManager
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.configuration import Configuration
@@ -44,7 +43,7 @@ def get_solution_src(src, group_name_version: GroupNameVersion):
     """Gets the download link for a solution."""
     # todo: "main" is still hardcoded! :(
     return re.sub(r"\.git$", "", src) + "/-/raw/main/solutions/%s/%s/%s/%s" \
-           % (group_name_version.group, group_name_version.name, group_name_version.version, 
+           % (group_name_version.group, group_name_version.name, group_name_version.version,
               "%s_%s_%s%s" % (group_name_version.group, group_name_version.name, group_name_version.version, ".zip"))
 
 
@@ -211,47 +210,10 @@ class Catalog:
             The absolute path to the cache folder of the solution.
 
         """
-        return Path("").joinpath(Configuration.get_solution_path_suffix(group_name_version), get_zip_name(group_name_version))
-
-    # todo: write tests
-    def download_solution_via_doi(self, doi, solution_name):
-        """Downloads the solution via its doi.
-
-        Args:
-            doi:
-                The DOI of the solution.
-            solution_name:
-                The name of the solution
-
-        Returns:
-            The absolute path of the downloaded solution.
-
-        Raises:
-            RuntimeError if the solution cannot be found in the online resource
-                         if the DOI is not unique.
-
-        """
-        raise NotImplementedError
-        # Todo: replace with non-sandbox version
-        zenodo_api = ZenodoAPI(ZenodoDefaultUrl.sandbox_url.value, None)
-
-        # todo: maybe there is a nicer way than parsing stuff from the DOI?
-        record_id = doi.split(".")[-1]
-        record_list = zenodo_api.records_get(record_id)
-
-        if not record_list:
-            raise RuntimeError("Could not receive solution from doi %s. Aborting..." % doi)
-
-        if len(record_list) > 1:
-            raise RuntimeError("Doi %s is not unique. Aborting..." % doi)
-
-        record = record_list[0]
-
-        url = record.files[solution_name].get_download_link()
-
-        download_resource(url, self.get_doi_cache_file(doi))
-
-        return self.path.joinpath(self.doi_solution_prefix, doi)
+        return Path("").joinpath(
+            Configuration.get_solution_path_suffix(group_name_version),
+            get_zip_name(group_name_version)
+        )
 
     def retrieve_solution(self, group_name_version: GroupNameVersion):
         """Downloads or copies a solution from the catalog to the local resource (cache path of the catalog).
@@ -284,7 +246,8 @@ class Catalog:
     def load_index(self):
         """Loads the index from file or src. If a file and src exists routine tries to update the index."""
         if self.is_cache():
-            raise RuntimeError("Cache catalog does not have it's own index - all solutions are indexed in the collection index.")
+            raise RuntimeError(
+                "Cache catalog does not have it's own index - all solutions are indexed in the collection index.")
         if not self.index_path.is_file():  # only download/copy from src if index does not exist yet
             if self.is_local():  # case where src is not downloadable
                 # copy catalog from local resource to cache location
@@ -304,10 +267,12 @@ class Catalog:
         else:
             # no meta file found / dict is empty, just use default version
             meta_version = CatalogIndex.version
-            module_logger().warning(f"No meta information for catalog {self.name} found, assuming database version {meta_version}")
+            module_logger().warning(
+                f"No meta information for catalog {self.name} found, assuming database version {meta_version}")
 
         if database_version != meta_version:
-            raise ValueError(f"Catalog meta information (version {meta_version}) unequal to actual version {database_version}!")
+            raise ValueError(
+                f"Catalog meta information (version {meta_version}) unequal to actual version {database_version}!")
 
         return database_version
 
@@ -365,9 +330,10 @@ class Catalog:
 
         if not self.catalog_index:
             self.load_index()
-        if self.catalog_index.get_solution_by_group_name_version(
-                dict_to_group_name_version(solution_attrs)
-        ) is not None:
+
+        lookup_solution = self.catalog_index.get_solution_by_group_name_version(
+            dict_to_group_name_version(solution_attrs))
+        if lookup_solution:
             if force_overwrite:
                 module_logger().warning("Solution already exists! Overwriting...")
             else:
@@ -419,9 +385,11 @@ class Catalog:
     def copy_index_from_cache_to_src(self):
         """Copy the index file if a catalog and its metadata from the catalog cache folder into the source folder."""
         src_path_index = Path(self.src).joinpath(DefaultValues.catalog_index_file_name.value)
+
         if not src_path_index.exists():
             if not self.index_path.parent.exists():
                 self.index_path.parent.mkdir(parents=True)
+
         copy(self.index_path, src_path_index)
         src_path_solution_list = Path(self.src).joinpath(DefaultValues.catalog_solution_list_file_name.value)
         copy(self.solution_list_path, src_path_solution_list)
@@ -478,7 +446,8 @@ class Catalog:
             _, meta_src = get_index_dir(identifier)
             if meta_src.exists():
                 meta_file = copy(
-                    meta_src, Configuration().cache_path_download.joinpath(DefaultValues.catalog_index_metafile_json.value)
+                    meta_src,
+                    Configuration().cache_path_download.joinpath(DefaultValues.catalog_index_metafile_json.value)
                 )
             else:
                 raise RuntimeError("Cannot retrieve meta information for the catalog!")

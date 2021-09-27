@@ -118,7 +118,9 @@ class CollectionManager(metaclass=Singleton):
         return resolve_result
 
     def resolve_download_and_load(self, str_input) -> ResolveResult:
-        """
+        """Resolves a string input and loads its content.
+
+        Downloads a catalog if not already cached.
 
         Args:
             str_input:
@@ -193,7 +195,6 @@ class CollectionManager(metaclass=Singleton):
             solution_entry = self._search_local_file(path)  # requires loading
 
             catalog = self.catalog_handler.get_local_catalog()
-            resolve = ResolveResult(path=path, catalog=catalog, solution_attrs=solution_entry)
         else:
             solution_entry = self._search(str_input)
 
@@ -202,8 +203,9 @@ class CollectionManager(metaclass=Singleton):
 
             catalog = self.catalog_handler.get_by_id(solution_entry["catalog_id"])
 
-            solution_file = catalog.get_solution_file(dict_to_group_name_version(solution_entry))
-            resolve = ResolveResult(path=solution_file, catalog=catalog, solution_attrs=solution_entry)
+            path = catalog.get_solution_file(dict_to_group_name_version(solution_entry))
+
+        resolve = ResolveResult(path=path, catalog=catalog, solution_attrs=solution_entry)
 
         return resolve
 

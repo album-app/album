@@ -139,6 +139,14 @@ class AlbumCIParser(AlbumAP):
         parser.add_argument('path', type=str, help='Path of the catalog repository. Can be an empty folder.')
         parser.add_argument('src', type=str, help='Source of the catalog. Usually a git repository link.')
 
+        parser.add_argument(
+            '--force_retrieve',
+            required=False,
+            help='If True, download path for the catalog will emptied before retrieving the catalog.',
+            default=True,
+            type=bool,
+        )
+
         return parser
 
     def create_git_command_parser(self, command_name, command_function, command_help):

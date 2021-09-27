@@ -4,6 +4,7 @@ from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.ci_utils import get_ssh_url
 from album.core.concept.singleton import Singleton
 from album.core.model.catalog import Catalog
+from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.model.group_name_version import GroupNameVersion
 from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_dict_entry
@@ -16,15 +17,23 @@ module_logger = logging.get_active_logger
 
 
 class ReleaseManager(metaclass=Singleton):
+    """Class for handling a catalog as administrator."""
 
-    def __init__(self, catalog_name, catalog_path, catalog_src):
+    # Singletons
+    configuration = None
+
+    def __init__(self, catalog_name, catalog_path, catalog_src, force_retrieve):
         self.catalog_name = catalog_name
         self.catalog_path = catalog_path
         self.catalog_src = catalog_src
 
         self.catalog = Catalog(None, name=self.catalog_name, path=catalog_path, src=self.catalog_src)
-        self.catalog_repo = self.catalog.retrieve_catalog(force_retrieve=True)
+        self.catalog_repo = self.catalog.retrieve_catalog(force_retrieve=force_retrieve)
         self.catalog.load_index()
+
+        self.configuration = Configuration()
+        if not self.configuration.is_setup:
+            self.configuration.setup()
 
     def configure_repo(self, user_name, user_email):
         configure_git(self.catalog_repo, user_email, user_name)

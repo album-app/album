@@ -14,7 +14,7 @@ class CollectionIndex(Database):
         super().__init__(path)
 
     def create(self):
-        data = pkgutil.get_data('album.core', 'database/catalog_collection_schema.sql')
+        data = pkgutil.get_data('album.core.database', 'catalog_collection_schema.sql')
         self.get_cursor().executescript(data.decode("utf-8"))
         self.update_name_version(self.name, self.version)
         self.get_connection().commit()

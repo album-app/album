@@ -226,7 +226,7 @@ class DeployManager(metaclass=Singleton):
         solution_path_suffix = Path("").joinpath(Configuration.get_solution_path_suffix(gnv))
         docker_file = Path(self._catalog_local_src).joinpath(solution_path_suffix, "Dockerfile")
 
-        docker_file_stream = pkgutil.get_data('docker', 'Dockerfile_solution_template').decode()
+        docker_file_stream = pkgutil.get_data('album.docker', 'Dockerfile_solution_template.txt').decode()
 
         docker_file_stream = docker_file_stream.replace("<version>", album.__version__)
         docker_file_stream = docker_file_stream.replace("<name>", zip_name)
