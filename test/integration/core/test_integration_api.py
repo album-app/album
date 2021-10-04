@@ -3,16 +3,10 @@ import sys
 import unittest
 from pathlib import Path
 
-from album.core.controller.clone_manager import CloneManager
-from album.core.controller.collection.collection_manager import CollectionManager
-from album.core.controller.deploy_manager import DeployManager
-from album.core.controller.install_manager import InstallManager
-from album.core.controller.run_manager import RunManager
-from album.core.controller.test_manager import TestManager
-from album.core.model.configuration import Configuration
+from album import Album
 from album.core.model.default_values import DefaultValues
 from album.core.model.group_name_version import GroupNameVersion
-from album_runner import logging, module_logger
+from album_runner import logging
 from album_runner.logging import LogLevel
 from test.integration.test_integration_common import TestIntegrationCommon
 
@@ -22,32 +16,28 @@ class TestIntegrationAPI(TestIntegrationCommon):
     def test_api(self):
 
         logging.set_loglevel(LogLevel.INFO)
-        logger = module_logger()
-        collection_manager = CollectionManager()
-        clone_manager = CloneManager()
-        deploy_manager = DeployManager()
-        install_manager = InstallManager()
-        run_manager = RunManager()
-        test_manager = TestManager()
+        logger = logging.get_active_logger()
+
+        album = Album()
 
         # list index
-        catalogs_as_dict = collection_manager.get_index_as_dict()
+        catalogs_as_dict = album.collection_manager().get_index_as_dict()
         logger.info(json.dumps(catalogs_as_dict, sort_keys=True, indent=4))
 
         # list catalogs without solutions
-        catalogs_as_dict = collection_manager.catalogs().get_all_as_dict()
+        catalogs_as_dict = album.collection_manager().catalogs().get_all_as_dict()
         logger.info(json.dumps(catalogs_as_dict, sort_keys=True, indent=4))
 
         # list configuration
-        logger.info(f"album config path: {Configuration().configuration_file_path}")
-        logger.info(f"album cache base: {Configuration().base_cache_path}")
+        logger.info(f"album config path: {album.configuration().configuration_file_path}")
+        logger.info(f"album cache base: {album.configuration().base_cache_path}")
 
         # add remote catalog
         remote_catalog = "https://gitlab.com/album-app/catalogs/templates/catalog"
-        collection_manager.catalogs().add_by_src(remote_catalog)
+        album.collection_manager().catalogs().add_by_src(remote_catalog)
 
         # remove remote catalog
-        collection_manager.catalogs().remove_from_collection_by_src(remote_catalog)
+        album.collection_manager().catalogs().remove_from_collection_by_src(remote_catalog)
 
         # clone catalog template
         local_catalog_name = "mycatalog"
@@ -55,7 +45,7 @@ class TestIntegrationAPI(TestIntegrationCommon):
         local_catalogs = str(local_catalogs_path)
         local_catalog_path = local_catalogs_path.joinpath(local_catalog_name)
 
-        clone_manager.clone("template:catalog", local_catalogs, local_catalog_name)
+        album.clone_manager().clone("template:catalog", local_catalogs, local_catalog_name)
 
         self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), local_catalog_path, False)
         self.assertTrue(local_catalogs_path.exists())
@@ -63,7 +53,7 @@ class TestIntegrationAPI(TestIntegrationCommon):
         self.assertTrue(local_catalog_path.joinpath(DefaultValues.catalog_index_metafile_json.value).exists())
 
         # add catalog
-        catalog = collection_manager.catalogs().add_by_src(local_catalog_path)
+        catalog = album.collection_manager().catalogs().add_by_src(local_catalog_path)
 
         self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), str(local_catalog_path), True)
 
@@ -81,43 +71,43 @@ class TestIntegrationAPI(TestIntegrationCommon):
         )
 
         # assert that it's not installed
-        clone_manager.clone(str(clone_src), str(solution_target_dir), solution_target_name)
+        album.clone_manager().clone(str(clone_src), str(solution_target_dir), solution_target_name)
 
         self.assertTrue(solution_target_dir.exists())
         self.assertTrue(solution_target_dir.joinpath(solution_target_name).exists())
         self.assertTrue(solution_target_file.exists())
 
         # deploy solution to catalog
-        deploy_manager.deploy(solution_target_file, local_catalog_name, dry_run=False, trigger_pipeline=False)
+        album.deploy_manager().deploy(solution_target_file, local_catalog_name, dry_run=False, trigger_pipeline=False)
 
         # update catalog cache
-        collection_manager.catalogs().update_any(local_catalog_name)
+        album.collection_manager().catalogs().update_any(local_catalog_name)
 
         # upgrade collection
-        collection_manager.catalogs().update_collection(local_catalog_name)
+        album.collection_manager().catalogs().update_collection(local_catalog_name)
 
         # check that solution exists, but is not installed
-        installed = collection_manager.catalog_collection.is_installed(catalog.catalog_id, GroupNameVersion(group, name, version))
+        installed = album.collection_manager().catalog_collection.is_installed(catalog.catalog_id, GroupNameVersion(group, name, version))
         self.assertFalse(installed)
 
         # install solution
         # FIXME the install manager is accessing the sys.argv for parsing solution arguments - that should be a method parameter instead
         sys.argv = [""]
-        install_manager.install(f"{local_catalog_name}:{group}:{name}:{version}")
+        album.install_manager().install(f"{local_catalog_name}:{group}:{name}:{version}")
 
         # check that solution is installed
         self.assertTrue(
-            collection_manager.catalog_collection.is_installed(catalog.catalog_id, GroupNameVersion(group, name, version))
+            album.collection_manager().catalog_collection.is_installed(catalog.catalog_id, GroupNameVersion(group, name, version))
         )
 
         # run solution
-        run_manager.run(f"{local_catalog_name}:{group}:{name}:{version}")
+        album.run_manager().run(f"{local_catalog_name}:{group}:{name}:{version}")
 
         # test solution
-        test_manager.test(f"{local_catalog_name}:{group}:{name}:{version}")
+        album.test_manager().test(f"{local_catalog_name}:{group}:{name}:{version}")
 
         # remove catalog
-        collection_manager.catalogs().remove_from_collection_by_src(local_catalog_path)
+        album.collection_manager().catalogs().remove_from_collection_by_src(local_catalog_path)
         self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), local_catalog_path, False)
 
         # check that solution is not accessible any more

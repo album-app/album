@@ -185,9 +185,9 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route('/status/<catalog>/<group>/<name>/<version>')
         def status_solution(catalog, group, name, version):
             try:
-                catalog_manager = CollectionManager()
-                catalog_id = catalog_manager.catalog_handler.get_by_name(catalog).catalog_id
-                installed = catalog_manager.catalog_collection.is_installed(
+                collection_manager = CollectionManager()
+                catalog_id = collection_manager.catalog_handler.get_by_name(catalog).catalog_id
+                installed = collection_manager.catalog_collection.is_installed(
                     catalog_id,
                     Coordinates(group, name, version)
                 )
