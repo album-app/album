@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from album.ci.controller.zenodo_manager import ZenodoManager
@@ -72,14 +73,14 @@ class ReleaseManager(metaclass=Singleton):
         yml_dict, yml_file_path = self._get_yml_dict(head)
 
         # checkout files
-        zip_path = self._get_zip_path(dict_to_identity(yml_dict))
-        docker_path = self._get_docker_path(dict_to_identity(yml_dict))
+        zip_name = self._get_zip_path(dict_to_identity(yml_dict)).name
+        docker_name = self._get_docker_path(dict_to_identity(yml_dict)).name
 
         # query deposit
         deposit_name = get_zip_name_prefix(dict_to_identity(yml_dict))
         deposit_id = get_dict_entry(yml_dict, "deposit_id", allow_none=False)
         deposit = zenodo_manager.zenodo_get_unpublished_deposit_by_id(
-            deposit_name, deposit_id, expected_files=[zip_path, docker_path]
+            deposit_id, deposit_name, expected_files=[zip_name, docker_name]
         )
 
         # publish to zenodo
@@ -166,15 +167,44 @@ class ReleaseManager(metaclass=Singleton):
         if not all([Path(f).is_file() for f in commit_files]):
             raise FileNotFoundError("Invalid deploy request or broken catalog repository!")
 
-        commit_msg = "Updated %s" % branch_name
+        commit_msg = "Prepared branch \"%s\" for merging." % branch_name
+
+        push_option = ["--push-option=ci.variable=\"START_PIPELINE=false\""]
+
         add_files_commit_and_push(
             head,
             commit_files,
             commit_msg,
             push=not dry_run,
-            trigger_pipeline=trigger_pipeline,
+            push_options=push_option,
             username=ci_user_name,
             email=ci_user_email
         )
 
         return True
+
+    def merge(self, branch_name, dry_run, trigger_pipeline, ci_user_name, ci_user_email):
+        head = checkout_branch(self.catalog_repo, branch_name)
+
+        commit_files = [
+            self.catalog.solution_list_path, self.catalog.index_path
+        ]
+        if not all([Path(f).is_file() for f in commit_files]):
+            raise FileNotFoundError("Invalid deploy request or broken catalog repository!")
+
+        commit_msg = "Updated index."
+
+        push_option = [
+            '--push-option=merge_request.merge_when_pipeline_succeeds',
+            "--push-option=ci.variable=\"START_PIPELINE=false\""
+        ]
+
+        add_files_commit_and_push(
+            head,
+            commit_files,
+            commit_msg,
+            push=not dry_run,
+            push_options=push_option,
+            username=ci_user_name,
+            email=ci_user_email
+        )

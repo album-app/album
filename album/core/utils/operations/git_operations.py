@@ -28,7 +28,9 @@ def checkout_branch(git_repo, branch_name):
 
     """
     try:  # checkout branch locally
-        module_logger().debug("Found the following branches locally: \n %s..." % "\n".join([h.name for h in git_repo.heads]))
+        module_logger().debug(
+            "Found the following branches locally: \n %s..." % "\n".join([h.name for h in git_repo.heads])
+        )
         head = git_repo.heads[branch_name]
         head.checkout()
         return head
@@ -84,18 +86,20 @@ def retrieve_single_file_from_head(head, pattern):
             abs_path_solution_file.append(os.path.join(head.repo.working_tree_dir, path))
 
     if not abs_path_solution_file:
-        raise RuntimeError("Illegal merge request! Pattern not found! Aborting...")
+        raise RuntimeError("Head \"%s\" does not hold pattern \"%s\"! Aborting..." % (head.name, pattern))
     if len(abs_path_solution_file) > 1:
-        raise RuntimeError("Illegal merge request! Pattern found too many times! Aborting...")
+        raise RuntimeError("Head \"%s\" holds pattern \"%s\" too many times! Aborting..." % (head.name, pattern))
 
     return abs_path_solution_file[0]
 
 
-def add_files_commit_and_push(head, file_paths, commit_message, push=False, trigger_pipeline=True,
-                              email=None, username=None):
+def add_files_commit_and_push(head, file_paths, commit_message, push=False, email=None, username=None,
+                              push_options=None):
     """Adds files in a given path to a git head and commits.
 
     Args:
+        push_options:
+            options used for pushing. See https://docs.gitlab.com/ee/user/project/push_options.html.
         head:
             The head of the repository
         file_paths:
@@ -104,8 +108,6 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, trig
             The commit message
         push:
             Boolean option to switch on/off pushing to repository remote
-        trigger_pipeline:
-            Boolean option to switch on pipeline triggering after pushing
         username:
             The git user to use. (Default: systems git configuration)
         email:
@@ -115,14 +117,16 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, trig
         RuntimeError when no files are in the index
 
     """
+    if push_options is None:
+        push_options = []
+
     repo = head.repo
 
     if email or username:
         configure_git(repo, email, username)
 
     if repo.index.diff(None) or repo.untracked_files:
-        module_logger().info('Creating a merge request...')
-
+        module_logger().info('Preparing pushing...')
         for file_path in file_paths:
             module_logger().debug('Adding file %s...' % file_path)
             # todo: nice catching here?
@@ -131,23 +135,14 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, trig
         # push options
         cmd_option = ['--set-upstream']
 
-        if trigger_pipeline:
-            cmd_push_option = ['--push-option=merge_request.create']
-        else:
-            cmd_push_option = ['--push-option=ci.skip']
-
-            # sometimes not working - prepend [skip ci] in message
-            # see https://gitlab.com/gitlab-org/gitlab/-/issues/27955
-            commit_message = "[skip ci] " + commit_message
-
-        cmd = cmd_option + cmd_push_option + ['-f', 'origin', head]
+        cmd = cmd_option + push_options + ['-f', 'origin', head]
 
         module_logger().debug("Running command: repo.git.push(%s)..." % (", ".join(str(x) for x in cmd)))
 
         # commit
         repo.git.commit(m=commit_message)
 
-        try:  # see https://docs.gitlab.com/ee/user/project/push_options.html
+        try:
             if push:
                 repo.git.push(cmd)
 

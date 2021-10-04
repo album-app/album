@@ -183,7 +183,19 @@ class DeployManager(metaclass=Singleton):
 
         commit_msg = "Adding new/updated %s" % self.retrieve_head_name()
 
-        add_files_commit_and_push(new_head, file_paths, commit_msg, not dry_run, trigger_pipeline, email, username)
+        push_option = []
+        if trigger_pipeline:
+            push_option = ['--push-option=merge_request.create']
+
+        add_files_commit_and_push(
+            new_head,
+            file_paths,
+            commit_msg,
+            push=not dry_run,
+            push_options=push_option,
+            email=email,
+            username=username
+        )
 
     def _get_absolute_zip_path(self):
         """ Gets the absolute path to the zip."""

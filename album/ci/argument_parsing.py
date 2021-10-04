@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 
 from album.argument_parsing import ArgumentParser as AlbumAP
 from album.ci.commandline import configure_repo, configure_ssh, zenodo_publish, zenodo_upload, update_index, \
-    push_changes
+    push_changes, merge
 from album_runner import logging
 from album_runner.logging import get_active_logger, debug_settings
 
@@ -56,44 +56,34 @@ def create_parser():
         default=os.getenv('CI_PROJECT_PATH', None)
     )
 
-    p = parser.create_zenodo_command_parser(
+    parser.create_zenodo_command_parser(
         'publish',
         zenodo_publish,
         'Publishes the corresponding zenodo deposit of a catalog repository deployment branch.'
     )
-    p = parser.create_zenodo_command_parser(
+    parser.create_zenodo_command_parser(
         'upload',
         zenodo_upload,
         'Uploads solution of a catalog repository deployment branch to zenodo.'
         'Thereby only allowing a single solution per branch.'
     )
 
-    p = parser.create_branch_command_parser(
+    parser.create_branch_command_parser(
         'update',
         update_index,
         'Updates the index of the catalog repository to include the solution of a catalog repository deployment branch.'
     )
 
-    p = parser.create_branch_command_parser(
+    parser.create_pipeline_command_parser(
         'push',
         push_changes,
         'Pushes all changes to catalog repository deployment branch to the branch origin.'
     )
-    p.add_argument(
-        '--dry-run',
-        required=False,
-        help='Dry-run option. If this argument is added, no merge request will be created, only information is shown.',
-        action='store_true'
-    )
-    p.add_argument(
-        '--trigger-pipeline',
-        required=False,
-        help='Trigger-CI-pipeline option. If True will trigger CI pipeline. '
-             'If program call is configured as CI pipeline itself, make sure pipeline is not re-triggered!'
-             'Default False. Choose between %s' %
-             ", ".join([str(True), str(False)]),
-        default=False,
-        type=(lambda choice: choice.lower() in ['true', '1', 't', 'y', 'yes']),
+
+    parser.create_pipeline_command_parser(
+        'merge',
+        merge,
+        'Merge the updated catalog index from the given branch to main.'
     )
 
     return parser.parser
@@ -199,8 +189,24 @@ class AlbumCIParser(AlbumAP):
                  'Can be set via environment variable \"ZENODO_ACCESS_TOKEN\".',
             default=os.getenv('ZENODO_ACCESS_TOKEN', None)
         )
-
         return parser
 
-if __name__ == '__main__':
-    main()
+    def create_pipeline_command_parser(self, command_name, command_function, command_help):
+        parser = self.create_branch_command_parser(command_name, command_function, command_help)
+        parser.add_argument(
+            '--dry-run',
+            required=False,
+            help='Dry-run option. If this argument is added, no merge request will be created, only information is shown.',
+            action='store_true'
+        )
+        parser.add_argument(
+            '--trigger-pipeline',
+            required=False,
+            help='Trigger-CI-pipeline option. If True will trigger CI pipeline. '
+                 'If program call is configured as CI pipeline itself, make sure pipeline is not re-triggered!'
+                 'Default False. Choose between %s' %
+                 ", ".join([str(True), str(False)]),
+            default=False,
+            type=(lambda choice: choice.lower() in ['true', '1', 't', 'y', 'yes']),
+        )
+        return parser

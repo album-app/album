@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Optional
 from unittest.mock import patch
 
+from album.core.model.identity import Identity
+
 import album.core as album
 from album.core import Solution
 from album.core.controller.collection.catalog_handler import CatalogHandler
@@ -135,9 +137,9 @@ class TestIntegrationCommon(unittest.TestCase):
             path,
             self.collection_manager.catalogs().get_local_catalog().path.joinpath(
                 DefaultValues.cache_path_solution_prefix.value,
-                a["group"],
-                a["name"],
-                a["version"],
+                Identity._to_path(a["group"]),
+                Identity._to_path(a["name"]),
+                Identity._to_path(a["version"]),
                 DefaultValues.solution_default_name.value
             )
         )
