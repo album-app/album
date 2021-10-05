@@ -216,14 +216,10 @@ class TestCatalog(TestUnitCommon):
 
         self.assertFalse(self.catalog.refresh_index())
 
+    @unittest.skip("Needs to be implemented!")
     def test_download_index(self):
-        # todo: this assert doesn't work any more, rethink test implementation
-        # self.assertEqual(self.catalog._index_path.stat().st_size, 0)
-        # todo: replace me
-        self.catalog = Catalog(self.catalog.catalog_id, self.catalog.name, self.catalog.path,
-                               "https://gitlab.com/album-app/capture-knowledge/-/raw/main/catalog_index?inline=false")
-        self.catalog.download_index()
-        self.assertNotEqual(self.catalog.index_path.stat().st_size, 0)
+        # ToDo: implement
+        pass
 
     def test_download_index_not_downloadable(self):
         self.catalog = Catalog(self.catalog.catalog_id, self.catalog.name, self.catalog.path,
