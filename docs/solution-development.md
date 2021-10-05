@@ -40,7 +40,68 @@ album run [path-to-solution] --my-parameter [parameter-value]
 ### Setup parameters
 The setup parameters are derived from the [bioimage.io]() specification.
 
-* ``
+* `group`: The group/organization associated with the specific solution.
+* `name`: The name of the solution itself
+* `version`: The version of the solution. Note that the `-SNAPSHOT`
+  convention is used to indicate a version is not yet final.
+* `description`: This is a short description of the specific solution.
+* `url`: The URL of this solution.
+* `license`: The license of the solution (e.g. MIT, Apache, GPL, ...)
+* `min_album_version`: The minimum version of
+  [album](https://album.solutions) required to run this solution.
+* `tested_album_version`: The most recent version of
+  [album](https://album.solutions) that was tested with this solution.
+* `args`: The arguments that can be (and may be required) to run the
+  specific solution.
+* `run`: The `run` function for the solution. This can either be a
+  variable that points to a function, or a `lambda` function. This
+  function is evaluated within the solution's environment.
+* `install`: The `install` function for the solution. This can either be a
+  variable that points to a function, or a `lambda` function. This
+  function is evaluated in the `album` environment.
+* `pre_test`: The `pre_test` function for the solution. This can either be a
+  variable that points to a function, or a `lambda` function. This
+  function is evaluated before the test function is evaluated. The
+  purpose of this function is to do things like prepare files for testing.
+* `test`: The `test` function for the solution. This can either be a
+  variable that points to a function, or a `lambda` function. This
+  function is evaluated in the solution environment and tests whether
+  the solution is working as expected.
+* `author`: This (these) are the authors of the solution. This is a
+  string-type variable.
+* `author_email`: This is the email of the author responsible for the solution.
+* `long_description`: This is a long description of the solution.
+* `git_repo`: This is the URL of the git repository that stores the
+  code that this solution provides.
+* `dependencies`: This is a dictionary that specifies the environment
+  of the solution.
+* `timestamp`: This is the timestamp of the solution.
+* `format_version`: This specifies the format version of the solution,
+  which corresponds to the `album-runner` version.
+* `cite`: This is a list of dictionaries that specify the citations
+  associated with this solution file. Each dictionary may contain
+  keys: `text` for the text representation of the citation (Harvard
+  format), and `doi` the DOI URL of the solution, if one is available.
+* `tags`: This is a list of strings for tags that descript the
+  specific solution.
+* `documentation`: A link to the documentation for the solution.
+* `covers`: This is a list of cover images to be displayed for this
+  solution in a catalog.
+* `sample_inputs`: This is a list of sample inputs that can be used to
+  test the specific solution.
+* `sample_outputs`: This is an example output that can be used for
+  comparison when running the solution on the `sample_inputs`.
+* `doi`: This is the DOI of *this* solution. This DOI is distinct from
+  DOIs of citations for this solution. This DOI points to the `album`
+  solution for the specific solution.
+* `catalog`: The catalog that this solution was obtained from.
+* `parent`: (Optional) A parent solution for the specific solution.
+* `steps`: (Optional) A sequence of steps to be evaluated in this solution.
+* `close`: The `close` function for the solution. This can either be a
+  variable that points to a function, or a `lambda` function. This
+  function is evaluated in the solution environment when the solution
+  finishes running.
+* `title`: The title of the solution.
 
 ### Solution API
 
