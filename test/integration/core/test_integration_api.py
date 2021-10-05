@@ -18,7 +18,7 @@ class TestIntegrationAPI(TestIntegrationCommon):
         logging.set_loglevel(LogLevel.INFO)
         logger = logging.get_active_logger()
 
-        album = Album()
+        album = self.get_album()
 
         # list index
         catalogs_as_dict = album.collection_manager().get_index_as_dict()

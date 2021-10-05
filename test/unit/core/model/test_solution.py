@@ -9,6 +9,11 @@ from test.unit.test_unit_common import TestUnitCommon
 
 
 class TestUnitSolution(TestUnitCommon):
+    
+    def setUp(self):
+        super().setUp()
+        self.create_album_test_instance()
+
 
     def tearDown(self) -> None:
         CondaManager().remove_environment("unit-test-env")
@@ -36,7 +41,6 @@ channels:
         self.assertEqual(None, active_solution.cache_path_solution)
 
     def test_set_cache_paths(self):
-        self.create_test_config()
         config = Configuration()
 
         active_solution = Solution(self.solution_default_dict)

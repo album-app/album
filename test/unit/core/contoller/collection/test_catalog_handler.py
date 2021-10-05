@@ -48,7 +48,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             "catalog_id": 4,
             "deletable": 1,
             "name": catalog_name,
-            "path": str(Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, catalog_name)),
+            "path": str(Path(self.tmp_dir.name).joinpath("album", DefaultValues.catalog_folder_prefix.value, catalog_name)),
             "src": str(catalog_src),
         })
         self.assertEqual(expected_list, self.catalog_collection.get_all_catalogs())

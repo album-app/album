@@ -14,7 +14,7 @@ class TestRunManager(TestUnitCommon):
     def setUp(self):
         super().setUp()
         """Setup things necessary for all tests of this class"""
-        self.create_test_config()
+        self.create_album_test_instance()
         self.create_test_collection_manager()
         self.create_test_solution_no_env()
         self.run_manager = RunManager()

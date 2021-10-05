@@ -14,7 +14,7 @@ class TestCatalogIndex(TestUnitCommon):
 
     def setUp(self):
         super().setUp()
-        self.create_test_config()
+        self.create_album_test_instance()
         self.catalog_index = CatalogIndex("test", Path(self.tmp_dir.name).joinpath("test_db_file"))
 
     def fill_solution(self):

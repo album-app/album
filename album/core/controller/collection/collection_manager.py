@@ -40,8 +40,6 @@ class CollectionManager(metaclass=Singleton):
     def __init__(self):
         super().__init__()
         self.configuration = Configuration()
-        if not self.configuration.is_setup:
-            self.configuration.setup()
         self.tmp_cache_dir = self.configuration.cache_path_tmp
         self.migration_manager = MigrationManager()
         self._load_or_create_collection()

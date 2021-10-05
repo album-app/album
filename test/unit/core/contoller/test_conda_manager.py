@@ -12,6 +12,7 @@ class TestCondaManager(TestUnitCommon):
 
     def setUp(self):
         super().setUp()
+        self.create_album_test_instance()
         self.conda = CondaManager()
 
     def tearDown(self) -> None:

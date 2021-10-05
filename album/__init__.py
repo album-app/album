@@ -1,3 +1,6 @@
+from pathlib import Path
+from typing import Optional
+
 from album.core.model.configuration import Configuration
 
 from album.core.controller.clone_manager import CloneManager
@@ -16,6 +19,9 @@ __email__ = "album@kyleharrington.com"
 
 
 class Album:
+
+    def __init__(self, base_cache_path: Optional[Path] = None, configuration_file_path: Optional[Path] = None) -> None:
+        Configuration().setup(base_cache_path=base_cache_path, configuration_file_path=configuration_file_path)
 
     @staticmethod
     def collection_manager():

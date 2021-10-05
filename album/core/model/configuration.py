@@ -18,8 +18,6 @@ class Configuration(metaclass=Singleton):
     Attributes:
          base_cache_path:
             The base path all other cache folder have as parent folder.
-         configuration_file_path:
-            The path to the configuration file holding the catalogs.
          conda_executable:
             The conda executable. Either a full path to a conda executable/binary or a command
         cache_path_solution:
@@ -36,7 +34,23 @@ class Configuration(metaclass=Singleton):
 
     def __init__(self):
         self.is_setup = False
-        self.configuration_file_path = None
+        self.base_cache_path = None
+        self.conda_executable = None
+        self.cache_path_solution = None
+        self.cache_path_app = None
+        self.cache_path_download = None
+        self.cache_path_tmp = None
+        self.catalog_collection_path = None
+
+    def setup(self, base_cache_path=None, configuration_file_path=None):
+        if self.is_setup:
+            raise RuntimeError("Configuration::setup was already called and should not be called twice.")
+        self.is_setup = True
+        # base root path where everything lives
+        self.base_cache_path = DefaultValues.app_data_dir.value
+        if base_cache_path:
+            self.base_cache_path = Path(base_cache_path)
+
         # conda executable
         conda_path = DefaultValues.conda_path.value
         if conda_path is not DefaultValues.conda_default_executable.value:
@@ -44,36 +58,6 @@ class Configuration(metaclass=Singleton):
         else:
             self.conda_executable = conda_path
 
-    # TODO since setting base_cache_path creates the album directories in the cache path, this should not be called
-    #  multiple times. maybe Configuration should not be a Singleton at all or maybe creating the directories should
-    #  not be part of the configuration implementation..
-    def setup(self, base_cache_path=None):
-        self.is_setup = True
-        # base root path where everything lives
-        if base_cache_path:
-            self.base_cache_path = Path(base_cache_path)
-        else:
-            self.base_cache_path = DefaultValues.app_data_dir.value
-
-        self.empty_tmp()
-
-    @staticmethod
-    def _build_conda_executable(conda_path):
-        operation_system = sys.platform
-        if operation_system == 'linux' or operation_system == 'darwin':
-            return str(Path(conda_path).joinpath("bin", "conda"))
-        else:
-            return str(Path(conda_path).joinpath("Scripts", "conda.exe"))
-
-    @property
-    def base_cache_path(self):
-        return self._base_cache_path
-
-    @base_cache_path.setter
-    def base_cache_path(self, value):
-        if not value:
-            return
-        self._base_cache_path = Path(value)
         self.cache_path_solution = self.base_cache_path.joinpath(DefaultValues.cache_path_solution_prefix.value)
         self.cache_path_app = self.base_cache_path.joinpath(DefaultValues.cache_path_app_prefix.value)
         self.cache_path_download = self.base_cache_path.joinpath(DefaultValues.cache_path_download_prefix.value)
@@ -88,6 +72,16 @@ class Configuration(metaclass=Singleton):
                 self.catalog_collection_path
             ]
         )
+
+        self.empty_tmp()
+
+    @staticmethod
+    def _build_conda_executable(conda_path):
+        operation_system = sys.platform
+        if operation_system == 'linux' or operation_system == 'darwin':
+            return str(Path(conda_path).joinpath("bin", "conda"))
+        else:
+            return str(Path(conda_path).joinpath("Scripts", "conda.exe"))
 
     @staticmethod
     def get_solution_path_suffix(coordinates: Coordinates) -> Path:

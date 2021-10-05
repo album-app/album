@@ -19,7 +19,7 @@ class TestServer(flask_unittest.ClientTestCase, TestUnitCommon):
 
     def setUp(self, client: FlaskClient) -> None:
         TestUnitCommon.setUp(self)
-        self.create_test_config()
+        self.create_album_test_instance()
         flask_unittest.ClientTestCase.setUp(self, client)
 
     def tearDown(self, client: FlaskClient) -> None:
