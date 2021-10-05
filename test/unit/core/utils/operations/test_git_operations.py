@@ -65,7 +65,7 @@ class TestGitOperations(TestGitCommon):
             git_op.retrieve_single_file_from_head(self.repo.heads["master"],
                                                   "solutions")
 
-        self.assertTrue("Pattern found too many times!" in str(context.exception))
+        self.assertTrue("too many times" in str(context.exception))
 
     def test_retrieve_single_file_from_head_no_files(self):
         self.create_tmp_repo(commit_solution_file=False)
@@ -74,7 +74,7 @@ class TestGitOperations(TestGitCommon):
             git_op.retrieve_single_file_from_head(self.repo.heads["master"],
                                                   "solutions")
 
-        self.assertTrue("Pattern not found!" in str(context.exception))
+        self.assertTrue("does not hold pattern" in str(context.exception))
 
     @patch('album.core.model.solution.Solution.get_deploy_dict', return_value={})
     def test_add_files_commit_and_push(self, _):

@@ -27,12 +27,12 @@ def update_index(args):
 
 def push_changes(args):
     ReleaseManager(args.name, args.path, args.src, args.force_retrieve).push_changes(
-        args.branch_name, args.dry_run, args.trigger_pipeline, args.ci_user_name, args.ci_user_email
+        args.branch_name, args.dry_run, args.push_option, args.ci_user_name, args.ci_user_email
     )
 
 
 def merge(args):
     ReleaseManager(args.name, args.path, args.src, args.force_retrieve).merge(
-        args.branch_name, args.dry_run, args.trigger_pipeline, args.ci_user_name, args.ci_user_email
+        args.branch_name, args.dry_run, args.push_option, args.ci_user_name, args.ci_user_email
     )
 

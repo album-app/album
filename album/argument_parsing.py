@@ -51,7 +51,7 @@ def create_parser():
              'a step (True) or to wait for all steps to be prepared to run (False). Choose between %s.'
              ' Default is False' % ", ".join([str(True), str(False)]),
         default=False,
-        type=(lambda choice: choice.lower() in ['true', '1', 't', 'y', 'yes']))
+        action='store_true')
     parser.create_file_command_parser('repl', repl, 'get an interactive repl for an album solution')
     p = parser.create_file_command_parser('deploy', deploy, 'deploy an album solution')
     p.add_argument(
@@ -64,15 +64,13 @@ def create_parser():
         '--catalog',
         required=False,
         help='Specify a catalog name to deploy to. Must be configured! '
-             '\"catalog_local\" refers to the local catalog. Default is None',
+             '\"catalog_local\" refers to the local catalog. Default is None.',
         default=None)
     p.add_argument(
-        '--trigger-pipeline',
+        '--push-option',
         required=False,
-        help='Boolean to indicate whether to trigger the CI of the catlog or not!'
-             ' Choose between %s. Default is True' % ", ".join([str(True), str(False)]),
-        default=True,
-        type=(lambda choice: choice.lower() in ['true', '1', 't', 'y', 'yes'])
+        help='Push options for the catalog repository.',
+        default=None,
     )
     p.add_argument(
         '--git-email',
@@ -96,7 +94,7 @@ def create_parser():
         'Boolean to additionally remove all album dependencies. Choose between %s'
         % ", ".join([str(True), str(False)]),
         default=False,
-        type=(lambda choice: choice.lower() in ['true', '1', 't', 'y', 'yes'])
+        action='store_true'
     )
     parser.create_catalog_command_parser(
         'add-catalog', add_catalog,
@@ -106,11 +104,17 @@ def create_parser():
         'remove-catalog', remove_catalog,
         'remove a catalog from your local album configuration file'
     )
-    p = parser.create_command_parser('update', update,
-                                           'update the catalog index files. Either all catalogs configured, or a specific one.')
+    p = parser.create_command_parser(
+        'update',
+        update,
+        'update the catalog index files. Either all catalogs configured, or a specific one.'
+    )
     p.add_argument('src', type=str, help='src of the catalog', nargs='?')
-    p = parser.create_command_parser('upgrade', upgrade,
-                                           'upgrade the local collection from the catalog index files. Either all catalogs configured, or a specific one.')
+    p = parser.create_command_parser(
+        'upgrade',
+        upgrade,
+        'upgrade the local collection from the catalog index files. Either all catalogs configured, or a specific one.'
+    )
     p.add_argument('src', type=str, help='src of the catalog', nargs='?')
     p.add_argument(
         '--dry-run',
@@ -119,7 +123,8 @@ def create_parser():
         action='store_true'
     )
     p = parser.create_command_parser('clone', clone, 'clone an album solution or catalog template')
-    p.add_argument('src', type=str, help='path for the solution file, group:name:version or name of the catalog template')
+    p.add_argument('src', type=str,
+                   help='path for the solution file, group:name:version or name of the catalog template')
     p.add_argument(
         '--target-dir',
         required=True,

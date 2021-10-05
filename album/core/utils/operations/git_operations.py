@@ -99,7 +99,7 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, emai
 
     Args:
         push_options:
-            options used for pushing. See https://docs.gitlab.com/ee/user/project/push_options.html.
+            options used for pushing. See https://docs.gitlab.com/ee/user/project/push_options.html. Expects a string.
         head:
             The head of the repository
         file_paths:
@@ -117,8 +117,10 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, emai
         RuntimeError when no files are in the index
 
     """
-    if push_options is None:
+    if push_options is None or push_options == []:
         push_options = []
+    else:
+        push_options = push_options.split()
 
     repo = head.repo
 
@@ -132,7 +134,6 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, emai
             # todo: nice catching here?
             repo.git.add(file_path)
 
-        # push options
         cmd_option = ['--set-upstream']
 
         cmd = cmd_option + push_options + ['-f', 'origin', head]

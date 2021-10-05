@@ -43,7 +43,7 @@ class DeployManager(metaclass=Singleton):
         self._catalog_local_src = None
         self._repo = None
 
-    def deploy(self, deploy_path, catalog_name, dry_run, trigger_pipeline, git_email=None, git_name=None):
+    def deploy(self, deploy_path, catalog_name, dry_run, push_option, git_email=None, git_name=None):
         """Function corresponding to the `deploy` subcommand of `album`.
 
         Generates the yml for a album and creates a merge request to the catalog only
@@ -58,8 +58,8 @@ class DeployManager(metaclass=Singleton):
                 default catalog.
             dry_run:
                 Boolean indicates whether to just show what would happen if.
-            trigger_pipeline:
-                Boolean to trigger the CI pipeline (True) or not (False).
+            push_option:
+                Push options for the catalog repository.
             git_email:
                 The git email to use. (Default: systems git configuration)
             git_name:
@@ -94,9 +94,9 @@ class DeployManager(metaclass=Singleton):
         if self._catalog.is_local():
             self._deploy_to_local_catalog(deploy_path)
         else:
-            self._deploy_to_remote_catalog(deploy_path, dry_run, trigger_pipeline, git_email, git_name)
+            self._deploy_to_remote_catalog(deploy_path, dry_run, push_option, git_email, git_name)
 
-    def _deploy_to_remote_catalog(self, deploy_path, dry_run, trigger_pipeline, git_email=None, git_name=None):
+    def _deploy_to_remote_catalog(self, deploy_path, dry_run, push_option, git_email=None, git_name=None):
         """Routine to deploy tp a remote catalog."""
         dl_path = Path(self.collection_manager.configuration.cache_path_download).joinpath(self._catalog.name)
 
@@ -113,7 +113,7 @@ class DeployManager(metaclass=Singleton):
         mr_files = [yml_file, solution_zip, docker_file] + cover_files
 
         # create merge request
-        self._create_merge_request(mr_files, dry_run, trigger_pipeline, git_email, git_name)
+        self._create_merge_request(mr_files, dry_run, push_option, git_email, git_name)
 
     def _deploy_to_local_catalog(self, deploy_path):
         """Routine to deploy to a local catalog."""
@@ -154,7 +154,7 @@ class DeployManager(metaclass=Singleton):
         identity = solution_to_identity(self._active_solution)
         return "_".join([identity.group_path, identity.name_path, identity.version_path])
 
-    def _create_merge_request(self, file_paths, dry_run=False, trigger_pipeline=True, email=None, username=None):
+    def _create_merge_request(self, file_paths, dry_run=False, push_option=None, email=None, username=None):
         """Creates a merge request to the catalog repository for the album object.
 
         Commits first the files given in the call, but will not include anything else than that.
@@ -165,8 +165,8 @@ class DeployManager(metaclass=Singleton):
                 the catalog repository path or absolute.
             dry_run:
                 Option to only show what would happen. No Merge request will be created.
-            trigger_pipeline:
-                Boolean, whether to start CI pipeline or not.
+            push_option:
+                Push options for the repository.
             username:
                 The git user to use. (Default: systems git configuration)
             email:
@@ -178,14 +178,13 @@ class DeployManager(metaclass=Singleton):
         """
         # make a new branch and checkout
 
+        if push_option is None:
+            push_option = []
+
         new_head = create_new_head(self._repo, self.retrieve_head_name())
         new_head.checkout()
 
         commit_msg = "Adding new/updated %s" % self.retrieve_head_name()
-
-        push_option = []
-        if trigger_pipeline:
-            push_option = ['--push-option=merge_request.create']
 
         add_files_commit_and_push(
             new_head,

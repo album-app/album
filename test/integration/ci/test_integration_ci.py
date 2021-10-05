@@ -33,7 +33,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
             deploy_path=self.get_test_solution_path(),
             catalog_name=self.name,
             dry_run=True,
-            trigger_pipeline=False,
+            push_option=None,
             git_email="myCiUserEmail",
             git_name="myCiUserName",
         )

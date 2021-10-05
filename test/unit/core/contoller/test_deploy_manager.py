@@ -54,7 +54,7 @@ class TestDeployManager(TestGitCommon):
         self.deploy_manager.deploy(deploy_path="None",
                                    catalog_name=os.path.basename(self.tmp_dir.name),
                                    dry_run=False,
-                                   trigger_pipeline=False)
+                                   push_option=False)
 
         # assert
         self.assertEqual(self.local_catalog, self.deploy_manager._catalog)  # correct catalog chosen
@@ -85,7 +85,7 @@ class TestDeployManager(TestGitCommon):
         self.deploy_manager.deploy(deploy_path="None",
                                    catalog_name=os.path.basename(self.tmp_dir.name),
                                    dry_run=False,
-                                   trigger_pipeline=False)
+                                   push_option=False)
 
         # assert
         self.assertEqual(self.remote_catalog, self.deploy_manager._catalog)  # correct catalog chosen
@@ -197,7 +197,7 @@ class TestDeployManager(TestGitCommon):
             self.deploy_manager.deploy(deploy_path="myPath",
                                        catalog_name=None,
                                        dry_run=False,
-                                       trigger_pipeline=False)
+                                       push_option=False)
 
     def test_retrieve_head_name(self):
         self.deploy_manager.collection_manager = self.collection_manager
@@ -217,8 +217,8 @@ class TestDeployManager(TestGitCommon):
 
         add_files_commit_and_push_mock.assert_called_once_with(
             self.repo.heads[1], [self.closed_tmp_file.name],
-            "Adding new/updated tsg_tsn_tsv", False, True, None,
-            None
+            "Adding new/updated tsg_tsn_tsv",
+            email=None, push=False, push_options=[], username=None
         )
 
     @patch('album.core.model.solution.Solution.get_deploy_dict')

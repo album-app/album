@@ -196,17 +196,14 @@ class AlbumCIParser(AlbumAP):
         parser.add_argument(
             '--dry-run',
             required=False,
-            help='Dry-run option. If this argument is added, no merge request will be created, only information is shown.',
+            help='Dry-run option.'
+                 ' If this argument is added, no merge request will be created, only information is shown.',
             action='store_true'
         )
         parser.add_argument(
-            '--trigger-pipeline',
+            '--push-option',
             required=False,
-            help='Trigger-CI-pipeline option. If True will trigger CI pipeline. '
-                 'If program call is configured as CI pipeline itself, make sure pipeline is not re-triggered!'
-                 'Default False. Choose between %s' %
-                 ", ".join([str(True), str(False)]),
-            default=False,
-            type=(lambda choice: choice.lower() in ['true', '1', 't', 'y', 'yes']),
+            help='Push options for the catalog repository.',
+            default=None,
         )
         return parser

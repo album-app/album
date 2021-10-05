@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 from album.ci.controller.zenodo_manager import ZenodoManager
@@ -150,7 +149,7 @@ class ReleaseManager(metaclass=Singleton):
         self.catalog.catalog_index.save()
         self.catalog.catalog_index.export(self.catalog.solution_list_path)
 
-    def push_changes(self, branch_name, dry_run, trigger_pipeline, ci_user_name, ci_user_email):
+    def push_changes(self, branch_name, dry_run, push_option, ci_user_name, ci_user_email):
         head = checkout_branch(self.catalog_repo, branch_name)
 
         yml_dict, yml_file = self._get_yml_dict(head)
@@ -169,8 +168,6 @@ class ReleaseManager(metaclass=Singleton):
 
         commit_msg = "Prepared branch \"%s\" for merging." % branch_name
 
-        push_option = ["--push-option=ci.variable=\"START_PIPELINE=false\""]
-
         add_files_commit_and_push(
             head,
             commit_files,
@@ -183,7 +180,7 @@ class ReleaseManager(metaclass=Singleton):
 
         return True
 
-    def merge(self, branch_name, dry_run, trigger_pipeline, ci_user_name, ci_user_email):
+    def merge(self, branch_name, dry_run, push_option, ci_user_name, ci_user_email):
         head = checkout_branch(self.catalog_repo, branch_name)
 
         commit_files = [
@@ -193,11 +190,6 @@ class ReleaseManager(metaclass=Singleton):
             raise FileNotFoundError("Invalid deploy request or broken catalog repository!")
 
         commit_msg = "Updated index."
-
-        push_option = [
-            '--push-option=merge_request.merge_when_pipeline_succeeds',
-            "--push-option=ci.variable=\"START_PIPELINE=false\""
-        ]
 
         add_files_commit_and_push(
             head,
