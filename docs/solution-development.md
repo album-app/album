@@ -53,6 +53,16 @@ get_active_solution().environment_name
 get_active_solution().download_cache_path
 ```
 
+`get_active_solution().environment_cache_path`:  This is the local
+path where solution specific files can be stored for later use.  
+`get_active_solution().environment_path`:  This is the local path for
+the conda environment of this particular solution.  
+`get_active_solution().environment_name`:  This is the name of the
+conda environment for this particular solution.  
+`get_active_solution().download_cache_path`:  This is the download
+cache path for this solution. Files in here should be treated as
+temporary.  
+
 # Create your own catalog
 Use this command to create a new catalog based on any template from [here](https://gitlab.com/album-app/catalogs/templates) - it will be copied into the provided directory with the provided new name.
 ```
