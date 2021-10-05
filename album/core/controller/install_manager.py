@@ -29,7 +29,7 @@ class InstallManager(metaclass=Singleton):
     def install(self, path):
         """Function corresponding to the `install` subcommand of `album`."""
         # Load solution
-        resolve_result = self.collection_manager.resolve_download_and_load(path)
+        resolve_result = self.collection_manager.resolve_download_and_load(str(path))
         solution = resolve_result.active_solution
         catalog = resolve_result.catalog
 
