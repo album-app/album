@@ -38,7 +38,7 @@ class TestIntegrationInstall(TestIntegrationCommon):
                 DefaultValues.catalog_folder_prefix.value,
                 str(self.collection_manager.catalogs().get_local_catalog().name),
                 DefaultValues.cache_path_solution_prefix.value,
-                "group", "name", "0.1.0", "solution.py"
+                "group", "name", "0_1_0", "solution.py"
             ).exists()
         )
 

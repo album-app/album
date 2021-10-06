@@ -6,7 +6,7 @@ from pathlib import Path
 
 from album.core import load, Solution
 from album.core.model.default_values import DefaultValues
-from album.core.model.group_name_version import GroupNameVersion
+from album.core.model.coordinates import Coordinates
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import force_remove, \
     create_path_recursively, rand_folder_name, check_zip, unzip_archive, copy, copy_folder
@@ -192,19 +192,19 @@ def _check_file_or_url(path, tmp_cache_dir):
         return p
 
 
-def dict_to_group_name_version(solution_attr) -> GroupNameVersion:
+def dict_to_coordinates(solution_attr) -> Coordinates:
     if not all([k in solution_attr.keys() for k in ["name", "version", "group"]]):
-        raise ValueError("Cannot resolve dependency! Either a DOI or name, group and version must be specified!")
-    return GroupNameVersion(group=solution_attr["group"], name=solution_attr["name"], version=solution_attr["version"])
+        raise ValueError("Cannot resolve solution! Group, name and version must be specified!")
+    return Coordinates(group=solution_attr["group"], name=solution_attr["name"], version=solution_attr["version"])
 
 
-def solution_to_group_name_version(solution) -> GroupNameVersion:
-    return GroupNameVersion(group=solution.group, name=solution.name, version=solution.version)
+def solution_to_coordinates(solution) -> Coordinates:
+    return Coordinates(group=solution.group, name=solution.name, version=solution.version)
 
 
-def get_zip_name(group_name_version: GroupNameVersion):
-    return get_zip_name_prefix(group_name_version) + ".zip"
+def get_zip_name(coordinates: Coordinates):
+    return get_zip_name_prefix(coordinates) + ".zip"
 
 
-def get_zip_name_prefix(group_name_version: GroupNameVersion):
-    return "_".join([group_name_version.group, group_name_version.name, group_name_version.version])
+def get_zip_name_prefix(coordinates: Coordinates):
+    return "_".join([coordinates.group_path, coordinates.name_path, coordinates.version_path])

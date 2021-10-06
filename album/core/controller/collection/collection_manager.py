@@ -13,7 +13,7 @@ from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import write_dict_to_json
 from album.core.utils.operations.resolve_operations import clean_resolve_tmp, _check_file_or_url, _load_solution, \
-    get_attributes_from_string, dict_to_group_name_version, solution_to_group_name_version
+    get_attributes_from_string, dict_to_coordinates, solution_to_coordinates
 from album_runner import logging
 
 module_logger = logging.get_active_logger
@@ -118,7 +118,9 @@ class CollectionManager(metaclass=Singleton):
         return resolve_result
 
     def resolve_download_and_load(self, str_input) -> ResolveResult:
-        """
+        """Resolves a string input and loads its content.
+
+        Downloads a catalog if not already cached.
 
         Args:
             str_input:
@@ -133,7 +135,7 @@ class CollectionManager(metaclass=Singleton):
 
         if not Path(resolve_result.path).exists():
             resolve_result.catalog.retrieve_solution(
-                dict_to_group_name_version(resolve_result.solution_attrs)
+                dict_to_coordinates(resolve_result.solution_attrs)
             )
 
         resolve_result.active_solution = _load_solution(resolve_result)
@@ -166,7 +168,7 @@ class CollectionManager(metaclass=Singleton):
         resolve_result = self.resolve_dependency(solution_attrs)
         if not resolve_result.solution_attrs["installed"]:
             raise LookupError("Dependency %s seems not to be installed! Please install solution first!"
-                              % (dict_to_group_name_version(solution_attrs)))
+                              % (dict_to_coordinates(solution_attrs)))
 
         return resolve_result
 
@@ -174,15 +176,15 @@ class CollectionManager(metaclass=Singleton):
         """Resolves the album and returns the path to the solution.py file on the current system.
         Throws error if not resolvable!"""
         solution_entries = self.catalog_collection.get_solutions_by_grp_name_version(
-            dict_to_group_name_version(solution_attrs))
+            dict_to_coordinates(solution_attrs))
         if solution_entries and len(solution_entries) > 1:
             module_logger().warning("Found multiple entries of dependency %s "
-                                    % (dict_to_group_name_version(solution_attrs)))
+                                    % (dict_to_coordinates(solution_attrs)))
         if not solution_entries or len(solution_entries) == 0:
-            raise LookupError("Could not resolve dependency: %s" % dict_to_group_name_version(solution_attrs))
+            raise LookupError("Could not resolve dependency: %s" % dict_to_coordinates(solution_attrs))
         first_solution = solution_entries[0]
         catalog = self.catalog_handler.get_by_id(first_solution["catalog_id"])
-        path = catalog.get_solution_file(dict_to_group_name_version(first_solution))
+        path = catalog.get_solution_file(dict_to_coordinates(first_solution))
         resolve_result = ResolveResult(path=path, catalog=catalog, solution_attrs=first_solution)
         return resolve_result
 
@@ -193,7 +195,6 @@ class CollectionManager(metaclass=Singleton):
             solution_entry = self._search_local_file(path)  # requires loading
 
             catalog = self.catalog_handler.get_local_catalog()
-            resolve = ResolveResult(path=path, catalog=catalog, solution_attrs=solution_entry)
         else:
             solution_entry = self._search(str_input)
 
@@ -202,8 +203,9 @@ class CollectionManager(metaclass=Singleton):
 
             catalog = self.catalog_handler.get_by_id(solution_entry["catalog_id"])
 
-            solution_file = catalog.get_solution_file(dict_to_group_name_version(solution_entry))
-            resolve = ResolveResult(path=solution_file, catalog=catalog, solution_attrs=solution_entry)
+            path = catalog.get_solution_file(dict_to_coordinates(solution_entry))
+
+        resolve = ResolveResult(path=path, catalog=catalog, solution_attrs=solution_entry)
 
         return resolve
 
@@ -212,7 +214,7 @@ class CollectionManager(metaclass=Singleton):
         if active_solution:
             solution_entry = self.catalog_collection.get_solution_by_catalog_grp_name_version(
                 self.catalog_handler.get_local_catalog().catalog_id,
-                solution_to_group_name_version(active_solution)
+                solution_to_coordinates(active_solution)
             )
 
             return solution_entry
@@ -249,11 +251,11 @@ class CollectionManager(metaclass=Singleton):
 
     def _search_in_specific_catalog(self, catalog_id, attrs):
         solution_entry = self.catalog_collection.get_solution_by_catalog_grp_name_version(
-            catalog_id, dict_to_group_name_version(attrs))
+            catalog_id, dict_to_coordinates(attrs))
         return solution_entry
 
     def _search_in_catalogs(self, attrs):
-        solution_entries = self.catalog_collection.get_solutions_by_grp_name_version(dict_to_group_name_version(attrs))
+        solution_entries = self.catalog_collection.get_solutions_by_grp_name_version(dict_to_coordinates(attrs))
 
         return solution_entries if solution_entries else None
 

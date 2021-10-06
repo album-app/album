@@ -16,36 +16,36 @@ class ZenodoManager(metaclass=Singleton):
         )
 
     @staticmethod
-    def zenodo_upload(deposit, solution_zip):
+    def zenodo_upload(deposit, file):
         """ Uploads a solution file to a ZenodoDeposit. Expects the deposit to be writable. (e.g. unpublished)
 
         Args:
             deposit:
                 The deposit to upload to.
-            solution_zip:
-                The solution zip file to upload.
+            file:
+                The file to upload.
 
         Returns:
             The updated deposit.
 
         """
-        solution_zip_basename = os.path.basename(solution_zip)
+        file_basename = os.path.basename(file)
 
-        if solution_zip_basename in deposit.files:  # File does exist
+        if file_basename in deposit.files:  # File does exist
             module_logger().debug(
-                "Update solution file %s to Zenodo deposit with id %s..." % (solution_zip_basename, deposit.id)
+                "Update file %s in Zenodo deposit with id %s..." % (file_basename, deposit.id)
             )
-            deposit.update_file(solution_zip_basename, solution_zip)
+            deposit.update_file(file_basename, file)
         else:
             module_logger().debug(
-                "Create solution file %s in Zenodo deposit with id %s..." % (solution_zip_basename, deposit.id)
+                "Create file %s in Zenodo deposit with id %s..." % (file_basename, deposit.id)
             )
-            deposit.create_file(solution_zip)
+            deposit.create_file(file)
 
         return deposit
 
     def zenodo_get_deposit(self, deposit_name, deposit_id, expected_files=None):
-        """Querys zenodo to get the deposit of the solution_file. Creates an empty deposit if no deposit exists.
+        """Queries zenodo to get the deposit of the solution_file. Creates an empty deposit if no deposit exists.
 
         Args:
             deposit_name:

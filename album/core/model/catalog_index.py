@@ -5,9 +5,9 @@ import pkgutil
 from typing import Optional
 
 from album.core.concept.database import Database
-from album.core.model.group_name_version import GroupNameVersion
+from album.core.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import get_dict_entry, write_dict_to_json
-from album.core.utils.operations.resolve_operations import dict_to_group_name_version
+from album.core.utils.operations.resolve_operations import dict_to_coordinates
 
 
 class CatalogIndex(Database):
@@ -29,7 +29,7 @@ class CatalogIndex(Database):
         super().__init__(path)
 
     def create(self):
-        data = pkgutil.get_data('album.core', 'database/catalog_index_schema.sql')
+        data = pkgutil.get_data('album.core.database', 'catalog_index_schema.sql')
         self.get_cursor().executescript(data.decode("utf-8"))
         self.update_name_version(self.name, self.version)
         self.get_connection().commit()
@@ -236,11 +236,11 @@ class CatalogIndex(Database):
             self._append_metadata_to_solution_dict(solution)
         return solution
 
-    def get_solution_by_group_name_version(self, group_name_version: GroupNameVersion) -> Optional[dict]:
+    def get_solution_by_group_name_version(self, coordinates: Coordinates) -> Optional[dict]:
         """Resolves a solution by its name, version and group.
 
         Args:
-            group_name_version:
+            coordinates:
                 The group affiliation, name, and version of the solution.
 
         Returns:
@@ -253,9 +253,9 @@ class CatalogIndex(Database):
             "SELECT s.* FROM solution s "
             "WHERE s.\"group\"=:group AND s.name=:name AND s.version=:version",
             {
-                "group": group_name_version.group,
-                "name": group_name_version.name,
-                "version": group_name_version.version,
+                "group": coordinates.group,
+                "name": coordinates.name,
+                "version": coordinates.version,
             }
         ).fetchone()
 
@@ -406,8 +406,8 @@ class CatalogIndex(Database):
 
         self.save()
 
-    def remove_solution_by_group_name_version(self, group_name_version: GroupNameVersion):
-        solution_dict = self.get_solution_by_group_name_version(group_name_version)
+    def remove_solution_by_group_name_version(self, coordinates: Coordinates):
+        solution_dict = self.get_solution_by_group_name_version(coordinates)
         if solution_dict:
             self.remove_solution(solution_dict["solution_id"])
 
@@ -422,7 +422,7 @@ class CatalogIndex(Database):
                 The solution attributes. Must hold group, name, version.
 
         """
-        if self.get_solution_by_group_name_version(dict_to_group_name_version(solution_attrs)):
+        if self.get_solution_by_group_name_version(dict_to_coordinates(solution_attrs)):
             self._update_solution(solution_attrs)
         else:
             self._insert_solution(solution_attrs)

@@ -3,7 +3,7 @@ from pathlib import Path
 
 from album.core.concept.singleton import Singleton
 from album.core.model.default_values import DefaultValues
-from album.core.model.group_name_version import GroupNameVersion
+from album.core.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import create_paths_recursively, force_remove, get_dict_from_json
 from album_runner import logging
 
@@ -47,20 +47,13 @@ class Configuration(metaclass=Singleton):
     # TODO since setting base_cache_path creates the album directories in the cache path, this should not be called
     #  multiple times. maybe Configuration should not be a Singleton at all or maybe creating the directories should
     #  not be part of the configuration implementation..
-    def setup(self, base_cache_path=None, configuration_file_path=None):
+    def setup(self, base_cache_path=None):
         self.is_setup = True
         # base root path where everything lives
         if base_cache_path:
             self.base_cache_path = Path(base_cache_path)
         else:
             self.base_cache_path = DefaultValues.app_data_dir.value
-
-        # path where the album configuration file lives
-        if configuration_file_path:
-            self.configuration_file_path = Path(configuration_file_path)
-        else:
-            self.configuration_file_path = DefaultValues.app_config_dir.value.joinpath(
-                DefaultValues.config_file_name.value)
 
         self.empty_tmp()
 
@@ -97,9 +90,14 @@ class Configuration(metaclass=Singleton):
         )
 
     @staticmethod
-    def get_solution_path_suffix(gnv: GroupNameVersion) -> Path:
+    def get_solution_path_suffix(coordinates: Coordinates) -> Path:
         """Returns the suffix path for a solution giving its group, name and version"""
-        return Path("").joinpath(DefaultValues.cache_path_solution_prefix.value, gnv.group, gnv.name, gnv.version)
+        return Path("").joinpath(
+            DefaultValues.cache_path_solution_prefix.value,
+            coordinates.group_path,
+            coordinates.name_path,
+            coordinates.version_path
+        )
 
     def get_cache_path_catalog(self, catalog_id):
         """Get the cache path to the catalog with a certain ID. Catalog independent!

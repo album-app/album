@@ -10,7 +10,7 @@ from test.unit.core.contoller import test_search_manager, test_install_manager, 
     test_conda_manager, test_test_manager, test_task_manager, test_clone_manager, test_migration_manager
 from test.unit.core.contoller.collection import test_collection_manager, test_catalog_handler, test_solution_handler
 from test.unit.core.model import test_catalog, test_configuration, test_environment, \
-    test_solution, test_catalog_index, test_collection_index, test_group_name_version, test_task
+    test_solution, test_catalog_index, test_collection_index, test_coordinates, test_task
 from test.unit.core.utils import test_script, test_subcommand
 from test.unit.core.utils.operations import test_url_operations, test_file_operations, test_git_operations, \
     test_resolve_operations
@@ -49,7 +49,7 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_collection_index))
     suite.addTests(loader.loadTestsFromModule(test_configuration))
     suite.addTests(loader.loadTestsFromModule(test_environment))
-    suite.addTests(loader.loadTestsFromModule(test_group_name_version))
+    suite.addTests(loader.loadTestsFromModule(test_coordinates))
     suite.addTests(loader.loadTestsFromModule(test_task))
 
     # album.core.concept

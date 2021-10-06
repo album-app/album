@@ -26,10 +26,12 @@ def remove_catalog(args):
     CollectionManager().catalogs().remove_from_collection_by_src(args.src)
 
 
+# todo: do argument parsing properly
 def update(args):
     CollectionManager().catalogs().update_any(getattr(args, "catalog_name", None))
 
 
+# todo: do argument parsing properly
 def upgrade(args):
     dry_run = getattr(args, "dry_run", False)
     updates = CollectionManager().catalogs().update_collection(getattr(args, "catalog_name", None),
@@ -43,7 +45,7 @@ def upgrade(args):
 
 
 def deploy(args):
-    DeployManager().deploy(args.path, args.catalog, args.dry_run, args.trigger_pipeline, args.git_email, args.git_name)
+    DeployManager().deploy(args.path, args.catalog, args.dry_run, args.push_option, args.git_email, args.git_name)
 
 
 def install(args):

@@ -2,7 +2,7 @@ from enum import Enum
 from typing import List, Optional
 
 from album.core.model.catalog import Catalog
-from album.core.model.group_name_version import GroupNameVersion
+from album.core.model.coordinates import Coordinates
 
 
 class ChangeType(Enum):
@@ -12,20 +12,20 @@ class ChangeType(Enum):
 
 
 class SolutionChange:
-    group_name_version: GroupNameVersion
+    coordinates: Coordinates
     change_type: ChangeType
     change_log: str
 
-    def __init__(self, group_name_version: GroupNameVersion, change_type: ChangeType, change_log: Optional[str] = None):
-        self.group_name_version = group_name_version
+    def __init__(self, coordinates: Coordinates, change_type: ChangeType, change_log: Optional[str] = None):
+        self.coordinates = coordinates
         self.change_type = change_type
         self.change_log = change_log
 
     def as_dict(self):
         return {
-            "group": self.group_name_version.group,
-            "name": self.group_name_version.name,
-            "version": self.group_name_version.version,
+            "group": self.coordinates.group,
+            "name": self.coordinates.name,
+            "version": self.coordinates.version,
             "change_type": self.change_type.name,
             "change_log": self.change_log
         }

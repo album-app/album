@@ -12,7 +12,7 @@ from album.core.model.catalog_updates import CatalogUpdates, SolutionChange, Cha
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.resolve_operations import dict_to_group_name_version
+from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album_runner import logging
 
 module_logger = logging.get_active_logger
@@ -56,9 +56,9 @@ class CatalogHandler:
         if not catalog.is_cache():
             catalog_meta_information = Catalog.retrieve_catalog_meta_information(catalog.src)
             self.migration_manager.migrate_catalog_index_db(
-                catalog.index_path,
-                catalog_meta_information["version"],
-                CatalogIndex.version
+                catalog.index_path,  # the path to the catalog
+                catalog_meta_information["version"],  # eventually outdated remote version
+                CatalogIndex.version  # current version in the library
             )
 
         self._add_to_index(catalog)
@@ -271,10 +271,15 @@ class CatalogHandler:
     def _create_catalog_from_src(self, src):
         """Creates the local cache path for a catalog given its src. (Network drive, git-link, etc.)"""
         catalog_meta_information = Catalog.retrieve_catalog_meta_information(src)
+
+        # the path where the catalog lives based on its metadata
         catalog_path = self.configuration.get_cache_path_catalog(catalog_meta_information["name"])
+
         catalog = Catalog(None, catalog_meta_information["name"], catalog_path, src=src)
+
         if catalog.is_local():
             catalog.src = Path(catalog.src).absolute()
+
         return catalog
 
     @staticmethod
@@ -329,20 +334,20 @@ class CatalogHandler:
             solution_old = dict_old[solution_id]
             # check if solution got removed
             if solution_id not in dict_new:
-                gnv = dict_to_group_name_version(solution_old)
-                change = SolutionChange(gnv, ChangeType.REMOVED)
+                coordinates = dict_to_coordinates(solution_old)
+                change = SolutionChange(coordinates, ChangeType.REMOVED)
                 res.append(change)
             else:
                 # check if solution got changed
                 if solution_old["hash"] != dict_new[solution_id]["hash"]:
-                    gnv = dict_to_group_name_version(solution_old)
-                    change = SolutionChange(gnv, ChangeType.CHANGED)
+                    coordinates = dict_to_coordinates(solution_old)
+                    change = SolutionChange(coordinates, ChangeType.CHANGED)
                     res.append(change)
         # check if solution got added
         for solution_id in dict_new:
             if solution_id not in dict_old:
-                gnv = dict_to_group_name_version(dict_new[solution_id])
-                change = SolutionChange(gnv, ChangeType.ADDED)
+                coordinates = dict_to_coordinates(dict_new[solution_id])
+                change = SolutionChange(coordinates, ChangeType.ADDED)
                 res.append(change)
         return res
 

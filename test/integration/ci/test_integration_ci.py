@@ -33,7 +33,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
             deploy_path=self.get_test_solution_path(),
             catalog_name=self.name,
             dry_run=True,
-            trigger_pipeline=False,
+            push_option=None,
             git_email="myCiUserEmail",
             git_name="myCiUserName",
         )
@@ -41,7 +41,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
 
         self.assertTrue(self.path.is_dir() and self.path.stat().st_size > 0)
 
-        branch_name = "_".join(["group", "name", "0.1.0"])  # solution0_dummy values
+        branch_name = "_".join(["group", "name", "0_1_0"])  # solution0_dummy values
         return branch_name
 
     def test_configure_repo(self):
@@ -52,8 +52,8 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
             self.name,
             str(self.path),
             self.src,
-            "--ci_user_name=myCiUserName",
-            "--ci_user_email=myCiUserEmail"
+            "--ci-user-name=myCiUserName",
+            "--ci-user-email=myCiUserEmail"
         ]
 
         # run
@@ -73,7 +73,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
             self.name,
             str(self.path),
             self.src,
-            "--ci_project_path=myGitGroup/myTestCatalog"
+            "--ci-project-path=myGitGroup/myTestCatalog"
         ]
 
         # run
@@ -91,7 +91,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
         branch_name = self.fake_deploy()
 
         # gather arguments
-        sys.argv = ["", "upload", self.name, str(self.path), self.src, "--branch_name=%s" % branch_name]
+        sys.argv = ["", "upload", self.name, str(self.path), self.src, "--branch-name=%s" % branch_name]
 
         # run
         self.assertIsNone(main())
@@ -101,7 +101,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
         branch_name = self.fake_deploy()
 
         # gather arguments
-        sys.argv = ["", "update", self.name, str(self.path), self.src, "--branch_name=%s" % branch_name]
+        sys.argv = ["", "update", self.name, str(self.path), self.src, "--branch-name=%s" % branch_name]
 
         # run
         self.assertIsNone(main())
@@ -110,9 +110,9 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
         # fake deploy to test catalog
         branch_name = self.fake_deploy()
 
-        # update index
-        sys.argv = ["", "update", self.name, str(self.path), self.src, "--branch_name=%s" % branch_name]
-        self.assertIsNone(main())
+        # change deployed files so another commit is possible
+        with open(self.path.joinpath("catalog", "group", "name", "0_1_0", "name.yml"), "a") as f:
+            f.write("\ntest: mytest")
 
         # gather arguments
         sys.argv = [
@@ -121,10 +121,10 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
             self.name,
             str(self.path),
             self.src,
-            "--branch_name=%s" % branch_name,
+            "--branch-name=%s" % branch_name,
             "--dry-run",
-            "--ci_user_name=myCiUserName",
-            "--ci_user_email=myCiUserEmail"
+            "--ci-user-name=myCiUserName",
+            "--ci-user-email=myCiUserEmail"
         ]
 
         # run
