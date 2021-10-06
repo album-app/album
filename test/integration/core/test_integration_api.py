@@ -5,7 +5,7 @@ from pathlib import Path
 
 from album import Album
 from album.core.model.default_values import DefaultValues
-from album.core.model.group_name_version import GroupNameVersion
+from album.core.model.coordinates import Coordinates
 from album_runner import logging
 from album_runner.logging import LogLevel
 from test.integration.test_integration_common import TestIntegrationCommon
@@ -69,6 +69,7 @@ class TestIntegrationAPI(TestIntegrationCommon):
             solution_target_name,
             DefaultValues.solution_default_name.value
         )
+        solution_coordinates = Coordinates(group, name, version)
 
         # assert that it's not installed
         album.clone_manager().clone(str(clone_src), str(solution_target_dir), solution_target_name)
@@ -87,7 +88,7 @@ class TestIntegrationAPI(TestIntegrationCommon):
         album.collection_manager().catalogs().update_collection(local_catalog_name)
 
         # check that solution exists, but is not installed
-        installed = album.collection_manager().catalog_collection.is_installed(catalog.catalog_id, GroupNameVersion(group, name, version))
+        installed = album.collection_manager().catalog_collection.is_installed(catalog.catalog_id, solution_coordinates)
         self.assertFalse(installed)
 
         # install solution
@@ -95,7 +96,7 @@ class TestIntegrationAPI(TestIntegrationCommon):
 
         # check that solution is installed
         self.assertTrue(
-            album.collection_manager().catalog_collection.is_installed(catalog.catalog_id, GroupNameVersion(group, name, version))
+            album.collection_manager().catalog_collection.is_installed(catalog.catalog_id, solution_coordinates)
         )
 
         # run solution
