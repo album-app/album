@@ -123,9 +123,9 @@ class TestIntegrationRun(TestIntegrationCommon):
         self.fake_install(self.get_test_solution_path("solution_with_steps.py"))
 
         # gather arguments
-        sys.argv = ["", "run", self.get_test_solution_path("solution_with_steps.py"), "--run-immediately=True",
-                    "--file",
-                    self.closed_tmp_file.name, "--file_solution1_app1", self.closed_tmp_file.name]
+        sys.argv = ["", "run", self.get_test_solution_path("solution_with_steps.py"),
+                    "--run-immediately",
+                    "--file", self.closed_tmp_file.name, "--file_solution1_app1", self.closed_tmp_file.name]
 
         # run
         self.assertIsNone(main())

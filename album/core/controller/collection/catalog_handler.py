@@ -56,9 +56,9 @@ class CatalogHandler:
         if not catalog.is_cache():
             catalog_meta_information = Catalog.retrieve_catalog_meta_information(catalog.src)
             self.migration_manager.migrate_catalog_index_db(
-                catalog.index_path,
-                catalog_meta_information["version"],
-                CatalogIndex.version
+                catalog.index_path,  # the path to the catalog
+                catalog_meta_information["version"],  # eventually outdated remote version
+                CatalogIndex.version  # current version in the library
             )
 
         self._add_to_index(catalog)
@@ -271,10 +271,15 @@ class CatalogHandler:
     def _create_catalog_from_src(self, src):
         """Creates the local cache path for a catalog given its src. (Network drive, git-link, etc.)"""
         catalog_meta_information = Catalog.retrieve_catalog_meta_information(src)
+
+        # the path where the catalog lives based on its metadata
         catalog_path = self.configuration.get_cache_path_catalog(catalog_meta_information["name"])
+
         catalog = Catalog(None, catalog_meta_information["name"], catalog_path, src=src)
+
         if catalog.is_local():
             catalog.src = Path(catalog.src).absolute()
+
         return catalog
 
     @staticmethod

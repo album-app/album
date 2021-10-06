@@ -48,8 +48,7 @@ def create_parser():
         '--run-immediately',
         required=False,
         help='When the solution to run consists of several steps, indicates whether to immediately run '
-             'a step (True) or to wait for all steps to be prepared to run (False). Choose between %s.'
-             ' Default is False' % ", ".join([str(True), str(False)]),
+             'a step or to wait for all steps to be prepared to run.',
         default=False,
         action='store_true')
     parser.create_file_command_parser('repl', repl, 'get an interactive repl for an album solution')
@@ -107,7 +106,7 @@ def create_parser():
     p = parser.create_command_parser(
         'update',
         update,
-        'update the catalog index files. Either all catalogs configured, or a specific one.'
+        'Update the catalog index files. Either all catalogs configured, or a specific one.'
     )
     p.add_argument('src', type=str, help='src of the catalog', nargs='?')
     p = parser.create_command_parser(
