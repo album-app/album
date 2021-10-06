@@ -55,7 +55,6 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route("/config")
         def get_config():
             return {
-                "album_config_path": str(Configuration().configuration_file_path),
                 "cache_base": str(Configuration().base_cache_path),
                 "cache_solutions": str(Configuration().cache_path_solution),
                 "cache_apps": str(Configuration().cache_path_app),

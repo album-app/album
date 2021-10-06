@@ -14,8 +14,7 @@ class TestConfiguration(TestUnitCommon):
     def setUp(self) -> None:
         super().setUp()
         self.conf = Configuration()
-        self.conf.setup(base_cache_path=Path(self.tmp_dir.name).joinpath("album"),
-                        configuration_file_path=self.tmp_dir.name)
+        self.conf.setup(base_cache_path=Path(self.tmp_dir.name).joinpath("album"))
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -32,8 +31,7 @@ class TestConfiguration(TestUnitCommon):
         self.assertTrue(leftover_file.exists())
 
         # call
-        self.conf.setup(base_cache_path=base_path,
-                        configuration_file_path=Path(self.tmp_dir.name).joinpath("conf_file_folder"))
+        self.conf.setup(base_cache_path=base_path)
 
         # assert
         self.assertFalse(leftover_file.exists())

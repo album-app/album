@@ -35,7 +35,6 @@ class DefaultValues(Enum):
     default_environment = "album"            # default environment name the album framework operates from
 
     # album
-    config_file_name = '.album-config'               # file name of the album configuration file
     app_data_dir = Path(user_data_dir("album"))      # base data path
     app_cache_dir = Path(user_cache_dir("album"))    # base cache path
     app_config_dir = Path(user_config_dir("album"))  # base configuration path

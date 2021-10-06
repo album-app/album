@@ -47,20 +47,13 @@ class Configuration(metaclass=Singleton):
     # TODO since setting base_cache_path creates the album directories in the cache path, this should not be called
     #  multiple times. maybe Configuration should not be a Singleton at all or maybe creating the directories should
     #  not be part of the configuration implementation..
-    def setup(self, base_cache_path=None, configuration_file_path=None):
+    def setup(self, base_cache_path=None):
         self.is_setup = True
         # base root path where everything lives
         if base_cache_path:
             self.base_cache_path = Path(base_cache_path)
         else:
             self.base_cache_path = DefaultValues.app_data_dir.value
-
-        # path where the album configuration file lives
-        if configuration_file_path:
-            self.configuration_file_path = Path(configuration_file_path)
-        else:
-            self.configuration_file_path = DefaultValues.app_config_dir.value.joinpath(
-                DefaultValues.config_file_name.value)
 
         self.empty_tmp()
 
