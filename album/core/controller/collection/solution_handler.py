@@ -1,9 +1,9 @@
 from album.core import Solution
 from album.core.model.catalog_updates import ChangeType, SolutionChange
 from album.core.model.collection_index import CollectionIndex
-from album.core.model.identity import Identity
+from album.core.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import copy_folder
-from album.core.utils.operations.resolve_operations import dict_to_identity, solution_to_identity
+from album.core.utils.operations.resolve_operations import dict_to_coordinates, solution_to_coordinates
 from album_runner import logging
 
 module_logger = logging.get_active_logger
@@ -14,22 +14,22 @@ class SolutionHandler:
     def __init__(self, collection: CollectionIndex):
         self.catalog_collection = collection
 
-    def get_solution_path_by_group_name_version(self, catalog, identity: Identity):
+    def get_solution_path_by_group_name_version(self, catalog, coordinates: Coordinates):
         """Resolves (also: finds, looks up) a solution in the catalog, returning the absolute path to the solution file.
 
         Args:
             catalog:
                 The catalog object where the solution belongs to.
-            identity:
+            coordinates:
                 The group affiliation, name, and version of the solution.
 
         Returns: the path to the solution file.
 
         """
-        solution_entry = self.catalog_collection.get_solution_by_catalog_grp_name_version(catalog.catalog_id, identity)
+        solution_entry = self.catalog_collection.get_solution_by_catalog_grp_name_version(catalog.catalog_id, coordinates)
 
         if solution_entry:
-            path_to_solution = catalog.get_solution_file(identity)
+            path_to_solution = catalog.get_solution_file(coordinates)
 
             return path_to_solution
 
@@ -50,7 +50,7 @@ class SolutionHandler:
 
         if solution_entry:
             path_to_solution = self.catalog_collection.get_catalog(solution_entry["catalog_id"]).get_solution_file(
-                dict_to_identity(solution_entry)
+                dict_to_coordinates(solution_entry)
             )
 
             return path_to_solution
@@ -59,23 +59,23 @@ class SolutionHandler:
 
     def add_or_replace(self, catalog, active_solution, path):
         deploy_dict = active_solution.get_deploy_dict()
-        self.catalog_collection.add_or_replace_solution(catalog.catalog_id, dict_to_identity(deploy_dict), deploy_dict, self.get_solution_keys())
+        self.catalog_collection.add_or_replace_solution(catalog.catalog_id, dict_to_coordinates(deploy_dict), deploy_dict, self.get_solution_keys())
         # get the install location
-        install_location = catalog.get_solution_path(dict_to_identity(deploy_dict))
+        install_location = catalog.get_solution_path(dict_to_coordinates(deploy_dict))
         copy_folder(path, install_location, copy_root_folder=False)
 
     def add_solutions_to_catalog(self, catalog_id, solutions):
         for solution in solutions:
-            self.catalog_collection.add_or_replace_solution(catalog_id, dict_to_identity(solution), solution)
+            self.catalog_collection.add_or_replace_solution(catalog_id, dict_to_coordinates(solution), solution)
 
     def set_uninstalled(self, catalog, solution):
         self.update_solution(catalog, solution, {"installed": 0})
 
     def remove_solution(self, catalog, solution):
-        self.catalog_collection.remove_solution(catalog.catalog_id, solution_to_identity(solution))
+        self.catalog_collection.remove_solution(catalog.catalog_id, solution_to_coordinates(solution))
 
     def update_solution(self, catalog, solution, attrs):
-        self.catalog_collection.update_solution(catalog.catalog_id, solution_to_identity(solution), attrs, self.get_solution_keys())
+        self.catalog_collection.update_solution(catalog.catalog_id, solution_to_coordinates(solution), attrs, self.get_solution_keys())
 
     @staticmethod
     def get_solution_keys():
@@ -94,17 +94,17 @@ class SolutionHandler:
         if change.change_type is ChangeType.ADDED:
             self.catalog_collection.add_or_replace_solution(
                 catalog.catalog_id,
-                change.identity,
-                catalog.catalog_index.get_solution_by_group_name_version(change.identity),
+                change.coordinates,
+                catalog.catalog_index.get_solution_by_group_name_version(change.coordinates),
                 self.get_solution_keys())
         elif change.change_type is ChangeType.REMOVED:
-            self.catalog_collection.remove_solution(catalog.catalog_id, change.identity)
+            self.catalog_collection.remove_solution(catalog.catalog_id, change.coordinates)
         elif change.change_type is ChangeType.CHANGED:
-            self.catalog_collection.remove_solution(catalog.catalog_id, change.identity)
+            self.catalog_collection.remove_solution(catalog.catalog_id, change.coordinates)
             self.catalog_collection.add_or_replace_solution(
                 catalog.catalog_id,
-                change.identity,
-                catalog.catalog_index.get_solution_by_group_name_version(change.identity),
+                change.coordinates,
+                catalog.catalog_index.get_solution_by_group_name_version(change.coordinates),
                 self.get_solution_keys())
 
     def set_installed(self, catalog, solution):

@@ -9,7 +9,7 @@ from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.solution import Solution
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
-from album.core.model.identity import Identity
+from album.core.model.coordinates import Coordinates
 from test.unit.test_unit_common import TestUnitCommon
 
 empty_index = """{
@@ -156,7 +156,7 @@ class TestCatalog(TestUnitCommon):
     @patch('album.core.model.catalog.Catalog.get_solution_file')
     def test_resolve_nothing_found(self, get_solution_file_mock):
         get_solution_file_mock.return_value = None
-        self.assertIsNone(self.catalog.resolve(Identity("a", "b", "c")))
+        self.assertIsNone(self.catalog.resolve(Coordinates("a", "b", "c")))
 
     @patch('album.core.model.catalog.Catalog.get_solution_file')
     def test_resolve_doi_nothing_found(self, get_solution_file_mock):
@@ -168,7 +168,7 @@ class TestCatalog(TestUnitCommon):
         self.populate_index()
         get_solution_file_mock.side_effect = [Path(self.closed_tmp_file.name)]
 
-        search_result = self.catalog.resolve(Identity("group0", "name0", "version0"))
+        search_result = self.catalog.resolve(Coordinates("group0", "name0", "version0"))
 
         self.assertEqual(search_result, Path(self.closed_tmp_file.name))
 
@@ -236,14 +236,14 @@ class TestCatalog(TestUnitCommon):
 
     def test_get_solution_path(self):
         self.assertEqual(
-            self.catalog.get_solution_path(Identity("g", "n", "v")),
+            self.catalog.get_solution_path(Coordinates("g", "n", "v")),
             self.catalog.path.joinpath(self.catalog.gnv_solution_prefix, "g", "n", "v")
         )
 
     def test_get_solution_zip(self):
         res = self.catalog.path.joinpath(DefaultValues.cache_path_solution_prefix.value, "g", "n", "v", "g_n_v.zip")
 
-        self.assertEqual(res, self.catalog.get_solution_zip(Identity("g", "n", "v")))
+        self.assertEqual(res, self.catalog.get_solution_zip(Coordinates("g", "n", "v")))
 
     @unittest.skip("Needs to be implemented!")
     def test_download_solution_via_doi(self):
@@ -263,7 +263,7 @@ class TestCatalog(TestUnitCommon):
         )
         res = Path("a/Path").joinpath(DefaultValues.solution_default_name.value)
 
-        self.assertEqual(res, self.catalog.retrieve_solution(Identity("g", "n", "v")))
+        self.assertEqual(res, self.catalog.retrieve_solution(Coordinates("g", "n", "v")))
         dl_mock.assert_called_once_with(dl_url, dl_path)
         unzip_mock.assert_called_once_with(dl_path)
 

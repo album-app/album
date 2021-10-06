@@ -5,9 +5,9 @@ from unittest.mock import patch
 
 from album.core.controller.install_manager import InstallManager
 from album.core.model.catalog import Catalog
-from album.core.model.identity import Identity
+from album.core.model.coordinates import Coordinates
 from album.core.model.resolve_result import ResolveResult
-from album.core.utils.operations.resolve_operations import solution_to_identity
+from album.core.utils.operations.resolve_operations import solution_to_coordinates
 from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
 
 
@@ -60,7 +60,7 @@ class TestInstallManager(TestUnitCommon):
         self.install_manager.update_in_collection_index("cat_id", None, self.active_solution)
 
         update_solution_mock.assert_called_once_with(
-            get_by_id_mock.return_value, solution_to_identity(self.active_solution),
+            get_by_id_mock.return_value, solution_to_coordinates(self.active_solution),
             self.active_solution.get_deploy_dict()
         )
         get_solution_mock.assert_not_called()
@@ -79,10 +79,10 @@ class TestInstallManager(TestUnitCommon):
 
         # FIXME currently not checking for parent information to be added
         update_solution_mock.assert_called_once_with(
-            get_by_id_mock.return_value, solution_to_identity(self.active_solution),
+            get_by_id_mock.return_value, solution_to_coordinates(self.active_solution),
             self.active_solution.get_deploy_dict()
         )
-        get_solution_mock.assert_called_once_with("cat_parent_id", Identity("grp", "pName", "pVersion"))
+        get_solution_mock.assert_called_once_with("cat_parent_id", Coordinates("grp", "pName", "pVersion"))
 
     def test__install_no_routine(self):
         self.active_solution.environment = EmptyTestClass()

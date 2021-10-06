@@ -1,8 +1,8 @@
 import re
 
 
-class Identity:
-    """Class for the Identity of a solution."""
+class Coordinates:
+    """Class for the Coordinates of a solution."""
 
     def __init__(self, group: str, name: str, version: str) -> None:
         self.group = group
@@ -17,7 +17,7 @@ class Identity:
 
     def __eq__(self, o: object) -> bool:
         return isinstance(
-            o, Identity
+            o, Coordinates
         ) and o.group == self.group and o.name == self.name and o.version == self.version
 
     @staticmethod

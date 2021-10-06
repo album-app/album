@@ -4,7 +4,7 @@ from album.core import Solution
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.utils.operations.file_operations import force_remove
-from album.core.utils.operations.resolve_operations import dict_to_identity, solution_to_identity
+from album.core.utils.operations.resolve_operations import dict_to_coordinates, solution_to_coordinates
 from album.core.utils.script import create_solution_script
 from album_runner import logging, pop_active_solution
 
@@ -59,14 +59,14 @@ class InstallManager(metaclass=Singleton):
             parent = active_solution.parent
 
             parent_entry = self.collection_manager.catalog_collection.get_solution_by_catalog_grp_name_version(
-                parent_catalog_id, dict_to_identity(parent)
+                parent_catalog_id, dict_to_coordinates(parent)
             )
             parent_id = parent_entry["solution_id"]
 
         #FIXME figure out how to add the parent. can it be in a different catalog? if yes, add catalog and parent_id?!
         self.collection_manager.solutions().update_solution(
             self.collection_manager.catalogs().get_by_id(catalog_id),
-            solution_to_identity(active_solution),
+            solution_to_coordinates(active_solution),
             active_solution.get_deploy_dict()
         )
 

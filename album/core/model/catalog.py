@@ -9,11 +9,11 @@ from album.core.controller.migration_manager import MigrationManager
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
-from album.core.model.identity import Identity
+from album.core.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import unzip_archive, copy, copy_folder, get_dict_from_json, \
     write_dict_to_json
 from album.core.utils.operations.git_operations import download_repository, init_repository
-from album.core.utils.operations.resolve_operations import get_zip_name, dict_to_identity
+from album.core.utils.operations.resolve_operations import get_zip_name, dict_to_coordinates
 from album.core.utils.operations.url_operations import download_resource
 from album_runner import logging
 
@@ -39,12 +39,12 @@ def get_index_dir(src):
 
 
 # todo: this is not good! Think of smth. clever here
-def get_solution_src(src, identity: Identity):
+def get_solution_src(src, coordinates: Coordinates):
     """Gets the download link for a solution."""
     # todo: "main" is still hardcoded! :(
     return re.sub(r"\.git$", "", src) + "/-/raw/main/solutions/%s/%s/%s/%s" \
-           % (identity.group, identity.name, identity.version,
-              "%s_%s_%s%s" % (identity.group, identity.name, identity.version, ".zip"))
+           % (coordinates.group, coordinates.name, coordinates.version,
+              "%s_%s_%s%s" % (coordinates.group, coordinates.name, coordinates.version, ".zip"))
 
 
 class Catalog:
@@ -116,20 +116,20 @@ class Catalog:
         """Returns Boolean indicating whether the catalog is remote or local."""
         return not validators.url(str(self.src))
 
-    def resolve(self, identity: Identity):
+    def resolve(self, coordinates: Coordinates):
         """Resolves (also: finds, looks up) a solution in the catalog, returning the absolute path to the solution file.
 
         Args:
-            identity:
+            coordinates:
                 The group affiliation, name, and version of the solution.
 
         Returns: the path to the solution file.
 
         """
-        solution_entry = self.catalog_index.get_solution_by_group_name_version(identity)
+        solution_entry = self.catalog_index.get_solution_by_group_name_version(coordinates)
 
         if solution_entry:
-            path_to_solution = self.get_solution_file(identity)
+            path_to_solution = self.get_solution_file(coordinates)
 
             return path_to_solution
 
@@ -150,60 +150,60 @@ class Catalog:
 
         if solution_entry:
             path_to_solution = self.get_solution_file(
-                dict_to_identity(solution_entry)
+                dict_to_coordinates(solution_entry)
             )
 
             return path_to_solution
 
         return None  # could not resolve
 
-    def get_solution_path(self, identity: Identity):
+    def get_solution_path(self, coordinates: Coordinates):
         """Gets the cache path of a solution given its group, name and version.
 
         Args:
-            identity:
+            coordinates:
                 The group affiliation, name, and version of the solution.
 
         Returns:
             The absolute path to the cache folder of the solution.
 
         """
-        return self.path.joinpath(Configuration.get_solution_path_suffix(identity))
+        return self.path.joinpath(Configuration.get_solution_path_suffix(coordinates))
 
-    def get_solution_file(self, identity: Identity):
+    def get_solution_file(self, coordinates: Coordinates):
         """Gets the file to the solution.py file of the extracted solution.zip living inside the catalog.
 
         Args:
-            identity:
+            coordinates:
                 The group affiliation, name, and version of the solution.
 
         Returns:
             The path where the file is supposed to be once the zip is extracted during installation.
 
         """
-        p = self.get_solution_path(identity).joinpath(DefaultValues.solution_default_name.value)
+        p = self.get_solution_path(coordinates).joinpath(DefaultValues.solution_default_name.value)
 
         return p
 
-    def get_solution_zip(self, identity: Identity):
+    def get_solution_zip(self, coordinates: Coordinates):
         """Gets the cache zip of a solution given its group, name and version living inside the catalog.
 
         Args:
-            identity:
+            coordinates:
                 The group affiliation, name, and version of the solution.
 
         Returns:
             The absolute path to the solution.py cache file.
 
         """
-        return self.get_solution_path(identity).joinpath(get_zip_name(identity))
+        return self.get_solution_path(coordinates).joinpath(get_zip_name(coordinates))
 
     @staticmethod
-    def get_solution_zip_suffix(identity: Identity):
+    def get_solution_zip_suffix(coordinates: Coordinates):
         """Gets the cache zip suffix of a solution given its group, name and version living inside the catalog.
 
         Args:
-            identity:
+            coordinates:
                 The group affiliation, name, and version of the solution.
 
         Returns:
@@ -211,15 +211,15 @@ class Catalog:
 
         """
         return Path("").joinpath(
-            Configuration.get_solution_path_suffix(identity),
-            get_zip_name(identity)
+            Configuration.get_solution_path_suffix(coordinates),
+            get_zip_name(coordinates)
         )
 
-    def retrieve_solution(self, identity: Identity):
+    def retrieve_solution(self, coordinates: Coordinates):
         """Downloads or copies a solution from the catalog to the local resource (cache path of the catalog).
 
         Args:
-            identity:
+            coordinates:
                 The group affiliation, name, and version of the solution.
         Returns:
             The absolute path of the downloaded solution.
@@ -229,13 +229,13 @@ class Catalog:
             raise RuntimeError("Cannot download from a cache catalog!")
 
         elif self.is_local():  # src to copy from
-            src_path = Path(self.src).joinpath(self.get_solution_zip_suffix(identity))
-            solution_zip_file = self.get_solution_zip(identity)
+            src_path = Path(self.src).joinpath(self.get_solution_zip_suffix(coordinates))
+            solution_zip_file = self.get_solution_zip(coordinates)
             copy(src_path, solution_zip_file)
 
         else:  # src to download from
-            url = get_solution_src(self.src, identity)
-            solution_zip_file = self.get_solution_zip(identity)
+            url = get_solution_src(self.src, coordinates)
+            solution_zip_file = self.get_solution_zip(coordinates)
             download_resource(url, solution_zip_file)
 
         solution_zip_path = unzip_archive(solution_zip_file)
@@ -332,7 +332,7 @@ class Catalog:
             self.load_index()
 
         lookup_solution = self.catalog_index.get_solution_by_group_name_version(
-            dict_to_identity(solution_attrs))
+            dict_to_coordinates(solution_attrs))
         if lookup_solution:
             if force_overwrite:
                 module_logger().warning("Solution already exists! Overwriting...")
@@ -357,7 +357,7 @@ class Catalog:
             if not self.catalog_index:
                 self.load_index()
             solution_entry = self.catalog_index.remove_solution_by_group_name_version(
-                dict_to_identity(solution_attrs)
+                dict_to_coordinates(solution_attrs)
             )
             if solution_entry:
                 self.catalog_index.export(self.solution_list_path)

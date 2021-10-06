@@ -10,7 +10,7 @@ from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, zip_paths, copy_in_file
 from album.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push
-from album.core.utils.operations.resolve_operations import solution_to_identity, get_zip_name
+from album.core.utils.operations.resolve_operations import solution_to_coordinates, get_zip_name
 from album_runner import logging
 
 module_logger = logging.get_active_logger
@@ -151,8 +151,8 @@ class DeployManager(metaclass=Singleton):
 
     def retrieve_head_name(self):
         """Retrieves the branch (head) name for the merge request of the solution file."""
-        identity = solution_to_identity(self._active_solution)
-        return "_".join([identity.group_path, identity.name_path, identity.version_path])
+        coordinates = solution_to_coordinates(self._active_solution)
+        return "_".join([coordinates.group_path, coordinates.name_path, coordinates.version_path])
 
     def _create_merge_request(self, file_paths, dry_run=False, push_option=None, email=None, username=None):
         """Creates a merge request to the catalog repository for the album object.
@@ -200,7 +200,7 @@ class DeployManager(metaclass=Singleton):
         """ Gets the absolute path to the zip."""
         return Path(self._catalog_local_src).joinpath(
             self._catalog.get_solution_zip_suffix(
-                solution_to_identity(self._active_solution)
+                solution_to_coordinates(self._active_solution)
             )
         )
 
@@ -211,14 +211,14 @@ class DeployManager(metaclass=Singleton):
             The Path to the created markdown file.
 
         """
-        identity = solution_to_identity(self._active_solution)
+        coordinates = solution_to_coordinates(self._active_solution)
 
         yaml_path = Path(self._catalog_local_src).joinpath(
             DefaultValues.catalog_yaml_prefix.value,
-            identity.group_path,
-            identity.name_path,
-            identity.version_path,
-            "%s%s" % (identity.name_path, ".yml")
+            coordinates.group_path,
+            coordinates.name_path,
+            coordinates.version_path,
+            "%s%s" % (coordinates.name_path, ".yml")
         )
 
         module_logger().info('Writing yaml file to: %s...' % yaml_path)
@@ -232,17 +232,17 @@ class DeployManager(metaclass=Singleton):
         Returns:
             The path to the docker file.
         """
-        identity = solution_to_identity(self._active_solution)
-        zip_name = get_zip_name(identity)
+        coordinates = solution_to_coordinates(self._active_solution)
+        zip_name = get_zip_name(coordinates)
 
-        solution_path_suffix = Path("").joinpath(Configuration.get_solution_path_suffix(identity))
+        solution_path_suffix = Path("").joinpath(Configuration.get_solution_path_suffix(coordinates))
         docker_file = Path(self._catalog_local_src).joinpath(solution_path_suffix, "Dockerfile")
 
         docker_file_stream = pkgutil.get_data('album.docker', 'Dockerfile_solution_template.txt').decode()
 
         docker_file_stream = docker_file_stream.replace("<version>", album.__version__)
         docker_file_stream = docker_file_stream.replace("<name>", zip_name)
-        docker_file_stream = docker_file_stream.replace("<run_name>", str(identity))
+        docker_file_stream = docker_file_stream.replace("<run_name>", str(coordinates))
         author = self._active_solution.authors if self._active_solution.authors else "\"\""
         docker_file_stream = docker_file_stream.replace("<maintainer>", author)
 

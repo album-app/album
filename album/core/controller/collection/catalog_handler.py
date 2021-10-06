@@ -12,7 +12,7 @@ from album.core.model.catalog_updates import CatalogUpdates, SolutionChange, Cha
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.resolve_operations import dict_to_identity
+from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album_runner import logging
 
 module_logger = logging.get_active_logger
@@ -334,20 +334,20 @@ class CatalogHandler:
             solution_old = dict_old[solution_id]
             # check if solution got removed
             if solution_id not in dict_new:
-                identity = dict_to_identity(solution_old)
-                change = SolutionChange(identity, ChangeType.REMOVED)
+                coordinates = dict_to_coordinates(solution_old)
+                change = SolutionChange(coordinates, ChangeType.REMOVED)
                 res.append(change)
             else:
                 # check if solution got changed
                 if solution_old["hash"] != dict_new[solution_id]["hash"]:
-                    identity = dict_to_identity(solution_old)
-                    change = SolutionChange(identity, ChangeType.CHANGED)
+                    coordinates = dict_to_coordinates(solution_old)
+                    change = SolutionChange(coordinates, ChangeType.CHANGED)
                     res.append(change)
         # check if solution got added
         for solution_id in dict_new:
             if solution_id not in dict_old:
-                identity = dict_to_identity(dict_new[solution_id])
-                change = SolutionChange(identity, ChangeType.ADDED)
+                coordinates = dict_to_coordinates(dict_new[solution_id])
+                change = SolutionChange(coordinates, ChangeType.ADDED)
                 res.append(change)
         return res
 

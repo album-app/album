@@ -6,11 +6,11 @@ from album.core.concept.singleton import Singleton
 from album.core.model.catalog import Catalog
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
-from album.core.model.identity import Identity
+from album.core.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_dict_entry
 from album.core.utils.operations.git_operations import checkout_branch, add_files_commit_and_push, \
     retrieve_single_file_from_head, configure_git
-from album.core.utils.operations.resolve_operations import get_zip_name, get_zip_name_prefix, dict_to_identity
+from album.core.utils.operations.resolve_operations import get_zip_name, get_zip_name_prefix, dict_to_coordinates
 from album_runner import logging
 
 module_logger = logging.get_active_logger
@@ -46,13 +46,13 @@ class ReleaseManager(metaclass=Singleton):
         if not self.catalog_repo.remote().url.startswith("git"):
             self.catalog_repo.remote().set_url(get_ssh_url(project_path, self.catalog_src))
 
-    def _get_zip_path(self, identity: Identity):
-        zip_name = get_zip_name(identity)
-        return self.configuration.get_solution_path_suffix(identity).joinpath(zip_name)
+    def _get_zip_path(self, coordinates: Coordinates):
+        zip_name = get_zip_name(coordinates)
+        return self.configuration.get_solution_path_suffix(coordinates).joinpath(zip_name)
 
-    def _get_docker_path(self, identity: Identity):
+    def _get_docker_path(self, coordinates: Coordinates):
         docker_name = "Dockerfile"
-        return self.configuration.get_solution_path_suffix(identity).joinpath(docker_name)
+        return self.configuration.get_solution_path_suffix(coordinates).joinpath(docker_name)
 
     @staticmethod
     def _get_yml_dict(head):
@@ -72,11 +72,11 @@ class ReleaseManager(metaclass=Singleton):
         yml_dict, yml_file_path = self._get_yml_dict(head)
 
         # checkout files
-        zip_name = self._get_zip_path(dict_to_identity(yml_dict)).name
-        docker_name = self._get_docker_path(dict_to_identity(yml_dict)).name
+        zip_name = self._get_zip_path(dict_to_coordinates(yml_dict)).name
+        docker_name = self._get_docker_path(dict_to_coordinates(yml_dict)).name
 
         # query deposit
-        deposit_name = get_zip_name_prefix(dict_to_identity(yml_dict))
+        deposit_name = get_zip_name_prefix(dict_to_coordinates(yml_dict))
         deposit_id = get_dict_entry(yml_dict, "deposit_id", allow_none=False)
         deposit = zenodo_manager.zenodo_get_unpublished_deposit_by_id(
             deposit_id, deposit_name, expected_files=[zip_name, docker_name]
@@ -102,14 +102,14 @@ class ReleaseManager(metaclass=Singleton):
             deposit_id = None
 
         # extract deposit name
-        deposit_name = get_zip_name_prefix(dict_to_identity(yml_dict))
+        deposit_name = get_zip_name_prefix(dict_to_coordinates(yml_dict))
 
         # get the solution zip to release
-        zip_path = self._get_zip_path(dict_to_identity(yml_dict))
+        zip_path = self._get_zip_path(dict_to_coordinates(yml_dict))
         solution_zip = retrieve_single_file_from_head(head, str(zip_path))
 
         # get the docker file
-        docker_path = self._get_docker_path(dict_to_identity(yml_dict))
+        docker_path = self._get_docker_path(dict_to_coordinates(yml_dict))
         docker_file = retrieve_single_file_from_head(head, str(docker_path))
 
         # get the release deposit. Either a new one or an existing one to perform an update on
@@ -154,10 +154,10 @@ class ReleaseManager(metaclass=Singleton):
 
         yml_dict, yml_file = self._get_yml_dict(head)
 
-        zip_path = self._get_zip_path(dict_to_identity(yml_dict))
+        zip_path = self._get_zip_path(dict_to_coordinates(yml_dict))
         solution_zip = retrieve_single_file_from_head(head, str(zip_path))
 
-        docker_path = self._get_docker_path(dict_to_identity(yml_dict))
+        docker_path = self._get_docker_path(dict_to_coordinates(yml_dict))
         docker_file = retrieve_single_file_from_head(head, str(docker_path))
 
         commit_files = [

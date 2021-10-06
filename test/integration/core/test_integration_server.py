@@ -7,7 +7,7 @@ import flask_unittest
 
 from album.core.controller.task_manager import TaskManager
 from album.core.model.default_values import DefaultValues
-from album.core.model.identity import Identity
+from album.core.model.coordinates import Coordinates
 from album.core.model.task import Task
 from album.core.server import AlbumServer
 from album_runner import logging
@@ -157,7 +157,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
 
         # check that solution is installed
         self.assertTrue(
-            self.collection_manager.catalog_collection.is_installed(catalog_id, Identity(group, name, version))
+            self.collection_manager.catalog_collection.is_installed(catalog_id, Coordinates(group, name, version))
         )
         res_status = client.get(f'/status/{local_catalog_name}/{group}/{name}/{version}')
         self.assertEqual(200, res_status.status_code)

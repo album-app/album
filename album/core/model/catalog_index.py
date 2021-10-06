@@ -5,9 +5,9 @@ import pkgutil
 from typing import Optional
 
 from album.core.concept.database import Database
-from album.core.model.identity import Identity
+from album.core.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import get_dict_entry, write_dict_to_json
-from album.core.utils.operations.resolve_operations import dict_to_identity
+from album.core.utils.operations.resolve_operations import dict_to_coordinates
 
 
 class CatalogIndex(Database):
@@ -236,11 +236,11 @@ class CatalogIndex(Database):
             self._append_metadata_to_solution_dict(solution)
         return solution
 
-    def get_solution_by_group_name_version(self, identity: Identity) -> Optional[dict]:
+    def get_solution_by_group_name_version(self, coordinates: Coordinates) -> Optional[dict]:
         """Resolves a solution by its name, version and group.
 
         Args:
-            identity:
+            coordinates:
                 The group affiliation, name, and version of the solution.
 
         Returns:
@@ -253,9 +253,9 @@ class CatalogIndex(Database):
             "SELECT s.* FROM solution s "
             "WHERE s.\"group\"=:group AND s.name=:name AND s.version=:version",
             {
-                "group": identity.group,
-                "name": identity.name,
-                "version": identity.version,
+                "group": coordinates.group,
+                "name": coordinates.name,
+                "version": coordinates.version,
             }
         ).fetchone()
 
@@ -406,8 +406,8 @@ class CatalogIndex(Database):
 
         self.save()
 
-    def remove_solution_by_group_name_version(self, identity: Identity):
-        solution_dict = self.get_solution_by_group_name_version(identity)
+    def remove_solution_by_group_name_version(self, coordinates: Coordinates):
+        solution_dict = self.get_solution_by_group_name_version(coordinates)
         if solution_dict:
             self.remove_solution(solution_dict["solution_id"])
 
@@ -422,7 +422,7 @@ class CatalogIndex(Database):
                 The solution attributes. Must hold group, name, version.
 
         """
-        if self.get_solution_by_group_name_version(dict_to_identity(solution_attrs)):
+        if self.get_solution_by_group_name_version(dict_to_coordinates(solution_attrs)):
             self._update_solution(solution_attrs)
         else:
             self._insert_solution(solution_attrs)
