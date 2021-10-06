@@ -1,4 +1,3 @@
-import sys
 
 from album.core import Solution
 from album.core.concept.singleton import Singleton
@@ -26,10 +25,10 @@ class InstallManager(metaclass=Singleton):
         self.collection_manager = CollectionManager()
         self.configuration = self.collection_manager.configuration
 
-    def install(self, path):
+    def install(self, path_or_id, argv=None):
         """Function corresponding to the `install` subcommand of `album`."""
         # Load solution
-        resolve_result = self.collection_manager.resolve_download_and_load(str(path))
+        resolve_result = self.collection_manager.resolve_download_and_load(str(path_or_id))
         solution = resolve_result.active_solution
         catalog = resolve_result.catalog
 
@@ -40,7 +39,7 @@ class InstallManager(metaclass=Singleton):
                 solution)))
 
         # execute installation routine
-        parent_catalog_id = self._install(solution)
+        parent_catalog_id = self._install(solution, argv)
 
         if not catalog or catalog.is_cache():  # case where a solution file is directly given
             self.collection_manager.add_solution_to_local_catalog(solution, resolve_result.path.parent)
@@ -70,8 +69,10 @@ class InstallManager(metaclass=Singleton):
             active_solution.get_deploy_dict()
         )
 
-    def _install(self, active_solution):
+    def _install(self, active_solution, argv=None):
         # install environment
+        if argv is None:
+            argv = [""]
         active_solution.environment.install(active_solution.min_album_version)
 
         # install dependencies first. Recursive call to install with dependencies
@@ -80,7 +81,7 @@ class InstallManager(metaclass=Singleton):
         """Run install routine of album if specified"""
         if active_solution['install'] and callable(active_solution['install']):
             module_logger().debug('Creating install script...')
-            script = create_solution_script(active_solution, "\nget_active_solution().install()\n", sys.argv)
+            script = create_solution_script(active_solution, "\nget_active_solution().install()\n", argv)
             module_logger().debug('Calling install routine specified in solution...')
             logging.configure_logging(active_solution['name'])
             active_solution.environment.run_scripts([script])

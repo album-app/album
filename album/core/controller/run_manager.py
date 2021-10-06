@@ -1,5 +1,4 @@
 import argparse
-import sys
 from queue import Queue, Empty
 
 from album.core import load
@@ -61,7 +60,7 @@ class RunManager(metaclass=Singleton):
         self.catalog_manager = CollectionManager()
         self.init_script = ""
 
-    def run(self, path, run_immediately=False):
+    def run(self, path, run_immediately=False, argv=None):
         """Function corresponding to the `run` subcommand of `album`."""
 
         resolve_result = self.catalog_manager.resolve_require_installation_and_load(path)
@@ -71,17 +70,20 @@ class RunManager(metaclass=Singleton):
         else:
             module_logger().debug('album loaded from catalog: %s...' % str(resolve_result.active_solution))
 
-        self._run(resolve_result.active_solution, run_immediately)
+        self._run(resolve_result.active_solution, run_immediately, argv)
 
-    def _run(self, active_solution, run_immediately=False):
+    def _run(self, active_solution, run_immediately=False, argv=None):
         """Run an already loaded solution which consists of multiple steps (= other solution)."""
         module_logger().info("Starting running \"%s\"" % active_solution["name"])
+
+        if argv is None:
+            argv = [""]
 
         # pushing album and their scripts to a queue
         que = Queue()
 
         # builds the queue
-        self.build_queue(active_solution, que, run_immediately)
+        self.build_queue(active_solution, que, run_immediately, argv)
 
         # runs the queue
         self.run_queue(que)
@@ -108,7 +110,7 @@ class RunManager(metaclass=Singleton):
         except Empty:
             module_logger().info("Currently nothing more to run!")
 
-    def build_queue(self, active_solution, que, run_immediately=False):
+    def build_queue(self, active_solution, que, run_immediately=False, argv=None):
         """Builds the queue of an active-album object.
 
         Args:
@@ -120,15 +122,19 @@ class RunManager(metaclass=Singleton):
                 Boolean. When true, a collection is run immediately without solving for further steps and pushing them
                 to the queue. Can result in resolving problems in further downstream collections. Necessary for
                 branching decisions.
+            argv:
+                The argument vector being passed to the solution.
 
         """
+        if argv is None:
+            argv = [""]
         steps = active_solution["steps"]
         if steps:  # solution consists of at least one step
             # a step base album is first initialized in the album environment to be able to harvest it's arguments
             # todo: discuss this!
             active_solution.init()
 
-            step_solution_parsed_args = self.__parse_args(active_solution)
+            step_solution_parsed_args = self.__parse_args(active_solution, argv)
             module_logger().info("Building queue for %s steps.." % len(steps))
 
             for i, step in enumerate(steps):
@@ -141,11 +147,11 @@ class RunManager(metaclass=Singleton):
             if active_solution.parent:
                 module_logger().debug("Adding step standalone album with parent to queue...")
                 # create script with parent
-                que.put(self.create_solution_run_with_parent_script_standalone(active_solution, sys.argv))
+                que.put(self.create_solution_run_with_parent_script_standalone(active_solution, argv))
             else:
                 module_logger().debug("Adding step standalone to queue...")
                 # create script without parent
-                que.put(self.create_solution_run_script_standalone(active_solution, sys.argv))
+                que.put(self.create_solution_run_script_standalone(active_solution, argv))
 
     def build_steps_queue(self, que, steps, run_immediately=False, step_solution_parsed_args=None):
         """Builds the queue of step-album to be executed. FIFO queue expected.
@@ -355,7 +361,7 @@ class RunManager(metaclass=Singleton):
         script_list.append(script_parent_close)
         return script_list
 
-    def __parse_args(self, active_solution):
+    def __parse_args(self, active_solution, args):
         """Parse arguments of loaded solution."""
         parser = argparse.ArgumentParser()
 
@@ -374,7 +380,7 @@ class RunManager(metaclass=Singleton):
             else:
                 parser.add_argument("--" + element["name"])
 
-        return parser.parse_known_args(args=sys.argv)
+        return parser.parse_known_args(args=args)
 
     def resolve_args(self, parent_solution, steps_solution, steps, step_solution_parsed_args, args=None):
         """Resolves arguments of all steps and their parents."""

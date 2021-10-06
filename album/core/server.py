@@ -81,7 +81,8 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route('/run/<catalog>/<group>/<name>/<version>')
         def run(catalog, group, name, version):
             module_logger().info(f"Server call: /run/{catalog}/{group}/{name}/{version}")
-            task = self._run_solution_method_async(catalog, Coordinates(group, name, version), RunManager().run)
+            args = self._get_arguments(request.args)
+            task = self._run_solution_method_async(catalog, Coordinates(group, name, version), RunManager().run, args)
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/install/<group>/<name>/<version>', defaults={'catalog': None})
@@ -163,7 +164,6 @@ class AlbumServer(metaclass=Singleton):
                 for arg in args:
                     task_args.append(arg)
             task.args = tuple(task_args)
-            task.sysarg = self._get_arguments(request.get_json(), path)
             task.method = CloneManager().clone
             TaskManager().register_task(task)
             return {"id": task.id, "msg": "process started"}
@@ -263,7 +263,8 @@ class AlbumServer(metaclass=Singleton):
             func()
             return 'Server shutting down...'
 
-    def _run_solution_method_async(self, catalog, group_name_version: Coordinates, method, args=None):
+    @staticmethod
+    def _run_solution_method_async(catalog, group_name_version: Coordinates, method, args=None):
         task = Task()
         if catalog is None:
             solution_path = str(group_name_version)
@@ -274,25 +275,13 @@ class AlbumServer(metaclass=Singleton):
             for arg in args:
                 task_args.append(arg)
         task.args = tuple(task_args)
-        task.sysarg = self._get_arguments(request.args, solution_path)
         task.method = method
         TaskManager().register_task(task)
         return task
 
     @staticmethod
-    def _run_path_method_async(path, args, method):
-        task = Task()
-        command_args = [str(path)]
-        for arg in args:
-            command_args.append(arg)
-        task.sysarg = command_args
-        task.method = method
-        TaskManager().register_task(task)
-        return task
-
-    @staticmethod
-    def _get_arguments(args_json, solution_path):
-        command_args = [str(solution_path)]
+    def _get_arguments(args_json):
+        command_args = [""]
         if args_json:
             for key in args_json:
                 command_args.append(f"--{key}")

@@ -91,8 +91,6 @@ class TestIntegrationAPI(TestIntegrationCommon):
         self.assertFalse(installed)
 
         # install solution
-        # FIXME the install manager is accessing the sys.argv for parsing solution arguments - that should be a method parameter instead
-        sys.argv = [""]
         album.install_manager().install(f"{local_catalog_name}:{group}:{name}:{version}")
 
         # check that solution is installed

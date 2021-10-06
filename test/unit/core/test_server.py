@@ -6,7 +6,6 @@ from album.core.controller.task_manager import TaskManager
 from flask.testing import FlaskClient
 
 from album.core.model.catalog import Catalog
-from album.core.model.configuration import Configuration
 from album.core.server import AlbumServer
 from test.unit.test_unit_common import TestUnitCommon
 

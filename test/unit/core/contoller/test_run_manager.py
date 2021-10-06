@@ -45,7 +45,7 @@ class TestRunManager(TestUnitCommon):
         self.run_manager.run(self.closed_tmp_file.name)
 
         # assert
-        _run.assert_called_once_with(self.active_solution, False)
+        _run.assert_called_once_with(self.active_solution, False, None)
         resolve_installed_and_load.assert_called_once_with(self.closed_tmp_file.name)
 
     def test__run(self):

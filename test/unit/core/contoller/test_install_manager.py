@@ -42,7 +42,7 @@ class TestInstallManager(TestUnitCommon):
         self.install_manager.update_in_collection_index = update_in_collection_index
 
         # run
-        self.install_manager.install("aPath")
+        self.install_manager.install("aPath", [])
 
         # assert
         resolve_and_load.assert_called_once()

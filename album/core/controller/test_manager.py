@@ -26,8 +26,10 @@ class TestManager(metaclass=Singleton):
         self.catalog_manager = CollectionManager()
         self.run_manager = RunManager()
 
-    def test(self, path):
+    def test(self, path, args=None):
         """Function corresponding to the `test` subcommand of `album`."""
+        if args is None:
+            args = [""]
         try:
             resolve_result = self.catalog_manager.resolve_require_installation_and_load(path)
         except ValueError:
@@ -40,11 +42,13 @@ class TestManager(metaclass=Singleton):
         else:
             module_logger().debug('album loaded from catalog: %s...' % str(resolve_result.active_solution))
 
-        self._test(resolve_result.active_solution)
+        self._test(resolve_result.active_solution, args)
 
         module_logger().info('Test run for %s!' % resolve_result.active_solution['name'])
 
-    def _test(self, active_solution):
+    def _test(self, active_solution, args=None):
+        if args is None:
+            args = [""]
         if active_solution['pre_test'] and callable(active_solution['pre_test']) \
                 and active_solution['test'] and callable(active_solution['test']):
             module_logger().debug('Creating test script...')
@@ -59,7 +63,7 @@ class TestManager(metaclass=Singleton):
 
             # prepare run_script
             que = Queue()
-            self.run_manager.build_queue(active_solution, que, False)  # do not run queue immediately
+            self.run_manager.build_queue(active_solution, que, False, args)  # do not run queue immediately
             _, scripts = que.get(block=False)
 
             # add test_routine to script
