@@ -4,8 +4,7 @@ from pathlib import Path
 from album.core.model.configuration import Configuration
 from album.core.model.coordinates import Coordinates
 from album.core.model.environment import Environment
-from album_runner import AlbumRunner
-from album_runner import logging
+from album.runner import logging, AlbumRunner
 
 module_logger = logging.get_active_logger
 
@@ -41,7 +40,7 @@ class Solution(AlbumRunner):
                         arg[key] = "%s_function" % key
         return solution_dict
 
-    # Note: setup- and API-keywords in the album_runner
+    # Note: setup- and API-keywords in the album
 
     def __init__(self, attrs=None):
         """Sets object attributes in setup_keywords.
@@ -54,9 +53,10 @@ class Solution(AlbumRunner):
         super().__init__(attrs)
         self.coordinates = Coordinates(attrs["group"], attrs["name"], attrs["version"])
         self.environment = None
-        self.cache_path_download = None
-        self.cache_path_app = None
-        self.cache_path_solution = None
+        self.data_path = None
+        self.app_path = None
+        self.package_path = None
+        self.cache_path = None
 
     def __setitem__(self, key, value):
         setattr(self, key, value)
@@ -71,7 +71,7 @@ class Solution(AlbumRunner):
         environment_name = self.get_environment_name(catalog_name)
         self.set_cache_paths(catalog_name)
         self.environment = Environment(
-            self.dependencies, environment_name=environment_name, cache_path=self.cache_path_solution
+            self.dependencies, environment_name=environment_name, cache_path=self.package_path
         )
 
     def set_cache_paths(self, catalog_name):
@@ -80,9 +80,10 @@ class Solution(AlbumRunner):
         # Note: cache paths need the catalog the album live in - otherwise there might be problems with solutions
         # of different catalogs doing similar operations (e.g. downloads) as they might share the same cache path.
         path_suffix = Path("").joinpath(self["group"], self["name"], self["version"])
-        self.cache_path_download = Configuration().cache_path_download.joinpath(str(catalog_name), path_suffix)
-        self.cache_path_app = Configuration().cache_path_app.joinpath(str(catalog_name), path_suffix)
-        self.cache_path_solution = Configuration().cache_path_solution.joinpath(str(catalog_name), path_suffix)
+        self.data_path = Configuration().cache_path_download.joinpath(str(catalog_name), path_suffix)
+        self.app_path = Configuration().cache_path_app.joinpath(str(catalog_name), path_suffix)
+        self.package_path = Configuration().cache_path_solution.joinpath(str(catalog_name), path_suffix)
+        self.cache_path = Configuration().cache_path_tmp.joinpath(str(catalog_name), path_suffix)
 
     def get_environment_name(self, catalog_name):
         return "_".join([str(catalog_name), self.get_identifier()])

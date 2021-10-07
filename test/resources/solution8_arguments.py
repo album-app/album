@@ -1,5 +1,5 @@
-from album_runner import setup
-from album_runner.api.run_helper import get_args
+from album.runner import setup
+from album.runner.api import get_args
 
 
 def album_init():
@@ -110,4 +110,5 @@ setup(
     install=album_install,
     pre_test=album_pre_test,
     test=album_test,
-    dependencies={})
+    dependencies={}
+)

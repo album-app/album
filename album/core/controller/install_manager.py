@@ -5,7 +5,7 @@ from album.core.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.resolve_operations import dict_to_coordinates, solution_to_coordinates
 from album.core.utils.script import create_solution_script
-from album_runner import logging, pop_active_solution
+from album.runner import logging, pop_active_solution
 
 module_logger = logging.get_active_logger
 

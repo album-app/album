@@ -2,7 +2,7 @@ import sys
 from typing import Optional
 
 from album.core.model.solution import Solution
-from album_runner import logging
+from album.runner import logging
 
 module_logger = logging.get_active_logger
 
@@ -21,8 +21,8 @@ def setup_solution(**attrs):
     push_active_solution(next_solution)
 
 
-# overwrite album_runner setup with this setup
-sys.modules['album_runner'].setup = setup_solution
+# overwrite album setup with this setup
+sys.modules['album.runner'].setup = setup_solution
 
 
 def push_active_solution(solution_object):

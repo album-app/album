@@ -13,7 +13,7 @@ from zipfile import ZipFile
 import yaml
 
 from album.core.utils.subcommand import run
-from album_runner import logging
+from album.runner import logging
 
 module_logger = logging.get_active_logger
 enc = sys.getfilesystemencoding()

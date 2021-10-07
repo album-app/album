@@ -5,7 +5,7 @@ from album.core.concept.singleton import Singleton
 from album.core.model.default_values import DefaultValues
 from album.core.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import create_paths_recursively, force_remove, get_dict_from_json
-from album_runner import logging
+from album.runner import logging
 
 module_logger = logging.get_active_logger
 

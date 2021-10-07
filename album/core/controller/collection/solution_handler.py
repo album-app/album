@@ -6,7 +6,7 @@ from album.core.model.collection_index import CollectionIndex
 from album.core.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import copy_folder
 from album.core.utils.operations.resolve_operations import dict_to_coordinates, solution_to_coordinates
-from album_runner import logging
+from album.runner import logging
 
 module_logger = logging.get_active_logger
 

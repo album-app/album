@@ -4,8 +4,8 @@ import sys
 from album import Album
 from album.core.commandline import add_catalog, remove_catalog, deploy, \
     install, repl, run, search, start_server, test, update, clone, upgrade, index, uninstall
-from album_runner import logging
-from album_runner.logging import debug_settings
+from album.runner import logging
+from album.runner.logging import debug_settings
 
 module_logger = logging.get_active_logger
 

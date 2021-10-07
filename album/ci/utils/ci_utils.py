@@ -1,6 +1,6 @@
 from urllib.parse import urlparse
 
-from album_runner import logging
+from album.runner import logging
 
 module_logger = logging.get_active_logger
 

@@ -10,8 +10,8 @@ from album.core.controller.run_manager import RunManager
 from album.core.controller.search_manager import SearchManager
 from album.core.controller.test_manager import TestManager
 from album.core.server import AlbumServer
-from album_runner import logging
-from album_runner.logging import debug_settings
+from album.runner import logging
+from album.runner.logging import debug_settings
 
 module_logger = logging.get_active_logger
 

@@ -17,7 +17,7 @@ from album.core.controller.test_manager import TestManager
 from album.core.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.model.task import Task
-from album_runner import logging
+from album.runner import logging
 
 module_logger = logging.get_active_logger
 

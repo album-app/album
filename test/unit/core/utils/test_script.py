@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 from album.core.controller.conda_manager import CondaManager
 from album.core.utils.script import create_script
-from album_runner import logging
+from album.runner import logging
 from test.unit.test_unit_common import TestUnitCommon
 
 

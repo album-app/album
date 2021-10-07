@@ -5,9 +5,8 @@ from threading import Thread
 from album.core.controller.task_manager import TaskManager
 from album.core.model.task import Task
 from album.core.utils import subcommand
-from album_runner import logging
-from album_runner.logging import LogLevel
-from test.global_exception_watcher import GlobalExceptionWatcher
+from album.runner import logging
+from album.runner.logging import LogLevel
 from test.unit.test_unit_common import TestUnitCommon
 
 

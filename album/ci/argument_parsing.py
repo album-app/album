@@ -5,8 +5,8 @@ from argparse import ArgumentParser
 from album.argument_parsing import ArgumentParser as AlbumAP
 from album.ci.commandline import configure_repo, configure_ssh, zenodo_publish, zenodo_upload, update_index, \
     push_changes, merge
-from album_runner import logging
-from album_runner.logging import get_active_logger, debug_settings
+from album.runner import logging
+from album.runner.logging import get_active_logger, debug_settings
 
 module_logger = get_active_logger
 

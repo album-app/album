@@ -8,7 +8,7 @@ import requests
 
 from album.ci.utils.zenodo_api import ResponseStatus
 from album.core.utils.operations.file_operations import create_path_recursively
-from album_runner import logging
+from album.runner import logging
 
 module_logger = logging.get_active_logger
 

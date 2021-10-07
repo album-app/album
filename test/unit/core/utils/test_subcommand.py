@@ -3,7 +3,7 @@ from logging import StreamHandler
 from unittest.mock import MagicMock
 
 from album.core.utils import subcommand
-from album_runner import logging
+from album.runner import logging
 from test.unit.test_unit_common import TestUnitCommon
 
 

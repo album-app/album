@@ -2,7 +2,7 @@ import os
 
 from album.ci.utils import zenodo_api
 from album.core.concept.singleton import Singleton
-from album_runner import logging
+from album.runner import logging
 
 module_logger = logging.get_active_logger
 

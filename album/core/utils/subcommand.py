@@ -6,8 +6,8 @@ import threading
 
 import pexpect
 
-from album_runner import logging
-from album_runner.logging import LogfileBuffer
+from album.runner import logging
+from album.runner.logging import LogfileBuffer
 
 module_logger = logging.get_active_logger
 

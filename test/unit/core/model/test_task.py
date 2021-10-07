@@ -2,8 +2,8 @@ import unittest.mock
 from logging import getLogger
 
 from album.core.model.task import LogHandler
-from album_runner import logging
-from album_runner.logging import LogLevel
+from album.runner import logging
+from album.runner.logging import LogLevel
 from test.unit.test_unit_common import TestUnitCommon
 
 

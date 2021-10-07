@@ -11,7 +11,7 @@ from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import force_remove, \
     create_path_recursively, rand_folder_name, check_zip, unzip_archive, copy, copy_folder
 from album.core.utils.operations.url_operations import is_url, download
-from album_runner import logging
+from album.runner import logging
 
 module_logger = logging.get_active_logger
 

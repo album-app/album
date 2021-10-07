@@ -3,8 +3,8 @@ from queue import Queue
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.run_manager import RunManager
+from album.runner import logging
 from album.core.model.coordinates import Coordinates
-from album_runner import logging
 
 module_logger = logging.get_active_logger
 

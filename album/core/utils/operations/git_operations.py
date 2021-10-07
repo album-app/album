@@ -4,7 +4,7 @@ from pathlib import Path
 import git
 
 from album.core.utils.operations.file_operations import force_remove
-from album_runner import logging
+from album.runner import logging
 
 module_logger = logging.get_active_logger
 

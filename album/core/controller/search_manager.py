@@ -2,7 +2,7 @@ import operator
 
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
-from album_runner import logging
+from album.runner import logging
 
 module_logger = logging.get_active_logger
 

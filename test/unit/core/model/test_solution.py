@@ -36,9 +36,10 @@ channels:
         active_solution = Solution(solution_dict)
 
         self.assertEqual(None, active_solution.environment)
-        self.assertEqual(None, active_solution.cache_path_download)
-        self.assertEqual(None, active_solution.cache_path_app)
-        self.assertEqual(None, active_solution.cache_path_solution)
+        self.assertEqual(None, active_solution.data_path)
+        self.assertEqual(None, active_solution.app_path)
+        self.assertEqual(None, active_solution.package_path)
+        self.assertEqual(None, active_solution.cache_path)
 
     def test_set_cache_paths(self):
         config = Configuration()
@@ -51,19 +52,25 @@ channels:
             Path(config.cache_path_download).joinpath(
                 "catalog_name_solution_lives_in", "tsg", "tsn", "tsv"
             ),
-            active_solution.cache_path_download
+            active_solution.data_path
         )
         self.assertEqual(
             Path(config.cache_path_app).joinpath(
                 "catalog_name_solution_lives_in", "tsg", "tsn", "tsv"
             ),
-            active_solution.cache_path_app
+            active_solution.app_path
         )
         self.assertEqual(
             Path(config.cache_path_solution).joinpath(
                 "catalog_name_solution_lives_in", "tsg", "tsn", "tsv"
             ),
-            active_solution.cache_path_solution
+            active_solution.package_path
+        )
+        self.assertEqual(
+            Path(config.cache_path_tmp).joinpath(
+                "catalog_name_solution_lives_in", "tsg", "tsn", "tsv"
+            ),
+            active_solution.cache_path
         )
 
     @patch('album.core.model.solution.Solution.set_cache_paths')
@@ -80,7 +87,7 @@ channels:
         environment_init_mock.assert_called_once_with(
             active_solution.dependencies,
             environment_name="catalog_name_solution_lives_in_tsg_tsn_tsv",
-            cache_path=active_solution.cache_path_solution
+            cache_path=active_solution.package_path
         )
 
     def test_get_deploy_dict(self):

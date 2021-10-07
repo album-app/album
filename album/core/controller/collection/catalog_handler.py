@@ -13,7 +13,7 @@ from album.core.model.collection_index import CollectionIndex
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
-from album_runner import logging
+from album.runner import logging
 
 module_logger = logging.get_active_logger
 

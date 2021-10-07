@@ -16,7 +16,7 @@ from album.core.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
 from album.core.utils.operations.file_operations import copy
-from album_runner.logging import configure_logging, LogLevel
+from album.runner.logging import configure_logging, LogLevel
 from test.global_exception_watcher import GlobalExceptionWatcher
 from test.unit.test_unit_common import TestUnitCommon
 
@@ -56,19 +56,19 @@ class TestIntegrationCommon(unittest.TestCase):
         # clean all environments specified in test-resources
         local_catalog_id = str(self.collection_manager.catalogs().get_local_catalog().name)
         env_names = [
-            local_catalog_id + "_group_name_0_1_0",
-            local_catalog_id + "_group_app1_0_1_0",
-            local_catalog_id + "_group_app2_0_1_0",
-            local_catalog_id + "_group_solution1_app1_0_1_0",
-            local_catalog_id + "_group_solution2_app1_0_1_0",
-            local_catalog_id + "_group_solution3_noparent_0_1_0",
-            local_catalog_id + "_group_solution4_app2_0_1_0",
-            local_catalog_id + "_group_solution5_app2_0_1_0",
-            local_catalog_id + "_group_solution6_noparent_test_0_1_0",
-            local_catalog_id + "_group_solution7_long_routines_0_1_0",
-            local_catalog_id + "_group_solution8_arguments_0_1_0",
-            local_catalog_id + "_group_solution_with_steps_0_1_0",
-            local_catalog_id + "_solution_with_steps_grouped_0_1_0"
+            local_catalog_id + "_group_name_0.1.0",
+            local_catalog_id + "_group_app1_0.1.0",
+            local_catalog_id + "_group_app2_0.1.0",
+            local_catalog_id + "_group_solution1_app1_0.1.0",
+            local_catalog_id + "_group_solution2_app1_0.1.0",
+            local_catalog_id + "_group_solution3_noparent_0.1.0",
+            local_catalog_id + "_group_solution4_app2_0.1.0",
+            local_catalog_id + "_group_solution5_app2_0.1.0",
+            local_catalog_id + "_group_solution6_noparent_test_0.1.0",
+            local_catalog_id + "_group_solution7_long_routines_0.1.0",
+            local_catalog_id + "_group_solution8_arguments_0.1.0",
+            local_catalog_id + "_group_solution_with_steps_0.1.0",
+            local_catalog_id + "_solution_with_steps_grouped_0.1.0"
         ]
         for e in env_names:
             if CondaManager().environment_exists(e):

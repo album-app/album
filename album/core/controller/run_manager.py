@@ -6,7 +6,7 @@ from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.model.coordinates import Coordinates
 from album.core.utils.script import create_solution_script
-from album_runner import logging
+from album.runner import logging
 
 module_logger = logging.get_active_logger
 

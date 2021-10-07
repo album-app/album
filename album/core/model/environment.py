@@ -10,8 +10,8 @@ from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import create_path_recursively, copy, write_dict_to_yml, \
     get_dict_from_yml
 from album.core.utils.operations.url_operations import download_resource
-from album_runner import logging
-from album_runner.logging import debug_settings
+from album.runner import logging
+from album.runner.logging import debug_settings
 
 module_logger = logging.get_active_logger
 

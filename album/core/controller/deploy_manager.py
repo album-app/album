@@ -13,7 +13,7 @@ from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, zip_paths, copy_in_file
 from album.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push
 from album.core.utils.operations.resolve_operations import solution_to_coordinates, get_zip_name
-from album_runner import logging
+from album.runner import logging
 
 module_logger = logging.get_active_logger
 

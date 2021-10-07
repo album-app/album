@@ -7,7 +7,7 @@ from album.core.concept.singleton import Singleton
 from album.core.model.configuration import Configuration
 from album.core.utils import subcommand
 from album.core.utils.operations.file_operations import force_remove
-from album_runner import logging
+from album.runner import logging
 
 module_logger = logging.get_active_logger
 

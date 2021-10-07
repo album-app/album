@@ -9,8 +9,8 @@ from album.core.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.model.task import Task
 from album.core.server import AlbumServer
-from album_runner import logging
-from album_runner.logging import LogLevel
+from album.runner import logging
+from album.runner.logging import LogLevel
 from test.integration.test_integration_common import TestIntegrationCommon
 
 

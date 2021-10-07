@@ -1,6 +1,6 @@
 import os
 
-from album_runner import logging
+from album.runner import logging
 
 """Environment variables for the CI:
 

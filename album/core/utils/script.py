@@ -2,7 +2,7 @@ import json
 import sys
 from argparse import ArgumentError
 
-from album_runner import logging
+from album.runner import logging
 
 module_logger = logging.get_active_logger
 enc = sys.getfilesystemencoding()
@@ -52,8 +52,8 @@ def create_script(process_name, custom_code, argv):
         "import sys\n"
         "import json\n"
         "import argparse\n"
-        "from album_runner import *\n"
-        "from album_runner.logging import configure_logging, LogLevel, get_active_logger\n"
+        "from album.runner import *\n"
+        "from album.runner.logging import configure_logging, LogLevel, get_active_logger\n"
         "module_logger = get_active_logger\n"
     )
     # create logging
@@ -83,11 +83,14 @@ def _generate_solution_block(solution_object):
 
 
 def __api_access(active_solution):
+    # mapping from internal paths to API paths for the user
     script = "album_runner_init("
-    script += "environment_cache_path=" + "{}".format(str(active_solution.environment.cache_path).encode(enc)) + ", "
     script += "environment_path=" + "{}".format(str(active_solution.environment.path).encode(enc)) + ", "
     script += "environment_name=" + "{}".format(str(active_solution.environment.name).encode(enc)) + ", "
-    script += "download_cache_path=" + "{}".format(str(active_solution.cache_path_download).encode(enc)) + ""
+    script += "data_path=" + "{}".format(str(active_solution.data_path).encode(enc)) + ", "
+    script += "package_path=" + "{}".format(str(active_solution.package_path).encode(enc)) + ", "
+    script += "app_path=" + "{}".format(str(active_solution.app_path).encode(enc)) + ", "
+    script += "cache_path=" + "{}".format(str(active_solution.cache_path).encode(enc))
     script += ")\n"
     return script
 

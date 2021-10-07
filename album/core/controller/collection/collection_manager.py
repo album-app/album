@@ -17,7 +17,7 @@ from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import write_dict_to_json
 from album.core.utils.operations.resolve_operations import clean_resolve_tmp, _check_file_or_url, _load_solution, \
     get_attributes_from_string, dict_to_coordinates, solution_to_coordinates
-from album_runner import logging
+from album.runner import logging
 
 module_logger = logging.get_active_logger
 

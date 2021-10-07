@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import git
 
-import album_runner
+import album
 from album import Album
 from album.ci.controller.release_manager import ReleaseManager
 from album.ci.controller.zenodo_manager import ZenodoManager
@@ -28,7 +28,7 @@ from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.server import AlbumServer
 from album.core.utils.operations.file_operations import force_remove
-from album_runner.logging import pop_active_logger, LogLevel, configure_logging
+from album.runner.logging import pop_active_logger, LogLevel, configure_logging
 from test.global_exception_watcher import GlobalExceptionWatcher
 
 
@@ -71,7 +71,7 @@ class TestUnitCommon(unittest.TestCase):
     @staticmethod
     def tear_down_singletons():
         # this is here to make sure all mocks are reset each time a test is executed
-        album_runner.logging._active_logger = {}
+        album.logging._active_logger = {}
         TestUnitCommon._delete(AlbumServer)
         TestUnitCommon._delete(Configuration)
         TestUnitCommon._delete(CollectionManager)
