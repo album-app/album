@@ -104,7 +104,7 @@ class TestCatalogIndex(TestUnitCommon):
         solution_id1, _ = self.fill_solution()
 
         # call
-        solution = self.catalog_index.get_solution_by_group_name_version(Coordinates("tsg", "tsn", "tsv"))
+        solution = self.catalog_index.get_solution_by_coordinates(Coordinates("tsg", "tsn", "tsv"))
 
         # assert
         self.assertEqual(solution_id1, solution["solution_id"])
@@ -126,7 +126,7 @@ class TestCatalogIndex(TestUnitCommon):
 
         self.catalog_index._insert_solution(self.solution_default_dict)
 
-        solution = self.catalog_index.get_solution_by_group_name_version(
+        solution = self.catalog_index.get_solution_by_coordinates(
             dict_to_coordinates(self.solution_default_dict)
         )
         self.assertEqual("d1", solution["description"])
@@ -138,7 +138,7 @@ class TestCatalogIndex(TestUnitCommon):
         self.catalog_index._update_solution(solution_update_default_dict)
 
         # assert
-        updated_sol = self.catalog_index.get_solution_by_group_name_version(
+        updated_sol = self.catalog_index.get_solution_by_coordinates(
             dict_to_coordinates(solution_update_default_dict)
         )
 
@@ -157,7 +157,7 @@ class TestCatalogIndex(TestUnitCommon):
     def test_remove_solution_by_group_name_version(self):
         # mocks
         get_solution_by_group_name_version = MagicMock(return_value={"solution_id": 1})
-        self.catalog_index.get_solution_by_group_name_version = get_solution_by_group_name_version
+        self.catalog_index.get_solution_by_coordinates = get_solution_by_group_name_version
 
         remove_solution = MagicMock(return_value=None)
         self.catalog_index.remove_solution = remove_solution
@@ -179,11 +179,11 @@ class TestCatalogIndex(TestUnitCommon):
     def test_remove(self):
         pass
 
-    @patch("album.core.model.catalog_index.dict_to_coordinates", return_value=Coordinates("g", "n", "v"))
-    def test_update(self, as_group_name_version):
+    # @patch("album.core.model.catalog_index.dict_to_coordinates", return_value=Coordinates("g", "n", "v"))
+    def test_update(self):
         # mocks
-        get_solution_by_group_name_version = MagicMock(return_value=None)
-        self.catalog_index.get_solution_by_group_name_version = get_solution_by_group_name_version
+        get_solution_by_coordinates = MagicMock(return_value=None)
+        self.catalog_index.get_solution_by_coordinates = get_solution_by_coordinates
 
         update_solution = MagicMock()
         self.catalog_index._update_solution = update_solution
@@ -193,21 +193,20 @@ class TestCatalogIndex(TestUnitCommon):
 
         attrs = self.solution_default_dict.copy()
         attrs["tags"] = ["niceTag1", "niceTag2"]
+        coordinates = Coordinates("g", "n", "v")
 
         # call
-        self.catalog_index.update(attrs)
+        self.catalog_index.update(coordinates, attrs)
 
         # assert
-        as_group_name_version.assert_called_once_with(attrs)
-        get_solution_by_group_name_version.assert_called_once_with(as_group_name_version.return_value)
+        get_solution_by_coordinates.assert_called_once_with(coordinates)
         insert_solution.assert_called_once_with(attrs)
         update_solution.assert_not_called()
 
-    @patch("album.core.model.catalog_index.dict_to_coordinates", return_value=Coordinates("g", "n", "v"))
-    def test_update_solution_exists(self, as_group_name_version):
+    def test_update_solution_exists(self):
         # mocks
-        get_solution_by_group_name_version = MagicMock(return_value="aNiceSolution")
-        self.catalog_index.get_solution_by_group_name_version = get_solution_by_group_name_version
+        get_solution_by_coordinates = MagicMock(return_value="aNiceSolution")
+        self.catalog_index.get_solution_by_coordinates = get_solution_by_coordinates
 
         update_solution = MagicMock()
         self.catalog_index._update_solution = update_solution
@@ -217,13 +216,13 @@ class TestCatalogIndex(TestUnitCommon):
 
         attrs = self.solution_default_dict.copy()
         attrs["tags"] = ["niceTag1", "niceTag2"]
+        coordinates = Coordinates("g", "n", "v")
 
         # call
-        self.catalog_index.update(attrs)
+        self.catalog_index.update(coordinates, attrs)
 
         # assert
-        as_group_name_version.assert_called_once_with(attrs)
-        get_solution_by_group_name_version.assert_called_once_with(as_group_name_version.return_value)
+        get_solution_by_coordinates.assert_called_once_with(coordinates)
         update_solution.assert_called_once_with(attrs)
         insert_solution.assert_not_called()
 

@@ -29,7 +29,7 @@ class TestIntegrationAPI(TestIntegrationCommon):
         logger.info(json.dumps(catalogs_as_dict, sort_keys=True, indent=4))
 
         # list configuration
-        logger.info(f"album config path: {album.configuration().configuration_file_path}")
+        logger.info(f"conda executable: {album.configuration().conda_executable}")
         logger.info(f"album cache base: {album.configuration().base_cache_path}")
 
         # add remote catalog
@@ -79,7 +79,7 @@ class TestIntegrationAPI(TestIntegrationCommon):
         self.assertTrue(solution_target_file.exists())
 
         # deploy solution to catalog
-        album.deploy_manager().deploy(solution_target_file, local_catalog_name, dry_run=False, trigger_pipeline=False)
+        album.deploy_manager().deploy(solution_target_file, local_catalog_name, dry_run=False)
 
         # update catalog cache
         album.collection_manager().catalogs().update_any(local_catalog_name)
@@ -88,16 +88,14 @@ class TestIntegrationAPI(TestIntegrationCommon):
         album.collection_manager().catalogs().update_collection(local_catalog_name)
 
         # check that solution exists, but is not installed
-        installed = album.collection_manager().catalog_collection.is_installed(catalog.catalog_id, solution_coordinates)
+        installed = album.collection_manager().solutions().is_installed(catalog, solution_coordinates)
         self.assertFalse(installed)
 
         # install solution
-        album.install_manager().install(f"{local_catalog_name}:{group}:{name}:{version}")
+        album.install_manager().install_from_catalog_coordinates(local_catalog_name, solution_coordinates)
 
         # check that solution is installed
-        self.assertTrue(
-            album.collection_manager().catalog_collection.is_installed(catalog.catalog_id, solution_coordinates)
-        )
+        self.assertTrue(album.collection_manager().solutions().is_installed(catalog, solution_coordinates))
 
         # run solution
         album.run_manager().run(f"{local_catalog_name}:{group}:{name}:{version}")

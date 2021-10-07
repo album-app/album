@@ -1,7 +1,7 @@
-
 from album.core import Solution
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
+from album.core.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.resolve_operations import dict_to_coordinates, solution_to_coordinates
 from album.core.utils.script import create_solution_script
@@ -29,27 +29,40 @@ class InstallManager(metaclass=Singleton):
         """Function corresponding to the `install` subcommand of `album`."""
         # Load solution
         resolve_result = self.collection_manager.resolve_download_and_load(str(path_or_id))
-        solution = resolve_result.active_solution
         catalog = resolve_result.catalog
 
         if not catalog:
-            module_logger().debug('solution loaded locally: %s...' % str(solution))
+            module_logger().debug('solution loaded locally: %s...' % str(resolve_result.active_solution))
         else:
             module_logger().debug('solution loaded from catalog %s: %s...' % (catalog.catalog_id, str(
-                solution)))
+                resolve_result.active_solution)))
 
         # execute installation routine
-        parent_catalog_id = self._install(solution, argv)
+        self._install_resolve_result(resolve_result, argv)
 
-        if not catalog or catalog.is_cache():  # case where a solution file is directly given
-            self.collection_manager.add_solution_to_local_catalog(solution, resolve_result.path.parent)
+        return resolve_result.catalog.catalog_id
+
+    def install_from_catalog_coordinates(self, catalog_name: str, coordinates: Coordinates, argv=None):
+        catalog = self.collection_manager.catalogs().get_by_name(catalog_name)
+        resolve_result = self.collection_manager.resolve_download_and_load_catalog_coordinates(catalog, coordinates)
+        self._install_resolve_result(resolve_result, argv)
+        return resolve_result.catalog.catalog_id
+
+    def install_from_coordinates(self, coordinates: Coordinates, argv=None):
+        resolve_result = self.collection_manager.resolve_download_and_load_coordinates(coordinates)
+        self._install_resolve_result(resolve_result, argv)
+        return resolve_result.catalog.catalog_id
+
+    def _install_resolve_result(self, resolve_result, argv):
+        parent_catalog_id = self._install(resolve_result.active_solution, argv)
+        if not resolve_result.catalog or resolve_result.catalog.is_cache():  # case where a solution file is directly given
+            self.collection_manager.add_solution_to_local_catalog(resolve_result.active_solution,
+                                                                  resolve_result.path.parent)
         else:
-            self.update_in_collection_index(catalog.catalog_id, parent_catalog_id, solution)
-
-        self.collection_manager.solutions().set_installed(catalog, solution)
-        module_logger().info('Installed %s!' % solution['name'])
-
-        return catalog.catalog_id
+            self.update_in_collection_index(resolve_result.catalog.catalog_id, parent_catalog_id,
+                                            resolve_result.active_solution)
+        self.collection_manager.solutions().set_installed(resolve_result.catalog, resolve_result.active_solution.coordinates)
+        module_logger().info('Installed %s!' % resolve_result.active_solution['name'])
 
     def update_in_collection_index(self, catalog_id, parent_catalog_id, active_solution: Solution):
         parent_id = None
@@ -149,7 +162,7 @@ class InstallManager(metaclass=Singleton):
 
         self.remove_disc_content(resolve_result.active_solution)
 
-        self.collection_manager.solutions().set_uninstalled(resolve_result.catalog, resolve_result.active_solution)
+        self.collection_manager.solutions().set_uninstalled(resolve_result.catalog, resolve_result.active_solution.coordinates)
 
         pop_active_solution()
 

@@ -2,6 +2,7 @@ import copy
 from pathlib import Path
 
 from album.core.model.configuration import Configuration
+from album.core.model.coordinates import Coordinates
 from album.core.model.environment import Environment
 from album_runner import AlbumRunner
 from album_runner import logging
@@ -51,7 +52,7 @@ class Solution(AlbumRunner):
         """
         # Attributes from the solution.py
         super().__init__(attrs)
-
+        self.coordinates = Coordinates(attrs["group"], attrs["name"], attrs["version"])
         self.environment = None
         self.cache_path_download = None
         self.cache_path_app = None

@@ -24,37 +24,37 @@ class Album:
         Configuration().setup(base_cache_path=base_cache_path, configuration_file_path=configuration_file_path)
 
     @staticmethod
-    def collection_manager():
+    def collection_manager() -> CollectionManager:
         return CollectionManager()
 
     @staticmethod
-    def deploy_manager():
+    def deploy_manager() -> DeployManager:
         return DeployManager()
 
     @staticmethod
-    def install_manager():
+    def install_manager() -> InstallManager:
         return InstallManager()
 
     @staticmethod
-    def run_manager():
+    def run_manager() -> RunManager:
         return RunManager()
 
     @staticmethod
-    def test_manager():
+    def test_manager() -> TestManager:
         return TestManager()
 
     @staticmethod
-    def search_manager():
+    def search_manager() -> SearchManager:
         return SearchManager()
 
     @staticmethod
-    def clone_manager():
+    def clone_manager() -> CloneManager:
         return CloneManager()
 
     @staticmethod
-    def start_server(port, host):
+    def start_server(port, host) -> None:
         AlbumServer(port, host).start()
 
     @staticmethod
-    def configuration():
+    def configuration() -> Configuration:
         return Configuration()

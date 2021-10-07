@@ -147,7 +147,7 @@ class ReleaseManager(metaclass=Singleton):
 
         yml_dict, _ = self._get_yml_dict(head)
 
-        self.catalog.catalog_index.update(yml_dict)
+        self.catalog.catalog_index.update(dict_to_coordinates(yml_dict), yml_dict)
         self.catalog.catalog_index.save()
         self.catalog.catalog_index.export(self.catalog.solution_list_path)
 

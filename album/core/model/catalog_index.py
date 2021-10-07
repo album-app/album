@@ -7,7 +7,6 @@ from typing import Optional
 from album.core.concept.database import Database
 from album.core.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import get_dict_entry, write_dict_to_json
-from album.core.utils.operations.resolve_operations import dict_to_coordinates
 
 
 class CatalogIndex(Database):
@@ -236,7 +235,7 @@ class CatalogIndex(Database):
             self._append_metadata_to_solution_dict(solution)
         return solution
 
-    def get_solution_by_group_name_version(self, coordinates: Coordinates) -> Optional[dict]:
+    def get_solution_by_coordinates(self, coordinates: Coordinates) -> Optional[dict]:
         """Resolves a solution by its name, version and group.
 
         Args:
@@ -407,13 +406,13 @@ class CatalogIndex(Database):
         self.save()
 
     def remove_solution_by_group_name_version(self, coordinates: Coordinates):
-        solution_dict = self.get_solution_by_group_name_version(coordinates)
+        solution_dict = self.get_solution_by_coordinates(coordinates)
         if solution_dict:
             self.remove_solution(solution_dict["solution_id"])
 
     # ### catalog_features ###
 
-    def update(self, solution_attrs: dict):
+    def update(self, coordinates: Coordinates, solution_attrs: dict):
         """Updates a catalog to include a solution as a node with the attributes given.
          Updates exiting nodes if node already present in tree.
 
@@ -422,7 +421,7 @@ class CatalogIndex(Database):
                 The solution attributes. Must hold group, name, version.
 
         """
-        if self.get_solution_by_group_name_version(dict_to_coordinates(solution_attrs)):
+        if self.get_solution_by_coordinates(coordinates):
             self._update_solution(solution_attrs)
         else:
             self._insert_solution(solution_attrs)

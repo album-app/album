@@ -50,6 +50,16 @@ class TestInstallManager(TestUnitCommon):
         add_to_local_catalog.assert_called_once_with(self.active_solution, Path("aPath").parent)
         update_in_collection_index.assert_not_called()
 
+    @unittest.skip("Needs to be implemented!")
+    def test_install_from_catalog_coordinates(self):
+        # TODO implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_install_from_coordinates(self):
+        # TODO implement
+        pass
+
     @patch('album.core.model.collection_index.CollectionIndex.get_solution')
     @patch('album.core.controller.collection.solution_handler.SolutionHandler.update_solution')
     @patch('album.core.controller.collection.catalog_handler.CatalogHandler.get_by_id',

@@ -45,7 +45,7 @@ class DeployManager(metaclass=Singleton):
         self._catalog_local_src = None
         self._repo = None
 
-    def deploy(self, deploy_path, catalog_name, dry_run, push_option, git_email=None, git_name=None):
+    def deploy(self, deploy_path, catalog_name, dry_run, push_option=None, git_email=None, git_name=None):
         """Function corresponding to the `deploy` subcommand of `album`.
 
         Generates the yml for a album and creates a merge request to the catalog only

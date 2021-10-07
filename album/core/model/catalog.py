@@ -124,7 +124,7 @@ class Catalog:
         Returns: the path to the solution file.
 
         """
-        solution_entry = self.catalog_index.get_solution_by_group_name_version(coordinates)
+        solution_entry = self.catalog_index.get_solution_by_coordinates(coordinates)
 
         if solution_entry:
             path_to_solution = self.get_solution_file(coordinates)
@@ -310,16 +310,14 @@ class Catalog:
         if hasattr(active_solution, "deposit_id"):
             solution_attrs["deposit_id"] = getattr(active_solution, "deposit_id")
 
-
-        lookup_solution = self.catalog_index.get_solution_by_group_name_version(
-            dict_to_coordinates(solution_attrs))
+        lookup_solution = self.catalog_index.get_solution_by_coordinates(active_solution.coordinates)
         if lookup_solution:
             if force_overwrite:
                 module_logger().warning("Solution already exists! Overwriting...")
             else:
                 raise RuntimeError("Solution already exists in catalog! Aborting...")
 
-        self.catalog_index.update(solution_attrs)
+        self.catalog_index.update(active_solution.coordinates, solution_attrs)
         self.catalog_index.save()
         self.catalog_index.export(self.solution_list_path)
 
