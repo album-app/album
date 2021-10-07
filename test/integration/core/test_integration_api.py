@@ -99,7 +99,7 @@ class TestIntegrationAPI(TestIntegrationCommon):
         album.run_manager().run_from_catalog_coordinates(local_catalog_name, solution_coordinates)
 
         # test solution
-        album.test_manager().test(f"{local_catalog_name}:{group}:{name}:{version}")
+        album.test_manager().test_from_catalog_coordinates(local_catalog_name, solution_coordinates)
 
         # remove catalog
         album.collection_manager().catalogs().remove_from_collection_by_src(local_catalog_path)
