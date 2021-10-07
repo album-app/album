@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from album.core.controller.migration_manager import MigrationManager
+
 from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.ci_utils import get_ssh_url
 from album.core.concept.singleton import Singleton
@@ -33,7 +35,7 @@ class ReleaseManager(metaclass=Singleton):
 
         self.catalog = Catalog(None, name=self.catalog_name, path=catalog_path, src=self.catalog_src)
         self.catalog_repo = self.catalog.retrieve_catalog(force_retrieve=force_retrieve, update=False)
-        self.catalog.load_index()
+        MigrationManager().load_index(self.catalog)
 
     def configure_repo(self, user_name, user_email):
         module_logger().info("Configuring repository using:\n\tusername:\t%s\n\temail:\t%s" % (user_name, user_email))

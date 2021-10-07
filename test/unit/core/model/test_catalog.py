@@ -5,6 +5,8 @@ from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from album.core.controller.migration_manager import MigrationManager
+
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.solution import Solution
 from album.core.model.catalog import Catalog
@@ -46,7 +48,7 @@ class TestCatalog(TestUnitCommon):
         catalog_path = Path(self.tmp_dir.name).joinpath("testPath")
         catalog_path.mkdir(parents=True)
         self.catalog = Catalog(0, "test", catalog_src, catalog_path)
-        self.catalog.load_index()
+        MigrationManager().load_index(self.catalog)
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -186,35 +188,6 @@ class TestCatalog(TestUnitCommon):
     @unittest.skip("tested in test_catalog_index.CatalogIndex.visualize")
     def test_visualize(self):
         pass
-
-    def test_load_index(self):
-        self.populate_index()
-
-        cs_file = Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_index_file_name.value)
-        shutil.copy(self.get_catalog_db_from_resources("minimal-solution"), cs_file)
-
-        self.assertTrue(len(self.catalog.catalog_index) == 10)  # its the old catalog
-        self.catalog.index_path = cs_file  # path to "new" catalog
-        self.catalog.load_index()
-        self.assertTrue(len(self.catalog.catalog_index) == 1)  # now is the "new" catalog
-
-    def test_refresh_index(self):
-        cs_file = Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_index_file_name.value)
-        shutil.copy(self.get_catalog_db_from_resources("empty"), cs_file)
-
-        self.catalog.index_path = cs_file
-        self.catalog.load_index()
-        self.assertTrue(len(self.catalog.catalog_index) == 0)
-
-        shutil.copy(self.get_catalog_db_from_resources("minimal-solution"), cs_file)
-
-        self.assertTrue(self.catalog.refresh_index())
-        self.assertTrue(len(self.catalog.catalog_index) == 1)
-
-    def test_refresh_index_broken_src(self):
-        self.catalog = Catalog(self.catalog.catalog_id, self.catalog.name, self.catalog.path, "http://google.com/doesNotExist.ico")
-
-        self.assertFalse(self.catalog.refresh_index())
 
     @unittest.skip("Needs to be implemented!")
     def test_download_index(self):

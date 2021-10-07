@@ -2,6 +2,8 @@ import pkgutil
 import tempfile
 from pathlib import Path
 
+from album.core.controller.migration_manager import MigrationManager
+
 import album
 from album.core import load
 from album.core.concept.singleton import Singleton
@@ -89,7 +91,7 @@ class DeployManager(metaclass=Singleton):
         else:
             raise RuntimeError("No catalog specified for deployment")
 
-        self._catalog.load_index()
+        MigrationManager().load_index(self._catalog)
 
         if self._catalog.is_local():
             self._deploy_to_local_catalog(deploy_path)
@@ -133,7 +135,7 @@ class DeployManager(metaclass=Singleton):
         self._catalog.copy_index_from_cache_to_src()
 
         # refresh the local index of the catalog
-        self._catalog.refresh_index()
+        MigrationManager().refresh_index(self._catalog)
 
     def _deploy_routine_in_local_src(self, deploy_path):
         """Performs all routines a deploy process needs to do locally.

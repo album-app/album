@@ -3,6 +3,8 @@ from copy import deepcopy
 from pathlib import Path
 from unittest.mock import MagicMock, call
 
+from album.core.controller.migration_manager import MigrationManager
+
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.collection.solution_handler import SolutionHandler
 from album.core.model.catalog_updates import CatalogUpdates
@@ -110,7 +112,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         # mocks
         refresh_index = MagicMock(return_value=True)
         local_catalog = self.catalogHandler.get_local_catalog()
-        local_catalog.refresh_index = refresh_index
+        MigrationManager().refresh_index = refresh_index
 
         # call
         r = self.catalogHandler._update(local_catalog)
