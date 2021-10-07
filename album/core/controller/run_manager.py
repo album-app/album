@@ -4,6 +4,7 @@ from queue import Queue, Empty
 from album.core import load
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
+from album.core.model.coordinates import Coordinates
 from album.core.utils.script import create_solution_script
 from album_runner import logging
 
@@ -49,27 +50,36 @@ class RunManager(metaclass=Singleton):
     dependency checking, and more.
 
      Attributes:
-         catalog_manager:
+         collection_manager:
             Holding all configured catalogs. Resolves inside our outside catalogs.
 
     """
     # singletons
-    catalog_manager = None
+    collection_manager = None
 
     def __init__(self):
-        self.catalog_manager = CollectionManager()
+        self.collection_manager = CollectionManager()
         self.init_script = ""
 
     def run(self, path, run_immediately=False, argv=None):
         """Function corresponding to the `run` subcommand of `album`."""
 
-        resolve_result = self.catalog_manager.resolve_require_installation_and_load(path)
+        resolve_result = self.collection_manager.resolve_require_installation_and_load(path)
 
         if not resolve_result.catalog:
             module_logger().debug('album loaded locally: %s...' % str(resolve_result.active_solution))
         else:
             module_logger().debug('album loaded from catalog: %s...' % str(resolve_result.active_solution))
 
+        self._run(resolve_result.active_solution, run_immediately, argv)
+
+    def run_from_catalog_coordinates(self, catalog_name: str, coordinates: Coordinates, run_immediately=False, argv=None):
+        catalog = self.collection_manager.catalogs().get_by_name(catalog_name)
+        resolve_result = self.collection_manager.resolve_download_and_load_catalog_coordinates(catalog, coordinates)
+        self._run(resolve_result.active_solution, run_immediately, argv)
+
+    def run_from_coordinates(self, coordinates: Coordinates, run_immediately=False, argv=None):
+        resolve_result = self.collection_manager.resolve_download_and_load_coordinates(coordinates)
         self._run(resolve_result.active_solution, run_immediately, argv)
 
     def _run(self, active_solution, run_immediately=False, argv=None):
@@ -174,10 +184,10 @@ class RunManager(metaclass=Singleton):
 
         for step in steps:
             module_logger().debug('resolving step \"%s\"...' % step["name"])
-            resolve_result = self.catalog_manager.resolve_dependency_require_installation_and_load(step)
+            resolve_result = self.collection_manager.resolve_dependency_require_installation_and_load(step)
 
             if resolve_result.active_solution.parent:  # collect steps as long as they have the same parent
-                current_parent_script_resolve = self.catalog_manager.resolve_dependency_require_installation(
+                current_parent_script_resolve = self.collection_manager.resolve_dependency_require_installation(
                     resolve_result.active_solution.parent)
                 current_parent_script_path = current_parent_script_resolve.path
                 current_parent_script_catalog = current_parent_script_resolve.catalog
@@ -277,7 +287,7 @@ class RunManager(metaclass=Singleton):
 
         """
         module_logger().debug('Creating album script with parent \"%s\"...' % active_solution.parent["name"])
-        parent_solution_resolve = self.catalog_manager.resolve_dependency_require_installation_and_load(
+        parent_solution_resolve = self.collection_manager.resolve_dependency_require_installation_and_load(
             active_solution.parent)
 
         # handle arguments

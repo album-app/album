@@ -1,11 +1,9 @@
 import json
-import sys
 import unittest
 from pathlib import Path
 
-from album import Album
-from album.core.model.default_values import DefaultValues
 from album.core.model.coordinates import Coordinates
+from album.core.model.default_values import DefaultValues
 from album_runner import logging
 from album_runner.logging import LogLevel
 from test.integration.test_integration_common import TestIntegrationCommon
@@ -98,7 +96,7 @@ class TestIntegrationAPI(TestIntegrationCommon):
         self.assertTrue(album.collection_manager().solutions().is_installed(catalog, solution_coordinates))
 
         # run solution
-        album.run_manager().run(f"{local_catalog_name}:{group}:{name}:{version}")
+        album.run_manager().run_from_catalog_coordinates(local_catalog_name, solution_coordinates)
 
         # test solution
         album.test_manager().test(f"{local_catalog_name}:{group}:{name}:{version}")

@@ -29,7 +29,7 @@ class TestRunManager(TestUnitCommon):
 
         resolve_installed_and_load = MagicMock(
             return_value=ResolveResult(path="aPath", catalog=catalog, active_solution=self.active_solution))
-        self.run_manager.catalog_manager.resolve_require_installation_and_load = resolve_installed_and_load
+        self.run_manager.collection_manager.resolve_require_installation_and_load = resolve_installed_and_load
 
         with open(self.closed_tmp_file.name, mode="w") as f:
             f.write("A valid solution file!")
@@ -39,7 +39,7 @@ class TestRunManager(TestUnitCommon):
 
         _resolve_installed = MagicMock(return_value=ResolveResult(path=Path(self.closed_tmp_file.name), catalog=None))
 
-        self.run_manager.catalog_manager._resolve_installed = _resolve_installed
+        self.run_manager.collection_manager._resolve_installed = _resolve_installed
 
         # test
         self.run_manager.run(self.closed_tmp_file.name)
@@ -47,6 +47,16 @@ class TestRunManager(TestUnitCommon):
         # assert
         _run.assert_called_once_with(self.active_solution, False, None)
         resolve_installed_and_load.assert_called_once_with(self.closed_tmp_file.name)
+
+    @unittest.skip("Needs to be implemented!")
+    def test_run_from_catalog_coordinates(self):
+        # TODO implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_run_from_coordinates(self):
+        # TODO implement
+        pass
 
     def test__run(self):
         # mocks
@@ -148,7 +158,7 @@ class TestRunManager(TestUnitCommon):
         catalog.id = "niceId"
         resolve_dependency_and_load = MagicMock(
             return_value=ResolveResult(path="aPath", catalog=catalog, active_solution=self.active_solution))
-        self.run_manager.catalog_manager.resolve_dependency_require_installation_and_load = resolve_dependency_and_load
+        self.run_manager.collection_manager.resolve_dependency_require_installation_and_load = resolve_dependency_and_load
 
         create_solution_run_collection_script = MagicMock(return_value="runScriptCollection")
         self.run_manager.create_solution_run_collection_script = create_solution_run_collection_script
@@ -195,11 +205,11 @@ class TestRunManager(TestUnitCommon):
 
         resolve_dependency_and_load = MagicMock(
             return_value=ResolveResult(path="aPathChild", catalog=catalog, active_solution=self.active_solution))
-        self.run_manager.catalog_manager.resolve_dependency_require_installation_and_load = resolve_dependency_and_load
+        self.run_manager.collection_manager.resolve_dependency_require_installation_and_load = resolve_dependency_and_load
 
         resolve_dependency = MagicMock(
             return_value=ResolveResult(path="aPathParent", catalog=catalog, active_solution=self.active_solution))
-        self.run_manager.catalog_manager.resolve_dependency_require_installation = resolve_dependency
+        self.run_manager.collection_manager.resolve_dependency_require_installation = resolve_dependency
 
         create_solution_run_collection_script = MagicMock(return_value="runScriptCollection")
         self.run_manager.create_solution_run_collection_script = create_solution_run_collection_script
@@ -250,7 +260,7 @@ class TestRunManager(TestUnitCommon):
 
         resolve_dependency_and_load = MagicMock(
             return_value=ResolveResult(path="aPath", catalog=catalog, active_solution=self.active_solution))
-        self.run_manager.catalog_manager.resolve_dependency_require_installation_and_load = resolve_dependency_and_load
+        self.run_manager.collection_manager.resolve_dependency_require_installation_and_load = resolve_dependency_and_load
 
         create_solution_run_collection_script = MagicMock(return_value="runScriptCollection")
         self.run_manager.create_solution_run_collection_script = create_solution_run_collection_script
@@ -313,7 +323,7 @@ class TestRunManager(TestUnitCommon):
         catalog.id = "niceId"
         resolve_dependency_and_load = MagicMock(
             return_value=ResolveResult(path="aPath", catalog=catalog, active_solution=self.active_solution))
-        self.run_manager.catalog_manager.resolve_dependency_require_installation_and_load = resolve_dependency_and_load
+        self.run_manager.collection_manager.resolve_dependency_require_installation_and_load = resolve_dependency_and_load
 
         create_solution_run_with_parent_scrip = MagicMock(return_value="aScript")
         self.run_manager.create_solution_run_with_parent_script = create_solution_run_with_parent_scrip
