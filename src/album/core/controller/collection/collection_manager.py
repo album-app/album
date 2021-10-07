@@ -177,6 +177,29 @@ class CollectionManager(metaclass=Singleton):
         self._retrieve_and_load_resolve_result(resolve_result)
         return resolve_result
 
+    def resolve_download(self, str_input) -> ResolveResult:
+        """Resolves a string input and loads its content.
+
+        Downloads a catalog if not already cached.
+
+        Args:
+            str_input:
+                What to resolve. Either path, doi, group:name:version or dictionary
+
+        Returns:
+            list with resolve result and loaded album.
+
+        """
+
+        resolve_result = self._resolve(str_input)
+
+        if not Path(resolve_result.path).exists():
+            resolve_result.catalog.retrieve_solution(
+                dict_to_coordinates(resolve_result.solution_attrs)
+            )
+
+        return resolve_result
+
     def resolve_dependency_require_installation_and_load(self, solution_attrs) -> ResolveResult:
         """Resolves a dependency, expecting it to be installed (live inside a catalog), and loads it
 

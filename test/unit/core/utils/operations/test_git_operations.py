@@ -138,29 +138,15 @@ class TestGitOperations(TestGitCommon):
         self.assertEqual("MyName", repo.config_reader().get_value("user", "name"))
         self.assertEqual("MyEmail", repo.config_reader().get_value("user", "email"))
 
-    @patch('album.core.model.solution.Solution.get_deploy_dict', return_value={})
-    def test_download_repository(self, _):
-        # clean
-        force_remove(DefaultValues.app_cache_dir.value.joinpath("test"))
-
-        # create album
-        self.attrs = {
-            "git_repo": "https://github.com/rmccue/test-repository.git",
-            "name": "test",
-            "group": "mygroup",
-            "version": "myversion"
-        }
-        solution_with_git_repo = Solution(self.attrs)
-
+    def test_download_repository(self):
+        p = Path(self.tmp_dir.name).joinpath("testGitDownload")
         # run
-        git_op.download_repository(solution_with_git_repo["git_repo"],
-                                   DefaultValues.app_cache_dir.value.joinpath(
-                                       "test"))
+        git_op.download_repository(
+            DefaultValues._catalog_url.value, p
+        )
 
         # check
-        self.assertIn("test", os.listdir(str(DefaultValues.app_cache_dir.value)), "Download failed!")
-
-        # ToDo: finish test writing - use tmp-dir!
+        self.assertIn("album_catalog_index.db", os.listdir(p), "Download failed!")
 
 
 if __name__ == '__main__':

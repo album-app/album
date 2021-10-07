@@ -267,7 +267,7 @@ class Catalog:
 
     def get_version(self):
         database_version = self.catalog_index.get_version()
-        meta_dict = self.retrieve_catalog_meta_information(self.path)
+        meta_dict = Catalog.retrieve_catalog_meta_information(self.path)
         if meta_dict:
             meta_version = meta_dict['version']
         else:

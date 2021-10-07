@@ -39,7 +39,7 @@ class CloneManager(metaclass=Singleton):
 
     def _clone_solution(self, path, target_path):
         """Copies a solution (by resolving and downloading) to a given target path."""
-        resolve_result = self.collection_manager.resolve_download_and_load(path)
+        resolve_result = self.collection_manager.resolve_download(path)
         target_path_solution = target_path.joinpath(DefaultValues.solution_default_name.value)
         file_operations.copy(resolve_result.path, target_path_solution)
         module_logger().info('Copied solution %s to %s!' % (resolve_result.path, target_path_solution))

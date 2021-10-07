@@ -8,10 +8,10 @@ from unittest.mock import patch
 from album.core.controller.migration_manager import MigrationManager
 
 from album.core.controller.collection.catalog_handler import CatalogHandler
-from album.core.model.solution import Solution
 from album.core.model.catalog import Catalog
-from album.core.model.default_values import DefaultValues
 from album.core.model.coordinates import Coordinates
+from album.core.model.default_values import DefaultValues
+from album.core.model.solution import Solution
 from test.unit.test_unit_common import TestUnitCommon
 
 empty_index = """{
@@ -155,23 +155,31 @@ class TestCatalog(TestUnitCommon):
         self.assertIn("WARNING - Cannot remove entries", self.get_logs()[-1])
         self.assertEqual(len(self.catalog.catalog_index), 10)
 
-    @patch('album.core.model.catalog.Catalog.get_solution_file')
-    def test_resolve_nothing_found(self, get_solution_file_mock):
-        get_solution_file_mock.return_value = None
-        self.assertIsNone(self.catalog.resolve(Coordinates("a", "b", "c")))
+    def test_resolve_nothing_found(self):
+        get_solution_by_group_name_version = MagicMock(return_value=None)
+        self.catalog.catalog_index.get_solution_by_group_name_version = get_solution_by_group_name_version
 
-    @patch('album.core.model.catalog.Catalog.get_solution_file')
-    def test_resolve_doi_nothing_found(self, get_solution_file_mock):
-        get_solution_file_mock.return_value = None
+        # call & assert
+        self.assertIsNone(self.catalog.resolve(Coordinates("a", "b", "c")))
+        get_solution_by_group_name_version.assert_called_once_with(Coordinates("a", "b", "c"))
+
+    def test_resolve_doi_nothing_found(self):
+        get_solution_by_doi = MagicMock(return_value=None)
+        self.catalog.catalog_index.get_solution_by_doi = get_solution_by_doi
+
+        # call & assert
         self.assertIsNone(self.catalog.resolve_doi("a"))
+        get_solution_by_doi.assert_called_once_with("a")
 
     @patch('album.core.model.catalog.Catalog.get_solution_file')
     def test_resolve(self, get_solution_file_mock):
         self.populate_index()
         get_solution_file_mock.side_effect = [Path(self.closed_tmp_file.name)]
 
+        # call
         search_result = self.catalog.resolve(Coordinates("group0", "name0", "version0"))
 
+        # assert
         self.assertEqual(search_result, Path(self.closed_tmp_file.name))
 
     def test_resolve_doi(self):
@@ -185,9 +193,35 @@ class TestCatalog(TestUnitCommon):
             DefaultValues.cache_path_solution_prefix.value,
             "group0", "name0", "version0", DefaultValues.solution_default_name.value), search_result)
 
-    @unittest.skip("tested in test_catalog_index.CatalogIndex.visualize")
-    def test_visualize(self):
-        pass
+    def test_load_index(self):
+        self.populate_index()
+
+        cs_file = Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_index_file_name.value)
+        shutil.copy(self.get_catalog_db_from_resources("minimal-solution"), cs_file)
+
+        self.assertTrue(len(self.catalog.catalog_index) == 10)  # its the old catalog
+        self.catalog.index_path = cs_file  # path to "new" catalog
+        self.catalog.load_index()
+        self.assertTrue(len(self.catalog.catalog_index) == 1)  # now is the "new" catalog
+
+    def test_refresh_index(self):
+        cs_file = Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_index_file_name.value)
+        shutil.copy(self.get_catalog_db_from_resources("empty"), cs_file)
+
+        self.catalog.index_path = cs_file
+        self.catalog.load_index()
+        self.assertTrue(len(self.catalog.catalog_index) == 0)
+
+        shutil.copy(self.get_catalog_db_from_resources("minimal-solution"), cs_file)
+
+        self.assertTrue(self.catalog.refresh_index())
+        self.assertTrue(len(self.catalog.catalog_index) == 1)
+
+    def test_refresh_index_broken_src(self):
+        self.catalog = Catalog(self.catalog.catalog_id, self.catalog.name, self.catalog.path,
+                               "http://google.com/doesNotExist.ico")
+
+        self.assertFalse(self.catalog.refresh_index())
 
     @unittest.skip("Needs to be implemented!")
     def test_download_index(self):
@@ -241,7 +275,8 @@ class TestCatalog(TestUnitCommon):
         unzip_mock.assert_called_once_with(dl_path)
 
     def test_download(self):
-        self.catalog = Catalog(self.catalog.catalog_id, self.catalog.name, self.catalog.path, DefaultValues.default_catalog_src.value)
+        self.catalog = Catalog(self.catalog.catalog_id, self.catalog.name, self.catalog.path,
+                               DefaultValues.default_catalog_src.value)
 
         dl_path = Path(self.tmp_dir.name).joinpath("test")
 

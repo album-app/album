@@ -4,9 +4,10 @@ import tempfile
 import unittest
 from io import StringIO
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import git
+from album.core.model.catalog import Catalog
 
 import album
 from album import Album
@@ -71,7 +72,7 @@ class TestUnitCommon(unittest.TestCase):
     @staticmethod
     def tear_down_singletons():
         # this is here to make sure all mocks are reset each time a test is executed
-        album.logging._active_logger = {}
+        album.runner.logging._active_logger = {}
         TestUnitCommon._delete(AlbumServer)
         TestUnitCommon._delete(Configuration)
         TestUnitCommon._delete(CollectionManager)
@@ -132,8 +133,20 @@ class TestUnitCommon(unittest.TestCase):
     def create_album_test_instance(self) -> Album:
         return Album(base_cache_path=Path(self.tmp_dir.name).joinpath("album"), configuration_file_path=self.tmp_dir.name)
 
-    def create_test_collection_manager(self):
+    @patch("album.core.model.catalog.Catalog.retrieve_catalog_meta_information")
+    def create_test_collection_manager(self, retrieve_catalog_meta_information_mock):
+        # mock retrieve_catalog_meta_information as it involves a http request
+
+        retrieve_catalog_meta_information_mock.side_effect = [
+            {"name": "catalog_local", "version": "0.1.0"},  # local creation call
+            {"name": "default", "version": "0.1.0"},  # remote default catalog creation call
+            {"name": "default", "version": "0.1.0"},  # remote default catalog to collection
+        ]
+
+        # create collection
         self.collection_manager = CollectionManager()
+        self.assertEqual(3, retrieve_catalog_meta_information_mock.call_count)
+
         self.catalog_collection = self.collection_manager.catalog_collection
 
     @patch('album.core.model.environment.Environment.__init__', return_value=None)

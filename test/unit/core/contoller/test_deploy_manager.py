@@ -5,8 +5,8 @@ from unittest.mock import patch, MagicMock, call
 
 from album.ci.utils.zenodo_api import ZenodoAPI
 from album.core.controller.deploy_manager import DeployManager
-from album.core.model.default_values import DefaultValues
 from album.core.model.coordinates import Coordinates
+from album.core.model.default_values import DefaultValues
 from test.unit.test_unit_common import TestGitCommon, EmptyTestClass
 
 
@@ -18,10 +18,9 @@ class TestDeployManager(TestGitCommon):
         self.create_test_solution_no_env()
         self.create_test_collection_manager()
 
-        # add remote catalog
-        self.remote_catalog = self.collection_manager.catalogs().add_by_src(DefaultValues.default_catalog_src.value)
+        self.remote_catalog = self.collection_manager.catalogs().get_by_src(DefaultValues.default_catalog_src.value)
 
-        # add local catalog
+        # add a third local catalog
         catalog_path = Path(self.tmp_dir.name).joinpath("local_catalog")
         catalog_path.mkdir(parents=True)
         with open(catalog_path.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as meta:
@@ -54,7 +53,7 @@ class TestDeployManager(TestGitCommon):
         self.deploy_manager.deploy(deploy_path="None",
                                    catalog_name=os.path.basename(self.tmp_dir.name),
                                    dry_run=False,
-                                   push_option=False)
+                                   push_option=None)
 
         # assert
         self.assertEqual(self.local_catalog, self.deploy_manager._catalog)  # correct catalog chosen

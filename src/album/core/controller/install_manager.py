@@ -171,9 +171,10 @@ class InstallManager(metaclass=Singleton):
     @staticmethod
     def remove_disc_content(solution):
         force_remove(solution.environment.cache_path)
-        force_remove(solution.cache_path_download)
-        force_remove(solution.cache_path_app)
-        force_remove(solution.cache_path_solution)
+        force_remove(solution.data_path)
+        force_remove(solution.app_path)
+        force_remove(solution.package_path)
+        force_remove(solution.cache_path)
 
     def remove_dependencies(self, solution):
         """Recursive call to remove all dependencies"""

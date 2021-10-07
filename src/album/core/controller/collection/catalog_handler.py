@@ -50,11 +50,13 @@ class CatalogHandler:
 
     def add_by_src(self, identifier) -> Catalog:
         """ Adds a catalog. Creates them from their src. (Git, network-drive, folder outside cache, etc.)"""
-        catalog = self._create_catalog_from_src(identifier)
+        catalog_meta_information = Catalog.retrieve_catalog_meta_information(identifier)
+
+        catalog = self._create_catalog_from_src(identifier, catalog_meta_information)
 
         # always keep the local copy up to date
         if not catalog.is_cache():
-            catalog_meta_information = Catalog.retrieve_catalog_meta_information(catalog.src)
+            catalog_meta_information = catalog_meta_information
             self.migration_manager.migrate_catalog_index_db(
                 catalog.index_path,  # the path to the catalog
                 catalog_meta_information["version"],  # eventually outdated remote version
@@ -269,9 +271,10 @@ class CatalogHandler:
             "catalogs": self.catalog_collection.get_all_catalogs()
         }
 
-    def _create_catalog_from_src(self, src):
+    def _create_catalog_from_src(self, src, catalog_meta_information=None):
         """Creates the local cache path for a catalog given its src. (Network drive, git-link, etc.)"""
-        catalog_meta_information = Catalog.retrieve_catalog_meta_information(src)
+        if not catalog_meta_information:
+            catalog_meta_information = Catalog.retrieve_catalog_meta_information(src)
 
         # the path where the catalog lives based on its metadata
         catalog_path = self.configuration.get_cache_path_catalog(catalog_meta_information["name"])
@@ -300,13 +303,16 @@ class CatalogHandler:
         """Gets the divergence between a given catalog and the catalog_collection"""
         catalog = self.get_by_name(catalog_name)
         res = CatalogUpdates(catalog)
+
         if catalog.is_cache():
             # cache catalog is always up to date since src and path are the same
             return res
+
         solutions_in_collection = self.catalog_collection.get_solutions_by_catalog(catalog.catalog_id)
         MigrationManager().load_index(catalog)
         solutions_in_catalog = catalog.catalog_index.get_all_solutions()
         res.solution_changes = self._compare_solutions(solutions_in_collection, solutions_in_catalog)
+
         return res
 
     def _update_collection_from_catalogs(self) -> List[CatalogUpdates]:
