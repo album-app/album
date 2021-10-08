@@ -240,7 +240,7 @@ class CondaManager(metaclass=Singleton):
                 raise FileExistsError("Environment already exists!")
 
         subprocess_args = [
-            self.conda_executable, 'create', '--force', '--json', '-y', '-n', environment_name, 'python', 'pip'
+            self.conda_executable, 'create', '--force', '--json', '-y', '-n', environment_name, 'python=3.6', 'pip'
         ]
 
         try:
