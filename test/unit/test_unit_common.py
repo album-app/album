@@ -9,6 +9,7 @@ from unittest.mock import patch
 import git
 
 import album_runner
+from album import Album
 from album.ci.controller.release_manager import ReleaseManager
 from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
@@ -127,8 +128,8 @@ class TestUnitCommon(unittest.TestCase):
         logs = logs.strip()
         return logs.split("\n")
 
-    def create_test_config(self):
-        self.create_test_config_in_tmp_dir(self.tmp_dir.name)
+    def create_album_test_instance(self) -> Album:
+        return Album(base_cache_path=Path(self.tmp_dir.name).joinpath("album"), configuration_file_path=self.tmp_dir.name)
 
     def create_test_collection_manager(self):
         self.collection_manager = CollectionManager()
@@ -141,13 +142,6 @@ class TestUnitCommon(unittest.TestCase):
         self.active_solution = Solution(deploy_dict_mock.return_value)
         self.active_solution.init = lambda: None
         self.active_solution.args = []
-
-    @staticmethod
-    def create_test_config_in_tmp_dir(tmp_dir_name):
-        config = Configuration()
-        config.setup(
-            base_cache_path=tmp_dir_name
-        )
 
     @staticmethod
     def get_catalog_db_from_resources(catalog_name):

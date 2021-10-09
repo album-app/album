@@ -1,3 +1,5 @@
+from album.core.model.catalog import Catalog
+
 from album.core import Solution
 from album.core.model.catalog_updates import ChangeType, SolutionChange
 from album.core.model.collection_index import CollectionIndex
@@ -14,7 +16,7 @@ class SolutionHandler:
     def __init__(self, collection: CollectionIndex):
         self.catalog_collection = collection
 
-    def get_solution_path_by_group_name_version(self, catalog, coordinates: Coordinates):
+    def get_solution_path_by_group_name_version(self, catalog: Catalog, coordinates: Coordinates):
         """Resolves (also: finds, looks up) a solution in the catalog, returning the absolute path to the solution file.
 
         Args:
@@ -57,25 +59,21 @@ class SolutionHandler:
 
         return None  # could not resolve
 
-    def add_or_replace(self, catalog, active_solution, path):
+    def add_or_replace(self, catalog: Catalog, active_solution: Solution, path):
         deploy_dict = active_solution.get_deploy_dict()
-        self.catalog_collection.add_or_replace_solution(catalog.catalog_id, dict_to_coordinates(deploy_dict), deploy_dict, self.get_solution_keys())
+        self.catalog_collection.add_or_replace_solution(catalog.catalog_id, active_solution.coordinates, deploy_dict, self.get_solution_keys())
         # get the install location
         install_location = catalog.get_solution_path(dict_to_coordinates(deploy_dict))
         copy_folder(path, install_location, copy_root_folder=False)
 
-    def add_solutions_to_catalog(self, catalog_id, solutions):
-        for solution in solutions:
-            self.catalog_collection.add_or_replace_solution(catalog_id, dict_to_coordinates(solution), solution)
+    def set_uninstalled(self, catalog: Catalog, coordinates: Coordinates):
+        self.update_solution(catalog, coordinates, {"installed": 0})
 
-    def set_uninstalled(self, catalog, solution):
-        self.update_solution(catalog, solution, {"installed": 0})
+    def remove_solution(self, catalog: Catalog, coordinates: Coordinates):
+        self.catalog_collection.remove_solution(catalog.catalog_id, coordinates)
 
-    def remove_solution(self, catalog, solution):
-        self.catalog_collection.remove_solution(catalog.catalog_id, solution_to_coordinates(solution))
-
-    def update_solution(self, catalog, solution, attrs):
-        self.catalog_collection.update_solution(catalog.catalog_id, solution_to_coordinates(solution), attrs, self.get_solution_keys())
+    def update_solution(self, catalog: Catalog, coordinates: Coordinates, attrs):
+        self.catalog_collection.update_solution(catalog.catalog_id, coordinates, attrs, self.get_solution_keys())
 
     @staticmethod
     def get_solution_keys():
@@ -95,18 +93,22 @@ class SolutionHandler:
             self.catalog_collection.add_or_replace_solution(
                 catalog.catalog_id,
                 change.coordinates,
-                catalog.catalog_index.get_solution_by_group_name_version(change.coordinates),
+                catalog.catalog_index.get_solution_by_coordinates(change.coordinates),
                 self.get_solution_keys())
         elif change.change_type is ChangeType.REMOVED:
-            self.catalog_collection.remove_solution(catalog.catalog_id, change.coordinates)
+            self.remove_solution(catalog, change.coordinates)
         elif change.change_type is ChangeType.CHANGED:
-            self.catalog_collection.remove_solution(catalog.catalog_id, change.coordinates)
+            self.remove_solution(catalog, change.coordinates)
             self.catalog_collection.add_or_replace_solution(
                 catalog.catalog_id,
                 change.coordinates,
-                catalog.catalog_index.get_solution_by_group_name_version(change.coordinates),
+                catalog.catalog_index.get_solution_by_coordinates(change.coordinates),
                 self.get_solution_keys())
 
-    def set_installed(self, catalog, solution):
-        self.update_solution(catalog, solution, {"installed": 1})
+    def set_installed(self, catalog, coordinates: Coordinates):
+        self.update_solution(catalog, coordinates, {"installed": 1})
+
+    def is_installed(self, catalog, coordinates) -> bool:
+        return self.catalog_collection.is_installed(catalog.catalog_id, coordinates)
+
 

@@ -3,6 +3,8 @@ from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from album.core.model.resolve_result import ResolveResult
+
 from album.core import Solution
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.collection.collection_manager import CollectionManager
@@ -10,8 +12,8 @@ from album.core.controller.collection.solution_handler import SolutionHandler
 from album.core.model.catalog import Catalog
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.configuration import Configuration
-from album.core.model.default_values import DefaultValues
 from album.core.model.coordinates import Coordinates
+from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
 
@@ -20,7 +22,7 @@ class TestCatalogCollectionCommon(TestUnitCommon):
 
     def setUp(self):
         super().setUp()
-        self.create_test_config()
+        self.create_album_test_instance()
 
         test_catalog1_name = "test_catalog"
         test_catalog2_name = "test_catalog2"
@@ -105,15 +107,11 @@ class TestCollectionManager(TestCatalogCollectionCommon):
     def test__load_or_create_collection(self):
         pass
 
-    @unittest.skip("Needs to be implemented!")
     def test_catalogs(self):
-        # todo: implement
-        pass
+        self.assertIsNotNone(self.collection_manager.catalogs())
 
-    @unittest.skip("Needs to be implemented!")
     def test_solutions(self):
-        # todo: implement
-        pass
+        self.assertIsNotNone(self.collection_manager.solutions())
 
     @patch('album.core.controller.collection.solution_handler.copy_folder', return_value=None)
     @patch('album.core.controller.collection.collection_manager.clean_resolve_tmp', return_value=None)
@@ -128,10 +126,33 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         copy_folder_mock.assert_called_once_with("aPathToInstall", path, copy_root_folder=False)
         clean_resolve_tmp.assert_called_once()
 
-    @unittest.skip("Needs to be implemented!")
-    def get_index_as_dict(self):
-        # todo: implement
-        pass
+    def test_get_index_as_dict(self):
+        expected_dict = {'catalogs': [
+            {
+                'catalog_id': 1,
+                'name': 'test_catalog',
+                'src': str(Path(self.tmp_dir.name).joinpath("my-catalogs", "test_catalog")),
+                'path': str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog")),
+                'deletable': 0,
+                'solutions': []
+            }, {
+                'catalog_id': 2,
+                'name': 'default',
+                'src': 'https://gitlab.com/album-app/catalogs/default',
+                'path': str(Path(self.tmp_dir.name).joinpath("catalogs", "default")),
+                'deletable': 1,
+                'solutions': []
+            },
+            {
+                'catalog_id': 3,
+                'name': 'test_catalog2',
+                'src': str(Path(self.tmp_dir.name).joinpath("my-catalogs", "test_catalog2")),
+                'path': str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog2")),
+                'deletable': 1,
+                'solutions': []
+            }
+        ]}
+        self.assertEqual(expected_dict, self.collection_manager.get_index_as_dict())
 
     def test_remove_by_src(self):
         # mock
@@ -170,6 +191,49 @@ class TestCollectionManager(TestCatalogCollectionCommon):
     def test_resolve_download_and_load(self):
         # todo: implement
         pass
+
+    def test_resolve_download_and_load_catalog_coordinates(self):
+        catalog = Catalog("aNiceId", "aNiceName", "aValidPath")
+        coordinates = Coordinates("g", "n", "v")
+        # mocks
+        get_solution_mock = MagicMock(return_value="path/to/solution")
+        search_mock = MagicMock(return_value={"group": "g", "name": "n", "version": "v"})
+        retrieve_and_load_mock = MagicMock()
+        self.collection_manager.solutions().get_solution_path_by_group_name_version = get_solution_mock
+        self.collection_manager._search_in_specific_catalog = search_mock
+        self.collection_manager._retrieve_and_load_resolve_result = retrieve_and_load_mock
+        # call
+        res = self.collection_manager.resolve_download_and_load_catalog_coordinates(catalog, coordinates)
+        # assert
+        self.assertEqual(catalog, res.catalog)
+        self.assertEqual(get_solution_mock.return_value, res.path)
+        self.assertEqual(search_mock.return_value, res.solution_attrs)
+        get_solution_mock.assert_called_once_with(catalog, coordinates)
+        search_mock.assert_called_once_with(catalog.catalog_id, coordinates)
+        retrieve_and_load_mock.assert_called_once()
+
+    def test_resolve_download_and_load_coordinates(self):
+        coordinates = Coordinates("g", "n", "v")
+        local_catalog = self.collection_manager.catalogs().get_local_catalog()
+        # mocks
+        get_catalog_mock = MagicMock(return_value=local_catalog)
+        get_solution_mock = MagicMock(return_value="path/to/solution")
+        search_mock = MagicMock(return_value={"catalog_id": 1})
+        retrieve_and_load_mock = MagicMock()
+        self.collection_manager._search_by_coordinates = search_mock
+        self.collection_manager.catalogs().get_by_id = get_catalog_mock
+        local_catalog.get_solution_file = get_solution_mock
+        self.collection_manager._retrieve_and_load_resolve_result = retrieve_and_load_mock
+        # call
+        res = self.collection_manager.resolve_download_and_load_coordinates(coordinates)
+        # assert
+        self.assertEqual(local_catalog, res.catalog)
+        self.assertEqual(get_solution_mock.return_value, res.path)
+        self.assertEqual(search_mock.return_value, res.solution_attrs)
+        get_catalog_mock.assert_called_once_with(1)
+        get_solution_mock.assert_called_once_with(coordinates)
+        search_mock.assert_called_once_with(coordinates)
+        retrieve_and_load_mock.assert_called_once()
 
     @patch('album.core.utils.operations.resolve_operations.load')
     @patch('album.core.controller.collection.catalog_handler.Catalog.get_solution_file')
@@ -258,17 +322,20 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         pass
 
     @unittest.skip("Needs to be implemented!")
-    def test__search_in_local_catalog(self):
+    def test__search_by_coordinates(self):
         # todo: implement
         pass
+
+    def test__search_in_local_catalog(self):
+        coordinates = Coordinates("g", "n", "v")
+        search_mock = MagicMock(return_value={"res": "res"})
+        self.collection_manager._search_in_specific_catalog = search_mock
+        res = self.collection_manager._search_in_local_catalog(coordinates)
+        self.assertEqual(search_mock.return_value, res)
+        search_mock.assert_called_once_with(self.collection_manager.catalogs().get_local_catalog().catalog_id, coordinates)
 
     @unittest.skip("Needs to be implemented!")
     def test__search_in_specific_catalog(self):
-        # todo: implement
-        pass
-
-    @unittest.skip("Needs to be implemented!")
-    def test__search_in_catalogs(self):
         # todo: implement
         pass
 

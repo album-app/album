@@ -3,6 +3,7 @@ from queue import Queue
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.run_manager import RunManager
+from album.core.model.coordinates import Coordinates
 from album_runner import logging
 
 module_logger = logging.get_active_logger
@@ -14,22 +15,24 @@ class TestManager(metaclass=Singleton):
     Solutions must be installed to run their testing routine.
 
      Attributes:
-         catalog_manager:
+         collection_manager:
             Holding all configured catalogs. Resolves inside our outside catalogs.
 
     """
     # singletons
-    catalog_manager = None
+    collection_manager = None
     run_manager = None
 
     def __init__(self):
-        self.catalog_manager = CollectionManager()
+        self.collection_manager = CollectionManager()
         self.run_manager = RunManager()
 
-    def test(self, path):
+    def test(self, path, args=None):
         """Function corresponding to the `test` subcommand of `album`."""
+        if args is None:
+            args = [""]
         try:
-            resolve_result = self.catalog_manager.resolve_require_installation_and_load(path)
+            resolve_result = self.collection_manager.resolve_require_installation_and_load(path)
         except ValueError:
             raise ValueError("Solution points to a local file which has not been installed yet. "
                              "Please point to an installation from the catalog or install the solution. "
@@ -40,11 +43,22 @@ class TestManager(metaclass=Singleton):
         else:
             module_logger().debug('album loaded from catalog: %s...' % str(resolve_result.active_solution))
 
-        self._test(resolve_result.active_solution)
+        self._test(resolve_result.active_solution, args)
 
         module_logger().info('Test run for %s!' % resolve_result.active_solution['name'])
 
-    def _test(self, active_solution):
+    def test_from_catalog_coordinates(self, catalog_name: str, coordinates: Coordinates, argv=None):
+        catalog = self.collection_manager.catalogs().get_by_name(catalog_name)
+        resolve_result = self.collection_manager.resolve_download_and_load_catalog_coordinates(catalog, coordinates)
+        self._test(resolve_result.active_solution, argv)
+
+    def test_from_coordinates(self, coordinates: Coordinates, argv=None):
+        resolve_result = self.collection_manager.resolve_download_and_load_coordinates(coordinates)
+        self._test(resolve_result.active_solution, argv)
+
+    def _test(self, active_solution, args=None):
+        if args is None:
+            args = [""]
         if active_solution['pre_test'] and callable(active_solution['pre_test']) \
                 and active_solution['test'] and callable(active_solution['test']):
             module_logger().debug('Creating test script...')
@@ -59,7 +73,7 @@ class TestManager(metaclass=Singleton):
 
             # prepare run_script
             que = Queue()
-            self.run_manager.build_queue(active_solution, que, False)  # do not run queue immediately
+            self.run_manager.build_queue(active_solution, que, False, args)  # do not run queue immediately
             _, scripts = que.get(block=False)
 
             # add test_routine to script

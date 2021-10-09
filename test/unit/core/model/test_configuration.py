@@ -14,7 +14,6 @@ class TestConfiguration(TestUnitCommon):
     def setUp(self) -> None:
         super().setUp()
         self.conf = Configuration()
-        self.conf.setup(base_cache_path=Path(self.tmp_dir.name).joinpath("album"))
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -42,7 +41,7 @@ class TestConfiguration(TestUnitCommon):
         new_tmp_dir = tempfile.TemporaryDirectory(dir=self.tmp_dir.name)
 
         # set
-        self.conf.base_cache_path = new_tmp_dir.name
+        self.conf.setup(base_cache_path=new_tmp_dir.name)
 
         # assert
         self.assertEqual(
@@ -108,6 +107,7 @@ class TestConfiguration(TestUnitCommon):
     def test_empty_tmp(self, force_remove_mock):
         force_remove_mock.return_value = None
         # call
+        self.conf.cache_path_tmp = Path(self.tmp_dir.name)
         self.conf.empty_tmp()
 
         force_remove_mock.assert_called_once()

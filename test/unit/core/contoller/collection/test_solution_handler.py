@@ -30,11 +30,6 @@ class TestSolutionHandler(TestCatalogCollectionCommon):
         pass
 
     @unittest.skip("Needs to be implemented!")
-    def test_add_solutions_to_catalog(self):
-        # todo: implement
-        pass
-
-    @unittest.skip("Needs to be implemented!")
     def test_remove_solution(self):
         # todo: implement
         pass
@@ -51,5 +46,15 @@ class TestSolutionHandler(TestCatalogCollectionCommon):
 
     @unittest.skip("Needs to be implemented!")
     def test_apply_change(self):
+        # todo: implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_set_installed(self):
+        # todo: implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_is_installed(self):
         # todo: implement
         pass

@@ -108,7 +108,6 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", "my-catalog")
         CatalogHandler.create_new_catalog(catalog_src, "my-catalog")
         catalog = self.collection_manager.catalogs().add_by_src(catalog_src)
-        catalog.load_index()
         self.assertTrue(catalog.is_local())
 
         # add new solution to catalog

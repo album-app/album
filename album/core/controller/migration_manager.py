@@ -1,3 +1,5 @@
+from album.core.model.catalog import Catalog
+
 from album.core.model.catalog_index import CatalogIndex
 
 from album.core.concept.singleton import Singleton
@@ -51,3 +53,16 @@ class MigrationManager(metaclass=Singleton):
                 "Cannot migrate collection from version %s to version %s." % (curr_version, target_version)
             )
         return catalog_index_path
+
+    def load_index(self, catalog: Catalog):
+        """Loads the index from file or src. If a file and src exists routine tries to update the index."""
+        catalog.update_index_cache()
+        catalog.catalog_index = self.create_catalog_index(catalog.index_path, catalog.name, CatalogIndex.version)
+        catalog.version = catalog.get_version()
+
+    def refresh_index(self, catalog: Catalog) -> bool:
+        """Routine to refresh the catalog index. Downloads or copies the index_file."""
+        if catalog.update_index_cache_if_possible():
+            catalog.catalog_index = self.create_catalog_index(catalog.index_path, catalog.name, CatalogIndex.version)
+            return True
+        return False

@@ -207,7 +207,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         # remove catalog
         res_status = client.get("/remove-catalog?src=" + urllib.parse.quote((str(local_catalog_path))))
         self.assertEqual(200, res_status.status_code)
-        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), remote_catalog, False)
+        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), local_catalog_path, False)
 
         # check that solution is not accessible any more
         res_status = client.get(f'/status/{local_catalog_name}/{group}/{name}/{version}')

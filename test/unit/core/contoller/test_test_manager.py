@@ -14,6 +14,16 @@ class TestTestManager(TestUnitCommon):
         pass
 
     @unittest.skip("Needs to be implemented!")
+    def test_test_from_catalog_coordinates(self):
+        # TODO implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_test_from_coordinates(self):
+        # TODO implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
     def test__test(self):
         # ToDo: implement
         pass

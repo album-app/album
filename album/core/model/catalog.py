@@ -5,11 +5,9 @@ from typing import Optional
 
 import validators
 
-from album.core.controller.migration_manager import MigrationManager
-from album.core.model.catalog_index import CatalogIndex
 from album.core.model.configuration import Configuration
-from album.core.model.default_values import DefaultValues
 from album.core.model.coordinates import Coordinates
+from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import unzip_archive, copy, copy_folder, get_dict_from_json, \
     write_dict_to_json
 from album.core.utils.operations.git_operations import download_repository, init_repository
@@ -126,7 +124,7 @@ class Catalog:
         Returns: the path to the solution file.
 
         """
-        solution_entry = self.catalog_index.get_solution_by_group_name_version(coordinates)
+        solution_entry = self.catalog_index.get_solution_by_coordinates(coordinates)
 
         if solution_entry:
             path_to_solution = self.get_solution_file(coordinates)
@@ -243,21 +241,29 @@ class Catalog:
 
         return solution_path
 
-    def load_index(self):
-        """Loads the index from file or src. If a file and src exists routine tries to update the index."""
-        if self.is_cache():
-            raise RuntimeError(
-                "Cache catalog does not have it's own index - all solutions are indexed in the collection index.")
-        if not self.index_path.is_file():  # only download/copy from src if index does not exist yet
-            if self.is_local():  # case where src is not downloadable
-                # copy catalog from local resource to cache location
-                self.copy_index_from_src_to_cache()
-            else:
-                # load catalog from remote src
-                self.download_index()
+    def update_index_cache_if_possible(self):
+        try:
+            self.update_index_cache()
+            return True
+        except AssertionError:
+            module_logger().warning("Could not refresh index. Source invalid!")
+            return False
+        except ConnectionError:
+            module_logger().warning("Could not refresh index. Connection error!")
+            return False
+        except Exception as e:
+            module_logger().warning("Could not refresh index. Unknown reason!")
+            module_logger().warning(e)
+            return False
 
-        self.catalog_index = MigrationManager().create_catalog_index(self.index_path, self.name, CatalogIndex.version)
-        self.version = self.get_version()
+    def update_index_cache(self):
+        if self.is_cache():
+            return False
+
+        if self.is_local():  # case src not downloadable
+            self.copy_index_from_src_to_cache()
+        else:
+            self.download_index()
 
     def get_version(self):
         database_version = self.catalog_index.get_version()
@@ -276,32 +282,8 @@ class Catalog:
 
         return database_version
 
-    def refresh_index(self) -> bool:
-        """Routine to refresh the catalog index. Downloads or copies the index_file."""
-        if self.is_cache():
-            return False
-
-        if self.is_local():  # case src not downloadable
-            self.copy_index_from_src_to_cache()
-        else:
-            try:
-                self.download_index()
-            except AssertionError:
-                module_logger().warning("Could not refresh index. Source invalid!")
-                return False
-            except ConnectionError:
-                module_logger().warning("Could not refresh index. Connection error!")
-                return False
-            except Exception as e:
-                module_logger().warning("Could not refresh index. Unknown reason!")
-                module_logger().warning(e)
-                return False
-
-        self.catalog_index = MigrationManager().create_catalog_index(self.index_path, self.name, CatalogIndex.version)
-        return True
-
     def add(self, active_solution, force_overwrite=False):
-        """Adds an active solution_object to the index. Does not copy anything from A to B.
+        """Adds an active solution_object to the index. Does not copy anything from A to B. Expects the local catalog index to be loaded.
 
         Args:
             active_solution:
@@ -328,23 +310,19 @@ class Catalog:
         if hasattr(active_solution, "deposit_id"):
             solution_attrs["deposit_id"] = getattr(active_solution, "deposit_id")
 
-        if not self.catalog_index:
-            self.load_index()
-
-        lookup_solution = self.catalog_index.get_solution_by_group_name_version(
-            dict_to_coordinates(solution_attrs))
+        lookup_solution = self.catalog_index.get_solution_by_coordinates(active_solution.coordinates)
         if lookup_solution:
             if force_overwrite:
                 module_logger().warning("Solution already exists! Overwriting...")
             else:
                 raise RuntimeError("Solution already exists in catalog! Aborting...")
 
-        self.catalog_index.update(solution_attrs)
+        self.catalog_index.update(active_solution.coordinates, solution_attrs)
         self.catalog_index.save()
         self.catalog_index.export(self.solution_list_path)
 
     def remove(self, active_solution):
-        """Removes a solution from a catalog. Only for local catalogs.
+        """Removes a solution from a catalog. Only for local catalogs. Expects the local catalog index to be loaded.
 
         Args:
             active_solution:
@@ -353,9 +331,6 @@ class Catalog:
         """
         if self.is_local():
             solution_attrs = active_solution.get_deploy_dict()
-
-            if not self.catalog_index:
-                self.load_index()
             solution_entry = self.catalog_index.remove_solution_by_group_name_version(
                 dict_to_coordinates(solution_attrs)
             )

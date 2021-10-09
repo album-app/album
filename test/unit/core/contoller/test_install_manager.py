@@ -15,7 +15,7 @@ class TestInstallManager(TestUnitCommon):
 
     def setUp(self):
         super().setUp()
-        self.create_test_config()
+        self.create_album_test_instance()
         self.create_test_solution_no_env()
         self.create_test_collection_manager()
         self.install_manager = InstallManager()
@@ -42,13 +42,23 @@ class TestInstallManager(TestUnitCommon):
         self.install_manager.update_in_collection_index = update_in_collection_index
 
         # run
-        self.install_manager.install("aPath")
+        self.install_manager.install("aPath", [])
 
         # assert
         resolve_and_load.assert_called_once()
         execute_install_routine.assert_called_once()
         add_to_local_catalog.assert_called_once_with(self.active_solution, Path("aPath").parent)
         update_in_collection_index.assert_not_called()
+
+    @unittest.skip("Needs to be implemented!")
+    def test_install_from_catalog_coordinates(self):
+        # TODO implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_install_from_coordinates(self):
+        # TODO implement
+        pass
 
     @patch('album.core.model.collection_index.CollectionIndex.get_solution')
     @patch('album.core.controller.collection.solution_handler.SolutionHandler.update_solution')

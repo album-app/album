@@ -48,7 +48,7 @@ class CatalogHandler:
         for catalog in initial_catalogs.keys():
             self.add_by_src(initial_catalogs[catalog])
 
-    def add_by_src(self, identifier):
+    def add_by_src(self, identifier) -> Catalog:
         """ Adds a catalog. Creates them from their src. (Git, network-drive, folder outside cache, etc.)"""
         catalog = self._create_catalog_from_src(identifier)
 
@@ -63,6 +63,7 @@ class CatalogHandler:
 
         self._add_to_index(catalog)
         self._create_catalog_cache_if_missing(catalog)
+        self.migration_manager.load_index(catalog)
 
         module_logger().info('Added catalog %s!' % identifier)
         return catalog
@@ -147,7 +148,7 @@ class CatalogHandler:
     @staticmethod
     def _update(catalog: Catalog) -> bool:
         # TODO call migration manager
-        r = catalog.refresh_index()
+        r = MigrationManager().refresh_index(catalog)
         module_logger().info('Updated catalog %s!' % catalog.name)
         return r
 
@@ -303,7 +304,7 @@ class CatalogHandler:
             # cache catalog is always up to date since src and path are the same
             return res
         solutions_in_collection = self.catalog_collection.get_solutions_by_catalog(catalog.catalog_id)
-        catalog.load_index()
+        MigrationManager().load_index(catalog)
         solutions_in_catalog = catalog.catalog_index.get_all_solutions()
         res.solution_changes = self._compare_solutions(solutions_in_collection, solutions_in_catalog)
         return res

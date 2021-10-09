@@ -23,6 +23,5 @@ class Task:
     id = None
     method = None
     args = tuple()
-    sysarg = []
     log_handler: LogHandler = None
     status: Status = None

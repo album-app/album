@@ -11,6 +11,7 @@ from unittest.mock import patch
 from album.core.model.coordinates import Coordinates
 
 import album.core as album
+from album import Album
 from album.core import Solution
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.conda_manager import CondaManager
@@ -40,12 +41,15 @@ class TestIntegrationCommon(unittest.TestCase):
         self.captured_output = StringIO()
         self.configure_silent_test_logging(self.captured_output)
 
-        # load singletons with test configuration
-        self.create_test_config()
+        # load gateway with test configuration
+        self.album = Album(base_cache_path=self.tmp_dir.name)
 
-        self.collection_manager = CollectionManager()
+        self.collection_manager = self.album.collection_manager()
         self.test_collection = self.collection_manager.catalog_collection
         self.assertFalse(self.test_collection.is_empty())
+
+    def get_album(self):
+        return self.album
 
     def add_test_catalog(self):
         path = Path(self.tmp_dir.name).joinpath("my-catalogs", "test_catalog")
@@ -89,10 +93,6 @@ class TestIntegrationCommon(unittest.TestCase):
         with GlobalExceptionWatcher():
             super(TestIntegrationCommon, self).run(result)
 
-    @patch('album.core.model.catalog.Catalog.refresh_index', return_value=None)
-    def create_test_config(self, _):
-        TestUnitCommon.create_test_config_in_tmp_dir(self.tmp_dir.name)
-
     @staticmethod
     def configure_silent_test_logging(captured_output, logger_name="integration-test"):
         logger = configure_logging(logger_name, loglevel=LogLevel.INFO)
@@ -129,7 +129,7 @@ class TestIntegrationCommon(unittest.TestCase):
         # add to collection, assign to local catalog
         len_catalog_before = len(self.test_collection.get_solutions_by_catalog(local_catalog.catalog_id))
         self.collection_manager.add_solution_to_local_catalog(a, path)
-        self.collection_manager.solutions().set_installed(local_catalog, a)
+        self.collection_manager.solutions().set_installed(local_catalog, a.coordinates)
         self.assertEqual(len_catalog_before + 1, len(self.test_collection.get_solutions_by_catalog(local_catalog.catalog_id)))
 
         # copy to correct folder

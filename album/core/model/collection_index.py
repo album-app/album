@@ -1,5 +1,6 @@
 import pkgutil
 from datetime import datetime
+from typing import Optional
 
 from album.core.concept.database import Database
 from album.core.model.coordinates import Coordinates
@@ -411,7 +412,7 @@ class CollectionIndex(Database):
             res.append(cover)
         return res
 
-    def get_solution_by_hash(self, hash_value):
+    def get_solution_by_hash(self, hash_value) -> Optional[dict]:
         r = self.get_cursor().execute(
             "SELECT * FROM collection WHERE hash=:hash_value",
             {
@@ -426,7 +427,7 @@ class CollectionIndex(Database):
 
         return solution
 
-    def get_solution(self, collection_id):
+    def get_solution(self, collection_id) -> Optional[dict]:
         r = self.get_cursor().execute(
             "SELECT * FROM collection WHERE collection_id=:collection_id",
             {
@@ -440,7 +441,7 @@ class CollectionIndex(Database):
 
         return solution
 
-    def get_solution_by_doi(self, doi):
+    def get_solution_by_doi(self, doi) -> Optional[dict]:
         r = self.get_cursor().execute(
             "SELECT * FROM collection WHERE doi=:doi",
             {
@@ -454,7 +455,7 @@ class CollectionIndex(Database):
 
         return solution
 
-    def get_solution_by_catalog_grp_name_version(self, catalog_id, coordinates: Coordinates):
+    def get_solution_by_catalog_grp_name_version(self, catalog_id, coordinates: Coordinates) -> Optional[dict]:
         r = self.get_cursor().execute(
             "SELECT * FROM collection "
             "WHERE catalog_id=:catalog_id AND \"group\"=:group AND name=:name AND version=:version",

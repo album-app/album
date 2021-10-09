@@ -1,4 +1,5 @@
 import json
+import sys
 
 from album.core import get_active_solution
 from album.core.controller.clone_manager import CloneManager
@@ -49,7 +50,7 @@ def deploy(args):
 
 
 def install(args):
-    InstallManager().install(args.path)
+    InstallManager().install(args.path, sys.argv)
 
 
 def uninstall(args):
@@ -57,7 +58,7 @@ def uninstall(args):
 
 
 def run(args):
-    RunManager().run(args.path, args.run_immediately)
+    RunManager().run(args.path, args.run_immediately, sys.argv)
 
 
 def search(args):
@@ -69,7 +70,7 @@ def start_server(args):
 
 
 def test(args):
-    TestManager().test(args.path)
+    TestManager().test(args.path, sys.argv)
 
 
 def clone(args):
