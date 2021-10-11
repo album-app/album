@@ -6,20 +6,16 @@ import unittest.mock
 from io import StringIO
 from pathlib import Path
 from typing import Optional
-from unittest.mock import patch
-
-from album.core.model.coordinates import Coordinates
 
 import album.core as album
 from album import Album
 from album.core import Solution
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.conda_manager import CondaManager
-from album.core.controller.collection.collection_manager import CollectionManager
+from album.core.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
 from album.core.utils.operations.file_operations import copy
-from album.core.utils.operations.resolve_operations import solution_to_coordinates
 from album_runner.logging import configure_logging, LogLevel
 from test.global_exception_watcher import GlobalExceptionWatcher
 from test.unit.test_unit_common import TestUnitCommon
