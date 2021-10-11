@@ -4,6 +4,7 @@ from pathlib import Path
 from flask import Flask, request
 from werkzeug.exceptions import abort
 
+from album import Album
 from album.core.concept.singleton import Singleton
 from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection.collection_manager import CollectionManager
@@ -13,9 +14,8 @@ from album.core.controller.run_manager import RunManager
 from album.core.controller.search_manager import SearchManager
 from album.core.controller.task_manager import TaskManager
 from album.core.controller.test_manager import TestManager
-from album.core.model.configuration import Configuration
-from album.core.model.default_values import DefaultValues
 from album.core.model.coordinates import Coordinates
+from album.core.model.default_values import DefaultValues
 from album.core.model.task import Task
 from album_runner import logging
 
@@ -28,12 +28,16 @@ class AlbumServer(metaclass=Singleton):
 
     app = None
 
-    def __init__(self, port, host=None):
-        self.setup(port, host)
-
-    def setup(self, port, host):
+    def __init__(self, port: int, host: str = None):
         self.port = port
         self.host = host
+        self.album = None
+
+    def setup(self, album: Album = None):
+        if album:
+            self.album = album
+        else:
+            self.album = Album()
 
     def start(self, test_config=None):
         module_logger().info('Starting server..')
@@ -55,15 +59,15 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route("/config")
         def get_config():
             return {
-                "cache_base": str(Configuration().base_cache_path),
-                "cache_solutions": str(Configuration().cache_path_solution),
-                "cache_apps": str(Configuration().cache_path_app),
-                "cache_downloads": str(Configuration().cache_path_download)
+                "cache_base": str(self.album.configuration().base_cache_path),
+                "cache_solutions": str(self.album.configuration().cache_path_solution),
+                "cache_apps": str(self.album.configuration().cache_path_app),
+                "cache_downloads": str(self.album.configuration().cache_path_download)
             }
 
         @self.app.route("/index")
         def get_index():
-            return CollectionManager().get_index_as_dict()
+            return self.album.collection_manager().get_index_as_dict()
 
         @self.app.route("/catalogs")
         def get_catalogs():
@@ -262,6 +266,10 @@ class AlbumServer(metaclass=Singleton):
                 raise RuntimeError('Not running with the Werkzeug Server')
             func()
             return 'Server shutting down...'
+
+    @staticmethod
+    def task_manager() -> TaskManager:
+        return TaskManager()
 
     @staticmethod
     def _run_solution_method_async(catalog, group_name_version: Coordinates, method, args=None):

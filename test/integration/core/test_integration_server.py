@@ -5,9 +5,8 @@ from time import time, sleep
 
 import flask_unittest
 
-from album.core.controller.task_manager import TaskManager
-from album.core.model.default_values import DefaultValues
 from album.core.model.coordinates import Coordinates
+from album.core.model.default_values import DefaultValues
 from album.core.model.task import Task
 from album.core.server import AlbumServer
 from album_runner import logging
@@ -23,8 +22,8 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
     app = server.init_server({'TESTING': True})
 
     def setUp(self, client) -> None:
-        self.server.setup(self.port, None)
         TestIntegrationCommon.setUp(self)
+        self.server.setup(self.get_album())
         flask_unittest.ClientTestCase.setUp(self, client)
 
     def tearDown(self, client) -> None:
@@ -35,7 +34,6 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
 
         # setting up test
         logging.set_loglevel(LogLevel.INFO)
-        task_manager = TaskManager()
 
         # check index route
 
@@ -55,16 +53,16 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         # add remote catalog
 
         remote_catalog = "https://gitlab.com/album-app/catalogs/templates/catalog"
-        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), remote_catalog, False)
+        self.assertCatalogPresence(self.get_album().collection_manager().catalogs().get_all(), remote_catalog, False)
         res_add_catalog = client.get("/add-catalog?src=" + urllib.parse.quote(remote_catalog))
         self.assertEqual(200, res_add_catalog.status_code)
-        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), remote_catalog, True)
+        self.assertCatalogPresence(self.get_album().collection_manager().catalogs().get_all(), remote_catalog, True)
 
         # remove remote catalog
 
         res_remove_catalog = client.get("/remove-catalog?src=" + urllib.parse.quote(remote_catalog))
         self.assertEqual(200, res_remove_catalog.status_code)
-        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), remote_catalog, False)
+        self.assertCatalogPresence(self.get_album().collection_manager().catalogs().get_all(), remote_catalog, False)
 
         # clone catalog template
 
@@ -72,14 +70,14 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         local_catalogs_path = Path(self.tmp_dir.name).joinpath("my-catalogs")
         local_catalogs = str(local_catalogs_path)
         local_catalog_path = local_catalogs_path.joinpath(local_catalog_name)
-        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), local_catalogs, False)
+        self.assertCatalogPresence(self.get_album().collection_manager().catalogs().get_all(), local_catalogs, False)
 
         res_clone_catalog = client.get(
             f"/clone/template:catalog?target_dir={urllib.parse.quote(local_catalogs)}&name={local_catalog_name}"
         )
         self.assertEqual(200, res_clone_catalog.status_code)
-        self._finish_taskmanager_with_timeout(task_manager, 30)
-        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), local_catalog_path, False)
+        self._finish_taskmanager_with_timeout(self.server.task_manager(), 30)
+        self.assertCatalogPresence(self.get_album().collection_manager().catalogs().get_all(), local_catalog_path, False)
         self.assertTrue(local_catalogs_path.exists())
         self.assertTrue(local_catalog_path.exists())
         self.assertTrue(local_catalog_path.joinpath(DefaultValues.catalog_index_metafile_json.value).exists())
@@ -89,7 +87,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         res_add_catalog = client.get("/add-catalog?src=" + urllib.parse.quote(str(local_catalog_path)))
         self.assertEqual(200, res_add_catalog.status_code)
         catalog_id = res_add_catalog.json["catalog_id"]
-        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), str(local_catalog_path), True)
+        self.assertCatalogPresence(self.get_album().collection_manager().catalogs().get_all(), str(local_catalog_path), True)
 
         # clone solution
 
@@ -113,7 +111,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
             f"={urllib.parse.quote(str(solution_target_dir))}&name={solution_target_name}"
         )
         self.assertEqual(200, res_clone_solution.status_code)
-        self._finish_taskmanager_with_timeout(task_manager, 30)
+        self._finish_taskmanager_with_timeout(self.server.task_manager(), 30)
 
         self.assertTrue(solution_target_dir.exists())
         self.assertTrue(solution_target_dir.joinpath(solution_target_name).exists())
@@ -127,7 +125,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         self.assertIsNotNone(res_deploy.json)
         self.assertIsNotNone(res_deploy.json["id"])
 
-        self._finish_taskmanager_with_timeout(task_manager, 30)
+        self._finish_taskmanager_with_timeout(self.server.task_manager(), 30)
 
         # update catalog cache
 
@@ -153,11 +151,11 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         self.assertIsNotNone(res_install.json)
         self.assertIsNotNone(res_deploy.json["id"])
 
-        self._finish_taskmanager_with_timeout(task_manager, 60)
+        self._finish_taskmanager_with_timeout(self.server.task_manager(), 60)
 
         # check that solution is installed
         self.assertTrue(
-            self.collection_manager.catalog_collection.is_installed(catalog_id, Coordinates(group, name, version))
+            self.get_album().collection_manager().catalog_collection.is_installed(catalog_id, Coordinates(group, name, version))
         )
         res_status = client.get(f'/status/{local_catalog_name}/{group}/{name}/{version}')
         self.assertEqual(200, res_status.status_code)
@@ -183,18 +181,18 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         self.assertIsNotNone(task_run_id)
         self.assertIsNotNone(task_test_id)
 
-        self.assertTrue(task_manager.server_queue.unfinished_tasks)
+        self.assertTrue(self.server.task_manager().server_queue.unfinished_tasks)
 
         # wait for completion of tasks
-        self._finish_taskmanager_with_timeout(task_manager, 30)
+        self._finish_taskmanager_with_timeout(self.server.task_manager(), 30)
 
-        self.assertEqual(Task.Status.FINISHED, task_manager.get_task(task_run_id).status)
-        self.assertEqual(Task.Status.FINISHED, task_manager.get_task(task_test_id).status)
+        self.assertEqual(Task.Status.FINISHED, self.server.task_manager().get_task(task_run_id).status)
+        self.assertEqual(Task.Status.FINISHED, self.server.task_manager().get_task(task_test_id).status)
 
         # check that tasks were executed properly
 
-        run_logs = task_manager.get_task(task_run_id).log_handler
-        test_logs = task_manager.get_task(task_test_id).log_handler
+        run_logs = self.server.task_manager().get_task(task_run_id).log_handler
+        test_logs = self.server.task_manager().get_task(task_test_id).log_handler
         self.assertIsNotNone(run_logs)
         self.assertIsNotNone(test_logs)
         self.assertTrue(len(run_logs.records) > 0)
@@ -204,10 +202,16 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         self.assertTrue(self.includes_msg(test_logs.records, "solution7_long_routines_test_start"))
         self.assertTrue(self.includes_msg(test_logs.records, "solution7_long_routines_test_end"))
 
+        # test recently launched and installed solutions
+        res_recently_installed = client.get("/recently-installed")
+        self.assertEqual(200, res_recently_installed.status_code)
+        res_recently_launched = client.get("/recently-launched")
+        self.assertEqual(200, res_recently_launched.status_code)
+
         # remove catalog
         res_status = client.get("/remove-catalog?src=" + urllib.parse.quote((str(local_catalog_path))))
         self.assertEqual(200, res_status.status_code)
-        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), local_catalog_path, False)
+        self.assertCatalogPresence(self.get_album().collection_manager().catalogs().get_all(), local_catalog_path, False)
 
         # check that solution is not accessible any more
         res_status = client.get(f'/status/{local_catalog_name}/{group}/{name}/{version}')
