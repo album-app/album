@@ -38,6 +38,7 @@ setup(
         {
             "name": "testArg1",
             "description": "testArg1Description",
+            "type": "string",
             "default": "Useless callable",
         }
     ],

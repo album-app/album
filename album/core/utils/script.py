@@ -146,8 +146,6 @@ def __create_parser_argument_string(arg):
         parse_arg += "help='%s', " % arg['description']
     if 'required' in keys:
         parse_arg += "required=%s, " % arg['required']  # CAUTION: no ''! Boolean value
-    if 'type' in keys:
-        parse_arg += "type=%s, " % arg['type']  # CAUTION: no ''! type must be callable!
     if 'action' in keys:
         class_name = __get_action_class_name(arg['name'])
         parse_arg += "action=%s, " % class_name  # CAUTION: no ''! action must be callable!

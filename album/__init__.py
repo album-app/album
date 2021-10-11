@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Optional
 
-from album.core.model.configuration import Configuration
+from album.core.concept.singleton import Singleton
 
 from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection.collection_manager import CollectionManager
@@ -10,15 +10,14 @@ from album.core.controller.install_manager import InstallManager
 from album.core.controller.run_manager import RunManager
 from album.core.controller.search_manager import SearchManager
 from album.core.controller.test_manager import TestManager
-from album.core.server import AlbumServer
-
+from album.core.model.configuration import Configuration
 
 __version__ = "0.1.0"
 __author__ = "Kyle Harrington, Jan Philipp Albrecht, Deborah Schmidt"
 __email__ = "album@kyleharrington.com"
 
 
-class Album:
+class Album(metaclass=Singleton):
 
     def __init__(self, base_cache_path: Optional[Path] = None, configuration_file_path: Optional[Path] = None) -> None:
         Configuration().setup(base_cache_path=base_cache_path, configuration_file_path=configuration_file_path)
@@ -50,10 +49,6 @@ class Album:
     @staticmethod
     def clone_manager() -> CloneManager:
         return CloneManager()
-
-    @staticmethod
-    def start_server(port, host) -> None:
-        AlbumServer(port, host).start()
 
     @staticmethod
     def configuration() -> Configuration:

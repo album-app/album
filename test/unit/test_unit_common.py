@@ -86,6 +86,7 @@ class TestUnitCommon(unittest.TestCase):
         TestUnitCommon._delete(ZenodoManager)
         TestUnitCommon._delete(MigrationManager)
         TestUnitCommon._delete(CloneManager)
+        TestUnitCommon._delete(Album)
 
     @staticmethod
     def _delete(singleton):
