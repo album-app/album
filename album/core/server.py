@@ -86,7 +86,7 @@ class AlbumServer(metaclass=Singleton):
         def run(catalog, group, name, version):
             module_logger().info(f"Server call: /run/{catalog}/{group}/{name}/{version}")
             args = self._get_arguments(request.args)
-            task = self._run_solution_method_async(catalog, Coordinates(group, name, version), RunManager().run, args)
+            task = self._run_solution_method_async(catalog, Coordinates(group, name, version), RunManager().run, [True, args])
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/install/<group>/<name>/<version>', defaults={'catalog': None})

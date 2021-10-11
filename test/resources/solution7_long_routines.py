@@ -51,7 +51,14 @@ setup(
     sample_outputs=[],
     min_album_version="0.1.1",
     tested_album_version="0.1.1",
-    args=[],
+    args=[
+        {
+            "name": "testArg1",
+            "description": "testArg1Description",
+            "type": "string",
+            "default": "Useless callable",
+        }
+    ],
     init=album_init,
     run=album_run,
     install=album_install,

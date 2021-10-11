@@ -164,7 +164,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
 
         # trigger running and testing the solution simultaneously
 
-        res_run = client.get(f'/run/{local_catalog_name}/{group}/{name}/{version}')
+        res_run = client.get(f'/run/{local_catalog_name}/{group}/{name}/{version}?testArg1=something')
         res_test = client.get(f'/test/{local_catalog_name}/{group}/{name}/{version}')
 
         # check status of ongoing tasks
