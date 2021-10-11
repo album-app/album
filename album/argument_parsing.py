@@ -1,6 +1,7 @@
 import argparse
 import sys
 
+from album import Album
 from album.core.commandline import add_catalog, remove_catalog, deploy, \
     install, repl, run, search, start_server, test, update, clone, upgrade, index, uninstall
 from album_runner import logging
@@ -11,6 +12,7 @@ module_logger = logging.get_active_logger
 
 def main():
     """Entry points of `album`."""
+
     parser = create_parser()
 
     # ToDo: clean all album environments
@@ -35,6 +37,10 @@ def __run_subcommand(args, parser):
         parser.error("Please provide a valid action!")
     module_logger().debug("Running %s subcommand..." % album_command)
     sys.argv = [sys.argv[0]] + args[1]
+
+    # Makes sure album is initialized.
+    Album()
+
     args[0].func(args[0])  # execute entry point function
 
 

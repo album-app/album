@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import Optional
 
+from album.core.concept.singleton import Singleton
+
 from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.deploy_manager import DeployManager
@@ -15,7 +17,7 @@ __author__ = "Kyle Harrington, Jan Philipp Albrecht, Deborah Schmidt"
 __email__ = "album@kyleharrington.com"
 
 
-class Album:
+class Album(metaclass=Singleton):
 
     def __init__(self, base_cache_path: Optional[Path] = None, configuration_file_path: Optional[Path] = None) -> None:
         Configuration().setup(base_cache_path=base_cache_path, configuration_file_path=configuration_file_path)
