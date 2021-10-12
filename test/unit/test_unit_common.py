@@ -133,19 +133,20 @@ class TestUnitCommon(unittest.TestCase):
     def create_album_test_instance(self) -> Album:
         return Album(base_cache_path=Path(self.tmp_dir.name).joinpath("album"), configuration_file_path=self.tmp_dir.name)
 
-    @patch("album.core.model.catalog.Catalog.retrieve_catalog_meta_information")
-    def create_test_collection_manager(self, retrieve_catalog_meta_information_mock):
+    def create_test_collection_manager(self):
         # mock retrieve_catalog_meta_information as it involves a http request
+        with patch("album.core.model.catalog.Catalog.retrieve_catalog_meta_information") as retrieve_c_m_i_mock:
+            retrieve_c_m_i_mock.side_effect = [
+                {"name": "catalog_local", "version": "0.1.0"},  # local catalog creation call
+                {"name": "catalog_local", "version": "0.1.0"},  # local catalog load_index call
+                {"name": "default", "version": "0.1.0"},  # remote default catalog creation call
+                {"name": "default", "version": "0.1.0"},  # remote default catalog load_index call
+                {"name": "default", "version": "0.1.0"},  # remote default catalog to collection
+            ]
 
-        retrieve_catalog_meta_information_mock.side_effect = [
-            {"name": "catalog_local", "version": "0.1.0"},  # local creation call
-            {"name": "default", "version": "0.1.0"},  # remote default catalog creation call
-            {"name": "default", "version": "0.1.0"},  # remote default catalog to collection
-        ]
-
-        # create collection
-        self.collection_manager = CollectionManager()
-        self.assertEqual(3, retrieve_catalog_meta_information_mock.call_count)
+            # create collection
+            self.collection_manager = CollectionManager()
+            self.assertEqual(5, retrieve_c_m_i_mock.call_count)
 
         self.catalog_collection = self.collection_manager.catalog_collection
 

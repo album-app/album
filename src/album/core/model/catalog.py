@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Optional
 
 import validators
+from album.core.model.catalog_index import CatalogIndex
 
 from album.core.model.configuration import Configuration
 from album.core.model.coordinates import Coordinates

@@ -97,6 +97,8 @@
     - conda env create -f album.yml
     - source $tmpdir/miniconda/bin/activate
     - conda activate album
+    - pip uninstall -y album-runner
+    - pip install --no-cache-dir https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip
     - python -V
   after_script:
     - tmpdir=$(</tmp/tmpdir)
