@@ -228,7 +228,6 @@ class TestEnvironment(TestUnitCommon):
         create_environment_mock.assert_called_once_with(self.test_environment_name)
         create_environment_from_file_mock.assert_not_called()
 
-    @unittest.skip("Remove me again")
     @patch('album.core.model.environment.Environment.pip_install')
     @patch('album.core.model.environment.Environment.is_installed', return_value=False)
     def test_install_runner(self, is_installed_mock, pip_install_mock):

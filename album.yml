@@ -7,4 +7,4 @@ dependencies:
   - pip
   - git
   - pip:
-      - git+https://gitlab.com/album-app/album.git@67-rename_solution_paths
+      - git+https://gitlab.com/album-app/album.git
