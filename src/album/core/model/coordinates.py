@@ -33,4 +33,4 @@ class Coordinates:
 
         """
         str_input = str_input.casefold().encode("ascii", "ignore").decode()
-        return re.sub('\W', '_', str_input)
+        return re.sub('[^a-zA-Z0-9_.-]', '_', str_input)

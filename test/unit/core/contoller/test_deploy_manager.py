@@ -233,7 +233,7 @@ class TestDeployManager(TestGitCommon):
 
         y_path = self.deploy_manager._create_yaml_file_in_local_src()
 
-        self.assertEqual(Path(self.repo.working_tree_dir).joinpath("catalog", "tsg", "tsn", "tsv", "tsn.yml"), y_path)
+        self.assertEqual(Path(self.repo.working_tree_dir).joinpath("solutions", "tsg", "tsn", "tsv", "tsn.yml"), y_path)
 
         f = open(y_path)
         f_content = f.readlines()

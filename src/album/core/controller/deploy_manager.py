@@ -216,7 +216,7 @@ class DeployManager(metaclass=Singleton):
         coordinates = solution_to_coordinates(self._active_solution)
 
         yaml_path = Path(self._catalog_local_src).joinpath(
-            DefaultValues.catalog_yaml_prefix.value,
+            DefaultValues.cache_path_solution_prefix.value,
             coordinates.group_path,
             coordinates.name_path,
             coordinates.version_path,
@@ -245,7 +245,7 @@ class DeployManager(metaclass=Singleton):
         docker_file_stream = docker_file_stream.replace("<version>", album.__version__)
         docker_file_stream = docker_file_stream.replace("<name>", zip_name)
         docker_file_stream = docker_file_stream.replace("<run_name>", str(coordinates))
-        author = self._active_solution.authors if self._active_solution.authors else "\"\""
+        author = "; ".join(self._active_solution.authors) if self._active_solution.authors else "\"\""
         docker_file_stream = docker_file_stream.replace("<maintainer>", author)
 
         # replace template with entries and copy dockerfile to deploy_src

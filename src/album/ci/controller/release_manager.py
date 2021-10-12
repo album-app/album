@@ -58,7 +58,7 @@ class ReleaseManager(metaclass=Singleton):
 
     @staticmethod
     def _get_yml_dict(head):
-        yml_file_path = retrieve_single_file_from_head(head, DefaultValues.catalog_yaml_prefix.value)
+        yml_file_path = retrieve_single_file_from_head(head, DefaultValues.cache_path_solution_prefix.value)
         yml_dict = get_dict_from_yml(yml_file_path)
 
         return [yml_dict, yml_file_path]

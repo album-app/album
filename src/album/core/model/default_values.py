@@ -10,7 +10,6 @@ class DefaultValues(Enum):
 
     # deployment
     runner_url = 'https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip'  # default runner url
-    catalog_yaml_prefix = "catalog"                               # base folder name where yaml files of solutions are stored in a catalog.
     catalog_template_url = 'https://gitlab.com/album-app/catalogs/templates'  # base URL of available catalog templates
 
     # catalog
