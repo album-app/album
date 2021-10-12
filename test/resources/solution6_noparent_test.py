@@ -1,7 +1,7 @@
-from album_runner import setup
+from album.runner import setup
 import tempfile
 
-from album_runner.api.run_helper import get_args
+from album.runner.api import get_args
 
 
 def album_init():

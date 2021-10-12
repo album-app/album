@@ -4,11 +4,12 @@ import tempfile
 import unittest
 from io import StringIO
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import git
+from album.core.model.catalog import Catalog
 
-import album_runner
+import album
 from album import Album
 from album.ci.controller.release_manager import ReleaseManager
 from album.ci.controller.zenodo_manager import ZenodoManager
@@ -28,7 +29,7 @@ from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.server import AlbumServer
 from album.core.utils.operations.file_operations import force_remove
-from album_runner.logging import pop_active_logger, LogLevel, configure_logging
+from album.runner.logging import pop_active_logger, LogLevel, configure_logging
 from test.global_exception_watcher import GlobalExceptionWatcher
 
 
@@ -71,7 +72,7 @@ class TestUnitCommon(unittest.TestCase):
     @staticmethod
     def tear_down_singletons():
         # this is here to make sure all mocks are reset each time a test is executed
-        album_runner.logging._active_logger = {}
+        album.runner.logging._active_logger = {}
         TestUnitCommon._delete(AlbumServer)
         TestUnitCommon._delete(Configuration)
         TestUnitCommon._delete(CollectionManager)
@@ -133,7 +134,20 @@ class TestUnitCommon(unittest.TestCase):
         return Album(base_cache_path=Path(self.tmp_dir.name).joinpath("album"), configuration_file_path=self.tmp_dir.name)
 
     def create_test_collection_manager(self):
-        self.collection_manager = CollectionManager()
+        # mock retrieve_catalog_meta_information as it involves a http request
+        with patch("album.core.model.catalog.Catalog.retrieve_catalog_meta_information") as retrieve_c_m_i_mock:
+            retrieve_c_m_i_mock.side_effect = [
+                {"name": "catalog_local", "version": "0.1.0"},  # local catalog creation call
+                {"name": "catalog_local", "version": "0.1.0"},  # local catalog load_index call
+                {"name": "default", "version": "0.1.0"},  # remote default catalog creation call
+                {"name": "default", "version": "0.1.0"},  # remote default catalog load_index call
+                {"name": "default", "version": "0.1.0"},  # remote default catalog to collection
+            ]
+
+            # create collection
+            self.collection_manager = CollectionManager()
+            self.assertEqual(5, retrieve_c_m_i_mock.call_count)
+
         self.catalog_collection = self.collection_manager.catalog_collection
 
     @patch('album.core.model.environment.Environment.__init__', return_value=None)

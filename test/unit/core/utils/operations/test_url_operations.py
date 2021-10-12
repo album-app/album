@@ -10,7 +10,7 @@ class TestUrlOperations(TestUnitCommon):
     def setUp(self) -> None:
         super().setUp()
         self.downloadable_url = "https://www.google.com/favicon.ico"
-        self.html_url = "https://gitlab.com/"
+        self.html_url = "https://www.google.com/"
         self.wrong_url = "https://www.google.com/favicon.i"
 
     def tearDown(self) -> None:

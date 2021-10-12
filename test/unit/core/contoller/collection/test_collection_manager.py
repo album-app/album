@@ -235,6 +235,49 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         search_mock.assert_called_once_with(coordinates)
         retrieve_and_load_mock.assert_called_once()
 
+    @patch("album.core.controller.collection.collection_manager.dict_to_coordinates", return_value="myCoordinates")
+    def test_resolve_download(self, dict_to_coordinates_mock):
+        # prepare
+        resolve_catalog = Catalog("aNiceId", "aNiceName", "aValidPath")
+        retrieve_solution = MagicMock(return_value=None)
+        resolve_catalog.retrieve_solution = retrieve_solution
+
+        resolve_path = Path(self.tmp_dir.name).joinpath("myResolvedSolution")
+        resolve = ResolveResult(path=resolve_path, catalog=resolve_catalog, solution_attrs={})
+
+        _resolve = MagicMock(return_value=resolve)
+        self.collection_manager._resolve = _resolve
+
+        # call
+        r = self.collection_manager.resolve_download("myInput")
+
+        # assert
+        _resolve.assert_called_once_with("myInput")
+        dict_to_coordinates_mock.assert_called_once_with({})
+        retrieve_solution.assert_called_once_with("myCoordinates")
+        self.assertEqual(resolve, r)
+
+    def test_resolve_download_file_exists(self):
+        # prepare
+        resolve_catalog = Catalog("aNiceId", "aNiceName", "aValidPath")
+        retrieve_solution = MagicMock(return_value=None)
+        resolve_catalog.retrieve_solution = retrieve_solution
+
+        resolve_path = Path(self.tmp_dir.name).joinpath("myResolvedSolution")
+        resolve_path.touch()
+        resolve = ResolveResult(path=resolve_path, catalog=resolve_catalog, solution_attrs={})
+
+        _resolve = MagicMock(return_value=resolve)
+        self.collection_manager._resolve = _resolve
+
+        # call
+        r = self.collection_manager.resolve_download("myInput")
+
+        # assert
+        _resolve.assert_called_once_with("myInput")
+        retrieve_solution.assert_not_called()
+        self.assertEqual(resolve, r)
+
     @patch('album.core.utils.operations.resolve_operations.load')
     @patch('album.core.controller.collection.catalog_handler.Catalog.get_solution_file')
     def test_resolve_dependency_require_installation_and_load(self, get_solution_file_mock, load_mock):

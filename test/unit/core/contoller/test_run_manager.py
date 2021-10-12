@@ -501,8 +501,8 @@ class TestRunManager(TestUnitCommon):
         self.assertEqual(['', '--parent_arg1=parent_arg1_value', '--parent_arg2=parent_arg2_value'], parsed_parent_args)
         self.assertEqual([['', '--s1_arg1=s1_arg1_value'], ['', '--s2_arg1=s2_arg1_value']], parsed_steps_args_list)
 
-    @patch('album_runner.logging.configure_logging', return_value=None)
-    @patch('album_runner.logging.pop_active_logger', return_value=None)
+    @patch('album.runner.logging.configure_logging', return_value=None)
+    @patch('album.runner.logging.pop_active_logger', return_value=None)
     def test__run_in_environment_with_own_logger(self, pop_mock, conf_mock):
         class TestEnvironment:
             @staticmethod
