@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 
 import git
@@ -81,7 +82,7 @@ def retrieve_single_file_from_head(head, pattern):
         # Paths therefore might have the wrong separator.
         path = file.b_path.replace('/', os.path.sep)
         module_logger().debug("Found file in commit diff to parent: %s..." % path)
-        if path.startswith(pattern):
+        if re.search(pattern, path):
             module_logger().debug("Found file matching pattern %s: %s..." % (pattern, path))
             abs_path_solution_file.append(os.path.join(head.repo.working_tree_dir, path))
 

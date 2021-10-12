@@ -41,7 +41,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
 
         self.assertTrue(self.path.is_dir() and self.path.stat().st_size > 0)
 
-        branch_name = "_".join(["group", "name", "0_1_0"])  # solution0_dummy values
+        branch_name = "_".join(["group", "name", "0.1.0"])  # solution0_dummy values
         return branch_name
 
     def test_configure_repo(self):
@@ -111,7 +111,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
         branch_name = self.fake_deploy()
 
         # change deployed files so another commit is possible
-        with open(self.path.joinpath("catalog", "group", "name", "0_1_0", "name.yml"), "a") as f:
+        with open(self.path.joinpath("solutions", "group", "name", "0.1.0", "name.yml"), "a") as f:
             f.write("\ntest: mytest")
 
         # gather arguments

@@ -4,7 +4,7 @@ from pathlib import Path
 from flask import Flask, request
 from werkzeug.exceptions import abort
 
-from album import Album
+from album.api import Album
 from album.core.concept.singleton import Singleton
 from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection.collection_manager import CollectionManager

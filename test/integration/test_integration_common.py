@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Optional
 
 import album.core as album
-from album import Album
 from album.core import Solution
+from album.api import Album
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.conda_manager import CondaManager
 from album.core.model.coordinates import Coordinates

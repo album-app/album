@@ -4,7 +4,8 @@ import re
 import sys
 from pathlib import Path
 
-from album.core import load, Solution
+from album.core import load
+from album.core.model.solution import Solution
 from album.core.model.default_values import DefaultValues
 from album.core.model.coordinates import Coordinates
 from album.core.model.resolve_result import ResolveResult
