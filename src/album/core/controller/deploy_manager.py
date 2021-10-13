@@ -154,7 +154,7 @@ class DeployManager(metaclass=Singleton):
     def retrieve_head_name(self):
         """Retrieves the branch (head) name for the merge request of the solution file."""
         coordinates = solution_to_coordinates(self._active_solution)
-        return "_".join([coordinates.group_path, coordinates.name_path, coordinates.version_path])
+        return "_".join([coordinates.group, coordinates.name, coordinates.version])
 
     def _create_merge_request(self, file_paths, dry_run=False, push_option=None, email=None, username=None):
         """Creates a merge request to the catalog repository for the album object.
@@ -217,10 +217,10 @@ class DeployManager(metaclass=Singleton):
 
         yaml_path = Path(self._catalog_local_src).joinpath(
             DefaultValues.cache_path_solution_prefix.value,
-            coordinates.group_path,
-            coordinates.name_path,
-            coordinates.version_path,
-            "%s%s" % (coordinates.name_path, ".yml")
+            coordinates.group,
+            coordinates.name,
+            coordinates.version,
+            "%s%s" % (coordinates.name, ".yml")
         )
 
         module_logger().info('Writing yaml file to: %s...' % yaml_path)

@@ -133,9 +133,9 @@ class TestIntegrationCommon(unittest.TestCase):
             path,
             self.collection_manager.catalogs().get_local_catalog().path.joinpath(
                 DefaultValues.cache_path_solution_prefix.value,
-                Coordinates._to_path(a["group"]),
-                Coordinates._to_path(a["name"]),
-                Coordinates._to_path(a["version"]),
+                a["group"],
+                a["name"],
+                a["version"],
                 DefaultValues.solution_default_name.value
             )
         )

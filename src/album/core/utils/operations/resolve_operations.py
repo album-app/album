@@ -208,4 +208,4 @@ def get_zip_name(coordinates: Coordinates):
 
 
 def get_zip_name_prefix(coordinates: Coordinates):
-    return "_".join([coordinates.group_path, coordinates.name_path, coordinates.version_path])
+    return "_".join([coordinates.group, coordinates.name, coordinates.version])
