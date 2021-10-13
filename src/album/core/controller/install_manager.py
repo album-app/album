@@ -124,12 +124,14 @@ class InstallManager(metaclass=Singleton):
 
         return parent_catalog_id
 
-    def install_dependency(self, dependency):
+    def install_dependency(self, dependency: dict):
         """Calls `install` for a solution declared in a dependency block"""
-        script_path = self.collection_manager.resolve_dependency(dependency).path
+        resolve = self.collection_manager.resolve_dependency(dependency)
         # recursive installation call
-        catalog_id = self.install(script_path)
-
+        if resolve.catalog:
+            catalog_id = self.install_from_catalog_coordinates(resolve.catalog.name, resolve.coordinates)
+        else:
+            catalog_id = self.install_from_coordinates(resolve.coordinates)
         return catalog_id
 
     def uninstall(self, path, rm_dep=False):

@@ -153,7 +153,7 @@ class CollectionManager(metaclass=Singleton):
         """
         solution_path = self.solutions().get_solution_path_by_group_name_version(catalog, coordinates)
         solution_entry = self._search_in_specific_catalog(catalog.catalog_id, coordinates)
-        resolve_result = ResolveResult(path=solution_path, catalog=catalog, solution_attrs=solution_entry)
+        resolve_result = ResolveResult(path=solution_path, catalog=catalog, solution_attrs=solution_entry, coordinates=coordinates)
         self._retrieve_and_load_resolve_result(resolve_result)
         return resolve_result
 
@@ -173,7 +173,7 @@ class CollectionManager(metaclass=Singleton):
         solution_entry = self._search_by_coordinates(coordinates)
         catalog = self.catalogs().get_by_id(solution_entry["catalog_id"])
         solution_path = catalog.get_solution_file(coordinates)
-        resolve_result = ResolveResult(path=solution_path, catalog=catalog, solution_attrs=solution_entry)
+        resolve_result = ResolveResult(path=solution_path, catalog=catalog, solution_attrs=solution_entry, coordinates=coordinates)
         self._retrieve_and_load_resolve_result(resolve_result)
         return resolve_result
 
@@ -231,20 +231,19 @@ class CollectionManager(metaclass=Singleton):
 
         return resolve_result
 
-    def resolve_dependency(self, solution_attrs) -> ResolveResult:
+    def resolve_dependency(self, solution_attrs: dict) -> ResolveResult:
         """Resolves the album and returns the path to the solution.py file on the current system.
         Throws error if not resolvable!"""
-        solution_entries = self.catalog_collection.get_solutions_by_grp_name_version(
-            dict_to_coordinates(solution_attrs))
+        coordinates = dict_to_coordinates(solution_attrs)
+        solution_entries = self.catalog_collection.get_solutions_by_grp_name_version(coordinates)
         if solution_entries and len(solution_entries) > 1:
-            module_logger().warning("Found multiple entries of dependency %s "
-                                    % (dict_to_coordinates(solution_attrs)))
+            module_logger().warning("Found multiple entries of dependency %s " % (coordinates))
         if not solution_entries or len(solution_entries) == 0:
-            raise LookupError("Could not resolve dependency: %s" % dict_to_coordinates(solution_attrs))
+            raise LookupError("Could not resolve dependency: %s" % coordinates)
         first_solution = solution_entries[0]
         catalog = self.catalog_handler.get_by_id(first_solution["catalog_id"])
-        path = catalog.get_solution_file(dict_to_coordinates(first_solution))
-        resolve_result = ResolveResult(path=path, catalog=catalog, solution_attrs=first_solution)
+        path = catalog.get_solution_file(coordinates)
+        resolve_result = ResolveResult(path=path, catalog=catalog, solution_attrs=first_solution, coordinates=coordinates)
         return resolve_result
 
     def _resolve(self, str_input):
@@ -264,7 +263,10 @@ class CollectionManager(metaclass=Singleton):
 
             path = catalog.get_solution_file(dict_to_coordinates(solution_entry))
 
-        resolve = ResolveResult(path=path, catalog=catalog, solution_attrs=solution_entry)
+        coordinates = None
+        if solution_entry:
+            coordinates = dict_to_coordinates(solution_entry)
+        resolve = ResolveResult(path=path, catalog=catalog, solution_attrs=solution_entry, coordinates=coordinates)
 
         return resolve
 

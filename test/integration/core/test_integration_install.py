@@ -63,6 +63,27 @@ class TestIntegrationInstall(TestIntegrationCommon):
             ).exists()
         )
 
+    def test_install_with_parent(self):
+        # gather arguments
+        sys.argv = ["", "install", str(self.get_test_solution_path("solution_with_parent_template.py"))]
+
+        self.assertIsNone(main())
+
+        # assert solution was added to local catalog
+        collection = self.collection_manager.catalog_collection
+        self.assertEqual(1, len(collection.get_solutions_by_catalog(
+            self.collection_manager.catalogs().get_local_catalog().catalog_id)))
+
+        # assert solution is in the right place and has the right name
+        self.assertTrue(
+            Path(self.tmp_dir.name).joinpath(
+                DefaultValues.catalog_folder_prefix.value,
+                str(self.collection_manager.catalogs().get_local_catalog().name),
+                DefaultValues.cache_path_solution_prefix.value,
+                "group", "solution_with_parent_template", "0_1_0", "solution.py"
+            ).exists()
+        )
+
     @unittest.skip("Needs to be implemented!")
     def test_install_with_dependencies(self):
         # ToDo: implement
