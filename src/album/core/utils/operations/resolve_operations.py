@@ -4,7 +4,8 @@ import re
 import sys
 from pathlib import Path
 
-from album.core import load, Solution
+from album.core import load
+from album.core.model.solution import Solution
 from album.core.model.default_values import DefaultValues
 from album.core.model.coordinates import Coordinates
 from album.core.model.resolve_result import ResolveResult
@@ -207,4 +208,4 @@ def get_zip_name(coordinates: Coordinates):
 
 
 def get_zip_name_prefix(coordinates: Coordinates):
-    return "_".join([coordinates.group_path, coordinates.name_path, coordinates.version_path])
+    return "_".join([coordinates.group, coordinates.name, coordinates.version])

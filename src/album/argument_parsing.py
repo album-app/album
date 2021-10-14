@@ -1,7 +1,7 @@
 import argparse
 import sys
 
-from album import Album
+from album.api import Album
 from album.core.commandline import add_catalog, remove_catalog, deploy, \
     install, repl, run, search, start_server, test, update, clone, upgrade, index, uninstall
 from album.runner import logging

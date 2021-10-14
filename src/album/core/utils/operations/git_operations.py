@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 
 import git
@@ -47,10 +48,12 @@ def checkout_branch(git_repo, branch_name):
         raise IndexError("Branch \"%s\" not in repository!" % branch_name) from e
 
 
-def retrieve_single_file_from_head(head, pattern):
+def retrieve_single_file_from_head(head, pattern, option=""):
     """Extracts a file with a "startswith" pattern given a branch (or head) of a repository.
 
     Args:
+        option:
+            Specify "startswith" to do a prefix comparison instead of a regular expression matching
         head:
             The branch (or more general head) of the catalog repository where the solution file was committed in.
         pattern:
@@ -81,9 +84,16 @@ def retrieve_single_file_from_head(head, pattern):
         # Paths therefore might have the wrong separator.
         path = file.b_path.replace('/', os.path.sep)
         module_logger().debug("Found file in commit diff to parent: %s..." % path)
-        if path.startswith(pattern):
-            module_logger().debug("Found file matching pattern %s: %s..." % (pattern, path))
-            abs_path_solution_file.append(os.path.join(head.repo.working_tree_dir, path))
+        module_logger().debug("Matching pattern %s..." % pattern)
+
+        if option == "startswith":
+            if path.startswith(pattern):
+                module_logger().debug("Found file matching pattern %s: %s..." % (pattern, path))
+                abs_path_solution_file.append(os.path.join(head.repo.working_tree_dir, path))
+        else:
+            if re.search(pattern, path):
+                module_logger().debug("Found file matching pattern %s: %s..." % (pattern, path))
+                abs_path_solution_file.append(os.path.join(head.repo.working_tree_dir, path))
 
     if not abs_path_solution_file:
         raise RuntimeError("Head \"%s\" does not hold pattern \"%s\"! Aborting..." % (head.name, pattern))

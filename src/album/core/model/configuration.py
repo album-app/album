@@ -88,9 +88,9 @@ class Configuration(metaclass=Singleton):
         """Returns the suffix path for a solution giving its group, name and version"""
         return Path("").joinpath(
             DefaultValues.cache_path_solution_prefix.value,
-            coordinates.group_path,
-            coordinates.name_path,
-            coordinates.version_path
+            coordinates.group,
+            coordinates.name,
+            coordinates.version
         )
 
     def get_cache_path_catalog(self, catalog_id):

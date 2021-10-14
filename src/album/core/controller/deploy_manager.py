@@ -154,7 +154,7 @@ class DeployManager(metaclass=Singleton):
     def retrieve_head_name(self):
         """Retrieves the branch (head) name for the merge request of the solution file."""
         coordinates = solution_to_coordinates(self._active_solution)
-        return "_".join([coordinates.group_path, coordinates.name_path, coordinates.version_path])
+        return "_".join([coordinates.group, coordinates.name, coordinates.version])
 
     def _create_merge_request(self, file_paths, dry_run=False, push_option=None, email=None, username=None):
         """Creates a merge request to the catalog repository for the album object.
@@ -216,11 +216,11 @@ class DeployManager(metaclass=Singleton):
         coordinates = solution_to_coordinates(self._active_solution)
 
         yaml_path = Path(self._catalog_local_src).joinpath(
-            DefaultValues.catalog_yaml_prefix.value,
-            coordinates.group_path,
-            coordinates.name_path,
-            coordinates.version_path,
-            "%s%s" % (coordinates.name_path, ".yml")
+            DefaultValues.cache_path_solution_prefix.value,
+            coordinates.group,
+            coordinates.name,
+            coordinates.version,
+            "%s%s" % (coordinates.name, ".yml")
         )
 
         module_logger().info('Writing yaml file to: %s...' % yaml_path)
@@ -245,7 +245,7 @@ class DeployManager(metaclass=Singleton):
         docker_file_stream = docker_file_stream.replace("<version>", album.__version__)
         docker_file_stream = docker_file_stream.replace("<name>", zip_name)
         docker_file_stream = docker_file_stream.replace("<run_name>", str(coordinates))
-        author = self._active_solution.authors if self._active_solution.authors else "\"\""
+        author = "; ".join(self._active_solution.authors) if self._active_solution.authors else "\"\""
         docker_file_stream = docker_file_stream.replace("<maintainer>", author)
 
         # replace template with entries and copy dockerfile to deploy_src

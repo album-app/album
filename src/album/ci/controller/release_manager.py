@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from album.core.controller.migration_manager import MigrationManager
@@ -58,7 +59,7 @@ class ReleaseManager(metaclass=Singleton):
 
     @staticmethod
     def _get_yml_dict(head):
-        yml_file_path = retrieve_single_file_from_head(head, DefaultValues.catalog_yaml_prefix.value)
+        yml_file_path = retrieve_single_file_from_head(head, '[a-zA-Z0-9]*.yml')
         yml_dict = get_dict_from_yml(yml_file_path)
 
         return [yml_dict, yml_file_path]
@@ -108,11 +109,11 @@ class ReleaseManager(metaclass=Singleton):
 
         # get the solution zip to release
         zip_path = self._get_zip_path(dict_to_coordinates(yml_dict))
-        solution_zip = retrieve_single_file_from_head(head, str(zip_path))
+        solution_zip = retrieve_single_file_from_head(head, str(zip_path), option="startswith")
 
         # get the docker file
         docker_path = self._get_docker_path(dict_to_coordinates(yml_dict))
-        docker_file = retrieve_single_file_from_head(head, str(docker_path))
+        docker_file = retrieve_single_file_from_head(head, docker_path, option="startswith")
 
         # get the release deposit. Either a new one or an existing one to perform an update on
         deposit = zenodo_manager.zenodo_get_deposit(deposit_name, deposit_id, expected_files=[solution_zip])
@@ -157,10 +158,10 @@ class ReleaseManager(metaclass=Singleton):
         yml_dict, yml_file = self._get_yml_dict(head)
 
         zip_path = self._get_zip_path(dict_to_coordinates(yml_dict))
-        solution_zip = retrieve_single_file_from_head(head, str(zip_path))
+        solution_zip = retrieve_single_file_from_head(head, str(zip_path), option="startswith")
 
         docker_path = self._get_docker_path(dict_to_coordinates(yml_dict))
-        docker_file = retrieve_single_file_from_head(head, str(docker_path))
+        docker_file = retrieve_single_file_from_head(head, str(docker_path), option="startswith")
 
         commit_files = [
             yml_file, solution_zip, docker_file
