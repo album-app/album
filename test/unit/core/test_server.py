@@ -35,7 +35,9 @@ class TestServer(flask_unittest.ClientTestCase, TestUnitCommon):
 
     def test_root(self, client, _):
         json = self.getJSONResponse(client, "/")
-        self.assertIsNotNone(json)
+        self.assertIsNotNone(json["version"])
+        self.assertIsNotNone(json["author"])
+        self.assertIsNotNone(json["email"])
 
     @patch("album.core.controller.run_manager.RunManager.run", return_value=None)
     def test_run(self, client, route, _):
