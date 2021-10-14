@@ -4,6 +4,7 @@ from pathlib import Path
 from flask import Flask, request
 from werkzeug.exceptions import abort
 
+import album
 from album.api import Album
 from album.core.concept.singleton import Singleton
 from album.core.controller.clone_manager import CloneManager
@@ -53,8 +54,12 @@ class AlbumServer(metaclass=Singleton):
 
     def _set_routes(self):
         @self.app.route("/")
-        def hello_world():
-            return {"message": "Hello World"}
+        def get_version():
+            return {
+                "version": album.__version__,
+                "author": album.__author__,
+                "email": album.__email__
+            }
 
         @self.app.route("/config")
         def get_config():
@@ -86,7 +91,8 @@ class AlbumServer(metaclass=Singleton):
         def run(catalog, group, name, version):
             module_logger().info(f"Server call: /run/{catalog}/{group}/{name}/{version}")
             args = self._get_arguments(request.args)
-            task = self._run_solution_method_async(catalog, Coordinates(group, name, version), RunManager().run, [True, args])
+            task = self._run_solution_method_async(catalog, Coordinates(group, name, version), RunManager().run,
+                                                   [True, args])
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/install/<group>/<name>/<version>', defaults={'catalog': None})
