@@ -141,8 +141,7 @@ class RunManager(metaclass=Singleton):
         steps = active_solution["steps"]
         if steps:  # solution consists of at least one step
             # a step base album is first initialized in the album environment to be able to harvest it's arguments
-            # todo: discuss this!
-            active_solution.init()
+            # active_solution.init() THIS FEATURE IS TEMPORARY DISABLED
 
             step_solution_parsed_args = self.__parse_args(active_solution, argv)
             module_logger().info("Building queue for %s steps.." % len(steps))
