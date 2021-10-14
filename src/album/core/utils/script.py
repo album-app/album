@@ -74,7 +74,7 @@ def _generate_solution_block(solution_object):
     # add the album script
     script = solution_object['script']
     # init routine
-    script += "\nget_active_solution().init()\n"
+    #script += "\nget_active_solution().init()\n" THIS FEATURE IS TEMPORARY DISABLED
     # API access
     script += __api_access(solution_object)
     args = solution_object['args']

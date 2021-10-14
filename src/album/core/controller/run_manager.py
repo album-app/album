@@ -69,7 +69,7 @@ class RunManager(metaclass=Singleton):
         if not resolve_result.catalog:
             module_logger().debug('album loaded locally: %s...' % str(resolve_result.active_solution))
         else:
-            module_logger().debug('album loaded from catalog: %s...' % str(resolve_result.active_solution))
+            module_logger().debug('album loaded from catalog: \"%s\"...' % str(resolve_result.active_solution))
 
         self._run(resolve_result.active_solution, run_immediately, argv)
 
@@ -112,10 +112,10 @@ class RunManager(metaclass=Singleton):
         try:
             while True:
                 solution_object, scripts = que.get(block=False)
-                module_logger().info("Running task %s..." % solution_object["name"])
+                module_logger().info("Running task \"%s\"..." % solution_object["name"])
 
                 self._run_in_environment_with_own_logger(solution_object, scripts)
-                module_logger().info("Finished running task %s!" % solution_object["name"])
+                module_logger().info("Finished running task \"%s\"!" % solution_object["name"])
                 que.task_done()
         except Empty:
             module_logger().info("Currently nothing more to run!")
@@ -141,8 +141,7 @@ class RunManager(metaclass=Singleton):
         steps = active_solution["steps"]
         if steps:  # solution consists of at least one step
             # a step base album is first initialized in the album environment to be able to harvest it's arguments
-            # todo: discuss this!
-            active_solution.init()
+            # active_solution.init() THIS FEATURE IS TEMPORARY DISABLED
 
             step_solution_parsed_args = self.__parse_args(active_solution, argv)
             module_logger().info("Building queue for %s steps.." % len(steps))
@@ -266,7 +265,7 @@ class RunManager(metaclass=Singleton):
         if active_solution['run'] and callable(active_solution['run']):
             script_inset += "\nget_active_solution().run()\n"
         else:
-            raise ValueError("No \"run\" routine specified for solution %s! Aborting..." % active_solution["name"])
+            raise ValueError("No \"run\" routine specified for solution \"%s\"! Aborting..." % active_solution["name"])
         if active_solution['close'] and callable(active_solution['close']):
             script_inset += "\nget_active_solution().close()\n"
         script = create_solution_script(active_solution, script_inset, args)
