@@ -52,7 +52,6 @@ class TestIntegrationTest(TestIntegrationCommon):
         # todo: change this. first assure subprocess logging is possible in windows
         if sys.platform == 'linux' or sys.platform == 'darwin':
             log = self.captured_output.getvalue()
-            self.assertIn("solution6_noparent_test_init", log)
             self.assertIn("solution6_noparent_test_pre_test", log)
             self.assertIn("solution6_noparent_test_run", log)
             self.assertIn("solution6_noparent_test_close", log)

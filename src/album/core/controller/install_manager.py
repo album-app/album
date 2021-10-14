@@ -34,7 +34,7 @@ class InstallManager(metaclass=Singleton):
         if not catalog:
             module_logger().debug('solution loaded locally: %s...' % str(resolve_result.active_solution))
         else:
-            module_logger().debug('solution loaded from catalog %s: %s...' % (catalog.catalog_id, str(
+            module_logger().debug('solution loaded from catalog \"%s\": %s...' % (catalog.catalog_id, str(
                 resolve_result.active_solution)))
 
         # execute installation routine
@@ -62,7 +62,7 @@ class InstallManager(metaclass=Singleton):
             self.update_in_collection_index(resolve_result.catalog.catalog_id, parent_catalog_id,
                                             resolve_result.active_solution)
         self.collection_manager.solutions().set_installed(resolve_result.catalog, resolve_result.active_solution.coordinates)
-        module_logger().info('Installed %s!' % resolve_result.active_solution['name'])
+        module_logger().info('Installed \"%s\"!' % resolve_result.active_solution['name'])
 
     def update_in_collection_index(self, catalog_id, parent_catalog_id, active_solution: Solution):
         parent_id = None
@@ -101,7 +101,7 @@ class InstallManager(metaclass=Singleton):
             logging.pop_active_logger()
         else:
             module_logger().info(
-                'No \"install\" routine configured for solution %s! Will execute nothing! Installation complete!' %
+                'No \"install\" routine configured for solution \"%s\"! Will execute nothing! Installation complete!' %
                 active_solution['name']
             )
 
@@ -166,7 +166,7 @@ class InstallManager(metaclass=Singleton):
 
         pop_active_solution()
 
-        module_logger().info("Uninstalled %s!" % resolve_result.active_solution['name'])
+        module_logger().info("Uninstalled \"%s\"!" % resolve_result.active_solution['name'])
 
     @staticmethod
     def remove_disc_content(solution):

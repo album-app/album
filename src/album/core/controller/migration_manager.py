@@ -41,7 +41,7 @@ class MigrationManager(metaclass=Singleton):
         if curr_version != target_version:
             # todo: execute catalog_collection SQL migration scripts if necessary!
             raise NotImplementedError(
-                "Cannot migrate collection from version %s to version %s." % (curr_version, target_version)
+                "Cannot migrate collection from version \"%s\" to version \"%s\"!" % (curr_version, target_version)
             )
         return collection_index_path
 

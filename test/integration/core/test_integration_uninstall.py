@@ -40,7 +40,7 @@ class TestIntegrationUninstall(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert that solution is removed from the catalog
-        self.assertIn("Uninstalled name", self.captured_output.getvalue())
+        self.assertIn("Uninstalled \"name\"", self.captured_output.getvalue())
         solutions = self.collection_manager.catalog_collection.get_solutions_by_catalog(
             self.collection_manager.catalogs().get_local_catalog().catalog_id)
         self.assertEqual(1, len(solutions))
