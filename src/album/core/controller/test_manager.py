@@ -38,6 +38,9 @@ class TestManager(metaclass=Singleton):
                              "Please point to an installation from the catalog or install the solution. "
                              "Aborting...")
 
+        if not resolve_result.active_solution.parent:
+            resolve_result.active_solution.set_environment(resolve_result.catalog.name)
+
         if not resolve_result.catalog:
             module_logger().debug('album loaded locally: %s...' % str(resolve_result.active_solution))
         else:

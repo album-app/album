@@ -69,7 +69,6 @@ class Solution(AlbumRunner):
     def set_environment(self, catalog_name):
         """Initializes the Environment of the solution. This is not an installation!"""
         environment_name = self.get_environment_name(catalog_name)
-        self.set_cache_paths(catalog_name)
         self.environment = Environment(
             self.dependencies, environment_name=environment_name, cache_path=self.package_path
         )

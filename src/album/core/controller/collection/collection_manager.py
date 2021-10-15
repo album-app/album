@@ -1,22 +1,21 @@
 from pathlib import Path
 from typing import Optional
 
-from album.core.model.catalog import Catalog
-
 from album.core import load
 from album.core.concept.singleton import Singleton
 # classes and methods
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.collection.solution_handler import SolutionHandler
 from album.core.controller.migration_manager import MigrationManager
+from album.core.model.catalog import Catalog
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.configuration import Configuration
 from album.core.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import write_dict_to_json
-from album.core.utils.operations.resolve_operations import clean_resolve_tmp, _check_file_or_url, _load_solution, \
-    get_attributes_from_string, dict_to_coordinates, solution_to_coordinates
+from album.core.utils.operations.resolve_operations import _check_file_or_url, get_attributes_from_string, \
+    dict_to_coordinates, solution_to_coordinates
 from album.runner import logging
 
 module_logger = logging.get_active_logger
@@ -84,7 +83,6 @@ class CollectionManager(metaclass=Singleton):
     def add_solution_to_local_catalog(self, active_solution, path):
         """Force adds the installation to the local catalog to be cached for running"""
         self.solution_handler.add_or_replace(self.catalog_handler.get_local_catalog(), active_solution, path)
-        clean_resolve_tmp(self.tmp_cache_dir)
 
     def get_index_as_dict(self):
         catalogs = self.catalog_collection.get_all_catalogs()
@@ -112,8 +110,8 @@ class CollectionManager(metaclass=Singleton):
             raise LookupError("Solution seems not to be installed! Please install solution first!")
 
         active_solution = load(resolve_result.path)
+        active_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
 
-        active_solution.set_environment(resolve_result.catalog.name)
         resolve_result.active_solution = active_solution
 
         return resolve_result
@@ -211,7 +209,7 @@ class CollectionManager(metaclass=Singleton):
 
         """
         resolve_result = self.resolve_dependency_require_installation(solution_attrs)
-        resolve_result.active_solution = _load_solution(resolve_result)
+        resolve_result.active_solution = load(resolve_result.path)
         return resolve_result
 
     def resolve_dependency_require_installation(self, solution_attrs) -> ResolveResult:
@@ -339,7 +337,7 @@ class CollectionManager(metaclass=Singleton):
             resolve_result.catalog.retrieve_solution(
                 dict_to_coordinates(resolve_result.solution_attrs)
             )
-        resolve_result.active_solution = _load_solution(resolve_result)
+        resolve_result.active_solution = load(resolve_result.path)
 
     @staticmethod
     def write_version_to_yml(path, name, version) -> None:

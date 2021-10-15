@@ -52,13 +52,6 @@ def get_attributes_from_string(str_input: str) -> dict:
     return attrs_dict
 
 
-def _load_solution(resolve: ResolveResult) -> Solution:
-    active_solution = load(resolve.path)
-    # init the album environment
-    active_solution.set_environment(resolve.catalog.name)
-    return active_solution
-
-
 def get_gnv_from_input(str_input: str):
     """Parses Group, Name, Version from input, separated by ":". """
     s = re.search('^([^:]+):([^:]+):([^:]+)$', str_input)
