@@ -162,7 +162,7 @@ def is_pathname_valid(pathname: str) -> bool:
     # (e.g., a bug). Permit this exception to unwind the call stack.
 
 
-def _check_file_or_url(path, tmp_cache_dir):
+def check_file_or_url(path, tmp_cache_dir):
     """Resolves a path or url. Independent of catalogs."""
     if is_url(path):
         p = download(str(path), base=tmp_cache_dir)

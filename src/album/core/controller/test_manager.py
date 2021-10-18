@@ -38,26 +38,26 @@ class TestManager(metaclass=Singleton):
                              "Please point to an installation from the catalog or install the solution. "
                              "Aborting...")
 
-        if not resolve_result.active_solution.parent:
-            resolve_result.active_solution.set_environment(resolve_result.catalog.name)
+        if not resolve_result.loaded_solution.parent:
+            resolve_result.loaded_solution.set_environment(resolve_result.catalog.name)
 
         if not resolve_result.catalog:
-            module_logger().debug('album loaded locally: %s...' % str(resolve_result.active_solution))
+            module_logger().debug('album loaded locally: %s...' % str(resolve_result.loaded_solution))
         else:
-            module_logger().debug('album loaded from catalog: %s...' % str(resolve_result.active_solution))
+            module_logger().debug('album loaded from catalog: %s...' % str(resolve_result.loaded_solution))
 
-        self._test(resolve_result.active_solution, args)
+        self._test(resolve_result.loaded_solution, args)
 
-        module_logger().info('Test run for %s!' % resolve_result.active_solution['name'])
+        module_logger().info('Test run for %s!' % resolve_result.loaded_solution['name'])
 
     def test_from_catalog_coordinates(self, catalog_name: str, coordinates: Coordinates, argv=None):
         catalog = self.collection_manager.catalogs().get_by_name(catalog_name)
         resolve_result = self.collection_manager.resolve_download_and_load_catalog_coordinates(catalog, coordinates)
-        self._test(resolve_result.active_solution, argv)
+        self._test(resolve_result.loaded_solution, argv)
 
     def test_from_coordinates(self, coordinates: Coordinates, argv=None):
         resolve_result = self.collection_manager.resolve_download_and_load_coordinates(coordinates)
-        self._test(resolve_result.active_solution, argv)
+        self._test(resolve_result.loaded_solution, argv)
 
     def _test(self, active_solution, args=None):
         if args is None:

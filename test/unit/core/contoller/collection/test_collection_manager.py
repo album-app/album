@@ -194,40 +194,49 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         catalog = Catalog("aNiceId", "aNiceName", "aValidPath")
         coordinates = Coordinates("g", "n", "v")
         # mocks
-        get_solution_mock = MagicMock(return_value="path/to/solution")
         search_mock = MagicMock(return_value={"group": "g", "name": "n", "version": "v"})
         retrieve_and_load_mock = MagicMock()
-        self.collection_manager.solutions().get_solution_path_by_group_name_version = get_solution_mock
+
+        get_solution_file_mock = MagicMock(return_value="path/to/solution")
+
         self.collection_manager._search_in_specific_catalog = search_mock
         self.collection_manager._retrieve_and_load_resolve_result = retrieve_and_load_mock
+        catalog.get_solution_file = get_solution_file_mock
+
         # call
         res = self.collection_manager.resolve_download_and_load_catalog_coordinates(catalog, coordinates)
+
         # assert
         self.assertEqual(catalog, res.catalog)
-        self.assertEqual(get_solution_mock.return_value, res.path)
         self.assertEqual(search_mock.return_value, res.solution_attrs)
-        get_solution_mock.assert_called_once_with(catalog, coordinates)
+
+        get_solution_file_mock.assert_called_once_with(coordinates)
         search_mock.assert_called_once_with(catalog.catalog_id, coordinates)
         retrieve_and_load_mock.assert_called_once()
 
     def test_resolve_download_and_load_coordinates(self):
         coordinates = Coordinates("g", "n", "v")
         local_catalog = self.collection_manager.catalogs().get_local_catalog()
+
         # mocks
         get_catalog_mock = MagicMock(return_value=local_catalog)
         get_solution_mock = MagicMock(return_value="path/to/solution")
         search_mock = MagicMock(return_value={"catalog_id": 1})
         retrieve_and_load_mock = MagicMock()
+
         self.collection_manager._search_by_coordinates = search_mock
         self.collection_manager.catalogs().get_by_id = get_catalog_mock
         local_catalog.get_solution_file = get_solution_mock
         self.collection_manager._retrieve_and_load_resolve_result = retrieve_and_load_mock
+
         # call
         res = self.collection_manager.resolve_download_and_load_coordinates(coordinates)
+
         # assert
         self.assertEqual(local_catalog, res.catalog)
         self.assertEqual(get_solution_mock.return_value, res.path)
         self.assertEqual(search_mock.return_value, res.solution_attrs)
+
         get_catalog_mock.assert_called_once_with(1)
         get_solution_mock.assert_called_once_with(coordinates)
         search_mock.assert_called_once_with(coordinates)
@@ -299,7 +308,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
             {"group": "g", "name": "n", "version": "v"})
 
         self.assertEqual(get_solution_file_mock.return_value, r.path)
-        self.assertEqual(self.active_solution, r.active_solution)
+        self.assertEqual(self.active_solution, r.loaded_solution)
 
         get_solutions_by_grp_name_version.assert_called_once_with(Coordinates("g", "n", "v"))
         get_solution_file_mock.assert_called_once_with(Coordinates("g", "n", "v"))

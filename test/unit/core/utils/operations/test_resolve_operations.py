@@ -9,7 +9,7 @@ from album.core.model.default_values import DefaultValues
 from album.core.model.coordinates import Coordinates
 
 from album.core.utils.operations.resolve_operations import get_doi_from_input, get_cgnv_from_input, get_gnv_from_input, \
-    get_attributes_from_string, _check_file_or_url, dict_to_coordinates
+    get_attributes_from_string, check_file_or_url, dict_to_coordinates
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -111,7 +111,7 @@ class TestResolveOperations(TestUnitCommon):
         check_zip_mock.return_value = True
 
         # case URL
-        case_url = _check_file_or_url("http://test.de", Path(self.tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value))
+        case_url = check_file_or_url("http://test.de", Path(self.tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value))
         self.assertEqual(copy_mock.return_value, case_url)
         download_mock.assert_called_once()
         rand_folder_name_mock.assert_called_once()
@@ -145,7 +145,7 @@ class TestResolveOperations(TestUnitCommon):
         check_zip_mock.return_value = True
 
         # case zip
-        case_zip = _check_file_or_url(str(zipfile), Path(self.tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value))
+        case_zip = check_file_or_url(str(zipfile), Path(self.tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value))
         self.assertEqual(unzip_archive_mock.return_value.joinpath("solution.py"), case_zip)
 
         unzip_archive_mock.assert_called_once_with(
@@ -182,7 +182,7 @@ class TestResolveOperations(TestUnitCommon):
         check_zip_mock.return_value = True
 
         # case file
-        case_file = _check_file_or_url(str(pythonfile), Path(self.tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value))
+        case_file = check_file_or_url(str(pythonfile), Path(self.tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value))
         self.assertEqual(copy_mock.return_value, case_file)
 
         copy_mock.assert_called_once_with(
@@ -219,7 +219,7 @@ class TestResolveOperations(TestUnitCommon):
         check_zip_mock.return_value = True
 
         # case file
-        case_folder = _check_file_or_url(self.tmp_dir.name, Path(self.tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value))
+        case_folder = check_file_or_url(self.tmp_dir.name, Path(self.tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value))
         self.assertEqual(copy_folder_mock.return_value.joinpath("solution.py"), case_folder)
 
         copy_folder_mock.assert_called_once_with(
