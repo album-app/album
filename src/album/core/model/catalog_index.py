@@ -7,6 +7,9 @@ from typing import Optional
 from album.core.concept.database import Database
 from album.core.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import get_dict_entry, write_dict_to_json
+from album.runner import logging
+
+module_logger = logging.get_active_logger
 
 
 class CatalogIndex(Database):
@@ -44,6 +47,8 @@ class CatalogIndex(Database):
     # ### catalog_index ###
 
     def update_name_version(self, name, version):
+        module_logger().debug("Update index name: \"%s\" and version: \"%s\"" % (name, version))
+
         curr_name = self.get_name()
         if curr_name:
             self.get_cursor().execute(
@@ -57,6 +62,8 @@ class CatalogIndex(Database):
             )
 
     def get_name(self):
+        module_logger().debug("Get catalog name")
+
         r = self.get_cursor().execute(
             "SELECT * FROM catalog_index"
         ).fetchone()
@@ -66,6 +73,8 @@ class CatalogIndex(Database):
         return cur_name
 
     def get_version(self):
+        module_logger().debug("Get index version...")
+
         r = self.get_cursor().execute(
             "SELECT * FROM catalog_index"
         ).fetchone()
@@ -75,6 +84,8 @@ class CatalogIndex(Database):
         return cur_version
 
     def get_all_solutions(self):
+        module_logger().debug("Retrieve all solutions")
+
         r = self.get_cursor().execute(
             "SELECT * FROM solution",
             {}).fetchall()
@@ -224,6 +235,8 @@ class CatalogIndex(Database):
         return cover_id
 
     def get_solution(self, solution_id) -> Optional[dict]:
+        module_logger().debug("Get solution by id: \"%s\"..." % solution_id)
+
         r = self.get_cursor().execute(
             "SELECT * FROM solution WHERE solution_id=:solution_id",
             {
@@ -246,6 +259,8 @@ class CatalogIndex(Database):
             None or row not found.
 
         """
+        module_logger().debug("Get solution by coordinates: \"%s\"..." % str(coordinates))
+
         cursor = self.get_cursor()
 
         r = cursor.execute(
@@ -287,6 +302,8 @@ class CatalogIndex(Database):
                          if the node found is not a leaf
 
         """
+        module_logger().debug("Get solution by doi: \"%s\"..." % doi)
+
         cursor = self.get_cursor()
 
         r = cursor.execute(
@@ -422,11 +439,14 @@ class CatalogIndex(Database):
 
         """
         if self.get_solution_by_coordinates(coordinates):
+            module_logger().debug("Update solution...")
             self._update_solution(solution_attrs)
         else:
+            module_logger().debug("Insert solution...")
             self._insert_solution(solution_attrs)
 
     def save(self):
+        module_logger().debug("Saving index...")
         self.get_connection().commit()
 
     def export(self, path, export_format="JSON"):
@@ -442,6 +462,8 @@ class CatalogIndex(Database):
             NotImplementedError if the format is not supported.
 
         """
+        module_logger().debug("Export index...")
+
         r = self.get_cursor().execute("SELECT * FROM solution").fetchall()
 
         if export_format == "JSON":
