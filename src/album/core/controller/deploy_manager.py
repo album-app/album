@@ -254,7 +254,7 @@ class DeployManager(metaclass=Singleton):
 
         docker_file_stream = pkgutil.get_data('album.docker', 'Dockerfile_solution_template.txt').decode()
 
-        docker_file_stream = docker_file_stream.replace("<version>", album.__version__)
+        docker_file_stream = docker_file_stream.replace("<version>", album.core.__version__)
         docker_file_stream = docker_file_stream.replace("<name>", zip_name)
         docker_file_stream = docker_file_stream.replace("<run_name>", str(coordinates))
         author = "; ".join(self._active_solution.authors) if self._active_solution.authors else "\"\""

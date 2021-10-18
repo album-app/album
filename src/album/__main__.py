@@ -10,7 +10,7 @@ def startup():
     __retrieve_logger()
     module_logger().info(
         "Running album version %s \n \n %s - contact via %s " %
-        (album.__version__, album.__author__, album.__email__))
+        (album.core.__version__, album.core.__author__, album.core.__email__))
     main()
 
 
