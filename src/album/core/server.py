@@ -56,9 +56,9 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route("/")
         def get_version():
             return {
-                "version": album.__version__,
-                "author": album.__author__,
-                "email": album.__email__
+                "version": album.core.__version__,
+                "author": album.core.__author__,
+                "email": album.core.__email__
             }
 
         @self.app.route("/config")

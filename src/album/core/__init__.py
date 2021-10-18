@@ -6,6 +6,11 @@ from album.runner import logging
 
 module_logger = logging.get_active_logger
 
+__version__ = "0.1.0"
+__author__ = "Kyle Harrington, Jan Philipp Albrecht, Deborah Schmidt"
+__email__ = "album@kyleharrington.com"
+
+
 """
 Global variable for tracking the currently active solution. Do not use this 
 directly instead use get_active_solution()
