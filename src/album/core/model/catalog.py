@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import Optional
 
 import validators
+from git import Repo
+
 from album.core.model.catalog_index import CatalogIndex
 
 from album.core.model.configuration import Configuration
@@ -393,7 +395,7 @@ class Catalog:
             pass
         download_resource(meta_src, self._meta_path)
 
-    def retrieve_catalog(self, path=None, force_retrieve=False, update=True):
+    def retrieve_catalog(self, path=None, force_retrieve=False, update=True) -> Optional[Repo]:
         """Downloads or copies the whole catalog from its source. Used for deployment.
 
         Args:

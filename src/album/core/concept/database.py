@@ -1,4 +1,5 @@
 import abc
+import gc
 import sqlite3
 import threading
 from pathlib import Path
@@ -22,7 +23,10 @@ class Database(abc.ABC):
     def __del__(self):
         if self.connections:
             for thread_id in self.connections:
-                self.connections[thread_id].close()
+                connection = self.connections[thread_id]
+                connection.close()
+                del connection
+        gc.collect(2)
         self.cursors = {}
         self.connections = {}
 

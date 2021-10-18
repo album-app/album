@@ -212,9 +212,8 @@ class TestGitCommon(TestUnitCommon):
     def tearDown(self) -> None:
         if self.repo:
             p = self.repo.working_tree_dir
-            del self.repo
+            self.repo.close()
             force_remove(p)
-
         super().tearDown()
 
     def create_tmp_repo(self, commit_solution_file=True, create_test_branch=False):

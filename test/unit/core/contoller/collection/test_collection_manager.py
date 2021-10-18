@@ -60,6 +60,7 @@ class TestCatalogCollectionCommon(TestUnitCommon):
 
     def tearDown(self) -> None:
         super().tearDown()
+        del self.catalog_collection
 
     def create_empty_catalog(self, name):
         catalog_path = Path(self.tmp_dir.name).joinpath("my-catalogs", name)

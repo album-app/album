@@ -255,7 +255,9 @@ class TestCatalog(TestUnitCommon):
         blocking_file = dl_path.joinpath("blocking_file")
         blocking_file.touch()
 
-        self.catalog.retrieve_catalog(dl_path, force_retrieve=True)
+        repo = self.catalog.retrieve_catalog(dl_path, force_retrieve=True)
+        self.assertIsNotNone(repo)
+        repo.close()
 
         self.assertFalse(blocking_file.exists())
         self.assertTrue(dl_path.stat().st_size > 0)

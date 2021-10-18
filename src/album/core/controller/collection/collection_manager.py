@@ -46,6 +46,10 @@ class CollectionManager(metaclass=Singleton):
         self.migration_manager = MigrationManager()
         self._load_or_create_collection()
 
+    def __del__(self):
+        if self.catalog_collection:
+            del self.catalog_collection
+
     def _load_or_create_collection(self):
         collection_meta = self.configuration.get_catalog_collection_meta_dict()
         newly_created = not self.configuration.get_catalog_collection_path().exists()

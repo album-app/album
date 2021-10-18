@@ -262,6 +262,8 @@ class TestDeployManager(TestGitCommon):
             email=None, push=False, push_options=[], username=None
         )
 
+        self.deploy_manager._repo = None
+
     @patch('album.core.model.solution.Solution.get_deploy_dict')
     def test__create_yaml_file_in_local_src(self, deploy_dict_mock):
         deploy_dict_mock.return_value = {"name": "tsn", "group": "tsg", "version": "tsv"}
@@ -282,6 +284,7 @@ class TestDeployManager(TestGitCommon):
         f.close()
 
         self.assertEqual(["group: tsg\n", "name: tsn\n", "version: tsv\n"], f_content)
+        self.deploy_manager._repo = None
 
     @patch('album.core.model.solution.Solution.get_deploy_dict')
     def test__get_absolute_zip_path(self, deploy_dict_mock):
@@ -303,6 +306,7 @@ class TestDeployManager(TestGitCommon):
         )
 
         self.assertEqual(result, self.deploy_manager._get_absolute_zip_path())
+        self.deploy_manager._repo = None
 
     @patch('album.core.controller.deploy_manager.copy', return_value="absPathCopyOfCover")
     def test__copy_cover_to_local_src(self, copy_mock):
@@ -335,6 +339,7 @@ class TestDeployManager(TestGitCommon):
         calls = [call(tmp_dir.joinpath("example_cover1.png"), target_dir.joinpath("example_cover1.png")),
                  call(tmp_dir.joinpath("example_cover2.png"), target_dir.joinpath("example_cover2.png"))]
         copy_mock.assert_has_calls(calls)
+        self.deploy_manager._repo = None
 
     @unittest.skip("Needs to be implemented!")
     def test__create_docker_file_in_local_src(self):
@@ -373,6 +378,7 @@ class TestDeployManager(TestGitCommon):
         self.deploy_manager._copy_and_zip(solution_file_to_deploy_locally)
         zip_path_mock.assert_called_once()
         zip_folder.assert_not_called()
+        self.deploy_manager._repo = None
 
 
 if __name__ == '__main__':

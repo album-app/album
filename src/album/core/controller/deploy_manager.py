@@ -1,6 +1,9 @@
 import pkgutil
 import tempfile
 from pathlib import Path
+from typing import Optional
+
+from git import Repo
 
 import album
 from album.core import load
@@ -42,7 +45,11 @@ class DeployManager(metaclass=Singleton):
         self._catalog = None
         self._active_solution = None
         self._catalog_local_src = None
-        self._repo = None
+        self._repo: Optional[Repo] = None
+
+    def __del__(self):
+        if self._repo:
+            self._repo.close()
 
     def deploy(self,
                deploy_path,
@@ -112,6 +119,8 @@ class DeployManager(metaclass=Singleton):
         """Routine to deploy to a remote catalog."""
         dl_path = Path(self.collection_manager.configuration.cache_path_download).joinpath(self._catalog.name)
 
+        if self._repo:
+            self._repo.close()
         self._repo = self._catalog.retrieve_catalog(dl_path, force_retrieve=True)
         self._catalog_local_src = self._repo.working_tree_dir
 
