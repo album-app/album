@@ -59,7 +59,8 @@ class DeployManager(metaclass=Singleton):
                 The catalog to deploy to. Either specify via argument in deploy-call, via url in solution or use
                 default catalog.
             dry_run:
-                Boolean indicates whether to just show what would happen if.
+                When set, prepares deployment in local src of the catlog (creating zip, docker, yml),
+                but not adding to the catalog src.
             push_option:
                 Push options for the catalog repository.
             git_email:
@@ -94,12 +95,12 @@ class DeployManager(metaclass=Singleton):
         MigrationManager().load_index(self._catalog)
 
         if self._catalog.is_local():
-            self._deploy_to_local_catalog(deploy_path)
+            self._deploy_to_local_catalog(deploy_path, dry_run)
         else:
             self._deploy_to_remote_catalog(deploy_path, dry_run, push_option, git_email, git_name)
 
     def _deploy_to_remote_catalog(self, deploy_path, dry_run, push_option, git_email=None, git_name=None):
-        """Routine to deploy tp a remote catalog."""
+        """Routine to deploy to a remote catalog."""
         dl_path = Path(self.collection_manager.configuration.cache_path_download).joinpath(self._catalog.name)
 
         self._repo = self._catalog.retrieve_catalog(dl_path, force_retrieve=True)
@@ -117,7 +118,7 @@ class DeployManager(metaclass=Singleton):
         # create merge request
         self._create_merge_request(mr_files, dry_run, push_option, git_email, git_name)
 
-    def _deploy_to_local_catalog(self, deploy_path):
+    def _deploy_to_local_catalog(self, deploy_path, dry_run):
         """Routine to deploy to a local catalog."""
         # check for cache catalog only
         if self._catalog.is_cache():
@@ -126,16 +127,27 @@ class DeployManager(metaclass=Singleton):
         self._catalog_local_src = self._catalog.src
 
         # update the index
-        self._catalog.add(self._active_solution)
+        if not dry_run:
+            self._catalog.add(self._active_solution)
+        else:
+            module_logger().info("Would add the solution %s to index..." % self._active_solution.name)
 
         # include files/folders in catalog
         self._deploy_routine_in_local_src(deploy_path)
 
         # copy to source
-        self._catalog.copy_index_from_cache_to_src()
+        if not dry_run:
+            self._catalog.copy_index_from_cache_to_src()
 
-        # refresh the local index of the catalog
-        MigrationManager().refresh_index(self._catalog)
+            # refresh the local index of the catalog
+            MigrationManager().refresh_index(self._catalog)
+        else:
+            module_logger().info(
+                "Would copy the index to src %s to %s..." % (self._catalog_local_src, self._catalog.src)
+            )
+            module_logger().info(
+                "Would refresh the index from src"
+            )
 
     def _deploy_routine_in_local_src(self, deploy_path):
         """Performs all routines a deploy process needs to do locally.
