@@ -24,8 +24,7 @@ class TestRunManager(TestUnitCommon):
 
     def test_run(self):
         # mocks
-        catalog = EmptyTestClass()
-        catalog.id = "niceId"
+        catalog = self.collection_manager.catalogs().get_local_catalog()
 
         resolve_installed_and_load = MagicMock(
             return_value=ResolveResult(path="aPath", catalog=catalog, active_solution=self.active_solution))
@@ -37,7 +36,7 @@ class TestRunManager(TestUnitCommon):
         _run = MagicMock(return_value=None)
         self.run_manager._run = _run
 
-        _resolve_installed = MagicMock(return_value=ResolveResult(path=Path(self.closed_tmp_file.name), catalog=None))
+        _resolve_installed = MagicMock(return_value=ResolveResult(path=Path(self.closed_tmp_file.name), catalog=catalog))
 
         self.run_manager.collection_manager._resolve_installed = _resolve_installed
 
@@ -154,8 +153,7 @@ class TestRunManager(TestUnitCommon):
 
     def test_build_steps_queue_no_parent(self):
         # mock
-        catalog = EmptyTestClass()
-        catalog.id = "niceId"
+        catalog = self.collection_manager.catalogs().get_local_catalog()
         resolve_dependency_and_load = MagicMock(
             return_value=ResolveResult(path="aPath", catalog=catalog, active_solution=self.active_solution))
         self.run_manager.collection_manager.resolve_dependency_require_installation_and_load = resolve_dependency_and_load
@@ -255,8 +253,7 @@ class TestRunManager(TestUnitCommon):
 
     def test_build_steps_queue_run_immediately(self):
         # mock
-        catalog = EmptyTestClass()
-        catalog.id = "niceId"
+        catalog = self.collection_manager.catalogs().get_local_catalog()
 
         resolve_dependency_and_load = MagicMock(
             return_value=ResolveResult(path="aPath", catalog=catalog, active_solution=self.active_solution))
@@ -319,8 +316,7 @@ class TestRunManager(TestUnitCommon):
         self.active_solution.parent = {"name": "aParent"}
 
         # mock
-        catalog = EmptyTestClass()
-        catalog.id = "niceId"
+        catalog = self.collection_manager.catalogs().get_local_catalog()
         resolve_dependency_and_load = MagicMock(
             return_value=ResolveResult(path="aPath", catalog=catalog, active_solution=self.active_solution))
         self.run_manager.collection_manager.resolve_dependency_require_installation_and_load = resolve_dependency_and_load

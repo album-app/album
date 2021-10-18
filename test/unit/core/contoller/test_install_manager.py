@@ -188,20 +188,39 @@ class TestInstallManager(TestUnitCommon):
         # assert
         install_dependency.assert_called_once_with("someParent")
 
-    def test_install_dependency(self):
+    def test_install_dependency_with_catalog(self):
         # mocks
-        resolve_dependency = MagicMock(return_value=ResolveResult(path="aPath", catalog=None))
+        resolve_dependency = MagicMock(return_value=ResolveResult(path="aPath", catalog=self.collection_manager.catalogs().get_local_catalog()))
         self.install_manager.collection_manager.resolve_dependency = resolve_dependency
 
         install = MagicMock(return_value=None)
         self.install_manager.install = install
 
+        install_from_catalog_coordinates = MagicMock(return_value=None)
+        self.install_manager.install_from_catalog_coordinates = install_from_catalog_coordinates
+
         # run
-        self.install_manager.install_dependency("something")
+        self.install_manager.install_dependency({"group": "g", "name": "n", "version": "v"})
 
         # assert
         resolve_dependency.assert_called_once()
-        install.assert_called_once()
+        install.assert_not_called()
+        install_from_catalog_coordinates.assert_called_once()
+
+    def test_install_dependency_without_catalog(self):
+        # mocks
+        resolve_dependency = MagicMock(return_value=ResolveResult(path="aPath", catalog=None))
+        self.install_manager.collection_manager.resolve_dependency = resolve_dependency
+
+        install_from_coordinates = MagicMock(return_value=None)
+        self.install_manager.install_from_coordinates = install_from_coordinates
+
+        # run
+        self.install_manager.install_dependency({"group": "g"})
+
+        # assert
+        resolve_dependency.assert_called_once()
+        install_from_coordinates.assert_called_once()
 
 
 if __name__ == '__main__':

@@ -63,6 +63,32 @@ class TestIntegrationInstall(TestIntegrationCommon):
             ).exists()
         )
 
+    def test_install_with_parent(self):
+
+        # gather arguments
+        sys.argv = ["", "install", str(self.get_test_solution_path("app1.py"))]
+        self.assertIsNone(main())
+
+        sys.argv = ["", "install", str(self.get_test_solution_path("solution1_app1.py"))]
+        self.assertIsNone(main())
+
+        # assert solution was added to local catalog
+        collection = self.collection_manager.catalog_collection
+        self.assertEqual(2, len(collection.get_solutions_by_catalog(
+            self.collection_manager.catalogs().get_local_catalog().catalog_id)))
+
+        # assert solution is in the right place and has the right name
+        parent_solution_path = Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value,
+                                                    str(self.collection_manager.catalogs().get_local_catalog().name),
+                                                    DefaultValues.cache_path_solution_prefix.value, "group",
+                                                    "app1", "0.1.0", "solution.py")
+        self.assertTrue(parent_solution_path.exists())
+        solution_path = Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value,
+                                                    str(self.collection_manager.catalogs().get_local_catalog().name),
+                                                    DefaultValues.cache_path_solution_prefix.value, "group",
+                                                    "solution1_app1", "0.1.0", "solution.py")
+        self.assertTrue(solution_path.exists())
+
     @unittest.skip("Needs to be implemented!")
     def test_install_with_dependencies(self):
         # ToDo: implement

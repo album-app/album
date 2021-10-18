@@ -114,8 +114,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         self.assertIsNotNone(self.collection_manager.solutions())
 
     @patch('album.core.controller.collection.solution_handler.copy_folder', return_value=None)
-    @patch('album.core.controller.collection.collection_manager.clean_resolve_tmp', return_value=None)
-    def test_add_to_local_catalog(self, clean_resolve_tmp, copy_folder_mock):
+    def test_add_to_local_catalog(self, copy_folder_mock):
         # run
         self.active_solution.script = ""  # the script gets read during load()
         self.collection_manager.add_solution_to_local_catalog(self.active_solution, "aPathToInstall")
@@ -124,7 +123,6 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         path = self.collection_manager.catalogs().get_local_catalog().get_solution_path(
             dict_to_coordinates(self.solution_default_dict))
         copy_folder_mock.assert_called_once_with("aPathToInstall", path, copy_root_folder=False)
-        clean_resolve_tmp.assert_called_once()
 
     def test_get_index_as_dict(self):
         expected_dict = {'catalogs': [
@@ -278,7 +276,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         retrieve_solution.assert_not_called()
         self.assertEqual(resolve, r)
 
-    @patch('album.core.utils.operations.resolve_operations.load')
+    @patch('album.core.controller.collection.collection_manager.load')
     @patch('album.core.controller.collection.catalog_handler.Catalog.get_solution_file')
     def test_resolve_dependency_require_installation_and_load(self, get_solution_file_mock, load_mock):
         # mocks
@@ -296,9 +294,6 @@ class TestCollectionManager(TestCatalogCollectionCommon):
 
         get_solution_file_mock.return_value = "aValidPath"
 
-        set_environment = MagicMock(return_value=None)
-        self.active_solution.set_environment = set_environment
-
         # call
         r = self.collection_manager.resolve_dependency_require_installation_and_load(
             {"group": "g", "name": "n", "version": "v"})
@@ -309,7 +304,6 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         get_solutions_by_grp_name_version.assert_called_once_with(Coordinates("g", "n", "v"))
         get_solution_file_mock.assert_called_once_with(Coordinates("g", "n", "v"))
         load_mock.assert_called_once_with("aValidPath")
-        set_environment.assert_called_once_with(_catalog.name)
         get_catalog_by_id_mock.assert_called_once_with("aNiceId")
 
     @patch('album.core.utils.operations.resolve_operations.load')

@@ -1,9 +1,13 @@
 from album.runner import setup
-from album.runner.api import get_args
+from album.runner.api import get_args, get_cache_path
 
 
 def album_init():
     pass
+
+
+def album_install():
+    print(get_cache_path().absolute())
 
 
 def album_run():
@@ -13,6 +17,7 @@ def album_run():
     file.write("solution1_app1_run\n")
     file.close()
     print("A nice log run message!")
+    print(get_cache_path().absolute())
 
 
 def album_close():
@@ -50,6 +55,7 @@ setup(
     init=album_init,
     run=album_run,
     close=album_close,
+    install=album_install,
     parent={
         'name': 'app1',
         'group': 'group',
