@@ -7,7 +7,6 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import git
-from album.core.model.catalog import Catalog
 
 import album
 from album.ci.controller.release_manager import ReleaseManager
@@ -130,25 +129,32 @@ class TestUnitCommon(unittest.TestCase):
         logs = logs.strip()
         return logs.split("\n")
 
-    def create_album_test_instance(self) -> Album:
-        return Album(base_cache_path=Path(self.tmp_dir.name).joinpath("album"), configuration_file_path=self.tmp_dir.name)
+    def create_album_test_instance(self, init_catalogs=True) -> Album:
+        my_album = Album(base_cache_path=Path(self.tmp_dir.name).joinpath("album"),
+                      configuration_file_path=self.tmp_dir.name)
+        if init_catalogs:
+            # mock retrieve_catalog_meta_information as it involves a http request
+            with patch("album.core.model.catalog.Catalog.retrieve_catalog_meta_information") as retrieve_c_m_i_mock:
+                # with patch("album.core.model.configuration.Configuration.get_initial_catalogs") as get_initial_catalogs:
+                get_initial_catalogs_mock = MagicMock(return_value=
+                    {
+                        DefaultValues.local_catalog_name.value:
+                            Path(self.tmp_dir.name).joinpath("album", DefaultValues.catalog_folder_prefix.value,
+                                                             DefaultValues.local_catalog_name.value)
+                    }
+                )
+                my_album.configuration().get_initial_catalogs = get_initial_catalogs_mock
+                retrieve_c_m_i_mock.side_effect = [
+                    {"name": "catalog_local", "version": "0.1.0"},  # local catalog creation call
+                    {"name": "catalog_local", "version": "0.1.0"},  # local catalog load_index call
+                ]
 
-    def create_test_collection_manager(self):
-        # mock retrieve_catalog_meta_information as it involves a http request
-        with patch("album.core.model.catalog.Catalog.retrieve_catalog_meta_information") as retrieve_c_m_i_mock:
-            retrieve_c_m_i_mock.side_effect = [
-                {"name": "catalog_local", "version": "0.1.0"},  # local catalog creation call
-                {"name": "catalog_local", "version": "0.1.0"},  # local catalog load_index call
-                {"name": "default", "version": "0.1.0"},  # remote default catalog creation call
-                {"name": "default", "version": "0.1.0"},  # remote default catalog load_index call
-                {"name": "default", "version": "0.1.0"},  # remote default catalog to collection
-            ]
+                # create collection
+                self.collection_manager = CollectionManager()
+                # self.assertEqual(2, retrieve_c_m_i_mock.call_count)
 
-            # create collection
-            self.collection_manager = CollectionManager()
-            self.assertEqual(5, retrieve_c_m_i_mock.call_count)
-
-        self.catalog_collection = self.collection_manager.catalog_collection
+            self.catalog_collection = self.collection_manager.catalog_collection
+        return my_album
 
     @patch('album.core.model.environment.Environment.__init__', return_value=None)
     @patch('album.core.model.solution.Solution.get_deploy_dict')

@@ -17,7 +17,6 @@ class TestInstallManager(TestUnitCommon):
         super().setUp()
         self.create_album_test_instance()
         self.create_test_solution_no_env()
-        self.create_test_collection_manager()
         self.install_manager = InstallManager()
 
     def tearDown(self) -> None:

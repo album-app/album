@@ -21,7 +21,7 @@ class TestCatalogCollectionCommon(TestUnitCommon):
 
     def setUp(self):
         super().setUp()
-        self.create_album_test_instance()
+        self.create_album_test_instance(init_catalogs=False)
 
         test_catalog1_name = "test_catalog"
         test_catalog2_name = "test_catalog2"

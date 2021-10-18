@@ -18,7 +18,8 @@ class TestDeployManager(TestGitCommon):
         self.create_album_test_instance()
         self.zenodoAPI = ZenodoAPI('url', 'access_token')
         self.create_test_solution_no_env()
-        self.create_test_collection_manager()
+
+        self.collection_manager.catalogs().add_by_src(DefaultValues.default_catalog_src.value)
 
         self.remote_catalog = self.collection_manager.catalogs().get_by_src(DefaultValues.default_catalog_src.value)
 
