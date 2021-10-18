@@ -677,7 +677,7 @@ class ZenodoAPI:
     Zenodo API. Querying the ZenodoAPI.
     """
 
-    def __init__(self, base_url, access_token):
+    def __init__(self, base_url=ZenodoDefaultUrl.url.value, access_token=None):
         """Inits the object given a base_url and an access_token.
 
         Args:
@@ -687,7 +687,10 @@ class ZenodoAPI:
                 The authentication token needed to perform operations.
         """
         self.base_url = base_url
-        self.params = {'access_token': access_token}
+        self.params = {'access_token': ""}
+
+        if access_token:
+            self.params['access_token'] = access_token
 
     @staticmethod
     def validate_response(response, expected_response_code=None):
@@ -822,7 +825,7 @@ class ZenodoAPI:
         link = self.base_url + "/api/records"
 
         if record_id:
-            link = link + "/%s" % record_id
+            link = link + "/%s" % str(record_id)
             params = self.params
         else:
             params = {**{'q': q,

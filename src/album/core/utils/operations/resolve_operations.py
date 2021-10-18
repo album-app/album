@@ -4,6 +4,8 @@ import re
 import sys
 from pathlib import Path
 
+from album.ci.utils.zenodo_api import ZenodoAPI
+
 from album.core import load
 from album.core.model.solution import Solution
 from album.core.model.default_values import DefaultValues
@@ -11,7 +13,7 @@ from album.core.model.coordinates import Coordinates
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import force_remove, \
     create_path_recursively, rand_folder_name, check_zip, unzip_archive, copy, copy_folder
-from album.core.utils.operations.url_operations import is_url, download
+from album.core.utils.operations.url_operations import is_url, download, retrieve_redirect_url, download_resource
 from album.runner import logging
 
 module_logger = logging.get_active_logger
@@ -162,15 +164,80 @@ def is_pathname_valid(pathname: str) -> bool:
     # (e.g., a bug). Permit this exception to unwind the call stack.
 
 
+def check_doi(doi, tmp_cache_dir):
+    link = "https://doi.org/" + doi  # e.g. 10.5281/zenodo.5571504
+
+    url = retrieve_redirect_url(link)
+
+    link_to_solution_zip = parse_doi_service_url(url)
+
+    p = download_resource(link_to_solution_zip, tmp_cache_dir)
+
+    return prepare_path(p, tmp_cache_dir)
+
+
+def parse_doi_service_url(url):
+    if re.search('https:\/\/[a-zA-Z.]*zenodo[.]org\/', url):
+        link = _parse_zenodo_url(url)
+    else:
+        raise NotImplementedError("DOI service not supported!")
+
+    return link
+
+
+def _parse_zenodo_url(url):
+    g = re.search('(https:\/\/[a-zA-Z.]*zenodo[.]org\/)(record)[\/]([0-9]*)$', url)
+
+    if g:
+        record_id = g.group(3)
+
+        return retrieve_zenodo_record_download_zip(record_id)
+    else:
+        raise ValueError("Unknown zenodo URL format!...")
+
+
+def retrieve_zenodo_record_download_zip(record_id):
+    query = ZenodoAPI()
+
+    record = query.records_get(record_id)[0]
+
+    file_dl = None
+    for file in record.files:
+        if re.search("[.]zip$", file.key):  # there is only a single zip file in the record
+            file_dl = file.get_download_link()
+
+    if not file_dl:
+        raise ValueError("No valid zip file found int the zenodo record with id \"%s\"!" % record_id)
+
+    return file_dl
+
+
 def check_file_or_url(path, tmp_cache_dir):
     """Resolves a path or url. Independent of catalogs."""
     if is_url(path):
         p = download(str(path), base=tmp_cache_dir)
     elif is_pathname_valid(path) and (os.path.isfile(path) or os.path.isdir(path)):
-        p = Path(path)  # no problems with urls or symbols not allowed for paths!
+        p = Path(path)
     else:
         return None
 
+    return prepare_path(p, tmp_cache_dir)
+
+
+def prepare_path(path, tmp_cache_dir):
+    """Prepares the path to be run in album. Returning path points to the solution file.
+
+    Args:
+        path:
+            The path pointing to a zip, file, or folder suited to be run in album.
+        tmp_cache_dir:
+            The temporary cache dir to extract/copy files to.
+
+    Returns:
+        The path pointing to the python file executable in album.
+
+    """
+    p = Path(path)
     if p.exists():
         target_folder = tmp_cache_dir.joinpath(rand_folder_name())
         if p.is_file():  # zip or file

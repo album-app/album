@@ -61,6 +61,10 @@ class Solution(AlbumRunner):
     def __setitem__(self, key, value):
         setattr(self, key, value)
 
+    def __eq__(self, other):
+        return isinstance(other, Solution) and \
+            other.coordinates == self.coordinates
+
     def get_arg(self, k):
         """Get a specific named argument for this solution if it exists."""
         matches = [arg for arg in self['args'] if arg['name'] == k]

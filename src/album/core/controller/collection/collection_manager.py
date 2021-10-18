@@ -15,7 +15,7 @@ from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import write_dict_to_json
 from album.core.utils.operations.resolve_operations import check_file_or_url, get_attributes_from_string, \
-    dict_to_coordinates, solution_to_coordinates
+    dict_to_coordinates, solution_to_coordinates, get_doi_from_input, check_doi
 from album.runner import logging
 
 module_logger = logging.get_active_logger
@@ -109,10 +109,10 @@ class CollectionManager(metaclass=Singleton):
         if not resolve_result.solution_attrs["installed"]:
             raise LookupError("Solution seems not to be installed! Please install solution first!")
 
-        active_solution = load(resolve_result.path)
-        active_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
+        loaded_solution = load(resolve_result.path)
+        loaded_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
 
-        resolve_result.loaded_solution = active_solution
+        resolve_result.loaded_solution = loaded_solution
 
         return resolve_result
 
@@ -259,41 +259,65 @@ class CollectionManager(metaclass=Singleton):
         return resolve_result
 
     def _resolve(self, str_input):
-        # always first resolve outside any catalog
+        # always first resolve outside any catalog, excluding a DOI which should be first resolved inside a catalog
         path = check_file_or_url(str_input, self.configuration.cache_path_tmp)
-        if path:
-            solution_entry = self._search_for_local_file(path)  # requires loading
 
+        doi = get_doi_from_input(str_input)
+        if path:
+            # will load the solution behind the path to get meta-information
+            solution_entry = self._search_for_local_file(path)
+
+            # a solution loaded this way will always end up in a local catalog
             catalog = self.catalog_handler.get_local_catalog()
         else:
-            solution_entry = self._search(str_input)
+            # search DOI first
+            if doi:
+                solution_entry = self._search_doi(doi["doi"])
 
-            if not solution_entry:
-                raise LookupError("Solution cannot be resolved in any catalog!")
+                # either a doi is found in the collection or it will be downloaded and ends up in a local catalog
+                if solution_entry:
+                    catalog = self.catalog_handler.get_by_id(solution_entry["catalog_id"])
+                else:
+                    # download DOI
+                    path = check_doi(doi["doi"], self.configuration.cache_path_tmp)
 
-            catalog = self.catalog_handler.get_by_id(solution_entry["catalog_id"])
+                    catalog = self.catalog_handler.get_local_catalog()
+            else:  # case no doi
+                solution_entry = self._search(str_input)
 
-            path = catalog.get_solution_file(dict_to_coordinates(solution_entry))
+                if not solution_entry:
+                    raise LookupError("Solution cannot be resolved in any catalog!")
+
+                catalog = self.catalog_handler.get_by_id(solution_entry["catalog_id"])
+
+                path = catalog.get_solution_file(dict_to_coordinates(solution_entry))
 
         coordinates = None
+
         if solution_entry:
             coordinates = dict_to_coordinates(solution_entry)
 
-        resolve = ResolveResult(path=path, catalog=catalog, solution_attrs=solution_entry, coordinates=coordinates)
+        resolve = ResolveResult(
+            path=path, catalog=catalog, solution_attrs=solution_entry, coordinates=coordinates
+        )
 
         return resolve
 
-    def _search_for_local_file(self, path) -> Optional[dict]:
+    def _search_for_local_file(self, path) -> dict:
         active_solution = load(path)
-        if active_solution:
-            solution_entry = self.catalog_collection.get_solution_by_catalog_grp_name_version(
-                self.catalog_handler.get_local_catalog().catalog_id,
-                solution_to_coordinates(active_solution)
-            )
 
-            return solution_entry
-        else:
-            return None
+        # check in collection
+        solution_entry = self.catalog_collection.get_solution_by_catalog_grp_name_version(
+            self.catalog_handler.get_local_catalog().catalog_id,
+            solution_to_coordinates(active_solution)
+        )
+
+        return solution_entry
+
+    def _search_doi(self, doi):
+        solution_entry = self.catalog_collection.get_solution_by_doi(doi)
+
+        return solution_entry
 
     def _search(self, str_input) -> dict:
         """Searches ONLY in the catalog collection, given a string which is interpreted."""
@@ -301,7 +325,7 @@ class CollectionManager(metaclass=Singleton):
 
         solution_entry = None
         if "doi" in attrs:  # case doi
-            solution_entry = self.catalog_collection.get_solution_by_doi(attrs["doi"])
+            solution_entry = self._search_doi(attrs["doi"])
         else:
             coordinates = dict_to_coordinates(attrs)
             if "catalog" not in attrs:
