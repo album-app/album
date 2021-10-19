@@ -128,7 +128,7 @@ class DeployManager(metaclass=Singleton):
 
         # update the index
         if not dry_run:
-            self._catalog.add(self._active_solution)
+            self._catalog.add(self._active_solution, force_overwrite=True)
         else:
             module_logger().info("Would add the solution %s to index..." % self._active_solution.name)
 

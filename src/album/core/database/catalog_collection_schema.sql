@@ -30,8 +30,7 @@ CREATE TABLE IF NOT EXISTS collection_cover
     catalog_id          INTEGER,
     source              TEXT not null,
     description         TEXT not null,
-    FOREIGN KEY (catalog_id) REFERENCES catalog (catalog_id),
-    FOREIGN KEY (collection_id) REFERENCES catalog (collection_id)
+    FOREIGN KEY (catalog_id) REFERENCES catalog (catalog_id)
 );
 
 CREATE TABLE IF NOT EXISTS collection_author
@@ -66,10 +65,10 @@ CREATE TABLE IF NOT EXISTS collection
 (
     collection_id        INTEGER PRIMARY KEY,
     solution_id          INTEGER,
-    "group"              TEXT      not null,
-    name                 TEXT      not null,
+    "group"              TEXT    not null,
+    name                 TEXT    not null,
     title                TEXT,
-    version              TEXT      not null,
+    version              TEXT    not null,
     format_version       TEXT,
     timestamp            TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     description          TEXT,
@@ -81,11 +80,11 @@ CREATE TABLE IF NOT EXISTS collection
     tested_album_version TEXT,
     parent               TEXT,
     changelog            TEXT,
-    hash                 TEXT,
+    hash                 TEXT    not null,
     install_date         TEXT,
     last_execution       TEXT,
-    installed            INTEGER   not null,
-    catalog_id           INTEGER   not null,
+    installed            INTEGER not null,
+    catalog_id           INTEGER not null,
     FOREIGN KEY (catalog_id) REFERENCES catalog (catalog_id)
 );
 
@@ -96,7 +95,7 @@ CREATE TABLE IF NOT EXISTS collection_solution_tag
     collection_tag_id          INTEGER,
     catalog_id                 INTEGER,
     FOREIGN KEY (collection_id) REFERENCES collection (collection_id),
-    FOREIGN KEY (collection_tag_id) REFERENCES collection_tag (tag_id),
+    FOREIGN KEY (collection_tag_id) REFERENCES collection_tag (collection_tag_id),
     FOREIGN KEY (catalog_id) REFERENCES catalog (catalog_id)
 );
 
@@ -105,7 +104,7 @@ CREATE TABLE IF NOT EXISTS collection_solution_author
     collection_solution_author_id INTEGER PRIMARY KEY,
     collection_id                 INTEGER,
     collection_author_id          INTEGER,
-    catalog_id                      INTEGER,
+    catalog_id                    INTEGER,
     FOREIGN KEY (collection_id) REFERENCES collection (collection_id),
     FOREIGN KEY (collection_author_id) REFERENCES collection_author (collection_author_id),
     FOREIGN KEY (catalog_id) REFERENCES catalog (catalog_id)
