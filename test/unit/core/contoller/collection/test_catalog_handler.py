@@ -3,12 +3,12 @@ from copy import deepcopy
 from pathlib import Path
 from unittest.mock import MagicMock, call
 
-from album.core.controller.migration_manager import MigrationManager
-
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.collection.solution_handler import SolutionHandler
-from album.core.model.catalog_updates import CatalogUpdates
+from album.core.controller.migration_manager import MigrationManager
+from album.core.model.catalog_updates import CatalogUpdates, SolutionChange, ChangeType
 from album.core.model.configuration import Configuration
+from album.core.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from test.unit.core.contoller.collection.test_collection_manager import TestCatalogCollectionCommon
 
@@ -50,7 +50,8 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             "catalog_id": 4,
             "deletable": 1,
             "name": catalog_name,
-            "path": str(Path(self.tmp_dir.name).joinpath("album", DefaultValues.catalog_folder_prefix.value, catalog_name)),
+            "path": str(
+                Path(self.tmp_dir.name).joinpath("album", DefaultValues.catalog_folder_prefix.value, catalog_name)),
             "src": str(catalog_src),
         })
         self.assertEqual(expected_list, self.catalog_collection.get_all_catalogs())
@@ -325,10 +326,28 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         # todo: implement
         pass
 
-    @unittest.skip("Needs to be implemented!")
     def test__compare_solutions(self):
-        # todo: implement
-        pass
+        # prepare
+        solutions_old = [
+            {"hash": 1, "group": "g1", "name": "n1", "version": "v1"},
+            {"hash": 2, "group": "g2", "name": "n2", "version": "v1"},  # deleted
+            {"hash": 3, "group": "g3", "name": "n3", "version": "v1"}
+        ]
+        solutions_new = [
+            {"hash": 1, "group": "g1", "name": "n1", "version": "v1"},  # not touched
+            {"hash": 9, "group": "g3", "name": "n3", "version": "v1"},  # changed in some other attributes (not shown)
+            {"hash": 4, "group": "g4", "name": "n4", "version": "v1"}  # new
+        ]
+
+        r = CatalogHandler._compare_solutions(solutions_old, solutions_new)
+
+        expected_result = [
+            SolutionChange(Coordinates("g3", "n3", "v1"), ChangeType.CHANGED),
+            SolutionChange(Coordinates("g2", "n2", "v1"), ChangeType.REMOVED),
+            SolutionChange(Coordinates("g4", "n4", "v1"), ChangeType.ADDED)
+        ]
+
+        self.assertCountEqual(expected_result, r)
 
     @unittest.skip("Needs to be implemented!")
     def test__as_catalog(self):
