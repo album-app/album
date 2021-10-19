@@ -105,24 +105,27 @@ The setup parameters are derived from the [bioimage.io]() specification.
 
 ### Solution API
 
-Some useful paths and variables for a solution to use
+The solution API is provided through the `album-runner` module. There
+are multiple key methods:
 
-```
-get_active_solution().environment_cache_path
-get_active_solution().environment_path
-get_active_solution().environment_name
-get_active_solution().download_cache_path
-```
-
-`get_active_solution().environment_cache_path`:  This is the local
-path where solution specific files can be stored for later use.  
-`get_active_solution().environment_path`:  This is the local path for
-the conda environment of this particular solution.  
-`get_active_solution().environment_name`:  This is the name of the
+`get_environment_name()`:  This is the name of the
 conda environment for this particular solution.  
-`get_active_solution().download_cache_path`:  This is the download
-cache path for this solution. Files in here should be treated as
-temporary.  
+
+`get_environment_path()`:  This is the local path for
+the conda environment of this particular solution.  
+
+`get_data_path()`: Returns the data path provided for the solution.
+
+`get_package_path()`: Returns the package path provided for the solution.
+
+`get_app_path()`: Returns the app path provided for the solution.
+
+`get_cache_path()`: Returns the cache path provided for the solution.
+
+`in_target_environment()`: Returns `true` if the current python is the
+python from the album target environment.
+
+`get_args()`: Get the parsed argument from the solution call.
 
 # Create your own catalog
 Use this command to create a new catalog based on any template from [here](https://gitlab.com/album-app/catalogs/templates) - it will be copied into the provided directory with the provided new name.
