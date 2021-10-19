@@ -46,7 +46,9 @@ def upgrade(args):
 
 
 def deploy(args):
-    DeployManager().deploy(args.path, args.catalog, args.dry_run, args.push_option, args.git_email, args.git_name)
+    DeployManager().deploy(
+        args.path, args.catalog, args.dry_run, args.push_option, args.git_email, args.git_name, args.force_deploy
+    )
 
 
 def install(args):

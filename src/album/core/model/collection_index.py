@@ -1,6 +1,10 @@
+import hashlib
+import json
 import pkgutil
 from datetime import datetime
 from typing import Optional
+
+from album.core.model.catalog_index import CatalogIndex
 
 from album.core.concept.database import Database
 from album.core.model.coordinates import Coordinates
@@ -138,6 +142,13 @@ class CollectionIndex(Database):
 
     def insert_solution(self, catalog_id, solution_attrs):
         next_id = self.next_id("collection")
+        hash_val = get_dict_entry(solution_attrs, "hash", allow_none=True)
+
+        # there must be a hash value
+        if not hash_val:
+            hash_val = CatalogIndex.create_hash(
+                ":".join([json.dumps(solution_attrs[k]) for k in solution_attrs.keys()])
+            )
 
         self.get_cursor().execute(
             "INSERT INTO collection VALUES "
@@ -160,7 +171,7 @@ class CollectionIndex(Database):
                 solution_attrs["tested_album_version"],
                 get_dict_entry(solution_attrs, "parent"),  # allow to be none
                 get_dict_entry(solution_attrs, "changelog"),
-                get_dict_entry(solution_attrs, "hash"),
+                hash_val,
                 None,  # when installed?
                 None,  # last executed
                 0,  # installed

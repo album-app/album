@@ -120,11 +120,11 @@ class TestDeployManager(TestGitCommon):
         MigrationManager().refresh_index = refresh_index
 
         # call
-        self.deploy_manager._deploy_to_local_catalog(deploy_path="None", dry_run=False)
+        self.deploy_manager._deploy_to_local_catalog(deploy_path="None", dry_run=False, force_deploy=False)
 
         # assert
         _deploy_routine_in_local_src.assert_called_once_with("None")
-        add.assert_called_once_with(self.active_solution)  # index updated
+        add.assert_called_once_with(self.active_solution, force_overwrite=False)  # index updated
         copy_index_from_cache_to_src.assert_called_once()
         refresh_index.assert_called_once_with(self.local_catalog)
 

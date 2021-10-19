@@ -2,12 +2,11 @@ import pkgutil
 import tempfile
 from pathlib import Path
 
-from album.core.controller.migration_manager import MigrationManager
-
 import album
 from album.core import load
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
+from album.core.controller.migration_manager import MigrationManager
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, zip_paths, copy_in_file
@@ -45,13 +44,23 @@ class DeployManager(metaclass=Singleton):
         self._catalog_local_src = None
         self._repo = None
 
-    def deploy(self, deploy_path, catalog_name, dry_run, push_option=None, git_email=None, git_name=None):
+    def deploy(self,
+               deploy_path,
+               catalog_name,
+               dry_run,
+               push_option=None,
+               git_email=None,
+               git_name=None,
+               force_deploy=False
+               ):
         """Function corresponding to the `deploy` subcommand of `album`.
 
         Generates the yml for a album and creates a merge request to the catalog only
         including the yaml and solution file.
 
         Args:
+            force_deploy:
+                Force overwrites a existing solution during deployment. Only for local catalogs.
             deploy_path:
                 Path to a directory or a file.
                 If directory: Must contain "solution.py" file.
@@ -95,7 +104,7 @@ class DeployManager(metaclass=Singleton):
         MigrationManager().load_index(self._catalog)
 
         if self._catalog.is_local():
-            self._deploy_to_local_catalog(deploy_path, dry_run)
+            self._deploy_to_local_catalog(deploy_path, dry_run, force_deploy)
         else:
             self._deploy_to_remote_catalog(deploy_path, dry_run, push_option, git_email, git_name)
 
@@ -118,7 +127,7 @@ class DeployManager(metaclass=Singleton):
         # create merge request
         self._create_merge_request(mr_files, dry_run, push_option, git_email, git_name)
 
-    def _deploy_to_local_catalog(self, deploy_path, dry_run):
+    def _deploy_to_local_catalog(self, deploy_path, dry_run, force_deploy):
         """Routine to deploy to a local catalog."""
         # check for cache catalog only
         if self._catalog.is_cache():
@@ -128,9 +137,10 @@ class DeployManager(metaclass=Singleton):
 
         # update the index
         if not dry_run:
-            self._catalog.add(self._active_solution, force_overwrite=True)
+            self._catalog.add(self._active_solution, force_overwrite=force_deploy)
         else:
             module_logger().info("Would add the solution %s to index..." % self._active_solution.name)
+        self._catalog.add(self._active_solution, force_overwrite=force_deploy)
 
         # include files/folders in catalog
         self._deploy_routine_in_local_src(deploy_path)

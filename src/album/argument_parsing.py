@@ -89,6 +89,13 @@ def create_parser():
         help='Name to use for all git operations. If none given, system is required to be proper configured!',
         default=None
     )
+    p.add_argument(
+        '--force-deploy',
+        required=False,
+        help='When specified,force deploys a solution to a catalog.'
+             ' Useful if the solution has already been deployed once.',
+        action='store_true'
+    )
 
     parser.create_file_command_parser('install', install, 'install an album solution')
     p = parser.create_file_command_parser('uninstall', uninstall, 'uninstall an album solution')
