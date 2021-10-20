@@ -94,7 +94,7 @@ def create_parser():
         required=False,
         help='When specified,force deploys a solution to a catalog.'
              ' Useful if the solution has already been deployed once.',
-        action='store_true'
+        action='store_false'
     )
 
     parser.create_file_command_parser('install', install, 'install an album solution')
@@ -102,9 +102,8 @@ def create_parser():
     p.add_argument(
         '--uninstall-deps',
         required=False,
-        help=
-        'Boolean to additionally remove all album dependencies. Choose between %s'
-        % ", ".join([str(True), str(False)]),
+        help='Boolean to additionally remove all album dependencies. Choose between %s'
+             % ", ".join([str(True), str(False)]),
         default=False,
         action='store_true'
     )
@@ -193,8 +192,7 @@ class AlbumParser(ArgumentParser):
         """Creates the main parser for the album framework."""
         parser = ArgumentParser(
             add_help=True,
-            description=
-            'album for running, building, and deploying computational solutions',
+            description='album for running, building, and deploying computational solutions',
             parents=[self.parent_parser])
         return parser
 

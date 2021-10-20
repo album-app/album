@@ -88,35 +88,35 @@ class CatalogHandler:
         )
         return catalog.catalog_id
 
-    def get_by_id(self, catalog_id):
+    def get_by_id(self, catalog_id) -> Catalog:
         """Looks up a catalog by its id and returns it."""
         catalog = self.catalog_collection.get_catalog(catalog_id)
         if not catalog:
             raise LookupError("Catalog with id \"%s\" not configured!" % catalog_id)
         return self._as_catalog(catalog)
 
-    def get_by_src(self, src):
+    def get_by_src(self, src) -> Catalog:
         """Returns the catalog object of a given url if configured."""
         catalog_dict = self.catalog_collection.get_catalog_by_src(src)
         if not catalog_dict:
             raise LookupError("Catalog with src \"%s\" not configured!" % src)
         return self._as_catalog(catalog_dict)
 
-    def get_by_name(self, name):
+    def get_by_name(self, name) -> Catalog:
         """Looks up a catalog by its id and returns it."""
         catalog_dict = self.catalog_collection.get_catalog_by_name(name)
         if not catalog_dict:
             raise LookupError("Catalog with name \"%s\" not configured!" % name)
         return self._as_catalog(catalog_dict)
 
-    def get_by_path(self, path):
+    def get_by_path(self, path) -> Catalog:
         """Looks up a catalog by its id and returns it."""
         catalog_dict = self.catalog_collection.get_catalog_by_path(path)
         if not catalog_dict:
             raise LookupError("Catalog with path \"%s\" not configured!" % path)
         return self._as_catalog(catalog_dict)
 
-    def get_all(self):
+    def get_all(self) -> List[Catalog]:
         """Creates the catalog objects from the catalogs specified in the configuration."""
         catalogs = []
         catalog_list = self.catalog_collection.get_all_catalogs()
@@ -126,7 +126,7 @@ class CatalogHandler:
 
         return catalogs
 
-    def get_local_catalog(self):
+    def get_local_catalog(self) -> Catalog:
         """Returns the first local catalog in the configuration (Reads db table from top)."""
         local_catalog = None
         for catalog in self.get_all():
@@ -149,18 +149,17 @@ class CatalogHandler:
 
     @staticmethod
     def _update(catalog: Catalog) -> bool:
-        # TODO call migration manager
         r = MigrationManager().refresh_index(catalog)
         module_logger().info('Updated catalog %s!' % catalog.name)
         return r
 
-    def update_by_name(self, catalog_name):
+    def update_by_name(self, catalog_name) -> bool:
         """Updates a catalog by its name."""
         catalog = self.get_by_name(catalog_name)
 
         return self._update(catalog)
 
-    def update_all(self):
+    def update_all(self) -> List[bool]:
         """Updates all available catalogs"""
         catalog_r = []
         for catalog in self.get_all():
@@ -195,11 +194,11 @@ class CatalogHandler:
             else:
                 return self._update_collection_from_catalogs()
 
-    def _remove_from_collection(self, catalog_dict):
-        catalog_to_remove = self._as_catalog(catalog_dict)
-
-        if not catalog_to_remove:
-            raise LookupError("Cannot remove catalog! Not configured...")
+    def _remove_from_collection(self, catalog_dict) -> Optional[Catalog]:
+        try:
+            catalog_to_remove = self.get_by_id(catalog_dict["catalog_id"])
+        except LookupError as err:
+            raise LookupError("Cannot remove catalog! Not configured...") from err
 
         if not catalog_to_remove.is_deletable:
             module_logger().warning("Cannot remove catalog! Marked as not deletable! Will do nothing...")
@@ -211,7 +210,7 @@ class CatalogHandler:
 
         return catalog_to_remove
 
-    def remove_from_collection_by_path(self, path):
+    def remove_from_collection_by_path(self, path) -> Optional[Catalog]:
         """Removes a catalog given by its path from the catalog_collection.
 
         Thereby deleting all its entries from the collection.
@@ -243,7 +242,7 @@ class CatalogHandler:
 
         return catalog_to_remove
 
-    def remove_from_collection_by_src(self, src):
+    def remove_from_collection_by_src(self, src) -> Optional[Catalog]:
         """Removes a catalog given its src from the catalog_collection."""
 
         if not validators.url(str(src)):
@@ -265,13 +264,13 @@ class CatalogHandler:
 
         return catalog_to_remove
 
-    def get_all_as_dict(self):
+    def get_all_as_dict(self) -> dict:
         """Get all catalogs as dictionary."""
         return {
             "catalogs": self.catalog_collection.get_all_catalogs()
         }
 
-    def _create_catalog_from_src(self, src, catalog_meta_information=None):
+    def _create_catalog_from_src(self, src, catalog_meta_information=None) -> Catalog:
         """Creates the local cache path for a catalog given its src. (Network drive, git-link, etc.)"""
         if not catalog_meta_information:
             catalog_meta_information = Catalog.retrieve_catalog_meta_information(src)
@@ -329,7 +328,7 @@ class CatalogHandler:
         return divergence
 
     @staticmethod
-    def _compare_solutions(solutions_old, solutions_new):
+    def _compare_solutions(solutions_old, solutions_new) -> List[SolutionChange]:
         res = []
         # CAUTION: solutions should not be compared based on their id as this might change
 
@@ -372,6 +371,11 @@ class CatalogHandler:
         return res
 
     @staticmethod
-    def _as_catalog(catalog_dict):
-        return Catalog(catalog_dict['catalog_id'], catalog_dict['name'], catalog_dict['path'], catalog_dict['src'],
-                       bool(catalog_dict['deletable']))
+    def _as_catalog(catalog_dict) -> Catalog:
+        return Catalog(
+            catalog_dict['catalog_id'],
+            catalog_dict['name'],
+            catalog_dict['path'],
+            catalog_dict['src'],
+            bool(catalog_dict['deletable'])
+        )
