@@ -1,7 +1,7 @@
 import unittest
 
 from album.core.controller.collection.solution_handler import SolutionHandler
-from test.unit.core.contoller.collection.test_collection_manager import TestCatalogCollectionCommon
+from test.unit.core.controller.collection.test_collection_manager import TestCatalogCollectionCommon
 
 
 class TestSolutionHandler(TestCatalogCollectionCommon):

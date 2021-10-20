@@ -11,7 +11,7 @@ from album.core.model.catalog_updates import CatalogUpdates, SolutionChange, Cha
 from album.core.model.configuration import Configuration
 from album.core.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
-from test.unit.core.contoller.collection.test_collection_manager import TestCatalogCollectionCommon
+from test.unit.core.controller.collection.test_collection_manager import TestCatalogCollectionCommon
 
 
 class TestCatalogHandler(TestCatalogCollectionCommon):
