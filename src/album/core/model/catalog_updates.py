@@ -21,6 +21,12 @@ class SolutionChange:
         self.change_type = change_type
         self.change_log = change_log
 
+    def __eq__(self, other):
+        return isinstance(other, SolutionChange) \
+               and other.coordinates == self.coordinates \
+               and other.change_type == self.change_type \
+               and other.change_log == self.change_log
+
     def as_dict(self):
         return {
             "group": self.coordinates.group,
@@ -70,5 +76,3 @@ class CatalogUpdates:
 
     def __str__(self) -> str:
         return str(self.as_dict())
-
-

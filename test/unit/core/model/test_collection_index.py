@@ -88,7 +88,8 @@ class TestCollectionIndex(TestUnitCommon):
         version = "version"
         parent_id = None
 
-        self.test_catalog_collection.insert_solution(catalog_id, self._get_solution_attrs(1, grp, name, version, parent=parent_id))
+        self.test_catalog_collection.insert_solution(catalog_id,
+                                                     self._get_solution_attrs(1, grp, name, version, parent=parent_id))
         self.assertEqual(
             1, len(self.test_catalog_collection.get_cursor().execute("SELECT * FROM collection").fetchall())
         )
@@ -99,7 +100,8 @@ class TestCollectionIndex(TestUnitCommon):
         version = "version2"
         parent_id = 1
 
-        self.test_catalog_collection.insert_solution(catalog_id, self._get_solution_attrs(2, grp, name, version, parent=parent_id))
+        self.test_catalog_collection.insert_solution(catalog_id,
+                                                     self._get_solution_attrs(2, grp, name, version, parent=parent_id))
         self.assertEqual(
             2, len(self.test_catalog_collection.get_cursor().execute("SELECT * FROM collection").fetchall())
         )
@@ -124,6 +126,7 @@ class TestCollectionIndex(TestUnitCommon):
                 "version": "version%s" % str(i)
             })
             r[i - 1].pop("install_date")
+            r[i - 1].pop("hash")
             self.assertDictEqual(expected, r[i - 1])
 
     @unittest.skip("Needs to be implemented!")
@@ -151,17 +154,22 @@ class TestCollectionIndex(TestUnitCommon):
         })
 
         r.pop("install_date")
+        r.pop("hash")
+
         self.assertDictEqual(expected, r)
 
     def test_get_solution_by_catalog_grp_name_version(self):
         self.test_catalog_collection.insert_solution(
-            "catalog_id_exceptionell", self._get_solution_attrs(1, "grp_exceptionell", "name_exceptionell", "version_exceptionell", parent="parentDoi")
+            "catalog_id_exceptionell",
+            self._get_solution_attrs(1, "grp_exceptionell", "name_exceptionell", "version_exceptionell",
+                                     parent="parentDoi")
         )
 
         r = self.test_catalog_collection.get_solution_by_catalog_grp_name_version(
             "catalog_id_exceptionell", Coordinates("grp_exceptionell", "name_exceptionell", "version_exceptionell")
         )
         r.pop("install_date")
+        r.pop("hash")
 
         expected = self._get_expected_attrs({
             "collection_id": 1,
@@ -180,7 +188,8 @@ class TestCollectionIndex(TestUnitCommon):
         self.test_catalog_collection.insert_solution("cat1", self._get_solution_attrs(1, "grp", "name", "version"))
         self.test_catalog_collection.insert_solution("cat2", self._get_solution_attrs(2, "grp", "name", "version"))
         self.test_catalog_collection.insert_solution("cat3", self._get_solution_attrs(3, "grp", "name", "version"))
-        self.test_catalog_collection.insert_solution("cat1", self._get_solution_attrs(4, "grp_d", "name_d", "version_d"))
+        self.test_catalog_collection.insert_solution("cat1",
+                                                     self._get_solution_attrs(4, "grp_d", "name_d", "version_d"))
 
         r = self.test_catalog_collection.get_solutions_by_grp_name_version(Coordinates("grp", "name", "version"))
 
@@ -196,9 +205,10 @@ class TestCollectionIndex(TestUnitCommon):
                 # "installation_date": ???,  # we leave that out
                 "last_execution": None
             })
-            r[i-1].pop("install_date")
+            r[i - 1].pop("install_date")
+            r[i - 1].pop("hash")
 
-            self.assertDictEqual(expected, r[i-1])
+            self.assertDictEqual(expected, r[i - 1])
 
     @unittest.skip("Needs to be implemented!")
     def test_get_recently_installed_solutions(self):
@@ -211,12 +221,14 @@ class TestCollectionIndex(TestUnitCommon):
     def test_update_solution(self):
         self.test_catalog_collection.insert_solution("cat1", self._get_solution_attrs(1, "grp", "name", "version"))
         self.test_catalog_collection.insert_solution("cat2", self._get_solution_attrs(2, "grp", "name", "version"))
-        self.test_catalog_collection.insert_solution("cat1", self._get_solution_attrs(3, "grp_d", "name_d", "version_d"))
+        self.test_catalog_collection.insert_solution("cat1",
+                                                     self._get_solution_attrs(3, "grp_d", "name_d", "version_d"))
 
         r = self.test_catalog_collection.get_solution(2)
         self.assertIsNone(r["last_execution"])
 
-        self.test_catalog_collection.update_solution("cat2", Coordinates("grp", "name", "version"), {}, SolutionHandler.get_solution_keys())
+        self.test_catalog_collection.update_solution("cat2", Coordinates("grp", "name", "version"), {},
+                                                     SolutionHandler.get_solution_keys())
 
         r = self.test_catalog_collection.get_solution(2)
         self.assertIsNotNone(r["last_execution"])
@@ -224,7 +236,8 @@ class TestCollectionIndex(TestUnitCommon):
     def test_remove_solution(self):
         self.test_catalog_collection.insert_solution("cat1", self._get_solution_attrs(1, "grp", "name", "version"))
         self.test_catalog_collection.insert_solution("cat2", self._get_solution_attrs(2, "grp", "name", "version"))
-        self.test_catalog_collection.insert_solution("cat1", self._get_solution_attrs(3, "grp_d", "name_d", "version_d"))
+        self.test_catalog_collection.insert_solution("cat1",
+                                                     self._get_solution_attrs(3, "grp_d", "name_d", "version_d"))
 
         self.test_catalog_collection.remove_solution("cat2", Coordinates("grp", "name", "version"))
 
@@ -285,7 +298,8 @@ class TestCollectionIndex(TestUnitCommon):
     def test_is_installed(self):
         self.test_catalog_collection.insert_solution("cat1", self._get_solution_attrs(1, "grp", "name", "version"))
         self.test_catalog_collection.insert_solution("cat2", self._get_solution_attrs(2, "grp", "name", "version"))
-        self.test_catalog_collection.insert_solution("cat1", self._get_solution_attrs(3, "grp_d", "name_d", "version_d"))
+        self.test_catalog_collection.insert_solution("cat1",
+                                                     self._get_solution_attrs(3, "grp_d", "name_d", "version_d"))
 
         self.assertFalse(self.test_catalog_collection.is_installed("cat1", Coordinates("grp", "name", "version")))
 
@@ -351,7 +365,6 @@ class TestCollectionIndex(TestUnitCommon):
             "git_repo": "",
             "license": "",
             "installed": 0,
-            "hash": "",
             # "install_date": ???,  # we leave that out
             "last_execution": None
         }

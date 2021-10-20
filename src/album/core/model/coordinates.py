@@ -16,3 +16,6 @@ class Coordinates:
         return isinstance(
             o, Coordinates
         ) and o.group == self.group and o.name == self.name and o.version == self.version
+
+    def __hash__(self):
+        return hash(self.__str__())

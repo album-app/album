@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import List, Optional
 
 import validators
-from album.core.utils.operations.file_operations import force_remove
 
 from album.core.controller.collection.solution_handler import SolutionHandler
 from album.core.controller.migration_manager import MigrationManager
@@ -12,6 +11,7 @@ from album.core.model.catalog_updates import CatalogUpdates, SolutionChange, Cha
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
+from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.runner import logging
 
@@ -88,35 +88,35 @@ class CatalogHandler:
         )
         return catalog.catalog_id
 
-    def get_by_id(self, catalog_id):
+    def get_by_id(self, catalog_id) -> Catalog:
         """Looks up a catalog by its id and returns it."""
         catalog = self.catalog_collection.get_catalog(catalog_id)
         if not catalog:
             raise LookupError("Catalog with id \"%s\" not configured!" % catalog_id)
         return self._as_catalog(catalog)
 
-    def get_by_src(self, src):
+    def get_by_src(self, src) -> Catalog:
         """Returns the catalog object of a given url if configured."""
         catalog_dict = self.catalog_collection.get_catalog_by_src(src)
         if not catalog_dict:
             raise LookupError("Catalog with src \"%s\" not configured!" % src)
         return self._as_catalog(catalog_dict)
 
-    def get_by_name(self, name):
+    def get_by_name(self, name) -> Catalog:
         """Looks up a catalog by its id and returns it."""
         catalog_dict = self.catalog_collection.get_catalog_by_name(name)
         if not catalog_dict:
             raise LookupError("Catalog with name \"%s\" not configured!" % name)
         return self._as_catalog(catalog_dict)
 
-    def get_by_path(self, path):
+    def get_by_path(self, path) -> Catalog:
         """Looks up a catalog by its id and returns it."""
         catalog_dict = self.catalog_collection.get_catalog_by_path(path)
         if not catalog_dict:
             raise LookupError("Catalog with path \"%s\" not configured!" % path)
         return self._as_catalog(catalog_dict)
 
-    def get_all(self):
+    def get_all(self) -> List[Catalog]:
         """Creates the catalog objects from the catalogs specified in the configuration."""
         catalogs = []
         catalog_list = self.catalog_collection.get_all_catalogs()
@@ -126,7 +126,7 @@ class CatalogHandler:
 
         return catalogs
 
-    def get_local_catalog(self):
+    def get_local_catalog(self) -> Catalog:
         """Returns the first local catalog in the configuration (Reads db table from top)."""
         local_catalog = None
         for catalog in self.get_all():
@@ -149,18 +149,17 @@ class CatalogHandler:
 
     @staticmethod
     def _update(catalog: Catalog) -> bool:
-        # TODO call migration manager
         r = MigrationManager().refresh_index(catalog)
         module_logger().info('Updated catalog %s!' % catalog.name)
         return r
 
-    def update_by_name(self, catalog_name):
+    def update_by_name(self, catalog_name) -> bool:
         """Updates a catalog by its name."""
         catalog = self.get_by_name(catalog_name)
 
         return self._update(catalog)
 
-    def update_all(self):
+    def update_all(self) -> List[bool]:
         """Updates all available catalogs"""
         catalog_r = []
         for catalog in self.get_all():
@@ -195,11 +194,11 @@ class CatalogHandler:
             else:
                 return self._update_collection_from_catalogs()
 
-    def _remove_from_collection(self, catalog_dict):
-        catalog_to_remove = self._as_catalog(catalog_dict)
-
-        if not catalog_to_remove:
-            raise LookupError("Cannot remove catalog! Not configured...")
+    def _remove_from_collection(self, catalog_dict) -> Optional[Catalog]:
+        try:
+            catalog_to_remove = self.get_by_id(catalog_dict["catalog_id"])
+        except LookupError as err:
+            raise LookupError("Cannot remove catalog! Not configured...") from err
 
         if not catalog_to_remove.is_deletable:
             module_logger().warning("Cannot remove catalog! Marked as not deletable! Will do nothing...")
@@ -211,7 +210,7 @@ class CatalogHandler:
 
         return catalog_to_remove
 
-    def remove_from_collection_by_path(self, path):
+    def remove_from_collection_by_path(self, path) -> Optional[Catalog]:
         """Removes a catalog given by its path from the catalog_collection.
 
         Thereby deleting all its entries from the collection.
@@ -243,7 +242,7 @@ class CatalogHandler:
 
         return catalog_to_remove
 
-    def remove_from_collection_by_src(self, src):
+    def remove_from_collection_by_src(self, src) -> Optional[Catalog]:
         """Removes a catalog given its src from the catalog_collection."""
 
         if not validators.url(str(src)):
@@ -265,13 +264,13 @@ class CatalogHandler:
 
         return catalog_to_remove
 
-    def get_all_as_dict(self):
+    def get_all_as_dict(self) -> dict:
         """Get all catalogs as dictionary."""
         return {
             "catalogs": self.catalog_collection.get_all_catalogs()
         }
 
-    def _create_catalog_from_src(self, src, catalog_meta_information=None):
+    def _create_catalog_from_src(self, src, catalog_meta_information=None) -> Catalog:
         """Creates the local cache path for a catalog given its src. (Network drive, git-link, etc.)"""
         if not catalog_meta_information:
             catalog_meta_information = Catalog.retrieve_catalog_meta_information(src)
@@ -329,36 +328,54 @@ class CatalogHandler:
         return divergence
 
     @staticmethod
-    def _compare_solutions(solutions_old, solutions_new):
+    def _compare_solutions(solutions_old, solutions_new) -> List[SolutionChange]:
         res = []
-        dict_old = {}
-        dict_new = {}
-        for solution in solutions_old:
-            dict_old[solution["solution_id"]] = solution
-        for solution in solutions_new:
-            dict_new[solution["solution_id"]] = solution
-        for solution_id in dict_old:
-            solution_old = dict_old[solution_id]
-            # check if solution got removed
-            if solution_id not in dict_new:
-                coordinates = dict_to_coordinates(solution_old)
-                change = SolutionChange(coordinates, ChangeType.REMOVED)
-                res.append(change)
-            else:
-                # check if solution got changed
-                if solution_old["hash"] != dict_new[solution_id]["hash"]:
-                    coordinates = dict_to_coordinates(solution_old)
+        # CAUTION: solutions should not be compared based on their id as this might change
+
+        dict_old_coordinates = {}
+        list_old_hash = list([s["hash"] for s in solutions_old])
+        for s in solutions_old:
+            dict_old_coordinates[dict_to_coordinates(s)] = s
+
+        dict_new_coordinates = {}
+        dict_new_hash = {}
+        for s in solutions_new:
+            dict_new_coordinates[dict_to_coordinates(s)] = s
+            dict_new_hash[s["hash"]] = s
+
+        for hash in dict_new_hash.keys():
+            # get metadata
+            coordinates = dict_to_coordinates(dict_new_hash[hash])
+
+            # solution updated or added
+            if hash not in list_old_hash:
+                if coordinates in dict_old_coordinates.keys():  # changed when metadata in old solution list
                     change = SolutionChange(coordinates, ChangeType.CHANGED)
                     res.append(change)
-        # check if solution got added
-        for solution_id in dict_new:
-            if solution_id not in dict_old:
-                coordinates = dict_to_coordinates(dict_new[solution_id])
-                change = SolutionChange(coordinates, ChangeType.ADDED)
-                res.append(change)
+
+                    # remove solution from old coordinates list
+                    # for later iteration over this list to determine deleted solutions
+                    dict_old_coordinates.pop(coordinates)
+
+                else:  # added when metadata not in old solution list
+                    change = SolutionChange(coordinates, ChangeType.ADDED)
+                    res.append(change)
+            else:  # not changed
+                dict_old_coordinates.pop(coordinates)
+
+        # iterate over remaining solutions in dict_old_coordinates. These are the removed solutions
+        for coordinates in dict_old_coordinates.keys():
+            change = SolutionChange(coordinates, ChangeType.REMOVED)
+            res.append(change)
+
         return res
 
     @staticmethod
-    def _as_catalog(catalog_dict):
-        return Catalog(catalog_dict['catalog_id'], catalog_dict['name'], catalog_dict['path'], catalog_dict['src'],
-                       bool(catalog_dict['deletable']))
+    def _as_catalog(catalog_dict) -> Catalog:
+        return Catalog(
+            catalog_dict['catalog_id'],
+            catalog_dict['name'],
+            catalog_dict['path'],
+            catalog_dict['src'],
+            bool(catalog_dict['deletable'])
+        )

@@ -113,7 +113,7 @@ class Catalog:
 
     def is_cache(self):
         """Returns Boolean indicating whether the catalog is used for caching only."""
-        return self.is_local() and self.path.exists() and os.path.samefile(self.src, self.path)
+        return self.src is None or self.is_local() and self.path.exists() and os.path.samefile(self.src, self.path)
 
     def is_local(self):
         """Returns Boolean indicating whether the catalog is remote or local."""
