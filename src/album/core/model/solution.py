@@ -1,5 +1,6 @@
 import copy
 from pathlib import Path
+from typing import Optional
 
 from album.core.model.configuration import Configuration
 from album.core.model.coordinates import Coordinates
@@ -52,7 +53,7 @@ class Solution(AlbumRunner):
         # Attributes from the solution.py
         super().__init__(attrs)
         self.coordinates = Coordinates(attrs["group"], attrs["name"], attrs["version"])
-        self.environment = None
+        self.environment: Optional[Environment] = None
         self.data_path = None
         self.app_path = None
         self.package_path = None

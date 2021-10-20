@@ -1,6 +1,3 @@
-import re
-
-
 class Coordinates:
     """Class for the Coordinates of a solution."""
 

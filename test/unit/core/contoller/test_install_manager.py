@@ -99,11 +99,11 @@ class TestInstallManager(TestUnitCommon):
         self.active_solution.environment = EmptyTestClass()
 
         # mocks
-        run_script = MagicMock(return_value="aPath")
-        self.active_solution.environment.run_scripts = run_script
+        run_script = MagicMock()
+        self.install_manager.conda_manager.run_scripts = run_script
 
         environment_install = MagicMock(return_value=None)
-        self.active_solution.environment.install = environment_install
+        self.install_manager.conda_manager.install = environment_install
         self.active_solution.min_album_version = "test"
 
         install_dependencies = MagicMock()
@@ -120,13 +120,14 @@ class TestInstallManager(TestUnitCommon):
     @patch('album.core.controller.install_manager.create_solution_script', return_value="script")
     def test__install_call_routine(self, create_script_mock):
         self.active_solution.environment = EmptyTestClass()
+        self.active_solution.environment.name = "envName"
 
         # mocks
         run_script = MagicMock(return_value="aPath")
-        self.active_solution.environment.run_scripts = run_script
+        self.install_manager.conda_manager.run_scripts = run_script
 
         environment_install = MagicMock(return_value=None)
-        self.active_solution.environment.install = environment_install
+        self.install_manager.conda_manager.install = environment_install
         self.active_solution.min_album_version = "test"
 
         install_dependencies = MagicMock()
@@ -138,7 +139,7 @@ class TestInstallManager(TestUnitCommon):
 
         # assert
         create_script_mock.assert_called_once()
-        run_script.assert_called_once_with(["script"])
+        run_script.assert_called_once_with(self.active_solution.environment, ["script"])
         environment_install.assert_called_once()
         install_dependencies.assert_called_once_with(self.active_solution)
 
@@ -147,10 +148,10 @@ class TestInstallManager(TestUnitCommon):
 
         # mocks
         run_script = MagicMock(return_value="aPath")
-        self.active_solution.environment.run_scripts = run_script
+        self.install_manager.conda_manager.run_scripts = run_script
 
         environment_install = MagicMock(return_value=None)
-        self.active_solution.environment.install = environment_install
+        self.install_manager.conda_manager.install = environment_install
         self.active_solution.min_album_version = "test"
 
         install_dependencies = MagicMock()

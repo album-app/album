@@ -1,6 +1,8 @@
 import argparse
 from queue import Queue, Empty
 
+from album.core.controller.conda_manager import CondaManager
+
 from album.core import load
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
@@ -59,6 +61,7 @@ class RunManager(metaclass=Singleton):
 
     def __init__(self):
         self.collection_manager = CollectionManager()
+        self.conda_manager = CondaManager()
         self.init_script = ""
 
     def run(self, path, run_immediately=False, argv=None):
@@ -117,7 +120,7 @@ class RunManager(metaclass=Singleton):
             while True:
                 solution_object, scripts = que.get(block=False)
                 module_logger().info("Running task \"%s\"..." % solution_object["name"])
-
+                self.conda_manager.set_environment_path(solution_object.environment)
                 self._run_in_environment_with_own_logger(solution_object, scripts)
                 module_logger().info("Finished running task \"%s\"!" % solution_object["name"])
                 que.task_done()
@@ -448,13 +451,12 @@ class RunManager(metaclass=Singleton):
 
         return parsed_parent_args, parsed_steps_args_list
 
-    @staticmethod
-    def _run_in_environment_with_own_logger(active_solution, scripts):
+    def _run_in_environment_with_own_logger(self, active_solution, scripts):
         """Pushes a new logger to the stack before running the solution and pops it afterwards."""
         logging.configure_logging(active_solution['name'])
         module_logger().info("Starting solution \"%s\"..." % active_solution['name'])
         module_logger().info("Citation information: %s" % active_solution['cite'])
-        active_solution.environment.run_scripts(scripts)
+        self.conda_manager.run_scripts(active_solution.environment, scripts)
         logging.pop_active_logger()
 
     @staticmethod
