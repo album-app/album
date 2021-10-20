@@ -10,7 +10,6 @@ from test.unit.test_unit_common import TestUnitCommon
 class TestCollectionIndex(TestUnitCommon):
     def setUp(self):
         super().setUp()
-        self.create_album_test_instance()
 
         self.test_catalog_collection = CollectionIndex(
             "test_catalog_collection", Path(self.tmp_dir.name).joinpath("test_db.db")
@@ -19,6 +18,7 @@ class TestCollectionIndex(TestUnitCommon):
         self.assertIsNotNone(self.test_catalog_collection.get_cursor())
 
     def tearDown(self) -> None:
+        self.test_catalog_collection.close()
         self.test_catalog_collection = None
         super().tearDown()
 

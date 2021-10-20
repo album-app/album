@@ -1,16 +1,13 @@
-import re
 from pathlib import Path
 
 from git import Repo
 
-from album.core.controller.migration_manager import MigrationManager
-
 from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.ci_utils import get_ssh_url
 from album.core.concept.singleton import Singleton
+from album.core.controller.migration_manager import MigrationManager
 from album.core.model.catalog import Catalog
 from album.core.model.configuration import Configuration
-from album.core.model.default_values import DefaultValues
 from album.core.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_dict_entry
 from album.core.utils.operations.git_operations import checkout_branch, add_files_commit_and_push, \
@@ -41,6 +38,8 @@ class ReleaseManager(metaclass=Singleton):
         MigrationManager().load_index(self.catalog)
 
     def __del__(self):
+        if self.catalog:
+            self.catalog.dispose()
         if self.catalog_repo:
             self.catalog_repo.close()
 

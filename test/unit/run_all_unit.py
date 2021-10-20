@@ -19,7 +19,7 @@ from test.unit.core.utils.operations import test_url_operations, test_file_opera
 def main():
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
-    # ### unittests
+    ### unittests
 
     # album.core
     suite.addTests(loader.loadTestsFromModule(test__init__))

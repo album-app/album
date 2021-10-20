@@ -110,6 +110,7 @@ class DeployManager(metaclass=Singleton):
         else:
             self._deploy_to_remote_catalog(catalog, active_solution, deploy_path, dry_run, push_option, git_email, git_name)
 
+        catalog.dispose()
 
     def _deploy_to_remote_catalog(self, catalog: Catalog, active_solution: Solution, deploy_path, dry_run, push_option, git_email=None, git_name=None):
         """Routine to deploy to a remote catalog."""

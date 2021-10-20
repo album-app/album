@@ -17,7 +17,7 @@ class TestMigrationManager(TestUnitCommon):
 
     def setUp(self):
         super().setUp()
-        self.create_album_test_instance()
+        self.create_album_test_instance(init_catalogs=False)
         catalog_src = Path(self.tmp_dir.name).joinpath("testRepo")
         CatalogHandler.create_new_catalog(catalog_src, "test")
         catalog_path = Path(self.tmp_dir.name).joinpath("testPath")
@@ -26,6 +26,7 @@ class TestMigrationManager(TestUnitCommon):
         MigrationManager().load_index(self.catalog)
 
     def tearDown(self) -> None:
+        self.catalog.dispose()
         super().tearDown()
 
     @unittest.skip("Needs to be implemented!")

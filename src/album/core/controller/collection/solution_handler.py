@@ -65,6 +65,9 @@ class SolutionHandler:
 
         return None  # could not resolve
 
+    def __del__(self):
+        self.catalog_collection = None
+
     def add_or_replace(self, catalog: Catalog, active_solution: Solution, path):
         deploy_dict = active_solution.get_deploy_dict()
         self.catalog_collection.add_or_replace_solution(

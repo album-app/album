@@ -7,6 +7,8 @@ from io import StringIO
 from pathlib import Path
 from typing import Optional
 
+from album.core.model.catalog import Catalog
+
 import album.core as album
 from album.core import Solution
 from album.api import Album
@@ -39,18 +41,18 @@ class TestIntegrationCommon(unittest.TestCase):
 
         # load gateway with test configuration
         self.album = Album(base_cache_path=self.tmp_dir.name)
-
         self.collection_manager = self.album.collection_manager()
+        self.collection_manager.load_or_create_collection()
         self.test_collection = self.collection_manager.catalog_collection
         self.assertFalse(self.test_collection.is_empty())
 
     def get_album(self):
         return self.album
 
-    def add_test_catalog(self):
+    def add_test_catalog(self) -> Catalog:
         path = Path(self.tmp_dir.name).joinpath("my-catalogs", "test_catalog")
         CatalogHandler.create_new_catalog(path, "test_catalog")
-        self.collection_manager.catalogs().add_by_src(path)
+        return self.collection_manager.catalogs().add_by_src(path)
 
     def tearDown(self) -> None:
         # clean all environments specified in test-resources

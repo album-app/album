@@ -1,3 +1,4 @@
+import gc
 import logging
 import os
 import tempfile
@@ -39,12 +40,12 @@ class TestUnitCommon(unittest.TestCase):
         """Could initialize default values for each test class. use `_<name>` to skip property setting."""
 
         self.solution_default_dict = self.get_solution_dict()
-        self.attrs = {}
         self.captured_output = StringIO()
         self.configure_test_logging(self.captured_output)
         self.tmp_dir = tempfile.TemporaryDirectory()
         self.closed_tmp_file = tempfile.NamedTemporaryFile(delete=False)
         self.closed_tmp_file.close()
+        self.collection_manager = None
 
     @staticmethod
     def get_solution_dict():
@@ -94,6 +95,9 @@ class TestUnitCommon(unittest.TestCase):
             del singleton.instance
 
     def tearDown(self) -> None:
+        if self.collection_manager is not None and self.collection_manager.catalog_collection is not None:
+            self.collection_manager.catalog_collection.close()
+            self.collection_manager = None
         self.captured_output.close()
 
         while True:
@@ -103,6 +107,7 @@ class TestUnitCommon(unittest.TestCase):
 
         Path(self.closed_tmp_file.name).unlink()
         self.tear_down_singletons()
+        gc.collect()
         try:
             self.tmp_dir.cleanup()
         except PermissionError:
@@ -150,15 +155,14 @@ class TestUnitCommon(unittest.TestCase):
                 ]
 
                 # create collection
-                self.collection_manager = CollectionManager()
+                self.collection_manager = my_album.collection_manager()
+                self.collection_manager.load_or_create_collection()
                 # self.assertEqual(2, retrieve_c_m_i_mock.call_count)
 
-            self.catalog_collection = self.collection_manager.catalog_collection
         return my_album
 
-    @patch('album.core.model.environment.Environment.__init__', return_value=None)
     @patch('album.core.model.solution.Solution.get_deploy_dict')
-    def create_test_solution_no_env(self, deploy_dict_mock, _):
+    def create_test_solution_no_env(self, deploy_dict_mock):
         deploy_dict_mock.return_value = self.solution_default_dict
         self.active_solution = Solution(deploy_dict_mock.return_value)
         self.active_solution.init = lambda: None

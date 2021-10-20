@@ -14,8 +14,10 @@ class TestCatalogIndex(TestUnitCommon):
 
     def setUp(self):
         super().setUp()
-        self.create_album_test_instance()
         self.catalog_index = CatalogIndex("test", Path(self.tmp_dir.name).joinpath("test_db_file"))
+
+    def tearDown(self):
+        self.catalog_index.close()
 
     def fill_solution(self):
         self.assertTrue(self.catalog_index.is_table_empty("solution"))
@@ -44,6 +46,8 @@ class TestCatalogIndex(TestUnitCommon):
         # assert
         self.assertTrue(catalog_index.is_created())
         update_name_version_mock.assert_called_once_with("test2", "0.1.0")
+
+        catalog_index.close()
 
     def test_is_empty(self):
         self.assertTrue(self.catalog_index.is_empty())
@@ -96,9 +100,6 @@ class TestCatalogIndex(TestUnitCommon):
 
         # assert
         self.assertEqual("tsn", solution["name"])
-
-    def test_get_solution_by_doi(self):
-        raise NotImplementedError
 
     def test_get_solution_by_group_name_version(self):
         solution_id1, _ = self.fill_solution()

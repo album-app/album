@@ -113,6 +113,13 @@ class Catalog:
         return isinstance(other, Catalog) and \
             other.catalog_id == self.catalog_id
 
+    def __del__(self):
+        self.dispose()
+
+    def dispose(self):
+        if self.catalog_index is not None:
+            self.catalog_index.close()
+
     def is_cache(self):
         """Returns Boolean indicating whether the catalog is used for caching only."""
         return self.src is None or self.is_local() and self.path.exists() and os.path.samefile(self.src, self.path)

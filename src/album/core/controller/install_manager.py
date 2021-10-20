@@ -68,7 +68,7 @@ class InstallManager(metaclass=Singleton):
             self.collection_manager.add_solution_to_local_catalog(resolve_result.loaded_solution,
                                                                   resolve_result.path.parent)
             if cleanup:
-                clean_resolve_tmp(self.collection_manager.tmp_cache_dir)
+                clean_resolve_tmp(self.configuration.cache_path_tmp)
         else:
             parent_catalog_id = None
             if parent_resolve_result:

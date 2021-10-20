@@ -35,22 +35,31 @@ class CollectionManager(metaclass=Singleton):
             The configuration of the album framework instance.
 
     """
-    # Singletons
-    catalog_collection = None
-    configuration = None
 
     def __init__(self):
         super().__init__()
         self.configuration = Configuration()
-        self.tmp_cache_dir = self.configuration.cache_path_tmp
         self.migration_manager = MigrationManager()
-        self._load_or_create_collection()
+        self.solution_handler: Optional[SolutionHandler] = None
+        self.catalog_handler: Optional[CatalogHandler] = None
+        self.catalog_collection: Optional[CollectionIndex] = None
+        self.collection_loaded = False
 
     def __del__(self):
-        if self.catalog_collection:
-            del self.catalog_collection
+        if self.solution_handler is not None:
+            del self.solution_handler
+            self.solution_handler = None
+        if self.catalog_handler is not None:
+            del self.catalog_handler
+            self.catalog_handler = None
+        if self.catalog_collection is not None:
+            self.catalog_collection.close()
+            self.catalog_collection = None
 
-    def _load_or_create_collection(self):
+    def load_or_create_collection(self):
+        if self.collection_loaded:
+            module_logger().error("CollectionManager().load_or_create_collection() should only be called once.")
+        self.collection_loaded = True
         collection_meta = self.configuration.get_catalog_collection_meta_dict()
         newly_created = not self.configuration.get_catalog_collection_path().exists()
         if collection_meta:
@@ -65,6 +74,8 @@ class CollectionManager(metaclass=Singleton):
                 raise RuntimeError(
                     "Album collection database file found, but no meta file specifying the database version."
                 )
+        if self.catalog_collection is not None:
+            self.catalog_collection.close()
         self.catalog_collection = self.migration_manager.create_collection_index(
             path=self.configuration.get_catalog_collection_path(),
             initial_name=DefaultValues.catalog_collection_name.value,

@@ -5,6 +5,8 @@ from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from album.core.model.configuration import Configuration
+
 from album.core.controller.migration_manager import MigrationManager
 
 from album.core.controller.collection.catalog_handler import CatalogHandler
@@ -42,7 +44,7 @@ class TestCatalog(TestUnitCommon):
 
     def setUp(self):
         super().setUp()
-        self.create_album_test_instance()
+        Configuration().setup(base_cache_path=Path(self.tmp_dir.name).joinpath("album"), configuration_file_path=self.tmp_dir.name)
         catalog_src = Path(self.tmp_dir.name).joinpath("testRepo")
         CatalogHandler.create_new_catalog(catalog_src, "test")
         catalog_path = Path(self.tmp_dir.name).joinpath("testPath")
@@ -51,6 +53,7 @@ class TestCatalog(TestUnitCommon):
         MigrationManager().load_index(self.catalog)
 
     def tearDown(self) -> None:
+        self.catalog.dispose()
         super().tearDown()
 
     # Actually rather an integration test

@@ -101,6 +101,8 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         self.assertEqual(0, len(dif[0].catalog_attribute_changes))
         self.assertEqual(0, len(dif[0].solution_changes))
 
+        catalog.dispose()
+
     def test_update_upgrade(self):
         initial_len = len(CollectionManager().catalog_collection.get_all_catalogs())
 
@@ -137,6 +139,8 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
             if key == "timestamp":
                 continue
             self.assertEqual(solution[key], solution_in_collection[key])
+
+        catalog.dispose()
 
 
 if __name__ == '__main__':

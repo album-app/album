@@ -37,7 +37,8 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
             git_email="myCiUserEmail",
             git_name="myCiUserName",
         )
-        copy_folder(deploy_manager._repo.working_tree_dir, self.path, copy_root_folder=False)
+        path = deploy_manager.get_download_path(self._catalog)
+        copy_folder(path, self.path, copy_root_folder=False)
 
         self.assertTrue(self.path.is_dir() and self.path.stat().st_size > 0)
 

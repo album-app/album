@@ -36,6 +36,7 @@ class CollectionIndex(Database):
                 "INSERT INTO catalog_collection values (?, ?, ?)",
                 (1, name, version)
             )
+        self.get_connection().commit()
 
     def get_name(self):
         r = self.get_cursor().execute(
