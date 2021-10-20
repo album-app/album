@@ -140,7 +140,6 @@ class DeployManager(metaclass=Singleton):
             self._catalog.add(self._active_solution, force_overwrite=force_deploy)
         else:
             module_logger().info("Would add the solution %s to index..." % self._active_solution.name)
-        self._catalog.add(self._active_solution, force_overwrite=force_deploy)
 
         # include files/folders in catalog
         self._deploy_routine_in_local_src(deploy_path)

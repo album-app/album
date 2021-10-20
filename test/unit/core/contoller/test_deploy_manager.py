@@ -62,7 +62,7 @@ class TestDeployManager(TestGitCommon):
         get_by_name.assert_called_once_with(os.path.basename(self.tmp_dir.name))  # correct id requested
         get_by_src.assert_not_called()  # catalog given by id not url
 
-        _deploy_to_local_catalog.assert_called_once_with(Path("None"), False)
+        _deploy_to_local_catalog.assert_called_once_with(Path("None"), False, False)
         _deploy_to_remote_catalog.assert_not_called()
 
     @patch('album.core.controller.deploy_manager.load')
@@ -154,7 +154,7 @@ class TestDeployManager(TestGitCommon):
         MigrationManager().refresh_index = refresh_index
 
         # call
-        self.deploy_manager._deploy_to_local_catalog(deploy_path="None", dry_run=True)
+        self.deploy_manager._deploy_to_local_catalog(deploy_path="None", dry_run=True, force_deploy=False)
 
         # assert
         _deploy_routine_in_local_src.assert_called_once_with("None")
