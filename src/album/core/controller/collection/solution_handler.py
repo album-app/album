@@ -23,7 +23,7 @@ class SolutionHandler:
     def add_or_replace(self, catalog: Catalog, active_solution: Solution, path):
         deploy_dict = active_solution.get_deploy_dict()
         self.catalog_collection.add_or_replace_solution(
-            catalog.catalog_id, active_solution.coordinates, deploy_dict, self.get_solution_keys()
+            catalog.catalog_id, active_solution.coordinates, deploy_dict
         )
 
         # get the install location
@@ -58,8 +58,8 @@ class SolutionHandler:
             self.catalog_collection.add_or_replace_solution(
                 catalog.catalog_id,
                 change.coordinates,
-                catalog.catalog_index.get_solution_by_coordinates(change.coordinates),
-                self.get_solution_keys())
+                catalog.catalog_index.get_solution_by_coordinates(change.coordinates)
+            )
 
         elif change.change_type is ChangeType.REMOVED:
             self.remove_solution(catalog, change.coordinates)
@@ -69,8 +69,8 @@ class SolutionHandler:
             self.catalog_collection.add_or_replace_solution(
                 catalog.catalog_id,
                 change.coordinates,
-                catalog.catalog_index.get_solution_by_coordinates(change.coordinates),
-                self.get_solution_keys())
+                catalog.catalog_index.get_solution_by_coordinates(change.coordinates)
+            )
 
     def set_installed(self, catalog, coordinates: Coordinates):
         self.update_solution(catalog, coordinates, {"installed": 1})

@@ -169,6 +169,7 @@ class CollectionIndex(Database):
         )
 
         for author in solution_attrs["authors"]:
+            # fixme: what if author already in DB?
             author_id = self._insert_author(author, catalog_id)
             collection_solution_author_id = self.next_id("collection_solution_author")
             self.get_cursor().execute(
@@ -182,6 +183,7 @@ class CollectionIndex(Database):
             )
 
         for tag in solution_attrs["tags"]:
+            # fixme: what if author already in DB?
             tag_id = self._insert_tag(tag, catalog_id)
             collection_solution_tag_id = self.next_id("collection_solution_tag")
             self.get_cursor().execute(
@@ -195,6 +197,7 @@ class CollectionIndex(Database):
             )
 
         for citation in solution_attrs["cite"]:
+            # fixme: what if author already in DB?
             citation_id = self._insert_citation(citation, catalog_id)
             collection_solution_citation_id = self.next_id("collection_solution_citation")
             self.get_cursor().execute(
@@ -208,6 +211,7 @@ class CollectionIndex(Database):
             )
 
         for argument in solution_attrs["args"]:
+            # fixme: what if author already in DB?
             argument_id = self._insert_argument(argument, catalog_id)
             collection_solution_argument_id = self.next_id("collection_solution_argument")
             self.get_cursor().execute(
@@ -358,7 +362,8 @@ class CollectionIndex(Database):
         res = []
         for row in r:
             argument = {"name": row["name"], "type": row["type"], "description": row["description"]}
-            if row["default_value"]: argument["default_value"] = row["default_value"]
+            if row["default_value"]:
+                argument["default_value"] = row["default_value"]
             res.append(argument)
         return res
 
@@ -392,7 +397,8 @@ class CollectionIndex(Database):
         res = []
         for row in r:
             citation = {"text": row["text"]}
-            if row["doi"]: citation["doi"] = row["doi"]
+            if row["doi"]:
+                citation["doi"] = row["doi"]
             res.append(citation)
         return res
 
@@ -507,7 +513,9 @@ class CollectionIndex(Database):
     def get_recently_launched_solutions(self):
         solutions_list = []
         cursor = self.get_cursor()
-        for row in cursor.execute("SELECT * FROM collection WHERE last_execution IS NOT NULL ORDER BY last_execution").fetchall():
+        for row in cursor.execute(
+                "SELECT * FROM collection WHERE last_execution IS NOT NULL ORDER BY last_execution"
+        ).fetchall():
             solution = dict(row)
             self._append_metadata_to_solution(solution)
             solutions_list.append(solution)
@@ -538,7 +546,7 @@ class CollectionIndex(Database):
 
         self.get_connection().commit()
 
-    def add_or_replace_solution(self, catalog_id, coordinates: Coordinates, solution_attrs, supported_attrs):
+    def add_or_replace_solution(self, catalog_id, coordinates: Coordinates, solution_attrs):
         solution = self.get_solution_by_catalog_grp_name_version(catalog_id, coordinates)
         if solution:
             self.remove_solution(catalog_id, coordinates)
@@ -617,17 +625,17 @@ class CollectionIndex(Database):
 
         self.get_connection().commit()
 
-    def insert_collection_tag(self, catalog_id, tag_id, tag_name, assignment_type, hash_val):
-        if self.get_collection_tag_by_catalog_id_and_tag_id(catalog_id, tag_id, tag_name, assignment_type):
+    def insert_collection_tag(self, catalog_id, tag_name, assignment_type):
+        if self.get_collection_tag_by_catalog_id_and_tag_id(catalog_id, tag_name, assignment_type):
             return None
 
         collection_tag_id = self.next_id("collection_tag")
         self.get_cursor().execute(
-            "INSERT INTO collection_tag values (?, ?, ?, ?, ?, ?)",
-            (collection_tag_id, tag_id, catalog_id, tag_name, assignment_type, hash_val)
+            "INSERT INTO collection_tag values (?, ?, ?, ?)",
+            (collection_tag_id, catalog_id, tag_name, assignment_type)
         )
 
-        return tag_id
+        return collection_tag_id
 
     # ### collection_tag ###
 
@@ -653,29 +661,13 @@ class CollectionIndex(Database):
 
         return r
 
-    def get_collection_tag_by_catalog_id_and_hash(self, catalog_id, tag_hash):
+    def get_collection_tag_by_catalog_id_and_tag_id(self, catalog_id, tag_name, assignment_type):
         r = self.get_cursor().execute(
             "SELECT * FROM collection_tag "
-            "WHERE catalog_id=:catalog_id AND hash=:tag_hash ",
-            {
-                "catalog_id": catalog_id,
-                "tag_id": tag_hash,
-            }
-        ).fetchone()
-
-        if r:
-            return dict(r)
-
-        return None
-
-    def get_collection_tag_by_catalog_id_and_tag_id(self, catalog_id, tag_id, tag_name, assignment_type):
-        r = self.get_cursor().execute(
-            "SELECT * FROM collection_tag "
-            "WHERE catalog_id=:catalog_id AND tag_id=:tag_id "
+            "WHERE catalog_id=:catalog_id "
             "AND name=:tag_name AND assignment_type=:assignment_type",
             {
                 "catalog_id": catalog_id,
-                "tag_id": tag_id,
                 "tag_name": tag_name,
                 "assignment_type": assignment_type
             }
@@ -703,34 +695,19 @@ class CollectionIndex(Database):
 
     # ### collection_solution_tag ###
 
-    def get_collection_solution_tags_by_catalog_id_and_solution_id(self, catalog_id, solution_id):
+    def get_collection_solution_tags_by_catalog_id_and_solution_id(self, catalog_id, collection_id):
         tag_ids = []
         r = self.get_cursor().execute(
-            "SELECT * FROM collection_solution_tag WHERE catalog_id=:catalog_id AND solution_id=:solution_id",
+            "SELECT * FROM collection_solution_tag WHERE catalog_id=:catalog_id AND collection_id=:collection_id",
             {
                 "catalog_id": catalog_id,
-                "solution_id": solution_id,
+                "collection_id": collection_id,
             }).fetchall()
 
         for row in r:
             tag_ids.append(row["tag_id"])
 
         return tag_ids
-
-    def get_collection_solution_tag_by_catalog_id_and_hash(self, catalog_id, hash_value):
-        r = self.get_cursor().execute(
-            "SELECT * FROM collection_solution_tag "
-            "WHERE catalog_id=:catalog_id AND hash=:hash_value",
-            {
-                "catalog_id": catalog_id,
-                "hash_value": hash_value
-            }
-        ).fetchone()
-
-        if r:
-            return dict(r)
-
-        return None
 
     def get_collection_solution_tags_by_catalog_id(self, catalog_id):
         solution_tag_list = []
@@ -744,14 +721,16 @@ class CollectionIndex(Database):
             solution_tag_list.append(dict(row))
         return solution_tag_list
 
-    def get_collection_solution_tag_by_catalog_id_and_solution_id_and_tag_id(self, catalog_id, solution_id, tag_id):
+    def get_collection_solution_tag_by_catalog_id_and_solution_id_and_tag_id(
+            self, catalog_id, collection_id, collection_tag_id
+    ):
         r = self.get_cursor().execute(
             "SELECT * FROM collection_solution_tag "
-            "WHERE catalog_id=:catalog_id AND solution_id=:solution_id AND tag_id=:tag_id",
+            "WHERE catalog_id=:catalog_id AND collection_id=:collection_id AND collection_tag_id=:collection_tag_id",
             {
                 "catalog_id": catalog_id,
-                "solution_id": solution_id,
-                "tag_id": tag_id
+                "collection_id": collection_id,
+                "collection_tag_id": collection_tag_id
             }
         ).fetchone()
 
