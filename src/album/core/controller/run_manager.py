@@ -66,25 +66,25 @@ class RunManager(metaclass=Singleton):
 
         resolve_result = self.collection_manager.resolve_require_installation_and_load(path)
 
-        resolve_result.active_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
-        if not resolve_result.active_solution.parent:
-            resolve_result.active_solution.set_environment(resolve_result.catalog.name)
+        resolve_result.loaded_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
+        if not resolve_result.loaded_solution.parent:
+            resolve_result.loaded_solution.set_environment(resolve_result.catalog.name)
 
         if not resolve_result.catalog:
-            module_logger().debug('album loaded locally: %s...' % str(resolve_result.active_solution))
+            module_logger().debug('album loaded locally: %s...' % str(resolve_result.loaded_solution))
         else:
-            module_logger().debug('album loaded from catalog: \"%s\"...' % str(resolve_result.active_solution))
+            module_logger().debug('album loaded from catalog: \"%s\"...' % str(resolve_result.loaded_solution))
 
-        self._run(resolve_result.active_solution, run_immediately, argv)
+        self._run(resolve_result.loaded_solution, run_immediately, argv)
 
     def run_from_catalog_coordinates(self, catalog_name: str, coordinates: Coordinates, run_immediately=False, argv=None):
         catalog = self.collection_manager.catalogs().get_by_name(catalog_name)
         resolve_result = self.collection_manager.resolve_download_and_load_catalog_coordinates(catalog, coordinates)
-        self._run(resolve_result.active_solution, run_immediately, argv)
+        self._run(resolve_result.loaded_solution, run_immediately, argv)
 
     def run_from_coordinates(self, coordinates: Coordinates, run_immediately=False, argv=None):
         resolve_result = self.collection_manager.resolve_download_and_load_coordinates(coordinates)
-        self._run(resolve_result.active_solution, run_immediately, argv)
+        self._run(resolve_result.loaded_solution, run_immediately, argv)
 
     def _run(self, active_solution, run_immediately=False, argv=None):
         """Run an already loaded solution which consists of multiple steps (= other solution)."""
@@ -188,7 +188,7 @@ class RunManager(metaclass=Singleton):
         for step in steps:
             module_logger().debug('resolving step \"%s\"...' % step["name"])
             resolve_result = self.collection_manager.resolve_dependency_require_installation_and_load(step)
-            active_solution = resolve_result.active_solution
+            active_solution = resolve_result.loaded_solution
 
             if active_solution.parent:  # collect steps as long as they have the same parent
                 current_parent_script_resolve = self.collection_manager.resolve_dependency_require_installation(
@@ -295,12 +295,12 @@ class RunManager(metaclass=Singleton):
         module_logger().debug('Creating album script with parent \"%s\"...' % active_solution.parent["name"])
         parent_solution_resolve = self.collection_manager.resolve_dependency_require_installation_and_load(
             active_solution.parent)
-        parent_solution_resolve.active_solution.set_cache_paths(parent_solution_resolve.catalog.name)
-        parent_solution_resolve.active_solution.set_environment(parent_solution_resolve.catalog.name)
+        parent_solution_resolve.loaded_solution.set_cache_paths(parent_solution_resolve.catalog.name)
+        parent_solution_resolve.loaded_solution.set_environment(parent_solution_resolve.catalog.name)
 
         # handle arguments
         parent_args, active_solution_args = self.resolve_args(
-            parent_solution=parent_solution_resolve.active_solution,
+            parent_solution=parent_solution_resolve.loaded_solution,
             steps_solution=[active_solution],
             steps=[None],
             step_solution_parsed_args=[None],
@@ -309,10 +309,10 @@ class RunManager(metaclass=Singleton):
 
         # create script
         scripts = self.create_solution_run_with_parent_script(
-            parent_solution_resolve.active_solution, parent_args, [active_solution], active_solution_args
+            parent_solution_resolve.loaded_solution, parent_args, [active_solution], active_solution_args
         )
 
-        return [parent_solution_resolve.active_solution, scripts]
+        return [parent_solution_resolve.loaded_solution, scripts]
 
     def create_solution_run_collection_script(self, solution_collection: SolutionCollection):
         """Creates the execution script for a collection of hip solutions all having the same parent dependency.

@@ -28,7 +28,9 @@ class TestInstallManager(TestUnitCommon):
         resolve_and_load = MagicMock(
             return_value=ResolveResult(path=Path("aPath"),
                                        catalog=self.collection_manager.catalogs().get_local_catalog(),
-                                       active_solution=self.active_solution)
+                                       loaded_solution=self.active_solution,
+                                       solution_attrs=None,
+                                       coordinates=solution_to_coordinates(self.active_solution))
         )
         self.collection_manager.resolve_download_and_load = resolve_and_load
 
@@ -190,7 +192,14 @@ class TestInstallManager(TestUnitCommon):
 
     def test_install_dependency_with_catalog(self):
         # mocks
-        resolve_dependency = MagicMock(return_value=ResolveResult(path="aPath", catalog=self.collection_manager.catalogs().get_local_catalog()))
+        resolve_dependency = MagicMock(
+            return_value=ResolveResult(
+                path="aPath",
+                catalog=self.collection_manager.catalogs().get_local_catalog(),
+                solution_attrs=None,
+                coordinates=None,
+            )
+        )
         self.install_manager.collection_manager.resolve_dependency = resolve_dependency
 
         install = MagicMock(return_value=None)
@@ -209,7 +218,9 @@ class TestInstallManager(TestUnitCommon):
 
     def test_install_dependency_without_catalog(self):
         # mocks
-        resolve_dependency = MagicMock(return_value=ResolveResult(path="aPath", catalog=None))
+        resolve_dependency = MagicMock(
+            return_value=ResolveResult(path="aPath", catalog=None, coordinates=None, solution_attrs=None)
+        )
         self.install_manager.collection_manager.resolve_dependency = resolve_dependency
 
         install_from_coordinates = MagicMock(return_value=None)

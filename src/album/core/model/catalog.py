@@ -107,6 +107,10 @@ class Catalog:
         # initialize the index
         self.index_path = self.path.joinpath(DefaultValues.catalog_index_file_name.value)
 
+    def __eq__(self, other):
+        return isinstance(other, Catalog) and \
+            other.catalog_id == self.catalog_id
+
     def is_cache(self):
         """Returns Boolean indicating whether the catalog is used for caching only."""
         return self.is_local() and self.path.exists() and os.path.samefile(self.src, self.path)

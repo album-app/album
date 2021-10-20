@@ -38,10 +38,10 @@ class InstallManager(metaclass=Singleton):
         if not catalog:
             raise RuntimeError("solution cannot be installed without being associated with a catalog")
         else:
-            resolve_result.active_solution.set_cache_paths(catalog.name)
-            resolve_result.active_solution.set_environment(catalog.name)
+            resolve_result.loaded_solution.set_cache_paths(catalog.name)
+            resolve_result.loaded_solution.set_environment(catalog.name)
             module_logger().debug('solution loaded from catalog \"%s\": %s...' % (catalog.catalog_id, str(
-                resolve_result.active_solution)))
+                resolve_result.loaded_solution)))
 
         # execute installation routine
         self._install_resolve_result(resolve_result, argv, cleanup)
@@ -59,13 +59,13 @@ class InstallManager(metaclass=Singleton):
         self._install_resolve_result(resolve_result, argv, cleanup=cleanup)
         return resolve_result
 
-    def _install_resolve_result(self, resolve_result, argv, cleanup=True):
-        if not resolve_result.active_solution.parent:
-            resolve_result.active_solution.set_cache_paths(resolve_result.catalog.name)
-            resolve_result.active_solution.set_environment(resolve_result.catalog.name)
-        parent_resolve_result = self._install(resolve_result.active_solution, argv)
+    def _install_resolve_result(self, resolve_result: ResolveResult, argv, cleanup=True):
+        if not resolve_result.loaded_solution.parent:
+            resolve_result.loaded_solution.set_cache_paths(resolve_result.catalog.name)
+            resolve_result.loaded_solution.set_environment(resolve_result.catalog.name)
+        parent_resolve_result = self._install(resolve_result.loaded_solution, argv)
         if not resolve_result.catalog or resolve_result.catalog.is_cache():  # case where a solution file is directly given
-            self.collection_manager.add_solution_to_local_catalog(resolve_result.active_solution,
+            self.collection_manager.add_solution_to_local_catalog(resolve_result.loaded_solution,
                                                                   resolve_result.path.parent)
             if cleanup:
                 clean_resolve_tmp(self.collection_manager.tmp_cache_dir)
@@ -74,9 +74,9 @@ class InstallManager(metaclass=Singleton):
             if parent_resolve_result:
                 parent_catalog_id = parent_resolve_result.catalog.catalog_id
             self.update_in_collection_index(resolve_result.catalog.catalog_id, parent_catalog_id,
-                                            resolve_result.active_solution)
-        self.collection_manager.solutions().set_installed(resolve_result.catalog, resolve_result.active_solution.coordinates)
-        module_logger().info('Installed \"%s\"!' % resolve_result.active_solution['name'])
+                                            resolve_result.loaded_solution)
+        self.collection_manager.solutions().set_installed(resolve_result.catalog, resolve_result.loaded_solution.coordinates)
+        module_logger().info('Installed \"%s\"!' % resolve_result.loaded_solution['name'])
 
     def update_in_collection_index(self, catalog_id, parent_catalog_id, active_solution: Solution):
         parent_id = None
@@ -105,8 +105,8 @@ class InstallManager(metaclass=Singleton):
         parent_resolve_result = self.install_dependencies(active_solution)
 
         if active_solution.parent:
-            parent_resolve_result.active_solution.environment.install(parent_resolve_result.active_solution.min_album_version)
-            active_solution.environment = parent_resolve_result.active_solution.environment
+            parent_resolve_result.loaded_solution.environment.install(parent_resolve_result.loaded_solution.min_album_version)
+            active_solution.environment = parent_resolve_result.loaded_solution.environment
         else:
             active_solution.environment.install(active_solution.min_album_version)
 
@@ -177,20 +177,20 @@ class InstallManager(metaclass=Singleton):
         resolve_result = self.collection_manager.resolve_require_installation_and_load(path)
 
         if rm_dep:
-            self.remove_dependencies(resolve_result.active_solution)
+            self.remove_dependencies(resolve_result.loaded_solution)
 
-        if not resolve_result.active_solution.parent:
-            resolve_result.active_solution.set_environment(resolve_result.catalog.name)
-            resolve_result.active_solution.environment.remove()
-        resolve_result.active_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
+        if not resolve_result.loaded_solution.parent:
+            resolve_result.loaded_solution.set_environment(resolve_result.catalog.name)
+            resolve_result.loaded_solution.environment.remove()
+        resolve_result.loaded_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
 
-        self.remove_disc_content(resolve_result.active_solution)
+        self.remove_disc_content(resolve_result.loaded_solution)
 
-        self.collection_manager.solutions().set_uninstalled(resolve_result.catalog, resolve_result.active_solution.coordinates)
+        self.collection_manager.solutions().set_uninstalled(resolve_result.catalog, resolve_result.loaded_solution.coordinates)
 
         pop_active_solution()
 
-        module_logger().info("Uninstalled \"%s\"!" % resolve_result.active_solution['name'])
+        module_logger().info("Uninstalled \"%s\"!" % resolve_result.loaded_solution['name'])
 
     @staticmethod
     def remove_disc_content(solution):

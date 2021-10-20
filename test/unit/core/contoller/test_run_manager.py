@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from album.core.controller.run_manager import RunManager, SolutionCollection
 from album.core.model.resolve_result import ResolveResult
+from album.core.utils.operations.resolve_operations import solution_to_coordinates
 from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
 
 
@@ -27,7 +28,14 @@ class TestRunManager(TestUnitCommon):
         catalog = self.collection_manager.catalogs().get_local_catalog()
 
         resolve_installed_and_load = MagicMock(
-            return_value=ResolveResult(path="aPath", catalog=catalog, active_solution=self.active_solution))
+            return_value=ResolveResult(
+                path="aPath",
+                catalog=catalog,
+                loaded_solution=self.active_solution,
+                solution_attrs=None,
+                coordinates=solution_to_coordinates(self.active_solution)
+            )
+        )
         self.run_manager.collection_manager.resolve_require_installation_and_load = resolve_installed_and_load
 
         with open(self.closed_tmp_file.name, mode="w") as f:
@@ -36,7 +44,14 @@ class TestRunManager(TestUnitCommon):
         _run = MagicMock(return_value=None)
         self.run_manager._run = _run
 
-        _resolve_installed = MagicMock(return_value=ResolveResult(path=Path(self.closed_tmp_file.name), catalog=catalog))
+        _resolve_installed = MagicMock(
+            return_value=ResolveResult(
+                path=Path(self.closed_tmp_file.name),
+                catalog=catalog,
+                solution_attrs=None,
+                coordinates=None
+            )
+        )
 
         self.run_manager.collection_manager._resolve_installed = _resolve_installed
 
@@ -155,7 +170,14 @@ class TestRunManager(TestUnitCommon):
         # mock
         catalog = self.collection_manager.catalogs().get_local_catalog()
         resolve_dependency_and_load = MagicMock(
-            return_value=ResolveResult(path="aPath", catalog=catalog, active_solution=self.active_solution))
+            return_value=ResolveResult(
+                path="aPath",
+                catalog=catalog,
+                loaded_solution=self.active_solution,
+                solution_attrs=None,
+                coordinates=solution_to_coordinates(self.active_solution)
+            )
+        )
         self.run_manager.collection_manager.resolve_dependency_require_installation_and_load = resolve_dependency_and_load
 
         create_solution_run_collection_script = MagicMock(return_value="runScriptCollection")
@@ -202,11 +224,25 @@ class TestRunManager(TestUnitCommon):
         catalog.id = "niceId"
 
         resolve_dependency_and_load = MagicMock(
-            return_value=ResolveResult(path="aPathChild", catalog=catalog, active_solution=self.active_solution))
+            return_value=ResolveResult(
+                path="aPathChild",
+                catalog=catalog,
+                loaded_solution=self.active_solution,
+                coordinates=solution_to_coordinates(self.active_solution),
+                solution_attrs=None
+            )
+        )
         self.run_manager.collection_manager.resolve_dependency_require_installation_and_load = resolve_dependency_and_load
 
         resolve_dependency = MagicMock(
-            return_value=ResolveResult(path="aPathParent", catalog=catalog, active_solution=self.active_solution))
+            return_value=ResolveResult(
+                path="aPathParent",
+                catalog=catalog,
+                loaded_solution=self.active_solution,
+                coordinates=solution_to_coordinates(self.active_solution),
+                solution_attrs=None
+            )
+        )
         self.run_manager.collection_manager.resolve_dependency_require_installation = resolve_dependency
 
         create_solution_run_collection_script = MagicMock(return_value="runScriptCollection")
@@ -256,7 +292,14 @@ class TestRunManager(TestUnitCommon):
         catalog = self.collection_manager.catalogs().get_local_catalog()
 
         resolve_dependency_and_load = MagicMock(
-            return_value=ResolveResult(path="aPath", catalog=catalog, active_solution=self.active_solution))
+            return_value=ResolveResult(
+                path="aPath",
+                catalog=catalog,
+                loaded_solution=self.active_solution,
+                solution_attrs=None,
+                coordinates=solution_to_coordinates(self.active_solution)
+            )
+        )
         self.run_manager.collection_manager.resolve_dependency_require_installation_and_load = resolve_dependency_and_load
 
         create_solution_run_collection_script = MagicMock(return_value="runScriptCollection")
@@ -318,7 +361,14 @@ class TestRunManager(TestUnitCommon):
         # mock
         catalog = self.collection_manager.catalogs().get_local_catalog()
         resolve_dependency_and_load = MagicMock(
-            return_value=ResolveResult(path="aPath", catalog=catalog, active_solution=self.active_solution))
+            return_value=ResolveResult(
+                path="aPath",
+                catalog=catalog,
+                loaded_solution=self.active_solution,
+                solution_attrs=None,
+                coordinates=solution_to_coordinates(self.active_solution)
+            )
+        )
         self.run_manager.collection_manager.resolve_dependency_require_installation_and_load = resolve_dependency_and_load
 
         create_solution_run_with_parent_scrip = MagicMock(return_value="aScript")

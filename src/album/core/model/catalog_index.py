@@ -434,6 +434,8 @@ class CatalogIndex(Database):
          Updates exiting nodes if node already present in tree.
 
         Args:
+            coordinates:
+                The coordinates of the solution.
             solution_attrs:
                 The solution attributes. Must hold group, name, version.
 

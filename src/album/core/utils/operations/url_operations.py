@@ -52,6 +52,15 @@ def _request_get(url):
     return r
 
 
+def retrieve_redirect_url(url):
+    r = requests.get(url, allow_redirects=True, stream=False)
+
+    if r.status_code != ResponseStatus.OK.value:
+        raise ConnectionError("Could not connect to resource %s!" % url)
+
+    return r.url
+
+
 def is_url(str_input: str):
     """Parses a url."""
     url_regex = re.compile(
