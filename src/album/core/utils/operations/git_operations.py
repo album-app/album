@@ -3,6 +3,7 @@ import re
 from pathlib import Path
 
 import git
+from git import Repo
 
 from album.core.utils.operations.file_operations import force_remove
 from album.runner import logging
@@ -202,7 +203,7 @@ def create_new_head(repo, name):
     return new_head
 
 
-def download_repository(repo_url, git_folder_path, force_download=True, update=True):
+def download_repository(repo_url, git_folder_path, force_download=True, update=True) -> Repo:
     """Downloads or updates the repository behind a url, returns repository object on success.
 
     If repository already cached, head is detached to origin HEAD for a clean start for new branches.

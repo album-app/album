@@ -1,5 +1,8 @@
 import sys
 import unittest
+from unittest.mock import patch
+
+from album.core.controller.conda_manager import CondaManager
 
 from album.argument_parsing import main
 from album.core import get_active_solution
@@ -13,8 +16,7 @@ class TestIntegrationTest(TestIntegrationCommon):
         super().tearDown()
 
     def test_test_no_test_routine(self):
-
-        self.fake_install(self.get_test_solution_path("solution0_dummy_no_routines.py"))
+        self.fake_install(self.get_test_solution_path("solution0_dummy_no_routines.py"), create_environment=False)
 
         # this solution has the no test() configured
         sys.argv = ["", "test", self.get_test_solution_path("solution0_dummy_no_routines.py")]
@@ -32,13 +34,11 @@ class TestIntegrationTest(TestIntegrationCommon):
         with self.assertRaises(LookupError):
             self.assertIsNone(main())
 
-    def test_test(self):
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    def test_test(self, get_environment_path):
+        get_environment_path.return_value = CondaManager().get_active_environment_path()
 
-        # create solution6_noparent_test environment
-        env_name = self.collection_manager.catalogs().get_local_catalog().name + "_group_solution6_noparent_test_0.1.0"
-        Environment(None, env_name, "unusedCachePath").install()
-
-        self.fake_install(self.get_test_solution_path("solution6_noparent_test.py"))
+        self.fake_install(self.get_test_solution_path("solution6_noparent_test.py"), create_environment=False)
 
         # set up arguments
         sys.argv = ["", "test", self.get_test_solution_path("solution6_noparent_test.py")]

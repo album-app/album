@@ -19,11 +19,12 @@ module_logger = logging.get_active_logger
 # NOTE: Calling Singleton classes gives back the already initialized instances only!
 
 
-def add_catalog(args):
-    CollectionManager().catalogs().add_by_src(args.src)
+def add_catalog(args) -> None:
+    catalog = CollectionManager().catalogs().add_by_src(args.src)
+    catalog.dispose()
 
 
-def remove_catalog(args):
+def remove_catalog(args) -> None:
     CollectionManager().catalogs().remove_from_collection_by_src(args.src)
 
 

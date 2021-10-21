@@ -17,7 +17,7 @@ class MigrationManager(metaclass=Singleton):
     def __init__(self):
         pass
 
-    def create_collection_index(self, path, initial_name, initial_version):
+    def create_collection_index(self, path, initial_name, initial_version) -> CollectionIndex:
         """Creates a Collection Index and migrates its database to the target version."""
         collection_index = CollectionIndex(initial_name, path)
         self.migrate_catalog_collection_db(
@@ -27,7 +27,7 @@ class MigrationManager(metaclass=Singleton):
         )
         return collection_index
 
-    def create_catalog_index(self, path, initial_name, initial_version):
+    def create_catalog_index(self, path, initial_name, initial_version) -> CatalogIndex:
         catalog_index = CatalogIndex(initial_name, path)
         self.migrate_catalog_index_db(
             catalog_index.path,
@@ -57,12 +57,16 @@ class MigrationManager(metaclass=Singleton):
     def load_index(self, catalog: Catalog):
         """Loads the index from file or src. If a file and src exists routine tries to update the index."""
         catalog.update_index_cache()
+        if catalog.catalog_index is not None:
+            catalog.catalog_index.close()
         catalog.catalog_index = self.create_catalog_index(catalog.index_path, catalog.name, CatalogIndex.version)
         catalog.version = catalog.get_version()
 
     def refresh_index(self, catalog: Catalog) -> bool:
         """Routine to refresh the catalog index. Downloads or copies the index_file."""
         if catalog.update_index_cache_if_possible():
+            if catalog.catalog_index:
+                catalog.catalog_index.close()
             catalog.catalog_index = self.create_catalog_index(catalog.index_path, catalog.name, CatalogIndex.version)
             return True
         return False

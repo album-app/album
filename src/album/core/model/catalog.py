@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import Optional
 
 import validators
+from git import Repo
+
 from album.core.model.catalog_index import CatalogIndex
 
 from album.core.model.configuration import Configuration
@@ -110,6 +112,13 @@ class Catalog:
     def __eq__(self, other):
         return isinstance(other, Catalog) and \
             other.catalog_id == self.catalog_id
+
+    def __del__(self):
+        self.dispose()
+
+    def dispose(self):
+        if self.catalog_index is not None:
+            self.catalog_index.close()
 
     def is_cache(self):
         """Returns Boolean indicating whether the catalog is used for caching only."""
@@ -393,7 +402,7 @@ class Catalog:
             pass
         download_resource(meta_src, self._meta_path)
 
-    def retrieve_catalog(self, path=None, force_retrieve=False, update=True):
+    def retrieve_catalog(self, path=None, force_retrieve=False, update=True) -> Optional[Repo]:
         """Downloads or copies the whole catalog from its source. Used for deployment.
 
         Args:

@@ -1,5 +1,7 @@
 from typing import Optional
 
+from album.core.controller.conda_manager import CondaManager
+
 from album.core import Solution
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
@@ -27,6 +29,7 @@ class InstallManager(metaclass=Singleton):
 
     def __init__(self):
         self.collection_manager = CollectionManager()
+        self.conda_manager = CondaManager()
         self.configuration = self.collection_manager.configuration
 
     def install(self, path_or_id, argv=None, cleanup=True) -> ResolveResult:
@@ -39,7 +42,6 @@ class InstallManager(metaclass=Singleton):
             raise RuntimeError("solution cannot be installed without being associated with a catalog")
         else:
             resolve_result.loaded_solution.set_cache_paths(catalog.name)
-            resolve_result.loaded_solution.set_environment(catalog.name)
             module_logger().debug('solution loaded from catalog \"%s\": %s...' % (catalog.catalog_id, str(
                 resolve_result.loaded_solution)))
 
@@ -68,7 +70,7 @@ class InstallManager(metaclass=Singleton):
             self.collection_manager.add_solution_to_local_catalog(resolve_result.loaded_solution,
                                                                   resolve_result.path.parent)
             if cleanup:
-                clean_resolve_tmp(self.collection_manager.tmp_cache_dir)
+                clean_resolve_tmp(self.configuration.cache_path_tmp)
         else:
             parent_catalog_id = None
             if parent_resolve_result:
@@ -105,26 +107,29 @@ class InstallManager(metaclass=Singleton):
         parent_resolve_result = self.install_dependencies(active_solution)
 
         if active_solution.parent:
-            parent_resolve_result.loaded_solution.environment.install(parent_resolve_result.loaded_solution.min_album_version)
+            self.conda_manager.install(parent_resolve_result.loaded_solution.environment, parent_resolve_result.loaded_solution.min_album_version)
             active_solution.environment = parent_resolve_result.loaded_solution.environment
         else:
-            active_solution.environment.install(active_solution.min_album_version)
+            self.conda_manager.install(active_solution.environment, active_solution.min_album_version)
 
+        self.run_solution_install_routine(active_solution, argv)
+
+        return parent_resolve_result
+
+    def run_solution_install_routine(self, active_solution, argv):
         """Run install routine of album if specified"""
         if active_solution['install'] and callable(active_solution['install']):
             module_logger().debug('Creating install script...')
             script = create_solution_script(active_solution, "\nget_active_solution().install()\n", argv)
             module_logger().debug('Calling install routine specified in solution...')
             logging.configure_logging(active_solution['name'])
-            active_solution.environment.run_scripts([script])
+            self.conda_manager.run_scripts(active_solution.environment, [script])
             logging.pop_active_logger()
         else:
             module_logger().info(
                 'No \"install\" routine configured for solution \"%s\"! Will execute nothing! Installation complete!' %
                 active_solution['name']
             )
-
-        return parent_resolve_result
 
     # TODO rename install_parent
     def install_dependencies(self, active_solution) -> Optional[ResolveResult]:
@@ -179,9 +184,10 @@ class InstallManager(metaclass=Singleton):
         if rm_dep:
             self.remove_dependencies(resolve_result.loaded_solution)
 
+
         if not resolve_result.loaded_solution.parent:
             resolve_result.loaded_solution.set_environment(resolve_result.catalog.name)
-            resolve_result.loaded_solution.environment.remove()
+            self.conda_manager.remove_environment(resolve_result.loaded_solution.environment.name)
         resolve_result.loaded_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
 
         self.remove_disc_content(resolve_result.loaded_solution)

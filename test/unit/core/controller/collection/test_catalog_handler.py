@@ -11,7 +11,7 @@ from album.core.model.catalog_updates import CatalogUpdates, SolutionChange, Cha
 from album.core.model.configuration import Configuration
 from album.core.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
-from test.unit.core.contoller.collection.test_collection_manager import TestCatalogCollectionCommon
+from test.unit.core.controller.collection.test_collection_manager import TestCatalogCollectionCommon
 
 
 class TestCatalogHandler(TestCatalogCollectionCommon):
@@ -22,8 +22,6 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.solution_handler = SolutionHandler(self.catalog_collection)
         self.catalog_handler = CatalogHandler(Configuration(), self.catalog_collection, self.solution_handler)
 
-    def tearDown(self) -> None:
-        super().tearDown()
 
     def test_create_local_catalog(self):
         # mocks
@@ -57,7 +55,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             config.writelines("{\"name\": \"" + catalog_name + "\", \"version\": \"0.1.0\"}")
 
         # call
-        self.catalog_handler.add_by_src(catalog_src)
+        catalog = self.catalog_handler.add_by_src(catalog_src)
 
         # assert
         expected_list = deepcopy(self.catalog_list)
@@ -70,6 +68,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             "src": str(catalog_src),
         })
         self.assertEqual(expected_list, self.catalog_collection.get_all_catalogs())
+        catalog.dispose()
 
     def test__add_to_index(self):
         # prepare

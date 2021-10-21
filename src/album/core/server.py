@@ -217,8 +217,9 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route('/add-catalog')
         def add_catalog():
             url = request.args.get("src")
-            name = request.args.get("name")
-            catalog_id = CollectionManager().catalogs().add_by_src(url).catalog_id
+            catalog = CollectionManager().catalogs().add_by_src(url)
+            catalog_id = catalog.catalog_id
+            catalog.dispose()
             return {"catalog_id": catalog_id}
 
         @self.app.route('/remove-catalog')

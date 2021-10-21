@@ -46,7 +46,7 @@ class CatalogHandler:
         """
         initial_catalogs = self.configuration.get_initial_catalogs()
         for catalog in initial_catalogs.keys():
-            self.add_by_src(initial_catalogs[catalog])
+            self.add_by_src(initial_catalogs[catalog]).dispose()
 
     def add_by_src(self, identifier) -> Catalog:
         """ Adds a catalog. Creates them from their src. (Git, network-drive, folder outside cache, etc.)"""

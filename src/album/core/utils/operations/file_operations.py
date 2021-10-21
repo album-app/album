@@ -1,18 +1,17 @@
+import errno
 import json
 import os
 import random
 import re
 import shutil
+import stat
 import sys
 import tempfile
-import time
 from pathlib import Path
-from stat import *
 from zipfile import ZipFile
 
 import yaml
 
-from album.core.utils.subcommand import run
 from album.runner import logging
 
 module_logger = logging.get_active_logger
@@ -245,61 +244,26 @@ def unzip_archive(zip_archive_file, target_folder=None):
 
 
 def force_remove(path, warning=True):
-    global brute_force
-    brute_force = False
-
-    def handle_error(f, p_file, __):
-        if sys.platform == 'win32' or sys.platform == 'cygwin':
-            global brute_force
-            brute_force = True
-        else:
-            os.chmod(path, S_IWRITE | S_IREAD | S_IEXEC)
-            for root, dirs, files in os.walk(path):
-                root = Path(root)
-                for d in dirs:
-                    os.chmod(root.joinpath(d), S_IWRITE | S_IREAD | S_IEXEC)
-                for fi in files:
-                    os.chmod(root.joinpath(fi), S_IWRITE | S_IREAD | S_IEXEC)
-            f(p_file)  # call the calling function again on the failing file
-
     path = Path(path)
     if path.exists():
         try:
-            shutil.rmtree(path, onerror=handle_error)
-        except FileNotFoundError as e:
-            module_logger().warning("Could not remove %s! Reason: %s" % (str(path), e.strerror))
+            shutil.rmtree(path, ignore_errors=False, onerror=handle_remove_readonly)
         except PermissionError as e:
-            module_logger().warning("Could not remove %s! Reason: %s" % (str(path), e.strerror))
-        finally:
-            if brute_force:  # windows only
-                module_logger().debug("Trying brute force removal...")
-                cmd = ['cmd.exe', '/C', 'del', '/f', '/s', '/q', '%s' % str(path)]
-                try:
-                    run(cmd, timeout1=60, timeout2=6000)
+            module_logger().warn("Cannot delete %s." % str(path))
+            if not warning:
+                raise e
 
-                    try:
-                        i = 0
-                        while path.exists() and i < 10:
-                            module_logger().warning("Path still exists! waiting...")
-                            i += 1
-                            time.sleep(1)
-                        if i == 10:
-                            raise TimeoutError("Cannot remove folder!")
-                    except PermissionError as e:
-                        if not warning:
-                            raise e
-                except RuntimeError as e:
-                    module_logger().warning("Could not remove %s with brute force!" % str(path))
-                    if not warning:
-                        raise e
-                except TimeoutError as e:
-                    module_logger().warning("Could not remove %s with brute force!" % str(path))
-                    if not warning:
-                        raise e
-                else:
-                    module_logger().info("Brute force successfully removed %s!" % str(path))
     else:
         module_logger().info("No content in %s! Nothing to delete..." % str(path))
+
+
+def handle_remove_readonly(func, path, exc):
+    excvalue = exc[1]
+    if func in (os.rmdir, os.remove, os.unlink) and excvalue.errno == errno.EACCES:
+        os.chmod(path, stat.S_IRWXU| stat.S_IRWXG| stat.S_IRWXO) # 0777
+        func(path)
+    else:
+        raise
 
 
 def rand_folder_name(f_len=8):

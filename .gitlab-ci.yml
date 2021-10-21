@@ -33,12 +33,14 @@
   tags:
     - windows
   variables:
+    PIP_CACHE_DIR: $CI_PROJECT_DIR\.cache\pip
     ErrorActionPreference: Continue  # not working properly
     MINICONDA_URL: https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe
   cache:
     key: one-key-to-rule-them-all-windows
     paths:
       - .\download
+      - .cache\pip
 
 # Linux base template
 #
@@ -74,6 +76,7 @@
     paths:
       - ${CONDA_PREFIX}/pkgs/*.tar.bz2
       - ${CONDA_PREFIX}/pkgs/urls.txt
+      - .cache/pip
 
 # Macos base template
 #

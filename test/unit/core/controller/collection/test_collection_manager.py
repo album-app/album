@@ -21,7 +21,7 @@ class TestCatalogCollectionCommon(TestUnitCommon):
 
     def setUp(self):
         super().setUp()
-        self.create_album_test_instance()
+        self.create_album_test_instance(init_catalogs=False)
 
         test_catalog1_name = "test_catalog"
         test_catalog2_name = "test_catalog2"
@@ -59,6 +59,8 @@ class TestCatalogCollectionCommon(TestUnitCommon):
         )
 
     def tearDown(self) -> None:
+        self.catalog_collection.close()
+        self.catalog_collection = None
         super().tearDown()
 
     def create_empty_catalog(self, name):
@@ -87,10 +89,11 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         super().setUp()
         self.fill_catalog_collection()
 
-        # patch initial catalog creation
-        with patch("album.core.controller.collection.collection_manager.CollectionManager._load_or_create_collection"):
-            self.collection_manager = CollectionManager()
+        self.collection_manager = CollectionManager()
 
+        self.assertIsNone(self.collection_manager.catalog_collection)
+        self.assertIsNone(self.collection_manager.solution_handler)
+        self.assertIsNone(self.collection_manager.catalog_handler)
         # set test attributes
         self.collection_manager.catalog_collection = self.catalog_collection
         self.collection_manager.solution_handler = SolutionHandler(self.catalog_collection)
@@ -102,8 +105,12 @@ class TestCollectionManager(TestCatalogCollectionCommon):
 
         self.create_test_solution_no_env()
 
+    def tearDown(self) -> None:
+        self.collection_manager.catalog_collection.close()
+        super().tearDown()
+
     @unittest.skip("Needs to be implemented!")
-    def test__load_or_create_collection(self):
+    def test_load_or_create_collection(self):
         pass
 
     def test_catalogs(self):
@@ -182,7 +189,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         self.collection_manager.resolve_require_installation_and_load("grp:name:version")
 
         # assert
-        check_file_or_url_mock.assert_called_once_with("grp:name:version", self.collection_manager.tmp_cache_dir)
+        check_file_or_url_mock.assert_called_once_with("grp:name:version", Configuration().cache_path_tmp)
 
     @unittest.skip("Needs to be implemented!")
     def test_resolve_download_and_load(self):

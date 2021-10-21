@@ -1,5 +1,7 @@
 from queue import Queue
 
+from album.core.controller.conda_manager import CondaManager
+
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.run_manager import RunManager
@@ -25,6 +27,7 @@ class TestManager(metaclass=Singleton):
 
     def __init__(self):
         self.collection_manager = CollectionManager()
+        self.conda_manager = CondaManager()
         self.run_manager = RunManager()
 
     def test(self, path, args=None):
@@ -87,7 +90,8 @@ class TestManager(metaclass=Singleton):
 
             module_logger().debug('Calling test routine specified in solution...')
             logging.configure_logging(active_solution['name'])
-            active_solution.environment.run_scripts(scripts)
+            self.conda_manager.set_environment_path(active_solution.environment)
+            self.conda_manager.run_scripts(active_solution.environment, scripts)
             logging.pop_active_logger()
         else:
             module_logger().warning('No \"test\" routine configured for solution %s! Skipping...' % active_solution['name'])

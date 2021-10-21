@@ -93,16 +93,16 @@ class Configuration(metaclass=Singleton):
             coordinates.version
         )
 
-    def get_cache_path_catalog(self, catalog_id):
+    def get_cache_path_catalog(self, catalog_name):
         """Get the cache path to the catalog with a certain ID. Catalog independent!
 
         Args:
-            catalog_id: The ID of the album catalog
+            catalog_name: The ID of the album catalog
 
         Returns: Path to local cache of a catalog identified by the ID
 
         """
-        return self.base_cache_path.joinpath(DefaultValues.catalog_folder_prefix.value, catalog_id)
+        return self.base_cache_path.joinpath(DefaultValues.catalog_folder_prefix.value, catalog_name)
 
     def get_catalog_collection_path(self):
         """Returns the path of the collection database file."""

@@ -1,7 +1,15 @@
 import json
 import os
 import sys
+import tempfile
 from pathlib import Path
+
+from album.core import Solution
+from album.core.model.default_values import DefaultValues
+
+from album.runner.logging import debug_settings
+
+from album.core.model.environment import Environment
 
 from album.core.concept.singleton import Singleton
 from album.core.model.configuration import Configuration
@@ -59,18 +67,21 @@ class CondaManager(metaclass=Singleton):
         environment_dict = self.get_environment_dict()
         return True if environment_name in environment_dict.keys() else False
 
-    def get_environment_path(self, environment_name):
-        """Gets the environment path for a given environment name
+    def get_environment_path(self, environment_name: str):
+        """Gets the environment path for a given environment
 
         Args:
-            environment_name:
-                The environment name to get the path for.
+            environment:
+                The environment to get the path for.
 
         Returns:
             None or the path
         """
         environment_dict = self.get_environment_dict()
-        return environment_dict[environment_name] if environment_name in environment_dict.keys() else None
+        path = environment_dict[environment_name] if environment_name in environment_dict.keys() else None
+        if not path:
+            raise RuntimeError('Could not find environment %s.' % environment_name)
+        return path
 
     def get_active_environment_name(self):
         """Returns the environment form the active album."""
@@ -142,30 +153,6 @@ class CondaManager(metaclass=Singleton):
         ]
         output = subcommand.check_output(subprocess_args)
         return json.loads(output)
-
-    def is_installed(self, environment_path, module, version=None):
-        """Check whether a module is installed in the environment with a certain prefix path.
-
-        Args:
-            environment_path:
-                The prefix of the environment.
-            module:
-                The module or package to check for availability.
-            version:
-                The version of the module or package.
-
-        Returns:
-            True if package is installed, False if not.
-        """
-        res = self.list_environment(environment_path)
-        for entry in res:
-            if entry["name"] == module:
-                if version:
-                    if entry["version"] == version:
-                        return True
-                else:
-                    return True
-        return False
 
     def create_environment_from_file(self, yaml_path, environment_name, timeout1=60, timeout2=120):
         """Creates a conda environment given a path to a yaml file and its name.
@@ -285,12 +272,12 @@ class CondaManager(metaclass=Singleton):
 
         subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
 
-    def conda_install(self, environment_path, module, timeout1=60, timeout2=120):
+    def conda_install(self, environment, module, timeout1=60, timeout2=120):
         """Installs a package in the given environment via conda.
 
         Args:
-            environment_path:
-                The prefix path of the environment to install the package to.
+            environment:
+                The environment to install the package into.
             module:
                 The module or package name.
             timeout1:
@@ -303,7 +290,7 @@ class CondaManager(metaclass=Singleton):
         """
         subprocess_args = [
             self.conda_executable, 'install', '--prefix',
-            environment_path, '-y', module
+            environment.path, '-y', module
         ]
 
         subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
@@ -363,3 +350,132 @@ class CondaManager(metaclass=Singleton):
             return False
 
         return True
+
+    def set_environment_path(self, environment: Environment):
+        path = self.get_environment_path(environment.name)
+        module_logger().debug('Set environment path to %s...' % path)
+        environment.path = path
+
+    def is_installed(self, environment_path: str, package_name, min_package_version=None):
+        """Checks if package is installed in a certain version."""
+        conda_list = self.list_environment(str(environment_path))
+
+        for package in conda_list:
+            if package["name"] == package_name:
+                if min_package_version:
+                    if package["version"] == min_package_version:
+                        module_logger().debug('Package %s:%s is installed...' % (package_name, min_package_version))
+                        return True
+                    if package["version"] < min_package_version:
+                        module_logger().debug('Package %s:%s is installed. Requirements not set! Reinstalling...'
+                                              % (package_name, package["version"]))
+                        return False
+                    if package["version"] > min_package_version:
+                        module_logger().debug('Package %s:%s is installed. Version should be compatible...'
+                                              % (package_name, package["version"]))
+                        return True
+                else:
+                    module_logger().debug('Package %s:%s is installed...' % (package_name, package["version"]))
+                    return True
+
+        return False
+
+    def run_scripts(self, environment: Environment, scripts):
+        """Runs the solution in the target environment
+
+        Args:
+            scripts:
+                List of he scripts calling the solution(s)
+            environment:
+                The virtual environment used to run the scripts
+        """
+        if not environment.path:
+            raise EnvironmentError('Could not find environment %s. Is the solution installed?' % environment.name)
+
+        module_logger().debug('run_in_environment: %s...' % str(environment.path))
+
+        # Use an environment path and a temporary file to store the script
+        if debug_settings():
+            fp = open(str(DefaultValues.app_cache_dir.value.joinpath('album_test.py')), 'w')
+            module_logger().debug(
+                "Executable file in: %s..." % str(DefaultValues.app_cache_dir.value.joinpath('album_test.py')))
+        else:
+            fp = tempfile.NamedTemporaryFile(mode='w+', delete=False)
+            module_logger().debug('Executable file in: %s...' % fp.name)
+
+        # first write scripts to disc, create meta-script to execute them in the order of the list
+        if len(scripts) > 1:
+            script = ""
+            for s in scripts:
+                fp_step = tempfile.NamedTemporaryFile(mode='w+', delete=False)
+                fp_step.write(s)
+                fp_step.flush()
+                os.fsync(fp_step)
+                script += "\nexec(open(r\'%s\').read())\n" % fp_step.name
+                fp_step.close()
+        else:
+            script = scripts[0]
+
+        fp.write(script)
+        fp.flush()
+        os.fsync(fp)
+        fp.close()
+
+        self.run_script(str(environment.path), fp.name)
+
+        Path(fp.name).unlink()
+
+    def create_or_update_env(self, environment: Environment):
+        """Creates or updates the environment"""
+        if self.environment_exists(environment.name):
+            self.update(environment)
+        else:
+            self.create(environment)
+
+    def update(self, environment: Environment):
+        """Updates the environment"""
+        module_logger().debug('Update environment %s...' % environment.name)
+        pass  # ToDo: implement
+
+    def create(self, environment: Environment):
+        """Creates environment a solution runs in."""
+        if environment.yaml_file:
+            self.create_environment_from_file(environment.yaml_file, environment.name)
+        else:
+            module_logger().warning("No yaml file specified. Creating Environment without dependencies!")
+            self.create_environment(environment.name)
+
+    def install(self, environment: Environment, min_album_version=None):
+        """Creates or updates an an environment and installs album in the target environment."""
+        self.create_or_update_env(environment)
+        self.set_environment_path(environment)
+        self.install_framework(environment.path, min_album_version)
+
+    # ToDo: use explicit versioning of album
+    def install_framework(self, environment_path: str, min_framework_version=None):
+        """Installs the album dependency in the environment"""
+
+        if not self.is_installed(environment_path, "album-runner", min_framework_version):
+            self.pip_install_into_environment(environment_path, DefaultValues.runner_url.value)
+
+    def pip_install_into_environment(self, environment_path: str, module, version=None):
+        """Installs the given module in the environment.
+
+        Either this environment is given by name, or the current active
+        environment is taken.
+
+        Args:
+            environment_path:
+                The virtual environment path to install to.
+            module:
+                Either a path to a git or a package name.
+            version:
+                The version of the package to install. Must left unspecified if module points to a git.
+        """
+
+        if version:
+            module = "==".join([module, version])
+
+        module_logger().debug("Installing %s in environment %s..." % (module, str(environment_path)))
+
+        self.pip_install(str(environment_path), module)

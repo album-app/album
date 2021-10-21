@@ -1,6 +1,7 @@
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from album.argument_parsing import main
 from album.core.model.default_values import DefaultValues
@@ -22,7 +23,13 @@ class TestIntegrationInstall(TestIntegrationCommon):
         # assert
         self.assertIn("No \"install\" routine configured for solution", self.captured_output.getvalue())
 
-    def test_install(self):
+    @patch('album.core.controller.conda_manager.CondaManager.create')
+    @patch('album.core.controller.conda_manager.CondaManager.list_environment', return_value=[])
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_dict', side_effect=[{}, {"catalog_local_group_name_0.1.0": "aPath"}])
+    @patch('album.core.controller.conda_manager.CondaManager.pip_install')
+    @patch('album.core.controller.conda_manager.CondaManager.run_scripts')
+    def test_install(self, run_scripts_mock, pip_install_mock, get_environment_dict_mock, list_environment_mock, create_mock):
+
         # gather arguments
         sys.argv = ["", "install", str(self.get_test_solution_path())]
 
@@ -41,6 +48,15 @@ class TestIntegrationInstall(TestIntegrationCommon):
                 "group", "name", "0.1.0", "solution.py"
             ).exists()
         )
+
+        create_mock.assert_called_once()
+        self.assertIsNone(create_mock.call_args[0][0].yaml_file)
+        self.assertEqual("catalog_local_group_name_0.1.0", create_mock.call_args[0][0].name)
+        list_environment_mock.assert_called_once()
+        self.assertEqual(2, get_environment_dict_mock.call_count)
+        run_scripts_mock.assert_called_once()
+        self.assertEqual("aPath", run_scripts_mock.call_args[0][0].path)
+        pip_install_mock.assert_called_once_with("aPath", "https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip")
 
     @unittest.skip("TODO this test fails on the Windows CI with \"SSL: CERTIFICATE_VERIFY_FAILED\" which might be related with the CI setup, not album itself")
     def test_install_from_url(self):

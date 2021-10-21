@@ -1,14 +1,13 @@
-import re
 from pathlib import Path
 
-from album.core.controller.migration_manager import MigrationManager
+from git import Repo
 
 from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.ci_utils import get_ssh_url
 from album.core.concept.singleton import Singleton
+from album.core.controller.migration_manager import MigrationManager
 from album.core.model.catalog import Catalog
 from album.core.model.configuration import Configuration
-from album.core.model.default_values import DefaultValues
 from album.core.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_dict_entry
 from album.core.utils.operations.git_operations import checkout_branch, add_files_commit_and_push, \
@@ -35,8 +34,14 @@ class ReleaseManager(metaclass=Singleton):
             self.configuration.setup()
 
         self.catalog = Catalog(None, name=self.catalog_name, path=catalog_path, src=self.catalog_src)
-        self.catalog_repo = self.catalog.retrieve_catalog(force_retrieve=force_retrieve, update=False)
+        self.catalog_repo: Repo = self.catalog.retrieve_catalog(force_retrieve=force_retrieve, update=False)
         MigrationManager().load_index(self.catalog)
+
+    def __del__(self):
+        if self.catalog:
+            self.catalog.dispose()
+        if self.catalog_repo:
+            self.catalog_repo.close()
 
     def configure_repo(self, user_name, user_email):
         module_logger().info("Configuring repository using:\n\tusername:\t%s\n\temail:\t%s" % (user_name, user_email))

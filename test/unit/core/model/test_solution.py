@@ -2,9 +2,8 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-from album.core.controller.conda_manager import CondaManager
-from album.core.model.solution import Solution
 from album.core.model.configuration import Configuration
+from album.core.model.solution import Solution
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -12,11 +11,9 @@ class TestUnitSolution(TestUnitCommon):
     
     def setUp(self):
         super().setUp()
-        self.create_album_test_instance()
-
+        Configuration().setup(base_cache_path=Path(self.tmp_dir.name).joinpath("album"), configuration_file_path=self.tmp_dir.name)
 
     def tearDown(self) -> None:
-        CondaManager().remove_environment("unit-test-env")
         super().tearDown()
 
     test_environment_yml = StringIO("""name: unit-test-env

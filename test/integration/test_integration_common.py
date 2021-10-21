@@ -7,12 +7,13 @@ from io import StringIO
 from pathlib import Path
 from typing import Optional
 
+from album.core.model.catalog import Catalog
+
 import album.core as album
-from album.core import Solution
 from album.api import Album
+from album.core import Solution
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.conda_manager import CondaManager
-from album.core.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
 from album.core.utils.operations.file_operations import copy
@@ -39,18 +40,18 @@ class TestIntegrationCommon(unittest.TestCase):
 
         # load gateway with test configuration
         self.album = Album(base_cache_path=self.tmp_dir.name)
-
         self.collection_manager = self.album.collection_manager()
+        self.collection_manager.load_or_create_collection()
         self.test_collection = self.collection_manager.catalog_collection
         self.assertFalse(self.test_collection.is_empty())
 
     def get_album(self):
         return self.album
 
-    def add_test_catalog(self):
+    def add_test_catalog(self) -> Catalog:
         path = Path(self.tmp_dir.name).joinpath("my-catalogs", "test_catalog")
         CatalogHandler.create_new_catalog(path, "test_catalog")
-        self.collection_manager.catalogs().add_by_src(path)
+        return self.collection_manager.catalogs().add_by_src(path)
 
     def tearDown(self) -> None:
         # clean all environments specified in test-resources
@@ -120,7 +121,7 @@ class TestIntegrationCommon(unittest.TestCase):
         local_catalog = self.collection_manager.catalogs().get_local_catalog()
         if create_environment:
             env_name = "_".join([local_catalog.name, a.get_identifier()])
-            Environment(None, env_name, "unusedCachePath").install()
+            CondaManager().install(Environment(None, env_name, "unusedCachePath"))
 
         # add to collection, assign to local catalog
         len_catalog_before = len(self.test_collection.get_solutions_by_catalog(local_catalog.catalog_id))

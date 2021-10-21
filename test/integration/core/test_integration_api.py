@@ -32,7 +32,7 @@ class TestIntegrationAPI(TestIntegrationCommon):
 
         # add remote catalog
         remote_catalog = "https://gitlab.com/album-app/catalogs/templates/catalog"
-        album.collection_manager().catalogs().add_by_src(remote_catalog)
+        remote_catalog_instance = album.collection_manager().catalogs().add_by_src(remote_catalog)
 
         # remove remote catalog
         album.collection_manager().catalogs().remove_from_collection_by_src(remote_catalog)
@@ -107,6 +107,9 @@ class TestIntegrationAPI(TestIntegrationCommon):
 
         # check that solution is not accessible any more
         # TODO
+
+        catalog.dispose()
+        remote_catalog_instance.dispose()
 
     def assertCatalogPresence(self, catalogs, src, should_be_present):
         present = False

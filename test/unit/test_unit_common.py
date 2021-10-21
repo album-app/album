@@ -1,3 +1,4 @@
+import gc
 import logging
 import os
 import tempfile
@@ -7,7 +8,6 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import git
-from album.core.model.catalog import Catalog
 
 import album
 from album.ci.controller.release_manager import ReleaseManager
@@ -40,12 +40,12 @@ class TestUnitCommon(unittest.TestCase):
         """Could initialize default values for each test class. use `_<name>` to skip property setting."""
 
         self.solution_default_dict = self.get_solution_dict()
-        self.attrs = {}
         self.captured_output = StringIO()
         self.configure_test_logging(self.captured_output)
         self.tmp_dir = tempfile.TemporaryDirectory()
         self.closed_tmp_file = tempfile.NamedTemporaryFile(delete=False)
         self.closed_tmp_file.close()
+        self.collection_manager = None
 
     @staticmethod
     def get_solution_dict():
@@ -95,6 +95,9 @@ class TestUnitCommon(unittest.TestCase):
             del singleton.instance
 
     def tearDown(self) -> None:
+        if self.collection_manager is not None and self.collection_manager.catalog_collection is not None:
+            self.collection_manager.catalog_collection.close()
+            self.collection_manager = None
         self.captured_output.close()
 
         while True:
@@ -104,6 +107,7 @@ class TestUnitCommon(unittest.TestCase):
 
         Path(self.closed_tmp_file.name).unlink()
         self.tear_down_singletons()
+        gc.collect()
         try:
             self.tmp_dir.cleanup()
         except PermissionError:
@@ -130,29 +134,35 @@ class TestUnitCommon(unittest.TestCase):
         logs = logs.strip()
         return logs.split("\n")
 
-    def create_album_test_instance(self) -> Album:
-        return Album(base_cache_path=Path(self.tmp_dir.name).joinpath("album"), configuration_file_path=self.tmp_dir.name)
+    def create_album_test_instance(self, init_catalogs=True) -> Album:
+        my_album = Album(base_cache_path=Path(self.tmp_dir.name).joinpath("album"),
+                      configuration_file_path=self.tmp_dir.name)
+        if init_catalogs:
+            # mock retrieve_catalog_meta_information as it involves a http request
+            with patch("album.core.model.catalog.Catalog.retrieve_catalog_meta_information") as retrieve_c_m_i_mock:
+                # with patch("album.core.model.configuration.Configuration.get_initial_catalogs") as get_initial_catalogs:
+                get_initial_catalogs_mock = MagicMock(return_value=
+                    {
+                        DefaultValues.local_catalog_name.value:
+                            Path(self.tmp_dir.name).joinpath("album", DefaultValues.catalog_folder_prefix.value,
+                                                             DefaultValues.local_catalog_name.value)
+                    }
+                )
+                my_album.configuration().get_initial_catalogs = get_initial_catalogs_mock
+                retrieve_c_m_i_mock.side_effect = [
+                    {"name": "catalog_local", "version": "0.1.0"},  # local catalog creation call
+                    {"name": "catalog_local", "version": "0.1.0"},  # local catalog load_index call
+                ]
 
-    def create_test_collection_manager(self):
-        # mock retrieve_catalog_meta_information as it involves a http request
-        with patch("album.core.model.catalog.Catalog.retrieve_catalog_meta_information") as retrieve_c_m_i_mock:
-            retrieve_c_m_i_mock.side_effect = [
-                {"name": "catalog_local", "version": "0.1.0"},  # local catalog creation call
-                {"name": "catalog_local", "version": "0.1.0"},  # local catalog load_index call
-                {"name": "default", "version": "0.1.0"},  # remote default catalog creation call
-                {"name": "default", "version": "0.1.0"},  # remote default catalog load_index call
-                {"name": "default", "version": "0.1.0"},  # remote default catalog to collection
-            ]
+                # create collection
+                self.collection_manager = my_album.collection_manager()
+                self.collection_manager.load_or_create_collection()
+                # self.assertEqual(2, retrieve_c_m_i_mock.call_count)
 
-            # create collection
-            self.collection_manager = CollectionManager()
-            self.assertEqual(5, retrieve_c_m_i_mock.call_count)
+        return my_album
 
-        self.catalog_collection = self.collection_manager.catalog_collection
-
-    @patch('album.core.model.environment.Environment.__init__', return_value=None)
     @patch('album.core.model.solution.Solution.get_deploy_dict')
-    def create_test_solution_no_env(self, deploy_dict_mock, _):
+    def create_test_solution_no_env(self, deploy_dict_mock):
         deploy_dict_mock.return_value = self.solution_default_dict
         self.active_solution = Solution(deploy_dict_mock.return_value)
         self.active_solution.init = lambda: None
@@ -206,9 +216,8 @@ class TestGitCommon(TestUnitCommon):
     def tearDown(self) -> None:
         if self.repo:
             p = self.repo.working_tree_dir
-            del self.repo
+            self.repo.close()
             force_remove(p)
-
         super().tearDown()
 
     def create_tmp_repo(self, commit_solution_file=True, create_test_branch=False):

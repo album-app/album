@@ -19,7 +19,7 @@ class TestIntegrationDeploy(TestIntegrationCommon):
         super().tearDown()
 
     def test_deploy(self):
-        self.add_test_catalog()
+        catalog = self.add_test_catalog()
         # gather arguments
         sys.argv = ["",
                     "deploy",
@@ -31,6 +31,7 @@ class TestIntegrationDeploy(TestIntegrationCommon):
                     ]
 
         self.assertIsNone(main())
+        catalog.dispose()
 
 
 if __name__ == '__main__':

@@ -1,5 +1,8 @@
 import sys
-import unittest.mock
+import unittest
+from unittest.mock import patch
+
+from album.core.controller.conda_manager import CondaManager
 
 import album.core as album
 from album.argument_parsing import main
@@ -24,9 +27,11 @@ class TestIntegrationRun(TestIntegrationCommon):
         # assert
         self.assertIsNone(album.get_active_solution())
 
-    def test_run_arguments(self):
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    def test_run_arguments(self, get_environment_path):
+        get_environment_path.return_value = CondaManager().get_active_environment_path()
         p = self.get_test_solution_path("solution8_arguments.py")
-        self.fake_install(p)
+        self.fake_install(p, create_environment=False)
 
         sys.argv = ["", "run", p]  # required arguments not given
 
@@ -34,10 +39,12 @@ class TestIntegrationRun(TestIntegrationCommon):
         with self.assertRaises(RuntimeError):
             main()
 
-    def test_run_arguments_given(self):
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    def test_run_arguments_given(self, get_environment_path):
+        get_environment_path.return_value = CondaManager().get_active_environment_path()
         # create test environment
         p = self.get_test_solution_path("solution8_arguments.py")
-        self.fake_install(p)
+        self.fake_install(p, create_environment=False)
 
         # gather arguments
         sys.argv = ["", "run", p,
@@ -62,9 +69,11 @@ class TestIntegrationRun(TestIntegrationCommon):
         self.assertIn("myFile.txt", log)
         self.assertIn("None", log)
 
-    def test_run_with_group_name_version(self):
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    def test_run_with_group_name_version(self, get_environment_path):
+        get_environment_path.return_value = CondaManager().get_active_environment_path()
         # create test environment
-        solution = self.fake_install(self.get_test_solution_path())
+        solution = self.fake_install(self.get_test_solution_path(), create_environment=False)
 
         # gather arguments
         sys.argv = ["", "run", ":".join([solution["group"], solution["name"], solution["version"]])]
@@ -86,10 +95,12 @@ class TestIntegrationRun(TestIntegrationCommon):
             main()
             self.assertIn("No \"run\" routine specified for solution", str(context.exception))
 
-    def test_run_with_parent(self):
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    def test_run_with_parent(self, get_environment_path):
+        get_environment_path.return_value = CondaManager().get_active_environment_path()
         # fake install what we need
-        self.fake_install(self.get_test_solution_path("app1.py"))
-        self.fake_install(self.get_test_solution_path("solution1_app1.py"))
+        self.fake_install(self.get_test_solution_path("app1.py"), create_environment=False)
+        self.fake_install(self.get_test_solution_path("solution1_app1.py"), create_environment=False)
 
         # gather arguments
         sys.argv = ["", "run", self.get_test_solution_path("solution1_app1.py"), "--file", self.closed_tmp_file.name,
@@ -109,13 +120,15 @@ class TestIntegrationRun(TestIntegrationCommon):
             self.assertEqual("app1_close", log[4])
             self.assertIsNone(album.get_active_solution())
 
-    def test_run_with_steps(self):
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    def test_run_with_steps(self, get_environment_path):
+        get_environment_path.return_value = CondaManager().get_active_environment_path()
         # fake install what we need
-        self.fake_install(self.get_test_solution_path("app1.py"))
-        self.fake_install(self.get_test_solution_path("solution3_noparent.py"))
-        self.fake_install(self.get_test_solution_path("solution2_app1.py"))
-        self.fake_install(self.get_test_solution_path("solution1_app1.py"))
-        self.fake_install(self.get_test_solution_path("solution_with_steps.py"))
+        self.fake_install(self.get_test_solution_path("app1.py"), create_environment=False)
+        self.fake_install(self.get_test_solution_path("solution3_noparent.py"), create_environment=False)
+        self.fake_install(self.get_test_solution_path("solution2_app1.py"), create_environment=False)
+        self.fake_install(self.get_test_solution_path("solution1_app1.py"), create_environment=False)
+        self.fake_install(self.get_test_solution_path("solution_with_steps.py"), create_environment=False)
 
         # gather arguments
         sys.argv = ["", "run", self.get_test_solution_path("solution_with_steps.py"),
@@ -143,15 +156,17 @@ class TestIntegrationRun(TestIntegrationCommon):
             self.assertEqual("solution3_noparent_close", log[11])
             self.assertIsNone(album.get_active_solution())
 
-    def test_run_with_grouped_steps(self):
-        self.fake_install(self.get_test_solution_path("app1.py"))
-        self.fake_install(self.get_test_solution_path("app2.py"))
-        self.fake_install(self.get_test_solution_path("solution1_app1.py"))
-        self.fake_install(self.get_test_solution_path("solution2_app1.py"))
-        self.fake_install(self.get_test_solution_path("solution3_noparent.py"))
-        self.fake_install(self.get_test_solution_path("solution4_app2.py"))
-        self.fake_install(self.get_test_solution_path("solution5_app2.py"))
-        self.fake_install(self.get_test_solution_path("solution_with_steps_grouped.py"))
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    def test_run_with_grouped_steps(self, get_environment_path):
+        get_environment_path.return_value = CondaManager().get_active_environment_path()
+        self.fake_install(self.get_test_solution_path("app1.py"), create_environment=False)
+        self.fake_install(self.get_test_solution_path("app2.py"), create_environment=False)
+        self.fake_install(self.get_test_solution_path("solution1_app1.py"), create_environment=False)
+        self.fake_install(self.get_test_solution_path("solution2_app1.py"), create_environment=False)
+        self.fake_install(self.get_test_solution_path("solution3_noparent.py"), create_environment=False)
+        self.fake_install(self.get_test_solution_path("solution4_app2.py"), create_environment=False)
+        self.fake_install(self.get_test_solution_path("solution5_app2.py"), create_environment=False)
+        self.fake_install(self.get_test_solution_path("solution_with_steps_grouped.py"), create_environment=False)
 
         # gather arguments
         sys.argv = ["", "run", self.get_test_solution_path("solution_with_steps_grouped.py"), "--file",

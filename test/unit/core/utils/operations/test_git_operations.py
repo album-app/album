@@ -7,7 +7,7 @@ from unittest.mock import patch
 import album.core.utils.operations.git_operations as git_op
 from album.core.model.default_values import DefaultValues
 from album.core.model.solution import Solution
-from album.core.utils.operations.file_operations import copy, force_remove
+from album.core.utils.operations.file_operations import copy
 from test.unit.test_unit_common import TestGitCommon
 
 
@@ -141,9 +141,10 @@ class TestGitOperations(TestGitCommon):
     def test_download_repository(self):
         p = Path(self.tmp_dir.name).joinpath("testGitDownload")
         # run
-        git_op.download_repository(
+        repo = git_op.download_repository(
             DefaultValues._catalog_url.value, p
         )
+        repo.close()
 
         # check
         self.assertIn("album_catalog_index.db", os.listdir(p), "Download failed!")

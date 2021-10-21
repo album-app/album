@@ -10,7 +10,6 @@ from test.unit.test_unit_common import TestUnitCommon
 class TestCollectionIndex(TestUnitCommon):
     def setUp(self):
         super().setUp()
-        self.create_album_test_instance()
 
         self.test_catalog_collection = CollectionIndex(
             "test_catalog_collection", Path(self.tmp_dir.name).joinpath("test_db.db")
@@ -19,6 +18,7 @@ class TestCollectionIndex(TestUnitCommon):
         self.assertIsNotNone(self.test_catalog_collection.get_cursor())
 
     def tearDown(self) -> None:
+        self.test_catalog_collection.close()
         self.test_catalog_collection = None
         super().tearDown()
 
@@ -248,52 +248,6 @@ class TestCollectionIndex(TestUnitCommon):
         self.assertEqual(1, len(self.test_catalog_collection.get_all_solutions()))
 
         self.assertEqual(2, self.test_catalog_collection.next_id("collection"))
-
-    # ### collection_tag ###
-
-    @unittest.skip("Needs to be implemented!")
-    def test_insert_collection_tag(self):
-        pass
-
-    @unittest.skip("Needs to be implemented!")
-    def test_get_collection_tags_by_catalog_id(self):
-        pass
-
-    @unittest.skip("Needs to be implemented!")
-    def test_get_collection_tag_by_catalog_id_and_name_and_type(self):
-        pass
-
-    @unittest.skip("Needs to be implemented!")
-    def test_get_collection_tag_by_catalog_id_and_hash(self):
-        pass
-
-    @unittest.skip("Needs to be implemented!")
-    def test_get_collection_tag_by_catalog_id_and_tag_id(self):
-        pass
-
-    # ### collection_solution_tag ###
-
-    @unittest.skip("Needs to be implemented!")
-    def test_insert_collection_solution_tag(self):
-        pass
-
-    @unittest.skip("Needs to be implemented!")
-    def test_get_collection_solution_tags_by_catalog_id_and_solution_id(self):
-        pass
-
-    @unittest.skip("Needs to be implemented!")
-    def test_get_collection_solution_tag_by_catalog_id_and_hash(self):
-        pass
-
-    @unittest.skip("Needs to be implemented!")
-    def test_get_collection_solution_tags_by_catalog_id(self):
-        pass
-
-    @unittest.skip("Needs to be implemented!")
-    def test_get_collection_solution_tag_by_catalog_id_and_solution_id_and_tag_id(self):
-        pass
-
-    # ### collection features ###
 
     def test_is_installed(self):
         self.test_catalog_collection.insert_solution("cat1", self._get_solution_attrs(1, "grp", "name", "version"))

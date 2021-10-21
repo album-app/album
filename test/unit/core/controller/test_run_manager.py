@@ -16,7 +16,6 @@ class TestRunManager(TestUnitCommon):
         super().setUp()
         """Setup things necessary for all tests of this class"""
         self.create_album_test_instance()
-        self.create_test_collection_manager()
         self.create_test_solution_no_env()
         self.run_manager = RunManager()
 
@@ -153,6 +152,8 @@ class TestRunManager(TestUnitCommon):
 
     def test_run_queue(self):
         # mocks
+        set_environment_path = MagicMock()
+        self.run_manager.conda_manager.set_environment_path = set_environment_path
         _run_in_environment_with_own_logger = MagicMock(return_value=None)
         self.run_manager._run_in_environment_with_own_logger = _run_in_environment_with_own_logger
 
@@ -549,13 +550,10 @@ class TestRunManager(TestUnitCommon):
 
     @patch('album.runner.logging.configure_logging', return_value=None)
     @patch('album.runner.logging.pop_active_logger', return_value=None)
-    def test__run_in_environment_with_own_logger(self, pop_mock, conf_mock):
-        class TestEnvironment:
-            @staticmethod
-            def run_scripts(script):
-                return script
-
-        self.active_solution.environment = TestEnvironment()
+    @patch('album.core.controller.conda_manager.CondaManager.run_scripts', return_value="")
+    def test__run_in_environment_with_own_logger(self, run_scripts_mock, pop_mock, conf_mock):
+        self.active_solution.environment = EmptyTestClass()
+        self.active_solution.environment.name = ""
 
         self.run_manager._run_in_environment_with_own_logger(self.active_solution, "")
 
