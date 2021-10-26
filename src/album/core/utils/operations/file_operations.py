@@ -17,11 +17,6 @@ from album.runner import logging
 module_logger = logging.get_active_logger
 enc = sys.getfilesystemencoding()
 
-# def auto_format(file):
-#    """Autformats file to pep8 standard."""
-#    fixed_file = autopep8.fix_file(file)
-#    return fixed_file
-
 
 def get_line_indent(line):
     """Returns the line indent of a line."""
@@ -247,7 +242,13 @@ def force_remove(path, warning=True):
     path = Path(path)
     if path.exists():
         try:
-            shutil.rmtree(path, ignore_errors=False, onerror=handle_remove_readonly)
+            if path.is_file():
+                try:
+                    path.unlink()
+                except PermissionError:
+                    handle_remove_readonly(os.unlink, path,  sys.exc_info())
+            else:
+                shutil.rmtree(path, ignore_errors=False, onerror=handle_remove_readonly)
         except PermissionError as e:
             module_logger().warn("Cannot delete %s." % str(path))
             if not warning:
@@ -260,7 +261,7 @@ def force_remove(path, warning=True):
 def handle_remove_readonly(func, path, exc):
     excvalue = exc[1]
     if func in (os.rmdir, os.remove, os.unlink) and excvalue.errno == errno.EACCES:
-        os.chmod(path, stat.S_IRWXU| stat.S_IRWXG| stat.S_IRWXO) # 0777
+        os.chmod(path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)  # 0777
         func(path)
     else:
         raise

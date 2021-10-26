@@ -57,10 +57,15 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         self.assertTrue(new_catalog.exists())  # src path still available!
 
     def test_update_collection(self):
+        # create a catalog and its meta file and DB file in a src
         catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", "my-catalog")
         CatalogHandler.create_new_catalog(catalog_src, "my-catalog")
+
+        # add catalog
         catalog = self.collection_manager.catalogs().add_by_src(catalog_src)
         self.assertTrue(catalog.is_local())
+
+        # create two solutions
         solution_dict = TestUnitCommon.get_solution_dict()
         solution = Solution(solution_dict)
         solution2_dict = solution_dict.copy()
@@ -68,7 +73,6 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         solution2 = Solution(solution2_dict)
 
         # check that initially no updates are available
-
         dif = self.collection_manager.catalogs().update_collection(catalog.name, dry_run=True)
 
         self.assertIsNotNone(dif)
@@ -81,6 +85,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         # add new solution to catalog
         catalog.add(solution)
         catalog.add(solution2)
+        catalog.copy_index_from_cache_to_src()
 
         dif = self.collection_manager.catalogs().update_collection(catalog.name, dry_run=True)
 
@@ -101,8 +106,6 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         self.assertEqual(0, len(dif[0].catalog_attribute_changes))
         self.assertEqual(0, len(dif[0].solution_changes))
 
-        catalog.dispose()
-
     def test_update_upgrade(self):
         initial_len = len(CollectionManager().catalog_collection.get_all_catalogs())
 
@@ -116,6 +119,8 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         solution_dict = TestUnitCommon.get_solution_dict()
         solution = Solution(solution_dict)
         catalog.add(solution)
+        catalog.copy_index_from_cache_to_src()
+
         catalogs = CollectionManager().catalog_collection.get_all_catalogs()
         self.assertEqual(initial_len + 1, len(catalogs))
         self.assertEqual(1, len(catalog.catalog_index.get_all_solutions()))
@@ -130,7 +135,6 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
 
         # assert
         solutions = CollectionManager().catalog_collection.get_solutions_by_catalog(catalog.catalog_id)
-        print(solutions)
         self.assertEqual(1, len(solutions))
 
         # compare solution in collection to original solution

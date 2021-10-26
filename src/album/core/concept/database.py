@@ -17,20 +17,38 @@ class Database(abc.ABC):
 
         self.path = Path(path)
 
-        if not self.is_created():
+        if not self.is_created(close=False):
             self.create()
 
     def __del__(self):
         self.close()
 
-    def close(self):
+    def close_current_connection(self, commit=True):
         current_thread_id = threading.current_thread().ident
-        if self.connections:
-            for thread_id in self.connections:
-                connection = self.connections[thread_id]
-                if current_thread_id == thread_id:
-                    connection.close()
-                del connection
+        if current_thread_id in self.cursors:
+            cursor = self.cursors.pop(current_thread_id)
+            cursor.close()
+
+        if current_thread_id in self.connections:
+            conn = self.connections.pop(current_thread_id)
+
+            if commit:
+                conn.commit()
+
+            # finally close
+            conn.close()
+
+    def close(self):
+        for cursor_id in self.cursors:
+            cursor = self.cursors[cursor_id]
+            cursor.close()
+            del cursor
+
+        for thread_id in self.connections:
+            connection = self.connections[thread_id]
+            connection.close()
+            del connection
+
         gc.collect(2)
         self.cursors = {}
         self.connections = {}
@@ -58,21 +76,28 @@ class Database(abc.ABC):
         con.row_factory = sqlite3.Row
         return con
 
-    def next_id(self, table_name):
+    def next_id(self, table_name, close=False):
+        cursor = self.get_cursor()
+
         table_name_id = table_name + "_id"
-        is_empty = False if self.get_cursor().execute("SELECT * FROM %s" % table_name).fetchone() else True
+        is_empty = False if cursor.execute("SELECT * FROM %s" % table_name).fetchone() else True
         if is_empty:
             return 1
 
         # note: always use subquery for count/max etc. operations as sqlite python API requires full rows back!
-        r = self.get_cursor().execute(
+        r = cursor.execute(
             "SELECT * FROM %s WHERE %s = (SELECT MAX(%s) FROM %s)" %
             (table_name, table_name_id, table_name_id, table_name)
         ).fetchone()
+
+        if close:
+            cursor.connection.close()
+
         return int(r[table_name_id]) + 1
 
-    def is_created(self):
-        r = self.get_cursor().execute("SELECT * FROM sqlite_master").fetchall()
+    def is_created(self, close=True):
+        cursor = self.get_cursor()
+        r = cursor.execute("SELECT * FROM sqlite_master").fetchall()
         created = False
 
         for row in r:
@@ -80,10 +105,13 @@ class Database(abc.ABC):
                 created = True
                 break
 
+        if close:
+            cursor.connection.close()
+
         return created
 
     @abc.abstractmethod
-    def __len__(self):
+    def __len__(self, close=True):
         pass
 
     @abc.abstractmethod
@@ -91,7 +119,5 @@ class Database(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def is_empty(self):
+    def is_empty(self, close=True):
         pass
-
-

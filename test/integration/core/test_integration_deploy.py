@@ -31,7 +31,6 @@ class TestIntegrationDeploy(TestIntegrationCommon):
                     ]
 
         self.assertIsNone(main())
-        catalog.dispose()
 
 
 if __name__ == '__main__':

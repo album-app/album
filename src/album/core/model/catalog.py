@@ -7,12 +7,11 @@ import validators
 from git import Repo
 
 from album.core.model.catalog_index import CatalogIndex
-
 from album.core.model.configuration import Configuration
 from album.core.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import unzip_archive, copy, copy_folder, get_dict_from_json, \
-    write_dict_to_json
+    write_dict_to_json, force_remove
 from album.core.utils.operations.git_operations import download_repository, init_repository
 from album.core.utils.operations.resolve_operations import get_zip_name, dict_to_coordinates
 from album.core.utils.operations.url_operations import download_resource
@@ -33,7 +32,6 @@ def get_index_url(src):
 
 def get_index_dir(src):
     """Gets the download directory for an index."""
-    # todo: "main" is still hardcoded! :(
     index_src = Path(src).joinpath(DefaultValues.catalog_index_file_name.value)
     index_meta_src = Path(src).joinpath(DefaultValues.catalog_index_metafile_json.value)
     return index_src, index_meta_src
@@ -111,7 +109,7 @@ class Catalog:
 
     def __eq__(self, other):
         return isinstance(other, Catalog) and \
-            other.catalog_id == self.catalog_id
+               other.catalog_id == self.catalog_id
 
     def __del__(self):
         self.dispose()
@@ -258,26 +256,43 @@ class Catalog:
     def update_index_cache_if_possible(self):
         try:
             self.update_index_cache()
-            return True
         except AssertionError:
             module_logger().warning("Could not refresh index. Source invalid!")
             return False
         except ConnectionError:
             module_logger().warning("Could not refresh index. Connection error!")
             return False
+        except FileNotFoundError:
+            module_logger().warning("Could not refresh index. Source not found!")
+            return False
         except Exception as e:
             module_logger().warning("Could not refresh index. Unknown reason!")
             module_logger().warning(e)
             return False
 
+        return True
+
     def update_index_cache(self):
+        """Updates the cache index file and metadata of a catalog.
+
+        Returns
+            True when updated successfully, else False.
+
+        """
         if self.is_cache():
             return False
 
-        if self.is_local():  # case src not downloadable
-            self.copy_index_from_src_to_cache()
+        if self.is_local():
+            index_available = self.copy_index_from_src_to_cache()
         else:
-            self.download_index()
+            index_available = self.download_index()
+
+        if not index_available:
+            self.dispose()
+            # index got deleted in src so we do the same locally
+            force_remove(self.index_path)
+
+        return True
 
     def get_version(self):
         database_version = self.catalog_index.get_version()
@@ -285,10 +300,7 @@ class Catalog:
         if meta_dict:
             meta_version = meta_dict['version']
         else:
-            # no meta file found / dict is empty, just use default version
-            meta_version = CatalogIndex.version
-            module_logger().warning(
-                f"No meta information for catalog {self.name} found, assuming database version {meta_version}")
+            raise ValueError("Catalog meta information cannot be found! Refresh the catalog!")
 
         if database_version != meta_version:
             raise ValueError(
@@ -355,24 +367,32 @@ class Catalog:
         else:
             module_logger().warning("Cannot remove entries from a remote catalog! Doing nothing...")
 
-    def copy_index_from_src_to_cache(self):
-        """Copy the index file of a catalog and its metadata to the catalog cache folder."""
+    def copy_index_from_src_to_cache(self) -> bool:
+        """Copy the index file of a catalog and its metadata to the catalog cache folder.
+
+        Returns:
+            Index availability: True when the index was available, false when the catalog has no index file in the src.
+        """
         src_path_index = Path(self.src).joinpath(DefaultValues.catalog_index_file_name.value)
         src_path_meta = Path(self.src).joinpath(DefaultValues.catalog_index_metafile_json.value)
 
-        if not src_path_index.exists():
-            if not self.index_path.parent.exists():
-                module_logger().info("Source does not exist. Creating index directory...")
-                self.index_path.parent.mkdir(parents=True)
-        else:
-            module_logger().info("Copying index from %s to %s..." % (src_path_index, self.index_path))
-            copy(src_path_index, self.index_path)
-
+        # check if meta information valid, only then continue
         if not src_path_meta.exists():
-            return FileNotFoundError("Could not find file %s..." % src_path_meta)
+            raise FileNotFoundError("Could not find file %s..." % src_path_meta)
 
         module_logger().info("Copying meta information from %s to %s..." % (src_path_meta, self._meta_path))
         copy(src_path_meta, self._meta_path)
+
+        if src_path_index.exists():
+            module_logger().info("Copying index from %s to %s..." % (src_path_index, self.index_path))
+            copy(src_path_index, self.index_path)
+        else:
+            if self.index_path.exists():
+                # case index was deleted in the src
+                return False
+            else:
+                module_logger().info("Index file of the catalog does not exist yet...")
+        return True
 
     def copy_index_from_cache_to_src(self):
         """Copy the index file if a catalog and its metadata from the catalog cache folder into the source folder."""
@@ -391,16 +411,24 @@ class Catalog:
         )
         copy(self.solution_list_path, src_path_solution_list)
 
-    def download_index(self):
-        """Downloads the index file of the catalog and its metadata."""
+    def download_index(self) -> bool:
+        """Downloads the index file of the catalog and its metadata.
+
+        Returns
+            Index availability: True when the index was available, false when the catalog has no index file in the src.
+        """
         src, meta_src = get_index_url(self.src)
+
+        # check metadata first before moving on
+        download_resource(meta_src, self._meta_path)
 
         try:
             download_resource(src, self.index_path)
         except AssertionError:
-            # TODO ignore that catalogs might not have a database index for now
-            pass
-        download_resource(meta_src, self._meta_path)
+            # catalogs don't necessary have an index file. There simply might not be one yet or it got deleted.
+            return False
+
+        return True
 
     def retrieve_catalog(self, path=None, force_retrieve=False, update=True) -> Optional[Repo]:
         """Downloads or copies the whole catalog from its source. Used for deployment.
@@ -449,7 +477,7 @@ class Catalog:
                     Configuration().cache_path_download.joinpath(DefaultValues.catalog_index_metafile_json.value)
                 )
             else:
-                raise RuntimeError("Cannot retrieve meta information for the catalog!")
+                raise FileNotFoundError("Cannot retrieve meta information for the catalog!")
         else:
             raise RuntimeError("Cannot retrieve meta information for the catalog!")
 

@@ -1,6 +1,7 @@
 import shutil
 import unittest
 from pathlib import Path
+from unittest.mock import MagicMock
 
 from album.core.controller.collection.catalog_handler import CatalogHandler
 
@@ -18,11 +19,16 @@ class TestMigrationManager(TestUnitCommon):
     def setUp(self):
         super().setUp()
         self.create_album_test_instance(init_catalogs=False)
+
+        # creates remote catalog file content
         catalog_src = Path(self.tmp_dir.name).joinpath("testRepo")
         CatalogHandler.create_new_catalog(catalog_src, "test")
+
         catalog_path = Path(self.tmp_dir.name).joinpath("testPath")
         catalog_path.mkdir(parents=True)
-        self.catalog = Catalog(0, "test", catalog_src, catalog_path)
+
+        # initiates new catalog
+        self.catalog = Catalog(0, "test", src=catalog_src, path=catalog_path)
         MigrationManager().load_index(self.catalog)
 
     def tearDown(self) -> None:
@@ -46,17 +52,24 @@ class TestMigrationManager(TestUnitCommon):
         pass
 
     def test_load_index(self):
-
+        # prepare
         cs_file = Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_index_file_name.value)
         shutil.copy(self.get_catalog_db_from_resources("minimal-solution"), cs_file)
 
         self.assertEqual(0, len(self.catalog.catalog_index))  # its the old catalog
         self.catalog.index_path = cs_file  # path to "new" catalog
+
+        update_index_cache_mock = MagicMock()
+        self.catalog.update_index_cache = update_index_cache_mock
+
+        # call
         MigrationManager().load_index(self.catalog)
+
+        # asssert
         self.assertEqual(1, len(self.catalog.catalog_index))  # now is the "new" catalog
 
     def test_refresh_index(self):
-        cs_file = Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_index_file_name.value)
+        cs_file = self.catalog.src.joinpath(DefaultValues.catalog_index_file_name.value)  # the catalog src db file
         shutil.copy(self.get_catalog_db_from_resources("empty"), cs_file)
 
         self.catalog.index_path = cs_file

@@ -108,9 +108,6 @@ class TestIntegrationAPI(TestIntegrationCommon):
         # check that solution is not accessible any more
         # TODO
 
-        catalog.dispose()
-        remote_catalog_instance.dispose()
-
     def assertCatalogPresence(self, catalogs, src, should_be_present):
         present = False
         for catalog in catalogs:

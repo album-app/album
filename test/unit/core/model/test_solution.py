@@ -11,7 +11,7 @@ class TestUnitSolution(TestUnitCommon):
     
     def setUp(self):
         super().setUp()
-        Configuration().setup(base_cache_path=Path(self.tmp_dir.name).joinpath("album"), configuration_file_path=self.tmp_dir.name)
+        Configuration().setup(base_cache_path=Path(self.tmp_dir.name).joinpath("album"))
 
     def tearDown(self) -> None:
         super().tearDown()

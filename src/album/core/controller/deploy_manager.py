@@ -1,11 +1,7 @@
 import pkgutil
 import tempfile
 from pathlib import Path
-from typing import Optional
 
-from album.core.model.solution import Solution
-
-from album.core.model.catalog import Catalog
 from git import Repo
 
 import album
@@ -13,8 +9,10 @@ from album.core import load
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.migration_manager import MigrationManager
+from album.core.model.catalog import Catalog
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
+from album.core.model.solution import Solution
 from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, zip_paths, copy_in_file
 from album.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push
 from album.core.utils.operations.resolve_operations import solution_to_coordinates, get_zip_name
@@ -46,15 +44,8 @@ class DeployManager(metaclass=Singleton):
     def __init__(self):
         self.collection_manager = CollectionManager()
 
-    def deploy(self,
-               deploy_path,
-               catalog_name,
-               dry_run,
-               push_option=None,
-               git_email=None,
-               git_name=None,
-               force_deploy=False
-               ):
+    def deploy(self, deploy_path, catalog_name, dry_run, push_option=None, git_email=None, git_name=None,
+               force_deploy=False):
         """Function corresponding to the `deploy` subcommand of `album`.
 
         Generates the yml for a album and creates a merge request to the catalog only
@@ -108,11 +99,12 @@ class DeployManager(metaclass=Singleton):
         if catalog.is_local():
             self._deploy_to_local_catalog(catalog, active_solution, deploy_path, dry_run, force_deploy)
         else:
-            self._deploy_to_remote_catalog(catalog, active_solution, deploy_path, dry_run, push_option, git_email, git_name)
+            self._deploy_to_remote_catalog(
+                catalog, active_solution, deploy_path, dry_run, push_option, git_email, git_name
+            )
 
-        catalog.dispose()
-
-    def _deploy_to_remote_catalog(self, catalog: Catalog, active_solution: Solution, deploy_path, dry_run, push_option, git_email=None, git_name=None):
+    def _deploy_to_remote_catalog(self, catalog: Catalog, active_solution: Solution, deploy_path, dry_run, push_option,
+                                  git_email=None, git_name=None):
         """Routine to deploy to a remote catalog."""
         dl_path = self.get_download_path(catalog)
 
@@ -123,7 +115,9 @@ class DeployManager(metaclass=Singleton):
             raise FileNotFoundError("Catalog repository not found. Did the download of the catalog fail?")
 
         # include files/folders in catalog
-        solution_zip, docker_file, yml_file, cover_files = self._deploy_routine_in_local_src(catalog, catalog_local_src, active_solution, deploy_path)
+        solution_zip, docker_file, yml_file, cover_files = self._deploy_routine_in_local_src(
+            catalog, catalog_local_src, active_solution, deploy_path
+        )
 
         # merge request files:
         mr_files = [yml_file, solution_zip, docker_file] + cover_files
@@ -136,7 +130,8 @@ class DeployManager(metaclass=Singleton):
     def get_download_path(self, catalog: Catalog):
         return Path(self.collection_manager.configuration.cache_path_download).joinpath(catalog.name)
 
-    def _deploy_to_local_catalog(self, catalog: Catalog, active_solution: Solution, deploy_path, dry_run: bool, force_deploy: bool):
+    def _deploy_to_local_catalog(self, catalog: Catalog, active_solution: Solution, deploy_path, dry_run: bool,
+                                 force_deploy: bool):
         """Routine to deploy to a local catalog."""
         # check for cache catalog only
         if catalog.is_cache():
@@ -189,7 +184,8 @@ class DeployManager(metaclass=Singleton):
         return "_".join([coordinates.group, coordinates.name, coordinates.version])
 
     @staticmethod
-    def _create_merge_request(active_solution: Solution, repo: Repo, file_paths, dry_run=False, push_option=None, email=None, username=None):
+    def _create_merge_request(active_solution: Solution, repo: Repo, file_paths, dry_run=False, push_option=None,
+                              email=None, username=None):
         """Creates a merge request to the catalog repository for the album object.
 
         Commits first the files given in the call, but will not include anything else than that.

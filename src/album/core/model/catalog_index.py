@@ -32,61 +32,91 @@ class CatalogIndex(Database):
 
     def create(self):
         data = pkgutil.get_data('album.core.database', 'catalog_index_schema.sql')
-        self.get_cursor().executescript(data.decode("utf-8"))
-        self.update_name_version(self.name, self.version)
-        self.get_connection().commit()
 
-    def is_empty(self):
-        r = self.get_cursor().execute("SELECT * FROM solution").fetchone()
+        cursor = self.get_cursor()
+        cursor.executescript(data.decode("utf-8"))
+
+        self.update_name_version(self.name, self.version, close=False)
+
+        # explicitly commit and close
+        self.close_current_connection(commit=True)
+
+    def is_empty(self, close=True):
+        cursor = self.get_cursor()
+        r = cursor.execute("SELECT * FROM solution").fetchone()
+
+        if close:
+            self.close_current_connection()
+
         return False if r else True
 
-    def is_table_empty(self, table):
-        r = self.get_cursor().execute("SELECT * FROM %s" % table).fetchone()
+    def is_table_empty(self, table, close=True):
+        cursor = self.get_cursor()
+
+        r = cursor.execute("SELECT * FROM %s" % table).fetchone()
+
+        if close:
+            self.close_current_connection()
+
         return False if r else True
 
     # ### catalog_index ###
 
-    def update_name_version(self, name, version):
+    def update_name_version(self, name, version, close=True):
         module_logger().debug("Update index name: \"%s\" and version: \"%s\"" % (name, version))
 
         curr_name = self.get_name()
+
+        cursor = self.get_cursor()
         if curr_name:
-            self.get_cursor().execute(
+            cursor.execute(
                 "UPDATE catalog_index SET name=:name, version=:version WHERE name_id=:name_id",
                 {"name_id": 1, "name": name, "version": version}
             )
         else:
-            self.get_cursor().execute(
+            cursor.execute(
                 "INSERT INTO catalog_index values (?, ?, ?)",
                 (1, name, version)
             )
 
-    def get_name(self):
+        if close:
+            self.close_current_connection()
+
+    def get_name(self, close=True):
         module_logger().debug("Get catalog name")
 
-        r = self.get_cursor().execute(
+        cursor = self.get_cursor()
+        r = cursor.execute(
             "SELECT * FROM catalog_index"
         ).fetchone()
 
         cur_name = r["name"] if r else None
 
+        if close:
+            self.close_current_connection()
+
         return cur_name
 
-    def get_version(self):
+    def get_version(self, close=True):
         module_logger().debug("Get index version...")
 
-        r = self.get_cursor().execute(
+        cursor = self.get_cursor()
+        r = cursor.execute(
             "SELECT * FROM catalog_index"
         ).fetchone()
 
         cur_version = r["version"] if r else None
 
+        if close:
+            self.close_current_connection()
+
         return cur_version
 
-    def get_all_solutions(self):
+    def get_all_solutions(self, close=True):
         module_logger().debug("Retrieve all solutions")
 
-        r = self.get_cursor().execute(
+        cursor = self.get_cursor()
+        r = cursor.execute(
             "SELECT * FROM solution",
             {}).fetchall()
 
@@ -96,12 +126,18 @@ class CatalogIndex(Database):
                 solution = dict(s)
                 self._append_metadata_to_solution_dict(solution)
                 solutions.append(solution)
+
+        if close:
+            self.close_current_connection()
+
         return solutions
 
-    def _insert_solution(self, solution_attrs) -> int:
+    def _insert_solution(self, solution_attrs, close=True) -> int:
         hash_val = self.create_hash(":".join([json.dumps(solution_attrs[k]) for k in solution_attrs.keys()]))
         solution_id = self.next_id("solution")
-        self.get_cursor().execute(
+
+        cursor = self.get_cursor()
+        cursor.execute(
             "INSERT INTO solution values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ,? ,?, ?, ?)",
             (
                 solution_id,
@@ -124,9 +160,9 @@ class CatalogIndex(Database):
             )
         )
         for author in solution_attrs["authors"]:
-            author_id = self._insert_author(author)
+            author_id = self._insert_author(author, close=False)
             solution_author_id = self.next_id("solution_author")
-            self.get_cursor().execute(
+            cursor.execute(
                 "INSERT INTO solution_author values (?, ?, ?)",
                 (
                     solution_author_id,
@@ -135,9 +171,9 @@ class CatalogIndex(Database):
                 )
             )
         for tag in solution_attrs["tags"]:
-            tag_id = self._insert_tag(tag)
+            tag_id = self._insert_tag(tag, close=False)
             solution_tag_id = self.next_id("solution_tag")
-            self.get_cursor().execute(
+            cursor.execute(
                 "INSERT INTO solution_tag values (?, ?, ?)",
                 (
                     solution_tag_id,
@@ -146,9 +182,9 @@ class CatalogIndex(Database):
                 )
             )
         for argument in solution_attrs["args"]:
-            argument_id = self._insert_argument(argument)
+            argument_id = self._insert_argument(argument, close=False)
             solution_argument_id = self.next_id("solution_argument")
-            self.get_cursor().execute(
+            cursor.execute(
                 "INSERT INTO solution_argument values (?, ?, ?)",
                 (
                     solution_argument_id,
@@ -157,9 +193,9 @@ class CatalogIndex(Database):
                 )
             )
         for citation in solution_attrs["cite"]:
-            citation_id = self._insert_citation(citation)
+            citation_id = self._insert_citation(citation, close=False)
             solution_citation_id = self.next_id("solution_citation")
-            self.get_cursor().execute(
+            cursor.execute(
                 "INSERT INTO solution_citation values (?, ?, ?)",
                 (
                     solution_citation_id,
@@ -168,24 +204,36 @@ class CatalogIndex(Database):
                 )
             )
         for cover in solution_attrs["covers"]:
-            self._insert_cover(cover, solution_id)
+            self._insert_cover(cover, solution_id, close=False)
         self.save()
+
+        if close:
+            self.close_current_connection()
+
         return solution_id
 
-    def _insert_author(self, author):
+    def _insert_author(self, author, close=True):
         author_id = self.next_id("author")
-        self.get_cursor().execute(
+
+        cursor = self.get_cursor()
+        cursor.execute(
             "INSERT INTO author values (?, ?)",
             (
                 author_id,
                 author
             )
         )
+
+        if close:
+            self.close_current_connection()
+
         return author_id
 
-    def _insert_tag(self, tag):
+    def _insert_tag(self, tag, close=True):
         tag_id = self.next_id("tag")
-        self.get_cursor().execute(
+
+        cursor = self.get_cursor()
+        cursor.execute(
             "INSERT INTO tag values (?, ?, ?)",
             (
                 tag_id,
@@ -193,11 +241,17 @@ class CatalogIndex(Database):
                 "manual"
             )
         )
+
+        if close:
+            self.close_current_connection()
+
         return tag_id
 
-    def _insert_argument(self, argument):
+    def _insert_argument(self, argument, close=True):
         argument_id = self.next_id("argument")
-        self.get_cursor().execute(
+
+        cursor = self.get_cursor()
+        cursor.execute(
             "INSERT INTO argument values (?, ?, ?, ?, ?)",
             (
                 argument_id,
@@ -207,11 +261,16 @@ class CatalogIndex(Database):
                 get_dict_entry(argument, "default_value")
             )
         )
+
+        if close:
+            self.close_current_connection()
+
         return argument_id
 
-    def _insert_citation(self, citation):
+    def _insert_citation(self, citation, close=True):
         citation_id = self.next_id("citation")
-        self.get_cursor().execute(
+        cursor = self.get_cursor()
+        cursor.execute(
             "INSERT INTO citation values (?, ?, ?)",
             (
                 citation_id,
@@ -219,11 +278,16 @@ class CatalogIndex(Database):
                 get_dict_entry(citation, "doi")
             )
         )
+
+        if close:
+            self.close_current_connection()
+
         return citation_id
 
-    def _insert_cover(self, cover, solution_id):
+    def _insert_cover(self, cover, solution_id, close=True):
         cover_id = self.next_id("cover")
-        self.get_cursor().execute(
+        cursor = self.get_cursor()
+        cursor.execute(
             "INSERT INTO cover values (?, ?, ?, ?)",
             (
                 cover_id,
@@ -232,12 +296,17 @@ class CatalogIndex(Database):
                 cover["description"]
             )
         )
+
+        if close:
+            self.close_current_connection()
+
         return cover_id
 
-    def get_solution(self, solution_id) -> Optional[dict]:
+    def get_solution(self, solution_id, close=True) -> Optional[dict]:
         module_logger().debug("Get solution by id: \"%s\"..." % solution_id)
 
-        r = self.get_cursor().execute(
+        cursor = self.get_cursor()
+        r = cursor.execute(
             "SELECT * FROM solution WHERE solution_id=:solution_id",
             {
                 "solution_id": solution_id,
@@ -246,12 +315,18 @@ class CatalogIndex(Database):
         if r:
             solution = dict(r)
             self._append_metadata_to_solution_dict(solution)
+
+        if close:
+            self.close_current_connection()
+
         return solution
 
-    def get_solution_by_coordinates(self, coordinates: Coordinates) -> Optional[dict]:
+    def get_solution_by_coordinates(self, coordinates: Coordinates, close=True) -> Optional[dict]:
         """Resolves a solution by its name, version and group.
 
         Args:
+            close:
+                if speficied closes the connection after execution
             coordinates:
                 The group affiliation, name, and version of the solution.
 
@@ -262,7 +337,6 @@ class CatalogIndex(Database):
         module_logger().debug("Get solution by coordinates: \"%s\"..." % str(coordinates))
 
         cursor = self.get_cursor()
-
         r = cursor.execute(
             "SELECT s.* FROM solution s "
             "WHERE s.\"group\"=:group AND s.name=:name AND s.version=:version",
@@ -277,6 +351,10 @@ class CatalogIndex(Database):
         if r:
             solution = dict(r)
             self._append_metadata_to_solution_dict(solution)
+
+        if close:
+            self.close_current_connection()
+
         return solution
 
     def _append_metadata_to_solution_dict(self, solution):
@@ -287,10 +365,12 @@ class CatalogIndex(Database):
         solution["cite"] = self._get_citations_by_solution(solution_id)
         solution["tags"] = self._get_tags_by_solution(solution_id)
 
-    def get_solution_by_doi(self, doi) -> Optional[dict]:
+    def get_solution_by_doi(self, doi, close=True) -> Optional[dict]:
         """Resolves a solution by its DOI.
 
         Args:
+            close:
+                if speficied closes the connection after execution
             doi:
                 The doi to resolve for.
 
@@ -305,7 +385,6 @@ class CatalogIndex(Database):
         module_logger().debug("Get solution by doi: \"%s\"..." % doi)
 
         cursor = self.get_cursor()
-
         r = cursor.execute(
             "SELECT * FROM solution WHERE doi=:doi_value",
             {
@@ -316,12 +395,17 @@ class CatalogIndex(Database):
         solution = None
         if r:
             solution = dict(r)
+
+        if close:
+            self.close_current_connection()
+
         return solution
 
-    def _update_solution(self, solution_attrs) -> None:
+    def _update_solution(self, solution_attrs, close=True) -> None:
         hash_val = self.create_hash(":".join([json.dumps(solution_attrs[k]) for k in solution_attrs.keys()]))
 
-        self.get_cursor().execute(
+        cursor = self.get_cursor()
+        cursor.execute(
             "UPDATE solution SET "
             "title=:title, "
             "format_version=:format_version, "
@@ -358,103 +442,115 @@ class CatalogIndex(Database):
         )
         self.save()
 
-    def remove_solution(self, solution_id):
-        self.get_cursor().execute(
+        if close:
+            self.close_current_connection()
+
+    def remove_solution(self, solution_id, close=True):
+        cursor = self.get_cursor()
+
+        cursor.execute(
             "DELETE FROM solution WHERE solution_id=:solution_id",
             {
                 "solution_id": solution_id
             }
         )
-        self.get_cursor().execute(
+        cursor.execute(
             "DELETE FROM cover WHERE solution_id=:solution_id",
             {
                 "solution_id": solution_id
             }
         )
 
-        self.get_cursor().execute(
+        cursor.execute(
             "DELETE FROM solution_tag WHERE solution_id=:solution_id",
             {
                 "solution_id": solution_id
             }
         )
 
-        self.get_cursor().execute(
+        cursor.execute(
             "DELETE FROM solution_author WHERE solution_id=:solution_id",
             {
                 "solution_id": solution_id
             }
         )
 
-        self.get_cursor().execute(
+        cursor.execute(
             "DELETE FROM solution_citation WHERE solution_id=:solution_id",
             {
                 "solution_id": solution_id
             }
         )
 
-        self.get_cursor().execute(
+        cursor.execute(
             "DELETE FROM solution_argument WHERE solution_id=:solution_id",
             {
                 "solution_id": solution_id
             }
         )
 
-        self.get_cursor().execute(
+        cursor.execute(
             "DELETE FROM tag "
             "WHERE NOT EXISTS (SELECT st.tag_id FROM solution_tag st "
             "WHERE tag.tag_id = st.tag_id)")
 
-        self.get_cursor().execute(
+        cursor.execute(
             "DELETE FROM argument "
             "WHERE NOT EXISTS (SELECT sa.argument_id FROM solution_argument sa "
             "WHERE argument.argument_id = sa.argument_id)")
 
-        self.get_cursor().execute(
+        cursor.execute(
             "DELETE FROM citation "
             "WHERE NOT EXISTS (SELECT sc.citation_id FROM solution_citation sc "
             "WHERE citation.citation_id = sc.citation_id)")
 
-        self.get_cursor().execute(
+        cursor.execute(
             "DELETE FROM author "
             "WHERE NOT EXISTS (SELECT sa.author_id FROM solution_author sa "
             "WHERE author.author_id = sa.author_id)")
 
         self.save()
 
-    def remove_solution_by_group_name_version(self, coordinates: Coordinates):
-        solution_dict = self.get_solution_by_coordinates(coordinates)
+        if close:
+            self.close_current_connection()
+
+    def remove_solution_by_group_name_version(self, coordinates: Coordinates, close=True):
+        solution_dict = self.get_solution_by_coordinates(coordinates, close=close)
         if solution_dict:
             self.remove_solution(solution_dict["solution_id"])
 
     # ### catalog_features ###
 
-    def update(self, coordinates: Coordinates, solution_attrs: dict):
+    def update(self, coordinates: Coordinates, solution_attrs: dict, close=True):
         """Updates a catalog to include a solution as a node with the attributes given.
          Updates exiting nodes if node already present in tree.
 
         Args:
+            close:
+                if speficied closes the connection after execution
             coordinates:
                 The coordinates of the solution.
             solution_attrs:
                 The solution attributes. Must hold group, name, version.
 
         """
-        if self.get_solution_by_coordinates(coordinates):
+        if self.get_solution_by_coordinates(coordinates, close=False):
             module_logger().debug("Update solution...")
-            self._update_solution(solution_attrs)
+            self._update_solution(solution_attrs, close=close)
         else:
             module_logger().debug("Insert solution...")
-            self._insert_solution(solution_attrs)
+            self._insert_solution(solution_attrs, close=close)
 
     def save(self):
         module_logger().debug("Saving index...")
         self.get_connection().commit()
 
-    def export(self, path, export_format="JSON"):
+    def export(self, path, export_format="JSON", close=True):
         """Exports the index tree to disk.
 
         Args:
+            close:
+                if speficied closes the connection after execution
             path:
                 The path to store the export to.
             export_format:
@@ -466,7 +562,8 @@ class CatalogIndex(Database):
         """
         module_logger().debug("Export index...")
 
-        r = self.get_cursor().execute("SELECT * FROM solution").fetchall()
+        cursor = self.get_cursor()
+        r = cursor.execute("SELECT * FROM solution").fetchall()
 
         if export_format == "JSON":
             json_dumps_list = []
@@ -479,13 +576,20 @@ class CatalogIndex(Database):
         else:
             raise NotImplementedError("Unsupported format \"%s\"" % export_format)
 
-    def __len__(self):
-        r = self.get_cursor().execute("SELECT COUNT(*) FROM solution").fetchone()
+        if close:
+            self.close_current_connection()
+
+    def __len__(self, close=True):
+        cursor = self.get_cursor()
+        r = cursor.execute("SELECT COUNT(*) FROM solution").fetchone()
         r = r[0]
+
+        if close:
+            self.close_current_connection()
 
         return r
 
-    def _get_authors_by_solution(self, solution_id):
+    def _get_authors_by_solution(self, solution_id, close=True):
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT a.* FROM author a "
@@ -500,9 +604,12 @@ class CatalogIndex(Database):
         for row in r:
             res.append(row["name"])
 
+        if close:
+            self.close_current_connection()
+
         return res
 
-    def _get_tags_by_solution(self, solution_id):
+    def _get_tags_by_solution(self, solution_id, close=True):
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT t.* FROM tag t "
@@ -517,9 +624,12 @@ class CatalogIndex(Database):
         for row in r:
             res.append(row["name"])
 
+        if close:
+            self.close_current_connection()
+
         return res
 
-    def _get_citations_by_solution(self, solution_id):
+    def _get_citations_by_solution(self, solution_id, close=True):
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT c.* FROM citation c "
@@ -534,9 +644,12 @@ class CatalogIndex(Database):
         for row in r:
             res.append(dict(row))
 
+        if close:
+            self.close_current_connection()
+
         return res
 
-    def _get_arguments_by_solution(self, solution_id):
+    def _get_arguments_by_solution(self, solution_id, close=True):
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT a.* FROM argument a "
@@ -551,9 +664,12 @@ class CatalogIndex(Database):
         for row in r:
             res.append(dict(row))
 
+        if close:
+            self.close_current_connection()
+
         return res
 
-    def _get_covers_by_solution(self, solution_id):
+    def _get_covers_by_solution(self, solution_id, close=True):
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT c.* FROM cover c "
@@ -566,6 +682,9 @@ class CatalogIndex(Database):
         res = []
         for row in r:
             res.append(dict(row))
+
+        if close:
+            self.close_current_connection()
 
         return res
 

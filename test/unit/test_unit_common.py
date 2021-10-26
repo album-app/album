@@ -135,8 +135,7 @@ class TestUnitCommon(unittest.TestCase):
         return logs.split("\n")
 
     def create_album_test_instance(self, init_catalogs=True) -> Album:
-        my_album = Album(base_cache_path=Path(self.tmp_dir.name).joinpath("album"),
-                      configuration_file_path=self.tmp_dir.name)
+        my_album = Album(base_cache_path=Path(self.tmp_dir.name).joinpath("album"))
         if init_catalogs:
             # mock retrieve_catalog_meta_information as it involves a http request
             with patch("album.core.model.catalog.Catalog.retrieve_catalog_meta_information") as retrieve_c_m_i_mock:

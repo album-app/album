@@ -1,10 +1,9 @@
 from typing import Optional
 
-from album.core.controller.conda_manager import CondaManager
-
 from album.core import Solution
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
+from album.core.controller.conda_manager import CondaManager
 from album.core.model.coordinates import Coordinates
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import force_remove
@@ -26,6 +25,7 @@ class InstallManager(metaclass=Singleton):
     """
     # singletons
     collection_manager = None
+    conda_manager = None
 
     def __init__(self):
         self.collection_manager = CollectionManager()
@@ -39,18 +39,20 @@ class InstallManager(metaclass=Singleton):
         catalog = resolve_result.catalog
 
         if not catalog:
-            raise RuntimeError("solution cannot be installed without being associated with a catalog")
+            raise RuntimeError("Solution cannot be installed without being associated with a catalog!")
         else:
             resolve_result.loaded_solution.set_cache_paths(catalog.name)
-            module_logger().debug('solution loaded from catalog \"%s\": %s...' % (catalog.catalog_id, str(
-                resolve_result.loaded_solution)))
+            module_logger().debug(
+                'solution loaded from catalog \"%s\": %s...' % (catalog.catalog_id, str(resolve_result.loaded_solution))
+            )
 
         # execute installation routine
         self._install_resolve_result(resolve_result, argv, cleanup)
 
         return resolve_result
 
-    def install_from_catalog_coordinates(self, catalog_name: str, coordinates: Coordinates, argv=None, cleanup=True) -> ResolveResult:
+    def install_from_catalog_coordinates(self, catalog_name: str, coordinates: Coordinates, argv=None,
+                                         cleanup=True) -> ResolveResult:
         catalog = self.collection_manager.catalogs().get_by_name(catalog_name)
         resolve_result = self.collection_manager.resolve_download_and_load_catalog_coordinates(catalog, coordinates)
         self._install_resolve_result(resolve_result, argv, cleanup=cleanup)
@@ -65,33 +67,44 @@ class InstallManager(metaclass=Singleton):
         if not resolve_result.loaded_solution.parent:
             resolve_result.loaded_solution.set_cache_paths(resolve_result.catalog.name)
             resolve_result.loaded_solution.set_environment(resolve_result.catalog.name)
+
         parent_resolve_result = self._install(resolve_result.loaded_solution, argv)
-        if not resolve_result.catalog or resolve_result.catalog.is_cache():  # case where a solution file is directly given
-            self.collection_manager.add_solution_to_local_catalog(resolve_result.loaded_solution,
-                                                                  resolve_result.path.parent)
+
+        if resolve_result.catalog.is_cache():
+            # fixme: why does installation to a cache catalog does not update the collection afterwards?
+            self.collection_manager.add_solution_to_local_catalog(
+                resolve_result.loaded_solution,
+                resolve_result.path.parent  # the directory holding the solution file
+            )
             if cleanup:
                 clean_resolve_tmp(self.configuration.cache_path_tmp)
         else:
             parent_catalog_id = None
             if parent_resolve_result:
                 parent_catalog_id = parent_resolve_result.catalog.catalog_id
-            self.update_in_collection_index(resolve_result.catalog.catalog_id, parent_catalog_id,
-                                            resolve_result.loaded_solution)
-        self.collection_manager.solutions().set_installed(resolve_result.catalog, resolve_result.loaded_solution.coordinates)
+
+            self.update_in_collection_index(
+                resolve_result.catalog.catalog_id,
+                parent_catalog_id,
+                resolve_result.loaded_solution
+            )
+
+        # mark as installed
+        self.collection_manager.solutions().set_installed(
+            resolve_result.catalog, resolve_result.loaded_solution.coordinates
+        )
         module_logger().info('Installed \"%s\"!' % resolve_result.loaded_solution['name'])
 
+    # todo: finish implementation
     def update_in_collection_index(self, catalog_id, parent_catalog_id, active_solution: Solution):
-        parent_id = None
-
         if active_solution.parent:
             parent = active_solution.parent
 
             parent_entry = self.collection_manager.catalog_collection.get_solution_by_catalog_grp_name_version(
                 parent_catalog_id, dict_to_coordinates(parent)
             )
-            parent_id = parent_entry["solution_id"]
 
-        #FIXME figure out how to add the parent. can it be in a different catalog? if yes, add catalog and parent_id?!
+        # FIXME figure out how to add the parent. can it be in a different catalog? if yes, add catalog and parent_id?!
         self.collection_manager.solutions().update_solution(
             self.collection_manager.catalogs().get_by_id(catalog_id),
             solution_to_coordinates(active_solution),
@@ -104,10 +117,13 @@ class InstallManager(metaclass=Singleton):
             argv = [""]
 
         # install dependencies first. Recursive call to install with dependencies
-        parent_resolve_result = self.install_dependencies(active_solution)
+        parent_resolve_result = self.install_parent(active_solution)
 
         if active_solution.parent:
-            self.conda_manager.install(parent_resolve_result.loaded_solution.environment, parent_resolve_result.loaded_solution.min_album_version)
+            self.conda_manager.install(
+                parent_resolve_result.loaded_solution.environment,
+                parent_resolve_result.loaded_solution.min_album_version
+            )
             active_solution.environment = parent_resolve_result.loaded_solution.environment
         else:
             self.conda_manager.install(active_solution.environment, active_solution.min_album_version)
@@ -131,8 +147,7 @@ class InstallManager(metaclass=Singleton):
                 active_solution['name']
             )
 
-    # TODO rename install_parent
-    def install_dependencies(self, active_solution) -> Optional[ResolveResult]:
+    def install_parent(self, active_solution) -> Optional[ResolveResult]:
         """Handle dependencies in album dependency block"""
         parent_resolve_result = None
 
@@ -184,7 +199,6 @@ class InstallManager(metaclass=Singleton):
         if rm_dep:
             self.remove_dependencies(resolve_result.loaded_solution)
 
-
         if not resolve_result.loaded_solution.parent:
             resolve_result.loaded_solution.set_environment(resolve_result.catalog.name)
             self.conda_manager.remove_environment(resolve_result.loaded_solution.environment.name)
@@ -192,7 +206,8 @@ class InstallManager(metaclass=Singleton):
 
         self.remove_disc_content(resolve_result.loaded_solution)
 
-        self.collection_manager.solutions().set_uninstalled(resolve_result.catalog, resolve_result.loaded_solution.coordinates)
+        self.collection_manager.solutions().set_uninstalled(resolve_result.catalog,
+                                                            resolve_result.loaded_solution.coordinates)
 
         pop_active_solution()
 

@@ -68,7 +68,6 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             "src": str(catalog_src),
         })
         self.assertEqual(expected_list, self.catalog_collection.get_all_catalogs())
-        catalog.dispose()
 
     def test__add_to_index(self):
         # prepare
