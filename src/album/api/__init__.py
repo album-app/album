@@ -14,8 +14,8 @@ from album.core.model.configuration import Configuration
 
 class Album(metaclass=Singleton):
 
-    def __init__(self, base_cache_path: Optional[Path] = None, configuration_file_path: Optional[Path] = None) -> None:
-        Configuration().setup(base_cache_path=base_cache_path, configuration_file_path=configuration_file_path)
+    def __init__(self, base_cache_path: Optional[Path] = None) -> None:
+        Configuration().setup(base_cache_path=base_cache_path)
 
     @staticmethod
     def collection_manager() -> CollectionManager:

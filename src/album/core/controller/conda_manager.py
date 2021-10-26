@@ -4,18 +4,14 @@ import sys
 import tempfile
 from pathlib import Path
 
-from album.core import Solution
-from album.core.model.default_values import DefaultValues
-
-from album.runner.logging import debug_settings
-
-from album.core.model.environment import Environment
-
 from album.core.concept.singleton import Singleton
 from album.core.model.configuration import Configuration
+from album.core.model.default_values import DefaultValues
+from album.core.model.environment import Environment
 from album.core.utils import subcommand
 from album.core.utils.operations.file_operations import force_remove
 from album.runner import logging
+from album.runner.logging import debug_settings
 
 module_logger = logging.get_active_logger
 

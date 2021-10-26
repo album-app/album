@@ -58,6 +58,7 @@ class RunManager(metaclass=Singleton):
     """
     # singletons
     collection_manager = None
+    conda_manager = None
 
     def __init__(self):
         self.collection_manager = CollectionManager()

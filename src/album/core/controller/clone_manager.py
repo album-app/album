@@ -13,6 +13,9 @@ module_logger = logging.get_active_logger
 class CloneManager(metaclass=Singleton):
     """Class handling the creation of new catalogs and solutions."""
 
+    # singletons
+    collection_manager = None
+
     def __init__(self):
         self.collection_manager = CollectionManager()
 

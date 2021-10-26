@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from album.core import Solution
 from album.core.model.catalog import Catalog
 from album.core.model.catalog_updates import ChangeType, SolutionChange
@@ -92,13 +94,16 @@ class SolutionHandler:
     @staticmethod
     def get_solution_keys():
         keys = Solution.deploy_keys.copy()
+        # keys in a separate column
         keys.remove("authors")
         keys.remove("tags")
         keys.remove("args")
         keys.remove("cite")
         keys.remove("covers")
+        # keys to allow to be set
         keys.append("hash")
         keys.append("installed")
+        keys.append("install_date")
         return keys
 
     def apply_change(self, catalog, change: SolutionChange):
@@ -122,7 +127,7 @@ class SolutionHandler:
             )
 
     def set_installed(self, catalog, coordinates: Coordinates):
-        self.update_solution(catalog, coordinates, {"installed": 1})
+        self.update_solution(catalog, coordinates, {"installed": 1, "install_date": datetime.now().isoformat()})
 
     def is_installed(self, catalog, coordinates) -> bool:
         return self.catalog_collection.is_installed(catalog.catalog_id, coordinates)

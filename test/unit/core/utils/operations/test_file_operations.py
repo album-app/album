@@ -1,14 +1,17 @@
 import json
 import os
 import pathlib
+import sys
 import unittest.mock
 from pathlib import Path
-from stat import *
+import stat
+from unittest.mock import patch, MagicMock
+
 
 from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, \
     create_empty_file_recursively, \
     create_path_recursively, write_dict_to_json, force_remove, zip_folder, unzip_archive, copy, \
-    copy_folder, zip_paths, rand_folder_name
+    copy_folder, zip_paths, rand_folder_name, handle_remove_readonly
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -238,32 +241,20 @@ class TestFileOperations(TestUnitCommon):
 
         self.assertIn("No content in ", self.captured_output.getvalue())
 
-    @unittest.skip("Evalute meaning of this test before fixing it")
-    def test_force_remove_folder_undeletable(self):
-        p = Path(self.tmp_dir.name).joinpath("folder_in_use")
+    def test_force_remove_file(self):
+        p = Path(self.tmp_dir.name).joinpath("file_exist")
+        p.touch()
 
-        create_path_recursively(p)
+        force_remove(p)
 
-        f = p.joinpath("strange_file.txt")
-        with open(str(f), 'w+') as fp:
-            fp.write("test\n")
+    def test_force_remove_file_permission_error(self):
+        p = Path(self.tmp_dir.name).joinpath("file_exist")
 
-        # make file and folder user-read-only.
-        os.chmod(p, S_IREAD)
+        # make file protected and check if fallback is executed
+        p.touch()
+        os.chmod(p, stat.S_IWRITE)  # make write protected
 
-        # un-deletable
-        try:
-            skip = True
-            f.unlink()
-        except PermissionError:
-            skip = False
-
-            # no error and folder deleted
-            self.assertIsNone(force_remove(p))
-            self.assertFalse(p.exists())
-
-        if skip:
-            self.skipTest("Cannot setup test routine. Unknown reason!")
+        force_remove(p)  # should not fail
 
     def test_rand_folder_name(self):
         f1 = rand_folder_name()

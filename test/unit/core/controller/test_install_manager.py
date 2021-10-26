@@ -107,7 +107,7 @@ class TestInstallManager(TestUnitCommon):
         self.active_solution.min_album_version = "test"
 
         install_dependencies = MagicMock()
-        self.install_manager.install_dependencies = install_dependencies
+        self.install_manager.install_parent = install_dependencies
 
         # run
         self.install_manager._install(self.active_solution)
@@ -131,7 +131,7 @@ class TestInstallManager(TestUnitCommon):
         self.active_solution.min_album_version = "test"
 
         install_dependencies = MagicMock()
-        self.install_manager.install_dependencies = install_dependencies
+        self.install_manager.install_parent = install_dependencies
 
         # run
         self.active_solution.install = lambda: "notNone"
@@ -155,7 +155,7 @@ class TestInstallManager(TestUnitCommon):
         self.active_solution.min_album_version = "test"
 
         install_dependencies = MagicMock()
-        self.install_manager.install_dependencies = install_dependencies
+        self.install_manager.install_parent = install_dependencies
 
         # run
         self.active_solution.install = "notCallableValue"
@@ -173,7 +173,7 @@ class TestInstallManager(TestUnitCommon):
         self.install_manager.install_dependency = install_dependency
 
         # run
-        self.install_manager.install_dependencies(self.active_solution)
+        self.install_manager.install_parent(self.active_solution)
 
         # assert
         install_dependency.assert_not_called()
@@ -185,7 +185,7 @@ class TestInstallManager(TestUnitCommon):
 
         # run
         self.active_solution.parent = "someParent"
-        self.install_manager.install_dependencies(self.active_solution)
+        self.install_manager.install_parent(self.active_solution)
 
         # assert
         install_dependency.assert_called_once_with("someParent")

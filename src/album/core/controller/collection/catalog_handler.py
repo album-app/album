@@ -20,6 +20,8 @@ module_logger = logging.get_active_logger
 
 class CatalogHandler:
     """Helper class responsible for catalog handling."""
+    # singletons
+    migration_manager = None
 
     def __init__(self, configuration: Configuration, collection: CollectionIndex, solution_handler: SolutionHandler):
         self.catalog_collection = collection
@@ -147,9 +149,8 @@ class CatalogHandler:
         with open(local_path.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as meta:
             meta.writelines("{\"name\": \"" + name + "\", \"version\": \"" + CatalogIndex.version + "\"}")
 
-    @staticmethod
-    def _update(catalog: Catalog) -> bool:
-        r = MigrationManager().refresh_index(catalog)
+    def _update(self, catalog: Catalog) -> bool:
+        r = self.migration_manager.refresh_index(catalog)
         module_logger().info('Updated catalog %s!' % catalog.name)
         return r
 
@@ -184,8 +185,7 @@ class CatalogHandler:
         """Includes all new changes from a given catalog (or all catalogs) in the catalog_collection."""
         if dry_run:
             if catalog_name:
-                return [self._get_divergence_between_catalog_and_collection(
-                    catalog_name)]
+                return [self._get_divergence_between_catalog_and_collection(catalog_name)]
             else:
                 return self._get_divergence_between_catalogs_and_collection()
         else:
@@ -207,6 +207,8 @@ class CatalogHandler:
         self.catalog_collection.remove_catalog(catalog_to_remove.catalog_id)
 
         force_remove(catalog_to_remove.path)
+
+        catalog_to_remove.dispose()
 
         return catalog_to_remove
 
@@ -283,6 +285,8 @@ class CatalogHandler:
         if catalog.is_local():
             catalog.src = Path(catalog.src).absolute()
 
+        catalog.dispose()
+
         return catalog
 
     @staticmethod
@@ -308,7 +312,7 @@ class CatalogHandler:
             return res
 
         solutions_in_collection = self.catalog_collection.get_solutions_by_catalog(catalog.catalog_id)
-        MigrationManager().load_index(catalog)
+        self.migration_manager.load_index(catalog)
         solutions_in_catalog = catalog.catalog_index.get_all_solutions()
         res.solution_changes = self._compare_solutions(solutions_in_collection, solutions_in_catalog)
 

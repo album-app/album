@@ -42,7 +42,7 @@ class Configuration(metaclass=Singleton):
         self.cache_path_tmp = None
         self.catalog_collection_path = None
 
-    def setup(self, base_cache_path=None, configuration_file_path=None):
+    def setup(self, base_cache_path=None):
         if self.is_setup:
             raise RuntimeError("Configuration::setup was already called and should not be called twice.")
         self.is_setup = True

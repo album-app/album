@@ -21,7 +21,6 @@ module_logger = logging.get_active_logger
 
 def add_catalog(args) -> None:
     catalog = CollectionManager().catalogs().add_by_src(args.src)
-    catalog.dispose()
 
 
 def remove_catalog(args) -> None:

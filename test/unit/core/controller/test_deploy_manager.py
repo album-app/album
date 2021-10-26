@@ -52,11 +52,12 @@ class TestDeployManager(TestGitCommon):
         get_by_src = MagicMock(return_value=None)
         self.collection_manager.catalogs().get_by_src = get_by_src
 
-        # call
-        self.deploy_manager.deploy(deploy_path="None",
-                                   catalog_name=os.path.basename(self.tmp_dir.name),
-                                   dry_run=False,
-                                   push_option=None)
+        with patch('album.core.controller.migration_manager.MigrationManager.load_index'):
+            # call
+            self.deploy_manager.deploy(deploy_path="None",
+                                       catalog_name=os.path.basename(self.tmp_dir.name),
+                                       dry_run=False,
+                                       push_option=None)
 
         # assert
         get_by_name.assert_called_once_with(os.path.basename(self.tmp_dir.name))  # correct id requested

@@ -219,7 +219,6 @@ class AlbumServer(metaclass=Singleton):
             url = request.args.get("src")
             catalog = CollectionManager().catalogs().add_by_src(url)
             catalog_id = catalog.catalog_id
-            catalog.dispose()
             return {"catalog_id": catalog_id}
 
         @self.app.route('/remove-catalog')

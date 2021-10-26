@@ -35,7 +35,6 @@ class TestCatalogIndex(TestUnitCommon):
 
         return solution_id1, solution_id2
 
-
     @patch("album.core.model.catalog_index.CatalogIndex.update_name_version")
     def test_create(self, update_name_version_mock):
         # mock
@@ -45,9 +44,7 @@ class TestCatalogIndex(TestUnitCommon):
 
         # assert
         self.assertTrue(catalog_index.is_created())
-        update_name_version_mock.assert_called_once_with("test2", "0.1.0")
-
-        catalog_index.close()
+        update_name_version_mock.assert_called_once_with("test2", "0.1.0", close=False)
 
     def test_is_empty(self):
         self.assertTrue(self.catalog_index.is_empty())
@@ -167,7 +164,7 @@ class TestCatalogIndex(TestUnitCommon):
         self.catalog_index.remove_solution_by_group_name_version(Coordinates("a", "b", "c"))
 
         # assert
-        get_solution_by_group_name_version.assert_called_once_with(Coordinates("a", "b", "c"))
+        get_solution_by_group_name_version.assert_called_once_with(Coordinates("a", "b", "c"), close=True)
         remove_solution.assert_called_once_with(1)
 
     # ### catalog_features ###
@@ -180,7 +177,6 @@ class TestCatalogIndex(TestUnitCommon):
     def test_remove(self):
         pass
 
-    # @patch("album.core.model.catalog_index.dict_to_coordinates", return_value=Coordinates("g", "n", "v"))
     def test_update(self):
         # mocks
         get_solution_by_coordinates = MagicMock(return_value=None)
@@ -200,8 +196,8 @@ class TestCatalogIndex(TestUnitCommon):
         self.catalog_index.update(coordinates, attrs)
 
         # assert
-        get_solution_by_coordinates.assert_called_once_with(coordinates)
-        insert_solution.assert_called_once_with(attrs)
+        get_solution_by_coordinates.assert_called_once_with(coordinates, close=False)
+        insert_solution.assert_called_once_with(attrs, close=True)
         update_solution.assert_not_called()
 
     def test_update_solution_exists(self):
@@ -223,12 +219,12 @@ class TestCatalogIndex(TestUnitCommon):
         self.catalog_index.update(coordinates, attrs)
 
         # assert
-        get_solution_by_coordinates.assert_called_once_with(coordinates)
-        update_solution.assert_called_once_with(attrs)
+        get_solution_by_coordinates.assert_called_once_with(coordinates, close=False)
+        update_solution.assert_called_once_with(attrs, close=True)
         insert_solution.assert_not_called()
 
     def test_export(self):
-        solution_id1, solution_id2 = self.fill_solution()
+        self.fill_solution()
 
         # call
         p = Path(self.tmp_dir.name).joinpath("export_index")
@@ -247,6 +243,6 @@ class TestCatalogIndex(TestUnitCommon):
         self.assertEqual("anotherGroup", solution2_import["group"])
 
     def test__len__(self):
-        solution_id1, solution_id2 = self.fill_solution()
+        self.fill_solution()
 
         self.assertEqual(2, len(self.catalog_index))

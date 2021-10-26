@@ -20,6 +20,7 @@ class Solution(AlbumRunner):
         'min_album_version', 'license', 'git_repo', 'authors', 'cite', 'tags', 'documentation',
         'covers', 'args', 'title', 'timestamp'
     ]
+    min_album_version = None
 
     def get_deploy_dict(self):
         """Return a dictionary with the relevant deployment key/values for a given album."""

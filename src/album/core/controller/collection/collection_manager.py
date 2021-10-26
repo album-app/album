@@ -35,6 +35,9 @@ class CollectionManager(metaclass=Singleton):
             The configuration of the album framework instance.
 
     """
+    # singletons
+    configuration = None
+    migration_manager = None
 
     def __init__(self):
         super().__init__()

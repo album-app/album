@@ -23,6 +23,7 @@ class TestManager(metaclass=Singleton):
     """
     # singletons
     collection_manager = None
+    conda_manager = None
     run_manager = None
 
     def __init__(self):
