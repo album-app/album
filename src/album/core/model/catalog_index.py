@@ -1,15 +1,15 @@
-import datetime
 import hashlib
 import json
 import pkgutil
+from datetime import datetime
 from typing import Optional
 
 from album.core.concept.database import Database
 from album.core.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import get_dict_entry, write_dict_to_json
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 class CatalogIndex(Database):
@@ -146,7 +146,7 @@ class CatalogIndex(Database):
                 solution_attrs["title"],
                 solution_attrs["version"],
                 solution_attrs["format_version"],
-                datetime.datetime.now().isoformat(),
+                datetime.now().isoformat(),
                 solution_attrs["description"],
                 get_dict_entry(solution_attrs, "doi"),  # allow to be none
                 solution_attrs["git_repo"],
@@ -326,7 +326,7 @@ class CatalogIndex(Database):
 
         Args:
             close:
-                if speficied closes the connection after execution
+                if specified closes the connection after execution
             coordinates:
                 The group affiliation, name, and version of the solution.
 

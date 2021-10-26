@@ -430,8 +430,8 @@ class CondaManager(metaclass=Singleton):
 
     def update(self, environment: Environment):
         """Updates the environment"""
-        module_logger().debug('Update environment %s...' % environment.name)
-        pass  # ToDo: implement
+        module_logger().debug('Skip installing environment %s...' % environment.name)
+        pass  # ToDo: implement and change log message
 
     def create(self, environment: Environment):
         """Creates environment a solution runs in."""

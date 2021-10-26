@@ -26,10 +26,6 @@ class TestCollectionIndex(TestUnitCommon):
         self.assertTrue(self.test_catalog_collection.is_empty())
 
     def test_update_name_version(self):
-        # reset DB cursors TODO my is this necessary?!
-        self.test_catalog_collection.connections = {}
-        self.test_catalog_collection.cursors = {}
-
         # pre-assert
         self.assertEqual("test_catalog_collection", self.test_catalog_collection.get_name())
 
@@ -309,6 +305,7 @@ class TestCollectionIndex(TestUnitCommon):
             "cite": [],
             "args": [],
             "covers": [],
+            "children": [],
             "description": "",
             "documentation": "",
             "min_album_version": "",

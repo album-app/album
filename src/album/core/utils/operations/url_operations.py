@@ -8,9 +8,9 @@ import requests
 
 from album.ci.utils.zenodo_api import ResponseStatus
 from album.core.utils.operations.file_operations import create_path_recursively
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 def is_downloadable(url):

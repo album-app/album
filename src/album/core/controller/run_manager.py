@@ -1,12 +1,12 @@
 import argparse
 from queue import Queue, Empty
 
-from album.core.controller.conda_manager import CondaManager
-
 from album.core import load
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
+from album.core.controller.conda_manager import CondaManager
 from album.core.model.coordinates import Coordinates
+from album.core.utils.operations.resolve_operations import build_resolve_string
 from album.core.utils.script import create_solution_script
 from album.runner import logging
 
@@ -81,7 +81,8 @@ class RunManager(metaclass=Singleton):
 
         self._run(resolve_result.loaded_solution, run_immediately, argv)
 
-    def run_from_catalog_coordinates(self, catalog_name: str, coordinates: Coordinates, run_immediately=False, argv=None):
+    def run_from_catalog_coordinates(self, catalog_name: str, coordinates: Coordinates, run_immediately=False,
+                                     argv=None):
         catalog = self.collection_manager.catalogs().get_by_name(catalog_name)
         resolve_result = self.collection_manager.resolve_download_and_load_catalog_coordinates(catalog, coordinates)
         self._run(resolve_result.loaded_solution, run_immediately, argv)
@@ -192,13 +193,14 @@ class RunManager(metaclass=Singleton):
 
         for step in steps:
             module_logger().debug('resolving step \"%s\"...' % step["name"])
-            resolve_result = self.collection_manager.resolve_dependency_require_installation_and_load(step)
+            resolve_result = self.collection_manager.resolve_require_installation_and_load(build_resolve_string(step))
             active_solution = resolve_result.loaded_solution
             citations.append(active_solution)
 
             if active_solution.parent:  # collect steps as long as they have the same parent
-                current_parent_script_resolve = self.collection_manager.resolve_dependency_require_installation(
-                    active_solution.parent)
+                current_parent_script_resolve = self.collection_manager.resolve_require_installation(
+                    build_resolve_string(active_solution.parent)
+                )
                 current_parent_script_path = current_parent_script_resolve.path
                 current_parent_script_catalog = current_parent_script_resolve.catalog
 
@@ -307,8 +309,8 @@ class RunManager(metaclass=Singleton):
 
         """
         module_logger().debug('Creating album script with parent \"%s\"...' % active_solution.parent["name"])
-        parent_solution_resolve = self.collection_manager.resolve_dependency_require_installation_and_load(
-            active_solution.parent)
+        parent_solution_resolve = self.collection_manager.resolve_require_installation_and_load(
+            build_resolve_string(active_solution.parent))
         parent_solution_resolve.loaded_solution.set_cache_paths(parent_solution_resolve.catalog.name)
         parent_solution_resolve.loaded_solution.set_environment(parent_solution_resolve.catalog.name)
 
@@ -412,7 +414,7 @@ class RunManager(metaclass=Singleton):
                     raise ValueError("nargs not allowed")
                 super(FileAction, self).__init__(option_strings, dest, **kwargs)
 
-            def __call__(self, parser, namespace, values, option_string=None):
+            def __call__(self, p, namespace, values, option_string=None):
                 setattr(namespace, self.dest, active_solution.get_arg(self.dest)['action'](values))
 
         for element in active_solution["args"]:

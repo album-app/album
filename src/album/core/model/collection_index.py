@@ -388,12 +388,58 @@ class CollectionIndex(Database):
 
         return cover_id
 
+    def insert_solution_solution(self, collection_id_parent, collection_id_child, catalog_id_parent,
+                                 catalog_id_child, close=True):
+        solution_solution_id = self.next_id("collection_solution_solution")
+
+        cursor = self.get_cursor()
+        cursor.execute(
+            "INSERT INTO collection_solution_solution values (?, ?, ?, ?, ?)",
+            (
+                solution_solution_id,
+                collection_id_parent,
+                collection_id_child,
+                catalog_id_parent,
+                catalog_id_child
+            )
+        )
+
+        if close:
+            self.close_current_connection()
+
+        return solution_solution_id
+
+    def _get_children_by_solutions(self, collection_id, close=True):
+        child_solutions = []
+        cursor = self.get_cursor()
+
+        r = cursor.execute(
+                "SELECT css.* FROM collection_solution_solution css "
+                "JOIN collection c ON c.collection_id = css.collection_id_parent "
+                "WHERE c.collection_id=:collection_id",
+                {
+                    "collection_id": collection_id
+                }
+        ).fetchall()
+
+        res = []
+        for row in r:
+            res.append({
+                "catalog_id_child": row["catalog_id_child"],
+                "collection_id_child": row["collection_id_child"]
+            })
+
+        if close:
+            self.close_current_connection()
+
+        return child_solutions
+
     def get_all_solutions(self, close=True):
         installed_solutions_list = []
         cursor = self.get_cursor()
         for row in cursor.execute("SELECT * FROM collection").fetchall():
             solution_dict = dict(row)
-            self._append_metadata_to_solution(solution_dict)
+            self._append_metadata_to_solution(solution_dict, close=False)
             installed_solutions_list.append(solution_dict)
 
         if close:
@@ -413,7 +459,7 @@ class CollectionIndex(Database):
                 }
         ).fetchall():
             solution_dict = dict(row)
-            self._append_metadata_to_solution(solution_dict)
+            self._append_metadata_to_solution(solution_dict, close=False)
             catalog_solutions.append(solution_dict)
 
         if close:
@@ -423,11 +469,12 @@ class CollectionIndex(Database):
 
     def _append_metadata_to_solution(self, solution_dict, close=True):
         collection_id = solution_dict["collection_id"]
-        solution_dict["authors"] = self._get_authors_by_solution(collection_id)
-        solution_dict["tags"] = self._get_tags_by_solution(collection_id)
-        solution_dict["cite"] = self._get_citations_by_solution(collection_id)
-        solution_dict["args"] = self._get_arguments_by_solution(collection_id)
-        solution_dict["covers"] = self._get_covers_by_solution(collection_id)
+        solution_dict["authors"] = self._get_authors_by_solution(collection_id, close=False)
+        solution_dict["tags"] = self._get_tags_by_solution(collection_id, close=False)
+        solution_dict["cite"] = self._get_citations_by_solution(collection_id, close=False)
+        solution_dict["args"] = self._get_arguments_by_solution(collection_id, close=False)
+        solution_dict["covers"] = self._get_covers_by_solution(collection_id, close=False)
+        solution_dict["children"] = self._get_children_by_solutions(collection_id, close=close)
 
     def _get_authors_by_solution(self, collection_id, close=True):
         cursor = self.get_cursor()
@@ -548,7 +595,7 @@ class CollectionIndex(Database):
         solution = None
         if r:
             solution = dict(r)
-            self._append_metadata_to_solution(solution)
+            self._append_metadata_to_solution(solution, close=False)
 
         if close:
             self.close_current_connection()
@@ -566,7 +613,7 @@ class CollectionIndex(Database):
         solution = None
         if r:
             solution = dict(r)
-            self._append_metadata_to_solution(solution)
+            self._append_metadata_to_solution(solution, close=False)
 
         if close:
             self.close_current_connection()
@@ -584,14 +631,15 @@ class CollectionIndex(Database):
         solution = None
         if r:
             solution = dict(r)
-            self._append_metadata_to_solution(solution)
+            self._append_metadata_to_solution(solution, close=False)
 
         if close:
             self.close_current_connection()
 
         return solution
 
-    def get_solution_by_catalog_grp_name_version(self, catalog_id, coordinates: Coordinates, close=True) -> Optional[dict]:
+    def get_solution_by_catalog_grp_name_version(self, catalog_id, coordinates: Coordinates, close=True) \
+            -> Optional[dict]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT * FROM collection "
@@ -611,7 +659,7 @@ class CollectionIndex(Database):
         installed_solution = None
         for row in r:
             installed_solution = dict(row)
-            self._append_metadata_to_solution(installed_solution)
+            self._append_metadata_to_solution(installed_solution, close=False)
 
         if close:
             self.close_current_connection()
@@ -631,7 +679,7 @@ class CollectionIndex(Database):
                 }
         ).fetchall():
             solution = dict(row)
-            self._append_metadata_to_solution(solution)
+            self._append_metadata_to_solution(solution, close=False)
             installed_solutions_list.append(solution)
 
         if close:
@@ -645,7 +693,7 @@ class CollectionIndex(Database):
         cursor = self.get_cursor()
         for row in cursor.execute("SELECT * FROM collection ORDER BY install_date").fetchall():
             solution = dict(row)
-            self._append_metadata_to_solution(solution)
+            self._append_metadata_to_solution(solution, close=False)
             solutions_list.append(solution)
 
         if close:
@@ -661,7 +709,7 @@ class CollectionIndex(Database):
                 "SELECT * FROM collection WHERE last_execution IS NOT NULL ORDER BY last_execution"
         ).fetchall():
             solution = dict(row)
-            self._append_metadata_to_solution(solution)
+            self._append_metadata_to_solution(solution, close=False)
             solutions_list.append(solution)
 
         if close:
@@ -803,6 +851,20 @@ class CollectionIndex(Database):
         cursor.execute(
             "DELETE FROM collection_tag "
             "WHERE catalog_id=:catalog_id",
+            {
+                "catalog_id": catalog_id
+            }
+        )
+        cursor.execute(
+            "DELETE FROM collection_solution_solution "
+            "WHERE catalog_id_parent=:catalog_id",
+            {
+                "catalog_id": catalog_id
+            }
+        )
+        cursor.execute(
+            "DELETE FROM collection_solution_solution "
+            "WHERE catalog_id_child=:catalog_id",
             {
                 "catalog_id": catalog_id
             }

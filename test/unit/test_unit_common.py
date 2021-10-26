@@ -10,11 +10,11 @@ from unittest.mock import patch, MagicMock
 import git
 
 import album
+from album.api import Album
 from album.ci.controller.release_manager import ReleaseManager
 from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core import Solution
-from album.api import Album
 from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.conda_manager import CondaManager
@@ -139,9 +139,8 @@ class TestUnitCommon(unittest.TestCase):
         if init_catalogs:
             # mock retrieve_catalog_meta_information as it involves a http request
             with patch("album.core.model.catalog.Catalog.retrieve_catalog_meta_information") as retrieve_c_m_i_mock:
-                # with patch("album.core.model.configuration.Configuration.get_initial_catalogs") as get_initial_catalogs:
-                get_initial_catalogs_mock = MagicMock(return_value=
-                    {
+                get_initial_catalogs_mock = MagicMock(
+                    return_value={
                         DefaultValues.local_catalog_name.value:
                             Path(self.tmp_dir.name).joinpath("album", DefaultValues.catalog_folder_prefix.value,
                                                              DefaultValues.local_catalog_name.value)

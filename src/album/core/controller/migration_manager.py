@@ -2,9 +2,9 @@ from album.core.concept.singleton import Singleton
 from album.core.model.catalog import Catalog
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.collection_index import CollectionIndex
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 class MigrationManager(metaclass=Singleton):

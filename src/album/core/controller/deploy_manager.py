@@ -15,10 +15,10 @@ from album.core.model.default_values import DefaultValues
 from album.core.model.solution import Solution
 from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, zip_paths, copy_in_file
 from album.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push
-from album.core.utils.operations.resolve_operations import solution_to_coordinates, get_zip_name
-from album.runner import logging
+from album.core.utils.operations.resolve_operations import get_zip_name
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 class DeployManager(metaclass=Singleton):
@@ -180,7 +180,7 @@ class DeployManager(metaclass=Singleton):
     @staticmethod
     def retrieve_head_name(active_solution: Solution):
         """Retrieves the branch (head) name for the merge request of the solution file."""
-        coordinates = solution_to_coordinates(active_solution)
+        coordinates = active_solution.coordinates
         return "_".join([coordinates.group, coordinates.name, coordinates.version])
 
     @staticmethod
@@ -232,7 +232,7 @@ class DeployManager(metaclass=Singleton):
         """ Gets the absolute path to the zip."""
         return Path(catalog_local_src).joinpath(
             catalog.get_solution_zip_suffix(
-                solution_to_coordinates(active_solution)
+                active_solution.coordinates
             )
         )
 
@@ -244,7 +244,7 @@ class DeployManager(metaclass=Singleton):
             The Path to the created markdown file.
 
         """
-        coordinates = solution_to_coordinates(active_solution)
+        coordinates = active_solution.coordinates
 
         yaml_path = Path(catalog_local_src).joinpath(
             DefaultValues.cache_path_solution_prefix.value,
@@ -266,7 +266,7 @@ class DeployManager(metaclass=Singleton):
         Returns:
             The path to the docker file.
         """
-        coordinates = solution_to_coordinates(active_solution)
+        coordinates = active_solution.coordinates
         zip_name = get_zip_name(coordinates)
 
         solution_path_suffix = Path("").joinpath(Configuration.get_solution_path_suffix(coordinates))

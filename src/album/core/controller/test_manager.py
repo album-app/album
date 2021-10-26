@@ -91,6 +91,8 @@ class TestManager(metaclass=Singleton):
 
             module_logger().debug('Calling test routine specified in solution...')
             logging.configure_logging(active_solution['name'])
+
+            # fixme: what if it runs in a parent environment?
             self.conda_manager.set_environment_path(active_solution.environment)
             self.conda_manager.run_scripts(active_solution.environment, scripts)
             logging.pop_active_logger()

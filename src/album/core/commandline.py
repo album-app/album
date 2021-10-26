@@ -1,10 +1,9 @@
 import json
 import sys
 
-from album.core.model.catalog_updates import ChangeType
+from album.runner.logging import get_active_logger
 
 from album.api import Album
-from album.core import get_active_solution
 from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.deploy_manager import DeployManager
@@ -13,16 +12,12 @@ from album.core.controller.run_manager import RunManager
 from album.core.controller.search_manager import SearchManager
 from album.core.controller.test_manager import TestManager
 from album.core.server import AlbumServer
-from album.runner.logging import debug_settings, get_active_logger
 
 module_logger = get_active_logger
 
 
-# NOTE: Calling Singleton classes gives back the already initialized instances only!
-
-
 def add_catalog(args) -> None:
-    catalog = CollectionManager().catalogs().add_by_src(args.src)
+    CollectionManager().catalogs().add_by_src(args.src)
 
 
 def remove_catalog(args) -> None:
@@ -57,17 +52,19 @@ def upgrade(args):
             if len(change.solution_changes) > 0:
                 res += '  Catalog solution changes:\n'
                 for i, item in enumerate(change.solution_changes):
-                    if i is len(change.solution_changes)-1:
+                    if i is len(change.solution_changes) - 1:
                         res += '  └─ [%s] %s\n' % (item.change_type.name, item.coordinates)
                         separator = ' '
                     else:
                         res += '  ├─ [%s] %s\n' % (item.change_type.name, item.coordinates)
                         separator = '|'
-                    res += '  %s     %schangelog: %s\n' % (separator, (" " * len(item.change_type.name)), item.change_log)
+                    res += '  %s     %schangelog: %s\n' % (
+                    separator, (" " * len(item.change_type.name)), item.change_log)
 
             if len(change.catalog_attribute_changes) == 0 and len(change.solution_changes) == 0:
                 res += '  No changes.\n'
         module_logger().info(res)
+
 
 def deploy(args):
     DeployManager().deploy(
@@ -80,7 +77,7 @@ def install(args):
 
 
 def uninstall(args):
-    InstallManager().uninstall(args.path, args.uninstall_deps)
+    InstallManager().uninstall(args.path, args.uninstall_deps, sys.argv)
 
 
 def info(args):
@@ -132,7 +129,8 @@ def search(args):
     else:
         res = ''
         if len(search_result) > 0:
-            res += 'Search results for "%s" - run `album info SOLUTION_ID` for more information:\n' % ' '.join(args.keywords)
+            res += 'Search results for "%s" - run `album info SOLUTION_ID` for more information:\n' % ' '.join(
+                args.keywords)
             res += '[SCORE] SOLUTION_ID\n'
             for result in search_result:
                 res += '[%s] %s\n' % (result[1], result[0])
@@ -172,7 +170,7 @@ def index(args):
                     res += '├─ deletable: %s\n' % catalog['deletable']
                     res += '└─ solutions:\n'
                     for i, solution in enumerate(catalog['solutions']):
-                        if i is len(catalog['solutions'])-1:
+                        if i is len(catalog['solutions']) - 1:
                             res += '   └─ %s:%s:%s\n' % (solution['group'], solution['name'], solution['version'])
                         else:
                             res += '   ├─ %s:%s:%s\n' % (solution['group'], solution['name'], solution['version'])
@@ -183,34 +181,37 @@ def index(args):
 
 def repl(args):
     """Function corresponding to the `repl` subcommand of `album`."""
+    module_logger().info("This feature will be available soon!")
     # this loads a solution, opens python session in terminal, and lets you run python commands in the environment of the solution
     # Load solution
-    solution_script = open(args.path).read()
-    exec(solution_script)
 
-    solution = get_active_solution()
 
-    if debug_settings():
-        module_logger().debug('album loaded locally: %s...' % str(solution))
-
-    # Get environment name
-    environment_name = solution.environment_name
-
-    script = """from code import InteractiveConsole
-"""
-
-    script += solution_script
-
-    # Create an interactive console with our globals and locals
-    script += """
-console = InteractiveConsole(locals={
-    **globals(),
-    **locals()
-},
-                             filename="<console>")
-console.interact()
-"""
-    solution.run_scripts(script)
+#     solution_script = open(args.path).read()
+#     exec(solution_script)
+#
+#     solution = get_active_solution()
+#
+#     if debug_settings():
+#         module_logger().debug('album loaded locally: %s...' % str(solution))
+#
+#     # Get environment name
+#     environment_name = solution.environment_name
+#
+#     script = """from code import InteractiveConsole
+# """
+#
+#     script += solution_script
+#
+#     # Create an interactive console with our globals and locals
+#     script += """
+# console = InteractiveConsole(locals={
+#     **globals(),
+#     **locals()
+# },
+#                              filename="<console>")
+# console.interact()
+# """
+#     solution.run_scripts(script)
 
 
 def _get_print_json(args):
@@ -219,5 +220,3 @@ def _get_print_json(args):
 
 def _as_json(data):
     return json.dumps(data, sort_keys=True, indent=4)
-
-

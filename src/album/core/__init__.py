@@ -2,9 +2,9 @@ import sys
 from typing import Optional
 
 from album.core.model.solution import Solution
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 __version__ = "0.1.0"
 __author__ = "Kyle Harrington, Jan Philipp Albrecht, Deborah Schmidt"

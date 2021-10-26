@@ -6,9 +6,9 @@ import git
 from git import Repo
 
 from album.core.utils.operations.file_operations import force_remove
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 def checkout_branch(git_repo, branch_name):

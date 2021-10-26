@@ -7,9 +7,9 @@ from album.core.model.collection_index import CollectionIndex
 from album.core.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import copy_folder
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 class SolutionHandler:
@@ -20,55 +20,6 @@ class SolutionHandler:
 
     def __init__(self, collection: CollectionIndex):
         self.catalog_collection = collection
-
-    def get_solution_path_by_group_name_version(self, catalog: Catalog, coordinates: Coordinates):
-        """Resolves (also: finds, looks up) a solution in the catalog, returning the absolute path to the solution file.
-
-        Args:
-            catalog:
-                The catalog object where the solution belongs to.
-            coordinates:
-                The group affiliation, name, and version of the solution.
-
-        Returns: the path to the solution file.
-
-        """
-        solution_entry = self.catalog_collection.get_solution_by_catalog_grp_name_version(
-            catalog.catalog_id,
-            coordinates
-        )
-
-        if solution_entry:
-            path_to_solution = catalog.get_solution_file(coordinates)
-
-            return path_to_solution
-
-        return None  # could not resolve
-
-    def get_solution_path_by_doi(self, doi):
-        """Resolves an album via doi. Returns the absolute path to the solution.
-
-        Args:
-            doi:
-                The doi of the solution
-
-        Returns:
-            Absolute path to the solution file.
-
-        """
-        solution_entry = self.catalog_collection.get_solution_by_doi(doi)
-
-        if solution_entry:
-            path_to_solution = self.catalog_collection.get_catalog(solution_entry["catalog_id"]).get_solution_file(
-                dict_to_coordinates(solution_entry)
-            )
-
-            return path_to_solution
-
-        return None  # could not resolve
-
-    def __del__(self):
-        self.catalog_collection = None
 
     def add_or_replace(self, catalog: Catalog, active_solution: Solution, path):
         deploy_dict = active_solution.get_deploy_dict()
@@ -84,6 +35,25 @@ class SolutionHandler:
 
     def set_uninstalled(self, catalog: Catalog, coordinates: Coordinates):
         self.update_solution(catalog, coordinates, {"installed": 0})
+
+    def set_parent(self, catalog_parent: Catalog, catalog_child: Catalog, coordinates_parent: Coordinates,
+                   coordinates_child: Coordinates):
+
+        # retrieve parent entry
+        parent_entry = self.catalog_collection.get_solution_by_catalog_grp_name_version(
+            catalog_parent.catalog_id, coordinates_parent, close=False
+        )
+        # retrieve child entry
+        child_entry = self.catalog_collection.get_solution_by_catalog_grp_name_version(
+            catalog_child.catalog_id, coordinates_child, close=False
+        )
+
+        self.catalog_collection.insert_solution_solution(
+            parent_entry["collection_id"],
+            child_entry["collection_id"],
+            catalog_parent.catalog_id,
+            catalog_child.catalog_id
+        )
 
     def remove_solution(self, catalog: Catalog, coordinates: Coordinates):
         self.catalog_collection.remove_solution(catalog.catalog_id, coordinates)
@@ -126,8 +96,8 @@ class SolutionHandler:
                 catalog.catalog_index.get_solution_by_coordinates(change.coordinates)
             )
 
-    def set_installed(self, catalog, coordinates: Coordinates):
+    def set_installed(self, catalog: Catalog, coordinates: Coordinates):
         self.update_solution(catalog, coordinates, {"installed": 1, "install_date": datetime.now().isoformat()})
 
-    def is_installed(self, catalog, coordinates) -> bool:
+    def is_installed(self, catalog: Catalog, coordinates: Coordinates) -> bool:
         return self.catalog_collection.is_installed(catalog.catalog_id, coordinates)

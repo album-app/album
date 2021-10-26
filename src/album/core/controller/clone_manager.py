@@ -5,9 +5,9 @@ from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations import url_operations, file_operations
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 class CloneManager(metaclass=Singleton):

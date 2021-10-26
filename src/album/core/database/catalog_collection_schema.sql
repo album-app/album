@@ -88,6 +88,20 @@ CREATE TABLE IF NOT EXISTS collection
     FOREIGN KEY (catalog_id) REFERENCES catalog (catalog_id)
 );
 
+CREATE TABLE IF NOT EXISTS collection_solution_solution
+(
+    collection_solution_solution_id INTEGER PRIMARY KEY,
+    collection_id_parent            INTEGER,
+    collection_id_child             INTEGER,
+    catalog_id_parent               INTEGER,
+    catalog_id_child                INTEGER,
+    FOREIGN KEY (collection_id_parent) REFERENCES collection (collection_id),
+    FOREIGN KEY (collection_id_child) REFERENCES collection (collection_id),
+    FOREIGN KEY (catalog_id_parent) REFERENCES catalog (catalog_id),
+    FOREIGN KEY (catalog_id_child) REFERENCES catalog (catalog_id)
+
+);
+
 CREATE TABLE IF NOT EXISTS collection_solution_tag
 (
     collection_solution_tag_id INTEGER PRIMARY KEY,
