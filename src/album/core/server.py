@@ -39,6 +39,7 @@ class AlbumServer(metaclass=Singleton):
             self.album = album
         else:
             self.album = Album()
+            self.album.collection_manager().load_or_create_collection()
 
     def start(self, test_config=None):
         module_logger().info('Starting server..')
