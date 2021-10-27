@@ -40,6 +40,7 @@ def __run_subcommand(args, parser):
 
     # Makes sure album is initialized.
     Album()
+    Album().collection_manager().load_or_create_collection()
 
     args[0].func(args[0])  # execute entry point function
 
