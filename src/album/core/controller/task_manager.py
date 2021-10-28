@@ -52,10 +52,10 @@ class TaskManager(metaclass=Singleton):
         res = []
         for record in records:
             res.append({
-                "asctime": record.asctime,
-                "name": record.name,
-                "levelname": record.levelname,
-                "msg": record.msg,
+                "asctime": str(record.asctime),
+                "name": str(record.name),
+                "levelname": str(record.levelname),
+                "msg": str(record.msg),
             })
         return res
 
@@ -92,8 +92,12 @@ class TaskManager(metaclass=Singleton):
         task.log_handler = handler
         logger.addHandler(handler)
         task.status = Task.Status.RUNNING
-        self._run_task(task)
-        task.status = Task.Status.FINISHED
+        try:
+            self._run_task(task)
+            task.status = Task.Status.FINISHED
+        except Exception as e:
+            logger.error(e)
+            task.status = Task.Status.FAILED
         logger.removeHandler(handler)
         logging.pop_active_logger()
         module_logger().info(f"TaskManager: finished task {task.id}.")

@@ -2,8 +2,12 @@ import unittest
 import urllib.parse
 from pathlib import Path
 from time import time, sleep
+from unittest.mock import patch
 
 import flask_unittest
+from album.core.controller.conda_manager import CondaManager
+
+from album.core.controller.task_manager import TaskManager
 
 from album.core.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
@@ -216,6 +220,27 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         # check that solution is not accessible any more
         res_status = client.get(f'/status/{local_catalog_name}/{group}/{name}/{version}')
         self.assertEqual(404, res_status.status_code)
+
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    def test_server_sad_solution(self, client, get_environment_path):
+        get_environment_path.return_value = CondaManager().get_active_environment_path()
+        solution_path = self.get_test_solution_path("solution9_throws_exception.py")
+        solution = self.fake_install(solution_path, create_environment=False)
+
+        res_run = client.get(f"/run/{solution.group}/{solution.name}/{solution.version}")
+        self.assertEqual(200, res_run.status_code)
+        self.assertIsNotNone(res_run.json)
+        task_run_id = res_run.json["id"]
+        self.assertEqual("0", task_run_id)
+
+        # wait for completion of tasks
+        self._finish_taskmanager_with_timeout(self.server.task_manager(), 30)
+
+        self.assertEqual(Task.Status.FAILED, self.server.task_manager().get_task(task_run_id).status)
+        res_status = client.get(f'/status/{task_run_id}')
+        self.assertEqual(200, res_status.status_code)
+        self.assertIsNotNone(res_status.json)
+        self.assertEqual("FAILED", res_status.json["status"])
 
     def _finish_taskmanager_with_timeout(self, task_manager, timeout):
         # since queue.join has no timeout, we are doing something else to check if the queue is processed
