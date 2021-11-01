@@ -19,6 +19,7 @@ class Task:
         WAITING = 0
         RUNNING = 1
         FINISHED = 2
+        FAILED = 3
 
     id = None
     method = None
