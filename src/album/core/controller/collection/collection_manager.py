@@ -61,7 +61,8 @@ class CollectionManager(metaclass=Singleton):
 
     def load_or_create_collection(self):
         if self.collection_loaded:
-            module_logger().error("CollectionManager().load_or_create_collection() should only be called once.")
+            module_logger().warning("CollectionManager().load_or_create_collection() should only be called once.")
+            return
         self.collection_loaded = True
         collection_meta = self.configuration.get_catalog_collection_meta_dict()
         newly_created = not self.configuration.get_catalog_collection_path().exists()
