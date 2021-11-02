@@ -4,7 +4,7 @@ import sys
 import album
 from album.api import Album
 from album.core.commandline import add_catalog, remove_catalog, deploy, \
-    install, repl, run, search, start_server, test, update, clone, upgrade, index, uninstall
+    install, repl, run, search, start_server, test, update, clone, upgrade, index, uninstall, info
 from album.runner.logging import debug_settings, get_active_logger, set_loglevel, LogLevel, to_loglevel
 
 module_logger = get_active_logger
@@ -28,9 +28,7 @@ def __handle_args(args, parser):
     print_json = getattr(args[0], "json", False)
     if print_json:
         _capture_output()
-    module_logger().info(
-        "Running album version %s \n \n %s - contact via %s " %
-        (album.core.__version__, album.core.__author__, album.core.__email__))
+    module_logger().info("album version %s | contact via %s " % (album.core.__version__, album.core.__email__))
     __run_subcommand(args, parser)
 
 
@@ -118,6 +116,7 @@ def create_parser():
         default=False,
         action='store_true'
     )
+    parser.create_file_command_parser('info', info, 'print information about an album solution')
     parser.create_catalog_command_parser(
         'add-catalog', add_catalog,
         'add a catalog to your local album configuration file'

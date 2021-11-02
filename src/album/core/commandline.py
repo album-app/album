@@ -59,6 +59,35 @@ def uninstall(args):
     InstallManager().uninstall(args.path, args.uninstall_deps)
 
 
+def info(args):
+    resolve_result = CollectionManager().resolve_download_and_load(str(args.path))
+    print_json = _get_print_json(args)
+    deploy_dict = resolve_result.loaded_solution.get_deploy_dict()
+    if print_json:
+        print(_as_json(deploy_dict))
+    else:
+        param_example_str = ""
+        for arg in deploy_dict["args"]:
+            param_example_str += "--%s PARAMETER_VALUE " % arg["name"]
+        module_logger().info('')
+        module_logger().info('Solution details about %s:' % args.path)
+        module_logger().info('|')
+        for key in deploy_dict:
+            module_logger().info("| %s: %s" % (key, deploy_dict[key]))
+        module_logger().info('')
+        module_logger().info('Usage:')
+        module_logger().info('|')
+        module_logger().info('| album install %s', args.path)
+        module_logger().info('| album run %s %s' % (resolve_result.loaded_solution.coordinates, param_example_str))
+        module_logger().info('| album test %s' % (resolve_result.loaded_solution.coordinates))
+        module_logger().info('| album uninstall %s' % (resolve_result.loaded_solution.coordinates))
+        module_logger().info('')
+        module_logger().info('Run parameters:')
+        module_logger().info('|')
+        for arg in deploy_dict["args"]:
+            module_logger().info('| --%s: %s' % (arg["name"], arg["description"]))
+
+
 def run(args):
     RunManager().run(args.path, args.run_immediately, sys.argv)
 
@@ -115,3 +144,13 @@ console = InteractiveConsole(locals={
 console.interact()
 """
     solution.run_scripts(script)
+
+
+def _get_print_json(args):
+    return getattr(args, "json", False)
+
+
+def _as_json(data):
+    return json.dumps(data, sort_keys=True, indent=4)
+
+
