@@ -17,7 +17,7 @@ from album.core.controller.conda_manager import CondaManager
 from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
 from album.core.utils.operations.file_operations import copy
-from album.runner.logging import configure_logging, LogLevel
+from album.runner.album_logging import configure_logging, LogLevel
 from test.global_exception_watcher import GlobalExceptionWatcher
 from test.unit.test_unit_common import TestUnitCommon
 

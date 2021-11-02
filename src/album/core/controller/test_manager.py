@@ -5,10 +5,10 @@ from album.core.controller.conda_manager import CondaManager
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.run_manager import RunManager
-from album.runner import logging
+from album.runner import album_logging
 from album.core.model.coordinates import Coordinates
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 class TestManager(metaclass=Singleton):
@@ -90,11 +90,11 @@ class TestManager(metaclass=Singleton):
                 scripts[0] += "\nget_active_solution().test()\n"
 
             module_logger().debug('Calling test routine specified in solution...')
-            logging.configure_logging(active_solution['name'])
+            album_logging.configure_logging(active_solution['name'])
 
             # fixme: what if it runs in a parent environment?
             self.conda_manager.set_environment_path(active_solution.environment)
             self.conda_manager.run_scripts(active_solution.environment, scripts)
-            logging.pop_active_logger()
+            album_logging.pop_active_logger()
         else:
             module_logger().warning('No \"test\" routine configured for solution %s! Skipping...' % active_solution['name'])

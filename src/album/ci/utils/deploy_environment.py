@@ -1,6 +1,6 @@
 import os
 
-from album.runner import logging
+from album.runner import album_logging
 
 """Environment variables for the CI:
 
@@ -39,7 +39,7 @@ ci_source_branch_name = "CI_MERGE_REQUEST_SOURCE_BRANCH_NAME"
 ci_project_path = "CI_PROJECT_PATH"
 ci_server_url = "CI_SERVER_URL"
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 def get_os_environment_value(env_name):

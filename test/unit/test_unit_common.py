@@ -29,7 +29,7 @@ from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.server import AlbumServer
 from album.core.utils.operations.file_operations import force_remove
-from album.runner.logging import pop_active_logger, LogLevel, configure_logging
+from album.runner.album_logging import pop_active_logger, LogLevel, configure_logging
 from test.global_exception_watcher import GlobalExceptionWatcher
 
 

@@ -9,9 +9,9 @@ from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.resolve_operations import clean_resolve_tmp, build_resolve_string
 from album.core.utils.script import create_solution_script
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 class InstallManager(metaclass=Singleton):
@@ -173,9 +173,9 @@ class InstallManager(metaclass=Singleton):
             module_logger().debug('Creating install script...')
             script = create_solution_script(active_solution, "\nget_active_solution().install()\n", argv)
             module_logger().debug('Calling install routine specified in solution...')
-            logging.configure_logging(active_solution['name'])
+            album_logging.configure_logging(active_solution['name'])
             self.conda_manager.run_scripts(active_solution.environment, [script])
-            logging.pop_active_logger()
+            album_logging.pop_active_logger()
         else:
             module_logger().debug(
                 'No \"install\" routine configured for solution \"%s\". Skipping.' %
@@ -266,9 +266,9 @@ class InstallManager(metaclass=Singleton):
             module_logger().debug('Creating uninstall script...')
             script = create_solution_script(active_solution, "\nget_active_solution().uninstall()\n", argv)
             module_logger().debug('Calling uninstall routine specified in solution...')
-            logging.configure_logging(active_solution['name'])
+            album_logging.configure_logging(active_solution['name'])
             self.conda_manager.run_scripts(active_solution.environment, [script])
-            logging.pop_active_logger()
+            album_logging.pop_active_logger()
         else:
             module_logger().info(
                 'No \"uninstall\" routine configured for solution \"%s\"! Will execute nothing!' %

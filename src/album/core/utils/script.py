@@ -2,9 +2,9 @@ import json
 import sys
 from argparse import ArgumentError
 
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 enc = sys.getfilesystemencoding()
 
 
@@ -57,9 +57,9 @@ def create_script(process_name, custom_code, argv):
         "module_logger = get_active_logger\n"
     )
     # create logging
-    parent_name = logging.get_active_logger().name
+    parent_name = album_logging.get_active_logger().name
     script += "configure_logging(\"%s\", loglevel=%s, stream_handler=sys.stdout, " % (
-        process_name, logging.to_loglevel(logging.get_loglevel_name())
+        process_name, album_logging.to_loglevel(album_logging.get_loglevel_name())
     ) + "formatter_string=\"" + r"%(name)s - %(levelname)s - %(message)s" + "\", parent_name=\"%s\")\n" % parent_name
     script += "print = module_logger().info\n"
     # This could have an issue with nested quotes

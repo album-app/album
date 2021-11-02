@@ -4,8 +4,8 @@ from pathlib import Path
 
 from album.core.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
-from album.runner import logging
-from album.runner.logging import LogLevel
+from album.runner import album_logging
+from album.runner.album_logging import LogLevel
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -13,8 +13,8 @@ class TestIntegrationAPI(TestIntegrationCommon):
 
     def test_api(self):
 
-        logging.set_loglevel(LogLevel.INFO)
-        logger = logging.get_active_logger()
+        album_logging.set_loglevel(LogLevel.INFO)
+        logger = album_logging.get_active_logger()
 
         album = self.get_album()
 

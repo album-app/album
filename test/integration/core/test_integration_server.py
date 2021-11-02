@@ -13,8 +13,8 @@ from album.core.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.model.task import Task
 from album.core.server import AlbumServer
-from album.runner import logging
-from album.runner.logging import LogLevel
+from album.runner import album_logging
+from album.runner.album_logging import LogLevel
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -37,7 +37,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
     def test_server(self, client):
 
         # setting up test
-        logging.set_loglevel(LogLevel.INFO)
+        album_logging.set_loglevel(LogLevel.INFO)
 
         # check index route
 

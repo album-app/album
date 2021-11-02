@@ -6,7 +6,7 @@ import album
 from album.api import Album
 from album.core.commandline import add_catalog, remove_catalog, deploy, \
     install, repl, run, search, start_server, test, update, clone, upgrade, index, uninstall, info
-from album.runner.logging import debug_settings, get_active_logger, set_loglevel, LogLevel, to_loglevel
+from album.runner.album_logging import debug_settings, get_active_logger, set_loglevel, LogLevel, to_loglevel
 
 module_logger = get_active_logger
 

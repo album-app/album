@@ -1,7 +1,7 @@
 import json
 import sys
 
-from album.runner.logging import get_active_logger
+from album.runner.album_logging import get_active_logger
 
 from album.api import Album
 from album.core.controller.clone_manager import CloneManager
@@ -59,7 +59,7 @@ def upgrade(args):
                         res += '  ├─ [%s] %s\n' % (item.change_type.name, item.coordinates)
                         separator = '|'
                     res += '  %s     %schangelog: %s\n' % (
-                    separator, (" " * len(item.change_type.name)), item.change_log)
+                        separator, (" " * len(item.change_type.name)), item.change_log)
 
             if len(change.catalog_attribute_changes) == 0 and len(change.solution_changes) == 0:
                 res += '  No changes.\n'

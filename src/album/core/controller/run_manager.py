@@ -8,9 +8,9 @@ from album.core.controller.conda_manager import CondaManager
 from album.core.model.coordinates import Coordinates
 from album.core.utils.operations.resolve_operations import build_resolve_string
 from album.core.utils.script import create_solution_script
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 class SolutionCollection:
@@ -473,11 +473,11 @@ class RunManager(metaclass=Singleton):
 
     def _run_in_environment_with_own_logger(self, active_solution, scripts):
         """Pushes a new logger to the stack before running the solution and pops it afterwards."""
-        logging.configure_logging(active_solution['name'])
+        album_logging.configure_logging(active_solution['name'])
         module_logger().debug("Running script in environment of solution \"%s\"..." % active_solution['name'])
         self.conda_manager.run_scripts(active_solution.environment, scripts)
         module_logger().debug("Done running script in environment of solution \"%s\"..." % active_solution['name'])
-        logging.pop_active_logger()
+        album_logging.pop_active_logger()
 
     @staticmethod
     def _get_args(step, args):
