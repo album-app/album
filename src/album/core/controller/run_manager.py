@@ -179,7 +179,7 @@ class RunManager(metaclass=Singleton):
             que:
                 The queue object.
             steps:
-                The steps of a stepped-hip solution.
+                The steps of a stepped solution.
             run_immediately:
                 Boolean. When true, a collection is run immediately without solving for further steps and pushing them
                 to the queue. Can result in resolving problems in further downstream collections. Necessary for
@@ -263,12 +263,12 @@ class RunManager(metaclass=Singleton):
 
         Args:
             active_solution:
-                The hip solution object to create the executable script for.
+                The solution object to create the executable script for.
             args:
                 The arguments integrated in the script.
 
         Returns:
-                The hip solution object and its scripts (in a list)
+                The solution object and its scripts (in a list)
 
         """
         module_logger().debug('Creating standalone album script \"%s\"...' % active_solution["name"])
@@ -288,12 +288,12 @@ class RunManager(metaclass=Singleton):
 
         Args:
             active_solution:
-                The hip solution object to create the executable script for.
+                The solution object to create the executable script for.
             args:
                 The arguments integrated in the script.
 
         Returns:
-                The hip solution object and its scripts (in a list).
+                The solution object and its scripts (in a list).
 
         """
         module_logger().debug('Creating album script with parent \"%s\"...' % active_solution.parent["name"])
@@ -319,12 +319,12 @@ class RunManager(metaclass=Singleton):
         return [parent_solution_resolve.loaded_solution, scripts]
 
     def create_solution_run_collection_script(self, solution_collection: SolutionCollection):
-        """Creates the execution script for a collection of hip solutions all having the same parent dependency.
+        """Creates the execution script for a collection of solutions all having the same parent dependency.
 
         Args:
             solution_collection
         Returns:
-            The hip solution shared parent object and its scripts.
+            The solution shared parent object and its scripts.
 
         """
         # load parent & steps
@@ -350,7 +350,7 @@ class RunManager(metaclass=Singleton):
         return [parent_solution, scripts]
 
     def create_solution_run_with_parent_script(self, parent_solution, parent_args, child_solution_list, child_args):
-        """Creates the script for the parent hip solution as well as for all its steps (child solutions).
+        """Creates the script for the parent solution as well as for all its steps (child solutions).
 
         Args:
             parent_solution:

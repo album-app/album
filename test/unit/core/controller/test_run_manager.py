@@ -462,7 +462,7 @@ class TestRunManager(TestUnitCommon):
         self.assertEqual(["script_paretn", "script_child_1", "script_child_2", "\npop_active_solution()\n"], r)
 
     def test_resolve_args(self):
-        # the arguments of the steps hip solution for each step
+        # the arguments of the steps solution for each step
         steps = [
             {
                 "name": "Step1",
@@ -474,7 +474,7 @@ class TestRunManager(TestUnitCommon):
             }
         ]
 
-        # album object and arguments of the first hip solution mentioned in the steps above
+        # solution object and arguments of the first solution mentioned in the steps above
         step1_solution = self.active_solution
         step1_solution.parent = {
             'name': 'app1',
@@ -500,7 +500,7 @@ class TestRunManager(TestUnitCommon):
             }
         ]
 
-        #  album object and arguments of the second hip solution mentioned in the steps above
+        # solution object and arguments of the second solution mentioned in the steps above
         step2_solution = deepcopy(self.active_solution)
         step2_solution.parent = {
             'name': 'app1',
@@ -525,7 +525,7 @@ class TestRunManager(TestUnitCommon):
             }
         ]
 
-        # the parent hip of both and its argument
+        # the parent solution of both and its argument
         parent_solution = deepcopy(self.active_solution)
         parent_solution.args = [{
             "name": "parent_arg1",

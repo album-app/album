@@ -20,7 +20,7 @@ class SearchManager(metaclass=Singleton):
     def search(self, keywords):
         """Function corresponding to the `search` subcommand of `album`.
 
-        Searches through album catalogs to find closest matching hip solution.
+        Searches through album catalogs to find closest matching solution.
 
         """
         module_logger().debug("Searching with following arguments %s..." % ", ".join(keywords))

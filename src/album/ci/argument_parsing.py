@@ -112,7 +112,7 @@ class AlbumCIParser(AlbumAP):
         return parent_parser
 
     def create_parser(self):
-        """Creates the main parser for the hip framework."""
+        """Creates the main parser for the album framework."""
         parser = ArgumentParser(
             add_help=True,
             description=
