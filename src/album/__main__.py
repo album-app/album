@@ -8,9 +8,6 @@ module_logger = logging.get_active_logger
 
 def startup():
     __retrieve_logger()
-    module_logger().info(
-        "Running album version %s \n \n %s - contact via %s " %
-        (album.core.__version__, album.core.__author__, album.core.__email__))
     main()
 
 
