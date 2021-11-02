@@ -10,10 +10,9 @@ from album.core.controller.run_manager import RunManager
 from album.core.controller.search_manager import SearchManager
 from album.core.controller.test_manager import TestManager
 from album.core.server import AlbumServer
-from album.runner import logging
-from album.runner.logging import debug_settings
+from album.runner.logging import debug_settings, get_active_logger
 
-module_logger = logging.get_active_logger
+module_logger = get_active_logger
 
 
 # NOTE: Calling Singleton classes gives back the already initialized instances only!
@@ -93,7 +92,19 @@ def run(args):
 
 
 def search(args):
-    SearchManager().search(args.keywords)
+    print_json = _get_print_json(args)
+    search_result = SearchManager().search(args.keywords)
+    if print_json:
+        print(_as_json(search_result))
+    else:
+        if len(search_result) > 0:
+            module_logger().info('Search results for "%s" - run `album info SOLUTION_ID` for more information:' % ' '.join(args.keywords))
+            module_logger().info("[SCORE] SOLUTION_ID")
+            for result in search_result:
+                module_logger().info("[%s] %s" % (result[1], result[0]))
+        else:
+            module_logger().info('No search results for "%s".' % ' '.join(args.keywords))
+
 
 
 def start_server(args):
@@ -111,7 +122,7 @@ def clone(args):
 
 
 def index(args):
-    module_logger().info(json.dumps(CollectionManager().get_index_as_dict(), sort_keys=True, indent=4))
+    module_logger().info(_as_json(CollectionManager().get_index_as_dict()))
 
 
 def repl(args):
