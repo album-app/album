@@ -2,11 +2,9 @@ import sys
 import unittest
 from unittest.mock import patch
 
-from album.core.controller.conda_manager import CondaManager
-
 from album.argument_parsing import main
 from album.core import get_active_solution
-from album.core.model.environment import Environment
+from album.core.controller.conda_manager import CondaManager
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -25,14 +23,16 @@ class TestIntegrationTest(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
+        self.assertNotIn("ERROR", self.captured_output)
         self.assertIn("WARNING - No \"test\" routine configured for solution", self.captured_output.getvalue())
 
     def test_test_not_installed(self):
         sys.argv = ["", "test", self.get_test_solution_path("solution0_dummy_no_routines.py")]
 
         # run
-        with self.assertRaises(LookupError):
-            self.assertIsNone(main())
+        self.assertIsNone(main())
+        self.assertIn("ERROR", self.captured_output.getvalue())
+        self.assertIn("Solution not found", self.captured_output.getvalue())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_test(self, get_environment_path):
@@ -47,6 +47,7 @@ class TestIntegrationTest(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
+        self.assertNotIn("ERROR", self.captured_output)
         # NOTE: assertion also happens in test routine!
 
         # todo: change this. first assure subprocess logging is possible in windows

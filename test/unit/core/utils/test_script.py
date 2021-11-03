@@ -56,15 +56,8 @@ class TestScript(TestUnitCommon):
         with open(self.closed_tmp_file.name, "w") as f:
             f.writelines(script)
 
-        info = MagicMock(return_value=None)
-        handler.handle = info
-
         p = self.conda.get_active_environment_path()
         self.conda.run_script(p, self.closed_tmp_file.name)
 
-        for name, args, kwargs in info.mock_calls:
-            print(args[0].msg)
-        self.assertTrue(info.call_count > 1)
-        name2, args2, kwargs2 = info.mock_calls[1]
-        self.assertEqual("root.unitTest.thread.script-test - INFO - testprint", args2[0].msg)
+        self.assertIn("root.unitTest.thread.script-test - INFO - testprint", self.captured_output.getvalue())
 

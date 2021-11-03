@@ -104,7 +104,7 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
             Timeout resets when subprocess gives feedback to the main process.
             WindowsOS option only. Default: 60s
         timeout2:
-            The timeout in seconds after timout 1 has unsuccessfully passed, after which the process is declared dead.
+            The timeout in seconds after timeout 1 has unsuccessfully passed, after which the process is declared dead.
             Timeout resets when subprocess gives feedback to the main process.
             WindowsOS option only. Default: 120s
 
@@ -117,7 +117,7 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
 
     """
 
-    module_logger().info('Running command: %s...' % " ".join(command))
+    module_logger().debug('Running command: %s...' % " ".join(command))
     exit_status = 1
 
     logger = logging.configure_logging("subcommand")

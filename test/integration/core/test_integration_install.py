@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from album.argument_parsing import main
+from album.core.controller.conda_manager import CondaManager
 from album.core.model.default_values import DefaultValues
 from test.integration.test_integration_common import TestIntegrationCommon
 
@@ -13,14 +14,20 @@ class TestIntegrationInstall(TestIntegrationCommon):
     def tearDown(self) -> None:
         super().tearDown()
 
-    def test_install_no_install_routine(self):
-        # this solution has the no install() configured
-        sys.argv = ["", "install", str(self.get_test_solution_path("solution0_dummy_no_routines.py"))]
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    @patch('album.core.controller.conda_manager.CondaManager.install')
+    def test_install_no_install_routine(self, install, get_environment_path):
+        get_environment_path.return_value = CondaManager().get_active_environment_path()
+
+        # this solution has no install() configured
+
+        sys.argv = ["", "install", str(self.get_test_solution_path("solution0_dummy_no_routines.py")), "--log", "DEBUG"]
 
         # run
         self.assertIsNone(main())
 
         # assert
+        self.assertNotIn("ERROR", self.captured_output)
         self.assertIn("No \"install\" routine configured for solution", self.captured_output.getvalue())
 
     @patch('album.core.controller.conda_manager.CondaManager.create')
@@ -36,6 +43,7 @@ class TestIntegrationInstall(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert solution was added to local catalog
+        self.assertNotIn("ERROR", self.captured_output)
         collection = self.collection_manager.catalog_collection
         self.assertEqual(1, len(collection.get_solutions_by_catalog(self.collection_manager.catalogs().get_local_catalog().catalog_id)))
 
@@ -66,6 +74,7 @@ class TestIntegrationInstall(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert solution was added to local catalog
+        self.assertNotIn("ERROR", self.captured_output)
         collection = self.collection_manager.catalog_collection
         self.assertEqual(1, len(collection.get_solutions_by_catalog(self.collection_manager.catalogs().get_local_catalog().catalog_id)))
 
@@ -84,9 +93,11 @@ class TestIntegrationInstall(TestIntegrationCommon):
         # gather arguments
         sys.argv = ["", "install", str(self.get_test_solution_path("app1.py"))]
         self.assertIsNone(main())
+        self.assertNotIn("ERROR", self.captured_output)
 
         sys.argv = ["", "install", str(self.get_test_solution_path("solution1_app1.py"))]
         self.assertIsNone(main())
+        self.assertNotIn("ERROR", self.captured_output)
 
         # assert solution was added to local catalog
         collection = self.collection_manager.catalog_collection

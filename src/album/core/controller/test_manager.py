@@ -52,7 +52,7 @@ class TestManager(metaclass=Singleton):
 
         self._test(resolve_result.loaded_solution, args)
 
-        module_logger().info('Test run for %s!' % resolve_result.loaded_solution['name'])
+        module_logger().info('Ran test routine for %s!' % resolve_result.loaded_solution['name'])
 
     def test_from_catalog_coordinates(self, catalog_name: str, coordinates: Coordinates, argv=None):
         catalog = self.collection_manager.catalogs().get_by_name(catalog_name)

@@ -254,9 +254,6 @@ def force_remove(path, warning=True):
             if not warning:
                 raise e
 
-    else:
-        module_logger().info("No content in %s! Nothing to delete..." % str(path))
-
 
 def handle_remove_readonly(func, path, exc):
     excvalue = exc[1]

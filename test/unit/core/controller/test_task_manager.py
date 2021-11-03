@@ -60,7 +60,7 @@ class TestTaskManager(TestUnitCommon):
 
     def test_register_task_in_subcommand(self):
 
-        logging.set_loglevel(LogLevel.INFO)
+        logging.set_loglevel(LogLevel.DEBUG)
 
         task = Task()
         task.method = self._log_to_active_logger_via_subcommand

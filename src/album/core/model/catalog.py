@@ -380,18 +380,18 @@ class Catalog:
         if not src_path_meta.exists():
             raise FileNotFoundError("Could not find file %s..." % src_path_meta)
 
-        module_logger().info("Copying meta information from %s to %s..." % (src_path_meta, self._meta_path))
+        module_logger().debug("Copying meta information from %s to %s..." % (src_path_meta, self._meta_path))
         copy(src_path_meta, self._meta_path)
 
         if src_path_index.exists():
-            module_logger().info("Copying index from %s to %s..." % (src_path_index, self.index_path))
+            module_logger().debug("Copying index from %s to %s..." % (src_path_index, self.index_path))
             copy(src_path_index, self.index_path)
         else:
             if self.index_path.exists():
                 # case index was deleted in the src
                 return False
             else:
-                module_logger().info("Index file of the catalog does not exist yet...")
+                module_logger().debug("Index file of the catalog does not exist yet...")
         return True
 
     def copy_index_from_cache_to_src(self):
@@ -402,11 +402,11 @@ class Catalog:
             if not self.index_path.parent.exists():
                 self.index_path.parent.mkdir(parents=True)
 
-        module_logger().info("Copying index from %s to %s..." % (self.index_path, src_path_index))
+        module_logger().debug("Copying index from %s to %s..." % (self.index_path, src_path_index))
         copy(self.index_path, src_path_index)
         src_path_solution_list = Path(self.src).joinpath(DefaultValues.catalog_solution_list_file_name.value)
 
-        module_logger().info(
+        module_logger().debug(
             "Copying exported index from %s to %s..." % (self.solution_list_path, src_path_solution_list)
         )
         copy(self.solution_list_path, src_path_solution_list)

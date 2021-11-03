@@ -25,6 +25,7 @@ class TestIntegrationRun(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
+        self.assertNotIn("ERROR", self.captured_output)
         self.assertIsNone(album.get_active_solution())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
@@ -36,8 +37,9 @@ class TestIntegrationRun(TestIntegrationCommon):
         sys.argv = ["", "run", p]  # required arguments not given
 
         # run
-        with self.assertRaises(RuntimeError):
-            main()
+        self.assertIsNone(main())
+        self.assertIn("ERROR", self.captured_output.getvalue())
+        self.assertIn("the following arguments are required: --lambda_arg1", self.captured_output.getvalue())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_arguments_given(self, get_environment_path):
@@ -55,6 +57,8 @@ class TestIntegrationRun(TestIntegrationCommon):
 
         # run
         self.assertIsNone(main())
+
+        self.assertNotIn("ERROR", self.captured_output)
 
         log = self.captured_output.getvalue()
 
@@ -81,6 +85,8 @@ class TestIntegrationRun(TestIntegrationCommon):
         # run
         self.assertIsNone(main())
 
+        self.assertNotIn("ERROR", self.captured_output)
+
         # assert
         self.assertIsNone(album.get_active_solution())
 
@@ -91,9 +97,9 @@ class TestIntegrationRun(TestIntegrationCommon):
         sys.argv = ["", "run", str(self.get_test_solution_path("solution0_dummy_no_routines.py"))]
 
         # run
-        with self.assertRaises(ValueError) as context:
-            main()
-            self.assertIn("No \"run\" routine specified for solution", str(context.exception))
+        self.assertIsNone(main())
+        self.assertIn("ERROR", str(self.captured_output.getvalue()))
+        self.assertIn("No \"run\" routine specified for solution", str(self.captured_output.getvalue()))
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_with_parent(self, get_environment_path):
@@ -108,6 +114,8 @@ class TestIntegrationRun(TestIntegrationCommon):
 
         # run
         self.assertIsNone(main())
+
+        self.assertNotIn("ERROR", self.captured_output)
 
         # assert file logs
         with open(self.closed_tmp_file.name, "r") as f:
@@ -137,6 +145,8 @@ class TestIntegrationRun(TestIntegrationCommon):
 
         # run
         self.assertIsNone(main())
+
+        self.assertNotIn("ERROR", self.captured_output)
 
         # assert file logs
         with open(self.closed_tmp_file.name, "r") as f:
@@ -175,6 +185,7 @@ class TestIntegrationRun(TestIntegrationCommon):
         # run
         self.assertIsNone(main())
 
+        self.assertNotIn("ERROR", self.captured_output)
         # assert file logs
         with open(self.closed_tmp_file.name, "r") as f:
             log = f.read().strip().split("\n")

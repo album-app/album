@@ -23,6 +23,7 @@ class TestIntegrationSearch(TestIntegrationCommon):
     def test_search_emtpy_index(self):
         sys.argv = ["", "search", "keyword"]
         self.assertIsNone(main())
+        self.assertNotIn("ERROR", self.captured_output)
 
     def test_search_filled_index(self):
         # populate tmp_index!
@@ -36,6 +37,8 @@ class TestIntegrationSearch(TestIntegrationCommon):
         # define and run search
         sys.argv = ["", "search", "keyword1"]
         self.assertIsNone(main())
+
+        self.assertNotIn("ERROR", self.captured_output)
 
         # check output to have found the solution behind keyword1
         self.assertIn(
@@ -59,6 +62,7 @@ class TestIntegrationSearch(TestIntegrationCommon):
             sys.argv = ["", "search", "keyword1", "--json"]
             self.assertIsNone(main())
 
+        self.assertNotIn("ERROR", self.captured_output)
         # check output to have found the solution behind keyword1
         self.assertEqual(
             [['catalog_local:group:name:0.1.0', 1]],

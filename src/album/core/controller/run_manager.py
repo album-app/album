@@ -91,8 +91,8 @@ class RunManager(metaclass=Singleton):
         self._run(resolve_result.loaded_solution, run_immediately, argv)
 
     def _run(self, active_solution, run_immediately=False, argv=None):
-        """Run an already loaded solution which consists of multiple steps (= other solution)."""
-        module_logger().info("Starting running \"%s\"" % active_solution["name"])
+        """Run an already loaded solution."""
+        module_logger().debug("Initializing script to run \"%s\"" % active_solution["name"])
 
         if argv is None:
             argv = [""]
@@ -106,7 +106,7 @@ class RunManager(metaclass=Singleton):
         # runs the queue
         self.run_queue(que)
 
-        module_logger().info("Finished running \"%s\"" % active_solution["name"])
+        module_logger().debug("Finished running script for solution \"%s\"" % active_solution["name"])
 
     def run_queue(self, que):
         """Runs the que. Queue consists of "solution_object and their scripts"-entries. Order matters!
@@ -120,13 +120,13 @@ class RunManager(metaclass=Singleton):
         try:
             while True:
                 solution_object, scripts = que.get(block=False)
-                module_logger().info("Running task \"%s\"..." % solution_object["name"])
+                module_logger().debug("Running task \"%s\"..." % solution_object["name"])
                 self.conda_manager.set_environment_path(solution_object.environment)
                 self._run_in_environment_with_own_logger(solution_object, scripts)
-                module_logger().info("Finished running task \"%s\"!" % solution_object["name"])
+                module_logger().debug("Finished running task \"%s\"!" % solution_object["name"])
                 que.task_done()
         except Empty:
-            module_logger().info("Currently nothing more to run!")
+            module_logger().debug("Currently nothing more to run!")
 
     def build_queue(self, active_solution, que, run_immediately=False, argv=None):
         """Builds the queue of an active-album object.
@@ -152,7 +152,7 @@ class RunManager(metaclass=Singleton):
             # active_solution.init() THIS FEATURE IS TEMPORARY DISABLED
 
             step_solution_parsed_args = self.__parse_args(active_solution, argv)
-            module_logger().info("Building queue for %s steps.." % len(steps))
+            module_logger().debug("Building queue for %s steps.." % len(steps))
 
             for i, step in enumerate(steps):
                 module_logger().debug("Adding step %s / %s to queue..." % (i, len(steps)))
@@ -188,13 +188,13 @@ class RunManager(metaclass=Singleton):
         """
         # start with an empty collection of steps with the same parent
         same_parent_step_collection = SolutionCollection(step_solution_parsed_args)
-        credits = []
+        citations = []
 
         for step in steps:
             module_logger().debug('resolving step \"%s\"...' % step["name"])
             resolve_result = self.collection_manager.resolve_dependency_require_installation_and_load(step)
             active_solution = resolve_result.loaded_solution
-            credits += active_solution
+            citations.append(active_solution)
 
             if active_solution.parent:  # collect steps as long as they have the same parent
                 current_parent_script_resolve = self.collection_manager.resolve_dependency_require_installation(
@@ -256,7 +256,7 @@ class RunManager(metaclass=Singleton):
         if same_parent_step_collection.parent_script_path:
             que.put(self.create_solution_run_collection_script(same_parent_step_collection))
 
-        self._print_credit(credits)
+        self._print_credit(citations)
 
         # run the old collection immediately
         if run_immediately:
@@ -277,12 +277,16 @@ class RunManager(metaclass=Singleton):
         """
         module_logger().debug('Creating standalone album script \"%s\"...' % active_solution["name"])
         script_inset = self.init_script
+        script_inset += "\nmodule_logger().info(\"Starting %s\")" % active_solution["name"]
+        script_inset += "\nmodule_logger().info(\"\")\n"
         if active_solution['run'] and callable(active_solution['run']):
             script_inset += "\nget_active_solution().run()\n"
         else:
             raise ValueError("No \"run\" routine specified for solution \"%s\"! Aborting..." % active_solution["name"])
         if active_solution['close'] and callable(active_solution['close']):
             script_inset += "\nget_active_solution().close()\n"
+        script_inset += "\nmodule_logger().info(\"\")"
+        script_inset += "\nmodule_logger().info(\"Finished %s\")\n" % active_solution["name"]
         script = create_solution_script(active_solution, script_inset, args)
 
         self._print_credit([active_solution])
@@ -374,16 +378,21 @@ class RunManager(metaclass=Singleton):
             A list holding all execution scripts.
 
         """
-        script_parent = create_solution_script(parent_solution,
-                                               self.init_script + "\nget_active_solution().run()\n",
-                                               parent_args)
+        parent_script = "\nmodule_logger().info(\"Starting %s\")" % parent_solution["name"]
+        parent_script += "\nmodule_logger().info(\"\")\n"
+        parent_script += self.init_script + "\nget_active_solution().run()\n"
+        parent_script += "\nmodule_logger().info(\"\")"
+        parent_script += "\nmodule_logger().info(\"Finished %s\")\n" % parent_solution["name"]
+        script_parent = create_solution_script(parent_solution, parent_script, parent_args)
         script_list = [script_parent]
         for child_solution, child_args in zip(child_solution_list, child_args):
             child_solution.environment = parent_solution.environment
-            child_script = "\nmodule_logger().info(\"Started %s\")\n" % child_solution["name"]
+            child_script = "\nmodule_logger().info(\"Starting %s\")" % child_solution["name"]
+            child_script += "\nmodule_logger().info(\"\")\n"
             child_script += "\nget_active_solution().run()\n"
             if hasattr(child_solution, "close"):
                 child_script += "\nget_active_solution().close()\n"
+            child_script += "\nmodule_logger().info(\"\")"
             child_script += "\nmodule_logger().info(\"Finished %s\")\n" % child_solution["name"]
             child_script += "\npop_active_solution()\n"
             script_list.append(create_solution_script(child_solution, child_script, child_args))
@@ -463,8 +472,9 @@ class RunManager(metaclass=Singleton):
     def _run_in_environment_with_own_logger(self, active_solution, scripts):
         """Pushes a new logger to the stack before running the solution and pops it afterwards."""
         logging.configure_logging(active_solution['name'])
-        module_logger().info("Starting solution \"%s\"..." % active_solution['name'])
+        module_logger().debug("Running script in environment of solution \"%s\"..." % active_solution['name'])
         self.conda_manager.run_scripts(active_solution.environment, scripts)
+        module_logger().debug("Done running script in environment of solution \"%s\"..." % active_solution['name'])
         logging.pop_active_logger()
 
     @staticmethod

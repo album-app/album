@@ -148,7 +148,6 @@ class TestRunManager(TestUnitCommon):
 
         # assert
         _run_in_environment_with_own_logger.assert_not_called()
-        self.assertIn("Currently nothing more to run!", self.captured_output.getvalue())
 
     def test_run_queue(self):
         # mocks
@@ -165,7 +164,6 @@ class TestRunManager(TestUnitCommon):
 
         # assert
         self.assertEqual(2, _run_in_environment_with_own_logger.call_count)
-        self.assertIn("Currently nothing more to run!", self.captured_output.getvalue())
 
     def test_build_steps_queue_no_parent(self):
         # mock
@@ -342,7 +340,11 @@ class TestRunManager(TestUnitCommon):
         r = self.run_manager.create_solution_run_script_standalone(self.active_solution, [])
 
         self.assertEqual([self.active_solution, ["aScript"]], r)
-        create_script_mock.assert_called_once_with(self.active_solution, "\nget_active_solution().run()\n", [])
+        create_script_mock.assert_called_once()
+        name, args, kwargs = create_script_mock.mock_calls[0]
+        self.assertEqual(self.active_solution, args[0])
+        self.assertIn("\nget_active_solution().run()\n", args[1])
+        self.assertEqual([], args[2])
 
     @patch('album.core.controller.run_manager.create_solution_script', return_value="aScript")
     def test_create_solution_run_script_standalone_run_and_close(self, create_script_mock):
@@ -352,9 +354,10 @@ class TestRunManager(TestUnitCommon):
         r = self.run_manager.create_solution_run_script_standalone(self.active_solution, [])
 
         self.assertEqual([self.active_solution, ["aScript"]], r)
-        create_script_mock.assert_called_once_with(
-            self.active_solution, "\nget_active_solution().run()\n\nget_active_solution().close()\n", []
-        )
+        name, args, kwargs = create_script_mock.mock_calls[0]
+        self.assertEqual(self.active_solution, args[0])
+        self.assertIn("\nget_active_solution().run()\n\nget_active_solution().close()\n", args[1])
+        self.assertEqual([], args[2])
 
     def test_create_solution_run_with_parent_script_standalone(self):
         self.active_solution.parent = {"name": "aParent"}
@@ -438,8 +441,8 @@ class TestRunManager(TestUnitCommon):
         self.assertEqual([self.active_solution, "aScript"], r)
 
     @patch('album.core.controller.run_manager.create_solution_script')
-    def test_create_solution_run_with_parent_scrip(self, create_script_mock):
-        create_script_mock.side_effect = ["script_paretn", "script_child_1", "script_child_2"]
+    def test_create_solution_run_with_parent_script(self, create_script_mock):
+        create_script_mock.side_effect = ["script_parent", "script_child_1", "script_child_2"]
 
         r = self.run_manager.create_solution_run_with_parent_script(
             self.active_solution, [], [self.active_solution, self.active_solution], [[], []]
@@ -447,19 +450,19 @@ class TestRunManager(TestUnitCommon):
 
         # assert
         calls = [
-            call(self.active_solution, "\nget_active_solution().run()\n", []),
+            call(self.active_solution, "\nmodule_logger().info(\"Starting tsn\")\nmodule_logger().info(\"\")\n\nget_active_solution().run()\n\nmodule_logger().info(\"\")\nmodule_logger().info(\"Finished tsn\")\n", []),
             call(self.active_solution,
-                 "\nmodule_logger().info(\"Started tsn\")\n\nget_active_solution().run()\n\nmodule_logger().info(\"Finished tsn\")\n\npop_active_solution()\n",
+                 "\nmodule_logger().info(\"Starting tsn\")\nmodule_logger().info(\"\")\n\nget_active_solution().run()\n\nmodule_logger().info(\"\")\nmodule_logger().info(\"Finished tsn\")\n\npop_active_solution()\n",
                  []),
             call(self.active_solution,
-                 "\nmodule_logger().info(\"Started tsn\")\n\nget_active_solution().run()\n\nmodule_logger().info(\"Finished tsn\")\n\npop_active_solution()\n",
+                 "\nmodule_logger().info(\"Starting tsn\")\nmodule_logger().info(\"\")\n\nget_active_solution().run()\n\nmodule_logger().info(\"\")\nmodule_logger().info(\"Finished tsn\")\n\npop_active_solution()\n",
                  []),
         ]
         self.assertEqual(3, create_script_mock.call_count)
         create_script_mock.assert_has_calls(calls)
 
         # result
-        self.assertEqual(["script_paretn", "script_child_1", "script_child_2", "\npop_active_solution()\n"], r)
+        self.assertEqual(["script_parent", "script_child_1", "script_child_2", "\npop_active_solution()\n"], r)
 
     def test_resolve_args(self):
         # the arguments of the steps solution for each step

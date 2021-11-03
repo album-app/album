@@ -1,5 +1,6 @@
 import argparse
 import sys
+import traceback
 
 import album
 from album.api import Album
@@ -37,6 +38,11 @@ def _capture_output():
     logger.handlers.clear()
 
 
+def _handle_exception(e):
+    get_active_logger().error(str(e))
+    get_active_logger().debug(traceback.format_exc())
+
+
 def __run_subcommand(args, parser):
     """Calls a specific album subcommand."""
     album_command = ""
@@ -50,7 +56,10 @@ def __run_subcommand(args, parser):
     # Makes sure album is initialized.
     Album().collection_manager().load_or_create_collection()
 
-    args[0].func(args[0])  # execute entry point function
+    try:
+        args[0].func(args[0])  # execute entry point function
+    except Exception as e:
+        _handle_exception(e)
 
 
 def create_parser():

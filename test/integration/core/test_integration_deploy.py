@@ -31,6 +31,7 @@ class TestIntegrationDeploy(TestIntegrationCommon):
                     ]
 
         self.assertIsNone(main())
+        self.assertNotIn("ERROR", self.captured_output)
 
 
 if __name__ == '__main__':
