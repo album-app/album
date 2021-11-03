@@ -188,11 +188,13 @@ class RunManager(metaclass=Singleton):
         """
         # start with an empty collection of steps with the same parent
         same_parent_step_collection = SolutionCollection(step_solution_parsed_args)
+        credits = []
 
         for step in steps:
             module_logger().debug('resolving step \"%s\"...' % step["name"])
             resolve_result = self.collection_manager.resolve_dependency_require_installation_and_load(step)
             active_solution = resolve_result.loaded_solution
+            credits += active_solution
 
             if active_solution.parent:  # collect steps as long as they have the same parent
                 current_parent_script_resolve = self.collection_manager.resolve_dependency_require_installation(
@@ -254,6 +256,8 @@ class RunManager(metaclass=Singleton):
         if same_parent_step_collection.parent_script_path:
             que.put(self.create_solution_run_collection_script(same_parent_step_collection))
 
+        self._print_credit(credits)
+
         # run the old collection immediately
         if run_immediately:
             self.run_queue(que)
@@ -280,6 +284,8 @@ class RunManager(metaclass=Singleton):
         if active_solution['close'] and callable(active_solution['close']):
             script_inset += "\nget_active_solution().close()\n"
         script = create_solution_script(active_solution, script_inset, args)
+
+        self._print_credit([active_solution])
 
         return [active_solution, [script]]
 
@@ -315,6 +321,8 @@ class RunManager(metaclass=Singleton):
         scripts = self.create_solution_run_with_parent_script(
             parent_solution_resolve.loaded_solution, parent_args, [active_solution], active_solution_args
         )
+
+        self._print_credit([parent_solution_resolve.loaded_solution, active_solution])
 
         return [parent_solution_resolve.loaded_solution, scripts]
 
@@ -456,7 +464,6 @@ class RunManager(metaclass=Singleton):
         """Pushes a new logger to the stack before running the solution and pops it afterwards."""
         logging.configure_logging(active_solution['name'])
         module_logger().info("Starting solution \"%s\"..." % active_solution['name'])
-        module_logger().info("Citation information: %s" % active_solution['cite'])
         self.conda_manager.run_scripts(active_solution.environment, scripts)
         logging.pop_active_logger()
 
@@ -468,3 +475,15 @@ class RunManager(metaclass=Singleton):
             for param in step["args"]:
                 argv.append(f"--{param['name']}={str(param['value'](args))}")
         return argv
+
+    @staticmethod
+    def _print_credit(active_solutions) -> None:
+        module_logger().info('')
+        module_logger().info('Solution credits:')
+        for active_solution in active_solutions:
+            for citation in active_solution['cite']:
+                text = citation['text']
+                if 'doi' in citation:
+                    text += ' (DOI: %s)' % citation['doi']
+                module_logger().info(text)
+        module_logger().info('')
