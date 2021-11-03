@@ -331,7 +331,7 @@ class TestCondaManager(TestUnitCommon):
         environment.path = "NotNone"
         self.conda.install_framework(environment.path, "version")
         is_installed_mock.assert_called_once_with("NotNone", "album-runner", "version")
-        pip_install_mock.assert_called_once_with("NotNone", 'https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip')
+        pip_install_mock.assert_called_once()
 
     @patch('album.core.controller.conda_manager.CondaManager.pip_install')
     def test_pip_install_into_environment(self, conda_install_mock):

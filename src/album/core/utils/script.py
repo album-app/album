@@ -8,6 +8,12 @@ module_logger = album_logging.get_active_logger
 enc = sys.getfilesystemencoding()
 
 
+# FIXME: make this an own controller that can handle cript creation. INLETS should also move here?!?
+# FIXME: SHOULD this live in the runner? as script creator and runner belong together?
+# FIXME: if script creator and runner belong together then also the solution class, right?
+# FIXME: if you give the creator a solution object it cannot deal with -> error
+# FIXME: so the solution object should be versioned?
+
 def create_solution_script(solution_object, custom_code, argv):
     """Creates the script which will later run custom_code in the environment of the solution_object.
 
@@ -53,7 +59,7 @@ def create_script(process_name, custom_code, argv):
         "import json\n"
         "import argparse\n"
         "from album.runner import *\n"
-        "from album.runner.logging import configure_logging, LogLevel, get_active_logger\n"
+        "from album.runner.album_logging import configure_logging, LogLevel, get_active_logger\n"
         "module_logger = get_active_logger\n"
     )
     # create logging

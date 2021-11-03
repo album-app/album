@@ -7,7 +7,8 @@ from test.unit.ci.utils import test_zenodo_api, test_ci_utils, test_deploy_envir
 from test.unit.core import test__init__, test_argument_parsing, test_server
 from test.unit.core.concept import test_singleton, test_database
 from test.unit.core.controller import test_search_manager, test_install_manager, test_run_manager, test_deploy_manager, \
-    test_conda_manager, test_test_manager, test_task_manager, test_clone_manager, test_migration_manager
+    test_conda_manager, test_test_manager, test_task_manager, test_clone_manager, test_migration_manager, \
+    test_environment_manager
 from test.unit.core.controller.collection import test_collection_manager, test_catalog_handler, test_solution_handler
 from test.unit.core.model import test_catalog, test_configuration, test_environment, \
     test_solution, test_catalog_index, test_collection_index, test_coordinates, test_task
@@ -35,6 +36,7 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_clone_manager))
     suite.addTests(loader.loadTestsFromModule(test_conda_manager))
     suite.addTests(loader.loadTestsFromModule(test_deploy_manager))
+    suite.addTests(loader.loadTestsFromModule(test_environment_manager))
     suite.addTests(loader.loadTestsFromModule(test_install_manager))
     suite.addTests(loader.loadTestsFromModule(test_migration_manager))
     suite.addTests(loader.loadTestsFromModule(test_run_manager))

@@ -3,9 +3,12 @@ from typing import Optional
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.conda_manager import CondaManager
+from album.core.controller.environment_manager import EnvironmentManager
+from album.core.model.catalog import Catalog
 from album.core.model.configuration import Configuration
 from album.core.model.coordinates import Coordinates
 from album.core.model.resolve_result import ResolveResult
+from album.core.model.solution import Solution
 from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.resolve_operations import clean_resolve_tmp, build_resolve_string
 from album.core.utils.script import create_solution_script
@@ -35,6 +38,7 @@ class InstallManager(metaclass=Singleton):
         self.collection_manager = CollectionManager()
         self.conda_manager = CondaManager()
         self.configuration = Configuration()
+        self.environment_manager = EnvironmentManager()
 
     def install(self, resolve_solution, argv=None):
         """Function corresponding to the `install` subcommand of `album`."""
@@ -44,16 +48,18 @@ class InstallManager(metaclass=Singleton):
         """Internal installation entry point for `install` subcommand of `album`."""
         # Load solution
         resolve_result = self.collection_manager.resolve_download_and_load(str(resolve_solution))
-        catalog = resolve_result.catalog
 
-        if not catalog:
+        if not resolve_result.catalog:
             raise RuntimeError("Solution cannot be installed without being associated with a catalog!")
         elif not parent and self._resolve_result_is_installed(resolve_result):
             raise RuntimeError("Solution already installed. Uninstall solution first!")
+        elif parent and self._resolve_result_is_installed(resolve_result):
+            return resolve_result  # solution already installed
         else:
-            resolve_result.loaded_solution.set_cache_paths(catalog.name)
             module_logger().debug(
-                'solution loaded from catalog \"%s\": %s...' % (catalog.catalog_id, str(resolve_result.loaded_solution))
+                'solution loaded from catalog \"%s\": %s...' % (
+                    resolve_result.catalog.catalog_id, str(resolve_result.loaded_solution)
+                )
             )
 
         # execute installation routine
@@ -102,11 +108,9 @@ class InstallManager(metaclass=Singleton):
             if self._resolve_result_is_installed(resolve_result):
                 raise RuntimeError("Solution already installed. Uninstall solution first!")
 
-        if not resolve_result.loaded_solution.parent:
-            resolve_result.loaded_solution.set_cache_paths(resolve_result.catalog.name)
-            resolve_result.loaded_solution.set_environment(resolve_result.catalog.name)
-
-        parent_resolve_result = self._install_active_solution(resolve_result.loaded_solution, argv)
+        parent_resolve_result = self._install_active_solution(
+            resolve_result.loaded_solution, resolve_result.catalog, argv
+        )
 
         if resolve_result.catalog.is_cache():
             # a cache catalog is living in the collection so no need to update
@@ -127,7 +131,12 @@ class InstallManager(metaclass=Singleton):
         self.collection_manager.solutions().set_installed(
             resolve_result.catalog, resolve_result.loaded_solution.coordinates
         )
-        module_logger().info('Installed \"%s\"!' % resolve_result.loaded_solution['name'])
+        module_logger().info(
+            'Installed \"%s\"! execute with `album run %s`' % (
+                resolve_result.loaded_solution['name'],
+                str(resolve_result.coordinates)
+            )
+        )
 
     def set_parent(self, parent_resolve_result: ResolveResult, resolve_result: ResolveResult):
         """Sets the parent of a solution"""
@@ -147,7 +156,8 @@ class InstallManager(metaclass=Singleton):
             resolve_result.loaded_solution.get_deploy_dict()
         )
 
-    def _install_active_solution(self, active_solution, argv=None) -> Optional[ResolveResult]:
+    def _install_active_solution(self, active_solution: Solution, catalog: Catalog, argv=None) -> Optional[
+        ResolveResult]:
         """Installation routine for a loaded solution."""
         # install environment
         if argv is None:
@@ -159,9 +169,10 @@ class InstallManager(metaclass=Singleton):
             # install dependencies first. Recursive call to install with dependencies
             parent_resolve_result = self._install_parent(active_solution.parent)
 
-            active_solution.environment = parent_resolve_result.loaded_solution.environment
+            # resolve environment - at this point all parents should be already installed
+            self.environment_manager.set_environment(active_solution, catalog)
         else:
-            self.conda_manager.install(active_solution.environment, active_solution.min_album_version)
+            self.environment_manager.install_environment(active_solution, catalog)
 
         self.run_solution_install_routine(active_solution, argv)
 
@@ -209,16 +220,7 @@ class InstallManager(metaclass=Singleton):
         module_logger().info("Uninstalling \"%s\".." % resolve_result.loaded_solution['name'])
 
         # set the environment
-        if not resolve_result.loaded_solution.parent:
-            resolve_result.loaded_solution.set_environment(resolve_result.catalog.name)
-            self.conda_manager.set_environment_path(resolve_result.loaded_solution.environment)
-        else:
-            # resolve the parent
-            resolve_result_parent = self.collection_manager.resolve_require_installation_and_load(
-                build_resolve_string(resolve_result.loaded_solution.parent)
-            )
-            resolve_result.loaded_solution.set_environment(resolve_result_parent.catalog.name)
-            self.conda_manager.set_environment_path(resolve_result.loaded_solution.environment)
+        self.environment_manager.set_environment(resolve_result.loaded_solution, resolve_result.catalog)
 
         self.run_solution_uninstall_routine(resolve_result.loaded_solution, argv)
 
@@ -248,10 +250,7 @@ class InstallManager(metaclass=Singleton):
                 % resolve_result.collection_entry["name"]
             )
 
-        resolve_result.loaded_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
-
         self.remove_disc_content(resolve_result.loaded_solution)
-
         self.collection_manager.solutions().set_uninstalled(resolve_result.catalog,
                                                             resolve_result.loaded_solution.coordinates)
 
@@ -261,7 +260,7 @@ class InstallManager(metaclass=Singleton):
         module_logger().info("Uninstalled \"%s\"!" % resolve_result.loaded_solution['name'])
 
     def run_solution_uninstall_routine(self, active_solution, argv):
-        """Run uninstall routine of album if specified"""
+        """Run uninstall routine of album if specified. Expects environment to be set!"""
         if active_solution['uninstall'] and callable(active_solution['uninstall']):
             module_logger().debug('Creating uninstall script...')
             script = create_solution_script(active_solution, "\nget_active_solution().uninstall()\n", argv)

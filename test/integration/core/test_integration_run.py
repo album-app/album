@@ -94,7 +94,7 @@ class TestIntegrationRun(TestIntegrationCommon):
         self.assertIsNone(album.get_active_solution())
 
     def test_run_no_run_routine(self):
-        self.fake_install(self.get_test_solution_path("solution0_dummy_no_routines.py"), create_environment=False)
+        self.fake_install(self.get_test_solution_path("solution0_dummy_no_routines.py"), create_environment=True)
 
         # gather arguments
         sys.argv = ["", "run", str(self.get_test_solution_path("solution0_dummy_no_routines.py"))]

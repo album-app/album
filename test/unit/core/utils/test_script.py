@@ -59,5 +59,6 @@ class TestScript(TestUnitCommon):
         p = self.conda.get_active_environment_path()
         self.conda.run_script(p, self.closed_tmp_file.name)
 
-        self.assertIn("root.unitTest.thread.script-test - INFO - testprint", self.captured_output.getvalue())
+        self.assertIn("testprint", self.captured_output.getvalue())
+
 

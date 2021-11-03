@@ -3,6 +3,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from album.core.model.coordinates import Coordinates
+
 from album.argument_parsing import main
 from album.core.controller.conda_manager import CondaManager
 from album.core.model.default_values import DefaultValues
@@ -66,14 +68,16 @@ class TestIntegrationInstall(TestIntegrationCommon):
         self.assertEqual(2, get_environment_dict_mock.call_count)
         run_scripts_mock.assert_called_once()
         self.assertEqual("aPath", run_scripts_mock.call_args[0][0].path)
-        pip_install_mock.assert_called_once_with("aPath",
-                                                 "https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip")
+        pip_install_mock.assert_called_once()
 
-    @unittest.skip("Finish me")
     def test_install_twice(self):
         sys.argv = ["", "install", str(self.get_test_solution_path())]
-
         self.assertIsNone(main())
+
+        sys.argv = ["", "install", str(self.get_test_solution_path())]
+        with self.assertRaises(RuntimeError) as context:
+            main()
+            self.assertIn("Solution already installed. Uninstall solution first!", str(context.exception))
 
     #  @unittest.skipIf(sys.platform == 'win32' or sys.platform == 'cygwin', "This test fails on the Windows CI with \"SSL: CERTIFICATE_VERIFY_FAILED\"")
     @unittest.skip("Fixme")
@@ -131,10 +135,26 @@ class TestIntegrationInstall(TestIntegrationCommon):
         )
         self.assertTrue(solution_path.exists())
 
-    @unittest.skip("Needs to be implemented!")
     def test_install_with_dependencies(self):
-        # ToDo: implement
-        pass
+        # fake register app1 dependency but not install
+        self.fake_install(str(self.get_test_solution_path("app1.py")), create_environment=False)
+        self.collection_manager.solutions().set_uninstalled(
+            self.collection_manager.catalogs().get_local_catalog(), Coordinates("group", "app1", "0.1.0")
+        )
+
+        # dependency app1 NOT installed
+        sys.argv = ["", "install", str(self.get_test_solution_path("solution1_app1.py"))]
+        self.assertIsNone(main())
+
+        # assert solution was added to local catalog
+        collection = self.collection_manager.catalog_collection
+        self.assertEqual(2, len(collection.get_solutions_by_catalog(
+            self.collection_manager.catalogs().get_local_catalog().catalog_id)))
+
+        self.assertTrue(self.collection_manager.solutions().is_installed(
+            self.collection_manager.catalogs().get_local_catalog(),
+            Coordinates("group", "app1", "0.1.0")
+        ))
 
     def test_install_no_solution(self):
         sys.argv = ["", "install"]

@@ -41,12 +41,18 @@ class Database(abc.ABC):
     def close(self):
         for cursor_id in self.cursors:
             cursor = self.cursors[cursor_id]
-            cursor.close()
+            try:
+                cursor.close()
+            except sqlite3.ProgrammingError:
+                pass
             del cursor
 
         for thread_id in self.connections:
             connection = self.connections[thread_id]
-            connection.close()
+            try:
+                connection.close()
+            except sqlite3.ProgrammingError:
+                pass
             del connection
 
         gc.collect(2)

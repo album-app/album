@@ -280,3 +280,14 @@ def build_resolve_string(resolve_solution_dict: dict, catalog=None):
         raise ValueError("Invalid declaration of parent or step!")
 
     return resolve_solution
+
+
+def get_parent(parent_collection_entry: dict) -> dict:
+    """Given an collection entry (aka row of the collection table) this method returns the corresponding parent"""
+    if parent_collection_entry["parent"]:
+        parent = parent_collection_entry["parent"]
+        while parent["parent"]:
+            parent = parent["parent"]
+
+        return parent
+    return parent_collection_entry

@@ -19,6 +19,7 @@ from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.conda_manager import CondaManager
 from album.core.controller.deploy_manager import DeployManager
+from album.core.controller.environment_manager import EnvironmentManager
 from album.core.controller.install_manager import InstallManager
 from album.core.controller.migration_manager import MigrationManager
 from album.core.controller.run_manager import RunManager
@@ -72,7 +73,7 @@ class TestUnitCommon(unittest.TestCase):
     @staticmethod
     def tear_down_singletons():
         # this is here to make sure all mocks are reset each time a test is executed
-        album.runner.logging._active_logger = {}
+        album.runner.album_logging._active_logger = {}
         TestUnitCommon._delete(AlbumServer)
         TestUnitCommon._delete(Configuration)
         TestUnitCommon._delete(CollectionManager)
@@ -87,6 +88,7 @@ class TestUnitCommon(unittest.TestCase):
         TestUnitCommon._delete(ZenodoManager)
         TestUnitCommon._delete(MigrationManager)
         TestUnitCommon._delete(CloneManager)
+        TestUnitCommon._delete(EnvironmentManager)
         TestUnitCommon._delete(Album)
 
     @staticmethod

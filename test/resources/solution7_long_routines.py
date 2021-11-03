@@ -1,6 +1,7 @@
 import time
 
 from album.runner import setup
+
 global args
 
 
@@ -64,7 +65,5 @@ setup(
     install=album_install,
     pre_test=album_pre_test,
     test=album_test,
-    dependencies={
-        'environment_name': 'solution7_long_routines'
-    })
-
+    dependencies={}
+)

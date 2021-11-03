@@ -1,12 +1,12 @@
 from queue import Queue
 
-from album.core.controller.conda_manager import CondaManager
-
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
+from album.core.controller.conda_manager import CondaManager
+from album.core.controller.environment_manager import EnvironmentManager
 from album.core.controller.run_manager import RunManager
-from album.runner import album_logging
 from album.core.model.coordinates import Coordinates
+from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
@@ -25,30 +25,24 @@ class TestManager(metaclass=Singleton):
     collection_manager = None
     conda_manager = None
     run_manager = None
+    environment_manager = None
 
     def __init__(self):
         self.collection_manager = CollectionManager()
         self.conda_manager = CondaManager()
         self.run_manager = RunManager()
+        self.environment_manager = EnvironmentManager()
 
     def test(self, path, args=None):
         """Function corresponding to the `test` subcommand of `album`."""
         if args is None:
             args = [""]
-        try:
-            resolve_result = self.collection_manager.resolve_require_installation_and_load(path)
-        except ValueError:
-            raise ValueError("Solution points to a local file which has not been installed yet. "
-                             "Please point to an installation from the catalog or install the solution. "
-                             "Aborting...")
 
-        if not resolve_result.loaded_solution.parent:
-            resolve_result.loaded_solution.set_environment(resolve_result.catalog.name)
+        # resolve the input
+        resolve_result = self.collection_manager.resolve_require_installation_and_load(path)
 
-        if not resolve_result.catalog:
-            module_logger().debug('album loaded locally: %s...' % str(resolve_result.loaded_solution))
-        else:
-            module_logger().debug('album loaded from catalog: %s...' % str(resolve_result.loaded_solution))
+        # set the environment
+        self.environment_manager.set_environment(resolve_result.loaded_solution, resolve_result.catalog)
 
         self._test(resolve_result.loaded_solution, args)
 
@@ -92,9 +86,9 @@ class TestManager(metaclass=Singleton):
             module_logger().debug('Calling test routine specified in solution...')
             album_logging.configure_logging(active_solution['name'])
 
-            # fixme: what if it runs in a parent environment?
-            self.conda_manager.set_environment_path(active_solution.environment)
             self.conda_manager.run_scripts(active_solution.environment, scripts)
             album_logging.pop_active_logger()
         else:
-            module_logger().warning('No \"test\" routine configured for solution %s! Skipping...' % active_solution['name'])
+            module_logger().warning(
+                'No \"test\" routine configured for solution %s! Skipping...' % active_solution['name']
+            )

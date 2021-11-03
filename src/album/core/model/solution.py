@@ -72,13 +72,6 @@ class Solution(AlbumRunner):
         matches = [arg for arg in self['args'] if arg['name'] == k]
         return matches[0]
 
-    def set_environment(self, catalog_name):
-        """Initializes the Environment of the solution. This is not an installation!"""
-        environment_name = self.get_environment_name(catalog_name)
-        self.environment = Environment(
-            self.dependencies, environment_name=environment_name, cache_path=self.package_path
-        )
-
     def set_cache_paths(self, catalog_name):
         """Sets the available cache paths of the album object, given its catalog_name (where it lives)."""
 
@@ -89,6 +82,3 @@ class Solution(AlbumRunner):
         self.app_path = Configuration().cache_path_app.joinpath(str(catalog_name), path_suffix)
         self.package_path = Configuration().cache_path_solution.joinpath(str(catalog_name), path_suffix)
         self.cache_path = Configuration().cache_path_tmp.joinpath(str(catalog_name), path_suffix)
-
-    def get_environment_name(self, catalog_name):
-        return "_".join([str(catalog_name), self.get_identifier()])

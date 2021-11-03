@@ -17,7 +17,7 @@ class TestCatalogIndex(TestUnitCommon):
         self.catalog_index = CatalogIndex("test", Path(self.tmp_dir.name).joinpath("test_db_file"))
 
     def tearDown(self):
-        self.catalog_index.close()
+        super().tearDown()
 
     def fill_solution(self):
         self.assertTrue(self.catalog_index.is_table_empty("solution"))

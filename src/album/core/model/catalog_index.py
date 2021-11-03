@@ -138,7 +138,7 @@ class CatalogIndex(Database):
 
         cursor = self.get_cursor()
         cursor.execute(
-            "INSERT INTO solution values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ,? ,?, ?, ?)",
+            "INSERT INTO solution values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 solution_id,
                 solution_attrs["group"],
@@ -154,7 +154,6 @@ class CatalogIndex(Database):
                 solution_attrs["documentation"],
                 solution_attrs["min_album_version"],
                 solution_attrs["tested_album_version"],
-                get_dict_entry(solution_attrs, "parent"),  # allow to be none
                 get_dict_entry(solution_attrs, "changelog"),  # allow to be none
                 hash_val
             )
@@ -417,7 +416,6 @@ class CatalogIndex(Database):
             "documentation=:documentation, "
             "min_album_version=:min_album_version, "
             "tested_album_version=:tested_album_version, "
-            "parent=:parent, "
             "changelog=:changelog,"
             "hash=:hash_val "
             "WHERE \"group\"=:group AND name=:name AND version=:version",
@@ -435,7 +433,6 @@ class CatalogIndex(Database):
                 "documentation": solution_attrs["documentation"],
                 "min_album_version": solution_attrs["min_album_version"],
                 "tested_album_version": solution_attrs["tested_album_version"],
-                "parent": get_dict_entry(solution_attrs, "parent"),
                 "changelog": get_dict_entry(solution_attrs, "changelog"),
                 "hash_val": hash_val
             }

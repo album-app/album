@@ -59,7 +59,6 @@ CREATE TABLE IF NOT EXISTS solution
     documentation        TEXT,
     min_album_version    TEXT,
     tested_album_version TEXT,
-    parent               TEXT,
     changelog            TEXT,
     hash                 TEXT not null
 );

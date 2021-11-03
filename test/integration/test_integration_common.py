@@ -16,7 +16,7 @@ from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.conda_manager import CondaManager
 from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
-from album.core.utils.operations.file_operations import copy
+from album.core.utils.operations.file_operations import copy, force_remove
 from album.runner.album_logging import configure_logging, LogLevel
 from test.global_exception_watcher import GlobalExceptionWatcher
 from test.unit.test_unit_common import TestUnitCommon
@@ -24,10 +24,7 @@ from test.unit.test_unit_common import TestUnitCommon
 
 class TestIntegrationCommon(unittest.TestCase):
 
-    test_configuration_file = None
-
     def setUp(self):
-
         # tempfile/dirs
         self.tmp_dir = tempfile.TemporaryDirectory()
 
@@ -55,21 +52,21 @@ class TestIntegrationCommon(unittest.TestCase):
 
     def tearDown(self) -> None:
         # clean all environments specified in test-resources
-        local_catalog_id = str(self.collection_manager.catalogs().get_local_catalog().name)
+        local_catalog_name = str(self.collection_manager.catalogs().get_local_catalog().name)
         env_names = [
-            local_catalog_id + "_group_name_0.1.0",
-            local_catalog_id + "_group_app1_0.1.0",
-            local_catalog_id + "_group_app2_0.1.0",
-            local_catalog_id + "_group_solution1_app1_0.1.0",
-            local_catalog_id + "_group_solution2_app1_0.1.0",
-            local_catalog_id + "_group_solution3_noparent_0.1.0",
-            local_catalog_id + "_group_solution4_app2_0.1.0",
-            local_catalog_id + "_group_solution5_app2_0.1.0",
-            local_catalog_id + "_group_solution6_noparent_test_0.1.0",
-            local_catalog_id + "_group_solution7_long_routines_0.1.0",
-            local_catalog_id + "_group_solution8_arguments_0.1.0",
-            local_catalog_id + "_group_solution_with_steps_0.1.0",
-            local_catalog_id + "_solution_with_steps_grouped_0.1.0"
+            local_catalog_name + "_group_name_0.1.0",
+            local_catalog_name + "_group_app1_0.1.0",
+            local_catalog_name + "_group_app2_0.1.0",
+            local_catalog_name + "_group_solution1_app1_0.1.0",
+            local_catalog_name + "_group_solution2_app1_0.1.0",
+            local_catalog_name + "_group_solution3_noparent_0.1.0",
+            local_catalog_name + "_group_solution4_app2_0.1.0",
+            local_catalog_name + "_group_solution5_app2_0.1.0",
+            local_catalog_name + "_group_solution6_noparent_test_0.1.0",
+            local_catalog_name + "_group_solution7_long_routines_0.1.0",
+            local_catalog_name + "_group_solution8_arguments_0.1.0",
+            local_catalog_name + "_group_solution_with_steps_0.1.0",
+            local_catalog_name + "_solution_with_steps_grouped_0.1.0"
         ]
         for e in env_names:
             if CondaManager().environment_exists(e):
@@ -81,9 +78,14 @@ class TestIntegrationCommon(unittest.TestCase):
             Path(self.closed_tmp_file.name).unlink()
             self.tmp_dir.cleanup()
         except PermissionError:
-            # todo: fixme! rather sooner than later!
-            if sys.platform == 'win32' or sys.platform == 'cygwin':
-                pass
+            try:
+                force_remove(self.tmp_dir.name)
+            except PermissionError:
+                # todo: fixme! rather sooner than later!
+                if sys.platform == 'win32' or sys.platform == 'cygwin':
+                    pass
+                else:
+                    raise
 
     def run(self, result=None):
         # add watcher to catch any exceptions thrown in threads

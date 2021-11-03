@@ -48,7 +48,5 @@ setup(
     init=album_init,
     run=album_run,
     close=album_close,
-    dependencies={
-        'environment_name': 'solution3_noparent'
-    })
-
+    dependencies={}
+)

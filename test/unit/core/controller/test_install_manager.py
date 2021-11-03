@@ -88,19 +88,24 @@ class TestInstallManager(TestUnitCommon):
         self.active_solution.environment = EmptyTestClass()
 
         # mocks
-        install = MagicMock(return_value=None)
-        self.install_manager.conda_manager.install = install
-        self.active_solution.min_album_version = "test"
+        install_environment = MagicMock(return_value=None)
+        self.install_manager.environment_manager.install_environment = install_environment
+
+        set_environment = MagicMock(return_value=None)
+        self.install_manager.environment_manager.set_environment = set_environment
 
         run_solution_install_routine = MagicMock()
         self.install_manager.run_solution_install_routine = run_solution_install_routine
 
         # call
-        self.install_manager._install_active_solution(self.active_solution, ["myargs"])
+        self.install_manager._install_active_solution(
+            self.active_solution, self.collection_manager.catalogs().get_local_catalog(), ["myargs"]
+        )
 
         # assert
-        install.assert_called_once_with(self.active_solution.environment, "test")
         run_solution_install_routine.assert_called_once_with(self.active_solution, ["myargs"])
+        set_environment.assert_not_called()
+        install_environment.assert_called_once()
 
     def test__install_active_solution_with_parent(self):
         self.active_solution.min_album_version = "test"
@@ -111,8 +116,11 @@ class TestInstallManager(TestUnitCommon):
         self.active_solution.parent = "aParent"
 
         # mocks
-        install = MagicMock(return_value=None)
-        self.install_manager.conda_manager.install = install
+        install_environment = MagicMock(return_value=None)
+        self.install_manager.environment_manager.install_environment = install_environment
+
+        set_environment = MagicMock(return_value=None)
+        self.install_manager.environment_manager.set_environment = set_environment
 
         parent_resolve_result = ResolveResult(None, None, None, None, loaded_solution=self.parent_solution)
         _install_parent = MagicMock(return_value=parent_resolve_result)
@@ -122,12 +130,15 @@ class TestInstallManager(TestUnitCommon):
         self.install_manager.run_solution_install_routine = run_solution_install_routine
 
         # call
-        self.install_manager._install_active_solution(self.active_solution, ["myargs"])
+        self.install_manager._install_active_solution(
+            self.active_solution, self.collection_manager.catalogs().get_local_catalog(), ["myargs"]
+        )
 
         # assert
-        install.assert_called_once_with(self.parent_solution.environment, "test")
         _install_parent.assert_called_once_with("aParent")
         run_solution_install_routine.assert_called_once_with(self.active_solution, ["myargs"])
+        set_environment.assert_called_once()
+        install_environment.assert_not_called()
 
     @patch('album.core.controller.install_manager.build_resolve_string', return_value="myResolveString")
     def test__install_parent(self, build_resolve_string_mock):

@@ -65,7 +65,7 @@ class MigrationManager(metaclass=Singleton):
     def refresh_index(self, catalog: Catalog) -> bool:
         """Routine to refresh the catalog index. Downloads or copies the index_file."""
         if catalog.update_index_cache_if_possible():
-
             catalog.catalog_index = self._create_catalog_index(catalog.index_path, catalog.name, CatalogIndex.version)
+
             return True
         return False

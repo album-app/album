@@ -14,7 +14,7 @@ from album.core.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
-from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
+from test.unit.test_unit_common import TestUnitCommon
 
 
 class TestCatalogCollectionCommon(TestUnitCommon):
@@ -196,13 +196,15 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         # todo: implement
         pass
 
-    def test_resolve_download_and_load_catalog_coordinates(self):
+    @patch('album.core.model.solution.Solution.set_cache_paths')
+    def test_resolve_download_and_load_catalog_coordinates(self, set_cache_paths_mock):
         catalog = Catalog("aNiceId", "aNiceName", "aValidPath")
         coordinates = Coordinates("g", "n", "v")
         # mocks
         search_mock = MagicMock(return_value={"group": "g", "name": "n", "version": "v"})
         retrieve_and_load_mock = MagicMock()
-
+        retrieve_and_load_mock.side_effect = lambda x: setattr(x, "loaded_solution",
+                                                               Solution(self.solution_default_dict))
         get_solution_file_mock = MagicMock(return_value="path/to/solution")
 
         self.collection_manager._search_in_specific_catalog = search_mock
@@ -219,8 +221,10 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         get_solution_file_mock.assert_called_once_with(coordinates)
         search_mock.assert_called_once_with(catalog.catalog_id, coordinates)
         retrieve_and_load_mock.assert_called_once()
+        set_cache_paths_mock.assert_called_once()
 
-    def test_resolve_download_and_load_coordinates(self):
+    @patch('album.core.model.solution.Solution.set_cache_paths')
+    def test_resolve_download_and_load_coordinates(self, set_cache_paths_mock):
         coordinates = Coordinates("g", "n", "v")
         local_catalog = self.collection_manager.catalogs().get_local_catalog()
 
@@ -229,6 +233,8 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         get_solution_mock = MagicMock(return_value="path/to/solution")
         search_mock = MagicMock(return_value={"catalog_id": 1})
         retrieve_and_load_mock = MagicMock()
+        retrieve_and_load_mock.side_effect = lambda x: setattr(x, "loaded_solution",
+                                                               Solution(self.solution_default_dict))
 
         self.collection_manager._search_by_coordinates = search_mock
         self.collection_manager.catalogs().get_by_id = get_catalog_mock
@@ -247,6 +253,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         get_solution_mock.assert_called_once_with(coordinates)
         search_mock.assert_called_once_with(coordinates)
         retrieve_and_load_mock.assert_called_once()
+        set_cache_paths_mock.assert_called_once()
 
     def test_resolve_download(self):
         # prepare

@@ -104,7 +104,6 @@ class Catalog:
         self.solution_list_path = self.path.joinpath(DefaultValues.catalog_solution_list_file_name.value)
         self._meta_path = self.path.joinpath(DefaultValues.catalog_index_metafile_json.value)
 
-        # initialize the index
         self.index_path = self.path.joinpath(DefaultValues.catalog_index_file_name.value)
 
     def __eq__(self, other):

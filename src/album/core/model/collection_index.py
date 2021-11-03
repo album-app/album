@@ -185,10 +185,58 @@ class CollectionIndex(Database):
 
         return catalog_list
 
+    def remove_catalog(self, catalog_id, close=True):
+        cursor = self.get_cursor()
+        cursor.execute(
+            "DELETE FROM collection "
+            "WHERE catalog_id=:catalog_id",
+            {
+                "catalog_id": catalog_id
+            }
+        )
+        cursor.execute(
+            "DELETE FROM collection_solution_tag "
+            "WHERE catalog_id=:catalog_id",
+            {
+                "catalog_id": catalog_id
+            }
+        )
+        cursor.execute(
+            "DELETE FROM collection_tag "
+            "WHERE catalog_id=:catalog_id",
+            {
+                "catalog_id": catalog_id
+            }
+        )
+        cursor.execute(
+            "DELETE FROM collection_solution_solution "
+            "WHERE catalog_id_parent=:catalog_id",
+            {
+                "catalog_id": catalog_id
+            }
+        )
+        cursor.execute(
+            "DELETE FROM collection_solution_solution "
+            "WHERE catalog_id_child=:catalog_id",
+            {
+                "catalog_id": catalog_id
+            }
+        )
+        cursor.execute(
+            "DELETE FROM catalog "
+            "WHERE catalog_id=:catalog_id",
+            {
+                "catalog_id": catalog_id
+            }
+        )
+
+        if close:
+            self.close_current_connection()
+
     # ### collection ###
 
     def insert_solution(self, catalog_id, solution_attrs, close=True):
-        next_id = self.next_id("collection")
+        collection_id = self.next_id("collection")
         hash_val = get_dict_entry(solution_attrs, "hash", allow_none=True)
 
         # there must be a hash value
@@ -200,9 +248,9 @@ class CollectionIndex(Database):
         cursor = self.get_cursor()
         cursor.execute(
             "INSERT INTO collection VALUES "
-            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ,? ,?, ?, ? ,?, ?, ?, ?, ?)",
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ,? ,?, ?, ? ,?, ?, ?, ?)",
             (
-                next_id,
+                collection_id,
                 get_dict_entry(solution_attrs, "solution_id"),
                 solution_attrs["group"],
                 solution_attrs["name"],
@@ -217,7 +265,6 @@ class CollectionIndex(Database):
                 solution_attrs["documentation"],
                 solution_attrs["min_album_version"],
                 solution_attrs["tested_album_version"],
-                get_dict_entry(solution_attrs, "parent"),  # allow to be none
                 get_dict_entry(solution_attrs, "changelog"),
                 hash_val,
                 None,  # when installed?
@@ -230,66 +277,106 @@ class CollectionIndex(Database):
         for author in solution_attrs["authors"]:
             # fixme: what if author already in DB?
             author_id = self._insert_author(author, catalog_id, close=False)
-            collection_solution_author_id = self.next_id("collection_solution_author")
-            cursor.execute(
-                "INSERT INTO collection_solution_author values (?, ?, ?, ?)",
-                (
-                    collection_solution_author_id,
-                    next_id,
-                    author_id,
-                    catalog_id
-                )
-            )
+            self._insert_collection_solution_author(collection_id, author_id, catalog_id, close=False)
 
         for tag in solution_attrs["tags"]:
             # fixme: what if author already in DB?
             tag_id = self._insert_tag(tag, catalog_id, close=False)
-            collection_solution_tag_id = self.next_id("collection_solution_tag")
-            cursor.execute(
-                "INSERT INTO collection_solution_tag values (?, ?, ?, ?)",
-                (
-                    collection_solution_tag_id,
-                    next_id,
-                    tag_id,
-                    catalog_id
-                )
-            )
+            self._insert_collection_solution_tag(collection_id, tag_id, catalog_id, close=False)
 
         for citation in solution_attrs["cite"]:
             # fixme: what if author already in DB?
             citation_id = self._insert_citation(citation, catalog_id, close=False)
-            collection_solution_citation_id = self.next_id("collection_solution_citation")
-            cursor.execute(
-                "INSERT INTO collection_solution_citation values (?, ?, ?, ?)",
-                (
-                    collection_solution_citation_id,
-                    next_id,
-                    citation_id,
-                    catalog_id
-                )
-            )
+            self._insert_collection_solution_citation(collection_id, citation_id, catalog_id, close=False)
 
         for argument in solution_attrs["args"]:
             # fixme: what if author already in DB?
             argument_id = self._insert_argument(argument, catalog_id, close=False)
-            collection_solution_argument_id = self.next_id("collection_solution_argument")
-            cursor.execute(
-                "INSERT INTO collection_solution_argument values (?, ?, ?, ?)",
-                (
-                    collection_solution_argument_id,
-                    next_id,
-                    argument_id,
-                    catalog_id
-                )
-            )
+            self._insert_collection_solution_argument(collection_id, argument_id, catalog_id, close=False)
 
         for cover in solution_attrs["covers"]:
-            self._insert_cover(cover, catalog_id, next_id)
+            self._insert_cover(cover, catalog_id, collection_id)
 
         if close:
             self.close_current_connection()
 
-        return next_id
+        return collection_id
+
+    def _insert_collection_solution_argument(self, collection_id, argument_id, catalog_id, close=True):
+        collection_solution_argument_id = self.next_id("collection_solution_argument")
+
+        cursor = self.get_cursor()
+        cursor.execute(
+            "INSERT INTO collection_solution_argument values (?, ?, ?, ?)",
+            (
+                collection_solution_argument_id,
+                collection_id,
+                argument_id,
+                catalog_id
+            )
+        )
+
+        if close:
+            self.close_current_connection()
+
+        return collection_solution_argument_id
+
+    def _insert_collection_solution_citation(self, collection_id, citation_id, catalog_id, close=True):
+        collection_solution_citation_id = self.next_id("collection_solution_citation")
+
+        cursor = self.get_cursor()
+        cursor.execute(
+            "INSERT INTO collection_solution_citation values (?, ?, ?, ?)",
+            (
+                collection_solution_citation_id,
+                collection_id,
+                citation_id,
+                catalog_id
+            )
+        )
+
+        if close:
+            self.close_current_connection()
+
+        return collection_solution_citation_id
+
+    def _insert_collection_solution_tag(self, collection_id, tag_id, catalog_id, close=True):
+        collection_solution_tag_id = self.next_id("collection_solution_tag")
+
+        cursor = self.get_cursor()
+        cursor.execute(
+            "INSERT INTO collection_solution_tag values (?, ?, ?, ?)",
+            (
+                collection_solution_tag_id,
+                collection_id,
+                tag_id,
+                catalog_id
+            )
+        )
+
+        if close:
+            self.close_current_connection()
+
+        return collection_solution_tag_id
+
+    def _insert_collection_solution_author(self, collection_id, author_id, catalog_id, close=True):
+        collection_solution_author_id = self.next_id("collection_solution_author")
+
+        cursor = self.get_cursor()
+        cursor.execute(
+            "INSERT INTO collection_solution_author values (?, ?, ?, ?)",
+            (
+                collection_solution_author_id,
+                collection_id,
+                author_id,
+                catalog_id
+            )
+        )
+
+        if close:
+            self.close_current_connection()
+
+        return collection_solution_author_id
 
     def _insert_author(self, author, catalog_id, close=True):
         author_id = self.next_id("collection_author")
@@ -409,30 +496,50 @@ class CollectionIndex(Database):
 
         return solution_solution_id
 
-    def _get_children_by_solutions(self, collection_id, close=True):
+    def _get_children_of_solution(self, collection_id, close=True):
         child_solutions = []
         cursor = self.get_cursor()
 
         r = cursor.execute(
-                "SELECT css.* FROM collection_solution_solution css "
-                "JOIN collection c ON c.collection_id = css.collection_id_parent "
-                "WHERE c.collection_id=:collection_id",
-                {
-                    "collection_id": collection_id
-                }
+            "SELECT css.* FROM collection_solution_solution css "
+            "JOIN collection c ON c.collection_id = css.collection_id_parent "
+            "WHERE c.collection_id=:collection_id",
+            {
+                "collection_id": collection_id
+            }
         ).fetchall()
 
-        res = []
         for row in r:
-            res.append({
-                "catalog_id_child": row["catalog_id_child"],
-                "collection_id_child": row["collection_id_child"]
-            })
+            child_solutions.append(row["collection_id_child"])  # do not resolve get this solution here: recursion!
 
         if close:
             self.close_current_connection()
 
         return child_solutions
+
+    def get_parent_of_solution(self, collection_id, close=True):
+        parent_solution = None
+        cursor = self.get_cursor()
+
+        r = cursor.execute(
+            "SELECT css.* FROM collection_solution_solution css "
+            "JOIN collection c ON c.collection_id = css.collection_id_child "
+            "WHERE c.collection_id=:collection_id",
+            {
+                "collection_id": collection_id
+            }
+        ).fetchall()
+
+        if len(r) > 1:
+            raise KeyError("Database error. Solution with id %s has several parents!" % str(collection_id))
+
+        for row in r:
+            parent_solution = self.get_solution(row["collection_id_parent"], close=False)
+
+        if close:
+            self.close_current_connection()
+
+        return parent_solution
 
     def get_all_solutions(self, close=True):
         installed_solutions_list = []
@@ -447,26 +554,6 @@ class CollectionIndex(Database):
 
         return installed_solutions_list
 
-    def get_solutions_by_catalog(self, catalog_id, close=True):
-        catalog_solutions = []
-
-        cursor = self.get_cursor()
-        for row in cursor.execute(
-                "SELECT c.* FROM collection c "
-                "WHERE c.catalog_id=:catalog_id",
-                {
-                    "catalog_id": catalog_id
-                }
-        ).fetchall():
-            solution_dict = dict(row)
-            self._append_metadata_to_solution(solution_dict, close=False)
-            catalog_solutions.append(solution_dict)
-
-        if close:
-            self.close_current_connection()
-
-        return catalog_solutions
-
     def _append_metadata_to_solution(self, solution_dict, close=True):
         collection_id = solution_dict["collection_id"]
         solution_dict["authors"] = self._get_authors_by_solution(collection_id, close=False)
@@ -474,7 +561,8 @@ class CollectionIndex(Database):
         solution_dict["cite"] = self._get_citations_by_solution(collection_id, close=False)
         solution_dict["args"] = self._get_arguments_by_solution(collection_id, close=False)
         solution_dict["covers"] = self._get_covers_by_solution(collection_id, close=False)
-        solution_dict["children"] = self._get_children_by_solutions(collection_id, close=close)
+        solution_dict["children"] = self._get_children_of_solution(collection_id, close=False)
+        solution_dict["parent"] = self.get_parent_of_solution(collection_id, close=close)
 
     def _get_authors_by_solution(self, collection_id, close=True):
         cursor = self.get_cursor()
@@ -582,6 +670,26 @@ class CollectionIndex(Database):
             self.close_current_connection()
 
         return res
+
+    def get_solutions_by_catalog(self, catalog_id, close=True):
+        catalog_solutions = []
+
+        cursor = self.get_cursor()
+        for row in cursor.execute(
+                "SELECT c.* FROM collection c "
+                "WHERE c.catalog_id=:catalog_id",
+                {
+                    "catalog_id": catalog_id
+                }
+        ).fetchall():
+            solution_dict = dict(row)
+            self._append_metadata_to_solution(solution_dict, close=False)
+            catalog_solutions.append(solution_dict)
+
+        if close:
+            self.close_current_connection()
+
+        return catalog_solutions
 
     def get_solution_by_hash(self, hash_value, close=True) -> Optional[dict]:
         cursor = self.get_cursor()
@@ -691,7 +799,9 @@ class CollectionIndex(Database):
         solutions_list = []
 
         cursor = self.get_cursor()
-        for row in cursor.execute("SELECT * FROM collection ORDER BY install_date").fetchall():
+        for row in cursor.execute(
+                "SELECT * FROM collection WHERE installed=:installed ORDER BY install_date ", {"installed": 1}
+        ).fetchall():
             solution = dict(row)
             self._append_metadata_to_solution(solution, close=False)
             solutions_list.append(solution)
@@ -831,54 +941,6 @@ class CollectionIndex(Database):
         if not r:
             raise LookupError(f"Solution {catalog_id}:{coordinates} not found!")
         return True if r["installed"] else False
-
-    def remove_catalog(self, catalog_id, close=True):
-        cursor = self.get_cursor()
-        cursor.execute(
-            "DELETE FROM collection "
-            "WHERE catalog_id=:catalog_id",
-            {
-                "catalog_id": catalog_id
-            }
-        )
-        cursor.execute(
-            "DELETE FROM collection_solution_tag "
-            "WHERE catalog_id=:catalog_id",
-            {
-                "catalog_id": catalog_id
-            }
-        )
-        cursor.execute(
-            "DELETE FROM collection_tag "
-            "WHERE catalog_id=:catalog_id",
-            {
-                "catalog_id": catalog_id
-            }
-        )
-        cursor.execute(
-            "DELETE FROM collection_solution_solution "
-            "WHERE catalog_id_parent=:catalog_id",
-            {
-                "catalog_id": catalog_id
-            }
-        )
-        cursor.execute(
-            "DELETE FROM collection_solution_solution "
-            "WHERE catalog_id_child=:catalog_id",
-            {
-                "catalog_id": catalog_id
-            }
-        )
-        cursor.execute(
-            "DELETE FROM catalog "
-            "WHERE catalog_id=:catalog_id",
-            {
-                "catalog_id": catalog_id
-            }
-        )
-
-        if close:
-            self.close_current_connection()
 
     def __len__(self, close=True):
         cursor = self.get_cursor()

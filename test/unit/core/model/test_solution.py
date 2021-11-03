@@ -70,23 +70,6 @@ channels:
             active_solution.cache_path
         )
 
-    @patch('album.core.model.solution.Solution.set_cache_paths')
-    @patch('album.core.model.environment.Environment.__init__')
-    def test_set_environment(self, environment_init_mock, _):
-        # mocks
-        environment_init_mock.return_value = None
-
-        active_solution = Solution(self.solution_default_dict)
-
-        active_solution.set_environment("catalog_name_solution_lives_in")
-
-        # assert
-        environment_init_mock.assert_called_once_with(
-            active_solution.dependencies,
-            environment_name="catalog_name_solution_lives_in_tsg_tsn_tsv",
-            cache_path=active_solution.package_path
-        )
-
     def test_get_deploy_dict(self):
         active_solution = Solution(self.solution_default_dict)
         self.assertEqual(self.solution_default_dict, active_solution.get_deploy_dict())

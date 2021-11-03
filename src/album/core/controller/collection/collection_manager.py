@@ -1,7 +1,9 @@
 from pathlib import Path
 from typing import Optional
 
-from album.core import load
+from album.core.controller.conda_manager import CondaManager
+
+from album.core import load, Solution
 from album.core.concept.singleton import Singleton
 # classes and methods
 from album.core.controller.collection.catalog_handler import CatalogHandler
@@ -15,7 +17,7 @@ from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import write_dict_to_json
 from album.core.utils.operations.resolve_operations import check_file_or_url, get_attributes_from_string, \
-    dict_to_coordinates, get_doi_from_input, check_doi
+    dict_to_coordinates, get_doi_from_input, check_doi, build_resolve_string, get_parent
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
@@ -38,11 +40,13 @@ class CollectionManager(metaclass=Singleton):
     # singletons
     configuration = None
     migration_manager = None
+    conda_manager = None
 
     def __init__(self):
         super().__init__()
         self.configuration = Configuration()
         self.migration_manager = MigrationManager()
+        self.conda_manager = CondaManager()
         self.solution_handler: Optional[SolutionHandler] = None
         self.catalog_handler: Optional[CatalogHandler] = None
         self.catalog_collection: Optional[CollectionIndex] = None
@@ -168,6 +172,7 @@ class CollectionManager(metaclass=Singleton):
 
         resolve_result = self._resolve(resolve_solution)
         self._retrieve_and_load_resolve_result(resolve_result)
+        resolve_result.loaded_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
 
         return resolve_result
 
@@ -194,6 +199,8 @@ class CollectionManager(metaclass=Singleton):
         )
         self._retrieve_and_load_resolve_result(resolve_result)
 
+        resolve_result.loaded_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
+
         return resolve_result
 
     def resolve_download_and_load_coordinates(self, coordinates: Coordinates) -> ResolveResult:
@@ -217,6 +224,8 @@ class CollectionManager(metaclass=Singleton):
             path=solution_path, catalog=catalog, collection_entry=collection_entry, coordinates=coordinates
         )
         self._retrieve_and_load_resolve_result(resolve_result)
+
+        resolve_result.loaded_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
 
         return resolve_result
 
@@ -242,6 +251,41 @@ class CollectionManager(metaclass=Singleton):
             )
 
         return resolve_result
+
+    def resolve_parent(self, parent_dict: dict) -> ResolveResult:
+        # resolve the parent mentioned in the current solution to get its metadata
+        resolve_parent_info = build_resolve_string(parent_dict)
+        parent_resolve_result = self.resolve_require_installation(resolve_parent_info)
+
+        # resolve parent of the parent
+        parent = get_parent(parent_resolve_result.collection_entry)
+
+        # case parent itself has no further parent
+        if parent["collection_id"] == parent_resolve_result.collection_entry["collection_id"]:
+
+            loaded_solution = load(parent_resolve_result.path)
+            loaded_solution.set_cache_paths(catalog_name=parent_resolve_result.catalog.name)
+
+            parent_resolve_result.loaded_solution = loaded_solution
+
+        # case parent itself has another parent
+        else:
+            parent_catalog = self.catalogs().get_by_id(parent["catalog_id"])
+            parent_coordinates = dict_to_coordinates(parent)
+            path = parent_catalog.get_solution_file(parent_coordinates)
+
+            loaded_solution = load(path)
+            loaded_solution.set_cache_paths(catalog_name=parent_catalog.name)
+
+            parent_resolve_result = ResolveResult(
+                path=path,
+                catalog=parent_catalog,
+                collection_entry=parent,
+                coordinates=parent_coordinates,
+                loaded_solution=loaded_solution
+            )
+
+        return parent_resolve_result
 
     def _resolve(self, str_input):
         # always first resolve outside any catalog, excluding a DOI which should be first resolved inside a catalog

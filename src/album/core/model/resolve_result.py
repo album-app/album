@@ -1,12 +1,15 @@
+from album.core.model.catalog import Catalog
+from album.core.model.coordinates import Coordinates
+
 from album.core import Solution
 
 
 class ResolveResult:
     def __init__(self, path, catalog, collection_entry, coordinates, loaded_solution=None):
-        self.catalog = catalog
+        self.catalog: Catalog = catalog
         self.path = path
         self.collection_entry: dict = collection_entry
-        self.coordinates = coordinates
+        self.coordinates: Coordinates = coordinates
         self.loaded_solution: Solution = loaded_solution
 
     def __eq__(self, other):

@@ -45,6 +45,5 @@ setup(
     init=album_init,
     run=album_run,
     install=album_install,
-    dependencies={
-        'environment_name': 'album'
-    })
+    dependencies={}
+)

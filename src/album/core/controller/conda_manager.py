@@ -67,7 +67,7 @@ class CondaManager(metaclass=Singleton):
         """Gets the environment path for a given environment
 
         Args:
-            environment:
+            environment_name:
                 The environment to get the path for.
 
         Returns:

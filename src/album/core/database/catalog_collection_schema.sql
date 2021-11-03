@@ -78,7 +78,6 @@ CREATE TABLE IF NOT EXISTS collection
     documentation        TEXT,
     min_album_version    TEXT,
     tested_album_version TEXT,
-    parent               TEXT,
     changelog            TEXT,
     hash                 TEXT    not null,
     install_date         TEXT,
