@@ -106,7 +106,6 @@ def search(args):
             module_logger().info('No search results for "%s".' % ' '.join(args.keywords))
 
 
-
 def start_server(args):
     server = AlbumServer(args.port, args.host)
     server.setup()
@@ -122,7 +121,23 @@ def clone(args):
 
 
 def index(args):
-    module_logger().info(_as_json(CollectionManager().get_index_as_dict()))
+    index_dict = CollectionManager().get_index_as_dict()
+    print_json = _get_print_json(args)
+    if print_json:
+        print(_as_json(index_dict))
+    else:
+        module_logger().info('Catalogs in your local collection:')
+        if 'catalogs' in index_dict:
+            for catalog in index_dict['catalogs']:
+                module_logger().info('Catalog \'%s\':' % catalog['name'])
+                module_logger().info('| name: %s' % catalog['name'])
+                module_logger().info('| path: %s' % catalog['path'])
+                module_logger().info('| catalog_id: %s' % catalog['catalog_id'])
+                module_logger().info('| deletable: %s' % catalog['deletable'])
+                if len(catalog['solutions']) > 0:
+                    module_logger().info('| solutions:')
+                    for solution in catalog['solutions']:
+                        module_logger().info('| \t%s:%s:%s' % (solution['group'], solution['name'], solution['version']))
 
 
 def repl(args):
