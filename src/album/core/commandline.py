@@ -1,6 +1,7 @@
 import json
 import sys
 
+from album.api import Album
 from album.core import get_active_solution
 from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection.collection_manager import CollectionManager
@@ -124,7 +125,7 @@ def search(args):
 
 def start_server(args):
     server = AlbumServer(args.port, args.host)
-    server.setup()
+    server.setup(Album())
     server.start()
 
 
