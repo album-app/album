@@ -36,12 +36,28 @@ def upgrade(args):
     dry_run = getattr(args, "dry_run", False)
     updates = CollectionManager().catalogs().update_collection(getattr(args, "catalog_name", None),
                                                                dry_run=dry_run)
-    if dry_run:
-        module_logger().info("An upgrade would apply the following updates:")
+    print_json = _get_print_json(args)
+    if print_json:
+        print(_as_json(updates))
     else:
-        module_logger().info("Applied the following updates:")
-    for change in updates:
-        module_logger().info(json.dumps(change.as_dict(), sort_keys=True, indent=4))
+        if dry_run:
+            module_logger().info("An upgrade would apply the following updates:")
+        else:
+            module_logger().info("Applied the following updates:")
+        for change in updates:
+            module_logger().info('Catalog: %s' % change.catalog.name)
+            if len(change.catalog_attribute_changes) > 0:
+                module_logger().info('| Catalog attribute changes')
+                for item in change.catalog_attribute_changes:
+                    module_logger().info('  name: %s, new value: %s' % (item.attribute, item.new_value))
+            if len(change.solution_changes) > 0:
+                for item in change.solution_changes:
+                    module_logger().info('| %s' % item.coordinates)
+                    module_logger().info('  action: %s' % item.change_type)
+                    module_logger().info('  changelog: %s' % item.change_log)
+
+            if len(change.catalog_attribute_changes) == 0 and len(change.solution_changes) == 0:
+                module_logger().info('| No changes.')
 
 
 def deploy(args):
