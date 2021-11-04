@@ -61,9 +61,12 @@ class TestIntegrationClone(TestIntegrationCommon):
         sys.argv = ["", "clone", "weirdPath", "--target-dir", str(Path(self.tmp_dir.name)), "--name", "my_solution"]
 
         # run
-        self.assertIsNone(main())
+        with self.assertRaises(SystemExit) as e:
+            main()
+        self.assertTrue(isinstance(e.exception.code, ValueError))
+
         self.assertIn("ERROR", self.captured_output.getvalue())
-        self.assertIn("Invalid input format!", self.captured_output.getvalue())
+        self.assertIn("Invalid input format!", e.exception.code.args[0])
 
 
 if __name__ == '__main__':

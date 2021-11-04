@@ -37,9 +37,12 @@ class TestIntegrationRun(TestIntegrationCommon):
         sys.argv = ["", "run", p]  # required arguments not given
 
         # run
-        self.assertIsNone(main())
+        with self.assertRaises(SystemExit) as e:
+            main()
+        self.assertTrue(isinstance(e.exception.code, RuntimeError))
+
         self.assertIn("ERROR", self.captured_output.getvalue())
-        self.assertIn("the following arguments are required: --lambda_arg1", self.captured_output.getvalue())
+        self.assertIn("the following arguments are required: --lambda_arg1", e.exception.code.args[0])
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_arguments_given(self, get_environment_path):
@@ -97,9 +100,12 @@ class TestIntegrationRun(TestIntegrationCommon):
         sys.argv = ["", "run", str(self.get_test_solution_path("solution0_dummy_no_routines.py"))]
 
         # run
-        self.assertIsNone(main())
-        self.assertIn("ERROR", str(self.captured_output.getvalue()))
-        self.assertIn("No \"run\" routine specified for solution", str(self.captured_output.getvalue()))
+        with self.assertRaises(SystemExit) as e:
+            main()
+        self.assertTrue(isinstance(e.exception.code, ValueError))
+
+        self.assertIn("ERROR", self.captured_output.getvalue())
+        self.assertIn("No \"run\" routine specified for solution", e.exception.code.args[0])
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_with_parent(self, get_environment_path):

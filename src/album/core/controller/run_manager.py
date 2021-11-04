@@ -488,12 +488,17 @@ class RunManager(metaclass=Singleton):
 
     @staticmethod
     def _print_credit(active_solutions) -> None:
-        module_logger().info('')
-        module_logger().info('Solution credits:')
+        res = RunManager.get_credit_as_string(active_solutions)
+        module_logger().info(res)
+
+    @staticmethod
+    def get_credit_as_string(active_solutions):
+        res = '\n\nSolution credits:\n\n'
         for active_solution in active_solutions:
             for citation in active_solution['cite']:
                 text = citation['text']
                 if 'doi' in citation:
                     text += ' (DOI: %s)' % citation['doi']
-                module_logger().info(text)
-        module_logger().info('')
+                res += '%s\n' % text
+        res += '\n'
+        return res

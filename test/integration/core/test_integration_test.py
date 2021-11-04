@@ -30,9 +30,12 @@ class TestIntegrationTest(TestIntegrationCommon):
         sys.argv = ["", "test", self.get_test_solution_path("solution0_dummy_no_routines.py")]
 
         # run
-        self.assertIsNone(main())
+        with self.assertRaises(SystemExit) as e:
+            main()
+        self.assertTrue(isinstance(e.exception.code, LookupError))
+
         self.assertIn("ERROR", self.captured_output.getvalue())
-        self.assertIn("Solution not found", self.captured_output.getvalue())
+        self.assertIn("Solution not found", e.exception.code.args[0])
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_test(self, get_environment_path):

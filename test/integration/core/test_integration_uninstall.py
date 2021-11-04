@@ -68,10 +68,12 @@ class TestIntegrationUninstall(TestIntegrationCommon):
     def test_remove_solution_not_installed(self):
         sys.argv = ["", "uninstall", self.get_test_solution_path()]
 
-        self.assertIsNone(main())
+        with self.assertRaises(SystemExit) as e:
+            main()
+        self.assertTrue(isinstance(e.exception.code, LookupError))
 
         self.assertIn("ERROR", self.captured_output.getvalue())
-        self.assertIn("Solution not found", self.captured_output.getvalue())
+        self.assertIn("Solution not found", e.exception.code.args[0])
 
 
 if __name__ == '__main__':

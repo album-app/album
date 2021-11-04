@@ -39,8 +39,9 @@ def _capture_output():
 
 
 def _handle_exception(e):
-    get_active_logger().error(str(e))
+    get_active_logger().error('album command failed:')
     get_active_logger().debug(traceback.format_exc())
+    sys.exit(e)
 
 
 def __run_subcommand(args, parser):

@@ -1,6 +1,8 @@
 import json
 import sys
 
+from album.core.model.catalog_updates import ChangeType
+
 from album.api import Album
 from album.core import get_active_solution
 from album.core.controller.clone_manager import CloneManager
@@ -41,25 +43,31 @@ def upgrade(args):
     if print_json:
         print(_as_json(updates))
     else:
+        res = ''
         if dry_run:
-            module_logger().info("An upgrade would apply the following updates:")
+            res += 'An upgrade would apply the following updates:\n'
         else:
-            module_logger().info("Applied the following updates:")
+            res += "Applied the following updates:\n"
         for change in updates:
-            module_logger().info('Catalog: %s' % change.catalog.name)
+            res += 'Catalog: %s\n' % change.catalog.name
             if len(change.catalog_attribute_changes) > 0:
-                module_logger().info('| Catalog attribute changes')
+                res += '  Catalog attribute changes:\n'
                 for item in change.catalog_attribute_changes:
-                    module_logger().info('  name: %s, new value: %s' % (item.attribute, item.new_value))
+                    res += '  name: %s, new value: %s\n' % (item.attribute, item.new_value)
             if len(change.solution_changes) > 0:
-                for item in change.solution_changes:
-                    module_logger().info('| %s' % item.coordinates)
-                    module_logger().info('  action: %s' % item.change_type)
-                    module_logger().info('  changelog: %s' % item.change_log)
+                res += '  Catalog solution changes:\n'
+                for i, item in enumerate(change.solution_changes):
+                    if i is len(change.solution_changes)-1:
+                        res += '  └─ [%s] %s\n' % (item.change_type.name, item.coordinates)
+                        separator = ' '
+                    else:
+                        res += '  ├─ [%s] %s\n' % (item.change_type.name, item.coordinates)
+                        separator = '|'
+                    res += '  %s     %schangelog: %s\n' % (separator, (" " * len(item.change_type.name)), item.change_log)
 
             if len(change.catalog_attribute_changes) == 0 and len(change.solution_changes) == 0:
-                module_logger().info('| No changes.')
-
+                res += '  No changes.\n'
+        module_logger().info(res)
 
 def deploy(args):
     DeployManager().deploy(
@@ -78,30 +86,38 @@ def uninstall(args):
 def info(args):
     resolve_result = CollectionManager().resolve_download_and_load(str(args.path))
     print_json = _get_print_json(args)
-    deploy_dict = resolve_result.loaded_solution.get_deploy_dict()
+    solution = resolve_result.loaded_solution
+    deploy_dict = solution.get_deploy_dict()
     if print_json:
         print(_as_json(deploy_dict))
     else:
-        param_example_str = ""
-        for arg in deploy_dict["args"]:
-            param_example_str += "--%s PARAMETER_VALUE " % arg["name"]
-        module_logger().info('')
-        module_logger().info('Solution details about %s:' % args.path)
-        module_logger().info('|')
-        for key in deploy_dict:
-            module_logger().info("| %s: %s" % (key, deploy_dict[key]))
-        module_logger().info('')
-        module_logger().info('Usage:')
-        module_logger().info('|')
-        module_logger().info('| album install %s', args.path)
-        module_logger().info('| album run %s %s' % (resolve_result.loaded_solution.coordinates, param_example_str))
-        module_logger().info('| album test %s' % (resolve_result.loaded_solution.coordinates))
-        module_logger().info('| album uninstall %s' % (resolve_result.loaded_solution.coordinates))
-        module_logger().info('')
-        module_logger().info('Run parameters:')
-        module_logger().info('|')
-        for arg in deploy_dict["args"]:
-            module_logger().info('| --%s: %s' % (arg["name"], arg["description"]))
+        param_example_str = ''
+        for arg in deploy_dict['args']:
+            param_example_str += '--%s PARAMETER_VALUE ' % arg['name']
+        res = 'Solution details about %s:\n\n' % args.path
+        res += '%s\n' % solution.title
+        res += '%s\n' % ('=' * len(solution.title))
+        res += '%s\n\n' % solution.description
+        res += 'Group            : %s\n' % solution.group
+        res += 'Name             : %s\n' % solution.name
+        res += 'Version          : %s' % solution.version
+        res += '%s' % RunManager.get_credit_as_string([solution])
+        res += 'Solution metadata:\n\n'
+        res += 'Solution authors : %s\n' % ", ".join(solution.authors)
+        res += 'License          : %s\n' % solution.license
+        res += 'GIT              : %s\n' % solution.git_repo
+        res += 'Tags             : %s\n' % ", ".join(solution.tags)
+        res += '\n'
+        res += 'Usage:\n\n'
+        res += '  album install %s\n' % args.path
+        res += '  album run %s %s\n' % (solution.coordinates, param_example_str)
+        res += '  album test %s\n' % (solution.coordinates)
+        res += '  album uninstall %s\n' % (solution.coordinates)
+        res += '\n'
+        res += 'Run parameters:\n\n'
+        for arg in deploy_dict['args']:
+            res += '  --%s: %s\n' % (arg["name"], arg["description"])
+        module_logger().info(res)
 
 
 def run(args):
@@ -114,13 +130,15 @@ def search(args):
     if print_json:
         print(_as_json(search_result))
     else:
+        res = ''
         if len(search_result) > 0:
-            module_logger().info('Search results for "%s" - run `album info SOLUTION_ID` for more information:' % ' '.join(args.keywords))
-            module_logger().info("[SCORE] SOLUTION_ID")
+            res += 'Search results for "%s" - run `album info SOLUTION_ID` for more information:\n' % ' '.join(args.keywords)
+            res += '[SCORE] SOLUTION_ID\n'
             for result in search_result:
-                module_logger().info("[%s] %s" % (result[1], result[0]))
+                res += '[%s] %s\n' % (result[1], result[0])
         else:
-            module_logger().info('No search results for "%s".' % ' '.join(args.keywords))
+            res += 'No search results for "%s".' % ' '.join(args.keywords)
+        module_logger().info(res)
 
 
 def start_server(args):
@@ -143,18 +161,24 @@ def index(args):
     if print_json:
         print(_as_json(index_dict))
     else:
-        module_logger().info('Catalogs in your local collection:')
+        res = '\n'
         if 'catalogs' in index_dict:
             for catalog in index_dict['catalogs']:
-                module_logger().info('Catalog \'%s\':' % catalog['name'])
-                module_logger().info('| name: %s' % catalog['name'])
-                module_logger().info('| path: %s' % catalog['path'])
-                module_logger().info('| catalog_id: %s' % catalog['catalog_id'])
-                module_logger().info('| deletable: %s' % catalog['deletable'])
+                res += 'Catalog \'%s\':\n' % catalog['name']
+                res += '├─ name: %s\n' % catalog['name']
+                res += '├─ src: %s\n' % catalog['src']
+                res += '├─ catalog_id: %s\n' % catalog['catalog_id']
                 if len(catalog['solutions']) > 0:
-                    module_logger().info('| solutions:')
-                    for solution in catalog['solutions']:
-                        module_logger().info('| \t%s:%s:%s' % (solution['group'], solution['name'], solution['version']))
+                    res += '├─ deletable: %s\n' % catalog['deletable']
+                    res += '└─ solutions:\n'
+                    for i, solution in enumerate(catalog['solutions']):
+                        if i is len(catalog['solutions'])-1:
+                            res += '   └─ %s:%s:%s\n' % (solution['group'], solution['name'], solution['version'])
+                        else:
+                            res += '   ├─ %s:%s:%s\n' % (solution['group'], solution['name'], solution['version'])
+                else:
+                    res += '└─ deletable: %s\n' % catalog['deletable']
+        module_logger().info('Catalogs in your local collection: %s' % res)
 
 
 def repl(args):
