@@ -64,6 +64,7 @@ class InstallManager(metaclass=Singleton):
         return resolve_result
 
     def _install_resolve_result(self, resolve_result: ResolveResult, argv, cleanup=True):
+        module_logger().info('Installing \"%s\"..' % resolve_result.loaded_solution['name'])
         if not resolve_result.loaded_solution.parent:
             resolve_result.loaded_solution.set_cache_paths(resolve_result.catalog.name)
             resolve_result.loaded_solution.set_environment(resolve_result.catalog.name)
@@ -142,8 +143,8 @@ class InstallManager(metaclass=Singleton):
             self.conda_manager.run_scripts(active_solution.environment, [script])
             logging.pop_active_logger()
         else:
-            module_logger().info(
-                'No \"install\" routine configured for solution \"%s\"! Will execute nothing! Installation complete!' %
+            module_logger().debug(
+                'No \"install\" routine configured for solution \"%s\". Skipping.' %
                 active_solution['name']
             )
 
@@ -195,6 +196,8 @@ class InstallManager(metaclass=Singleton):
         # -> ignore this dependency then?
 
         resolve_result = self.collection_manager.resolve_require_installation_and_load(path)
+
+        module_logger().info("Uninstalling \"%s\".." % resolve_result.loaded_solution['name'])
 
         if rm_dep:
             self.remove_dependencies(resolve_result.loaded_solution)

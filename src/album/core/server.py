@@ -90,7 +90,6 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route('/run/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/run/<catalog>/<group>/<name>/<version>')
         def run(catalog, group, name, version):
-            module_logger().info(f"Server call: /run/{catalog}/{group}/{name}/{version}")
             args = self._get_arguments(request.args)
             task = self._run_solution_method_async(catalog, Coordinates(group, name, version), RunManager().run,
                                                    [True, args])

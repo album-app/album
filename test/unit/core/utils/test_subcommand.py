@@ -13,6 +13,7 @@ class TestSubcommand(TestUnitCommon):
 
         handler = StreamHandler()
         self.logger.addHandler(handler)
+        self.logger.setLevel("DEBUG")
 
         info = MagicMock(return_value=None)
         handler.handle = info
@@ -26,6 +27,7 @@ class TestSubcommand(TestUnitCommon):
         self.assertEqual("test", args2[0].msg)
 
     def test_run_logging_from_thread(self):
+        self.logger.setLevel("DEBUG")
         thread = threading.Thread(target=self._run_in_thread, args=(threading.current_thread().ident, ))
         thread.start()
         thread.join()

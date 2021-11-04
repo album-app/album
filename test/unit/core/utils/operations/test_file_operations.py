@@ -239,8 +239,6 @@ class TestFileOperations(TestUnitCommon):
 
         force_remove(p)
 
-        self.assertIn("No content in ", self.captured_output.getvalue())
-
     def test_force_remove_file(self):
         p = Path(self.tmp_dir.name).joinpath("file_exist")
         p.touch()

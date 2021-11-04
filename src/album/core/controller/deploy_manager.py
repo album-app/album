@@ -254,7 +254,7 @@ class DeployManager(metaclass=Singleton):
             "%s%s" % (coordinates.name, ".yml")
         )
 
-        module_logger().info('Writing yaml file to: %s...' % yaml_path)
+        module_logger().debug('Writing yaml file to: %s...' % yaml_path)
         write_dict_to_yml(yaml_path, active_solution.get_deploy_dict())
 
         return yaml_path
@@ -281,7 +281,7 @@ class DeployManager(metaclass=Singleton):
         docker_file_stream = docker_file_stream.replace("<maintainer>", author)
 
         # replace template with entries and copy dockerfile to deploy_src
-        module_logger().info('Writing docker file to: %s...' % str(docker_file))
+        module_logger().debug('Writing docker file to: %s...' % str(docker_file))
         copy_in_file(docker_file_stream, docker_file)
 
         return docker_file
@@ -295,7 +295,7 @@ class DeployManager(metaclass=Singleton):
 
         """
         zip_path = DeployManager._get_absolute_zip_path(catalog, catalog_local_src, active_solution)
-        module_logger().info('Creating zip file in: %s...' % str(zip_path))
+        module_logger().debug('Creating zip file in: %s...' % str(zip_path))
 
         if folder_path.is_dir():
             return zip_folder(folder_path, zip_path)
@@ -321,7 +321,7 @@ class DeployManager(metaclass=Singleton):
         cover_list = []
 
         if hasattr(active_solution, "covers"):
-            module_logger().info('Copying cover file to: %s...' % str(target_path))
+            module_logger().debug('Copying cover file to: %s...' % str(target_path))
             for cover in active_solution["covers"]:
                 cover_name = cover["source"]
                 cover_path = folder_path.joinpath(cover_name)  # relative paths only

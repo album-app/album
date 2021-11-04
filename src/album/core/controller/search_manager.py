@@ -20,7 +20,7 @@ class SearchManager(metaclass=Singleton):
     def search(self, keywords):
         """Function corresponding to the `search` subcommand of `album`.
 
-        Searches through album catalogs to find closest matching hip solution.
+        Searches through album catalogs to find closest matching solution.
 
         """
         module_logger().debug("Searching with following arguments %s..." % ", ".join(keywords))
@@ -30,18 +30,27 @@ class SearchManager(metaclass=Singleton):
         for solution_entry in search_index:
             group, name, version = solution_entry['group'], solution_entry["name"], solution_entry["version"]
             catalog_id = solution_entry["catalog_id"]
-            unique_id = "_".join([str(catalog_id), group, name, version])
+            catalog_name = CollectionManager().catalogs().get_by_id(catalog_id).name
+            unique_id = ":".join([str(catalog_name), group, name, version])
 
             # todo: nice searching algorithm here
             for keyword in keywords:
-                solution_result = keyword in solution_entry["description"]
-                if solution_result:
-                    if unique_id in match_score.keys():
-                        match_score[unique_id] = match_score[unique_id] + 1
-                    else:
-                        match_score[unique_id] = 1
+                self._find_matches(keyword, match_score, solution_entry, unique_id)
 
-        sorted_results = sorted(match_score.items(), key=operator.itemgetter(1))
-        module_logger().info('Search results for "%s"...' % keywords)
-        module_logger().info(sorted_results)
+        sorted_results = sorted(match_score.items(), key=operator.itemgetter(1), reverse=True)
         return sorted_results
+
+    def _find_matches(self, keyword, match_score, entry, unique_id):
+        if isinstance(entry, str):
+            solution_result = keyword in entry
+            if solution_result:
+                if unique_id in match_score.keys():
+                    match_score[unique_id] = match_score[unique_id] + 1
+                else:
+                    match_score[unique_id] = 1
+        if isinstance(entry, dict):
+            for name, value in entry.items():
+                self._find_matches(keyword, match_score, value, unique_id)
+        if isinstance(entry, list):
+            for item in entry:
+                self._find_matches(keyword, match_score, item, unique_id)

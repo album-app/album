@@ -1,13 +1,14 @@
 import argparse
 import sys
+import traceback
 
+import album
 from album.api import Album
 from album.core.commandline import add_catalog, remove_catalog, deploy, \
-    install, repl, run, search, start_server, test, update, clone, upgrade, index, uninstall
-from album.runner import logging
-from album.runner.logging import debug_settings
+    install, repl, run, search, start_server, test, update, clone, upgrade, index, uninstall, info
+from album.runner.logging import debug_settings, get_active_logger, set_loglevel, LogLevel, to_loglevel
 
-module_logger = logging.get_active_logger
+module_logger = get_active_logger
 
 
 def main():
@@ -24,8 +25,23 @@ def main():
 
 def __handle_args(args, parser):
     """Handles all arguments provided after the album command."""
-    logging.set_loglevel(args[0].log)
+    set_loglevel(args[0].log)
+    print_json = getattr(args[0], "json", False)
+    if print_json:
+        _capture_output()
+    module_logger().info("album version %s | contact via %s " % (album.core.__version__, album.core.__email__))
     __run_subcommand(args, parser)
+
+
+def _capture_output():
+    logger = get_active_logger()
+    logger.handlers.clear()
+
+
+def _handle_exception(e):
+    get_active_logger().error('album command failed:')
+    get_active_logger().debug(traceback.format_exc())
+    sys.exit(e)
 
 
 def __run_subcommand(args, parser):
@@ -39,10 +55,12 @@ def __run_subcommand(args, parser):
     sys.argv = [sys.argv[0]] + args[1]
 
     # Makes sure album is initialized.
-    Album()
     Album().collection_manager().load_or_create_collection()
 
-    args[0].func(args[0])  # execute entry point function
+    try:
+        args[0].func(args[0])  # execute entry point function
+    except Exception as e:
+        _handle_exception(e)
 
 
 def create_parser():
@@ -108,6 +126,7 @@ def create_parser():
         default=False,
         action='store_true'
     )
+    parser.create_file_command_parser('info', info, 'print information about an album solution')
     parser.create_catalog_command_parser(
         'add-catalog', add_catalog,
         'add a catalog to your local album configuration file'
@@ -149,7 +168,7 @@ def create_parser():
         help='The new name of the cloned solution or catalog',
         default=None
     )
-    parser.create_command_parser('index', index, 'print the index of the local album collection')
+    p = parser.create_command_parser('index', index, 'print the index of the local album collection')
     parser.create_file_command_parser(
         'test', test, 'execute a solutions test routine.')
     p = parser.create_command_parser('server', start_server,
@@ -183,9 +202,15 @@ class AlbumParser(ArgumentParser):
             '--log',
             required=False,
             help='Logging level for your album command. Choose between %s' %
-                 ", ".join([loglevel.name for loglevel in logging.LogLevel]),
-            default=logging.LogLevel(debug_settings()),
-            type=(lambda choice: logging.to_loglevel(choice)),
+                 ", ".join([loglevel.name for loglevel in LogLevel]),
+            default=LogLevel(debug_settings()),
+            type=(lambda choice: to_loglevel(choice)),
+        )
+        parent_parser.add_argument(
+            '--json',
+            required=False,
+            help='Adding this parameter prevents the log from being printed to the console. Instead, the result of the command - if present - is printed as JSON.',
+            action='store_true'
         )
         return parent_parser
 

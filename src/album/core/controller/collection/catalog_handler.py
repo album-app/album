@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import List, Optional
 
@@ -249,7 +250,7 @@ class CatalogHandler:
 
         if not validators.url(str(src)):
             if Path(src).exists():
-                src = str(Path(src).absolute())
+                src = os.path.abspath(src)
             else:
                 module_logger().warning("Cannot remove catalog with source \"%s\"! Not configured!" % str(src))
                 return None

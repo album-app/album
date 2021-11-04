@@ -39,6 +39,8 @@ class TestIntegrationUninstall(TestIntegrationCommon):
 
         self.assertIsNone(main())
 
+        self.assertNotIn("ERROR", self.captured_output)
+
         # assert that solution is removed from the catalog
         self.assertIn("Uninstalled \"name\"", self.captured_output.getvalue())
         solutions = self.collection_manager.catalog_collection.get_solutions_by_catalog(
@@ -66,8 +68,12 @@ class TestIntegrationUninstall(TestIntegrationCommon):
     def test_remove_solution_not_installed(self):
         sys.argv = ["", "uninstall", self.get_test_solution_path()]
 
-        with self.assertRaises(LookupError):
+        with self.assertRaises(SystemExit) as e:
             main()
+        self.assertTrue(isinstance(e.exception.code, LookupError))
+
+        self.assertIn("ERROR", self.captured_output.getvalue())
+        self.assertIn("Solution not found", e.exception.code.args[0])
 
 
 if __name__ == '__main__':

@@ -24,6 +24,7 @@ class TestIntegrationClone(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
+        self.assertNotIn("ERROR", self.captured_output)
         # FIXME this assertion fails because resolving the input path points to a different solution path in a temp download dir
         # self.assertIn(f"INFO - Copied solution {str(input_path)} to {self.tmp_dir.name}/my_catalog/my_solution/solution.py", self.captured_output.getvalue())
         self.assertTrue(target_dir.joinpath("my_solution", DefaultValues.solution_default_name.value).exists())
@@ -38,6 +39,7 @@ class TestIntegrationClone(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
+        self.assertNotIn("ERROR", self.captured_output)
         self.assertTrue(target_dir.joinpath("my_solution", DefaultValues.solution_default_name.value).exists())
 
     def test_clone_catalog_template(self):
@@ -49,6 +51,7 @@ class TestIntegrationClone(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
+        self.assertNotIn("ERROR", self.captured_output)
         target_path = Path(self.tmp_dir.name).joinpath("my_catalogs", "my_catalog")
         self.assertIn(f"INFO - Downloaded template from https://gitlab.com/album-app/catalogs/templates/catalog/-/archive/main/catalog-main.zip to {str(target_path)}", self.captured_output.getvalue())
         self.assertTrue(target_path.joinpath("album_catalog_index.json").exists())
@@ -58,8 +61,12 @@ class TestIntegrationClone(TestIntegrationCommon):
         sys.argv = ["", "clone", "weirdPath", "--target-dir", str(Path(self.tmp_dir.name)), "--name", "my_solution"]
 
         # run
-        with self.assertRaises(ValueError):
-            self.assertIsNone(main())
+        with self.assertRaises(SystemExit) as e:
+            main()
+        self.assertTrue(isinstance(e.exception.code, ValueError))
+
+        self.assertIn("ERROR", self.captured_output.getvalue())
+        self.assertIn("Invalid input format!", e.exception.code.args[0])
 
 
 if __name__ == '__main__':
