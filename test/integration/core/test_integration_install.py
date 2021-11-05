@@ -75,9 +75,10 @@ class TestIntegrationInstall(TestIntegrationCommon):
         self.assertIsNone(main())
 
         sys.argv = ["", "install", str(self.get_test_solution_path())]
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaises(SystemExit) as context:
             main()
-            self.assertIn("Solution already installed. Uninstall solution first!", str(context.exception))
+            self.assertTrue(isinstance(context.exception.code, RuntimeError))
+            self.assertIn("Solution already installed. Uninstall solution first!", context.exception.code.args[0])
 
     #  @unittest.skipIf(sys.platform == 'win32' or sys.platform == 'cygwin', "This test fails on the Windows CI with \"SSL: CERTIFICATE_VERIFY_FAILED\"")
     @unittest.skip("Fixme")
