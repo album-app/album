@@ -74,6 +74,11 @@ class TestIntegrationInstall(TestIntegrationCommon):
         sys.argv = ["", "install", str(self.get_test_solution_path())]
         self.assertIsNone(main())
 
+        self.collection_manager.solutions().is_installed(
+            self.collection_manager.catalogs().get_local_catalog(),
+            Coordinates("group", "name", "0.1.0")
+        )
+
         sys.argv = ["", "install", str(self.get_test_solution_path())]
         with self.assertRaises(SystemExit) as context:
             main()

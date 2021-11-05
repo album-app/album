@@ -11,6 +11,7 @@ def main():
     suite = unittest.TestSuite()
 
     # ### integration
+    # Core
     suite.addTests(loader.loadTestsFromModule(test_integration_catalog_features))
     suite.addTests(loader.loadTestsFromModule(test_integration_deploy))
     suite.addTests(loader.loadTestsFromModule(test_integration_install))

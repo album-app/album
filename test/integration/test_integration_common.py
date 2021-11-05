@@ -65,6 +65,8 @@ class TestIntegrationCommon(unittest.TestCase):
             local_catalog_name + "_group_solution6_noparent_test_0.1.0",
             local_catalog_name + "_group_solution7_long_routines_0.1.0",
             local_catalog_name + "_group_solution8_arguments_0.1.0",
+            local_catalog_name + "_group_solution9_throws_exception_0.1.0",
+            local_catalog_name + "_group_solution10_uninstall_0.1.0",
             local_catalog_name + "_group_solution_with_steps_0.1.0",
             local_catalog_name + "_solution_with_steps_grouped_0.1.0"
         ]
