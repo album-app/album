@@ -78,7 +78,6 @@ CREATE TABLE IF NOT EXISTS collection
     documentation        TEXT,
     min_album_version    TEXT,
     tested_album_version TEXT,
-    parent               TEXT,
     changelog            TEXT,
     hash                 TEXT    not null,
     install_date         TEXT,
@@ -86,6 +85,20 @@ CREATE TABLE IF NOT EXISTS collection
     installed            INTEGER not null,
     catalog_id           INTEGER not null,
     FOREIGN KEY (catalog_id) REFERENCES catalog (catalog_id)
+);
+
+CREATE TABLE IF NOT EXISTS collection_solution_solution
+(
+    collection_solution_solution_id INTEGER PRIMARY KEY,
+    collection_id_parent            INTEGER,
+    collection_id_child             INTEGER,
+    catalog_id_parent               INTEGER,
+    catalog_id_child                INTEGER,
+    FOREIGN KEY (collection_id_parent) REFERENCES collection (collection_id),
+    FOREIGN KEY (collection_id_child) REFERENCES collection (collection_id),
+    FOREIGN KEY (catalog_id_parent) REFERENCES catalog (catalog_id),
+    FOREIGN KEY (catalog_id_child) REFERENCES catalog (catalog_id)
+
 );
 
 CREATE TABLE IF NOT EXISTS collection_solution_tag

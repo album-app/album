@@ -2,9 +2,9 @@ import sys
 from typing import Optional
 
 from album.core.model.solution import Solution
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 __version__ = "0.1.0"
 __author__ = "Kyle Harrington, Jan Philipp Albrecht, Deborah Schmidt"
@@ -22,6 +22,13 @@ _active_solution = []
 def setup_solution(**attrs):
     """This configures a solution for use by the main album tool."""
     global _active_solution
+
+    # FIXME: what if the solution cant be created based on the attrs?
+    # suggestion: read out a setup parameter with a version and then decide what to do.
+    # also based on the version one could use another scrip-creator
+
+    # todo: MIGRATION MANAGER SHOULD LOAD SOLUTIONS AND FAIL IF VERSION MISSMATCH
+
     next_solution = Solution(attrs)
     push_active_solution(next_solution)
 

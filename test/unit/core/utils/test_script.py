@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 from album.core.controller.conda_manager import CondaManager
 from album.core.utils.script import create_script
-from album.runner import logging
+from album.runner import album_logging
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -47,7 +47,7 @@ class TestScript(TestUnitCommon):
         thread.join()
 
     def _run_in_thread(self, parent_thread_id):
-        logging.configure_logging("thread", parent_thread_id=parent_thread_id)
+        album_logging.configure_logging("thread", parent_thread_id=parent_thread_id)
 
         handler = StreamHandler()
         self.logger.addHandler(handler)
@@ -59,5 +59,6 @@ class TestScript(TestUnitCommon):
         p = self.conda.get_active_environment_path()
         self.conda.run_script(p, self.closed_tmp_file.name)
 
-        self.assertIn("root.unitTest.thread.script-test - INFO - testprint", self.captured_output.getvalue())
+        self.assertIn("testprint", self.captured_output.getvalue())
+
 

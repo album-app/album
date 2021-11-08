@@ -1,16 +1,17 @@
 import argparse
 from queue import Queue, Empty
 
-from album.core.controller.conda_manager import CondaManager
-
 from album.core import load
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
+from album.core.controller.conda_manager import CondaManager
+from album.core.controller.environment_manager import EnvironmentManager
 from album.core.model.coordinates import Coordinates
+from album.core.utils.operations.resolve_operations import build_resolve_string
 from album.core.utils.script import create_solution_script
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 class SolutionCollection:
@@ -59,10 +60,13 @@ class RunManager(metaclass=Singleton):
     # singletons
     collection_manager = None
     conda_manager = None
+    environment_manager = None
 
     def __init__(self):
         self.collection_manager = CollectionManager()
         self.conda_manager = CondaManager()
+        self.environment_manager = EnvironmentManager()
+
         self.init_script = ""
 
     def run(self, path, run_immediately=False, argv=None):
@@ -70,9 +74,7 @@ class RunManager(metaclass=Singleton):
 
         resolve_result = self.collection_manager.resolve_require_installation_and_load(path)
 
-        resolve_result.loaded_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
-        if not resolve_result.loaded_solution.parent:
-            resolve_result.loaded_solution.set_environment(resolve_result.catalog.name)
+        self.environment_manager.set_environment(resolve_result.loaded_solution, resolve_result.catalog)
 
         if not resolve_result.catalog:
             module_logger().debug('album loaded locally: %s...' % str(resolve_result.loaded_solution))
@@ -81,7 +83,8 @@ class RunManager(metaclass=Singleton):
 
         self._run(resolve_result.loaded_solution, run_immediately, argv)
 
-    def run_from_catalog_coordinates(self, catalog_name: str, coordinates: Coordinates, run_immediately=False, argv=None):
+    def run_from_catalog_coordinates(self, catalog_name: str, coordinates: Coordinates, run_immediately=False,
+                                     argv=None):
         catalog = self.collection_manager.catalogs().get_by_name(catalog_name)
         resolve_result = self.collection_manager.resolve_download_and_load_catalog_coordinates(catalog, coordinates)
         self._run(resolve_result.loaded_solution, run_immediately, argv)
@@ -192,13 +195,13 @@ class RunManager(metaclass=Singleton):
 
         for step in steps:
             module_logger().debug('resolving step \"%s\"...' % step["name"])
-            resolve_result = self.collection_manager.resolve_dependency_require_installation_and_load(step)
-            active_solution = resolve_result.loaded_solution
-            citations.append(active_solution)
+            resolve_result = self.collection_manager.resolve_require_installation_and_load(build_resolve_string(step))
+            citations.append(resolve_result.loaded_solution)
 
-            if active_solution.parent:  # collect steps as long as they have the same parent
-                current_parent_script_resolve = self.collection_manager.resolve_dependency_require_installation(
-                    active_solution.parent)
+            if resolve_result.loaded_solution.parent:  # collect steps as long as they have the same parent
+                current_parent_script_resolve = self.collection_manager.resolve_require_installation(
+                    build_resolve_string(resolve_result.loaded_solution.parent)
+                )
                 current_parent_script_path = current_parent_script_resolve.path
                 current_parent_script_catalog = current_parent_script_resolve.catalog
 
@@ -218,7 +221,7 @@ class RunManager(metaclass=Singleton):
                     same_parent_step_collection.parent_script_catalog = current_parent_script_catalog
 
                     # overwrite old steps
-                    same_parent_step_collection.steps_solution = [active_solution]
+                    same_parent_step_collection.steps_solution = [resolve_result.loaded_solution]
                     same_parent_step_collection.steps = [step]
 
                 else:  # same or new parent
@@ -229,7 +232,7 @@ class RunManager(metaclass=Singleton):
                     same_parent_step_collection.parent_script_catalog = current_parent_script_catalog
 
                     # append another step to the steps already having the same parent
-                    same_parent_step_collection.steps_solution.append(active_solution)
+                    same_parent_step_collection.steps_solution.append(resolve_result.loaded_solution)
                     same_parent_step_collection.steps.append(step)
 
             else:  # add a step without collection (also parent)
@@ -248,9 +251,8 @@ class RunManager(metaclass=Singleton):
                 step_args = self._get_args(step, step_solution_parsed_args[0])
 
                 # add step without parent
-                active_solution.set_cache_paths(resolve_result.catalog.name)
-                active_solution.set_environment(resolve_result.catalog.name)
-                que.put(self.create_solution_run_script_standalone(active_solution, step_args))
+                self.environment_manager.set_environment(resolve_result.loaded_solution, resolve_result.catalog)
+                que.put(self.create_solution_run_script_standalone(resolve_result.loaded_solution, step_args))
 
         # put rest to queue
         if same_parent_step_collection.parent_script_path:
@@ -307,10 +309,12 @@ class RunManager(metaclass=Singleton):
 
         """
         module_logger().debug('Creating album script with parent \"%s\"...' % active_solution.parent["name"])
-        parent_solution_resolve = self.collection_manager.resolve_dependency_require_installation_and_load(
-            active_solution.parent)
-        parent_solution_resolve.loaded_solution.set_cache_paths(parent_solution_resolve.catalog.name)
-        parent_solution_resolve.loaded_solution.set_environment(parent_solution_resolve.catalog.name)
+        parent_solution_resolve = self.collection_manager.resolve_require_installation_and_load(
+            build_resolve_string(active_solution.parent))
+
+        self.environment_manager.set_environment(
+            parent_solution_resolve.loaded_solution, parent_solution_resolve.catalog
+        )
 
         # handle arguments
         parent_args, active_solution_args = self.resolve_args(
@@ -342,7 +346,8 @@ class RunManager(metaclass=Singleton):
         # load parent & steps
         parent_solution = load(solution_collection.parent_script_path)
         parent_solution.set_cache_paths(catalog_name=solution_collection.parent_script_catalog.name)
-        parent_solution.set_environment(solution_collection.parent_script_catalog.name)
+
+        self.environment_manager.set_environment(parent_solution, solution_collection.parent_script_catalog)
         module_logger().debug('Creating script for steps (%s) with parent \"%s\"...' % (
             ", ".join([s["name"] for s in solution_collection.steps_solution]), parent_solution["name"]))
 
@@ -412,7 +417,7 @@ class RunManager(metaclass=Singleton):
                     raise ValueError("nargs not allowed")
                 super(FileAction, self).__init__(option_strings, dest, **kwargs)
 
-            def __call__(self, parser, namespace, values, option_string=None):
+            def __call__(self, p, namespace, values, option_string=None):
                 setattr(namespace, self.dest, active_solution.get_arg(self.dest)['action'](values))
 
         for element in active_solution["args"]:
@@ -471,11 +476,11 @@ class RunManager(metaclass=Singleton):
 
     def _run_in_environment_with_own_logger(self, active_solution, scripts):
         """Pushes a new logger to the stack before running the solution and pops it afterwards."""
-        logging.configure_logging(active_solution['name'])
+        album_logging.configure_logging(active_solution['name'])
         module_logger().debug("Running script in environment of solution \"%s\"..." % active_solution['name'])
         self.conda_manager.run_scripts(active_solution.environment, scripts)
         module_logger().debug("Done running script in environment of solution \"%s\"..." % active_solution['name'])
-        logging.pop_active_logger()
+        album_logging.pop_active_logger()
 
     @staticmethod
     def _get_args(step, args):

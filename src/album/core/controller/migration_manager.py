@@ -2,9 +2,9 @@ from album.core.concept.singleton import Singleton
 from album.core.model.catalog import Catalog
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.collection_index import CollectionIndex
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 class MigrationManager(metaclass=Singleton):
@@ -65,7 +65,7 @@ class MigrationManager(metaclass=Singleton):
     def refresh_index(self, catalog: Catalog) -> bool:
         """Routine to refresh the catalog index. Downloads or copies the index_file."""
         if catalog.update_index_cache_if_possible():
-
             catalog.catalog_index = self._create_catalog_index(catalog.index_path, catalog.name, CatalogIndex.version)
+
             return True
         return False

@@ -5,9 +5,9 @@ from threading import Thread
 
 from album.core.concept.singleton import Singleton
 from album.core.model.task import Task, LogHandler
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 class TaskManager(metaclass=Singleton):
@@ -79,7 +79,7 @@ class TaskManager(metaclass=Singleton):
         return task.id
 
     def _run_queue_entry(self, i, parent_thread):
-        logging.configure_logging("worker" + str(i), parent_thread_id=parent_thread)
+        album_logging.configure_logging("worker" + str(i), parent_thread_id=parent_thread)
         while True:
             task = self.server_queue.get()
             self._handle_task(task)
@@ -87,7 +87,7 @@ class TaskManager(metaclass=Singleton):
 
     def _handle_task(self, task):
         module_logger().info(f"TaskManager: starting task {task.id}..")
-        logger = logging.configure_logging("task" + str(task.id))
+        logger = album_logging.configure_logging("task" + str(task.id))
         handler = LogHandler()
         task.log_handler = handler
         logger.addHandler(handler)
@@ -99,7 +99,7 @@ class TaskManager(metaclass=Singleton):
             logger.error(e)
             task.status = Task.Status.FAILED
         logger.removeHandler(handler)
-        logging.pop_active_logger()
+        album_logging.pop_active_logger()
         module_logger().info(f"TaskManager: finished task {task.id}.")
 
     @staticmethod

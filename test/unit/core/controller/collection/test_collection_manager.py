@@ -14,7 +14,7 @@ from album.core.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
-from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
+from test.unit.test_unit_common import TestUnitCommon
 
 
 class TestCatalogCollectionCommon(TestUnitCommon):
@@ -196,13 +196,15 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         # todo: implement
         pass
 
-    def test_resolve_download_and_load_catalog_coordinates(self):
+    @patch('album.core.model.solution.Solution.set_cache_paths')
+    def test_resolve_download_and_load_catalog_coordinates(self, set_cache_paths_mock):
         catalog = Catalog("aNiceId", "aNiceName", "aValidPath")
         coordinates = Coordinates("g", "n", "v")
         # mocks
         search_mock = MagicMock(return_value={"group": "g", "name": "n", "version": "v"})
         retrieve_and_load_mock = MagicMock()
-
+        retrieve_and_load_mock.side_effect = lambda x: setattr(x, "loaded_solution",
+                                                               Solution(self.solution_default_dict))
         get_solution_file_mock = MagicMock(return_value="path/to/solution")
 
         self.collection_manager._search_in_specific_catalog = search_mock
@@ -214,13 +216,15 @@ class TestCollectionManager(TestCatalogCollectionCommon):
 
         # assert
         self.assertEqual(catalog, res.catalog)
-        self.assertEqual(search_mock.return_value, res.solution_attrs)
+        self.assertEqual(search_mock.return_value, res.collection_entry)
 
         get_solution_file_mock.assert_called_once_with(coordinates)
         search_mock.assert_called_once_with(catalog.catalog_id, coordinates)
         retrieve_and_load_mock.assert_called_once()
+        set_cache_paths_mock.assert_called_once()
 
-    def test_resolve_download_and_load_coordinates(self):
+    @patch('album.core.model.solution.Solution.set_cache_paths')
+    def test_resolve_download_and_load_coordinates(self, set_cache_paths_mock):
         coordinates = Coordinates("g", "n", "v")
         local_catalog = self.collection_manager.catalogs().get_local_catalog()
 
@@ -229,6 +233,8 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         get_solution_mock = MagicMock(return_value="path/to/solution")
         search_mock = MagicMock(return_value={"catalog_id": 1})
         retrieve_and_load_mock = MagicMock()
+        retrieve_and_load_mock.side_effect = lambda x: setattr(x, "loaded_solution",
+                                                               Solution(self.solution_default_dict))
 
         self.collection_manager._search_by_coordinates = search_mock
         self.collection_manager.catalogs().get_by_id = get_catalog_mock
@@ -241,12 +247,13 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         # assert
         self.assertEqual(local_catalog, res.catalog)
         self.assertEqual(get_solution_mock.return_value, res.path)
-        self.assertEqual(search_mock.return_value, res.solution_attrs)
+        self.assertEqual(search_mock.return_value, res.collection_entry)
 
         get_catalog_mock.assert_called_once_with(1)
         get_solution_mock.assert_called_once_with(coordinates)
         search_mock.assert_called_once_with(coordinates)
         retrieve_and_load_mock.assert_called_once()
+        set_cache_paths_mock.assert_called_once()
 
     def test_resolve_download(self):
         # prepare
@@ -256,7 +263,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
 
         resolve_path = Path(self.tmp_dir.name).joinpath("myResolvedSolution")
         resolve = ResolveResult(
-            path=resolve_path, catalog=resolve_catalog, solution_attrs={}, coordinates=Coordinates("a", "b", "c")
+            path=resolve_path, catalog=resolve_catalog, collection_entry={}, coordinates=Coordinates("a", "b", "c")
         )
 
         _resolve = MagicMock(return_value=resolve)
@@ -278,7 +285,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
 
         resolve_path = Path(self.tmp_dir.name).joinpath("myResolvedSolution")
         resolve_path.touch()
-        resolve = ResolveResult(path=resolve_path, catalog=resolve_catalog, solution_attrs={}, coordinates=None)
+        resolve = ResolveResult(path=resolve_path, catalog=resolve_catalog, collection_entry={}, coordinates=None)
 
         _resolve = MagicMock(return_value=resolve)
         self.collection_manager._resolve = _resolve
@@ -290,73 +297,6 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         _resolve.assert_called_once_with("myInput")
         retrieve_solution.assert_not_called()
         self.assertEqual(resolve, r)
-
-    @patch('album.core.controller.collection.collection_manager.load')
-    @patch('album.core.controller.collection.catalog_handler.Catalog.get_solution_file')
-    def test_resolve_dependency_require_installation_and_load(self, get_solution_file_mock, load_mock):
-        # mocks
-        load_mock.return_value = self.active_solution
-
-        get_solutions_by_grp_name_version = MagicMock(
-            return_value=[{"catalog_id": "aNiceId", "installed": True, "group": "g", "name": "n", "version": "v"}])
-        self.collection_manager.catalog_collection.get_solutions_by_grp_name_version = get_solutions_by_grp_name_version
-        get_catalog_by_id_mock = MagicMock(return_value=Catalog("aNiceId", "aNiceName", "aValidPath"))
-        self.collection_manager.catalogs().get_by_id = get_catalog_by_id_mock
-
-        _catalog = EmptyTestClass()
-        _catalog.catalog_id = "aNiceId"
-        _catalog.name = "aNiceName"
-
-        get_solution_file_mock.return_value = "aValidPath"
-
-        # call
-        r = self.collection_manager.resolve_dependency_require_installation_and_load(
-            {"group": "g", "name": "n", "version": "v"})
-
-        self.assertEqual(get_solution_file_mock.return_value, r.path)
-        self.assertEqual(self.active_solution, r.loaded_solution)
-
-        get_solutions_by_grp_name_version.assert_called_once_with(Coordinates("g", "n", "v"))
-        get_solution_file_mock.assert_called_once_with(Coordinates("g", "n", "v"))
-        load_mock.assert_called_once_with("aValidPath")
-        get_catalog_by_id_mock.assert_called_once_with("aNiceId")
-
-    @patch('album.core.utils.operations.resolve_operations.load')
-    def test_resolve_dependency_require_installation_and_load_error(self, load_mock):
-        # mocks
-        load_mock.return_value = self.active_solution
-
-        get_solutions_by_grp_name_version = MagicMock(return_value=None)
-        self.collection_manager.catalog_collection.get_solutions_by_grp_name_version = get_solutions_by_grp_name_version
-
-        _catalog = EmptyTestClass()
-        _catalog.id = "aNiceId"
-
-        resolve_directly = MagicMock(return_value=None)
-        self.collection_manager.resolve_in_catalog = resolve_directly
-
-        set_environment = MagicMock(return_value=None)
-        self.active_solution.set_environment = set_environment
-
-        # call
-        with self.assertRaises(LookupError):
-            self.collection_manager.resolve_dependency_require_installation_and_load(
-                {"group": "g", "name": "n", "version": "v"})
-
-        get_solutions_by_grp_name_version.assert_called_once_with(Coordinates("g", "n", "v"))
-        resolve_directly.assert_not_called()
-        load_mock.assert_not_called()
-        set_environment.assert_not_called()
-
-    @unittest.skip("Needs to be implemented!")
-    def test_resolve_dependency_require_installation(self):
-        # todo: implement
-        pass
-
-    @unittest.skip("Needs to be implemented!")
-    def test_resolve_dependency(self):
-        # todo: implement
-        pass
 
     @patch('album.core.controller.collection.collection_manager.check_file_or_url')
     def test__resolve_case_local_file(self, check_file_or_url_mock):
@@ -386,7 +326,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
             path=Path(f.name),
             catalog=self.collection_manager.catalogs().get_local_catalog(),
             coordinates=None,
-            solution_attrs=None
+            collection_entry=None
         )
 
         self.assertEqual(expected_result, resolve_result)
@@ -424,7 +364,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
             path=Path(f.name),
             catalog=self.collection_manager.catalogs().get_local_catalog(),
             coordinates=None,
-            solution_attrs=None
+            collection_entry=None
         )
 
         self.assertEqual(expected_result, resolve_result)

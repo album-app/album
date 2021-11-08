@@ -14,9 +14,9 @@ from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 class CatalogHandler:
@@ -205,6 +205,7 @@ class CatalogHandler:
             module_logger().warning("Cannot remove catalog! Marked as not deletable! Will do nothing...")
             return None
 
+        # todo: check for installed solutions and or parents! and fail
         self.catalog_collection.remove_catalog(catalog_to_remove.catalog_id)
 
         force_remove(catalog_to_remove.path)

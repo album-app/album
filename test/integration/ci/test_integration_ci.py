@@ -8,7 +8,7 @@ from album.core.controller.collection.collection_manager import CollectionManage
 from album.core.controller.deploy_manager import DeployManager
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import copy_folder
+from album.core.utils.operations.file_operations import copy_folder, write_dict_to_json
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -16,7 +16,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
 
     def setUp(self):
         super().setUp()
-        self.src = DefaultValues.default_catalog_src.value
+        self.src = "https://gitlab.com/album-app/catalogs/templates/catalog"
         self.name = "myTestCatalog"
         self.path = Path(self.tmp_dir.name).joinpath("test_catalog")
 

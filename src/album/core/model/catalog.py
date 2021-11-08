@@ -15,9 +15,9 @@ from album.core.utils.operations.file_operations import unzip_archive, copy, cop
 from album.core.utils.operations.git_operations import download_repository, init_repository
 from album.core.utils.operations.resolve_operations import get_zip_name, dict_to_coordinates
 from album.core.utils.operations.url_operations import download_resource
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 # todo: how to do that efficiently? Download the whole catalog? Or only the index and then the corresp.
@@ -104,7 +104,6 @@ class Catalog:
         self.solution_list_path = self.path.joinpath(DefaultValues.catalog_solution_list_file_name.value)
         self._meta_path = self.path.joinpath(DefaultValues.catalog_index_metafile_json.value)
 
-        # initialize the index
         self.index_path = self.path.joinpath(DefaultValues.catalog_index_file_name.value)
 
     def __eq__(self, other):

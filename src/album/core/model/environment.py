@@ -6,9 +6,9 @@ import validators
 from album.core.utils.operations.file_operations import create_path_recursively, copy, write_dict_to_yml, \
     get_dict_from_yml
 from album.core.utils.operations.url_operations import download_resource
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 class Environment:

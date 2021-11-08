@@ -109,23 +109,29 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         self.assertEqual(0, len(dif[0].solution_changes))
 
     def test_update_upgrade(self):
-        initial_len = len(CollectionManager().catalog_collection.get_all_catalogs())
+        initial_len = len(CollectionManager().catalog_collection.get_all_catalogs())  # has the two default catalogs
 
         # add catalog
         catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", "my-catalog")
         CatalogHandler.create_new_catalog(catalog_src, "my-catalog")
-        catalog = self.collection_manager.catalogs().add_by_src(catalog_src)
-        self.assertTrue(catalog.is_local())
+        catalog = self.collection_manager.catalogs().add_by_src(catalog_src)  # its emtpy
+        # assert it got added
+        self.assertEqual(initial_len + 1, len(CollectionManager().catalog_collection.get_all_catalogs()))
 
-        # add new solution to catalog
+        self.assertTrue(catalog.is_local())
+        # check its empty
+        self.assertEqual(0, len(catalog.catalog_index.get_all_solutions()))
+
+        # add new solution to catalog  - not yet in the collection
         solution_dict = TestUnitCommon.get_solution_dict()
+        solution_dict["name"] = "myAwesomeSolution"
         solution = Solution(solution_dict)
         catalog.add(solution)
-        catalog.copy_index_from_cache_to_src()
-
-        catalogs = CollectionManager().catalog_collection.get_all_catalogs()
-        self.assertEqual(initial_len + 1, len(catalogs))
+        # check solution got added
         self.assertEqual(1, len(catalog.catalog_index.get_all_solutions()))
+
+        # fake deploy by copying index to src
+        catalog.copy_index_from_cache_to_src()
 
         # update collection
         sys.argv = ["", "update"]
@@ -145,10 +151,16 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
 
         # compare solution in collection to original solution
         solution_in_collection = solutions[0]
+
+        sol = {}
+        solution_in_col = {}
         for key in solution.deploy_keys:
             if key == "timestamp":
                 continue
-            self.assertEqual(solution[key], solution_in_collection[key])
+            sol[key] = solution[key]
+            solution_in_col[key] = solution_in_collection[key]
+
+        self.assertEqual(sol, solution_in_col)
 
         catalog.dispose()
 

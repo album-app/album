@@ -6,10 +6,10 @@ import threading
 
 import pexpect
 
-from album.runner import logging
-from album.runner.logging import LogfileBuffer
+from album.runner import album_logging
+from album.runner.album_logging import LogfileBuffer
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 class SaveThreadWithReturn:
@@ -70,9 +70,9 @@ class SaveThreadWithReturn:
         return self.return_value
 
     def run_action(self):
-        logging.configure_logging(self.name, parent_name=self.parent_thread_name)
+        album_logging.configure_logging(self.name, parent_name=self.parent_thread_name)
         self.return_value = self.action()
-        logging.pop_active_logger()
+        album_logging.pop_active_logger()
 
     def _stop_routine(self):
         self.thread_id = self.thread.ident
@@ -120,7 +120,7 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
     module_logger().debug('Running command: %s...' % " ".join(command))
     exit_status = 1
 
-    logger = logging.configure_logging("subcommand")
+    logger = album_logging.configure_logging("subcommand")
     log = LogfileBuffer(message_formatter)
     log.module_logger = lambda: logger
     if not log_output:
@@ -133,7 +133,7 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
         )
         if exit_status != 0:
             module_logger().error(command_output)
-            logging.pop_active_logger()
+            album_logging.pop_active_logger()
             raise RuntimeError("Command " + " ".join(command) + " failed: " + command_output)
     else:
         process = subprocess.Popen(
@@ -148,7 +148,7 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
 
         save_communicate = True
 
-        current_logger_name = logging.get_active_logger().name
+        current_logger_name = album_logging.get_active_logger().name
         poll = SaveThreadWithReturn("poll", process.poll, parent_thread_name=current_logger_name)
         read_message = SaveThreadWithReturn(
             "reader",
@@ -183,7 +183,7 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
             _, err = process.communicate()
         else:  # cmd frozen
             process.terminate()
-            logging.pop_active_logger()
+            album_logging.pop_active_logger()
             raise TimeoutError(
                 "Process timed out. Process shut down. Last messages from the process: %s"
                 % log.getvalue()
@@ -192,7 +192,7 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
         # cmd failed
         if process.returncode:
             err_msg = err if err else log.getvalue()
-            logging.pop_active_logger()
+            album_logging.pop_active_logger()
             raise RuntimeError(
                 "{\"ret_code\": %(ret_code)s, \"err_msg\": %(err_msg)s}"
                 % {"ret_code": process.returncode, "err_msg": err_msg}
@@ -205,7 +205,7 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
 
             exit_status = process.returncode
 
-    logging.pop_active_logger()
+    album_logging.pop_active_logger()
     return exit_status
 
 

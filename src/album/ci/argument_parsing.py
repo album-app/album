@@ -5,8 +5,8 @@ from argparse import ArgumentParser
 from album.argument_parsing import ArgumentParser as AlbumAP
 from album.ci.commandline import configure_repo, configure_ssh, zenodo_publish, zenodo_upload, update_index, \
     push_changes, merge
-from album.runner import logging
-from album.runner.logging import get_active_logger, debug_settings
+from album.runner import album_logging
+from album.runner.album_logging import get_active_logger, debug_settings
 
 module_logger = get_active_logger
 
@@ -18,7 +18,7 @@ def main():
     module_logger().info("Starting CI release cycle...")
     args = ci_parser.parse_args()
 
-    logging.set_loglevel(args.log)
+    album_logging.set_loglevel(args.log)
 
     album_ci_command = ""
     try:
@@ -105,9 +105,9 @@ class AlbumCIParser(AlbumAP):
             '--log',
             required=False,
             help='Logging level for your album-ci command. Choose between %s' %
-                 ", ".join([loglevel.name for loglevel in logging.LogLevel]),
-            default=logging.LogLevel(debug_settings()),
-            type=(lambda choice: logging.to_loglevel(choice)),
+                 ", ".join([loglevel.name for loglevel in album_logging.LogLevel]),
+            default=album_logging.LogLevel(debug_settings()),
+            type=(lambda choice: album_logging.to_loglevel(choice)),
         )
         return parent_parser
 

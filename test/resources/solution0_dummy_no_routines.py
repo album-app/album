@@ -1,6 +1,5 @@
 from album.runner import setup
 
-
 setup(
     group="group",
     name="name",
@@ -28,6 +27,5 @@ setup(
             "description": "testArg1Description",
         }
     ],
-    dependencies={
-        'environment_name': 'album'
-    })
+    dependencies={}
+)

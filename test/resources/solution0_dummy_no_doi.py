@@ -8,6 +8,7 @@ def album_init():
 def album_run():
     pass
 
+
 setup(
     group="group",
     name="name",
@@ -31,7 +32,5 @@ setup(
     args=[],
     init=album_init,
     run=album_run,
-    dependencies={
-        'environment_name': 'album'
-    })
-
+    dependencies={}
+)

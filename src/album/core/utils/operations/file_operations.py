@@ -12,9 +12,9 @@ from zipfile import ZipFile
 
 import yaml
 
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 enc = sys.getfilesystemencoding()
 
 

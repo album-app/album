@@ -2,8 +2,8 @@ import unittest.mock
 from logging import getLogger
 
 from album.core.model.task import LogHandler
-from album.runner import logging
-from album.runner.logging import LogLevel
+from album.runner import album_logging
+from album.runner.album_logging import LogLevel
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -34,10 +34,10 @@ class TestLogHandler(TestUnitCommon):
         self.assertEqual(0, len(handler.records))
         self.logger.addHandler(handler)
         self.assertEqual(0, len(handler.records))
-        child_logger = logging.configure_logging("test", loglevel=LogLevel.INFO)
+        child_logger = album_logging.configure_logging("test", loglevel=LogLevel.INFO)
         child_logger.info("test_logging_hierarchy_test1")
         child_logger.error("test_logging_hierarchy_test2")
-        logging.pop_active_logger()
+        album_logging.pop_active_logger()
         self.logger.removeHandler(handler)
         self.logger.info("test_logging_hierarchy_test3")
         self.assertEqual(2, len(handler.records))

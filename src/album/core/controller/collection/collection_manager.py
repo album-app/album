@@ -1,7 +1,9 @@
 from pathlib import Path
 from typing import Optional
 
-from album.core import load
+from album.core.controller.conda_manager import CondaManager
+
+from album.core import load, Solution
 from album.core.concept.singleton import Singleton
 # classes and methods
 from album.core.controller.collection.catalog_handler import CatalogHandler
@@ -15,10 +17,10 @@ from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import write_dict_to_json
 from album.core.utils.operations.resolve_operations import check_file_or_url, get_attributes_from_string, \
-    dict_to_coordinates, solution_to_coordinates, get_doi_from_input, check_doi
-from album.runner import logging
+    dict_to_coordinates, get_doi_from_input, check_doi, build_resolve_string, get_parent
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 class CollectionManager(metaclass=Singleton):
@@ -38,11 +40,13 @@ class CollectionManager(metaclass=Singleton):
     # singletons
     configuration = None
     migration_manager = None
+    conda_manager = None
 
     def __init__(self):
         super().__init__()
         self.configuration = Configuration()
         self.migration_manager = MigrationManager()
+        self.conda_manager = CondaManager()
         self.solution_handler: Optional[SolutionHandler] = None
         self.catalog_handler: Optional[CatalogHandler] = None
         self.catalog_collection: Optional[CollectionIndex] = None
@@ -111,22 +115,39 @@ class CollectionManager(metaclass=Singleton):
             "catalogs": catalogs
         }
 
-    def resolve_require_installation_and_load(self, str_input) -> ResolveResult:
+    def resolve_require_installation(self, resolve_solution) -> ResolveResult:
         """Resolves an input. Expects solution to be installed.
 
         Args:
-            str_input:
+            resolve_solution:
+                What to resolve. Either path, doi, group:name:version, catalog:group:name:version, url
+
 
         Returns:
             The resolve result, including the loaded solution.
         """
-        resolve_result = self._resolve(str_input)
+        resolve_result = self._resolve(resolve_solution)
 
-        if not resolve_result.solution_attrs:
+        if not resolve_result.collection_entry:
             raise LookupError("Solution not found!")
 
-        if not resolve_result.solution_attrs["installed"]:
+        if not resolve_result.collection_entry["installed"]:
             raise LookupError("Solution seems not to be installed! Please install solution first!")
+
+        return resolve_result
+
+    def resolve_require_installation_and_load(self, resolve_solution) -> ResolveResult:
+        """Resolves an input. Expects solution to be installed.
+
+        Args:
+            resolve_solution:
+                What to resolve. Either path, doi, group:name:version, catalog:group:name:version, url
+
+
+        Returns:
+            The resolve result, including the loaded solution.
+        """
+        resolve_result = self.resolve_require_installation(resolve_solution)
 
         loaded_solution = load(resolve_result.path)
         loaded_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
@@ -135,22 +156,23 @@ class CollectionManager(metaclass=Singleton):
 
         return resolve_result
 
-    def resolve_download_and_load(self, str_input) -> ResolveResult:
+    def resolve_download_and_load(self, resolve_solution) -> ResolveResult:
         """Resolves a string input and loads its content.
 
         Downloads a catalog if not already cached.
 
         Args:
-            str_input:
-                What to resolve. Either path, doi, group:name:version or dictionary
+            resolve_solution:
+                What to resolve. Either path, doi, group:name:version, catalog:group:name:version, url
 
         Returns:
             The resolve result, including the loaded solution.
 
         """
 
-        resolve_result = self._resolve(str_input)
+        resolve_result = self._resolve(resolve_solution)
         self._retrieve_and_load_resolve_result(resolve_result)
+        resolve_result.loaded_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
 
         return resolve_result
 
@@ -169,13 +191,15 @@ class CollectionManager(metaclass=Singleton):
             The resolve result, including the loaded solution.
 
         """
-        solution_entry = self._search_in_specific_catalog(catalog.catalog_id, coordinates)
+        collection_entry = self._search_in_specific_catalog(catalog.catalog_id, coordinates)
         solution_path = catalog.get_solution_file(coordinates)
 
         resolve_result = ResolveResult(
-            path=solution_path, catalog=catalog, solution_attrs=solution_entry, coordinates=coordinates
+            path=solution_path, catalog=catalog, collection_entry=collection_entry, coordinates=coordinates
         )
         self._retrieve_and_load_resolve_result(resolve_result)
+
+        resolve_result.loaded_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
 
         return resolve_result
 
@@ -192,32 +216,34 @@ class CollectionManager(metaclass=Singleton):
             The resolve result, including the loaded solution.
 
         """
-        solution_entry = self._search_by_coordinates(coordinates)
-        catalog = self.catalogs().get_by_id(solution_entry["catalog_id"])
+        collection_entry = self._search_by_coordinates(coordinates)
+        catalog = self.catalogs().get_by_id(collection_entry["catalog_id"])
 
         solution_path = catalog.get_solution_file(coordinates)
         resolve_result = ResolveResult(
-            path=solution_path, catalog=catalog, solution_attrs=solution_entry, coordinates=coordinates
+            path=solution_path, catalog=catalog, collection_entry=collection_entry, coordinates=coordinates
         )
         self._retrieve_and_load_resolve_result(resolve_result)
 
+        resolve_result.loaded_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
+
         return resolve_result
 
-    def resolve_download(self, str_input) -> ResolveResult:
+    def resolve_download(self, resolve_solution) -> ResolveResult:
         """Resolves a string input and loads its content.
 
         Downloads a catalog if not already cached.
 
         Args:
-            str_input:
-                What to resolve. Either path, doi, group:name:version or dictionary
+            resolve_solution:
+                What to resolve. Either path, doi, group:name:version, catalog:group:name:version, url
 
         Returns:
             list with resolve result and loaded album.
 
         """
 
-        resolve_result = self._resolve(str_input)
+        resolve_result = self._resolve(resolve_solution)
 
         if not Path(resolve_result.path).exists():
             resolve_result.catalog.retrieve_solution(
@@ -226,56 +252,40 @@ class CollectionManager(metaclass=Singleton):
 
         return resolve_result
 
-    def resolve_dependency_require_installation_and_load(self, solution_attrs) -> ResolveResult:
-        """Resolves a dependency, expecting it to be installed (live inside a catalog), and loads it
+    def resolve_parent(self, parent_dict: dict) -> ResolveResult:
+        # resolve the parent mentioned in the current solution to get its metadata
+        resolve_parent_info = build_resolve_string(parent_dict)
+        parent_resolve_result = self.resolve_require_installation(resolve_parent_info)
 
-        Args:
-            solution_attrs:
-                The solution attributes to resolve for. must hold grp, name, version.
-        Returns:
-            resolve result.
+        # resolve parent of the parent
+        parent = get_parent(parent_resolve_result.collection_entry)
 
-        """
-        resolve_result = self.resolve_dependency_require_installation(solution_attrs)
-        resolve_result.loaded_solution = load(resolve_result.path)
-        return resolve_result
+        # case parent itself has no further parent
+        if parent["collection_id"] == parent_resolve_result.collection_entry["collection_id"]:
 
-    def resolve_dependency_require_installation(self, solution_attrs) -> ResolveResult:
-        """Resolves a dependency, expecting it to be installed (live inside a catalog)
+            loaded_solution = load(parent_resolve_result.path)
+            loaded_solution.set_cache_paths(catalog_name=parent_resolve_result.catalog.name)
 
-        Args:
-            solution_attrs:
-                The solution attributes to resolve for. must hold grp, name, version.
-        Returns:
-            resolve result.
+            parent_resolve_result.loaded_solution = loaded_solution
 
-        """
-        resolve_result = self.resolve_dependency(solution_attrs)
-        if not resolve_result.solution_attrs["installed"]:
-            raise LookupError("Dependency %s seems not to be installed! Please install solution first!"
-                              % (dict_to_coordinates(solution_attrs)))
+        # case parent itself has another parent
+        else:
+            parent_catalog = self.catalogs().get_by_id(parent["catalog_id"])
+            parent_coordinates = dict_to_coordinates(parent)
+            path = parent_catalog.get_solution_file(parent_coordinates)
 
-        return resolve_result
+            loaded_solution = load(path)
+            loaded_solution.set_cache_paths(catalog_name=parent_catalog.name)
 
-    def resolve_dependency(self, solution_attrs: dict) -> ResolveResult:
-        """Resolves the album and returns the path to the solution.py file on the current system.
-        Throws error if not resolvable!"""
-        coordinates = dict_to_coordinates(solution_attrs)
+            parent_resolve_result = ResolveResult(
+                path=path,
+                catalog=parent_catalog,
+                collection_entry=parent,
+                coordinates=parent_coordinates,
+                loaded_solution=loaded_solution
+            )
 
-        solution_entry = self._search_by_coordinates(coordinates)
-
-        if not solution_entry:
-            raise LookupError("Could not resolve dependency: %s" % coordinates)
-
-        catalog = self.catalog_handler.get_by_id(solution_entry["catalog_id"])
-
-        path = catalog.get_solution_file(coordinates)
-
-        resolve_result = ResolveResult(
-            path=path, catalog=catalog, solution_attrs=solution_entry, coordinates=coordinates
-        )
-
-        return resolve_result
+        return parent_resolve_result
 
     def _resolve(self, str_input):
         # always first resolve outside any catalog, excluding a DOI which should be first resolved inside a catalog
@@ -317,7 +327,7 @@ class CollectionManager(metaclass=Singleton):
             coordinates = dict_to_coordinates(solution_entry)
 
         resolve = ResolveResult(
-            path=path, catalog=catalog, solution_attrs=solution_entry, coordinates=coordinates
+            path=path, catalog=catalog, collection_entry=solution_entry, coordinates=coordinates
         )
 
         return resolve
@@ -328,7 +338,7 @@ class CollectionManager(metaclass=Singleton):
         # check in collection
         solution_entry = self.catalog_collection.get_solution_by_catalog_grp_name_version(
             self.catalog_handler.get_local_catalog().catalog_id,
-            solution_to_coordinates(active_solution)
+            active_solution.coordinates
         )
 
         return solution_entry
@@ -397,9 +407,10 @@ class CollectionManager(metaclass=Singleton):
     def _retrieve_and_load_resolve_result(resolve_result: ResolveResult):
         if not Path(resolve_result.path).exists():
             resolve_result.catalog.retrieve_solution(
-                dict_to_coordinates(resolve_result.solution_attrs)
+                dict_to_coordinates(resolve_result.collection_entry)
             )
         resolve_result.loaded_solution = load(resolve_result.path)
+        resolve_result.coordinates = resolve_result.loaded_solution.coordinates
 
     @staticmethod
     def write_version_to_yml(path, name, version) -> None:

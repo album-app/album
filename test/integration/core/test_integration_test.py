@@ -14,7 +14,7 @@ class TestIntegrationTest(TestIntegrationCommon):
         super().tearDown()
 
     def test_test_no_test_routine(self):
-        self.fake_install(self.get_test_solution_path("solution0_dummy_no_routines.py"), create_environment=False)
+        self.fake_install(self.get_test_solution_path("solution0_dummy_no_routines.py"), create_environment=True)
 
         # this solution has the no test() configured
         sys.argv = ["", "test", self.get_test_solution_path("solution0_dummy_no_routines.py")]

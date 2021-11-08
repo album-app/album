@@ -10,10 +10,10 @@ from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
 from album.core.utils import subcommand
 from album.core.utils.operations.file_operations import force_remove
-from album.runner import logging
-from album.runner.logging import debug_settings
+from album.runner import album_logging
+from album.runner.album_logging import debug_settings
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 class CondaManager(metaclass=Singleton):
@@ -67,7 +67,7 @@ class CondaManager(metaclass=Singleton):
         """Gets the environment path for a given environment
 
         Args:
-            environment:
+            environment_name:
                 The environment to get the path for.
 
         Returns:
@@ -430,8 +430,8 @@ class CondaManager(metaclass=Singleton):
 
     def update(self, environment: Environment):
         """Updates the environment"""
-        module_logger().debug('Update environment %s...' % environment.name)
-        pass  # ToDo: implement
+        module_logger().debug('Skip installing environment %s...' % environment.name)
+        pass  # ToDo: implement and change log message
 
     def create(self, environment: Environment):
         """Creates environment a solution runs in."""

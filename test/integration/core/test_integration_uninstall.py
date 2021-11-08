@@ -1,7 +1,10 @@
 import sys
 import unittest
+from unittest.mock import patch
 
 from album.argument_parsing import main
+from album.core.controller.conda_manager import CondaManager
+from album.core.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import create_path_recursively
 from test.integration.test_integration_common import TestIntegrationCommon
 
@@ -11,8 +14,16 @@ class TestIntegrationUninstall(TestIntegrationCommon):
     def tearDown(self) -> None:
         super().tearDown()
 
-    def test_uninstall(self):
-        self.assertEqual(0, len(self.collection_manager.catalog_collection.get_solutions_by_catalog(self.collection_manager.catalogs().get_local_catalog().catalog_id)))
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    def test_uninstall(self, get_environment_path):
+        get_environment_path.return_value = CondaManager().get_active_environment_path()
+
+        self.assertEqual(
+            0,
+            len(self.collection_manager.catalog_collection.get_solutions_by_catalog(
+                self.collection_manager.catalogs().get_local_catalog().catalog_id)
+            )
+        )
 
         self.fake_install(self.get_test_solution_path(), create_environment=False)
 
@@ -63,6 +74,39 @@ class TestIntegrationUninstall(TestIntegrationCommon):
             self.collection_manager.configuration.cache_path_app.joinpath(
                 "catalog_local", "group", "name", "0.1.0"
             ).exists()
+        )
+
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    def test_uninstall_with_routine(self, get_environment_path):
+        get_environment_path.return_value = CondaManager().get_active_environment_path()
+
+        # create test environment
+        p = self.get_test_solution_path("solution10_uninstall.py")
+        self.fake_install(p, create_environment=False)
+
+        collection = self.collection_manager.catalog_collection
+        self.assertTrue(collection.is_installed(
+            self.collection_manager.catalogs().get_local_catalog().catalog_id,
+            Coordinates("group", "solution10_uninstall", "0.1.0"))
+        )
+
+        # gather arguments
+        sys.argv = ["", "uninstall", p]
+
+        # run
+        self.assertIsNone(main())
+
+        log = self.captured_output.getvalue()
+
+        self.assertIn("solution10_uninstall_album_uninstall_start", log)
+        self.assertIn("solution10_uninstall_album_uninstall_end", log)
+
+        # assert solution was set to uninstalled in the collection
+        self.assertEqual(1, len(collection.get_solutions_by_catalog(
+            self.collection_manager.catalogs().get_local_catalog().catalog_id)))
+        self.assertFalse(collection.is_installed(
+            self.collection_manager.catalogs().get_local_catalog().catalog_id,
+            Coordinates("group", "solution10_uninstall", "0.1.0"))
         )
 
     def test_remove_solution_not_installed(self):

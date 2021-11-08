@@ -10,15 +10,16 @@ from unittest.mock import patch, MagicMock
 import git
 
 import album
+from album.api import Album
 from album.ci.controller.release_manager import ReleaseManager
 from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core import Solution
-from album.api import Album
 from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.conda_manager import CondaManager
 from album.core.controller.deploy_manager import DeployManager
+from album.core.controller.environment_manager import EnvironmentManager
 from album.core.controller.install_manager import InstallManager
 from album.core.controller.migration_manager import MigrationManager
 from album.core.controller.run_manager import RunManager
@@ -29,7 +30,7 @@ from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.server import AlbumServer
 from album.core.utils.operations.file_operations import force_remove
-from album.runner.logging import pop_active_logger, LogLevel, configure_logging
+from album.runner.album_logging import pop_active_logger, LogLevel, configure_logging
 from test.global_exception_watcher import GlobalExceptionWatcher
 
 
@@ -72,7 +73,7 @@ class TestUnitCommon(unittest.TestCase):
     @staticmethod
     def tear_down_singletons():
         # this is here to make sure all mocks are reset each time a test is executed
-        album.runner.logging._active_logger = {}
+        album.runner.album_logging._active_logger = {}
         TestUnitCommon._delete(AlbumServer)
         TestUnitCommon._delete(Configuration)
         TestUnitCommon._delete(CollectionManager)
@@ -87,6 +88,7 @@ class TestUnitCommon(unittest.TestCase):
         TestUnitCommon._delete(ZenodoManager)
         TestUnitCommon._delete(MigrationManager)
         TestUnitCommon._delete(CloneManager)
+        TestUnitCommon._delete(EnvironmentManager)
         TestUnitCommon._delete(Album)
 
     @staticmethod
@@ -139,9 +141,8 @@ class TestUnitCommon(unittest.TestCase):
         if init_catalogs:
             # mock retrieve_catalog_meta_information as it involves a http request
             with patch("album.core.model.catalog.Catalog.retrieve_catalog_meta_information") as retrieve_c_m_i_mock:
-                # with patch("album.core.model.configuration.Configuration.get_initial_catalogs") as get_initial_catalogs:
-                get_initial_catalogs_mock = MagicMock(return_value=
-                    {
+                get_initial_catalogs_mock = MagicMock(
+                    return_value={
                         DefaultValues.local_catalog_name.value:
                             Path(self.tmp_dir.name).joinpath("album", DefaultValues.catalog_folder_prefix.value,
                                                              DefaultValues.local_catalog_name.value)

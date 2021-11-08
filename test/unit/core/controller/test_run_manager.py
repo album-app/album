@@ -7,7 +7,6 @@ from unittest.mock import patch
 
 from album.core.controller.run_manager import RunManager, SolutionCollection
 from album.core.model.resolve_result import ResolveResult
-from album.core.utils.operations.resolve_operations import solution_to_coordinates
 from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
 
 
@@ -31,8 +30,8 @@ class TestRunManager(TestUnitCommon):
                 path="aPath",
                 catalog=catalog,
                 loaded_solution=self.active_solution,
-                solution_attrs=None,
-                coordinates=solution_to_coordinates(self.active_solution)
+                collection_entry=None,
+                coordinates=self.active_solution.coordinates
             )
         )
         self.run_manager.collection_manager.resolve_require_installation_and_load = resolve_installed_and_load
@@ -47,19 +46,23 @@ class TestRunManager(TestUnitCommon):
             return_value=ResolveResult(
                 path=Path(self.closed_tmp_file.name),
                 catalog=catalog,
-                solution_attrs=None,
+                collection_entry=None,
                 coordinates=None
             )
         )
 
         self.run_manager.collection_manager._resolve_installed = _resolve_installed
 
-        # test
+        set_environment = MagicMock(return_value=None)
+        self.run_manager.environment_manager.set_environment = set_environment
+
+        # call
         self.run_manager.run(self.closed_tmp_file.name)
 
         # assert
         _run.assert_called_once_with(self.active_solution, False, None)
         resolve_installed_and_load.assert_called_once_with(self.closed_tmp_file.name)
+        set_environment.assert_called_once()
 
     @unittest.skip("Needs to be implemented!")
     def test_run_from_catalog_coordinates(self):
@@ -168,16 +171,16 @@ class TestRunManager(TestUnitCommon):
     def test_build_steps_queue_no_parent(self):
         # mock
         catalog = self.collection_manager.catalogs().get_local_catalog()
-        resolve_dependency_and_load = MagicMock(
+        resolve_require_installation_and_load = MagicMock(
             return_value=ResolveResult(
                 path="aPath",
                 catalog=catalog,
                 loaded_solution=self.active_solution,
-                solution_attrs=None,
-                coordinates=solution_to_coordinates(self.active_solution)
+                collection_entry=None,
+                coordinates=self.active_solution.coordinates
             )
         )
-        self.run_manager.collection_manager.resolve_dependency_require_installation_and_load = resolve_dependency_and_load
+        self.run_manager.collection_manager.resolve_require_installation_and_load = resolve_require_installation_and_load
 
         create_solution_run_collection_script = MagicMock(return_value="runScriptCollection")
         self.run_manager.create_solution_run_collection_script = create_solution_run_collection_script
@@ -191,18 +194,23 @@ class TestRunManager(TestUnitCommon):
         run_queue = MagicMock(return_value=None)
         self.run_manager.run_queue = run_queue
 
+        set_environment = MagicMock(return_value=None)
+        self.run_manager.environment_manager.set_environment = set_environment
+
         # call
         que = Queue()
-        steps = [{"name": "Step1", },
-                 {"name": "Step2", }]
+        steps = [{"name": "Step1", "group": "grp", "version": "v1"},
+                 {"name": "Step2", "group": "grp", "version": "v1"}]
 
         self.run_manager.build_steps_queue(que, steps, False, [
             None])  # [None] mocks the namespace object from argument parsing of the parent
 
         # assert
-        self.assertEqual(2, resolve_dependency_and_load.call_count)  # 2 steps
+        self.assertEqual(2, resolve_require_installation_and_load.call_count)  # 2 steps
         self.assertEqual(2, _get_args.call_count)  # 2 times arguments resolved
         self.assertEqual(2, create_solution_run_script_standalone.call_count)  # 2 times standalone script created
+        self.assertEqual(2, set_environment.call_count)  # 2 times environment set
+
         create_solution_run_collection_script.assert_not_called()
         run_queue.assert_not_called()
 
@@ -216,33 +224,33 @@ class TestRunManager(TestUnitCommon):
         self.assertEqual(res_que.get(), que.get(block=False))
 
     def test_build_steps_queue_parent(self):
-        self.active_solution.parent = "aParent"
+        self.active_solution.parent = {"name": "aParent", "group": "grp", "version": "v1"}
 
         # mocks
         catalog = EmptyTestClass()
         catalog.id = "niceId"
 
-        resolve_dependency_and_load = MagicMock(
+        resolve_require_installation_and_load = MagicMock(
             return_value=ResolveResult(
                 path="aPathChild",
                 catalog=catalog,
                 loaded_solution=self.active_solution,
-                coordinates=solution_to_coordinates(self.active_solution),
-                solution_attrs=None
+                coordinates=self.active_solution.coordinates,
+                collection_entry=None
             )
         )
-        self.run_manager.collection_manager.resolve_dependency_require_installation_and_load = resolve_dependency_and_load
+        self.run_manager.collection_manager.resolve_require_installation_and_load = resolve_require_installation_and_load
 
-        resolve_dependency = MagicMock(
+        resolve_require_installation = MagicMock(
             return_value=ResolveResult(
                 path="aPathParent",
                 catalog=catalog,
                 loaded_solution=self.active_solution,
-                coordinates=solution_to_coordinates(self.active_solution),
-                solution_attrs=None
+                coordinates=self.active_solution.coordinates,
+                collection_entry=None
             )
         )
-        self.run_manager.collection_manager.resolve_dependency_require_installation = resolve_dependency
+        self.run_manager.collection_manager.resolve_require_installation = resolve_require_installation
 
         create_solution_run_collection_script = MagicMock(return_value="runScriptCollection")
         self.run_manager.create_solution_run_collection_script = create_solution_run_collection_script
@@ -258,15 +266,15 @@ class TestRunManager(TestUnitCommon):
 
         # call
         que = Queue()
-        steps = [{"name": "Step1", },
-                 {"name": "Step2", }]
+        steps = [{"name": "Step1", "group": "grp", "version": "v1"},
+                 {"name": "Step2", "group": "grp", "version": "v1"}]
 
         self.run_manager.build_steps_queue(que, steps, False, [
             None])  # [None] mocks the namespace object from argument parsing of the parent
 
         # assert
-        self.assertEqual(2, resolve_dependency_and_load.call_count)  # 2 times step
-        self.assertEqual(2, resolve_dependency.call_count)  # 2 times parent
+        self.assertEqual(2, resolve_require_installation_and_load.call_count)  # 2 times step
+        self.assertEqual(2, resolve_require_installation.call_count)  # 2 times parent
         self.assertEqual(0, _get_args.call_count)  # 0 times arguments resolved
         self.assertEqual(0, create_solution_run_script_standalone.call_count)  # 0 times standalone script created
 
@@ -290,16 +298,16 @@ class TestRunManager(TestUnitCommon):
         # mock
         catalog = self.collection_manager.catalogs().get_local_catalog()
 
-        resolve_dependency_and_load = MagicMock(
+        resolve_require_installation_and_load = MagicMock(
             return_value=ResolveResult(
                 path="aPath",
                 catalog=catalog,
                 loaded_solution=self.active_solution,
-                solution_attrs=None,
-                coordinates=solution_to_coordinates(self.active_solution)
+                collection_entry=None,
+                coordinates=self.active_solution.coordinates
             )
         )
-        self.run_manager.collection_manager.resolve_dependency_require_installation_and_load = resolve_dependency_and_load
+        self.run_manager.collection_manager.resolve_require_installation_and_load = resolve_require_installation_and_load
 
         create_solution_run_collection_script = MagicMock(return_value="runScriptCollection")
         self.run_manager.create_solution_run_collection_script = create_solution_run_collection_script
@@ -313,16 +321,20 @@ class TestRunManager(TestUnitCommon):
         run_queue = MagicMock(return_value=None)
         self.run_manager.run_queue = run_queue
 
+        set_environment = MagicMock(return_value=None)
+        self.run_manager.environment_manager.set_environment = set_environment
+
         # call
         que = Queue()
-        steps = [{"name": "Step1", }]
+        steps = [{"name": "Step1", "group": "grp", "version": "v1"}]
 
         self.run_manager.build_steps_queue(que, steps, True, [None])
 
         # assert
-        self.assertEqual(1, resolve_dependency_and_load.call_count)  # 1 tep resolved
+        self.assertEqual(1, resolve_require_installation_and_load.call_count)  # 1 tep resolved
         self.assertEqual(1, _get_args.call_count)  # 1 times arguments resolved
         self.assertEqual(1, create_solution_run_script_standalone.call_count)  # 1 times standalone script created
+        self.assertEqual(1, set_environment.call_count)  # 1 time environment set
         create_solution_run_collection_script.assert_not_called()
         self.assertEqual(2, run_queue.call_count)  # once to immediately run, once to clear que
 
@@ -360,26 +372,29 @@ class TestRunManager(TestUnitCommon):
         self.assertEqual([], args[2])
 
     def test_create_solution_run_with_parent_script_standalone(self):
-        self.active_solution.parent = {"name": "aParent"}
+        self.active_solution.parent = {"name": "aParent", "group": "grp", "version": "v1"}
 
         # mock
         catalog = self.collection_manager.catalogs().get_local_catalog()
-        resolve_dependency_and_load = MagicMock(
+        resolve_require_installation_and_load = MagicMock(
             return_value=ResolveResult(
                 path="aPath",
                 catalog=catalog,
                 loaded_solution=self.active_solution,
-                solution_attrs=None,
-                coordinates=solution_to_coordinates(self.active_solution)
+                collection_entry=None,
+                coordinates=self.active_solution.coordinates
             )
         )
-        self.run_manager.collection_manager.resolve_dependency_require_installation_and_load = resolve_dependency_and_load
+        self.run_manager.collection_manager.resolve_require_installation_and_load = resolve_require_installation_and_load
 
-        create_solution_run_with_parent_scrip = MagicMock(return_value="aScript")
-        self.run_manager.create_solution_run_with_parent_script = create_solution_run_with_parent_scrip
+        create_solution_run_with_parent_script = MagicMock(return_value="aScript")
+        self.run_manager.create_solution_run_with_parent_script = create_solution_run_with_parent_script
 
         resolve_args = MagicMock(return_value=["parent_args", "active_solution_args"])
         self.run_manager.resolve_args = resolve_args
+
+        set_environment = MagicMock(return_value=None)
+        self.run_manager.environment_manager.set_environment = set_environment
 
         # call
         r = self.run_manager.create_solution_run_with_parent_script_standalone(self.active_solution, [])
@@ -392,10 +407,11 @@ class TestRunManager(TestUnitCommon):
             step_solution_parsed_args=[None],
             args=[]
         )
-        create_solution_run_with_parent_scrip.assert_called_once_with(
+        create_solution_run_with_parent_script.assert_called_once_with(
             self.active_solution, "parent_args", [self.active_solution], "active_solution_args"
         )
-        resolve_dependency_and_load.assert_called_once()
+        resolve_require_installation_and_load.assert_called_once()
+        set_environment.assert_called_once()
 
         # result
         self.assertEqual([self.active_solution, "aScript"], r)
@@ -412,6 +428,9 @@ class TestRunManager(TestUnitCommon):
 
         create_solution_run_with_parent_scrip = MagicMock(return_value="aScript")
         self.run_manager.create_solution_run_with_parent_script = create_solution_run_with_parent_scrip
+
+        set_environment = MagicMock(return_value=None)
+        self.run_manager.environment_manager.set_environment = set_environment
 
         # prepare
         self.active_solution.parent = {"name": "aParent"}
@@ -436,6 +455,7 @@ class TestRunManager(TestUnitCommon):
         create_solution_run_with_parent_scrip.assert_called_once_with(
             self.active_solution, "parent_args", [self.active_solution, self.active_solution], "active_solution_args"
         )
+        set_environment.assert_called_once()
 
         # result
         self.assertEqual([self.active_solution, "aScript"], r)
@@ -551,8 +571,8 @@ class TestRunManager(TestUnitCommon):
         self.assertEqual(['', '--parent_arg1=parent_arg1_value', '--parent_arg2=parent_arg2_value'], parsed_parent_args)
         self.assertEqual([['', '--s1_arg1=s1_arg1_value'], ['', '--s2_arg1=s2_arg1_value']], parsed_steps_args_list)
 
-    @patch('album.runner.logging.configure_logging', return_value=None)
-    @patch('album.runner.logging.pop_active_logger', return_value=None)
+    @patch('album.runner.album_logging.configure_logging', return_value=None)
+    @patch('album.runner.album_logging.pop_active_logger', return_value=None)
     @patch('album.core.controller.conda_manager.CondaManager.run_scripts', return_value="")
     def test__run_in_environment_with_own_logger(self, run_scripts_mock, pop_mock, conf_mock):
         self.active_solution.environment = EmptyTestClass()

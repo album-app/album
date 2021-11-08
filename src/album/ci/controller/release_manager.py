@@ -13,9 +13,9 @@ from album.core.utils.operations.file_operations import get_dict_from_yml, write
 from album.core.utils.operations.git_operations import checkout_branch, add_files_commit_and_push, \
     retrieve_single_file_from_head, configure_git
 from album.core.utils.operations.resolve_operations import get_zip_name, get_zip_name_prefix, dict_to_coordinates
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 class ReleaseManager(metaclass=Singleton):

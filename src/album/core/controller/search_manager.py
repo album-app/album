@@ -2,9 +2,9 @@ import operator
 
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 class SearchManager(metaclass=Singleton):

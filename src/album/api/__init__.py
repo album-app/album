@@ -5,6 +5,7 @@ from album.core.concept.singleton import Singleton
 from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.deploy_manager import DeployManager
+from album.core.controller.environment_manager import EnvironmentManager
 from album.core.controller.install_manager import InstallManager
 from album.core.controller.run_manager import RunManager
 from album.core.controller.search_manager import SearchManager
@@ -48,3 +49,7 @@ class Album(metaclass=Singleton):
     @staticmethod
     def configuration() -> Configuration:
         return Configuration()
+
+    @staticmethod
+    def environment_manager() -> EnvironmentManager:
+        return EnvironmentManager()

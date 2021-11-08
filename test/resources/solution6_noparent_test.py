@@ -1,6 +1,6 @@
-from album.runner import setup
 import tempfile
 
+from album.runner import setup
 from album.runner.api import get_args
 
 
@@ -92,6 +92,5 @@ setup(
     close=album_close,
     pre_test=album_prepare_test,
     test=album_test,
-    dependencies={
-        'environment_name': 'solution6_noparent_test'
-    })
+    dependencies={}
+)

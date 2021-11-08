@@ -5,18 +5,14 @@ import sys
 from pathlib import Path
 
 from album.ci.utils.zenodo_api import ZenodoAPI
-
-from album.core import load
-from album.core.model.solution import Solution
-from album.core.model.default_values import DefaultValues
 from album.core.model.coordinates import Coordinates
-from album.core.model.resolve_result import ResolveResult
+from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove, \
     create_path_recursively, rand_folder_name, check_zip, unzip_archive, copy, copy_folder
 from album.core.utils.operations.url_operations import is_url, download, retrieve_redirect_url, download_resource
-from album.runner import logging
+from album.runner import album_logging
 
-module_logger = logging.get_active_logger
+module_logger = album_logging.get_active_logger
 
 
 def clean_resolve_tmp(tmp_cache_dir) -> None:
@@ -259,13 +255,39 @@ def dict_to_coordinates(solution_attr) -> Coordinates:
     return Coordinates(group=solution_attr["group"], name=solution_attr["name"], version=solution_attr["version"])
 
 
-def solution_to_coordinates(solution) -> Coordinates:
-    return Coordinates(group=solution.group, name=solution.name, version=solution.version)
-
-
 def get_zip_name(coordinates: Coordinates):
     return get_zip_name_prefix(coordinates) + ".zip"
 
 
 def get_zip_name_prefix(coordinates: Coordinates):
     return "_".join([coordinates.group, coordinates.name, coordinates.version])
+
+
+def build_resolve_string(resolve_solution_dict: dict, catalog=None):
+    if "doi" in resolve_solution_dict.keys():
+        resolve_solution = resolve_solution_dict["doi"]
+    elif all([x in resolve_solution_dict.keys() for x in ["group", "name", "version"]]):
+        resolve_solution = ":".join(
+            [resolve_solution_dict["group"], resolve_solution_dict["name"], resolve_solution_dict["version"]]
+        )
+
+        if catalog:
+            resolve_solution = ":".join([catalog.name, resolve_solution])
+
+    elif "resolve_solution" in resolve_solution_dict.keys():
+        resolve_solution = resolve_solution_dict["resolve_solution"]
+    else:
+        raise ValueError("Invalid declaration of parent or step!")
+
+    return resolve_solution
+
+
+def get_parent(parent_collection_entry: dict) -> dict:
+    """Given an collection entry (aka row of the collection table) this method returns the corresponding parent"""
+    if parent_collection_entry["parent"]:
+        parent = parent_collection_entry["parent"]
+        while parent["parent"]:
+            parent = parent["parent"]
+
+        return parent
+    return parent_collection_entry

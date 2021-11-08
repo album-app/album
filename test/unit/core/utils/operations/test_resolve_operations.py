@@ -7,7 +7,7 @@ from album.core.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.resolve_operations import get_doi_from_input, get_cgnv_from_input, get_gnv_from_input, \
     get_attributes_from_string, check_file_or_url, dict_to_coordinates, get_zip_name_prefix, get_zip_name, \
-    solution_to_coordinates, check_doi, parse_doi_service_url, _parse_zenodo_url
+    check_doi, parse_doi_service_url, _parse_zenodo_url
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -333,10 +333,6 @@ class TestResolveOperations(TestUnitCommon):
         sol_dict.pop("version")
         with self.assertRaises(ValueError):
             self.assertTrue(dict_to_coordinates(sol_dict))
-
-    def test_solution_to_coordinates(self):
-        self.create_test_solution_no_env()
-        self.assertEqual(Coordinates("tsg", "tsn", "tsv"), solution_to_coordinates(self.active_solution))
 
     @patch('album.core.utils.operations.resolve_operations.get_zip_name_prefix', return_value="asd")
     def test_get_zip_name(self, _):
