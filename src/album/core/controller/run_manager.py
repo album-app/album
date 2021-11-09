@@ -124,7 +124,6 @@ class RunManager(metaclass=Singleton):
             while True:
                 solution_object, scripts = que.get(block=False)
                 module_logger().debug("Running task \"%s\"..." % solution_object["name"])
-                self.conda_manager.set_environment_path(solution_object.environment)
                 self._run_in_environment_with_own_logger(solution_object, scripts)
                 module_logger().debug("Finished running task \"%s\"!" % solution_object["name"])
                 que.task_done()

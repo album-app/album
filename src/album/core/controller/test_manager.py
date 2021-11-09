@@ -52,10 +52,18 @@ class TestManager(metaclass=Singleton):
     def test_from_catalog_coordinates(self, catalog_name: str, coordinates: Coordinates, argv=None):
         catalog = self.collection_manager.catalogs().get_by_name(catalog_name)
         resolve_result = self.collection_manager.resolve_download_and_load_catalog_coordinates(catalog, coordinates)
+
+        # set the environment
+        self.environment_manager.set_environment(resolve_result.loaded_solution, resolve_result.catalog)
+
         self._test(resolve_result.loaded_solution, argv)
 
     def test_from_coordinates(self, coordinates: Coordinates, argv=None):
         resolve_result = self.collection_manager.resolve_download_and_load_coordinates(coordinates)
+
+        # set the environment
+        self.environment_manager.set_environment(resolve_result.loaded_solution, resolve_result.catalog)
+
         self._test(resolve_result.loaded_solution, argv)
 
     def _test(self, active_solution, args=None):
@@ -63,19 +71,15 @@ class TestManager(metaclass=Singleton):
             args = [""]
         if active_solution['pre_test'] and callable(active_solution['pre_test']) \
                 and active_solution['test'] and callable(active_solution['test']):
-            module_logger().debug('Creating test script...')
 
-            # prepare run_script
             que = Queue()
             script_test_creator = ScriptTestCreator()
-            self.run_manager.build_queue(active_solution, que, script_test_creator, False, args)  # do not run queue immediately
-            _, scripts = que.get(block=False)
 
-            module_logger().debug('Calling test routine specified in solution...')
-            album_logging.configure_logging(active_solution['name'])
+            # do not run queue immediately
+            self.run_manager.build_queue(active_solution, que, script_test_creator, False, args)
 
-            self.conda_manager.run_scripts(active_solution.environment, scripts)
-            album_logging.pop_active_logger()
+            # runs the queue
+            self.run_manager.run_queue(que)
         else:
             module_logger().warning(
                 'No \"test\" routine configured for solution %s! Skipping...' % active_solution['name']
