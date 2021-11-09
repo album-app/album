@@ -8,7 +8,7 @@ from album.core.controller.conda_manager import CondaManager
 from album.core.controller.environment_manager import EnvironmentManager
 from album.core.model.coordinates import Coordinates
 from album.core.utils.operations.resolve_operations import build_resolve_string
-from album.core.utils.script import create_solution_script
+from album.core.utils.script import ScriptCreator, ScriptCreatorRun
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
@@ -104,7 +104,7 @@ class RunManager(metaclass=Singleton):
         que = Queue()
 
         # builds the queue
-        self.build_queue(active_solution, que, run_immediately, argv)
+        self.build_queue(active_solution, que, ScriptCreatorRun(), run_immediately, argv)
 
         # runs the queue
         self.run_queue(que)
@@ -131,10 +131,12 @@ class RunManager(metaclass=Singleton):
         except Empty:
             module_logger().debug("Currently nothing more to run!")
 
-    def build_queue(self, active_solution, que, run_immediately=False, argv=None):
+    def build_queue(self, active_solution, que, script_creator: ScriptCreator, run_immediately=False, argv=None):
         """Builds the queue of an active-album object.
 
         Args:
+            script_creator:
+                The ScriptCreator object to use to create the execution script.
             active_solution:
                 The active_solution object to build the run-que for.
             que:
@@ -160,23 +162,27 @@ class RunManager(metaclass=Singleton):
             for i, step in enumerate(steps):
                 module_logger().debug("Adding step %s / %s to queue..." % (i, len(steps)))
                 if type(step) is list:
-                    self.build_steps_queue(que, step, run_immediately, step_solution_parsed_args)
+                    self.build_steps_queue(que, step, script_creator, run_immediately, step_solution_parsed_args)
                 else:
-                    self.build_steps_queue(que, [step], run_immediately, step_solution_parsed_args)
+                    self.build_steps_queue(que, [step], script_creator, run_immediately, step_solution_parsed_args)
         else:  # single element queue, no steps
             if active_solution.parent:
                 module_logger().debug("Adding step standalone album with parent to queue...")
                 # create script with parent
-                que.put(self.create_solution_run_with_parent_script_standalone(active_solution, argv))
+                que.put(self.create_solution_run_with_parent_script_standalone(active_solution, argv, script_creator))
             else:
                 module_logger().debug("Adding step standalone to queue...")
                 # create script without parent
-                que.put(self.create_solution_run_script_standalone(active_solution, argv))
+                que.put(self.create_solution_run_script_standalone(active_solution, argv, script_creator))
 
-    def build_steps_queue(self, que, steps, run_immediately=False, step_solution_parsed_args=None):
+    def build_steps_queue(
+            self, que, steps, script_creator: ScriptCreator, run_immediately=False, step_solution_parsed_args=None
+    ):
         """Builds the queue of step-album to be executed. FIFO queue expected.
 
         Args:
+            script_creator:
+                The ScriptCreator object to use to create the execution script.
             step_solution_parsed_args:
                 Namespace object from parsing the step-solution arguments
             que:
@@ -210,7 +216,7 @@ class RunManager(metaclass=Singleton):
                         same_parent_step_collection.parent_script_path != current_parent_script_path:
 
                     # put old collection to queue
-                    que.put(self.create_solution_run_collection_script(same_parent_step_collection))
+                    que.put(self.create_solution_run_collection_script(same_parent_step_collection, script_creator))
 
                     # runs the old collection immediately
                     if run_immediately:
@@ -238,7 +244,7 @@ class RunManager(metaclass=Singleton):
             else:  # add a step without collection (also parent)
                 # put collection (if any) to queue
                 if same_parent_step_collection.parent_script_path:
-                    que.put(self.create_solution_run_collection_script(same_parent_step_collection))
+                    que.put(self.create_solution_run_collection_script(same_parent_step_collection, script_creator))
 
                 # empty the collection for possible next steps
                 same_parent_step_collection = SolutionCollection(step_solution_parsed_args)
@@ -252,11 +258,15 @@ class RunManager(metaclass=Singleton):
 
                 # add step without parent
                 self.environment_manager.set_environment(resolve_result.loaded_solution, resolve_result.catalog)
-                que.put(self.create_solution_run_script_standalone(resolve_result.loaded_solution, step_args))
+                que.put(
+                    self.create_solution_run_script_standalone(
+                        resolve_result.loaded_solution, step_args, script_creator
+                    )
+                )
 
         # put rest to queue
         if same_parent_step_collection.parent_script_path:
-            que.put(self.create_solution_run_collection_script(same_parent_step_collection))
+            que.put(self.create_solution_run_collection_script(same_parent_step_collection, script_creator))
 
         self._print_credit(citations)
 
@@ -264,10 +274,12 @@ class RunManager(metaclass=Singleton):
         if run_immediately:
             self.run_queue(que)
 
-    def create_solution_run_script_standalone(self, active_solution, args):
+    def create_solution_run_script_standalone(self, active_solution, args, script_creator: ScriptCreator):
         """Creates the execution script for a album object giving its arguments.
 
         Args:
+            script_creator:
+                The ScriptCreator object to use to create the execution script.
             active_solution:
                 The solution object to create the executable script for.
             args:
@@ -278,27 +290,18 @@ class RunManager(metaclass=Singleton):
 
         """
         module_logger().debug('Creating standalone album script \"%s\"...' % active_solution["name"])
-        script_inset = self.init_script
-        script_inset += "\nmodule_logger().info(\"Starting %s\")" % active_solution["name"]
-        script_inset += "\nmodule_logger().info(\"\")\n"
-        if active_solution['run'] and callable(active_solution['run']):
-            script_inset += "\nget_active_solution().run()\n"
-        else:
-            raise ValueError("No \"run\" routine specified for solution \"%s\"! Aborting..." % active_solution["name"])
-        if active_solution['close'] and callable(active_solution['close']):
-            script_inset += "\nget_active_solution().close()\n"
-        script_inset += "\nmodule_logger().info(\"\")"
-        script_inset += "\nmodule_logger().info(\"Finished %s\")\n" % active_solution["name"]
-        script = create_solution_script(active_solution, script_inset, args)
+        script = script_creator.create_script(active_solution, args)
 
         self._print_credit([active_solution])
 
         return [active_solution, [script]]
 
-    def create_solution_run_with_parent_script_standalone(self, active_solution, args):
+    def create_solution_run_with_parent_script_standalone(self, active_solution, args, script_creator: ScriptCreator):
         """Creates the execution script for a album object having a parent dependency giving its arguments.
 
         Args:
+            script_creator:
+                The ScriptCreator object to use to create the execution script.
             active_solution:
                 The solution object to create the executable script for.
             args:
@@ -327,17 +330,25 @@ class RunManager(metaclass=Singleton):
 
         # create script
         scripts = self.create_solution_run_with_parent_script(
-            parent_solution_resolve.loaded_solution, parent_args, [active_solution], active_solution_args
+            parent_solution_resolve.loaded_solution,
+            parent_args,
+            [active_solution],
+            active_solution_args,
+            script_creator
         )
 
         self._print_credit([parent_solution_resolve.loaded_solution, active_solution])
 
         return [parent_solution_resolve.loaded_solution, scripts]
 
-    def create_solution_run_collection_script(self, solution_collection: SolutionCollection):
+    def create_solution_run_collection_script(
+            self, solution_collection: SolutionCollection, script_creator: ScriptCreator
+    ):
         """Creates the execution script for a collection of solutions all having the same parent dependency.
 
         Args:
+            script_creator:
+                The ScriptCreator object to use to create the execution script.
             solution_collection
         Returns:
             The solution shared parent object and its scripts.
@@ -360,16 +371,22 @@ class RunManager(metaclass=Singleton):
         )
 
         # create script
-        scripts = self.create_solution_run_with_parent_script(parent_solution, parsed_parent_args,
-                                                              solution_collection.steps_solution,
-                                                              parsed_steps_args_list)
+        scripts = self.create_solution_run_with_parent_script(
+            parent_solution, parsed_parent_args,
+            solution_collection.steps_solution,
+            parsed_steps_args_list,
+            script_creator
+        )
 
         return [parent_solution, scripts]
 
-    def create_solution_run_with_parent_script(self, parent_solution, parent_args, child_solution_list, child_args):
+    def create_solution_run_with_parent_script(self, parent_solution, parent_args, child_solution_list, child_args,
+                                               script_creator: ScriptCreator):
         """Creates the script for the parent solution as well as for all its steps (child solutions).
 
         Args:
+            script_creator:
+                The ScriptCreator object to use to create the execution script.
             parent_solution:
                 The parent solution object.
             parent_args:
@@ -383,28 +400,20 @@ class RunManager(metaclass=Singleton):
             A list holding all execution scripts.
 
         """
-        parent_script = "\nmodule_logger().info(\"Starting %s\")" % parent_solution["name"]
-        parent_script += "\nmodule_logger().info(\"\")\n"
-        parent_script += self.init_script + "\nget_active_solution().run()\n"
-        parent_script += "\nmodule_logger().info(\"\")"
-        parent_script += "\nmodule_logger().info(\"Finished %s\")\n" % parent_solution["name"]
-        script_parent = create_solution_script(parent_solution, parent_script, parent_args)
-        script_list = [script_parent]
-        for child_solution, child_args in zip(child_solution_list, child_args):
-            child_solution.environment = parent_solution.environment
-            child_script = "\nmodule_logger().info(\"Starting %s\")" % child_solution["name"]
-            child_script += "\nmodule_logger().info(\"\")\n"
-            child_script += "\nget_active_solution().run()\n"
-            if hasattr(child_solution, "close"):
-                child_script += "\nget_active_solution().close()\n"
-            child_script += "\nmodule_logger().info(\"\")"
-            child_script += "\nmodule_logger().info(\"Finished %s\")\n" % child_solution["name"]
-            child_script += "\npop_active_solution()\n"
-            script_list.append(create_solution_script(child_solution, child_script, child_args))
+        def callback():
+            children_block = ""
+            for child_solution, child_arg in zip(child_solution_list, child_args):
+                child_solution.environment = parent_solution.environment
+                s = ScriptCreatorRun(pop_solution=True)
+                child_script = s.create_script(child_solution, child_arg)
+                children_block += child_script
+            return children_block
 
-        script_parent_close = "\nget_active_solution().close()\n" if hasattr(parent_solution, "close") else ""
-        script_parent_close += "\npop_active_solution()\n"
-        script_list.append(script_parent_close)
+        script_creator.execution_callback = callback
+        script = script_creator.create_script(parent_solution, parent_args)
+        script_creator.reset_callback()
+        script_list = [script]
+
         return script_list
 
     def __parse_args(self, active_solution, args):

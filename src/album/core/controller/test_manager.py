@@ -6,6 +6,7 @@ from album.core.controller.conda_manager import CondaManager
 from album.core.controller.environment_manager import EnvironmentManager
 from album.core.controller.run_manager import RunManager
 from album.core.model.coordinates import Coordinates
+from album.core.utils.script import ScriptTestCreator
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
@@ -64,24 +65,11 @@ class TestManager(metaclass=Singleton):
                 and active_solution['test'] and callable(active_solution['test']):
             module_logger().debug('Creating test script...')
 
-            # set init of run_manager to include pre_test call and argument parsing before run
-            self.run_manager.init_script = "\nd = get_active_solution().pre_test()\n"
-            self.run_manager.init_script += "\nsys.argv = sys.argv + [\"=\".join([c, d[c]]) for c in d]\n"
-
-            # parse args again after pre_test() routine if necessary.
-            if not active_solution["args"] == "pass-through":
-                self.run_manager.init_script += "\nget_active_solution().args = parser.parse_args()\n"
-
             # prepare run_script
             que = Queue()
-            self.run_manager.build_queue(active_solution, que, False, args)  # do not run queue immediately
+            script_test_creator = ScriptTestCreator()
+            self.run_manager.build_queue(active_solution, que, script_test_creator, False, args)  # do not run queue immediately
             _, scripts = que.get(block=False)
-
-            # add test_routine to script
-            if len(scripts) > 1:
-                scripts.append("\nget_active_solution().test()\n")
-            else:
-                scripts[0] += "\nget_active_solution().test()\n"
 
             module_logger().debug('Calling test routine specified in solution...')
             album_logging.configure_logging(active_solution['name'])
