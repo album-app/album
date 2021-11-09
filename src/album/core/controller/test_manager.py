@@ -6,7 +6,8 @@ from album.core.controller.conda_manager import CondaManager
 from album.core.controller.environment_manager import EnvironmentManager
 from album.core.controller.run_manager import RunManager
 from album.core.model.coordinates import Coordinates
-from album.core.utils.script import ScriptTestCreator
+from album.core.model.solution import Solution
+from album.runner.concept.script_creator import ScriptTestCreator
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
@@ -47,7 +48,7 @@ class TestManager(metaclass=Singleton):
 
         self._test(resolve_result.loaded_solution, args)
 
-        module_logger().info('Ran test routine for %s!' % resolve_result.loaded_solution['name'])
+        module_logger().info('Ran test routine for \"%s\"!' % resolve_result.loaded_solution.name)
 
     def test_from_catalog_coordinates(self, catalog_name: str, coordinates: Coordinates, argv=None):
         catalog = self.collection_manager.catalogs().get_by_name(catalog_name)
@@ -66,12 +67,12 @@ class TestManager(metaclass=Singleton):
 
         self._test(resolve_result.loaded_solution, argv)
 
-    def _test(self, active_solution, args=None):
+    def _test(self, active_solution: Solution, args=None):
         if args is None:
             args = [""]
-        if active_solution['pre_test'] and callable(active_solution['pre_test']) \
-                and active_solution['test'] and callable(active_solution['test']):
 
+        if active_solution.pre_test and callable(active_solution.pre_test) \
+                and active_solution.test and callable(active_solution.test):
             que = Queue()
             script_test_creator = ScriptTestCreator()
 
@@ -82,5 +83,5 @@ class TestManager(metaclass=Singleton):
             self.run_manager.run_queue(que)
         else:
             module_logger().warning(
-                'No \"test\" routine configured for solution %s! Skipping...' % active_solution['name']
+                'No \"test\" routine configured for solution \"%s\"! Skipping...' % active_solution.name
             )

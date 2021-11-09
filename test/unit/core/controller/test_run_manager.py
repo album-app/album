@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from album.core.controller.run_manager import RunManager, SolutionCollection
 from album.core.model.resolve_result import ResolveResult
-from album.core.utils.script import ScriptCreatorRun
+from album.runner.concept.script_creator import ScriptCreatorRun
 from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
 
 
