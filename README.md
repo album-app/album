@@ -6,7 +6,7 @@ The primary solution repository is available here: [https://solutions.capture-kn
 
 ## Citation
 
-Albrecht, J.P.*, Schmidt, D.*, and Harrington, K., 2021. Album: a
+Albrecht, J.P.\*, Schmidt, D.\*, and Harrington, K., 2021. Album: a
 framework for scientific data processing with software solutions of
 heterogeneous tools. arXiv preprint arXiv:2110.00601.  
 https://arxiv.org/abs/2110.00601
