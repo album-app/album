@@ -63,6 +63,29 @@ class CatalogUpdates:
         self.solution_changes = solution_changes
         self.catalog_attribute_changes = catalog_attribute_changes
 
+    def get_cmdline_info(self) -> str:
+        res = 'Catalog: %s\n' % self.catalog.name
+        if len(self.catalog_attribute_changes) > 0:
+            res += '  Catalog attribute changes:\n'
+            for item in self.catalog_attribute_changes:
+                res += '  name: %s, new value: %s\n' % (item.attribute, item.new_value)
+        if len(self.solution_changes) > 0:
+            res += '  Catalog solution changes:\n'
+            for i, item in enumerate(self.solution_changes):
+                if i is len(self.solution_changes) - 1:
+                    res += '  └─ [%s] %s\n' % (item.change_type.name, item.coordinates)
+                    separator = ' '
+                else:
+                    res += '  ├─ [%s] %s\n' % (item.change_type.name, item.coordinates)
+                    separator = '|'
+                res += '  %s     %schangelog: %s\n' % (
+                    separator, (" " * len(item.change_type.name)), item.change_log)
+
+        if len(self.catalog_attribute_changes) == 0 and len(self.solution_changes) == 0:
+            res += '  No changes.\n'
+
+        return res
+
     def as_dict(self):
         solution_changes_as_dict = []
         for change in self.solution_changes:

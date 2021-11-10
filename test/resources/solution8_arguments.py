@@ -62,7 +62,9 @@ setup(
     timestamp="",
     description="",
     authors="",
-    cite="",
+    cite=[{
+        'text': "MyText"
+    }],
     git_repo="",
     tags=[],
     license="license",

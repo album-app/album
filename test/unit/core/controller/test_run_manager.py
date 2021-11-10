@@ -265,6 +265,9 @@ class TestRunManager(TestUnitCommon):
         run_queue = MagicMock(return_value=None)
         self.run_manager.run_queue = run_queue
 
+        set_env_mock = MagicMock()
+        self.run_manager.environment_manager.set_environment = set_env_mock
+
         # call
         que = Queue()
         steps = [{"name": "Step1", "group": "grp", "version": "v1"},
@@ -276,6 +279,7 @@ class TestRunManager(TestUnitCommon):
         # assert
         self.assertEqual(2, resolve_require_installation_and_load.call_count)  # 2 times step
         self.assertEqual(2, resolve_require_installation.call_count)  # 2 times parent
+        self.assertEqual(2, set_env_mock.call_count)  # 2 times step environment set
         self.assertEqual(0, _get_args.call_count)  # 0 times arguments resolved
         self.assertEqual(0, create_solution_run_script_standalone.call_count)  # 0 times standalone script created
 

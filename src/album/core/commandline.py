@@ -24,12 +24,10 @@ def remove_catalog(args) -> None:
     CollectionManager().catalogs().remove_from_collection_by_src(args.src)
 
 
-# todo: do argument parsing properly
 def update(args):
     CollectionManager().catalogs().update_any(getattr(args, "catalog_name", None))
 
 
-# todo: do argument parsing properly
 def upgrade(args):
     dry_run = getattr(args, "dry_run", False)
     updates = CollectionManager().catalogs().update_collection(getattr(args, "catalog_name", None),
@@ -44,25 +42,7 @@ def upgrade(args):
         else:
             res += "Applied the following updates:\n"
         for change in updates:
-            res += 'Catalog: %s\n' % change.catalog.name
-            if len(change.catalog_attribute_changes) > 0:
-                res += '  Catalog attribute changes:\n'
-                for item in change.catalog_attribute_changes:
-                    res += '  name: %s, new value: %s\n' % (item.attribute, item.new_value)
-            if len(change.solution_changes) > 0:
-                res += '  Catalog solution changes:\n'
-                for i, item in enumerate(change.solution_changes):
-                    if i is len(change.solution_changes) - 1:
-                        res += '  └─ [%s] %s\n' % (item.change_type.name, item.coordinates)
-                        separator = ' '
-                    else:
-                        res += '  ├─ [%s] %s\n' % (item.change_type.name, item.coordinates)
-                        separator = '|'
-                    res += '  %s     %schangelog: %s\n' % (
-                        separator, (" " * len(item.change_type.name)), item.change_log)
-
-            if len(change.catalog_attribute_changes) == 0 and len(change.solution_changes) == 0:
-                res += '  No changes.\n'
+            res += change.get_cmdline_info()
         module_logger().info(res)
 
 
@@ -88,32 +68,7 @@ def info(args):
     if print_json:
         print(_as_json(deploy_dict))
     else:
-        param_example_str = ''
-        for arg in deploy_dict['args']:
-            param_example_str += '--%s PARAMETER_VALUE ' % arg['name']
-        res = 'Solution details about %s:\n\n' % args.path
-        res += '%s\n' % solution.title
-        res += '%s\n' % ('=' * len(solution.title))
-        res += '%s\n\n' % solution.description
-        res += 'Group            : %s\n' % solution.group
-        res += 'Name             : %s\n' % solution.name
-        res += 'Version          : %s' % solution.version
-        res += '%s' % RunManager.get_credit_as_string([solution])
-        res += 'Solution metadata:\n\n'
-        res += 'Solution authors : %s\n' % ", ".join(solution.authors)
-        res += 'License          : %s\n' % solution.license
-        res += 'GIT              : %s\n' % solution.git_repo
-        res += 'Tags             : %s\n' % ", ".join(solution.tags)
-        res += '\n'
-        res += 'Usage:\n\n'
-        res += '  album install %s\n' % args.path
-        res += '  album run %s %s\n' % (solution.coordinates, param_example_str)
-        res += '  album test %s\n' % (solution.coordinates)
-        res += '  album uninstall %s\n' % (solution.coordinates)
-        res += '\n'
-        res += 'Run parameters:\n\n'
-        for arg in deploy_dict['args']:
-            res += '  --%s: %s\n' % (arg["name"], arg["description"])
+        res = solution.get_cmdline_info(args.path)
         module_logger().info(res)
 
 

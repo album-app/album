@@ -73,7 +73,7 @@ setup(
     timestamp="",
     description="",
     authors="",
-    cite="",
+    cite=[],
     git_repo="",
     tags=[],
     license="license",
