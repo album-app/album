@@ -16,8 +16,7 @@ from test.unit.test_unit_common import TestUnitCommon
 
 class TestCatalog(TestUnitCommon):
 
-    @patch('album.core.model.solution.Environment.__init__', return_value=None)
-    def populate_index(self, _, r=10):
+    def populate_index(self, r=10):
         for i in range(0, r):
             d = self.get_solution_dict()
 
