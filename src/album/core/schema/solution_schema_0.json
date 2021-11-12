@@ -165,6 +165,10 @@
                     "title": "version",
                     "type": "string"
                 },
+                "changelog": {
+                    "title": "changelog",
+                    "type": "string"
+                },
                 "doi": {
                     "title": "doi",
                     "type": "string"

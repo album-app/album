@@ -1,5 +1,6 @@
 import pkgutil
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 from git import Repo
@@ -12,12 +13,12 @@ from album.core.controller.migration_manager import MigrationManager
 from album.core.model.catalog import Catalog
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.solution_operations import get_deploy_dict
-from album.runner.model.solution import Solution
-from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, zip_paths, copy_in_file
+from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, zip_paths, copy_in_file, \
+    create_path_recursively
 from album.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push
 from album.core.utils.operations.resolve_operations import get_zip_name
-from album.runner import album_logging
+from album.core.utils.operations.solution_operations import get_deploy_dict
+from album.runner import album_logging, Solution
 
 module_logger = album_logging.get_active_logger
 
@@ -45,8 +46,8 @@ class DeployManager(metaclass=Singleton):
     def __init__(self):
         self.collection_manager = CollectionManager()
 
-    def deploy(self, deploy_path, catalog_name, dry_run, push_option=None, git_email=None, git_name=None,
-               force_deploy=False):
+    def deploy(self, deploy_path, catalog_name: str, dry_run: bool, push_option=None, git_email: str = None, git_name: str = None,
+               force_deploy: bool = False, change_log: str = ""):
         """Function corresponding to the `deploy` subcommand of `album`.
 
         Generates the yml for a album and creates a merge request to the catalog only
@@ -70,9 +71,14 @@ class DeployManager(metaclass=Singleton):
                 The git email to use. (Default: systems git configuration)
             git_name:
                 The git user to use. (Default: systems git configuration)
+            change_log:
+                The change associated with this version of a solution compared to the last version.
 
         """
-        module_logger().info('Deploying %s to %s...' % (deploy_path, catalog_name))
+        if dry_run:
+            module_logger().info('Pretending to deploy %s to %s...' % (deploy_path, catalog_name))
+        else:
+            module_logger().info('Deploying %s to %s...' % (deploy_path, catalog_name))
 
         deploy_path = Path(deploy_path)
 
@@ -82,6 +88,7 @@ class DeployManager(metaclass=Singleton):
             path_to_solution = deploy_path
 
         active_solution = load(path_to_solution)
+        active_solution.setup["changelog"] = change_log
 
         # case catalog given
         if catalog_name:
@@ -106,7 +113,11 @@ class DeployManager(metaclass=Singleton):
             self._deploy_to_remote_catalog(
                 catalog, active_solution, deploy_path, dry_run, push_option, git_email, git_name
             )
-        module_logger().info('Successfully deployed %s to %s.' % (deploy_path, catalog_name))
+
+        if dry_run:
+            module_logger().info('Successfully pretended to deploy %s to %s.' % (deploy_path, catalog_name))
+        else:
+            module_logger().info('Successfully deployed %s to %s.' % (deploy_path, catalog_name))
 
     def _deploy_to_remote_catalog(self, catalog: Catalog, active_solution: Solution, deploy_path, dry_run, push_option,
                                   git_email=None, git_name=None):
@@ -120,12 +131,12 @@ class DeployManager(metaclass=Singleton):
             raise FileNotFoundError("Catalog repository not found. Did the download of the catalog fail?")
 
         # include files/folders in catalog
-        solution_zip, docker_file, yml_file, cover_files = self._deploy_routine_in_local_src(
+        solution_zip, exports = self._deploy_routine_in_local_src(
             catalog, catalog_local_src, active_solution, deploy_path
         )
 
         # merge request files:
-        mr_files = [yml_file, solution_zip, docker_file] + cover_files
+        mr_files = [solution_zip] + exports
 
         # create merge request
         self._create_merge_request(active_solution, repo, mr_files, dry_run, push_option, git_email, git_name)
@@ -143,6 +154,7 @@ class DeployManager(metaclass=Singleton):
             raise RuntimeError("Cannot deploy to catalog only used for caching! Aborting...")
 
         catalog_local_src = catalog.src
+        active_solution.setup["timestamp"] = datetime.strftime(datetime.now(), '%Y-%m-%dT%H:%M:%S.%f')
 
         # update the index
         if not dry_run:
@@ -176,11 +188,9 @@ class DeployManager(metaclass=Singleton):
 
         """
         solution_zip = DeployManager._copy_and_zip(catalog, catalog_local_src, active_solution, deploy_path)
-        docker_file = DeployManager._create_docker_file_in_local_src(active_solution, catalog_local_src)
-        yml_file = DeployManager._create_yaml_file_in_local_src(active_solution, catalog_local_src)
-        cover_files = DeployManager._copy_cover_to_local_src(catalog, catalog_local_src, active_solution, deploy_path)
+        exports = DeployManager._attach_exports(catalog, catalog_local_src, active_solution, deploy_path)
 
-        return solution_zip, docker_file, yml_file, cover_files
+        return solution_zip, exports
 
     @staticmethod
     def retrieve_head_name(active_solution: Solution):
@@ -242,7 +252,7 @@ class DeployManager(metaclass=Singleton):
         )
 
     @staticmethod
-    def _create_yaml_file_in_local_src(active_solution: Solution, catalog_local_src: str):
+    def _create_yaml_file_in_local_src(active_solution: Solution, solution_home: Path):
         """Creates a yaml file in the given repo for the given solution.
 
         Returns:
@@ -251,13 +261,7 @@ class DeployManager(metaclass=Singleton):
         """
         coordinates = active_solution.coordinates
 
-        yaml_path = Path(catalog_local_src).joinpath(
-            DefaultValues.cache_path_solution_prefix.value,
-            coordinates.group,
-            coordinates.name,
-            coordinates.version,
-            "%s%s" % (coordinates.name, ".yml")
-        )
+        yaml_path = solution_home.joinpath("%s%s" % (coordinates.name, ".yml"))
 
         module_logger().debug('Writing yaml file to: %s...' % yaml_path)
         write_dict_to_yml(yaml_path, get_deploy_dict(active_solution))
@@ -265,7 +269,7 @@ class DeployManager(metaclass=Singleton):
         return yaml_path
 
     @staticmethod
-    def _create_docker_file_in_local_src(active_solution: Solution, catalog_local_src: str):
+    def _create_docker_file_in_local_src(active_solution: Solution, solution_home: Path) -> Path:
         """Uses the template to create a docker file for the solution which gets deployed.
 
         Returns:
@@ -274,8 +278,7 @@ class DeployManager(metaclass=Singleton):
         coordinates = active_solution.coordinates
         zip_name = get_zip_name(coordinates)
 
-        solution_path_suffix = Path("").joinpath(Configuration.get_solution_path_suffix(coordinates))
-        docker_file = Path(catalog_local_src).joinpath(solution_path_suffix, "Dockerfile")
+        docker_file = solution_home.joinpath("Dockerfile")
 
         docker_file_stream = pkgutil.get_data('album.docker', 'Dockerfile_solution_template.txt').decode()
 
@@ -290,6 +293,40 @@ class DeployManager(metaclass=Singleton):
         copy_in_file(docker_file_stream, docker_file)
 
         return docker_file
+
+    @staticmethod
+    def _create_changelog_file_in_local_src(active_solution: Solution, catalog: Catalog, solution_home: Path):
+        """Creates a changelog file in the given repo for the given solution.
+
+        Returns:
+            The Path to the created markdown file.
+
+        """
+
+        changelog_path = solution_home.joinpath("CHANGELOG.md")
+
+        module_logger().debug('Writing changelog file to: %s...' % changelog_path)
+
+        content = '''# Changelog
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+'''
+        versions = catalog.get_all_solution_versions(active_solution.coordinates.group, active_solution.coordinates.name)
+        for version in versions:
+            timestamp = version.setup['timestamp']
+            if timestamp:
+                timestamp = datetime.strptime(timestamp, '%Y-%m-%dT%H:%M:%S.%f')
+                time = timestamp.strftime('%Y-%m-%d')
+                content += '\n## [%s] - %s\n%s\n' % (version.setup['version'], time, version.setup['changelog'])
+
+        create_path_recursively(changelog_path.parent)
+
+        with open(changelog_path, 'w+') as yml_f:
+            yml_f.write(content)
+
+        return changelog_path
 
     @staticmethod
     def _copy_and_zip(catalog: Catalog, catalog_local_src: str, active_solution: Solution, folder_path):
@@ -335,3 +372,14 @@ class DeployManager(metaclass=Singleton):
                 else:
                     module_logger().warn(f"Cannot find cover {cover_path.absolute()}, proceeding without copying it...")
         return cover_list
+
+    @staticmethod
+    def _attach_exports(catalog, catalog_local_src, active_solution, deploy_path: Path):
+        coordinates = active_solution.coordinates
+        solution_home = Path(catalog_local_src).joinpath(Configuration.get_solution_path_suffix(coordinates))
+        res = []
+        res.extend(DeployManager._copy_cover_to_local_src(catalog, catalog_local_src, active_solution, deploy_path))
+        res.append(DeployManager._create_docker_file_in_local_src(active_solution, solution_home))
+        res.append(DeployManager._create_yaml_file_in_local_src(active_solution, solution_home))
+        res.append(DeployManager._create_changelog_file_in_local_src(active_solution, catalog, solution_home))
+        return res

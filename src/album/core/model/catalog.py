@@ -6,6 +6,7 @@ from typing import Optional
 import validators
 from git import Repo
 
+from album.core import Solution
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.configuration import Configuration
 from album.core.utils.operations.solution_operations import get_deploy_dict
@@ -492,3 +493,10 @@ class Catalog:
             "name": self.name,
             "version": self.version
         }
+
+    def get_all_solution_versions(self, group: str, name: str):
+        versions = self.catalog_index.get_all_solution_versions(group, name)
+        res = []
+        for version in versions:
+            res.append(Solution(attrs=version))
+        return res
