@@ -48,14 +48,15 @@ class CatalogHandler:
 
         """
         initial_catalogs = self.configuration.get_initial_catalogs()
+        initial_catalogs_branch_name = self.configuration.get_initial_catalogs_branch_name()
         for catalog in initial_catalogs.keys():
-            self.add_by_src(initial_catalogs[catalog]).dispose()
+            self.add_by_src(initial_catalogs[catalog], initial_catalogs_branch_name[catalog]).dispose()
 
-    def add_by_src(self, identifier) -> Catalog:
+    def add_by_src(self, identifier, branch_name="main") -> Catalog:
         """ Adds a catalog. Creates them from their src. (Git, network-drive, folder outside cache, etc.)"""
-        catalog_meta_information = Catalog.retrieve_catalog_meta_information(identifier)
+        catalog_meta_information = Catalog.retrieve_catalog_meta_information(identifier, branch_name)
 
-        catalog = self._create_catalog_from_src(identifier, catalog_meta_information)
+        catalog = self._create_catalog_from_src(identifier, catalog_meta_information, branch_name)
 
         # always keep the local copy up to date
         if not catalog.is_cache():
@@ -87,7 +88,8 @@ class CatalogHandler:
             catalog.name,
             str(catalog.src),
             str(catalog.path),
-            int(catalog.is_deletable)
+            int(catalog.is_deletable),
+            str(catalog.branch_name)
         )
         return catalog.catalog_id
 
@@ -274,15 +276,15 @@ class CatalogHandler:
             "catalogs": self.catalog_collection.get_all_catalogs()
         }
 
-    def _create_catalog_from_src(self, src, catalog_meta_information=None) -> Catalog:
+    def _create_catalog_from_src(self, src, catalog_meta_information=None, branch_name="main") -> Catalog:
         """Creates the local cache path for a catalog given its src. (Network drive, git-link, etc.)"""
         if not catalog_meta_information:
-            catalog_meta_information = Catalog.retrieve_catalog_meta_information(src)
+            catalog_meta_information = Catalog.retrieve_catalog_meta_information(src, branch_name)
 
         # the path where the catalog lives based on its metadata
         catalog_path = self.configuration.get_cache_path_catalog(catalog_meta_information["name"])
 
-        catalog = Catalog(None, catalog_meta_information["name"], catalog_path, src=src)
+        catalog = Catalog(None, catalog_meta_information["name"], catalog_path, src=src, branch_name=branch_name)
 
         if catalog.is_local():
             catalog.src = Path(catalog.src).absolute()
@@ -383,5 +385,6 @@ class CatalogHandler:
             catalog_dict['name'],
             catalog_dict['path'],
             catalog_dict['src'],
-            bool(catalog_dict['deletable'])
+            bool(catalog_dict['deletable']),
+            catalog_dict['branch_name']
         )

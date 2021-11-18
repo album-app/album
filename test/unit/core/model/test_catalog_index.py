@@ -15,6 +15,7 @@ class TestCatalogIndex(TestUnitCommon):
     def setUp(self):
         super().setUp()
         self.catalog_index = CatalogIndex("test", Path(self.tmp_dir.name).joinpath("test_db_file"))
+        self.is_empty_or_full(empty=True)
 
     def tearDown(self):
         super().tearDown()
@@ -34,6 +35,24 @@ class TestCatalogIndex(TestUnitCommon):
         self.assertEqual(2, solution_id2)
 
         return solution_id1, solution_id2
+
+    def is_empty_or_full(self, empty=True):
+        c = self.catalog_index.get_cursor()
+
+        r = c.execute("select* from sqlite_master;").fetchall()
+
+        tables = []
+        for row in r:
+            tables.append(row["tbl_name"])
+
+        for t in tables:
+            if t != "catalog_index":  # catalog_index is never empty
+                if empty:
+                    self.assertTrue(self.catalog_index.is_table_empty(t))
+                else:
+                    self.assertFalse(self.catalog_index.is_table_empty(t))
+
+        self.catalog_index.close_current_connection()
 
     @patch("album.core.model.catalog_index.CatalogIndex.update_name_version")
     def test_create(self, update_name_version_mock):
@@ -75,8 +94,6 @@ class TestCatalogIndex(TestUnitCommon):
     # ### solution ###
 
     def test_insert_solution(self):
-        self.assertTrue(self.catalog_index.is_table_empty("solution"))
-
         # call
         solution_id1 = self.catalog_index._insert_solution(self.solution_default_dict)
 
@@ -87,7 +104,8 @@ class TestCatalogIndex(TestUnitCommon):
         # assert
         self.assertEqual(1, solution_id1)
         self.assertEqual(2, solution_id2)
-        self.assertFalse(self.catalog_index.is_table_empty("solution"))
+
+        self.assertFalse(self.is_empty_or_full(empty=False))
 
     def test_get_solution(self):
         solution_id1, _ = self.fill_solution()
@@ -151,6 +169,13 @@ class TestCatalogIndex(TestUnitCommon):
         # assert
         self.assertIsNotNone(self.catalog_index.get_solution(solution_id2))
         self.assertIsNone(self.catalog_index.get_solution(solution_id1))
+
+        self.is_empty_or_full(empty=False)
+
+        # call again
+        self.catalog_index.remove_solution(solution_id2)
+
+        self.is_empty_or_full(empty=True)
 
     def test_remove_solution_by_group_name_version(self):
         # mocks

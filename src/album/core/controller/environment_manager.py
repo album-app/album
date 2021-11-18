@@ -22,7 +22,7 @@ class EnvironmentManager(metaclass=Singleton):
             self.get_environment_name(active_solution.coordinates, catalog),
             active_solution.package_path
         )
-        self.conda_manager.install(environment, active_solution.min_album_version)
+        self.conda_manager.install(environment, active_solution.album_version)
 
         active_solution.environment = environment
 

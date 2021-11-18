@@ -83,7 +83,7 @@ def build_test_catalog(name, path):
         "format_version": "0.3.0",
         "git_repo": "https://gitlab.com/album-app/album",
         "license": "MIT",
-        "min_album_version": "0.1.0",
+        "album_version": "0.1.0",
         "sample_inputs": [
             {
                 "description": "sampleInputDescription1",
@@ -103,7 +103,7 @@ def build_test_catalog(name, path):
         "tags": [
             "tag1"
         ],
-        "tested_album_version": "0.1.0",
+        "album_api_version": "0.1.0",
         "timestamp": "2021-02-08T22:16:03.331998"
     })
     catalog_index.update(solution_attrs={
@@ -127,7 +127,7 @@ def build_test_catalog(name, path):
         "format_version": "0.3.0",
         "git_repo": "https://gitlab.com/album-app/album",
         "license": "MIT",
-        "min_album_version": "0.1.0",
+        "album_version": "0.1.0",
         "sample_inputs": [],
         "sample_outputs": [],
         "group": "ida-mdc",
@@ -138,7 +138,7 @@ def build_test_catalog(name, path):
             "tag2",
             "tag3"
         ],
-        "tested_album_version": "0.1.0",
+        "album_api_version": "0.1.0",
         "timestamp": "2021-02-08T22:16:03.331998"
     })
     catalog_index.get_connection().commit()
@@ -164,13 +164,13 @@ def build_single_solution_catalog(name, path):
         "format_version": "0.3.0",
         "git_repo": "",
         "license": "",
-        "min_album_version": "0.1.0",
+        "album_version": "0.1.0",
         "group": "testGroup",
         "name": "testName",
         "title": "testTitle",
         "version": "testVersion",
         "tags": [],
-        "tested_album_version": "0.1.0",
+        "album_api_version": "0.1.0",
         "timestamp": "2021-02-08T22:16:03.331998"
     })
     catalog_index.get_connection().commit()

@@ -65,6 +65,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             "name": catalog_name,
             "path": str(
                 Path(self.tmp_dir.name).joinpath("album", DefaultValues.catalog_folder_prefix.value, catalog_name)),
+            'branch_name': "main",
             "src": str(catalog_src),
         })
         self.assertEqual(expected_list, self.catalog_collection.get_all_catalogs())
@@ -82,7 +83,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.catalog_handler._add_to_index(catalog_to_add)
 
         # assert
-        insert_catalog_mock.assert_called_once_with("mycatalog", 'None', str(catalog_path), 1)
+        insert_catalog_mock.assert_called_once_with("mycatalog", 'None', str(catalog_path), 1, "main")
 
     def test_get_by_id(self):
         # mocks
@@ -319,6 +320,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             'name': "myCatalog",
             'path': "myPath",
             'src': "mySrc",
+            'branch_name': "main",
             'deletable': True
         }
         catalog = self.catalog_handler._as_catalog(catalog_dict)
@@ -346,6 +348,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             'name': "myCatalog",
             'path': "myPath",
             'src': "mySrc",
+            'branch_name': "main",
             'deletable': True
         }
 
@@ -372,6 +375,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             'name': "myCatalog",
             'path': "myPath",
             'src': "mySrc",
+            'branch_name': "main",
             'deletable': False
         }
         catalog = self.catalog_handler._as_catalog(catalog_dict)
@@ -673,6 +677,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             'name': "myCatalog",
             'path': "myPath",
             'src': "mySrc",
+            'branch_name': 'main',
             'deletable': True
         }
 

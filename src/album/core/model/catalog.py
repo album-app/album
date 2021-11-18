@@ -20,13 +20,10 @@ from album.runner import album_logging
 module_logger = album_logging.get_active_logger
 
 
-# todo: how to do that efficiently? Download the whole catalog? Or only the index and then the corresp.
-#  solutions whenever they are used?
-def get_index_url(src):
+def get_index_url(src, branch_name="main"):
     """Gets the download link for an index."""
-    # todo: "main" is still hardcoded! :(
-    index_src = re.sub(r"\.git$", "", src) + "/-/raw/main/%s" % DefaultValues.catalog_index_file_name.value
-    index_meta_src = re.sub(r"\.git$", "", src) + "/-/raw/main/%s" % DefaultValues.catalog_index_metafile_json.value
+    index_src = re.sub(r"\.git$", "", src) + "/-/raw/%s/%s" % (branch_name, DefaultValues.catalog_index_file_name.value)
+    index_meta_src = re.sub(r"\.git$", "", src) + "/-/raw/%s/%s" % (branch_name, DefaultValues.catalog_index_metafile_json.value)
     return index_src, index_meta_src
 
 
@@ -37,12 +34,10 @@ def get_index_dir(src):
     return index_src, index_meta_src
 
 
-# todo: this is not good! Think of smth. clever here
-def get_solution_src(src, coordinates: Coordinates):
+def get_solution_src(src, coordinates: Coordinates, branch_name="main"):
     """Gets the download link for a solution."""
-    # todo: "main" is still hardcoded! :(
-    return re.sub(r"\.git$", "", src) + "/-/raw/main/solutions/%s/%s/%s/%s" \
-           % (coordinates.group, coordinates.name, coordinates.version,
+    return re.sub(r"\.git$", "", src) + "/-/raw/%s/solutions/%s/%s/%s/%s" \
+           % (branch_name, coordinates.group, coordinates.name, coordinates.version,
               "%s_%s_%s%s" % (coordinates.group, coordinates.name, coordinates.version, ".zip"))
 
 
@@ -76,7 +71,7 @@ class Catalog:
     # default prefix how to organize solutions. gnv = Group Name Version folder structure.
     gnv_solution_prefix = DefaultValues.cache_path_solution_prefix.value
 
-    def __init__(self, catalog_id, name, path, src=None, deletable=True):
+    def __init__(self, catalog_id, name, path, src=None, deletable=True, branch_name="main"):
         """Init routine.
 
         Args:
@@ -91,6 +86,8 @@ class Catalog:
                 Can be a URL, a git-link, a path to a network-device or a path to any other storage system.
             deletable:
                 Boolean to indicate whether the catalog is deletable or not. Relevant for a collection of catalogs.
+            branch_name:
+                When a git based catalog this attribute can be set to use other branches than the main branch (default)
         """
         self.catalog_id = catalog_id
         self.name = name
@@ -98,6 +95,7 @@ class Catalog:
         self.version = None  # is set automatically with the index
         self.catalog_index: Optional[CatalogIndex] = None
         self.path = Path(path)
+        self.branch_name = branch_name
 
         self.is_deletable = deletable
 
@@ -243,7 +241,7 @@ class Catalog:
             copy(src_path, solution_zip_file)
 
         else:  # src to download from
-            url = get_solution_src(self.src, coordinates)
+            url = get_solution_src(self.src, coordinates, self.branch_name)
             solution_zip_file = self.get_solution_zip(coordinates)
             download_resource(url, solution_zip_file)
 
@@ -295,7 +293,7 @@ class Catalog:
 
     def get_version(self):
         database_version = self.catalog_index.get_version()
-        meta_dict = Catalog.retrieve_catalog_meta_information(self.path)
+        meta_dict = Catalog.retrieve_catalog_meta_information(self.path, self.branch_name)
         if meta_dict:
             meta_version = meta_dict['version']
         else:
@@ -416,7 +414,7 @@ class Catalog:
         Returns
             Index availability: True when the index was available, false when the catalog has no index file in the src.
         """
-        src, meta_src = get_index_url(self.src)
+        src, meta_src = get_index_url(self.src, self.branch_name)
 
         # check metadata first before moving on
         download_resource(meta_src, self._meta_path)
@@ -462,9 +460,9 @@ class Catalog:
             return repo
 
     @staticmethod
-    def retrieve_catalog_meta_information(identifier):
+    def retrieve_catalog_meta_information(identifier, branch_name="main"):
         if validators.url(str(identifier)):
-            _, meta_src = get_index_url(identifier)
+            _, meta_src = get_index_url(identifier, branch_name)
             meta_file = download_resource(
                 meta_src, Configuration().cache_path_download.joinpath(DefaultValues.catalog_index_metafile_json.value)
             )

@@ -108,7 +108,7 @@ class TestInstallManager(TestUnitCommon):
         install_environment.assert_called_once()
 
     def test__install_active_solution_with_parent(self):
-        self.active_solution.min_album_version = "test"
+        self.active_solution.album_version = "test"
 
         self.parent_solution = deepcopy(self.active_solution)
         self.parent_solution.environment = EmptyTestClass()  # different object in memory

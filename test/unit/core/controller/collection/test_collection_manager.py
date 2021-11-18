@@ -35,14 +35,16 @@ class TestCatalogCollectionCommon(TestUnitCommon):
                 'name': test_catalog1_name,
                 'path': str(
                     Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, test_catalog1_name)),
-                'src': str(test_catalog1_src)
+                'src': str(test_catalog1_src),
+                'branch_name': "main"
             },
             {
                 'catalog_id': 2,
                 'deletable': 1,
                 'name': "default",
                 'path': str(Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, "default")),
-                'src': str(DefaultValues.default_catalog_src.value)
+                'src': str(DefaultValues.default_catalog_src.value),
+                'branch_name': "main"
             },
             {
                 'catalog_id': 3,
@@ -50,7 +52,8 @@ class TestCatalogCollectionCommon(TestUnitCommon):
                 'name': test_catalog2_name,
                 'path': str(
                     Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, "test_catalog2")),
-                'src': str(test_catalog2_src)
+                'src': str(test_catalog2_src),
+                'branch_name': "main"
             }
         ]
         self.catalog_collection = CollectionIndex(
@@ -78,7 +81,8 @@ class TestCatalogCollectionCommon(TestUnitCommon):
                 catalog["name"],
                 catalog["src"],
                 catalog["path"],
-                catalog["deletable"]
+                catalog["deletable"],
+                catalog["branch_name"],
             )
         self.assertEqual(self.catalog_list, self.catalog_collection.get_all_catalogs())
 
@@ -138,6 +142,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
                 'src': str(Path(self.tmp_dir.name).joinpath("my-catalogs", "test_catalog")),
                 'path': str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog")),
                 'deletable': 0,
+                'branch_name': "main",
                 'solutions': []
             }, {
                 'catalog_id': 2,
@@ -145,6 +150,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
                 'src': 'https://gitlab.com/album-app/catalogs/default',
                 'path': str(Path(self.tmp_dir.name).joinpath("catalogs", "default")),
                 'deletable': 1,
+                'branch_name': "main",
                 'solutions': []
             },
             {
@@ -153,6 +159,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
                 'src': str(Path(self.tmp_dir.name).joinpath("my-catalogs", "test_catalog2")),
                 'path': str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog2")),
                 'deletable': 1,
+                'branch_name': "main",
                 'solutions': []
             }
         ]}

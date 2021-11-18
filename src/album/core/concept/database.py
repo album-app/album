@@ -116,6 +116,16 @@ class Database(abc.ABC):
 
         return created
 
+    def is_table_empty(self, table, close=True):
+        cursor = self.get_cursor()
+
+        r = cursor.execute("SELECT * FROM %s" % table).fetchone()
+
+        if close:
+            self.close_current_connection()
+
+        return False if r else True
+
     @abc.abstractmethod
     def __len__(self, close=True):
         pass

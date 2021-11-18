@@ -15,7 +15,11 @@ class DefaultValues(Enum):
     # catalog
     local_catalog_name = 'catalog_local'                                   # the default name of the local catalog (always configured)
     _catalog_url = 'https://gitlab.com/album-app/catalogs/default'
+    _catalog_branch = "update_setup_fields"
     default_catalog_src = os.getenv('ALBUM_DEFAULT_CATALOG', _catalog_url) # default catalog, either catalog_url or env. variable
+    default_catalog_src_branch = os.getenv(
+        'ALBUM_DEFAULT_CATALOG_BRANCH', _catalog_branch
+    )                                                                      # default catalog branch either _catalog_branch or env. variable
     default_catalog_name = "default"                                       # default catalog, either catalog_url or env. variable
     catalog_collection_name = 'album_collection'                           # the default name of the Collection
     catalog_collection_db_name = 'catalog_collection.db'                   # the default name of the Collection DB

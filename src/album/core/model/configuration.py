@@ -130,6 +130,14 @@ class Configuration(metaclass=Singleton):
             DefaultValues.default_catalog_name.value: DefaultValues.default_catalog_src.value
         }
 
+    @staticmethod
+    def get_initial_catalogs_branch_name():
+        """Returns the default catalogs branches to use."""
+        return {
+            DefaultValues.local_catalog_name.value: None,
+            DefaultValues.default_catalog_name.value: DefaultValues.default_catalog_src_branch.value
+        }
+
     def empty_tmp(self):
         """Removes the content of the tmp folder"""
         force_remove(self.cache_path_tmp)

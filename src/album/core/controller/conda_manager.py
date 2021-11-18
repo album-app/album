@@ -441,11 +441,11 @@ class CondaManager(metaclass=Singleton):
             module_logger().warning("No yaml file specified. Creating Environment without dependencies!")
             self.create_environment(environment.name)
 
-    def install(self, environment: Environment, min_album_version=None):
+    def install(self, environment: Environment, album_version=None):
         """Creates or updates an an environment and installs album in the target environment."""
         self.create_or_update_env(environment)
         self.set_environment_path(environment)
-        self.install_framework(environment.path, min_album_version)
+        self.install_framework(environment.path, album_version)
 
     # ToDo: use explicit versioning of album
     def install_framework(self, environment_path: str, min_framework_version=None):

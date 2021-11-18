@@ -40,19 +40,14 @@ album run [path-to-solution] --my-parameter [parameter-value]
 ### Setup parameters
 The setup parameters are derived from the [bioimage.io]() specification.
 
+#### Coordinates of a solution
+
 * `group`: The group/organization associated with the specific solution.
 * `name`: The name of the solution itself
 * `version`: The version of the solution. Note that the `-SNAPSHOT`
   convention is used to indicate a version is not yet final.
-* `description`: This is a short description of the specific solution.
-* `url`: The URL of this solution.
-* `license`: The license of the solution (e.g. MIT, Apache, GPL, ...)
-* `min_album_version`: The minimum version of
-  [album](https://album.solutions) required to run this solution.
-* `tested_album_version`: The most recent version of
-  [album](https://album.solutions) that was tested with this solution.
-* `args`: The arguments that can be (and may be required) to run the
-  specific solution.
+
+#### Lambdas of a solution
 * `run`: The `run` function for the solution. This can either be a
   variable that points to a function, or a `lambda` function. This
   function is evaluated within the solution's environment.
@@ -67,10 +62,25 @@ The setup parameters are derived from the [bioimage.io]() specification.
   variable that points to a function, or a `lambda` function. This
   function is evaluated in the solution environment and tests whether
   the solution is working as expected.
+* `close`: The `close` function for the solution. This can either be a
+ variable that points to a function, or a `lambda` function. This
+ function is evaluated in the solution environment when the solution
+ finishes running.
+  
+#### Metadata of a solution
+* `title`: The title of the solution.
+* `description`: This is a short description of the specific solution.
+* `url`: The URL of this solution.
+* `license`: The license of the solution (e.g. MIT, Apache, GPL, ...)
+* `album_version`: The minimum version of
+  [album](https://album.solutions) required to run this solution.
+* `album_api_version`: The minimum  required version of the album API
+   that was tested with this solution.
+* `args`: The arguments that can be (and may be required) to run the
+  specific solution.
 * `author`: This (these) are the authors of the solution. This is a
   string-type variable.
 * `author_email`: This is the email of the author responsible for the solution.
-* `long_description`: This is a long description of the solution.
 * `git_repo`: This is the URL of the git repository that stores the
   code that this solution provides.
 * `dependencies`: This is a dictionary that specifies the environment
@@ -82,26 +92,20 @@ The setup parameters are derived from the [bioimage.io]() specification.
   associated with this solution file. Each dictionary may contain
   keys: `text` for the text representation of the citation (Harvard
   format), and `doi` the DOI URL of the solution, if one is available.
-* `tags`: This is a list of strings for tags that descript the
-  specific solution.
-* `documentation`: A link to the documentation for the solution.
+* `tags`: This is a list of strings for tags that describe the key features of 
+  the solution.
+* `documentation`: A list of markdown files or links to the documentation for the solution.
 * `covers`: This is a list of cover images to be displayed for this
   solution in a catalog.
-* `sample_inputs`: This is a list of sample inputs that can be used to
-  test the specific solution.
-* `sample_outputs`: This is an example output that can be used for
-  comparison when running the solution on the `sample_inputs`.
 * `doi`: This is the DOI of *this* solution. This DOI is distinct from
   DOIs of citations for this solution. This DOI points to the `album`
   solution for the specific solution.
 * `catalog`: The catalog that this solution was obtained from.
+* `acknowledgement`: A free text place for funding, important institutions, people, and more. 
+
+#### Optional keys for a solution
 * `parent`: (Optional) A parent solution for the specific solution.
 * `steps`: (Optional) A sequence of steps to be evaluated in this solution.
-* `close`: The `close` function for the solution. This can either be a
-  variable that points to a function, or a `lambda` function. This
-  function is evaluated in the solution environment when the solution
-  finishes running.
-* `title`: The title of the solution.
 
 ### Solution API
 
