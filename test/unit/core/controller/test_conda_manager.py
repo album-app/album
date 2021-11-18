@@ -162,6 +162,15 @@ class TestCondaManager(TestUnitCommon):
 
         self.conda.pip_install(p, "anytree")
 
+    def test_pip_install_no_cache(self):
+        with patch('album.core.controller.conda_manager.subcommand.run') as run_mock:
+            self.conda.pip_install("myEnvironmentPath", "anytree", use_cache=False)
+
+            # expected
+            name1, args1, kwargs1 = run_mock.mock_calls[0]
+
+            self.assertIn('--no-cache-dir', args1[0])
+
     def test_run_script(self):
         with open(self.closed_tmp_file.name, "w") as f:
             f.writelines("print(\"%s\")" % self.test_environment_name)
@@ -339,7 +348,7 @@ class TestCondaManager(TestUnitCommon):
         environment.path = "aPath"
         self.conda.pip_install_into_environment(environment.path, "test", "testVersion")
 
-        conda_install_mock.assert_called_once_with("aPath", "test==testVersion")
+        conda_install_mock.assert_called_once_with("aPath", "test==testVersion", True)
 
 
 if __name__ == '__main__':

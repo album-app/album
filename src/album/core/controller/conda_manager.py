@@ -235,7 +235,7 @@ class CondaManager(metaclass=Singleton):
                 self.remove_environment(environment_name)
             raise RuntimeError("Command failed due to reasons above!") from e
 
-    def pip_install(self, environment_path, module, timeout1=60, timeout2=120):
+    def pip_install(self, environment_path, module, use_cache=True, timeout1=60, timeout2=120):
         """Installs a package in the given environment via pip.
 
         Args:
@@ -243,6 +243,8 @@ class CondaManager(metaclass=Singleton):
                 The prefix path of the environment to install the package to.
             module:
                 The module or package name.
+            use_cache:
+                If True, pip uses the cache option, else not.
             timeout1:
                 Timeout in seconds, after which a rescue operation (linebreak input) is send to the
                 process running the operation. Timeout is resets each time a feedback is passed to the main process.
@@ -250,23 +252,29 @@ class CondaManager(metaclass=Singleton):
                 Timeout in seconds after timeout1 passed, after which the process behind the
                 operation is declared dead. Timeout is resets each time a feedback is passed to the main process.
         """
+        subprocess_args_base = [
+            self.conda_executable, 'run', '--no-capture-output', '--prefix', environment_path
+        ]
+
         if sys.platform == 'win32' or sys.platform == 'cygwin':
             # NOTE: WHEN USING 'CONDA RUN' THE CORRECT ENVIRONMENT GETS TEMPORARY ACTIVATED,
             # BUT THE PATH POINTS TO THE WRONG PIP (conda base folder + Scripts + pip) BECAUSE THE CONDA BASE PATH
             # COMES FIRST IN ENVIRONMENT VARIABLE "%PATH%". THUS, FULL PATH IS NECESSARY TO CALL
             # THE CORRECT PYTHON OR PIP! ToDo: keep track of this!
-            subprocess_args = [
-                self.conda_executable, 'run', '--no-capture-output', '--prefix',
-                environment_path, str(Path(environment_path).joinpath('python')), '-m', 'pip', 'install',
-                '--no-warn-conflicts', module
-            ]
+            subprocess_args = [str(Path(environment_path).joinpath('python'))]
         else:
-            subprocess_args = [
-                self.conda_executable, 'run', '--no-capture-output', '--prefix',
-                environment_path, 'python', '-m', 'pip', 'install', '--no-warn-conflicts', module
-            ]
+            subprocess_args = ['python']
 
-        subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
+        subprocess_args += ['-m', 'pip', 'install', '--no-warn-conflicts']
+
+        if not use_cache:
+            subprocess_args += ['--no-cache-dir']
+
+        subprocess_args += [module]
+
+        subprocess_call = subprocess_args_base + subprocess_args
+
+        subcommand.run(subprocess_call, log_output=False, timeout1=timeout1, timeout2=timeout2)
 
     def conda_install(self, environment, module, timeout1=60, timeout2=120):
         """Installs a package in the given environment via conda.
@@ -452,9 +460,9 @@ class CondaManager(metaclass=Singleton):
         """Installs the album dependency in the environment"""
 
         if not self.is_installed(environment_path, "album-runner", min_framework_version):
-            self.pip_install_into_environment(environment_path, DefaultValues.runner_url.value)
+            self.pip_install_into_environment(environment_path, DefaultValues.runner_url.value, use_cache=False)
 
-    def pip_install_into_environment(self, environment_path: str, module, version=None):
+    def pip_install_into_environment(self, environment_path: str, module, version=None, use_cache=True):
         """Installs the given module in the environment.
 
         Either this environment is given by name, or the current active
@@ -467,6 +475,8 @@ class CondaManager(metaclass=Singleton):
                 Either a path to a git or a package name.
             version:
                 The version of the package to install. Must left unspecified if module points to a git.
+            use_cache:
+                If True, pip installation will use cache, else not.
         """
 
         if version:
@@ -474,4 +484,4 @@ class CondaManager(metaclass=Singleton):
 
         module_logger().debug("Installing %s in environment %s..." % (module, str(environment_path)))
 
-        self.pip_install(str(environment_path), module)
+        self.pip_install(str(environment_path), module, use_cache)
