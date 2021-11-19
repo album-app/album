@@ -14,53 +14,59 @@ CREATE TABLE IF NOT EXISTS tag
 
 CREATE TABLE IF NOT EXISTS cover
 (
-    cover_id        INTEGER PRIMARY KEY,
-    solution_id     INTEGER not null,
-    source          TEXT not null,
-    description     TEXT,
+    cover_id    INTEGER PRIMARY KEY,
+    solution_id INTEGER not null,
+    source      TEXT    not null,
+    description TEXT,
+    FOREIGN KEY (solution_id) REFERENCES solution (solution_id)
+);
+
+CREATE TABLE IF NOT EXISTS documentation
+(
+    documentation_id INTEGER PRIMARY KEY,
+    solution_id      INTEGER not null,
+    documentation    TEXT,
     FOREIGN KEY (solution_id) REFERENCES solution (solution_id)
 );
 
 CREATE TABLE IF NOT EXISTS citation
 (
-    citation_id     INTEGER PRIMARY KEY,
-    text            TEXT not null,
-    doi             TEXT
+    citation_id INTEGER PRIMARY KEY,
+    text        TEXT not null,
+    doi         TEXT
 );
 
 CREATE TABLE IF NOT EXISTS author
 (
-    author_id     INTEGER PRIMARY KEY,
-    name            TEXT not null
+    author_id INTEGER PRIMARY KEY,
+    name      TEXT not null
 );
 
 CREATE TABLE IF NOT EXISTS argument
 (
-    argument_id     INTEGER PRIMARY KEY,
-    name            TEXT not null,
-    type            TEXT,
-    description     TEXT not null,
-    default_value   TEXT
+    argument_id   INTEGER PRIMARY KEY,
+    name          TEXT not null,
+    type          TEXT,
+    description   TEXT not null,
+    default_value TEXT
 );
 
 CREATE TABLE IF NOT EXISTS solution
 (
-    solution_id          INTEGER PRIMARY KEY,
-    "group"              TEXT      not null,
-    name                 TEXT      not null,
-    title                TEXT      not null,
-    version              TEXT      not null,
-    format_version       TEXT,
-    timestamp            TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    description          TEXT,
-    doi                  TEXT,
-    git_repo             TEXT,
-    license              TEXT,
-    documentation        TEXT,
-    min_album_version    TEXT,
-    tested_album_version TEXT,
-    changelog            TEXT,
-    hash                 TEXT not null
+    solution_id       INTEGER PRIMARY KEY,
+    "group"           TEXT      not null,
+    name              TEXT      not null,
+    title             TEXT      not null,
+    version           TEXT      not null,
+    timestamp         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    description       TEXT,
+    doi               TEXT,
+    git_repo          TEXT,
+    license           TEXT,
+    album_version     TEXT,
+    album_api_version TEXT,
+    changelog         TEXT,
+    hash              TEXT      not null
 );
 
 CREATE TABLE IF NOT EXISTS solution_tag

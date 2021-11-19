@@ -24,12 +24,10 @@ def remove_catalog(args) -> None:
     CollectionManager().catalogs().remove_from_collection_by_src(args.src)
 
 
-# todo: do argument parsing properly
 def update(args):
     CollectionManager().catalogs().update_any(getattr(args, "catalog_name", None))
 
 
-# todo: do argument parsing properly
 def upgrade(args):
     dry_run = getattr(args, "dry_run", False)
     updates = CollectionManager().catalogs().update_collection(getattr(args, "catalog_name", None),
@@ -98,7 +96,7 @@ def info(args):
         res += 'Group            : %s\n' % solution.group
         res += 'Name             : %s\n' % solution.name
         res += 'Version          : %s' % solution.version
-        res += '%s' % RunManager.get_credit_as_string([solution])
+        res += '%s' % solution.get_credit_as_string()
         res += 'Solution metadata:\n\n'
         res += 'Solution authors : %s\n' % ", ".join(solution.authors)
         res += 'License          : %s\n' % solution.license
@@ -108,8 +106,8 @@ def info(args):
         res += 'Usage:\n\n'
         res += '  album install %s\n' % args.path
         res += '  album run %s %s\n' % (solution.coordinates, param_example_str)
-        res += '  album test %s\n' % (solution.coordinates)
-        res += '  album uninstall %s\n' % (solution.coordinates)
+        res += '  album test %s\n' % solution.coordinates
+        res += '  album uninstall %s\n' % solution.coordinates
         res += '\n'
         res += 'Run parameters:\n\n'
         for arg in deploy_dict['args']:

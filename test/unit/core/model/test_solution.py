@@ -27,7 +27,7 @@ channels:
             "group": "gr1",
             "version": "v1",
             "name": "n1",
-            "min_album_version": "1",
+            "album_version": "1",
             "dependencies": {'environment_file': self.test_environment_yml}
         }
         active_solution = Solution(solution_dict)

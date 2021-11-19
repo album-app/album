@@ -85,6 +85,7 @@ class DeployManager(metaclass=Singleton):
             catalog = self.collection_manager.catalogs().get_by_name(catalog_name)
 
         # case catalog in solution file specified
+        # TODO: discuss this
         elif active_solution["deploy"] and active_solution["deploy"]["catalog"]:
             catalog = self.collection_manager.catalogs().get_by_src(
                 active_solution["deploy"]["catalog"]["src"]

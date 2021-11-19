@@ -12,7 +12,7 @@ from test.unit.core.controller import test_search_manager, test_install_manager,
 from test.unit.core.controller.collection import test_collection_manager, test_catalog_handler, test_solution_handler
 from test.unit.core.model import test_catalog, test_configuration, test_environment, \
     test_solution, test_catalog_index, test_collection_index, test_coordinates, test_task
-from test.unit.core.utils import test_script, test_subcommand
+from test.unit.core.utils import test_subcommand
 from test.unit.core.utils.operations import test_url_operations, test_file_operations, test_git_operations, \
     test_resolve_operations
 
@@ -59,7 +59,6 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_database))
 
     # album.core.utils
-    suite.addTests(loader.loadTestsFromModule(test_script))
     suite.addTests(loader.loadTestsFromModule(test_subcommand))
 
     # album.core.utils.operations

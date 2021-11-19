@@ -58,20 +58,21 @@ setup(
     name="solution8_arguments",
     title="solution7",
     version="0.1.0",
-    format_version="0.3.0",
     timestamp="",
     description="",
     authors="",
-    cite="",
+    cite=[{
+        'text': "MyText"
+    }],
     git_repo="",
     tags=[],
     license="license",
-    documentation="",
+    documentation=[""],
     covers=[],
     sample_inputs=[],
     sample_outputs=[],
-    min_album_version="0.1.1",
-    tested_album_version="0.1.1",
+    album_version="0.1.1",
+    album_api_version="0.1.1",
     args=[
         {
             "name": "integer_arg1",

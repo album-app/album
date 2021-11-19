@@ -1,10 +1,8 @@
 import copy
 from pathlib import Path
-from typing import Optional
 
 from album.core.model.configuration import Configuration
 from album.core.model.coordinates import Coordinates
-from album.core.model.environment import Environment
 from album.runner import album_logging, AlbumRunner
 
 module_logger = album_logging.get_active_logger
@@ -12,21 +10,13 @@ module_logger = album_logging.get_active_logger
 
 class Solution(AlbumRunner):
     """Extension of a album-runner album class."""
-
-    # CAUTION: deploy_keys also used for resolving. Make sure keys do not contain callable values.
-    # If they do, add "to_string" method for @get_deploy_dict. Example see @_remove_action_from_args.
-    deploy_keys = [
-        'group', 'name', 'description', 'version', 'format_version', 'tested_album_version',
-        'min_album_version', 'license', 'git_repo', 'authors', 'cite', 'tags', 'documentation',
-        'covers', 'args', 'title', 'timestamp'
-    ]
-    min_album_version = None
+    # Note: deploy, setup- and API-keywords in the album-runner
 
     def get_deploy_dict(self):
         """Return a dictionary with the relevant deployment key/values for a given album."""
         d = {}
 
-        for k in Solution.deploy_keys:
+        for k in self.deploy_keys:
             # deepcopy necessary. Else original album object will loose "action" attributes in its arguments
             d[k] = copy.deepcopy(self.__dict__[k])
 
@@ -42,8 +32,6 @@ class Solution(AlbumRunner):
                         arg[key] = "%s_function" % key
         return solution_dict
 
-    # Note: setup- and API-keywords in the album-runner
-
     def __init__(self, attrs=None):
         """Sets object attributes in setup_keywords.
 
@@ -54,11 +42,6 @@ class Solution(AlbumRunner):
         # Attributes from the solution.py
         super().__init__(attrs)
         self.coordinates = Coordinates(attrs["group"], attrs["name"], attrs["version"])
-        self.environment: Optional[Environment] = None
-        self.data_path = None
-        self.app_path = None
-        self.package_path = None
-        self.cache_path = None
 
     def __setitem__(self, key, value):
         setattr(self, key, value)
@@ -82,3 +65,13 @@ class Solution(AlbumRunner):
         self.app_path = Configuration().cache_path_app.joinpath(str(catalog_name), path_suffix)
         self.package_path = Configuration().cache_path_solution.joinpath(str(catalog_name), path_suffix)
         self.cache_path = Configuration().cache_path_tmp.joinpath(str(catalog_name), path_suffix)
+
+    def get_credit_as_string(self) -> str:
+        res = ""
+        for citation in self.cite:
+            text = citation['text']
+            if 'doi' in citation:
+                text += ' (DOI: %s)' % citation['doi']
+            res += '%s\n' % text
+
+        return res

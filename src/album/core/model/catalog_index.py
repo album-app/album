@@ -50,16 +50,6 @@ class CatalogIndex(Database):
 
         return False if r else True
 
-    def is_table_empty(self, table, close=True):
-        cursor = self.get_cursor()
-
-        r = cursor.execute("SELECT * FROM %s" % table).fetchone()
-
-        if close:
-            self.close_current_connection()
-
-        return False if r else True
-
     # ### catalog_index ###
 
     def update_name_version(self, name, version, close=True):
@@ -138,22 +128,20 @@ class CatalogIndex(Database):
 
         cursor = self.get_cursor()
         cursor.execute(
-            "INSERT INTO solution values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO solution values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 solution_id,
                 solution_attrs["group"],
                 solution_attrs["name"],
                 solution_attrs["title"],
                 solution_attrs["version"],
-                solution_attrs["format_version"],
                 datetime.now().isoformat(),
                 solution_attrs["description"],
                 get_dict_entry(solution_attrs, "doi"),  # allow to be none
                 solution_attrs["git_repo"],
                 solution_attrs["license"],
-                solution_attrs["documentation"],
-                solution_attrs["min_album_version"],
-                solution_attrs["tested_album_version"],
+                solution_attrs["album_version"],
+                solution_attrs["album_api_version"],
                 get_dict_entry(solution_attrs, "changelog"),  # allow to be none
                 hash_val
             )
@@ -204,6 +192,10 @@ class CatalogIndex(Database):
             )
         for cover in solution_attrs["covers"]:
             self._insert_cover(cover, solution_id, close=False)
+
+        for documentation in solution_attrs["documentation"]:
+            self._insert_documentation(documentation, solution_id, close=False)
+
         self.save()
 
         if close:
@@ -285,6 +277,7 @@ class CatalogIndex(Database):
 
     def _insert_cover(self, cover, solution_id, close=True):
         cover_id = self.next_id("cover")
+
         cursor = self.get_cursor()
         cursor.execute(
             "INSERT INTO cover values (?, ?, ?, ?)",
@@ -300,6 +293,23 @@ class CatalogIndex(Database):
             self.close_current_connection()
 
         return cover_id
+
+    def _insert_documentation(self, documentation, solution_id, close=True):
+        documentation_id = self.next_id("documentation")
+        cursor = self.get_cursor()
+        cursor.execute(
+            "INSERT INTO documentation values (?, ?, ?)",
+            (
+                documentation_id,
+                solution_id,
+                documentation
+            )
+        )
+
+        if close:
+            self.close_current_connection()
+
+        return documentation_id
 
     def get_solution(self, solution_id, close=True) -> Optional[dict]:
         module_logger().debug("Get solution by id: \"%s\"..." % solution_id)
@@ -360,6 +370,7 @@ class CatalogIndex(Database):
         solution_id = solution["solution_id"]
         solution["authors"] = self._get_authors_by_solution(solution_id)
         solution["covers"] = self._get_covers_by_solution(solution_id)
+        solution["documentation"] = self._get_documentation_by_solution(solution_id)
         solution["args"] = self._get_arguments_by_solution(solution_id)
         solution["cite"] = self._get_citations_by_solution(solution_id)
         solution["tags"] = self._get_tags_by_solution(solution_id)
@@ -407,15 +418,13 @@ class CatalogIndex(Database):
         cursor.execute(
             "UPDATE solution SET "
             "title=:title, "
-            "format_version=:format_version, "
             "timestamp=:timestamp, "
             "description=:description, "
             "doi=:doi, "
             "git_repo=:git_repo, "
             "license=:license, "
-            "documentation=:documentation, "
-            "min_album_version=:min_album_version, "
-            "tested_album_version=:tested_album_version, "
+            "album_version=:album_version, "
+            "album_api_version=:album_api_version, "
             "changelog=:changelog,"
             "hash=:hash_val "
             "WHERE \"group\"=:group AND name=:name AND version=:version",
@@ -424,15 +433,13 @@ class CatalogIndex(Database):
                 "name": solution_attrs["name"],
                 "version": solution_attrs["version"],
                 "title": solution_attrs["title"],
-                "format_version": solution_attrs["format_version"],
                 "timestamp": "",
                 "description": solution_attrs["description"],
                 "doi": get_dict_entry(solution_attrs, "doi"),
                 "git_repo": solution_attrs["git_repo"],
                 "license": solution_attrs["license"],
-                "documentation": solution_attrs["documentation"],
-                "min_album_version": solution_attrs["min_album_version"],
-                "tested_album_version": solution_attrs["tested_album_version"],
+                "album_version": solution_attrs["album_version"],
+                "album_api_version": solution_attrs["album_api_version"],
                 "changelog": get_dict_entry(solution_attrs, "changelog"),
                 "hash_val": hash_val
             }
@@ -446,13 +453,13 @@ class CatalogIndex(Database):
         cursor = self.get_cursor()
 
         cursor.execute(
-            "DELETE FROM solution WHERE solution_id=:solution_id",
+            "DELETE FROM cover WHERE solution_id=:solution_id",
             {
                 "solution_id": solution_id
             }
         )
         cursor.execute(
-            "DELETE FROM cover WHERE solution_id=:solution_id",
+            "DELETE FROM documentation WHERE solution_id=:solution_id",
             {
                 "solution_id": solution_id
             }
@@ -505,6 +512,13 @@ class CatalogIndex(Database):
             "DELETE FROM author "
             "WHERE NOT EXISTS (SELECT sa.author_id FROM solution_author sa "
             "WHERE author.author_id = sa.author_id)")
+
+        cursor.execute(
+            "DELETE FROM solution WHERE solution_id=:solution_id",
+            {
+                "solution_id": solution_id
+            }
+        )
 
         self.save()
 
@@ -679,6 +693,25 @@ class CatalogIndex(Database):
         res = []
         for row in r:
             res.append(dict(row))
+
+        if close:
+            self.close_current_connection()
+
+        return res
+
+    def _get_documentation_by_solution(self, solution_id, close=True):
+        cursor = self.get_cursor()
+        r = cursor.execute(
+            "SELECT d.* FROM documentation d "
+            "WHERE d.solution_id=:solution_id",
+            {
+                "solution_id": solution_id
+            }
+        ).fetchall()
+
+        res = []
+        for row in r:
+            res.append(row["documentation"])
 
         if close:
             self.close_current_connection()

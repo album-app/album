@@ -16,8 +16,7 @@ from test.unit.test_unit_common import TestUnitCommon
 
 class TestCatalog(TestUnitCommon):
 
-    @patch('album.core.model.solution.Environment.__init__', return_value=None)
-    def populate_index(self, _, r=10):
+    def populate_index(self, r=10):
         for i in range(0, r):
             d = self.get_solution_dict()
 
@@ -222,7 +221,7 @@ class TestCatalog(TestUnitCommon):
 
             # assert
             self.assertEqual("0.1.0", v)
-            retrieve_c_m_i_mock.assert_called_once_with(self.catalog.path)
+            retrieve_c_m_i_mock.assert_called_once_with(self.catalog.path, "main")
 
     def test_get_version_wrong_meta(self):
         # mocks
@@ -237,7 +236,7 @@ class TestCatalog(TestUnitCommon):
                 self.catalog.get_version()
 
             # assert
-            retrieve_c_m_i_mock.assert_called_once_with(self.catalog.path)
+            retrieve_c_m_i_mock.assert_called_once_with(self.catalog.path, "main")
 
     def test_get_version_no_meta(self):
         # mocks
@@ -252,7 +251,7 @@ class TestCatalog(TestUnitCommon):
                 self.catalog.get_version()
 
             # assert
-            retrieve_c_m_i_mock.assert_called_once_with(self.catalog.path)
+            retrieve_c_m_i_mock.assert_called_once_with(self.catalog.path, "main")
 
     def test_add_and_len(self):
         self.populate_index()
@@ -512,7 +511,7 @@ class TestCatalog(TestUnitCommon):
         Catalog.retrieve_catalog_meta_information(link)
 
         # assert
-        get_index_url_mock.assert_called_once_with(link)
+        get_index_url_mock.assert_called_once_with(link, "main")
         download_resource_mock.assert_called_once_with(
             "aNewUrl", Path(self.tmp_dir.name).joinpath("album", "downloads", 'album_catalog_index.json')
         )

@@ -11,7 +11,7 @@ from album.core.model.resolve_result import ResolveResult
 from album.core.model.solution import Solution
 from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.resolve_operations import clean_resolve_tmp, build_resolve_string
-from album.core.utils.script import create_solution_script
+from album.runner.concept.script_creator import ScriptCreatorInstall, ScriptCreatorUnInstall
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
@@ -103,7 +103,7 @@ class InstallManager(metaclass=Singleton):
 
         CAUTION: Solution must be loaded!
         """
-        module_logger().info('Installing \"%s\"..' % resolve_result.loaded_solution['name'])
+        module_logger().info('Installing \"%s\"..' % resolve_result.loaded_solution.name)
         if not parent:  # fail when already installed
             if self._resolve_result_is_installed(resolve_result):
                 raise RuntimeError("Solution already installed. Uninstall solution first!")
@@ -156,8 +156,9 @@ class InstallManager(metaclass=Singleton):
             resolve_result.loaded_solution.get_deploy_dict()
         )
 
-    def _install_active_solution(self, active_solution: Solution, catalog: Catalog, argv=None) -> Optional[
-        ResolveResult]:
+    def _install_active_solution(
+            self, active_solution: Solution, catalog: Catalog, argv=None
+    ) -> Optional[ResolveResult]:
         """Installation routine for a loaded solution."""
         # install environment
         if argv is None:
@@ -180,16 +181,18 @@ class InstallManager(metaclass=Singleton):
 
     def run_solution_install_routine(self, active_solution, argv):
         """Run install routine of album if specified"""
-        if active_solution['install'] and callable(active_solution['install']):
+        script_creator_install = ScriptCreatorInstall()
+
+        if active_solution.install and callable(active_solution.install):
             module_logger().debug('Creating install script...')
-            script = create_solution_script(active_solution, "\nget_active_solution().install()\n", argv)
+            script = script_creator_install.create_script(active_solution, argv)
             module_logger().debug('Calling install routine specified in solution...')
-            album_logging.configure_logging(active_solution['name'])
+            album_logging.configure_logging(active_solution.name)
             self.conda_manager.run_scripts(active_solution.environment, [script])
             album_logging.pop_active_logger()
         else:
             module_logger().debug(
-                'No \"install\" routine configured for solution \"%s\". Skipping.' %
+                'No \"install\" routine configured for solution \"%s\". Skipping...' %
                 active_solution['name']
             )
 
@@ -257,21 +260,23 @@ class InstallManager(metaclass=Singleton):
         if rm_dep:  # remove dependencies (parent of the solution) last
             self.remove_dependencies(resolve_result.loaded_solution, rm_dep)
 
-        module_logger().info("Uninstalled \"%s\"!" % resolve_result.loaded_solution['name'])
+        module_logger().info("Uninstalled \"%s\"!" % resolve_result.loaded_solution.name)
 
     def run_solution_uninstall_routine(self, active_solution, argv):
         """Run uninstall routine of album if specified. Expects environment to be set!"""
-        if active_solution['uninstall'] and callable(active_solution['uninstall']):
+        script_creator_un_install = ScriptCreatorUnInstall()
+
+        if active_solution.uninstall and callable(active_solution.uninstall):
             module_logger().debug('Creating uninstall script...')
-            script = create_solution_script(active_solution, "\nget_active_solution().uninstall()\n", argv)
+            script = script_creator_un_install.create_script(active_solution, argv)
             module_logger().debug('Calling uninstall routine specified in solution...')
-            album_logging.configure_logging(active_solution['name'])
+            album_logging.configure_logging(active_solution.name)
             self.conda_manager.run_scripts(active_solution.environment, [script])
             album_logging.pop_active_logger()
         else:
             module_logger().info(
-                'No \"uninstall\" routine configured for solution \"%s\"! Will execute nothing!' %
-                active_solution['name']
+                'No \"uninstall\" routine configured for solution \"%s\"! Skipping...' %
+                active_solution.name
             )
 
     def remove_dependencies(self, solution, rm_dep=False):

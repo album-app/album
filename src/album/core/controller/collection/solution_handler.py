@@ -48,7 +48,7 @@ class SolutionHandler:
             catalog_child.catalog_id, coordinates_child, close=False
         )
 
-        self.catalog_collection.insert_solution_solution(
+        self.catalog_collection.insert_collection_collection(
             parent_entry["collection_id"],
             child_entry["collection_id"],
             catalog_parent.catalog_id,
@@ -70,6 +70,7 @@ class SolutionHandler:
         keys.remove("args")
         keys.remove("cite")
         keys.remove("covers")
+        keys.remove("documentation")
         # keys to allow to be set
         keys.append("hash")
         keys.append("installed")
