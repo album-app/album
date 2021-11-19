@@ -9,13 +9,13 @@ class DefaultValues(Enum):
     """Add an entry here to initialize default attributes for a album framework installation instance."""
 
     # deployment
-    runner_url = 'https://gitlab.com/album-app/album-runner/-/archive/script_to_runner/album-runner-script_to_runner.zip'  # default runner url
+    runner_url = 'https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip'  # default runner url
     catalog_template_url = 'https://gitlab.com/album-app/catalogs/templates'  # base URL of available catalog templates
 
     # catalog
     local_catalog_name = 'catalog_local'                                   # the default name of the local catalog (always configured)
     _catalog_url = 'https://gitlab.com/album-app/catalogs/default'
-    _catalog_branch = "update_setup_fields"
+    _catalog_branch = "main"
     default_catalog_src = os.getenv('ALBUM_DEFAULT_CATALOG', _catalog_url) # default catalog, either catalog_url or env. variable
     default_catalog_src_branch = os.getenv(
         'ALBUM_DEFAULT_CATALOG_BRANCH', _catalog_branch
