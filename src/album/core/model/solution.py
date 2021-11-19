@@ -66,38 +66,6 @@ class Solution(AlbumRunner):
         self.package_path = Configuration().cache_path_solution.joinpath(str(catalog_name), path_suffix)
         self.cache_path = Configuration().cache_path_tmp.joinpath(str(catalog_name), path_suffix)
 
-    def get_cmdline_info(self, load_path) -> str:
-        deploy_dict = self.get_deploy_dict()
-        param_example_str = ''
-        for arg in deploy_dict['args']:
-            param_example_str += '--%s PARAMETER_VALUE ' % arg['name']
-        res = 'Solution details about %s:\n\n' % load_path
-        res += '%s\n' % self.title
-        res += '%s\n' % ('=' * len(self.title))
-        res += '%s\n\n' % self.description
-        res += 'Group            : %s\n' % self.group
-        res += 'Name             : %s\n' % self.name
-        res += 'Version          : %s\n' % self.version
-        res += '\nSolution credits:\n\n'
-        res += '%s\n' % self.get_credit_as_string()
-        res += 'Solution metadata:\n\n'
-        res += 'Solution authors : %s\n' % ", ".join(self.authors)
-        res += 'License          : %s\n' % self.license
-        res += 'GIT              : %s\n' % self.git_repo
-        res += 'Tags             : %s\n' % ", ".join(self.tags)
-        res += '\n'
-        res += 'Usage:\n\n'
-        res += '  album install %s\n' % load_path
-        res += '  album run %s %s\n' % (self.coordinates, param_example_str)
-        res += '  album test %s\n' % self.coordinates
-        res += '  album uninstall %s\n' % self.coordinates
-        res += '\n'
-        res += 'Run parameters:\n\n'
-        for arg in deploy_dict['args']:
-            res += '  --%s: %s\n' % (arg["name"], arg["description"])
-
-        return res
-
     def get_credit_as_string(self) -> str:
         res = ""
         for citation in self.cite:
