@@ -76,7 +76,13 @@ def is_url(str_input: str):
 def download(str_input, base):
     """Downloads a solution file into a temporary file."""
     Path(base).mkdir(exist_ok=True, parents=True)
-    new_file, file_name = tempfile.mkstemp(dir=base)
-    with request.urlopen(str_input) as response, open(file_name, 'wb') as out_file:
-        shutil.copyfileobj(response, out_file)
-    return Path(file_name)
+    r = requests.get(str_input, allow_redirects=True)
+    content_type = r.headers.get('content-type').lower()
+    if content_type == 'application/zip':
+        suffix = '.zip'
+        new_file, tmp_file_name = tempfile.mkstemp(dir=base, suffix=suffix)
+    else:
+        new_file, tmp_file_name = tempfile.mkstemp(dir=base)
+    with open(tmp_file_name, 'wb') as out:
+        out.write(r.content)
+    return Path(tmp_file_name)
