@@ -144,7 +144,7 @@ class DeployManager(metaclass=Singleton):
         if not dry_run:
             catalog.add(active_solution, force_overwrite=force_deploy)
         else:
-            module_logger().info("Would add the solution %s to index..." % active_solution.name)
+            module_logger().info("Would add the solution %s to index..." % active_solution.coordinates.name)
 
         # include files/folders in catalog
         DeployManager._deploy_routine_in_local_src(catalog, catalog_local_src, active_solution, deploy_path)

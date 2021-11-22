@@ -24,7 +24,7 @@ class TestUnitInit(TestUnitCommon):
         self.assertIsNone(album.setup_solution(**self.attrs))
         active_solution = album.get_active_solution()
         self.assertIsNotNone(active_solution)
-        self.assertEqual("myname", active_solution["name"])
+        self.assertEqual('myname', active_solution.coordinates.name)
         album.pop_active_solution()
 
 

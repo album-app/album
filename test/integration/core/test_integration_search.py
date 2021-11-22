@@ -42,7 +42,7 @@ class TestIntegrationSearch(TestIntegrationCommon):
 
         # check output to have found the solution behind keyword1
         self.assertIn(
-            '%s:%s:%s:%s' % (local_catalog.name, h["group"], h["name"], h["version"]),
+            '%s:%s:%s:%s' % (local_catalog.name, h.coordinates.group, h.coordinates.name, h.coordinates.version),
             self.captured_output.getvalue()
         )
 

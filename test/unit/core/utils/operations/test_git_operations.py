@@ -91,14 +91,14 @@ class TestGitOperations(TestGitCommon):
 
         tmp_file_in_repo = Path(self.repo.working_tree_dir).joinpath(
             "solutions",
-            active_solution['group'],
-            active_solution["name"],
-            active_solution["version"],
-            "%s%s" % (active_solution['name'], ".py")
+            active_solution.coordinates.group,
+            active_solution.coordinates.name,
+            active_solution.coordinates.version,
+            "%s%s" % (active_solution.coordinates.name, ".py")
         )
         copy(tmp_file.name, tmp_file_in_repo)
 
-        commit_mssg = "Adding new/updated %s" % active_solution["name"]
+        commit_msg = "Adding new/updated %s" % active_solution.coordinates.name
 
         git_op.add_files_commit_and_push(new_head, [tmp_file_in_repo], commit_mssg, push=False)
 

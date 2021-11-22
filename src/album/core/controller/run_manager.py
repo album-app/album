@@ -101,7 +101,7 @@ class RunManager(metaclass=Singleton):
 
     def _run(self, active_solution, run_immediately=False, argv=None):
         """Run an already loaded solution."""
-        module_logger().debug("Initializing script to run \"%s\"" % active_solution.name)
+        module_logger().debug("Initializing script to run \"%s\"" % active_solution.coordinates.name)
 
         if argv is None:
             argv = [""]
@@ -115,7 +115,7 @@ class RunManager(metaclass=Singleton):
         # runs the queue
         self.run_queue(que)
 
-        module_logger().debug("Finished running script for solution \"%s\"" % active_solution.name)
+        module_logger().debug("Finished running script for solution \"%s\"" % active_solution.coordinates.name)
 
     def run_queue(self, que: Queue):
         """Runs the que. Queue consists of "solution_object and their scripts"-entries. Order matters!
@@ -129,9 +129,9 @@ class RunManager(metaclass=Singleton):
         try:
             while True:
                 solution_object, scripts = que.get(block=False)
-                module_logger().debug("Running task \"%s\"..." % solution_object.name)
+                module_logger().debug("Running task \"%s\"..." % solution_object.coordinates.name)
                 self._run_in_environment_with_own_logger(solution_object, scripts)
-                module_logger().debug("Finished running task \"%s\"!" % solution_object.name)
+                module_logger().debug("Finished running task \"%s\"!" % solution_object.coordinates.name)
                 que.task_done()
         except Empty:
             module_logger().debug("Currently nothing more to run!")
@@ -300,8 +300,8 @@ class RunManager(metaclass=Singleton):
                 The solution object and its scripts (in a list)
 
         """
-        module_logger().debug('Creating standalone album script \"%s\"...' % active_solution.name)
         script = script_creator.create_script(active_solution, args)
+        module_logger().debug('Creating standalone album script \"%s\"...' % active_solution.coordinates.name)
 
         self._print_credit([active_solution])
 
@@ -373,7 +373,7 @@ class RunManager(metaclass=Singleton):
 
         self.environment_manager.set_environment(parent_solution, solution_collection.parent_script_catalog)
         module_logger().debug('Creating script for steps (%s) with parent \"%s\"...' % (
-            ", ".join([s["name"] for s in solution_collection.steps_solution]), parent_solution["name"]))
+            ", ".join([s.coordinates.name for s in solution_collection.steps_solution]), parent_solution.coordinates.name))
 
         # handle arguments
         parsed_parent_args, parsed_steps_args_list = self.resolve_args(
@@ -419,7 +419,7 @@ class RunManager(metaclass=Singleton):
             A list holding all execution scripts.
 
         """
-        module_logger().debug('Creating album script with parent \"%s\"...' % parent_solution.name)
+        module_logger().debug('Creating album script with parent \"%s\"...' % parent_solution.coordinates.name)
 
         script_creator_run_with_parent = ScriptCreatorRunWithParent(script_creator, child_solution_list, child_args)
         script = script_creator_run_with_parent.create_script(parent_solution, parent_args)
@@ -497,16 +497,16 @@ class RunManager(metaclass=Singleton):
 
             # args_unknown are step args
             parsed_steps_args_list.append(args_unknown)
-            module_logger().debug('For step \"%s\" set step arguments to %s...' % (step_solution.name, args_unknown))
+            module_logger().debug('For step \"%s\" set step arguments to %s...' % (step_solution.coordinates.name, args_unknown))
 
         return parsed_parent_args, parsed_steps_args_list
 
     def _run_in_environment_with_own_logger(self, active_solution: Solution, scripts):
         """Pushes a new logger to the stack before running the solution and pops it afterwards."""
-        album_logging.configure_logging(active_solution.name)
-        module_logger().debug("Running script in environment of solution \"%s\"..." % active_solution.name)
-        self.environment_manager.run_scripts(active_solution, scripts)
-        module_logger().debug("Done running script in environment of solution \"%s\"..." % active_solution.name)
+        album_logging.configure_logging(active_solution.coordinates.name)
+        module_logger().debug("Running script in environment of solution \"%s\"..." % active_solution.coordinates.name)
+        self.environment_manager.run_scripts(active_solution.environment, scripts)
+        module_logger().debug("Done running script in environment of solution \"%s\"..." % active_solution.coordinates.name)
         album_logging.pop_active_logger()
 
     @staticmethod

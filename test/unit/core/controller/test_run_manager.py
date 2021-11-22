@@ -572,7 +572,7 @@ class TestRunManager(TestUnitCommon):
 
         self.run_manager._run_in_environment_with_own_logger(self.active_solution, "")
 
-        conf_mock.assert_called_once_with(self.active_solution["name"])
+        conf_mock.assert_called_once_with(self.active_solution.coordinates.name)
         run_scripts_mock.assert_called_once_with(self.active_solution, "")
         pop_mock.assert_called_once()
 

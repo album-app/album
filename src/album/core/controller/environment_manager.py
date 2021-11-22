@@ -64,10 +64,10 @@ class EnvironmentManager(metaclass=Singleton):
             env_name = self.get_environment_name(active_solution.coordinates, catalog)
             self.conda_manager.remove_environment(env_name)
 
-    def run_scripts(self, active_solution: Solution, scripts):
+    def run_scripts(self, environment: Environment, scripts):
         """Runs scripts in an environment"""
-        if active_solution.environment:
-            self.conda_manager.run_scripts(active_solution.environment, scripts)
+        if environment:
+            self.conda_manager.run_scripts(environment, scripts)
         else:
             raise EnvironmentError("Environment not set! Cannot run scripts!")
 
