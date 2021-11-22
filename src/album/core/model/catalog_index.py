@@ -31,7 +31,7 @@ class CatalogIndex(Database):
         super().__init__(path)
 
     def create(self):
-        data = pkgutil.get_data('album.core.database', 'catalog_index_schema.sql')
+        data = pkgutil.get_data('album.core.schema', 'catalog_index_schema.sql')
 
         cursor = self.get_cursor()
         cursor.executescript(data.decode("utf-8"))

@@ -1,3 +1,8 @@
+import json
+import pkgutil
+
+from jsonschema import validate
+
 from album.core.concept.singleton import Singleton
 from album.core.model.catalog import Catalog
 from album.core.model.catalog_index import CatalogIndex
@@ -16,7 +21,7 @@ class MigrationManager(metaclass=Singleton):
     """
 
     def __init__(self):
-        pass
+        self.schema_solution = None
 
     def create_collection_index(self, path, initial_name, initial_version) -> CollectionIndex:
         """Creates a Collection Index and migrates its database to the target version."""
@@ -69,3 +74,13 @@ class MigrationManager(metaclass=Singleton):
 
             return True
         return False
+
+    def validate_solution(self, active_solution):
+        self.load_solution_schema()
+        data = active_solution.setup
+        validate(data, self.schema_solution)
+
+    def load_solution_schema(self):
+        if not self.schema_solution:
+            data = pkgutil.get_data('album.core.schema', 'solution_schema_0.json')
+            self.schema_solution = json.loads(data)

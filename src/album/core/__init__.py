@@ -87,6 +87,7 @@ def load(path) -> Optional[Solution]:
         solution = f.read()
     exec(solution)
     active_solution = get_active_solution()
+    MigrationManager().validate_solution(active_solution)
     active_solution.script = solution
     pop_active_solution()
     return active_solution

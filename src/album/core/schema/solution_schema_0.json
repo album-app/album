@@ -1,0 +1,225 @@
+{
+    "$ref": "#/definitions/RDF",
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "definitions": {
+        "Argument": {
+            "additionalProperties": false,
+            "properties": {
+                "name": {
+                    "title": "name",
+                    "type": "string"
+                },
+                "description": {
+                    "title": "description",
+                    "type": "string"
+                },
+                "type": {
+                    "title": "type",
+                    "type": "string"
+                },
+                "default": {
+                    "title": "default"
+                },
+                "required": {
+                    "title": "required",
+                    "type": "boolean"
+                },
+                "action": {
+                    "title": "action"
+                }
+            },
+            "required": [
+                "name",
+                "description"
+            ],
+            "type": "object"
+        },
+        "Dependencies": {
+            "additionalProperties": false,
+            "properties": {
+                "parent": {
+                    "title": "parent",
+                    "type": "object"
+                },
+                "environment_file": {
+                    "title": "environment_file"
+                }
+            },
+            "required": [],
+            "type": "object"
+        },
+        "Citation": {
+            "additionalProperties": false,
+            "properties": {
+                "doi": {
+                    "title": "doi",
+                    "type": "string"
+                },
+                "text": {
+                    "title": "text",
+                    "type": "string"
+                },
+                "url": {
+                    "title": "url",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "text"
+            ],
+            "type": "object"
+        },
+        "Cover": {
+            "additionalProperties": false,
+            "properties": {
+                "source": {
+                    "title": "source",
+                    "type": "string"
+                },
+                "description": {
+                    "title": "description",
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "RDF": {
+            "additionalProperties": false,
+            "properties": {
+                "authors": {
+                    "type": "array",
+                    "title": "authors",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "args": {
+                    "items": {
+                        "$ref": "#/definitions/Argument"
+                    },
+                    "type": "array"
+                },
+                "cite": {
+                    "items": {
+                        "$ref": "#/definitions/Citation"
+                    },
+                    "type": "array"
+                },
+                "covers": {
+                    "items": {
+                        "$ref": "#/definitions/Cover"
+                    },
+                    "title": "covers",
+                    "type": "array"
+                },
+                "description": {
+                    "title": "description",
+                    "type": "string"
+                },
+                "documentation": {
+                    "title": "documentation",
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ]
+                },
+                "acknowledgement": {
+                    "title": "acknowledgement",
+                    "type": "string"
+                },
+                "license": {
+                    "title": "license",
+                    "type": "string"
+                },
+                "name": {
+                    "title": "name",
+                    "type": "string"
+                },
+                "group": {
+                    "title": "name",
+                    "type": "string"
+                },
+                "title": {
+                    "title": "name",
+                    "type": "string"
+                },
+                "album_version": {
+                    "title": "name",
+                    "type": "string"
+                },
+                "album_api_version": {
+                    "title": "name",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "title": "name",
+                    "type": "string"
+                },
+                "tags": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "title": "tags",
+                    "type": "array"
+                },
+                "version": {
+                    "title": "version",
+                    "type": "string"
+                },
+                "doi": {
+                    "title": "doi",
+                    "type": "string"
+                },
+                "deposit_id": {
+                    "title": "deposit_id",
+                    "type": "string"
+                },
+                "dependencies": {
+                    "title": "dependencies",
+                    "type": "object",
+                    "$ref": "#/definitions/Dependencies"
+                },
+                "steps": {
+                    "title": "steps"
+                },
+                "install": {
+                    "title": "install"
+                },
+                "uninstall": {
+                    "title": "uninstall"
+                },
+                "run": {
+                    "title": "run"
+                },
+                "test": {
+                    "title": "test"
+                },
+                "pre_test": {
+                    "title": "pre_test"
+                },
+                "close": {
+                    "title": "close"
+                }
+            },
+            "required": [
+                "cite",
+                "description",
+                "title",
+                "authors",
+                "name",
+                "group",
+                "version",
+                "tags",
+                "license"
+            ],
+            "type": "object"
+        }
+    }
+}

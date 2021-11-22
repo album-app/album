@@ -4,13 +4,9 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from album.core.controller.collection.catalog_handler import CatalogHandler
-
-from album.core.model.catalog import Catalog
-
-from album.core.model.default_values import DefaultValues
-
 from album.core.controller.migration_manager import MigrationManager
-
+from album.core.model.catalog import Catalog
+from album.core.model.default_values import DefaultValues
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -84,3 +80,7 @@ class TestMigrationManager(TestUnitCommon):
     def test_refresh_index_broken_src(self):
         self.catalog = Catalog(1, "catalog_name", "catalog/path", "http://google.com/doesNotExist.ico")
         self.assertFalse(MigrationManager().refresh_index(self.catalog))
+
+    def test_validate_solution(self):
+        self.create_test_solution_no_env()
+        MigrationManager().validate_solution(self.active_solution)
