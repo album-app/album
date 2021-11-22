@@ -478,12 +478,12 @@ class TestRunManager(TestUnitCommon):
         # the arguments of the steps solution for each step
         steps = [
             {
-                "name": "Step1",
-                "args": [{"name": "s1_arg1", "value": lambda args: "s1_arg1_value"}]
+                'name': 'Step1',
+                'args': [{'name': 's1_arg1', 'value': lambda args: 's1_arg1_value'}]
             },
             {
-                "name": "Step2",
-                "args": [{"name": "s2_arg1", "value": lambda args: "s2_arg1_value"}]
+                'name': 'Step2',
+                'args': [{'name': 's2_arg1', 'value': lambda args: 's2_arg1_value'}]
             }
         ]
 
@@ -505,11 +505,11 @@ class TestRunManager(TestUnitCommon):
         # Todo: the arguments of the step description contradict with the one the step1 one actually needs!!!
         step1_solution.args = [
             {
-                "name": "arg1_step1",
-                "value": "arg1val_step1"
+                'name': 'arg1_step1',
+                'value': 'arg1val_step1'
             }, {
-                "name": "arg2_step1",
-                "value": "arg2val_step1"
+                'name': 'arg2_step1',
+                'value': 'arg2val_step1'
             }
         ]
 
@@ -530,24 +530,24 @@ class TestRunManager(TestUnitCommon):
         }
         step2_solution.args = [
             {
-                "name": "arg1_step2",
-                "value": "arg1val_step2"
+                'name': 'arg1_step2',
+                'value': 'arg1val_step2'
             }, {
-                "name": "arg2_step2",
-                "value": "arg2val_step2"
+                'name': 'arg2_step2',
+                'value': 'arg2val_step2'
             }
         ]
 
         # the parent solution of both and its argument
         parent_solution = deepcopy(self.active_solution)
         parent_solution.args = [{
-            "name": "parent_arg1",
-            "default": "",
-            "description": "",
+            'name': 'parent_arg1',
+            'default': '',
+            'description': '',
         }, {
-            "name": "parent_arg2",
-            "default": "",
-            "description": "",
+            'name': 'parent_arg2',
+            'default': '',
+            'description': '',
         }]
 
         parsed_parent_args, parsed_steps_args_list = self.run_manager.resolve_args(
