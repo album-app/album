@@ -21,8 +21,7 @@ class TestIntegrationUninstall(TestIntegrationCommon):
         self.assertEqual(
             0,
             len(self.collection_manager.catalog_collection.get_solutions_by_catalog(
-                self.collection_manager.catalogs().get_local_catalog().catalog_id)
-            )
+                self.collection_manager.catalogs().get_local_catalog().catalog_id))
         )
 
         self.fake_install(self.get_test_solution_path(), create_environment=False)

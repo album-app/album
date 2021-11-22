@@ -1,7 +1,5 @@
 import unittest
 
-from album.core.concept.singleton import Singleton
-
 
 class TestSingleton(unittest.TestCase):
 

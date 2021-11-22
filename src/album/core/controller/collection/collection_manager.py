@@ -3,9 +3,9 @@ from typing import Optional
 
 from album.core import load
 from album.core.concept.singleton import Singleton
-# classes and methods
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.collection.solution_handler import SolutionHandler
+from album.core.controller.conda_manager import CondaManager
 from album.core.controller.migration_manager import MigrationManager
 from album.core.model.catalog import Catalog
 from album.core.model.collection_index import CollectionIndex

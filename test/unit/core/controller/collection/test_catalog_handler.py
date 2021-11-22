@@ -22,7 +22,6 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.solution_handler = SolutionHandler(self.catalog_collection)
         self.catalog_handler = CatalogHandler(Configuration(), self.catalog_collection, self.solution_handler)
 
-
     def test_create_local_catalog(self):
         # mocks
         create_new_catalog_mock = MagicMock()

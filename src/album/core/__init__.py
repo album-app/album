@@ -16,7 +16,6 @@ __email__ = "album@kyleharrington.com"
 Global variable for tracking the currently active solution. Do not use this 
 directly instead use get_active_solution()
 """
-global _active_solution
 _active_solution = []
 
 

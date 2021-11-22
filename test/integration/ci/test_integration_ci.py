@@ -7,8 +7,7 @@ from album.ci.controller.release_manager import ReleaseManager
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.deploy_manager import DeployManager
 from album.core.model.catalog import Catalog
-from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import copy_folder, write_dict_to_json
+from album.core.utils.operations.file_operations import copy_folder
 from test.integration.test_integration_common import TestIntegrationCommon
 
 

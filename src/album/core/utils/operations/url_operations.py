@@ -1,8 +1,6 @@
 import re
-import shutil
 import tempfile
 from pathlib import Path
-from urllib import request
 
 import requests
 

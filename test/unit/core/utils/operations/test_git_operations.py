@@ -100,7 +100,7 @@ class TestGitOperations(TestGitCommon):
 
         commit_msg = "Adding new/updated %s" % active_solution.coordinates.name
 
-        git_op.add_files_commit_and_push(new_head, [tmp_file_in_repo], commit_mssg, push=False)
+        git_op.add_files_commit_and_push(new_head, [tmp_file_in_repo], commit_msg, push=False)
 
         # new branch created
         self.assertTrue("test_solution_name" in self.repo.branches)

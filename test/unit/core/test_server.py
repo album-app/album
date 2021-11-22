@@ -1,11 +1,11 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import flask_unittest
-from album.core.model.catalog import Catalog
 from flask.testing import FlaskClient
 
 from album.core.controller.task_manager import TaskManager
+from album.core.model.catalog import Catalog
 from album.core.server import AlbumServer
 from test.unit.test_unit_common import TestUnitCommon
 
