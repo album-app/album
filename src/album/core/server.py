@@ -7,14 +7,7 @@ from werkzeug.exceptions import abort
 import album
 from album.api import Album
 from album.core.concept.singleton import Singleton
-from album.core.controller.clone_manager import CloneManager
-from album.core.controller.collection.collection_manager import CollectionManager
-from album.core.controller.deploy_manager import DeployManager
-from album.core.controller.install_manager import InstallManager
-from album.core.controller.run_manager import RunManager
-from album.core.controller.search_manager import SearchManager
 from album.core.controller.task_manager import TaskManager
-from album.core.controller.test_manager import TestManager
 from album.runner.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.model.task import Task
@@ -32,14 +25,14 @@ class AlbumServer(metaclass=Singleton):
     def __init__(self, port: int, host: str = None):
         self.port = port
         self.host = host
-        self.album = None
+        self.album_instance = None
 
-    def setup(self, album: Album = None):
-        if album:
-            self.album = album
+    def setup(self, album_instance: Album = None):
+        if album_instance:
+            self.album_instance = album_instance
         else:
-            self.album = Album()
-            self.album.collection_manager().load_or_create_collection()
+            self.album_instance = Album()
+            self.album_instance.collection_manager().load_or_create_collection()
 
     def start(self, test_config=None):
         module_logger().info('Starting server..')
@@ -65,34 +58,34 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route("/config")
         def get_config():
             return {
-                "cache_base": str(self.album.configuration().base_cache_path),
-                "cache_tmp_internal": str(self.album.configuration().cache_path_tmp_internal),
-                "cache_tmp_user": str(self.album.configuration().cache_path_tmp_user),
-                "cache_apps": str(self.album.configuration().cache_path_app),
-                "cache_downloads": str(self.album.configuration().cache_path_download)
+                "cache_base": str(self.album_instance.configuration().base_cache_path),
+                "cache_tmp_internal": str(self.album_instance.configuration().cache_path_tmp_internal),
+                "cache_tmp_user": str(self.album_instance.configuration().cache_path_tmp_user),
+                "cache_apps": str(self.album_instance.configuration().cache_path_app),
+                "cache_downloads": str(self.album_instance.configuration().cache_path_download)
             }
 
         @self.app.route("/index")
         def get_index():
-            return self.album.collection_manager().get_index_as_dict()
+            return self.album_instance.collection_manager().get_index_as_dict()
 
         @self.app.route("/catalogs")
         def get_catalogs():
-            return CollectionManager().catalogs().get_all_as_dict()
+            return self.album_instance.collection_manager().catalogs().get_all_as_dict()
 
         @self.app.route("/recently-launched")
         def get_recently_launched_solutions():
-            return {"solutions": CollectionManager().catalog_collection.get_recently_launched_solutions()}
+            return {"solutions": self.album_instance.collection_manager().catalog_collection.get_recently_launched_solutions()}
 
         @self.app.route("/recently-installed")
         def get_recently_installed_solutions():
-            return {"solutions": CollectionManager().catalog_collection.get_recently_installed_solutions()}
+            return {"solutions": self.album_instance.collection_manager().catalog_collection.get_recently_installed_solutions()}
 
         @self.app.route('/run/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/run/<catalog>/<group>/<name>/<version>')
         def run(catalog, group, name, version):
             args = self._get_arguments(request.args)
-            task = self._run_solution_method_async(catalog, Coordinates(group, name, version), RunManager().run,
+            task = self._run_solution_method_async(catalog, Coordinates(group, name, version), self.album_instance.run_manager().run,
                                                    [True, args])
             return {"id": task.id, "msg": "process started"}
 
@@ -102,7 +95,7 @@ class AlbumServer(metaclass=Singleton):
             task = self._run_solution_method_async(
                 catalog,
                 Coordinates(group, name, version),
-                InstallManager().install
+                self.album_instance.install_manager().install
             )
             return {"id": task.id, "msg": "process started"}
 
@@ -112,14 +105,14 @@ class AlbumServer(metaclass=Singleton):
             task = self._run_solution_method_async(
                 catalog,
                 Coordinates(group, name, version),
-                InstallManager().uninstall
+                self.album_instance.install_manager().uninstall
             )
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/test/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/test/<catalog>/<group>/<name>/<version>')
         def test(catalog, group, name, version):
-            task = self._run_solution_method_async(catalog, Coordinates(group, name, version), TestManager().test)
+            task = self._run_solution_method_async(catalog, Coordinates(group, name, version), self.album_instance.test_manager().test)
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/deploy')
@@ -136,8 +129,8 @@ class AlbumServer(metaclass=Singleton):
             trigger_pipeline = False
             task = Task()
             task.args = (solution_path, catalog_name, dryrun, trigger_pipeline)
-            task.method = DeployManager().deploy
-            TaskManager().register_task(task)
+            task.method = self.album_instance.deploy_manager().deploy
+            self.task_manager().register_task(task)
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/clone/<group>/<name>/<version>', defaults={'catalog': None})
@@ -153,7 +146,7 @@ class AlbumServer(metaclass=Singleton):
             task = self._run_solution_method_async(
                 catalog,
                 Coordinates(group, name, version),
-                CloneManager().clone, args
+                self.album_instance.clone_manager().clone, args
             )
             return {"id": task.id, "msg": "process started"}
 
@@ -175,8 +168,8 @@ class AlbumServer(metaclass=Singleton):
                 for arg in args:
                     task_args.append(arg)
             task.args = tuple(task_args)
-            task.method = CloneManager().clone
-            TaskManager().register_task(task)
+            task.method = self.album_instance.clone_manager().clone
+            self.task_manager().register_task(task)
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/clone/<template_name>')
@@ -189,14 +182,14 @@ class AlbumServer(metaclass=Singleton):
                 abort(404, description=f"`name` argument missing")
             task = Task()
             task.args = tuple([template_name, target_dir, name])
-            task.method = CloneManager().clone
-            TaskManager().register_task(task)
+            task.method = self.album_instance.clone_manager().clone
+            self.task_manager().register_task(task)
             return {"id": task.id, "msg": "process started"}
 
         @self.app.route('/status/<catalog>/<group>/<name>/<version>')
         def status_solution(catalog, group, name, version):
             try:
-                collection_manager = CollectionManager()
+                collection_manager = self.album_instance.collection_manager()
                 catalog_id = collection_manager.catalog_handler.get_by_name(catalog).catalog_id
                 installed = collection_manager.catalog_collection.is_installed(
                     catalog_id,
@@ -210,15 +203,15 @@ class AlbumServer(metaclass=Singleton):
 
         @self.app.route('/status/<task_id>')
         def status_task(task_id):
-            task = TaskManager().get_task(str(task_id))
+            task = self.task_manager().get_task(str(task_id))
             if task is None:
                 abort(404, description=f"Task not found with id {task_id}")
-            return TaskManager().get_status(task)
+            return self.task_manager().get_status(task)
 
         @self.app.route('/add-catalog')
         def add_catalog():
             url = request.args.get("src")
-            catalog = CollectionManager().catalogs().add_by_src(url)
+            catalog = self.album_instance.collection_manager().catalogs().add_by_src(url)
             catalog_id = catalog.catalog_id
             return {"catalog_id": catalog_id}
 
@@ -227,9 +220,9 @@ class AlbumServer(metaclass=Singleton):
             url = request.args.get("src", default=None)
             name = request.args.get("name", default=None)
             if name is None:
-                CollectionManager().catalogs().remove_from_collection_by_src(url)
+                self.album_instance.collection_manager().catalogs().remove_from_collection_by_src(url)
             else:
-                CollectionManager().catalogs().remove_from_collection_by_name(name)
+                self.album_instance.collection_manager().catalogs().remove_from_collection_by_name(name)
             return {}
 
         @self.app.route('/upgrade')
@@ -238,12 +231,12 @@ class AlbumServer(metaclass=Singleton):
             name = request.args.get("name", default=None)
             dry_run = request.args.get("dry_run", default=False)
             if name is None and src is None:
-                res = CollectionManager().catalogs().update_collection(dry_run=dry_run)
+                res = self.album_instance.collection_manager().catalogs().update_collection(dry_run=dry_run)
             elif name is None:
-                catalog = CollectionManager().catalogs().get_by_src(src)
-                res = CollectionManager().catalogs().update_collection(catalog_name=catalog.name, dry_run=dry_run)
+                catalog = self.album_instance.collection_manager().catalogs().get_by_src(src)
+                res = self.album_instance.collection_manager().catalogs().update_collection(catalog_name=catalog.name, dry_run=dry_run)
             else:
-                res = CollectionManager().catalogs().update_collection(catalog_name=name, dry_run=dry_run)
+                res = self.album_instance.collection_manager().catalogs().update_collection(catalog_name=name, dry_run=dry_run)
             r = []
             for update_obj in res:
                 r.append(update_obj.as_dict())
@@ -254,17 +247,17 @@ class AlbumServer(metaclass=Singleton):
             src = request.args.get("src", default=None)
             name = request.args.get("name", default=None)
             if name is None and src is None:
-                CollectionManager().catalogs().update_any()
+                self.album_instance.collection_manager().catalogs().update_any()
             elif name is None:
-                catalog = CollectionManager().catalogs().get_by_src(src)
-                CollectionManager().catalogs().update_any(catalog.name)
+                catalog = self.album_instance.collection_manager().catalogs().get_by_src(src)
+                self.album_instance.collection_manager().catalogs().update_any(catalog.name)
             else:
-                CollectionManager().catalogs().update_any(name)
+                self.album_instance.collection_manager().catalogs().update_any(name)
             return {}
 
         @self.app.route('/search/<keywords>')
         def search(keywords):
-            return SearchManager().search(keywords)
+            return self.album_instance.search_manager().search(keywords)
 
         @self.app.route('/shutdown', methods=['GET'])
         def shutdown():
@@ -274,12 +267,10 @@ class AlbumServer(metaclass=Singleton):
             func()
             return 'Server shutting down...'
 
-    @staticmethod
-    def task_manager() -> TaskManager:
-        return TaskManager()
+    def task_manager(self) -> TaskManager:
+        return self.album_instance.task_manager()
 
-    @staticmethod
-    def _run_solution_method_async(catalog, group_name_version: Coordinates, method, args=None):
+    def _run_solution_method_async(self, catalog, group_name_version: Coordinates, method, args=None):
         task = Task()
         if catalog is None:
             solution_path = str(group_name_version)
@@ -291,7 +282,7 @@ class AlbumServer(metaclass=Singleton):
                 task_args.append(arg)
         task.args = tuple(task_args)
         task.method = method
-        TaskManager().register_task(task)
+        self.task_manager().register_task(task)
         return task
 
     @staticmethod

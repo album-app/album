@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import Optional
 
+from album.core.controller.task_manager import TaskManager
+
 from album.core.concept.singleton import Singleton
 from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection.collection_manager import CollectionManager
@@ -53,3 +55,7 @@ class Album(metaclass=Singleton):
     @staticmethod
     def environment_manager() -> EnvironmentManager:
         return EnvironmentManager()
+
+    @staticmethod
+    def task_manager() -> TaskManager:
+        return TaskManager()
