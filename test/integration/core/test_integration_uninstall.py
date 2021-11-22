@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from album.argument_parsing import main
 from album.core.controller.conda_manager import CondaManager
-from album.core.model.coordinates import Coordinates
+from album.runner.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import create_path_recursively
 from test.integration.test_integration_common import TestIntegrationCommon
 
@@ -28,7 +28,7 @@ class TestIntegrationUninstall(TestIntegrationCommon):
         self.fake_install(self.get_test_solution_path(), create_environment=False)
 
         # lets assume solution had downloads, caches and apps
-        p = self.collection_manager.configuration.cache_path_solution.joinpath(
+        p = self.collection_manager.configuration.cache_path_tmp_internal.joinpath(
             "catalog_local", "group", "name", "0.1.0", "a_cache_solution_file.txt"
         )
         create_path_recursively(p.parent)
@@ -61,7 +61,7 @@ class TestIntegrationUninstall(TestIntegrationCommon):
 
         # assert that the correct paths are deleted
         self.assertFalse(
-            self.collection_manager.configuration.cache_path_solution.joinpath(
+            self.collection_manager.configuration.cache_path_tmp_internal.joinpath(
                 "catalog_local", "group", "name", "0.1.0"
             ).exists()
         )

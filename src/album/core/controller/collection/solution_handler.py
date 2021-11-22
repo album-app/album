@@ -4,7 +4,8 @@ from album.core import Solution
 from album.core.model.catalog import Catalog
 from album.core.model.catalog_updates import ChangeType, SolutionChange
 from album.core.model.collection_index import CollectionIndex
-from album.core.model.coordinates import Coordinates
+from album.core.utils.operations.solution_operations import get_deploy_dict, get_deploy_keys
+from album.runner.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import copy_folder
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.runner import album_logging
@@ -22,7 +23,7 @@ class SolutionHandler:
         self.catalog_collection = collection
 
     def add_or_replace(self, catalog: Catalog, active_solution: Solution, path):
-        deploy_dict = active_solution.get_deploy_dict()
+        deploy_dict = get_deploy_dict(active_solution)
         self.catalog_collection.add_or_replace_solution(
             catalog.catalog_id,
             active_solution.coordinates,
@@ -63,7 +64,7 @@ class SolutionHandler:
 
     @staticmethod
     def get_solution_keys():
-        keys = Solution.deploy_keys.copy()
+        keys = get_deploy_keys().copy()
         # keys in a separate column
         keys.remove("authors")
         keys.remove("tags")

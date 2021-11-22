@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS citation
     catalog_id  INTEGER,
     text        TEXT not null,
     doi         TEXT,
+    url         TEXT,
     FOREIGN KEY (catalog_id) REFERENCES catalog (catalog_id)
 );
 
@@ -70,6 +71,7 @@ CREATE TABLE IF NOT EXISTS argument
     type          TEXT,
     description   TEXT,
     default_value TEXT,
+    required      INTEGER,
     FOREIGN KEY (catalog_id) REFERENCES catalog (catalog_id)
 );
 
@@ -84,11 +86,11 @@ CREATE TABLE IF NOT EXISTS collection
     timestamp         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     description       TEXT,
     doi               TEXT,
-    git_repo          TEXT,
     license           TEXT,
     album_version     TEXT,
     album_api_version TEXT,
     changelog         TEXT,
+    acknowledgement   TEXT,
     hash              TEXT    not null,
     install_date      TEXT,
     last_execution    TEXT,

@@ -105,14 +105,6 @@ class TestIntegrationCommon(unittest.TestCase):
         return logger
 
     @staticmethod
-    def resolve_solution(solution_dependency, download=False):
-        class TestCatalog:
-            id = "aCatalog"
-
-        path = TestIntegrationCommon.get_test_solution_path(solution_dependency['name'] + ".py")
-        return {"path": path, "catalog": TestCatalog()}
-
-    @staticmethod
     def get_test_solution_path(solution_file="solution0_dummy.py"):
         current_path = Path(os.path.dirname(os.path.realpath(__file__)))
         path = current_path.joinpath("..", "resources", solution_file)

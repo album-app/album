@@ -50,7 +50,7 @@ class TestConfiguration(TestUnitCommon):
         )
         self.assertEqual(
             Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_solution_prefix.value),
-            self.conf.cache_path_solution
+            self.conf.cache_path_tmp_internal
         )
         self.assertEqual(
             Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_app_prefix.value),
@@ -62,7 +62,7 @@ class TestConfiguration(TestUnitCommon):
         )
         self.assertEqual(
             Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value),
-            self.conf.cache_path_tmp
+            self.conf.cache_path_tmp_user
         )
         self.assertEqual(
             Path(new_tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value),
@@ -107,7 +107,7 @@ class TestConfiguration(TestUnitCommon):
     def test_empty_tmp(self, force_remove_mock):
         force_remove_mock.return_value = None
         # call
-        self.conf.cache_path_tmp = Path(self.tmp_dir.name)
+        self.conf.cache_path_tmp_user = Path(self.tmp_dir.name)
         self.conf.empty_tmp()
 
         force_remove_mock.assert_called_once()

@@ -7,7 +7,7 @@ from unittest.mock import patch
 import flask_unittest
 
 from album.core.controller.conda_manager import CondaManager
-from album.core.model.coordinates import Coordinates
+from album.runner.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.model.task import Task
 from album.core.server import AlbumServer

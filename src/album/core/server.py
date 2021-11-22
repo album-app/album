@@ -15,7 +15,7 @@ from album.core.controller.run_manager import RunManager
 from album.core.controller.search_manager import SearchManager
 from album.core.controller.task_manager import TaskManager
 from album.core.controller.test_manager import TestManager
-from album.core.model.coordinates import Coordinates
+from album.runner.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.model.task import Task
 from album.runner import album_logging
@@ -66,7 +66,8 @@ class AlbumServer(metaclass=Singleton):
         def get_config():
             return {
                 "cache_base": str(self.album.configuration().base_cache_path),
-                "cache_solutions": str(self.album.configuration().cache_path_solution),
+                "cache_tmp_internal": str(self.album.configuration().cache_path_tmp_internal),
+                "cache_tmp_user": str(self.album.configuration().cache_path_tmp_user),
                 "cache_apps": str(self.album.configuration().cache_path_app),
                 "cache_downloads": str(self.album.configuration().cache_path_download)
             }

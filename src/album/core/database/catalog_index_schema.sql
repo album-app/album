@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS citation
 (
     citation_id INTEGER PRIMARY KEY,
     text        TEXT not null,
-    doi         TEXT
+    doi         TEXT,
+    url         TEXT
 );
 
 CREATE TABLE IF NOT EXISTS author
@@ -48,7 +49,8 @@ CREATE TABLE IF NOT EXISTS argument
     name          TEXT not null,
     type          TEXT,
     description   TEXT not null,
-    default_value TEXT
+    default_value TEXT,
+    required      INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS solution
@@ -61,11 +63,11 @@ CREATE TABLE IF NOT EXISTS solution
     timestamp         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     description       TEXT,
     doi               TEXT,
-    git_repo          TEXT,
     license           TEXT,
     album_version     TEXT,
     album_api_version TEXT,
     changelog         TEXT,
+    acknowledgement   TEXT,
     hash              TEXT      not null
 );
 

@@ -5,10 +5,6 @@ from album.runner import setup
 global args
 
 
-def album_init():
-    pass
-
-
 def album_run():
     print("solution7_long_routines_run_start")
     time.sleep(5)
@@ -40,15 +36,13 @@ setup(
     version="0.1.0",
     timestamp="",
     description="",
-    authors="",
+    authors=[],
     cite=[],
-    git_repo="",
+    acknowledgement="",
     tags=[],
     license="license",
-    documentation=[""],
+    documentation=[],
     covers=[],
-    sample_inputs=[],
-    sample_outputs=[],
     album_version="0.1.1",
     album_api_version="0.1.1",
     args=[
@@ -59,7 +53,6 @@ setup(
             "default": "Useless callable",
         }
     ],
-    init=album_init,
     run=album_run,
     install=album_install,
     pre_test=album_pre_test,

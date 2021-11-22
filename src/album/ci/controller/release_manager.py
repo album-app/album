@@ -8,7 +8,7 @@ from album.core.concept.singleton import Singleton
 from album.core.controller.migration_manager import MigrationManager
 from album.core.model.catalog import Catalog
 from album.core.model.configuration import Configuration
-from album.core.model.coordinates import Coordinates
+from album.runner.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_dict_entry
 from album.core.utils.operations.git_operations import checkout_branch, add_files_commit_and_push, \
     retrieve_single_file_from_head, configure_git

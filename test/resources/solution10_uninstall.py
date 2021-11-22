@@ -3,10 +3,6 @@ import time
 from album.runner import setup
 
 
-def album_init():
-    pass
-
-
 def album_run():
     pass
 
@@ -40,15 +36,13 @@ setup(
     version="0.1.0",
     timestamp="",
     description="",
-    authors="",
+    authors=[],
     cite=[],
-    git_repo="",
+    acknowledgement="",
     tags=[],
     license="license",
-    documentation=[""],
+    documentation=[],
     covers=[],
-    sample_inputs=[],
-    sample_outputs=[],
     album_version="0.1.1",
     album_api_version="0.1.1",
     args=[
@@ -59,7 +53,6 @@ setup(
             "default": "Useless callable",
         }
     ],
-    init=album_init,
     run=album_run,
     install=album_install,
     uninstall=album_uninstall,

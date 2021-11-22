@@ -160,7 +160,7 @@ class TestUnitCommon(unittest.TestCase):
 
         return my_album
 
-    @patch('album.core.model.solution.Solution.get_deploy_dict')
+    @patch('album.core.utils.operations.solution_operations.get_deploy_dict')
     def create_test_solution_no_env(self, deploy_dict_mock):
         deploy_dict_mock.return_value = self.solution_default_dict
         self.active_solution = Solution(deploy_dict_mock.return_value)

@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Optional
 
 from album.core.concept.database import Database
-from album.core.model.coordinates import Coordinates
+from album.runner.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import get_dict_entry, write_dict_to_json
 from album.runner import album_logging
 
@@ -138,11 +138,11 @@ class CatalogIndex(Database):
                 datetime.now().isoformat(),
                 solution_attrs["description"],
                 get_dict_entry(solution_attrs, "doi"),  # allow to be none
-                solution_attrs["git_repo"],
                 solution_attrs["license"],
                 solution_attrs["album_version"],
                 solution_attrs["album_api_version"],
                 get_dict_entry(solution_attrs, "changelog"),  # allow to be none
+                get_dict_entry(solution_attrs, "acknowledgement"),
                 hash_val
             )
         )
@@ -243,13 +243,14 @@ class CatalogIndex(Database):
 
         cursor = self.get_cursor()
         cursor.execute(
-            "INSERT INTO argument values (?, ?, ?, ?, ?)",
+            "INSERT INTO argument values (?, ?, ?, ?, ?, ?)",
             (
                 argument_id,
                 argument["name"],
                 get_dict_entry(argument, "type"),
                 argument["description"],
-                get_dict_entry(argument, "default_value")
+                get_dict_entry(argument, "default_value"),
+                get_dict_entry(argument, "required")
             )
         )
 
@@ -262,11 +263,12 @@ class CatalogIndex(Database):
         citation_id = self.next_id("citation")
         cursor = self.get_cursor()
         cursor.execute(
-            "INSERT INTO citation values (?, ?, ?)",
+            "INSERT INTO citation values (?, ?, ?, ?)",
             (
                 citation_id,
                 citation["text"],
-                get_dict_entry(citation, "doi")
+                get_dict_entry(citation, "doi"),
+                get_dict_entry(citation, "url")
             )
         )
 
@@ -421,7 +423,7 @@ class CatalogIndex(Database):
             "timestamp=:timestamp, "
             "description=:description, "
             "doi=:doi, "
-            "git_repo=:git_repo, "
+            "acknowledgement=:acknowledgement, "
             "license=:license, "
             "album_version=:album_version, "
             "album_api_version=:album_api_version, "
@@ -436,7 +438,7 @@ class CatalogIndex(Database):
                 "timestamp": "",
                 "description": solution_attrs["description"],
                 "doi": get_dict_entry(solution_attrs, "doi"),
-                "git_repo": solution_attrs["git_repo"],
+                "acknowledgement": solution_attrs["acknowledgement"],
                 "license": solution_attrs["license"],
                 "album_version": solution_attrs["album_version"],
                 "album_api_version": solution_attrs["album_api_version"],

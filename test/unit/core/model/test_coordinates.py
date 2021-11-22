@@ -1,4 +1,4 @@
-from album.core.model.coordinates import Coordinates
+from album.runner.model.coordinates import Coordinates
 
 from test.unit.test_unit_common import TestUnitCommon
 

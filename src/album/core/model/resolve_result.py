@@ -1,5 +1,5 @@
 from album.core.model.catalog import Catalog
-from album.core.model.coordinates import Coordinates
+from album.runner.model.coordinates import Coordinates
 
 from album.core import Solution
 

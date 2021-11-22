@@ -2,12 +2,17 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
+from album.core.model.default_values import DefaultValues
+
+from album.core.model.catalog import Catalog
+
 from album.core.model.configuration import Configuration
-from album.core.model.solution import Solution
+from album.core.utils.operations.solution_operations import set_cache_paths, get_deploy_dict, get_deploy_keys
+from album.runner.model.solution import Solution
 from test.unit.test_unit_common import TestUnitCommon
 
 
-class TestUnitSolution(TestUnitCommon):
+class TestUnitSolutionOperations(TestUnitCommon):
     
     def setUp(self):
         super().setUp()
@@ -22,62 +27,53 @@ channels:
   - defaults
 """)
 
-    def test_init_(self):
-        solution_dict = {
-            "group": "gr1",
-            "version": "v1",
-            "name": "n1",
-            "album_version": "1",
-            "dependencies": {'environment_file': self.test_environment_yml}
-        }
-        active_solution = Solution(solution_dict)
-
-        self.assertEqual(None, active_solution.environment)
-        self.assertEqual(None, active_solution.data_path)
-        self.assertEqual(None, active_solution.app_path)
-        self.assertEqual(None, active_solution.package_path)
-        self.assertEqual(None, active_solution.cache_path)
-
     def test_set_cache_paths(self):
         config = Configuration()
 
         active_solution = Solution(self.solution_default_dict)
 
-        active_solution.set_cache_paths("catalog_name_solution_lives_in")
+        catalog = Catalog(0, "catalog_name_solution_lives_in", "")
+        set_cache_paths(active_solution, catalog)
 
         self.assertEqual(
             Path(config.cache_path_download).joinpath(
                 "catalog_name_solution_lives_in", "tsg", "tsn", "tsv"
             ),
-            active_solution.data_path
+            active_solution.installation.data_path
         )
         self.assertEqual(
             Path(config.cache_path_app).joinpath(
                 "catalog_name_solution_lives_in", "tsg", "tsn", "tsv"
             ),
-            active_solution.app_path
+            active_solution.installation.app_path
         )
         self.assertEqual(
-            Path(config.cache_path_solution).joinpath(
-                "catalog_name_solution_lives_in", "tsg", "tsn", "tsv"
+            catalog.path.joinpath(
+                DefaultValues.cache_path_solution_prefix.value, "tsg", "tsn", "tsv"
             ),
-            active_solution.package_path
+            active_solution.installation.package_path
         )
         self.assertEqual(
-            Path(config.cache_path_tmp).joinpath(
+            Path(config.cache_path_tmp_internal).joinpath(
                 "catalog_name_solution_lives_in", "tsg", "tsn", "tsv"
             ),
-            active_solution.cache_path
+            active_solution.installation.internal_cache_path
+        )
+        self.assertEqual(
+            Path(config.cache_path_tmp_user).joinpath(
+                "catalog_name_solution_lives_in", "tsg", "tsn", "tsv"
+            ),
+            active_solution.installation.user_cache_path
         )
 
     def test_get_deploy_dict(self):
         active_solution = Solution(self.solution_default_dict)
-        self.assertEqual(self.solution_default_dict, active_solution.get_deploy_dict())
+        self.assertEqual(self.solution_default_dict, get_deploy_dict(active_solution))
 
     def test_get_deploy_dict_additional_values(self):
         # base keys
         attrs_dict_result = {}
-        for idx, key in enumerate(Solution.deploy_keys):
+        for idx, key in enumerate(get_deploy_keys()):
             attrs_dict_result[key] = str(idx)
 
         # additional values
@@ -91,4 +87,4 @@ channels:
 
         active_solution = Solution(attrs_dict)
 
-        self.assertEqual(active_solution.get_deploy_dict(), attrs_dict_result)
+        self.assertEqual(get_deploy_dict(active_solution), attrs_dict_result)

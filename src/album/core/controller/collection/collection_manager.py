@@ -10,7 +10,8 @@ from album.core.controller.migration_manager import MigrationManager
 from album.core.model.catalog import Catalog
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.configuration import Configuration
-from album.core.model.coordinates import Coordinates
+from album.core.utils.operations.solution_operations import set_cache_paths
+from album.runner.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import write_dict_to_json
@@ -146,7 +147,7 @@ class CollectionManager(metaclass=Singleton):
         resolve_result = self.resolve_require_installation(resolve_solution)
 
         loaded_solution = load(resolve_result.path)
-        loaded_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
+        set_cache_paths(loaded_solution, resolve_result.catalog)
 
         resolve_result.loaded_solution = loaded_solution
 
@@ -168,7 +169,7 @@ class CollectionManager(metaclass=Singleton):
 
         resolve_result = self._resolve(resolve_solution)
         self._retrieve_and_load_resolve_result(resolve_result)
-        resolve_result.loaded_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
+        set_cache_paths(resolve_result.loaded_solution, resolve_result.catalog)
 
         return resolve_result
 
@@ -195,7 +196,7 @@ class CollectionManager(metaclass=Singleton):
         )
         self._retrieve_and_load_resolve_result(resolve_result)
 
-        resolve_result.loaded_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
+        set_cache_paths(resolve_result.loaded_solution, resolve_result.catalog)
 
         return resolve_result
 
@@ -221,7 +222,7 @@ class CollectionManager(metaclass=Singleton):
         )
         self._retrieve_and_load_resolve_result(resolve_result)
 
-        resolve_result.loaded_solution.set_cache_paths(catalog_name=resolve_result.catalog.name)
+        set_cache_paths(resolve_result.loaded_solution, resolve_result.catalog)
 
         return resolve_result
 
@@ -260,7 +261,7 @@ class CollectionManager(metaclass=Singleton):
         if parent["collection_id"] == parent_resolve_result.collection_entry["collection_id"]:
 
             loaded_solution = load(parent_resolve_result.path)
-            loaded_solution.set_cache_paths(catalog_name=parent_resolve_result.catalog.name)
+            set_cache_paths(loaded_solution, parent_resolve_result.catalog)
 
             parent_resolve_result.loaded_solution = loaded_solution
 
@@ -271,7 +272,7 @@ class CollectionManager(metaclass=Singleton):
             path = parent_catalog.get_solution_file(parent_coordinates)
 
             loaded_solution = load(path)
-            loaded_solution.set_cache_paths(catalog_name=parent_catalog.name)
+            set_cache_paths(loaded_solution, parent_catalog)
 
             parent_resolve_result = ResolveResult(
                 path=path,
@@ -285,7 +286,7 @@ class CollectionManager(metaclass=Singleton):
 
     def _resolve(self, str_input):
         # always first resolve outside any catalog, excluding a DOI which should be first resolved inside a catalog
-        path = check_file_or_url(str_input, self.configuration.cache_path_tmp)
+        path = check_file_or_url(str_input, self.configuration.cache_path_tmp_user)
 
         doi = get_doi_from_input(str_input)
         if path:
@@ -304,7 +305,7 @@ class CollectionManager(metaclass=Singleton):
                     catalog = self.catalog_handler.get_by_id(solution_entry["catalog_id"])
                 else:
                     # download DOI
-                    path = check_doi(doi["doi"], self.configuration.cache_path_tmp)
+                    path = check_doi(doi["doi"], self.configuration.cache_path_tmp_user)
 
                     catalog = self.catalog_handler.get_local_catalog()
             else:  # case no doi

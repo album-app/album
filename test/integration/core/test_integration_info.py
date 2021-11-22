@@ -43,13 +43,12 @@ class TestIntegrationTest(TestIntegrationCommon):
                     "name": "testArg1"
                 }
             ],
-            "authors": "",
-            "cite": "",
+            "authors": [],
+            "cite": [],
             "covers": [],
             "description": "",
-            "documentation": [""],
-            "format_version": "0.3.0",
-            "git_repo": "",
+            "documentation": [],
+            "acknowledgement": "",
             "group": "group",
             "license": "license",
             "album_version": "0.1.1",

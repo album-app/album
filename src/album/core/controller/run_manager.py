@@ -1,15 +1,20 @@
 import argparse
 from queue import Queue, Empty
+from typing import List
 
 from album.core import load
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.environment_manager import EnvironmentManager
-from album.core.model.coordinates import Coordinates
-from album.core.model.solution import Solution
+from album.core.model.catalog import Catalog
+from album.core.model.resolve_result import ResolveResult
+from album.core.model.script_queue_entry import ScriptQueueEntry
 from album.core.utils.operations.resolve_operations import build_resolve_string
+from album.core.utils.operations.solution_operations import get_steps_dict, get_parent_dict, set_cache_paths
 from album.runner import album_logging
 from album.runner.concept.script_creator import ScriptCreatorRun, ScriptCreatorRunWithParent
+from album.runner.model.coordinates import Coordinates
+from album.runner.model.solution import Solution
 
 module_logger = album_logging.get_active_logger
 
@@ -33,7 +38,7 @@ class SolutionCollection:
         self.parent_parsed_args = parent_parsed_args
         self.parent_script_path = parent_script_path  # path to the parent dependency script.
         self.parent_script_catalog = parent_script_catalog
-        self.steps_solution = steps_solution  # The solution objects of all steps.
+        self.steps_solution: List[Solution] = steps_solution  # The solution objects of all steps.
 
         self.steps = steps  # The step description of the step. Must hold the argument keyword.
 
@@ -74,34 +79,26 @@ class RunManager(metaclass=Singleton):
 
         resolve_result = self.collection_manager.resolve_require_installation_and_load(path)
 
-        self.environment_manager.set_environment(resolve_result.loaded_solution, resolve_result.catalog)
-
         if not resolve_result.catalog:
             module_logger().debug('album loaded locally: %s...' % str(resolve_result.loaded_solution))
         else:
             module_logger().debug('album loaded from catalog: \"%s\"...' % str(resolve_result.loaded_solution))
 
-        self._run(resolve_result.loaded_solution, run_immediately, argv)
+        self._run(resolve_result, run_immediately, argv)
 
     def run_from_catalog_coordinates(self, catalog_name: str, coordinates: Coordinates, run_immediately=False,
                                      argv=None):
         catalog = self.collection_manager.catalogs().get_by_name(catalog_name)
         resolve_result = self.collection_manager.resolve_download_and_load_catalog_coordinates(catalog, coordinates)
-
-        self.environment_manager.set_environment(resolve_result.loaded_solution, resolve_result.catalog)
-
-        self._run(resolve_result.loaded_solution, run_immediately, argv)
+        self._run(resolve_result, run_immediately, argv)
 
     def run_from_coordinates(self, coordinates: Coordinates, run_immediately=False, argv=None):
         resolve_result = self.collection_manager.resolve_download_and_load_coordinates(coordinates)
+        self._run(resolve_result, run_immediately, argv)
 
-        self.environment_manager.set_environment(resolve_result.loaded_solution, resolve_result.catalog)
-
-        self._run(resolve_result.loaded_solution, run_immediately, argv)
-
-    def _run(self, active_solution, run_immediately=False, argv=None):
+    def _run(self, resolve_result: ResolveResult, run_immediately=False, argv=None):
         """Run an already loaded solution."""
-        module_logger().debug("Initializing script to run \"%s\"" % active_solution.coordinates.name)
+        module_logger().debug("Initializing script to run \"%s\"" % resolve_result.loaded_solution.coordinates.name)
 
         if argv is None:
             argv = [""]
@@ -110,42 +107,44 @@ class RunManager(metaclass=Singleton):
         que = Queue()
 
         # builds the queue
-        self.build_queue(active_solution, que, ScriptCreatorRun(), run_immediately, argv)
+        self.build_queue(resolve_result.loaded_solution, resolve_result.catalog, que, ScriptCreatorRun(), run_immediately, argv)
 
         # runs the queue
         self.run_queue(que)
 
-        module_logger().debug("Finished running script for solution \"%s\"" % active_solution.coordinates.name)
+        module_logger().debug("Finished running script for solution \"%s\"" % resolve_result.loaded_solution.coordinates.name)
 
-    def run_queue(self, que: Queue):
+    def run_queue(self, queue: Queue):
         """Runs the que. Queue consists of "solution_object and their scripts"-entries. Order matters!
 
         Args:
-            que:
+            queue:
                 The queue object holding entries of solution_object and their scripts
 
         """
         module_logger().debug("Running queue...")
         try:
             while True:
-                solution_object, scripts = que.get(block=False)
-                module_logger().debug("Running task \"%s\"..." % solution_object.coordinates.name)
-                self._run_in_environment_with_own_logger(solution_object, scripts)
-                module_logger().debug("Finished running task \"%s\"!" % solution_object.coordinates.name)
-                que.task_done()
+                script_queue_entry = queue.get(block=False)
+                module_logger().debug("Running task \"%s\"..." % script_queue_entry.coordinates.name)
+                self._run_in_environment_with_own_logger(script_queue_entry)
+                module_logger().debug("Finished running task \"%s\"!" % script_queue_entry.coordinates.name)
+                queue.task_done()
         except Empty:
             module_logger().debug("Currently nothing more to run!")
 
-    def build_queue(self, active_solution: Solution, que, script_creator: ScriptCreatorRun, run_immediately=False,
+    def build_queue(self, solution: Solution, catalog: Catalog, queue, script_creator: ScriptCreatorRun, run_immediately=False,
                     argv=None):
         """Builds the queue of an active-album object.
 
         Args:
             script_creator:
                 The ScriptCreatorRun object to use to create the execution script.
-            active_solution:
-                The active_solution object to build the run-que for.
-            que:
+            solution:
+                The resolve_result of a solution object to build the run-que for.
+            catalog:
+                The catalog this solution belongs to.
+            queue:
                 The que object.
             run_immediately:
                 Boolean. When true, a collection is run immediately without solving for further steps and pushing them
@@ -157,32 +156,33 @@ class RunManager(metaclass=Singleton):
         """
         if argv is None:
             argv = [""]
-        steps = active_solution.steps
+        steps = get_steps_dict(solution)
         if steps:  # solution consists of at least one step
             # a step base album is first initialized in the album environment to be able to harvest it's arguments
             # active_solution.init() THIS FEATURE IS TEMPORARY DISABLED
 
-            step_solution_parsed_args = self.__parse_args(active_solution, argv)
+            step_solution_parsed_args = self.__parse_args(solution, argv)
             module_logger().debug("Building queue for %s steps.." % len(steps))
 
             for i, step in enumerate(steps):
                 module_logger().debug("Adding step %s / %s to queue..." % (i, len(steps)))
                 if type(step) is list:
-                    self.build_steps_queue(que, step, script_creator, run_immediately, step_solution_parsed_args)
+                    self.build_steps_queue(queue, step, script_creator, run_immediately, step_solution_parsed_args)
                 else:
-                    self.build_steps_queue(que, [step], script_creator, run_immediately, step_solution_parsed_args)
+                    self.build_steps_queue(queue, [step], script_creator, run_immediately, step_solution_parsed_args)
         else:  # single element queue, no steps
-            if active_solution.parent:
-                module_logger().debug("Adding standalone album with parent to queue...")
+            parent = get_parent_dict(solution)
+            if parent:
+                module_logger().debug("Adding standalone solution with parent to queue...")
                 # create script with parent
-                que.put(self.create_solution_run_with_parent_script_standalone(active_solution, argv, script_creator))
+                queue.put(self.create_solution_run_with_parent_script_standalone(solution, argv, script_creator))
             else:
                 module_logger().debug("Adding standalone to queue...")
                 # create script without parent
-                que.put(self.create_solution_run_script_standalone(active_solution, argv, script_creator))
+                queue.put(self.create_solution_run_script_standalone(solution, catalog, argv, script_creator))
 
     def build_steps_queue(
-            self, que: Queue, steps: list, script_creator: ScriptCreatorRun, run_immediately=False,
+            self, queue: Queue, steps: list, script_creator: ScriptCreatorRun, run_immediately=False,
             step_solution_parsed_args=None
     ):
         """Builds the queue of step-album to be executed. FIFO queue expected.
@@ -192,7 +192,7 @@ class RunManager(metaclass=Singleton):
                 The ScriptCreatorRun object to use to create the execution script.
             step_solution_parsed_args:
                 Namespace object from parsing the step-solution arguments
-            que:
+            queue:
                 The queue object.
             steps:
                 The steps of a stepped solution.
@@ -210,13 +210,12 @@ class RunManager(metaclass=Singleton):
             module_logger().debug('resolving step \"%s\"...' % step["name"])
             resolve_result = self.collection_manager.resolve_require_installation_and_load(build_resolve_string(step))
 
-            # set the environment. CAUTION: the parent of a step can itself be a child of another solution.
-            self.environment_manager.set_environment(resolve_result.loaded_solution, resolve_result.catalog)
             citations.append(resolve_result.loaded_solution)
 
-            if resolve_result.loaded_solution.parent:  # collect steps as long as they have the same parent
+            parent = get_parent_dict(resolve_result.loaded_solution)
+            if parent:  # collect steps as long as they have the same parent
                 current_parent_script_resolve = self.collection_manager.resolve_require_installation(
-                    build_resolve_string(resolve_result.loaded_solution.parent)
+                    build_resolve_string(parent)
                 )
                 current_parent_script_path = current_parent_script_resolve.path
                 current_parent_script_catalog = current_parent_script_resolve.catalog
@@ -226,11 +225,11 @@ class RunManager(metaclass=Singleton):
                         same_parent_step_collection.parent_script_path != current_parent_script_path:
 
                     # put old collection to queue
-                    que.put(self.create_solution_run_collection_script(same_parent_step_collection, script_creator))
+                    queue.put(self.create_solution_run_collection_script(same_parent_step_collection, script_creator))
 
                     # runs the old collection immediately
                     if run_immediately:
-                        self.run_queue(que)
+                        self.run_queue(queue)
 
                     # set new parent
                     same_parent_step_collection.parent_script_path = current_parent_script_path
@@ -254,38 +253,38 @@ class RunManager(metaclass=Singleton):
             else:  # add a step without collection (also parent)
                 # put collection (if any) to queue
                 if same_parent_step_collection.parent_script_path:
-                    que.put(self.create_solution_run_collection_script(same_parent_step_collection, script_creator))
+                    queue.put(self.create_solution_run_collection_script(same_parent_step_collection, script_creator))
 
                 # empty the collection for possible next steps
                 same_parent_step_collection = SolutionCollection(step_solution_parsed_args)
 
                 # run the old collection immediately
                 if run_immediately:
-                    self.run_queue(que)
+                    self.run_queue(queue)
 
                 # harvest arguments in the description of the step
                 step_args = self._get_args(step, step_solution_parsed_args[0])
 
                 # add step without parent
-                que.put(
+                queue.put(
                     self.create_solution_run_script_standalone(
-                        resolve_result.loaded_solution, step_args, script_creator
+                        resolve_result.loaded_solution, resolve_result.catalog, step_args, script_creator
                     )
                 )
 
         # put rest to queue
         if same_parent_step_collection.parent_script_path:
-            que.put(self.create_solution_run_collection_script(same_parent_step_collection, script_creator))
+            queue.put(self.create_solution_run_collection_script(same_parent_step_collection, script_creator))
 
         self._print_credit(citations)
 
         # run the old collection immediately
         if run_immediately:
-            self.run_queue(que)
+            self.run_queue(queue)
 
     def create_solution_run_script_standalone(
-            self, active_solution: Solution, args: list, script_creator: ScriptCreatorRun
-    ):
+            self, active_solution: Solution, catalog: Catalog, args: list, script_creator: ScriptCreatorRun
+    ) -> ScriptQueueEntry:
         """Creates the execution script for a album object giving its arguments.
 
         Args:
@@ -293,6 +292,8 @@ class RunManager(metaclass=Singleton):
                 The ScriptCreatorRun object to use to create the execution script.
             active_solution:
                 The solution object to create the executable script for.
+            catalog:
+                The catalog this solution belongs to.
             args:
                 The arguments integrated in the script.
 
@@ -300,16 +301,17 @@ class RunManager(metaclass=Singleton):
                 The solution object and its scripts (in a list)
 
         """
-        script = script_creator.create_script(active_solution, args)
         module_logger().debug('Creating standalone album script \"%s\"...' % active_solution.coordinates.name)
+        script = script_creator.create_script(active_solution, args)
 
         self._print_credit([active_solution])
+        environment = self.environment_manager.set_environment(active_solution, catalog)
 
-        return [active_solution, [script]]
+        return ScriptQueueEntry(active_solution.coordinates, [script], environment=environment)
 
     def create_solution_run_with_parent_script_standalone(
             self, active_solution: Solution, args: list, script_creator: ScriptCreatorRun
-    ):
+    ) -> ScriptQueueEntry:
         """Creates the execution script for a album object having a parent dependency giving its arguments.
 
         Args:
@@ -324,11 +326,12 @@ class RunManager(metaclass=Singleton):
                 The solution object and its scripts (in a list).
 
         """
-        module_logger().debug('Creating album script with parent \"%s\"...' % active_solution.parent["name"])
+        parent = get_parent_dict(active_solution)
+        module_logger().debug('Creating album script with parent \"%s\"...' % parent["name"])
         parent_solution_resolve = self.collection_manager.resolve_require_installation_and_load(
-            build_resolve_string(active_solution.parent))
+            build_resolve_string(parent))
 
-        self.environment_manager.set_environment(
+        environment = self.environment_manager.set_environment(
             parent_solution_resolve.loaded_solution, parent_solution_resolve.catalog
         )
 
@@ -352,11 +355,11 @@ class RunManager(metaclass=Singleton):
 
         self._print_credit([parent_solution_resolve.loaded_solution, active_solution])
 
-        return [parent_solution_resolve.loaded_solution, scripts]
+        return ScriptQueueEntry(parent_solution_resolve.loaded_solution.coordinates, scripts, environment)
 
     def create_solution_run_collection_script(
             self, solution_collection: SolutionCollection, script_creator: ScriptCreatorRun
-    ):
+    ) -> ScriptQueueEntry:
         """Creates the execution script for a collection of solutions all having the same parent dependency.
 
         Args:
@@ -369,9 +372,9 @@ class RunManager(metaclass=Singleton):
         """
         # load parent & steps
         parent_solution = load(solution_collection.parent_script_path)
-        parent_solution.set_cache_paths(catalog_name=solution_collection.parent_script_catalog.name)
+        set_cache_paths(parent_solution, solution_collection.parent_script_catalog)
 
-        self.environment_manager.set_environment(parent_solution, solution_collection.parent_script_catalog)
+        environment = self.environment_manager.set_environment(parent_solution, solution_collection.parent_script_catalog)
         module_logger().debug('Creating script for steps (%s) with parent \"%s\"...' % (
             ", ".join([s.coordinates.name for s in solution_collection.steps_solution]), parent_solution.coordinates.name))
 
@@ -391,13 +394,13 @@ class RunManager(metaclass=Singleton):
             script_creator
         )
 
-        return [parent_solution, scripts]
+        return ScriptQueueEntry(parent_solution.coordinates, scripts, environment)
 
     @staticmethod
     def create_solution_run_with_parent_script(
             parent_solution: Solution,
             parent_args: list,
-            child_solution_list: list,
+            child_solution_list: List[Solution],
             child_args: list,
             script_creator: ScriptCreatorRun
     ):
@@ -440,7 +443,7 @@ class RunManager(metaclass=Singleton):
             def __call__(self, p, namespace, values, option_string=None):
                 setattr(namespace, self.dest, active_solution.get_arg(self.dest)['action'](values))
 
-        for element in active_solution["args"]:
+        for element in active_solution.setup["args"]:
             if 'action' in element.keys():
                 parser.add_argument("--" + element["name"], action=FileAction)
             else:
@@ -451,7 +454,7 @@ class RunManager(metaclass=Singleton):
     def resolve_args(
             self,
             parent_solution: Solution,
-            steps_solution: list,
+            steps_solution: List[Solution],
             steps: list,
             step_solution_parsed_args: list,
             args=None
@@ -476,12 +479,13 @@ class RunManager(metaclass=Singleton):
                 step_args = args
 
             # add parent arguments to the step album object arguments
-            if 'args' in step_solution.parent:
-                for param in step_solution.parent["args"]:
+            parent_dict = get_parent_dict(step_solution)
+            if 'args' in parent_dict:
+                for param in parent_dict["args"]:
                     step_args.insert(0, f"--{param['name']}={str(param['value'])}")
 
             # add parent arguments
-            [step_parser.add_argument("--" + element["name"]) for element in parent_solution["args"]]
+            [step_parser.add_argument("--" + element["name"]) for element in parent_solution.setup["args"]]
 
             # parse all known arguments
             args_known, args_unknown = step_parser.parse_known_args(step_args)
@@ -492,7 +496,7 @@ class RunManager(metaclass=Singleton):
                 parsed_parent_args.extend(
                     ["--" + arg_name + "=" + getattr(args_known, arg_name) for arg_name in vars(args_known)])
                 module_logger().debug(
-                    'For step \"%s\" set parent arguments to %s...' % (step_solution.name, parsed_parent_args)
+                    'For step \"%s\" set parent arguments to %s...' % (step_solution.coordinates.name, parsed_parent_args)
                 )
 
             # args_unknown are step args
@@ -501,12 +505,12 @@ class RunManager(metaclass=Singleton):
 
         return parsed_parent_args, parsed_steps_args_list
 
-    def _run_in_environment_with_own_logger(self, active_solution: Solution, scripts):
+    def _run_in_environment_with_own_logger(self, script_queue_entry: ScriptQueueEntry):
         """Pushes a new logger to the stack before running the solution and pops it afterwards."""
-        album_logging.configure_logging(active_solution.coordinates.name)
-        module_logger().debug("Running script in environment of solution \"%s\"..." % active_solution.coordinates.name)
-        self.environment_manager.run_scripts(active_solution.environment, scripts)
-        module_logger().debug("Done running script in environment of solution \"%s\"..." % active_solution.coordinates.name)
+        album_logging.configure_logging(script_queue_entry.coordinates.name)
+        module_logger().debug("Running script in environment of solution \"%s\"..." % script_queue_entry.coordinates.name)
+        self.environment_manager.run_scripts(script_queue_entry.environment, script_queue_entry.scripts)
+        module_logger().debug("Done running script in environment of solution \"%s\"..." % script_queue_entry.coordinates.name)
         album_logging.pop_active_logger()
 
     @staticmethod
@@ -519,8 +523,18 @@ class RunManager(metaclass=Singleton):
         return argv
 
     @staticmethod
-    def _print_credit(active_solutions: list) -> None:
+    def _print_credit(active_solutions: List[Solution]) -> None:
+        res = RunManager.get_credit_as_string(active_solutions)
+        module_logger().info(res)
+
+    @staticmethod
+    def get_credit_as_string(active_solutions: List[Solution]):
         res = '\n\nSolution credits:\n\n'
         for active_solution in active_solutions:
-            res += active_solution.get_credit_as_string()
-        module_logger().info(res)
+            for citation in active_solution.setup['cite']:
+                text = citation['text']
+                if 'doi' in citation:
+                    text += ' (DOI: %s)' % citation['doi']
+                res += '%s\n' % text
+        res += '\n'
+        return res

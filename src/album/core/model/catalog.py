@@ -8,14 +8,15 @@ from git import Repo
 
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.configuration import Configuration
-from album.core.model.coordinates import Coordinates
+from album.core.utils.operations.solution_operations import get_deploy_dict
+from album.runner.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import unzip_archive, copy, copy_folder, get_dict_from_json, \
     write_dict_to_json, force_remove
 from album.core.utils.operations.git_operations import download_repository, init_repository
 from album.core.utils.operations.resolve_operations import get_zip_name, dict_to_coordinates
 from album.core.utils.operations.url_operations import download_resource
-from album.runner import album_logging
+from album.runner import album_logging, Solution
 
 module_logger = album_logging.get_active_logger
 
@@ -305,7 +306,7 @@ class Catalog:
 
         return database_version
 
-    def add(self, active_solution, force_overwrite=False):
+    def add(self, active_solution: Solution, force_overwrite=False):
         """Adds an active solution_object to the index. Does not copy anything from A to B. Expects the local catalog index to be loaded.
 
         Args:
@@ -320,18 +321,18 @@ class Catalog:
                          when the solution already exists and force_overwrite is False.
 
         """
-        solution_attrs = active_solution.get_deploy_dict()
+        solution_attrs = get_deploy_dict(active_solution)
 
-        if hasattr(active_solution, "doi"):
-            solution_attrs["doi"] = getattr(active_solution, "doi")
+        if active_solution.setup.doi:
+            solution_attrs["doi"] = active_solution.setup.doi
             if self.catalog_index.get_solution_by_doi(solution_attrs["doi"]) is not None:
                 if force_overwrite:
                     module_logger().warning("Solution already exists! Overwriting...")
                 else:
                     raise RuntimeError("DOI already exists in catalog! Aborting...")
 
-        if hasattr(active_solution, "deposit_id"):
-            solution_attrs["deposit_id"] = getattr(active_solution, "deposit_id")
+        if active_solution.setup.deposit_id:
+            solution_attrs["deposit_id"] = active_solution.setup.deposit_id
 
         lookup_solution = self.catalog_index.get_solution_by_coordinates(active_solution.coordinates)
         if lookup_solution:
@@ -344,16 +345,16 @@ class Catalog:
         self.catalog_index.save()
         self.catalog_index.export(self.solution_list_path)
 
-    def remove(self, active_solution):
+    def remove(self, active_solution: Solution):
         """Removes a solution from a catalog. Only for local catalogs. Expects the local catalog index to be loaded.
 
         Args:
             active_solution:
-                The active album object (also: solution object, see AlbumClass) to remove from the catalog.
+                The active solution object to remove from the catalog.
 
         """
         if self.is_local():
-            solution_attrs = active_solution.get_deploy_dict()
+            solution_attrs = get_deploy_dict(active_solution)
             solution_entry = self.catalog_index.remove_solution_by_group_name_version(
                 dict_to_coordinates(solution_attrs)
             )

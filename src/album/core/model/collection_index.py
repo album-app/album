@@ -5,7 +5,7 @@ from typing import Optional
 
 from album.core.concept.database import Database
 from album.core.model.catalog_index import CatalogIndex
-from album.core.model.coordinates import Coordinates
+from album.runner.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import get_dict_entry
 
 
@@ -260,11 +260,11 @@ class CollectionIndex(Database):
                 solution_attrs["timestamp"],
                 solution_attrs["description"],
                 get_dict_entry(solution_attrs, "doi"),  # allow to be none
-                solution_attrs["git_repo"],
                 solution_attrs["license"],
                 solution_attrs["album_version"],
                 solution_attrs["album_api_version"],
                 get_dict_entry(solution_attrs, "changelog"),
+                get_dict_entry(solution_attrs, "acknowledgement"),
                 hash_val,
                 None,  # when installed?
                 None,  # last executed
@@ -422,14 +422,15 @@ class CollectionIndex(Database):
         cursor = self.get_cursor()
 
         cursor.execute(
-            "INSERT INTO argument values (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO argument values (?, ?, ?, ?, ?, ?, ?)",
             (
                 argument_id,
                 catalog_id,
                 argument["name"],
                 get_dict_entry(argument, "type"),
                 argument["description"],
-                get_dict_entry(argument, "default_value")
+                get_dict_entry(argument, "default_value"),
+                get_dict_entry(argument, "required")
             )
         )
 
@@ -439,16 +440,17 @@ class CollectionIndex(Database):
         return argument_id
 
     def _insert_citation(self, citation, catalog_id, close=True):
-        citation_id = self.next_id("citation")
+        citation_id = self.next_id('citation')
 
         cursor = self.get_cursor()
         cursor.execute(
-            "INSERT INTO citation values (?, ?, ?, ?)",
+            'INSERT INTO citation values (?, ?, ?, ?, ?)',
             (
                 citation_id,
                 catalog_id,
                 citation["text"],
-                get_dict_entry(citation, "doi")
+                get_dict_entry(citation, 'doi'),
+                get_dict_entry(citation, 'url')
             )
         )
 
@@ -665,6 +667,8 @@ class CollectionIndex(Database):
             citation = {"text": row["text"]}
             if row["doi"]:
                 citation["doi"] = row["doi"]
+            if row["url"]:
+                citation["url"] = row["url"]
             res.append(citation)
 
         if close:

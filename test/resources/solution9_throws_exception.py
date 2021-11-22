@@ -18,15 +18,13 @@ setup(
     deposit_id="",
     timestamp="",
     description="",
-    authors="",
+    authors=[],
     cite=[],
-    git_repo="",
+    acknowledgement="",
     tags=[],
     license="license",
-    documentation=[""],
+    documentation=[],
     covers=[],
-    sample_inputs=[],
-    sample_outputs=[],
     album_version="0.1.1",
     album_api_version="0.1.1",
     args=[
@@ -39,6 +37,5 @@ setup(
     ],
     run=album_run,
     install=album_install,
-    dependencies={
-        'environment_name': 'album'
-    })
+    dependencies={}
+)

@@ -9,7 +9,7 @@ from album.core.model.catalog import Catalog
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.catalog_updates import CatalogUpdates, SolutionChange, ChangeType
 from album.core.model.configuration import Configuration
-from album.core.model.coordinates import Coordinates
+from album.runner.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from test.unit.core.controller.collection.test_collection_manager import TestCatalogCollectionCommon
 

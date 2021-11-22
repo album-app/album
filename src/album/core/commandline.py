@@ -1,6 +1,7 @@
 import json
 import sys
 
+from album.core.utils.operations.solution_operations import get_deploy_dict
 from album.runner.album_logging import get_active_logger
 
 from album.api import Album
@@ -82,7 +83,7 @@ def info(args):
     resolve_result = CollectionManager().resolve_download_and_load(str(args.path))
     print_json = _get_print_json(args)
     solution = resolve_result.loaded_solution
-    deploy_dict = solution.get_deploy_dict()
+    deploy_dict = get_deploy_dict(solution)
     if print_json:
         print(_as_json(deploy_dict))
     else:
@@ -90,18 +91,18 @@ def info(args):
         for arg in deploy_dict['args']:
             param_example_str += '--%s PARAMETER_VALUE ' % arg['name']
         res = 'Solution details about %s:\n\n' % args.path
-        res += '%s\n' % solution.title
-        res += '%s\n' % ('=' * len(solution.title))
-        res += '%s\n\n' % solution.description
-        res += 'Group            : %s\n' % solution.group
-        res += 'Name             : %s\n' % solution.name
-        res += 'Version          : %s' % solution.version
-        res += '%s' % solution.get_credit_as_string()
+        res += '%s\n' % solution.setup.title
+        res += '%s\n' % ('=' * len(solution.setup.title))
+        res += '%s\n\n' % solution.setup.description
+        res += 'Group            : %s\n' % solution.setup.group
+        res += 'Name             : %s\n' % solution.setup.name
+        res += 'Version          : %s' % solution.setup.version
+        res += '%s' % get_credit_as_string(solution)
         res += 'Solution metadata:\n\n'
-        res += 'Solution authors : %s\n' % ", ".join(solution.authors)
-        res += 'License          : %s\n' % solution.license
-        res += 'GIT              : %s\n' % solution.git_repo
-        res += 'Tags             : %s\n' % ", ".join(solution.tags)
+        res += 'Solution authors : %s\n' % ", ".join(solution.setup.authors)
+        res += 'License          : %s\n' % solution.setup.license
+        res += 'Acknowledgement  : %s\n' % solution.setup.acknowledgement
+        res += 'Tags             : %s\n' % ", ".join(solution.setup.tags)
         res += '\n'
         res += 'Usage:\n\n'
         res += '  album install %s\n' % args.path
@@ -218,3 +219,14 @@ def _get_print_json(args):
 
 def _as_json(data):
     return json.dumps(data, sort_keys=True, indent=4)
+
+
+def get_credit_as_string(solution):
+    res = '\n\nCredits:\n\n'
+    for citation in solution.setup['cite']:
+        text = citation['text']
+        if 'doi' in citation:
+            text += ' (DOI: %s)' % citation['doi']
+        res += '%s\n' % text
+    res += '\n'
+    return res

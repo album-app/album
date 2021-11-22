@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import album.core.utils.operations.git_operations as git_op
 from album.core.model.default_values import DefaultValues
-from album.core.model.solution import Solution
+from album.runner.model.solution import Solution
 from album.core.utils.operations.file_operations import copy
 from test.unit.test_unit_common import TestGitCommon
 
@@ -76,7 +76,7 @@ class TestGitOperations(TestGitCommon):
 
         self.assertTrue("does not hold pattern" in str(context.exception))
 
-    @patch('album.core.model.solution.Solution.get_deploy_dict', return_value={})
+    @patch('album.core.utils.operations.solution_operations.get_deploy_dict', return_value={})
     def test_add_files_commit_and_push(self, _):
         attrs_dict = {"name": "test_solution_name", "group": "test_solution_group", "version": "test_solution_version"}
         active_solution = Solution(attrs_dict)
@@ -113,7 +113,7 @@ class TestGitOperations(TestGitCommon):
         # correct branch checked out
         self.assertEqual(self.repo.active_branch.name, "test_solution_name")
 
-    @patch('album.core.model.solution.Solution.get_deploy_dict', return_value={})
+    @patch('album.core.utils.operations.solution_operations.get_deploy_dict', return_value={})
     def test_add_files_commit_and_push_no_diff(self, _):
         attrs_dict = {
             "name": "test_solution_name",

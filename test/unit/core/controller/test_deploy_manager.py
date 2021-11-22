@@ -7,7 +7,7 @@ from album.core.controller.migration_manager import MigrationManager
 
 from album.ci.utils.zenodo_api import ZenodoAPI
 from album.core.controller.deploy_manager import DeployManager
-from album.core.model.coordinates import Coordinates
+from album.runner.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from test.unit.test_unit_common import TestGitCommon, EmptyTestClass
 
@@ -223,7 +223,7 @@ class TestDeployManager(TestGitCommon):
 
         self.repo.close()
 
-    @patch('album.core.model.solution.Solution.get_deploy_dict')
+    @patch('album.core.controller.deploy_manager.get_deploy_dict')
     def test__create_yaml_file_in_local_src(self, deploy_dict_mock):
         deploy_dict_mock.return_value = {"name": "tsn", "group": "tsg", "version": "tsv"}
 
@@ -241,7 +241,7 @@ class TestDeployManager(TestGitCommon):
         self.assertEqual(["group: tsg\n", "name: tsn\n", "version: tsv\n"], f_content)
         self.repo.close()
 
-    @patch('album.core.model.solution.Solution.get_deploy_dict')
+    @patch('album.core.utils.operations.solution_operations.get_deploy_dict')
     def test__get_absolute_zip_path(self, deploy_dict_mock):
         deploy_dict_mock.return_value = {"name": "tsn", "group": "tsg", "version": "tsv"}
 
@@ -264,7 +264,7 @@ class TestDeployManager(TestGitCommon):
     @patch('album.core.controller.deploy_manager.copy', return_value="absPathCopyOfCover")
     def test__copy_cover_to_local_src(self, copy_mock):
         # set covers
-        self.active_solution["covers"] = [{"source": "example_cover1.png"}, {"source": "example_cover2.png"}]
+        self.active_solution.setup.covers = [{"source": "example_cover1.png"}, {"source": "example_cover2.png"}]
 
         # prepare fake covers and solution_file
         Path(self.tmp_dir.name).joinpath("example_cover1.png").touch()

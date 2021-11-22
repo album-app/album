@@ -1,8 +1,9 @@
 import sys
 from typing import Optional
 
-from album.core.model.solution import Solution
+from album.core.controller.migration_manager import MigrationManager
 from album.runner import album_logging
+from album.runner.model.solution import Solution
 
 module_logger = album_logging.get_active_logger
 

@@ -1,10 +1,6 @@
 from album.runner import setup
 
 
-def album_init():
-    pass
-
-
 setup(
     group="group",
     name="solution_with_steps",
@@ -12,22 +8,19 @@ setup(
     version="0.1.0",
     timestamp="",
     description="",
-    authors="",
+    authors=[],
     cite=[],
-    git_repo="",
+    acknowledgement="",
     tags=[],
     license="license",
-    documentation=[""],
+    documentation=[],
     covers=[],
-    sample_inputs=[],
-    sample_outputs=[],
     album_version="0.1.1",
     album_api_version="0.1.1",
     args=[{
         "name": "file",
         "description": "myfile",
     }],
-    init=album_init,
     steps=[
         {
             'name': 'solution1_app1',

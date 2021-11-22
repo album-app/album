@@ -3,7 +3,7 @@ from pathlib import Path
 
 from album.core.concept.singleton import Singleton
 from album.core.model.default_values import DefaultValues
-from album.core.model.coordinates import Coordinates
+from album.runner.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import create_paths_recursively, force_remove, get_dict_from_json
 from album.runner import album_logging
 
@@ -20,15 +20,14 @@ class Configuration(metaclass=Singleton):
             The base path all other cache folder have as parent folder.
          conda_executable:
             The conda executable. Either a full path to a conda executable/binary or a command
-        cache_path_solution:
-            Path for everything a solution needs. Holds the environment cache path. Catalog independent!
-            NOT the installation folder though! Installation folder is always in the catalog it lives in!
         cache_path_app:
-            Path for app solutions. Catalog independent!
+            Path for app solutions.
         cache_path_download:
-            Path for downloads a solution makes. Catalog independent!
-        cache_path_tmp:
-            Paths for temporary files!
+            Path for downloads a solution makes.
+        cache_path_tmp_internal:
+            Path for solution specific temporary files of album.
+        cache_path_tmp_user:
+            Path for solution specific temporary files of the user.
 
     """
 
@@ -36,10 +35,10 @@ class Configuration(metaclass=Singleton):
         self.is_setup = False
         self.base_cache_path = None
         self.conda_executable = None
-        self.cache_path_solution = None
         self.cache_path_app = None
         self.cache_path_download = None
-        self.cache_path_tmp = None
+        self.cache_path_tmp_internal = None
+        self.cache_path_tmp_user = None
         self.catalog_collection_path = None
 
     def setup(self, base_cache_path=None):
@@ -58,17 +57,17 @@ class Configuration(metaclass=Singleton):
         else:
             self.conda_executable = conda_path
 
-        self.cache_path_solution = self.base_cache_path.joinpath(DefaultValues.cache_path_solution_prefix.value)
+        self.cache_path_tmp_internal = self.base_cache_path.joinpath(DefaultValues.cache_path_solution_prefix.value)
         self.cache_path_app = self.base_cache_path.joinpath(DefaultValues.cache_path_app_prefix.value)
         self.cache_path_download = self.base_cache_path.joinpath(DefaultValues.cache_path_download_prefix.value)
-        self.cache_path_tmp = self.base_cache_path.joinpath(DefaultValues.cache_path_tmp_prefix.value)
+        self.cache_path_tmp_user = self.base_cache_path.joinpath(DefaultValues.cache_path_tmp_prefix.value)
         self.catalog_collection_path = self.base_cache_path.joinpath(DefaultValues.catalog_folder_prefix.value)
         create_paths_recursively(
             [
-                self.cache_path_solution,
+                self.cache_path_tmp_internal,
                 self.cache_path_app,
                 self.cache_path_download,
-                self.cache_path_tmp,
+                self.cache_path_tmp_user,
                 self.catalog_collection_path
             ]
         )
@@ -140,4 +139,4 @@ class Configuration(metaclass=Singleton):
 
     def empty_tmp(self):
         """Removes the content of the tmp folder"""
-        force_remove(self.cache_path_tmp)
+        force_remove(self.cache_path_tmp_user)

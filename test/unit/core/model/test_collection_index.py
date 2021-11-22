@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 from album.core.controller.collection.solution_handler import SolutionHandler
 from album.core.model.collection_index import CollectionIndex
-from album.core.model.coordinates import Coordinates
+from album.runner.model.coordinates import Coordinates
 from test.unit.test_unit_common import TestUnitCommon
 
 
