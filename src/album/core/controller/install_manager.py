@@ -2,7 +2,6 @@ from typing import Optional
 
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
-from album.core.controller.conda_manager import CondaManager
 from album.core.controller.environment_manager import EnvironmentManager
 from album.core.model.catalog import Catalog
 from album.core.model.configuration import Configuration
@@ -11,8 +10,8 @@ from album.core.model.resolve_result import ResolveResult
 from album.core.model.solution import Solution
 from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.resolve_operations import clean_resolve_tmp, build_resolve_string
-from album.runner.concept.script_creator import ScriptCreatorInstall, ScriptCreatorUnInstall
 from album.runner import album_logging
+from album.runner.concept.script_creator import ScriptCreatorInstall, ScriptCreatorUnInstall
 
 module_logger = album_logging.get_active_logger
 
@@ -23,20 +22,19 @@ class InstallManager(metaclass=Singleton):
     Attributes:
         collection_manager:
             Holding all configured catalogs. Resolves inside our outside catalogs.
-        conda_manager:
-            Managing conda environments.
+        environment_manager:
+            Manages the environments.
         configuration:
             The configuration of the album instance.
 
     """
     # singletons
     collection_manager = None
-    conda_manager = None
+    environment_manager = None
     configuration = None
 
     def __init__(self):
         self.collection_manager = CollectionManager()
-        self.conda_manager = CondaManager()
         self.configuration = Configuration()
         self.environment_manager = EnvironmentManager()
 
@@ -188,7 +186,7 @@ class InstallManager(metaclass=Singleton):
             script = script_creator_install.create_script(active_solution, argv)
             module_logger().debug('Calling install routine specified in solution...')
             album_logging.configure_logging(active_solution.name)
-            self.conda_manager.run_scripts(active_solution.environment, [script])
+            self.environment_manager.run_scripts(active_solution, [script])
             album_logging.pop_active_logger()
         else:
             module_logger().debug(
@@ -228,7 +226,7 @@ class InstallManager(metaclass=Singleton):
         self.run_solution_uninstall_routine(resolve_result.loaded_solution, argv)
 
         if not resolve_result.loaded_solution.parent:
-            self.conda_manager.remove_environment(resolve_result.loaded_solution.environment.name)
+            self.environment_manager.remove_environment(resolve_result.loaded_solution, resolve_result.catalog)
 
         if resolve_result.collection_entry["children"]:
             children = []
@@ -271,7 +269,7 @@ class InstallManager(metaclass=Singleton):
             script = script_creator_un_install.create_script(active_solution, argv)
             module_logger().debug('Calling uninstall routine specified in solution...')
             album_logging.configure_logging(active_solution.name)
-            self.conda_manager.run_scripts(active_solution.environment, [script])
+            self.environment_manager.run_scripts(active_solution, [script])
             album_logging.pop_active_logger()
         else:
             module_logger().info(

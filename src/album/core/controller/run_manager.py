@@ -4,13 +4,12 @@ from queue import Queue, Empty
 from album.core import load
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
-from album.core.controller.conda_manager import CondaManager
 from album.core.controller.environment_manager import EnvironmentManager
 from album.core.model.coordinates import Coordinates
 from album.core.model.solution import Solution
 from album.core.utils.operations.resolve_operations import build_resolve_string
-from album.runner.concept.script_creator import ScriptCreatorRun, ScriptCreatorRunWithParent
 from album.runner import album_logging
+from album.runner.concept.script_creator import ScriptCreatorRun, ScriptCreatorRunWithParent
 
 module_logger = album_logging.get_active_logger
 
@@ -56,16 +55,16 @@ class RunManager(metaclass=Singleton):
      Attributes:
          collection_manager:
             Holding all configured catalogs. Resolves inside our outside catalogs.
+        environment_manager:
+            Manages the environments.
 
     """
     # singletons
     collection_manager = None
-    conda_manager = None
     environment_manager = None
 
     def __init__(self):
         self.collection_manager = CollectionManager()
-        self.conda_manager = CondaManager()
         self.environment_manager = EnvironmentManager()
 
         self.init_script = ""
@@ -506,7 +505,7 @@ class RunManager(metaclass=Singleton):
         """Pushes a new logger to the stack before running the solution and pops it afterwards."""
         album_logging.configure_logging(active_solution.name)
         module_logger().debug("Running script in environment of solution \"%s\"..." % active_solution.name)
-        self.conda_manager.run_scripts(active_solution.environment, scripts)
+        self.environment_manager.run_scripts(active_solution, scripts)
         module_logger().debug("Done running script in environment of solution \"%s\"..." % active_solution.name)
         album_logging.pop_active_logger()
 

@@ -1,9 +1,7 @@
 from pathlib import Path
 from typing import Optional
 
-from album.core.controller.conda_manager import CondaManager
-
-from album.core import load, Solution
+from album.core import load
 from album.core.concept.singleton import Singleton
 # classes and methods
 from album.core.controller.collection.catalog_handler import CatalogHandler
@@ -40,13 +38,11 @@ class CollectionManager(metaclass=Singleton):
     # singletons
     configuration = None
     migration_manager = None
-    conda_manager = None
 
     def __init__(self):
         super().__init__()
         self.configuration = Configuration()
         self.migration_manager = MigrationManager()
-        self.conda_manager = CondaManager()
         self.solution_handler: Optional[SolutionHandler] = None
         self.catalog_handler: Optional[CatalogHandler] = None
         self.catalog_collection: Optional[CollectionIndex] = None
@@ -132,7 +128,7 @@ class CollectionManager(metaclass=Singleton):
             raise LookupError("Solution not found!")
 
         if not resolve_result.collection_entry["installed"]:
-            raise LookupError("Solution seems not to be installed! Please install solution first!")
+            raise ValueError("Solution seems not to be installed! Please install solution first!", resolve_result)
 
         return resolve_result
 
