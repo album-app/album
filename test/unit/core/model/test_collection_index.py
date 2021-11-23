@@ -88,6 +88,7 @@ class TestCollectionIndex(TestUnitCommon):
 
     def test_insert_catalog(self):
         self.assertEqual([], self.test_catalog_collection_index.get_all_catalogs())
+        self.assertTrue(self.test_catalog_collection_index.is_table_empty("catalog"))
 
         self.test_catalog_collection_index.insert_catalog(
             "myName1", "mySrc1", "myPath1", True, None
@@ -151,7 +152,178 @@ class TestCollectionIndex(TestUnitCommon):
     def test_remove_catalog(self):
         pass
 
-    # ### collection ###
+    # ### metadata ###
+    def test__insert_author(self):
+        self.is_empty_or_full(empty=True)
+        self.assertTrue(self.test_catalog_collection_index.is_table_empty("author"))
+
+        # call
+        self.test_catalog_collection_index._insert_author("myAuthor", 1)
+
+        # assert
+        self.assertFalse(self.test_catalog_collection_index.is_table_empty("author"))
+
+    def test__insert_tag(self):
+        self.is_empty_or_full(empty=True)
+        self.assertTrue(self.test_catalog_collection_index.is_table_empty("tag"))
+
+        # call
+        self.test_catalog_collection_index._insert_tag("myTag", 1)
+
+        # assert
+        self.assertFalse(self.test_catalog_collection_index.is_table_empty("tag"))
+
+    def test__insert_citation(self):
+        self.is_empty_or_full(empty=True)
+        self.assertTrue(self.test_catalog_collection_index.is_table_empty("citation"))
+
+        # call
+        self.test_catalog_collection_index._insert_citation({"text": "myCitation", "doi": "abc/def"}, 1)
+
+        # assert
+        self.assertFalse(self.test_catalog_collection_index.is_table_empty("citation"))
+
+    def test__insert_argument(self):
+        self.is_empty_or_full(empty=True)
+        self.assertTrue(self.test_catalog_collection_index.is_table_empty("argument"))
+
+        arg = {
+            "name": "myName",
+            "type": "myType",
+            "description": "myDescription",
+            "default_value": "myDefaultValue"
+        }
+        # call
+        self.test_catalog_collection_index._insert_argument(arg, 1)
+
+        # assert
+        self.assertFalse(self.test_catalog_collection_index.is_table_empty("argument"))
+
+    def test__insert_cover(self):
+        self.is_empty_or_full(empty=True)
+        self.assertTrue(self.test_catalog_collection_index.is_table_empty("cover"))
+
+        # call
+        self.test_catalog_collection_index._insert_cover({"source": "myCover", "description": "myDescription"}, 1, 1)
+
+        # assert
+        self.assertFalse(self.test_catalog_collection_index.is_table_empty("cover"))
+
+    def test__insert_documentation(self):
+        self.is_empty_or_full(empty=True)
+        self.assertTrue(self.test_catalog_collection_index.is_table_empty("documentation"))
+
+        # call
+        self.test_catalog_collection_index._insert_documentation("myDocumentation", 1, 1)
+
+        # assert
+        self.assertFalse(self.test_catalog_collection_index.is_table_empty("documentation"))
+
+    def test__exists_author(self):
+        self.is_empty_or_full(empty=True)
+        self.assertTrue(self.test_catalog_collection_index.is_table_empty("author"))
+
+        # assert
+        self.assertIsNone(self.test_catalog_collection_index._exists_author("myAuthor", 1))
+
+        r = self.test_catalog_collection_index._insert_author("myAuthor", 1)
+
+        self.assertEqual(r, self.test_catalog_collection_index._exists_author("myAuthor", 1))
+
+    def test__exists_tag(self):
+        self.is_empty_or_full(empty=True)
+        self.assertTrue(self.test_catalog_collection_index.is_table_empty("tag"))
+
+        # assert
+        self.assertIsNone(self.test_catalog_collection_index._exists_tag("myTag", 1))
+
+        r = self.test_catalog_collection_index._insert_tag("myTag", 1)
+
+        self.assertEqual(r, self.test_catalog_collection_index._exists_tag("myTag", 1))
+
+    def test__exists_citation(self):
+        self.is_empty_or_full(empty=True)
+        self.assertTrue(self.test_catalog_collection_index.is_table_empty("citation"))
+
+        citation = {"text": "myCitation", "doi": "abc/def"}
+        citation_minimal = {"text": "myCitationMin"}
+
+        # assert
+        self.assertIsNone(self.test_catalog_collection_index._exists_citation(citation, 1))
+        self.assertIsNone(self.test_catalog_collection_index._exists_citation(citation_minimal, 1))
+
+        r1 = self.test_catalog_collection_index._insert_citation(citation, 1)
+        r2 = self.test_catalog_collection_index._insert_citation(citation_minimal, 1)
+
+        self.assertEqual(r1, self.test_catalog_collection_index._exists_citation(citation, 1))
+        self.assertEqual(r2, self.test_catalog_collection_index._exists_citation(citation_minimal, 1))
+
+    def test__exists_argument(self):
+        self.is_empty_or_full(empty=True)
+        self.assertTrue(self.test_catalog_collection_index.is_table_empty("argument"))
+
+        arg = {
+            "name": "myName",
+            "type": "myType",
+            "description": "myDescription",
+            "default_value": "myDefaultValue"
+        }
+        arg_no_type = {
+            "name": "myName",
+            "description": "myDescription",
+            "default_value": "myDefaultValue"
+        }
+        arg_no_default = {
+            "name": "myName",
+            "type": "myType",
+            "description": "myDescription"
+        }
+        arg_minimal = {
+            "name": "myName",
+            "description": "myDescription"
+        }
+
+        # assert
+        self.assertIsNone(self.test_catalog_collection_index._exists_argument(arg, 1))
+        self.assertIsNone(self.test_catalog_collection_index._exists_argument(arg_no_type, 1))
+        self.assertIsNone(self.test_catalog_collection_index._exists_argument(arg_no_default, 1))
+        self.assertIsNone(self.test_catalog_collection_index._exists_argument(arg_minimal, 1))
+
+        r1 = self.test_catalog_collection_index._insert_argument(arg, 1)
+        r2 = self.test_catalog_collection_index._insert_argument(arg_no_type, 1)
+        r3 = self.test_catalog_collection_index._insert_argument(arg_no_default, 1)
+        r4 = self.test_catalog_collection_index._insert_argument(arg_minimal, 1)
+
+        self.assertEqual(r1, self.test_catalog_collection_index._exists_argument(arg, 1))
+        self.assertEqual(r2, self.test_catalog_collection_index._exists_argument(arg_no_type, 1))
+        self.assertEqual(r3, self.test_catalog_collection_index._exists_argument(arg_no_default, 1))
+        self.assertEqual(r4, self.test_catalog_collection_index._exists_argument(arg_minimal, 1))
+
+    def test__exists_cover(self):
+        self.is_empty_or_full(empty=True)
+        self.assertTrue(self.test_catalog_collection_index.is_table_empty("cover"))
+
+        cover = {"source": "myCover", "description": "myDescription"}
+
+        # assert
+        self.assertIsNone(self.test_catalog_collection_index._exists_cover(cover, 1, 1))
+
+        r = self.test_catalog_collection_index._insert_cover(cover, 1, 1)
+
+        self.assertEqual(r, self.test_catalog_collection_index._exists_cover(cover, 1, 1))
+
+    def test__exists_documentation(self):
+        self.is_empty_or_full(empty=True)
+        self.assertTrue(self.test_catalog_collection_index.is_table_empty("documentation"))
+
+        # assert
+        self.assertIsNone(self.test_catalog_collection_index._exists_documentation("myDocumentation", 1, 1))
+
+        r = self.test_catalog_collection_index._insert_documentation("myDocumentation", 1, 1)
+
+        self.assertEqual(r, self.test_catalog_collection_index._exists_documentation("myDocumentation", 1, 1))
+
+    # ### collection/solution ###
 
     def test_insert_solution(self):
         catalog_id = "aNiceId"
