@@ -2,13 +2,12 @@ from queue import Queue
 
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
-from album.core.controller.conda_manager import CondaManager
 from album.core.controller.environment_manager import EnvironmentManager
 from album.core.controller.run_manager import RunManager
 from album.core.model.coordinates import Coordinates
 from album.core.model.solution import Solution
-from album.runner.concept.script_creator import ScriptTestCreator
 from album.runner import album_logging
+from album.runner.concept.script_creator import ScriptTestCreator
 
 module_logger = album_logging.get_active_logger
 
@@ -25,13 +24,11 @@ class TestManager(metaclass=Singleton):
     """
     # singletons
     collection_manager = None
-    conda_manager = None
     run_manager = None
     environment_manager = None
 
     def __init__(self):
         self.collection_manager = CollectionManager()
-        self.conda_manager = CondaManager()
         self.run_manager = RunManager()
         self.environment_manager = EnvironmentManager()
 

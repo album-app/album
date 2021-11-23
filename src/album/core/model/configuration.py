@@ -134,7 +134,7 @@ class Configuration(metaclass=Singleton):
     def get_initial_catalogs_branch_name():
         """Returns the default catalogs branches to use."""
         return {
-            DefaultValues.local_catalog_name.value: None,
+            DefaultValues.local_catalog_name.value: "main",
             DefaultValues.default_catalog_name.value: DefaultValues.default_catalog_src_branch.value
         }
 

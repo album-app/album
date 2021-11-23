@@ -155,8 +155,6 @@ class TestRunManager(TestUnitCommon):
 
     def test_run_queue(self):
         # mocks
-        set_environment_path = MagicMock()
-        self.run_manager.conda_manager.set_environment_path = set_environment_path
         _run_in_environment_with_own_logger = MagicMock(return_value=None)
         self.run_manager._run_in_environment_with_own_logger = _run_in_environment_with_own_logger
 
@@ -565,15 +563,17 @@ class TestRunManager(TestUnitCommon):
 
     @patch('album.runner.album_logging.configure_logging', return_value=None)
     @patch('album.runner.album_logging.pop_active_logger', return_value=None)
-    @patch('album.core.controller.conda_manager.CondaManager.run_scripts', return_value="")
-    def test__run_in_environment_with_own_logger(self, run_scripts_mock, pop_mock, conf_mock):
-        self.active_solution.environment = EmptyTestClass()
-        self.active_solution.environment.name = ""
+    def test__run_in_environment_with_own_logger(self, pop_mock, conf_mock):
+        e = EmptyTestClass()
+        self.active_solution.environment = e
+
+        run_scripts_mock = MagicMock()
+        self.run_manager.environment_manager.run_scripts = run_scripts_mock
 
         self.run_manager._run_in_environment_with_own_logger(self.active_solution, "")
 
         conf_mock.assert_called_once_with(self.active_solution["name"])
-
+        run_scripts_mock.assert_called_once_with(self.active_solution, "")
         pop_mock.assert_called_once()
 
     def test__get_args(self):

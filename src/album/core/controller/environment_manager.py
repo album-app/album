@@ -11,6 +11,7 @@ module_logger = album_logging.get_active_logger
 
 
 class EnvironmentManager(metaclass=Singleton):
+    """Manages everything around the environment a solution lives in."""
 
     def __init__(self):
         self.conda_manager = CondaManager()
@@ -22,7 +23,7 @@ class EnvironmentManager(metaclass=Singleton):
             self.get_environment_name(active_solution.coordinates, catalog),
             active_solution.package_path
         )
-        self.conda_manager.install(environment, active_solution.album_version)
+        self.conda_manager.install(environment, active_solution.album_api_version)
 
         active_solution.environment = environment
 
@@ -54,6 +55,21 @@ class EnvironmentManager(metaclass=Singleton):
             self.conda_manager.set_environment_path(environment)
 
         active_solution.environment = environment
+
+    def remove_environment(self, active_solution: Solution, catalog: Catalog):
+        """Removes an environment of a solution."""
+        if active_solution.environment:
+            self.conda_manager.remove_environment(active_solution.environment.name)
+        else:
+            env_name = self.get_environment_name(active_solution.coordinates, catalog)
+            self.conda_manager.remove_environment(env_name)
+
+    def run_scripts(self, active_solution: Solution, scripts):
+        """Runs scripts in an environment"""
+        if active_solution.environment:
+            self.conda_manager.run_scripts(active_solution.environment, scripts)
+        else:
+            raise EnvironmentError("Environment not set! Cannot run scripts!")
 
     @staticmethod
     def get_environment_name(coordinates: Coordinates, catalog: Catalog):

@@ -220,7 +220,7 @@ class CondaManager(metaclass=Singleton):
             self.remove_environment(environment_name)
         else:
             if env_exists:
-                raise FileExistsError("Environment already exists!")
+                raise EnvironmentError("Environment with name %s already exists!" % environment_name)
 
         subprocess_args = [
             self.conda_executable, 'create', '--force', '--json', '-y', '-n', environment_name, 'python=3.6', 'pip'
@@ -231,7 +231,7 @@ class CondaManager(metaclass=Singleton):
         except RuntimeError as e:
             # cleanup after failed installation
             if self.environment_exists(environment_name):
-                module_logger().debug('Cleanup failed installation...')
+                module_logger().debug('Cleanup failed environment creation...')
                 self.remove_environment(environment_name)
             raise RuntimeError("Command failed due to reasons above!") from e
 
@@ -449,11 +449,11 @@ class CondaManager(metaclass=Singleton):
             module_logger().warning("No yaml file specified. Creating Environment without dependencies!")
             self.create_environment(environment.name)
 
-    def install(self, environment: Environment, album_version=None):
+    def install(self, environment: Environment, album_api_version=None):
         """Creates or updates an an environment and installs album in the target environment."""
         self.create_or_update_env(environment)
         self.set_environment_path(environment)
-        self.install_framework(environment.path, album_version)
+        self.install_framework(environment.path, album_api_version)
 
     # ToDo: use explicit versioning of album
     def install_framework(self, environment_path: str, min_framework_version=None):

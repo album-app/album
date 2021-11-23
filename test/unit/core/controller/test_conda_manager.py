@@ -135,7 +135,7 @@ class TestCondaManager(TestUnitCommon):
 
         if not skip:
             # create it again without force fails
-            with self.assertRaises(FileExistsError):
+            with self.assertRaises(EnvironmentError):
                 self.conda.create_environment(self.test_environment_name)
 
             self.assertTrue(self.conda.environment_exists(self.test_environment_name))
