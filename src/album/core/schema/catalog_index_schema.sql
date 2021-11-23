@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS solution
     solution_id       INTEGER PRIMARY KEY,
     "group"           TEXT      not null,
     name              TEXT      not null,
-    title             TEXT      not null,
+    title             TEXT,
     version           TEXT      not null,
     timestamp         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     description       TEXT,

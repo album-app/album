@@ -246,23 +246,23 @@ class CollectionIndex(Database):
 
         cursor = self.get_cursor()
         cursor.execute(
-            "INSERT INTO collection VALUES "
-            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ,? ,?, ?, ? ,?, ?, ?, ?)",
+            'INSERT INTO collection VALUES '
+            '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ,? ,?, ?, ? ,?, ?, ?, ?)',
             (
                 collection_id,
-                get_dict_entry(solution_attrs, "solution_id"),
-                solution_attrs["group"],
-                solution_attrs["name"],
-                solution_attrs["title"],
-                solution_attrs["version"],
-                solution_attrs["timestamp"],
-                solution_attrs["description"],
-                get_dict_entry(solution_attrs, "doi"),  # allow to be none
-                solution_attrs["license"],
-                solution_attrs["album_version"],
-                solution_attrs["album_api_version"],
-                get_dict_entry(solution_attrs, "changelog"),
-                get_dict_entry(solution_attrs, "acknowledgement"),
+                get_dict_entry(solution_attrs, 'solution_id'),
+                solution_attrs['group'],
+                solution_attrs['name'],
+                get_dict_entry(solution_attrs, 'title'),
+                solution_attrs['version'],
+                get_dict_entry(solution_attrs, 'timestamp'),
+                get_dict_entry(solution_attrs, 'description'),
+                get_dict_entry(solution_attrs, 'doi'),
+                get_dict_entry(solution_attrs, 'license'),
+                get_dict_entry(solution_attrs, 'album_version'),
+                get_dict_entry(solution_attrs, 'album_api_version'),
+                get_dict_entry(solution_attrs, 'changelog'),
+                get_dict_entry(solution_attrs, 'acknowledgement'),
                 hash_val,
                 None,  # when installed?
                 None,  # last executed
@@ -272,31 +272,38 @@ class CollectionIndex(Database):
             )
         )
 
-        for author in solution_attrs["authors"]:
-            # fixme: what if author already in DB?
-            author_id = self._insert_author(author, catalog_id, close=False)
-            self._insert_collection_author(collection_id, author_id, catalog_id, close=False)
 
-        for tag in solution_attrs["tags"]:
-            # fixme: what if author already in DB?
-            tag_id = self._insert_tag(tag, catalog_id, close=False)
-            self._insert_collection_tag(collection_id, tag_id, catalog_id, close=False)
+        if 'authors' in solution_attrs:
+            for author in solution_attrs['authors']:
+                # fixme: what if author already in DB?
+                author_id = self._insert_author(author, catalog_id, close=False)
+                self._insert_collection_author(collection_id, author_id, catalog_id, close=False)
 
-        for citation in solution_attrs["cite"]:
-            # fixme: what if author already in DB?
-            citation_id = self._insert_citation(citation, catalog_id, close=False)
-            self._insert_collection_citation(collection_id, citation_id, catalog_id, close=False)
+        if 'tags' in solution_attrs:
+            for tag in solution_attrs['tags']:
+                # fixme: what if author already in DB?
+                tag_id = self._insert_tag(tag, catalog_id, close=False)
+                self._insert_collection_tag(collection_id, tag_id, catalog_id, close=False)
 
-        for argument in solution_attrs["args"]:
-            # fixme: what if author already in DB?
-            argument_id = self._insert_argument(argument, catalog_id, close=False)
-            self._insert_collection_argument(collection_id, argument_id, catalog_id, close=False)
+        if 'cite' in solution_attrs:
+            for citation in solution_attrs['cite']:
+                # fixme: what if author already in DB?
+                citation_id = self._insert_citation(citation, catalog_id, close=False)
+                self._insert_collection_citation(collection_id, citation_id, catalog_id, close=False)
 
-        for cover in solution_attrs["covers"]:
-            self._insert_cover(cover, catalog_id, collection_id, close=False)
+        if 'args' in solution_attrs:
+            for argument in solution_attrs['args']:
+                # fixme: what if author already in DB?
+                argument_id = self._insert_argument(argument, catalog_id, close=False)
+                self._insert_collection_argument(collection_id, argument_id, catalog_id, close=False)
 
-        for documentation in solution_attrs["documentation"]:
-            self._insert_documentation(documentation, catalog_id, collection_id, close=False)
+        if 'covers' in solution_attrs:
+            for cover in solution_attrs['covers']:
+                self._insert_cover(cover, catalog_id, collection_id, close=False)
+
+        if 'documentation' in solution_attrs:
+            for documentation in solution_attrs['documentation']:
+                self._insert_documentation(documentation, catalog_id, collection_id, close=False)
 
         if close:
             self.close_current_connection()

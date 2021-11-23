@@ -531,10 +531,11 @@ class RunManager(metaclass=Singleton):
     def get_credit_as_string(active_solutions: List[Solution]):
         res = '\n\nSolution credits:\n\n'
         for active_solution in active_solutions:
-            for citation in active_solution.setup['cite']:
-                text = citation['text']
-                if 'doi' in citation:
-                    text += ' (DOI: %s)' % citation['doi']
-                res += '%s\n' % text
+            if active_solution.setup.cite:
+                for citation in active_solution.setup.cite:
+                    text = citation['text']
+                    if 'doi' in citation:
+                        text += ' (DOI: %s)' % citation['doi']
+                    res += '%s\n' % text
         res += '\n'
         return res

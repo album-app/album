@@ -32,18 +32,7 @@ def album_test():
 setup(
     group="group",
     name="solution10_uninstall",
-    title="solution10",
     version="0.1.0",
-    timestamp="",
-    description="",
-    authors=[],
-    cite=[],
-    acknowledgement="",
-    tags=[],
-    license="license",
-    documentation=[],
-    covers=[],
-    album_version="0.1.1",
     album_api_version="0.1.1",
     args=[
         {

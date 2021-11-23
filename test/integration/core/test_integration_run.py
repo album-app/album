@@ -93,19 +93,21 @@ class TestIntegrationRun(TestIntegrationCommon):
         # assert
         self.assertIsNone(album.get_active_solution())
 
-    def test_run_no_run_routine(self):
-        self.fake_install(self.get_test_solution_path("solution0_dummy_no_routines.py"), create_environment=True)
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    def test_run_minimal_solution(self, get_environment_path):
+        get_environment_path.return_value = CondaManager().get_active_environment_path()
+        self.fake_install(self.get_test_solution_path("solution11_minimal.py"), create_environment=False)
 
-        # gather arguments
-        sys.argv = ["", "run", str(self.get_test_solution_path("solution0_dummy_no_routines.py"))]
+        # this solution has no install() configured
+
+        sys.argv = ["", "run", str(self.get_test_solution_path("solution11_minimal.py")), "--log", "DEBUG"]
 
         # run
-        with self.assertRaises(SystemExit) as e:
-            main()
-        self.assertTrue(isinstance(e.exception.code, ValueError))
+        self.assertIsNone(main())
 
-        self.assertIn("ERROR", self.captured_output.getvalue())
-        self.assertIn("No \"run\" routine specified for solution", e.exception.code.args[0])
+        # assert
+        self.assertNotIn("ERROR", self.captured_output)
+        self.assertIn("No \"run\" routine configured for solution", self.captured_output.getvalue())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_with_parent(self, get_environment_path):

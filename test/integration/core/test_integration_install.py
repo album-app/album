@@ -18,12 +18,12 @@ class TestIntegrationInstall(TestIntegrationCommon):
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     @patch('album.core.controller.conda_manager.CondaManager.install')
-    def test_install_no_install_routine(self, install, get_environment_path):
+    def test_install_minimal_solution(self, install, get_environment_path):
         get_environment_path.return_value = CondaManager().get_active_environment_path()
 
         # this solution has no install() configured
 
-        sys.argv = ["", "install", str(self.get_test_solution_path("solution0_dummy_no_routines.py")), "--log", "DEBUG"]
+        sys.argv = ["", "install", str(self.get_test_solution_path("solution11_minimal.py")), "--log", "DEBUG"]
 
         # run
         self.assertIsNone(main())

@@ -150,15 +150,7 @@
                     "title": "name",
                     "type": "string"
                 },
-                "album_version": {
-                    "title": "name",
-                    "type": "string"
-                },
                 "album_api_version": {
-                    "title": "name",
-                    "type": "string"
-                },
-                "timestamp": {
                     "title": "name",
                     "type": "string"
                 },
@@ -175,10 +167,6 @@
                 },
                 "doi": {
                     "title": "doi",
-                    "type": "string"
-                },
-                "deposit_id": {
-                    "title": "deposit_id",
                     "type": "string"
                 },
                 "dependencies": {
@@ -209,15 +197,9 @@
                 }
             },
             "required": [
-                "cite",
-                "description",
-                "title",
-                "authors",
-                "name",
                 "group",
-                "version",
-                "tags",
-                "license"
+                "name",
+                "version"
             ],
             "type": "object"
         }

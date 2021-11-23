@@ -320,15 +320,7 @@ class TestRunManager(TestUnitCommon):
         create_solution_run_collection_script.assert_not_called()
         self.assertEqual(2, run_queue.call_count)  # once to immediately run, once to clear que
 
-    def test_create_solution_run_script_standalone_no_run(self):
-        script_creator = ScriptCreatorRun()
-
-        with self.assertRaises(ValueError):
-            self.run_manager.create_solution_run_script_standalone(self.active_solution, None, [], script_creator)
-
     def test_create_solution_run_script_standalone(self):
-        self.active_solution.run = print
-
         script_creator = ScriptCreatorRun()
         create_script = MagicMock(return_value="myscript")
         script_creator.create_script = create_script
@@ -343,7 +335,9 @@ class TestRunManager(TestUnitCommon):
         create_script.assert_called_once()
         set_environment.assert_called_once()
 
+    @unittest.skip("TODO fix implementation")
     def test_create_solution_run_script_standalone_run_and_close(self):
+        # TODO this is not actually assigning run or close to the solution and also not checking for it.
         script_creator = ScriptCreatorRun()
         create_script = MagicMock(return_value="myscript")
         script_creator.create_script = create_script
@@ -408,7 +402,8 @@ class TestRunManager(TestUnitCommon):
         self.assertEqual("aScript", r.scripts)
 
     @patch('album.core.controller.run_manager.load')
-    def test_create_solution_run_collection_script(self, load_mock):
+    @patch('album.core.controller.run_manager.set_cache_paths')
+    def test_create_solution_run_collection_script(self, set_cache_paths_mock, load_mock):
         # mock
         load_mock.return_value = self.active_solution
         catalog = EmptyTestClass()
@@ -417,8 +412,8 @@ class TestRunManager(TestUnitCommon):
         resolve_args = MagicMock(return_value=["parent_args", "active_solution_args"])
         self.run_manager.resolve_args = resolve_args
 
-        create_solution_run_with_parent_scrip = MagicMock(return_value="aScript")
-        self.run_manager.create_solution_run_with_parent_script = create_solution_run_with_parent_scrip
+        create_solution_run_with_parent_script = MagicMock(return_value="aScript")
+        self.run_manager.create_solution_run_with_parent_script = create_solution_run_with_parent_script
 
         set_environment = MagicMock(return_value=EmptyTestClass())
         self.run_manager.environment_manager.set_environment = set_environment
@@ -444,7 +439,7 @@ class TestRunManager(TestUnitCommon):
             steps=["step1", "step2"],
             step_solution_parsed_args=[None]
         )
-        create_solution_run_with_parent_scrip.assert_called_once_with(
+        create_solution_run_with_parent_script.assert_called_once_with(
             self.active_solution,
             "parent_args",
             [self.active_solution, self.active_solution],
@@ -457,6 +452,7 @@ class TestRunManager(TestUnitCommon):
         self.assertEqual(self.active_solution.coordinates, r.coordinates)
         self.assertEqual("aScript", r.scripts)
         self.assertEqual(set_environment.return_value, r.environment)
+        set_cache_paths_mock.assert_called_once()
 
     @unittest.skip("Needs to be implemented!")
     def test_create_solution_run_with_parent_script(self):
@@ -567,7 +563,7 @@ class TestRunManager(TestUnitCommon):
         self.run_manager._run_in_environment_with_own_logger(ScriptQueueEntry(self.active_solution.coordinates, [""], environment))
 
         conf_mock.assert_called_once_with(self.active_solution.coordinates.name)
-        run_scripts_mock.assert_called_once_with(self.active_solution, "")
+        run_scripts_mock.assert_called_once_with(environment, [""])
         pop_mock.assert_called_once()
 
     def test__get_args(self):

@@ -13,8 +13,7 @@ from test.unit.core.model import test_catalog, test_configuration, test_environm
     test_catalog_index, test_collection_index, test_coordinates, test_task
 from test.unit.core.utils import test_subcommand
 from test.unit.core.utils.operations import test_url_operations, test_file_operations, test_git_operations, \
-    test_resolve_operations
-from unit.core.utils.operations import test_solution_operations
+    test_resolve_operations, test_solution_operations
 
 
 def main():

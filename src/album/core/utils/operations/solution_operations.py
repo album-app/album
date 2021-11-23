@@ -45,12 +45,13 @@ def get_deploy_dict(solution: Solution) -> dict:
 
 
 def _remove_action_from_args(solution_dict):
-    for arg in solution_dict["args"]:
-        if isinstance(arg, dict):
-            # iterate and remove callable values
-            for key in arg.keys():
-                if callable(arg[key]):
-                    arg[key] = "%s_function" % key
+    if "args" in solution_dict:
+        for arg in solution_dict["args"]:
+            if isinstance(arg, dict):
+                # iterate and remove callable values
+                for key in arg.keys():
+                    if callable(arg[key]):
+                        arg[key] = "%s_function" % key
     return solution_dict
 
 

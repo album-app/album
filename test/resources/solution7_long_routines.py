@@ -34,16 +34,6 @@ setup(
     name="solution7_long_routines",
     title="solution7",
     version="0.1.0",
-    timestamp="",
-    description="",
-    authors=[],
-    cite=[],
-    acknowledgement="",
-    tags=[],
-    license="license",
-    documentation=[],
-    covers=[],
-    album_version="0.1.1",
     album_api_version="0.1.1",
     args=[
         {

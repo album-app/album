@@ -71,8 +71,8 @@ def build_test_catalog(name, path):
                 "name": "inp8"
             }
         ],
-        "authors": "Sample Author",
-        "cite": "citation",
+        "authors": ["Sample Author"],
+        "cite": [],
         "covers": [
             {
                 "description": "coverDescription",
@@ -81,22 +81,9 @@ def build_test_catalog(name, path):
         ],
         "description": "keyword1",
         "documentation": [],
-        "format_version": "0.3.0",
         "acknowledgement": "",
         "license": "MIT",
         "album_version": "0.1.0",
-        "sample_inputs": [
-            {
-                "description": "sampleInputDescription1",
-                "value": "sampleInput.tif"
-            }
-        ],
-        "sample_outputs": [
-            {
-                "description": "sampleOutputDescription1",
-                "value": "sampleResult.txt"
-            }
-        ],
         "group": "ida-mdc",
         "name": "solution0_dummy",
         "title": "solution0_dummy",
@@ -104,7 +91,7 @@ def build_test_catalog(name, path):
         "tags": [
             "tag1"
         ],
-        "album_api_version": "0.1.0",
+        "album_api_version": "0.1.1",
         "timestamp": "2021-02-08T22:16:03.331998"
     })
     catalog_index.update(Coordinates("ida-mdc", "solution0_dummy2", "0.1.0"), solution_attrs={
@@ -115,8 +102,7 @@ def build_test_catalog(name, path):
                 "name": "inp1"
             }
         ],
-        "authors": "Sample Author",
-        "cite": "Citation",
+        "authors": ["Sample Author"],
         "covers": [
             {
                 "description": "coverDescription",
@@ -136,7 +122,7 @@ def build_test_catalog(name, path):
             "tag2",
             "tag3"
         ],
-        "album_api_version": "0.1.0",
+        "album_api_version": "0.1.1",
         "timestamp": "2021-02-08T22:16:03.331998"
     })
     catalog_index.get_connection().commit()
@@ -165,7 +151,7 @@ def build_single_solution_catalog(name, path):
         "title": "testTitle",
         "version": "testVersion",
         "tags": [],
-        "album_api_version": "0.1.0",
+        "album_api_version": "0.1.1",
         "timestamp": "2021-02-08T22:16:03.331998"
     })
     catalog_index.get_connection().commit()

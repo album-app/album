@@ -10,7 +10,7 @@ from album.runner.model.solution import Solution
 from test.unit.test_unit_common import TestUnitCommon
 
 
-class TestUnitSolutionOperations(TestUnitCommon):
+class TestSolutionOperations(TestUnitCommon):
     
     def setUp(self):
         super().setUp()

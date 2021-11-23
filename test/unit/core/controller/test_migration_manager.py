@@ -83,4 +83,6 @@ class TestMigrationManager(TestUnitCommon):
 
     def test_validate_solution(self):
         self.create_test_solution_no_env()
+        self.active_solution.setup.pop('timestamp')
+        self.active_solution.setup.pop('album_version')
         MigrationManager().validate_solution(self.active_solution)

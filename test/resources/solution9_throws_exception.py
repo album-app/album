@@ -12,20 +12,7 @@ def album_install():
 setup(
     group="group",
     name="solution9_throws_exception",
-    title="solution9_throws_exception",
     version="0.1.0",
-    doi="",
-    deposit_id="",
-    timestamp="",
-    description="",
-    authors=[],
-    cite=[],
-    acknowledgement="",
-    tags=[],
-    license="license",
-    documentation=[],
-    covers=[],
-    album_version="0.1.1",
     album_api_version="0.1.1",
     args=[
         {

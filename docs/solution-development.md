@@ -72,10 +72,7 @@ The setup parameters are derived from the [bioimage.io]() specification.
 * `description`: This is a short description of the specific solution.
 * `url`: The URL of this solution.
 * `license`: The license of the solution (e.g. MIT, Apache, GPL, ...)
-* `album_version`: The minimum version of
-  [album](https://album.solutions) required to run this solution.
-* `album_api_version`: The minimum  required version of the album API
-   that was tested with this solution.
+* `album_api_version`: The required version of the album API to run this solution.
 * `args`: The arguments that can be (and may be required) to run the
   specific solution.
 * `author`: This (these) are the authors of the solution. This is an array of strings.
