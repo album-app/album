@@ -153,7 +153,9 @@ class CatalogIndex(Database):
         )
         if 'authors' in solution_attrs:
             for author in solution_attrs['authors']:
-                author_id = self._insert_author(author, close=False)
+                author_id = self._exists_author(author, close=False)
+                if not author_id:
+                    author_id = self._insert_author(author, close=False)
                 solution_author_id = self.next_id('solution_author')
                 cursor.execute(
                     'INSERT INTO solution_author values (?, ?, ?)',
@@ -166,7 +168,9 @@ class CatalogIndex(Database):
 
         if 'tags' in solution_attrs:
             for tag in solution_attrs['tags']:
-                tag_id = self._insert_tag(tag, close=False)
+                tag_id = self._exists_tag(tag, close=False)
+                if not tag_id:
+                    tag_id = self._insert_tag(tag, close=False)
                 solution_tag_id = self.next_id('solution_tag')
                 cursor.execute(
                     'INSERT INTO solution_tag values (?, ?, ?)',
@@ -179,7 +183,9 @@ class CatalogIndex(Database):
 
         if 'args' in solution_attrs:
             for argument in solution_attrs['args']:
-                argument_id = self._insert_argument(argument, close=False)
+                argument_id = self._exists_argument(argument, close=False)
+                if not argument_id:
+                    argument_id = self._insert_argument(argument, close=False)
                 solution_argument_id = self.next_id('solution_argument')
                 cursor.execute(
                     'INSERT INTO solution_argument values (?, ?, ?)',
@@ -191,7 +197,9 @@ class CatalogIndex(Database):
                 )
         if 'cite' in solution_attrs:
             for citation in solution_attrs['cite']:
-                citation_id = self._insert_citation(citation, close=False)
+                citation_id = self._exists_citation(citation, close=False)
+                if not citation_id:
+                    citation_id = self._insert_citation(citation, close=False)
                 solution_citation_id = self.next_id('solution_citation')
                 cursor.execute(
                     'INSERT INTO solution_citation values (?, ?, ?)',
@@ -204,11 +212,13 @@ class CatalogIndex(Database):
 
         if 'covers' in solution_attrs:
             for cover in solution_attrs['covers']:
-                self._insert_cover(cover, solution_id, close=False)
+                if not self._exists_cover(cover, solution_id):
+                    self._insert_cover(cover, solution_id, close=False)
 
         if 'documentation' in solution_attrs:
             for documentation in solution_attrs['documentation']:
-                self._insert_documentation(documentation, solution_id, close=False)
+                if not self._exists_documentation(documentation, solution_id):
+                    self._insert_documentation(documentation, solution_id, close=False)
 
         self.save()
 
@@ -216,6 +226,19 @@ class CatalogIndex(Database):
             self.close_current_connection()
 
         return solution_id
+
+    def _exists_author(self, author_name, close=True):
+        cursor = self.get_cursor()
+        r = cursor.execute(
+            "SELECT * FROM author WHERE name=:author_name",
+            {
+                "author_name": author_name            }
+        ).fetchone()
+
+        if close:
+            self.close_current_connection()
+
+        return r["author_id"] if r else None
 
     def _insert_author(self, author, close=True):
         author_id = self.next_id("author")
@@ -234,6 +257,20 @@ class CatalogIndex(Database):
 
         return author_id
 
+    def _exists_tag(self, tag_name, close=True):
+        cursor = self.get_cursor()
+        r = cursor.execute(
+            "SELECT * FROM tag WHERE name=:tag_name ",
+            {
+                "tag_name": tag_name
+            }
+        ).fetchone()
+
+        if close:
+            self.close_current_connection()
+
+        return r["tag_id"] if r else None
+
     def _insert_tag(self, tag, close=True):
         tag_id = self.next_id("tag")
 
@@ -251,6 +288,36 @@ class CatalogIndex(Database):
             self.close_current_connection()
 
         return tag_id
+
+    def _exists_argument(self, argument, close=True):
+        cursor = self.get_cursor()
+
+        exc_str = "SELECT * FROM argument WHERE name=:argument_name AND description=:argument_description "
+        exc_val = {
+            "argument_name": argument["name"],
+            "argument_description": argument["description"],
+        }
+        argument_type = get_dict_entry(argument, "type")
+        argument_default_value = get_dict_entry(argument, "default_value")
+
+        if argument_type:
+            exc_str += "AND type=:argument_type "
+            exc_val["argument_type"] = argument_type
+        else:
+            exc_str += "AND type IS NULL "
+
+        if argument_default_value:
+            exc_str += "AND default_value=:argument_default_value "
+            exc_val["argument_default_value"] = argument_default_value
+        else:
+            exc_str += "AND default_value IS NULL "
+
+        r = cursor.execute(exc_str, exc_val).fetchone()
+
+        if close:
+            self.close_current_connection()
+
+        return r["argument_id"] if r else None
 
     def _insert_argument(self, argument, close=True):
         argument_id = self.next_id("argument")
@@ -273,6 +340,28 @@ class CatalogIndex(Database):
 
         return argument_id
 
+    def _exists_citation(self, citation, close=True):
+        cursor = self.get_cursor()
+
+        exc_str = "SELECT * FROM citation WHERE text=:citation_text "
+        exc_val = {
+            "citation_text": citation["text"],
+        }
+        citation_doi = get_dict_entry(citation, "doi")
+
+        if citation_doi:
+            exc_str += "AND doi=:citation_doi"
+            exc_val["citation_doi"] = citation_doi
+        else:
+            exc_str += "AND doi IS NULL"
+
+        r = cursor.execute(exc_str, exc_val).fetchone()
+
+        if close:
+            self.close_current_connection()
+
+        return r["citation_id"] if r else None
+
     def _insert_citation(self, citation, close=True):
         citation_id = self.next_id("citation")
         cursor = self.get_cursor()
@@ -290,6 +379,23 @@ class CatalogIndex(Database):
             self.close_current_connection()
 
         return citation_id
+
+    def _exists_cover(self, cover, solution_id, close=True):
+        cursor = self.get_cursor()
+        r = cursor.execute(
+            "SELECT * FROM cover WHERE source=:cover_source AND description=:cover_description "
+            "AND solution_id=:solution_id",
+            {
+                "cover_source": cover["source"],
+                "cover_description": cover["description"],
+                "solution_id": solution_id
+            }
+        ).fetchone()
+
+        if close:
+            self.close_current_connection()
+
+        return r["cover_id"] if r else None
 
     def _insert_cover(self, cover, solution_id, close=True):
         cover_id = self.next_id("cover")
@@ -309,6 +415,22 @@ class CatalogIndex(Database):
             self.close_current_connection()
 
         return cover_id
+
+    def _exists_documentation(self, documentation, solution_id, close=True):
+        cursor = self.get_cursor()
+        r = cursor.execute(
+            "SELECT * FROM main.documentation WHERE documentation=:documentation "
+            "AND solution_id=:solution_id",
+            {
+                "documentation": documentation,
+                "solution_id": solution_id,
+            }
+        ).fetchone()
+
+        if close:
+            self.close_current_connection()
+
+        return r["documentation_id"] if r else None
 
     def _insert_documentation(self, documentation, solution_id, close=True):
         documentation_id = self.next_id("documentation")
