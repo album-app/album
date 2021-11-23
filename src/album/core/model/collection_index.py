@@ -247,7 +247,7 @@ class CollectionIndex(Database):
         cursor = self.get_cursor()
         cursor.execute(
             "INSERT INTO collection VALUES "
-            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ,? ,?, ?, ? ,?, ?, ?)",
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ,? ,?, ?, ? ,?, ?, ?, ?)",
             (
                 collection_id,
                 get_dict_entry(solution_attrs, "solution_id"),
@@ -266,6 +266,7 @@ class CollectionIndex(Database):
                 hash_val,
                 None,  # when installed?
                 None,  # last executed
+                0,  # installation unfinished
                 0,  # installed
                 catalog_id,
             )
