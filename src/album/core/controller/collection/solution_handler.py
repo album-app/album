@@ -2,13 +2,14 @@ from datetime import datetime
 
 from album.core import Solution
 from album.core.model.catalog import Catalog
+from album.core.model.catalog_index import CatalogIndex
 from album.core.model.catalog_updates import ChangeType, SolutionChange
 from album.core.model.collection_index import CollectionIndex
-from album.core.utils.operations.solution_operations import get_deploy_dict, get_deploy_keys
-from album.runner.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import copy_folder
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
+from album.core.utils.operations.solution_operations import get_deploy_dict
 from album.runner import album_logging
+from album.runner.model.coordinates import Coordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -60,23 +61,8 @@ class SolutionHandler:
         self.catalog_collection.remove_solution(catalog.catalog_id, coordinates)
 
     def update_solution(self, catalog: Catalog, coordinates: Coordinates, attrs):
-        self.catalog_collection.update_solution(catalog.catalog_id, coordinates, attrs, self.get_solution_keys())
-
-    @staticmethod
-    def get_solution_keys():
-        keys = get_deploy_keys().copy()
-        # keys in a separate column
-        keys.remove("authors")
-        keys.remove("tags")
-        keys.remove("args")
-        keys.remove("cite")
-        keys.remove("covers")
-        keys.remove("documentation")
-        # keys to allow to be set
-        keys.append("hash")
-        keys.append("installed")
-        keys.append("install_date")
-        return keys
+        self.catalog_collection.update_solution(catalog.catalog_id, coordinates, attrs,
+                                                CollectionIndex.get_collection_column_keys())
 
     def apply_change(self, catalog, change: SolutionChange):
         # FIXME handle other tables (tags etc)

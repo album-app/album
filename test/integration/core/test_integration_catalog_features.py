@@ -7,7 +7,7 @@ from album.core import Solution
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.model.catalog_updates import ChangeType
-from album.core.utils.operations.solution_operations import get_deploy_keys
+from album.core.utils.operations.solution_operations import get_deploy_dict
 from test.integration.test_integration_common import TestIntegrationCommon
 from test.unit.test_unit_common import TestUnitCommon
 
@@ -155,7 +155,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
 
         sol = {}
         solution_in_col = {}
-        for key in get_deploy_keys():
+        for key in get_deploy_dict(solution).keys():
             if key == "timestamp":
                 continue
             sol[key] = solution.setup[key]

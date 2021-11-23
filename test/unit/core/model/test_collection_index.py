@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from album.core.controller.collection.solution_handler import SolutionHandler
+from album.core.model.catalog_index import CatalogIndex
 from album.core.model.collection_index import CollectionIndex
 from album.runner.model.coordinates import Coordinates
 from test.unit.test_unit_common import TestUnitCommon
@@ -652,7 +652,7 @@ class TestCollectionIndex(TestUnitCommon):
         self.assertIsNone(r["last_execution"])
 
         self.test_catalog_collection_index.update_solution("cat2", Coordinates("grp", "name", "version"), {},
-                                                           SolutionHandler.get_solution_keys())
+                                                           CatalogIndex.get_solution_column_keys())
 
         r = self.test_catalog_collection_index.get_solution(2)
         self.assertIsNotNone(r["last_execution"])

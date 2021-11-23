@@ -1,12 +1,12 @@
-import json
 import pkgutil
 from datetime import datetime
 from typing import Optional
 
 from album.core.concept.database import Database
 from album.core.model.catalog_index import CatalogIndex
-from album.runner.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import get_dict_entry
+from album.core.utils.operations.solution_operations import get_solution_hash
+from album.runner.model.coordinates import Coordinates
 
 
 class CollectionIndex(Database):
@@ -242,9 +242,7 @@ class CollectionIndex(Database):
 
         # there must be a hash value
         if not hash_val:
-            hash_val = CatalogIndex.create_hash(
-                ":".join([json.dumps(solution_attrs[k]) for k in solution_attrs.keys()])
-            )
+            hash_val = get_solution_hash(solution_attrs, CatalogIndex.get_solution_column_keys())
 
         cursor = self.get_cursor()
         cursor.execute(
@@ -1014,3 +1012,13 @@ class CollectionIndex(Database):
         if key is "group":
             return "\"group\""
         return key
+
+    @staticmethod
+    def get_collection_column_keys():
+        res = CatalogIndex.get_solution_column_keys()
+        res.append('installed')
+        res.append('installation_unfinished')
+        res.append('last_execution')
+        res.append('install_date')
+        res.append('catalog_id')
+        return res

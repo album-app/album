@@ -72,6 +72,8 @@ class DeployManager(metaclass=Singleton):
                 The git user to use. (Default: systems git configuration)
 
         """
+        module_logger().info('Deploying %s to %s...' % (deploy_path, catalog_name))
+
         deploy_path = Path(deploy_path)
 
         if deploy_path.is_dir():
@@ -104,6 +106,7 @@ class DeployManager(metaclass=Singleton):
             self._deploy_to_remote_catalog(
                 catalog, active_solution, deploy_path, dry_run, push_option, git_email, git_name
             )
+        module_logger().info('Successfully deployed %s to %s.' % (deploy_path, catalog_name))
 
     def _deploy_to_remote_catalog(self, catalog: Catalog, active_solution: Solution, deploy_path, dry_run, push_option,
                                   git_email=None, git_name=None):

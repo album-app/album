@@ -1,13 +1,13 @@
-import hashlib
 import json
 import pkgutil
 from datetime import datetime
 from typing import Optional
 
 from album.core.concept.database import Database
-from album.runner.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import get_dict_entry, write_dict_to_json
+from album.core.utils.operations.solution_operations import get_solution_hash
 from album.runner import album_logging
+from album.runner.model.coordinates import Coordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -122,8 +122,13 @@ class CatalogIndex(Database):
 
         return solutions
 
+    @staticmethod
+    def get_solution_column_keys():
+        return ['group', 'name', 'description', 'version', 'album_api_version', 'album_version', 'license',
+                'acknowledgement', 'title', 'timestamp']
+
     def _insert_solution(self, solution_attrs, close=True) -> int:
-        hash_val = self.create_hash(":".join([json.dumps(solution_attrs[k]) for k in solution_attrs.keys()]))
+        hash_val = get_solution_hash(solution_attrs, self.get_solution_column_keys())
         solution_id = self.next_id("solution")
 
         cursor = self.get_cursor()
@@ -414,7 +419,7 @@ class CatalogIndex(Database):
         return solution
 
     def _update_solution(self, solution_attrs, close=True) -> None:
-        hash_val = self.create_hash(":".join([json.dumps(solution_attrs[k]) for k in solution_attrs.keys()]))
+        hash_val = get_solution_hash(solution_attrs, self.get_solution_column_keys())
 
         cursor = self.get_cursor()
         cursor.execute(
@@ -719,9 +724,3 @@ class CatalogIndex(Database):
             self.close_current_connection()
 
         return res
-
-    @staticmethod
-    def create_hash(string_representation):
-        hash_val = hashlib.md5(string_representation.encode('utf-8')).hexdigest()
-
-        return hash_val

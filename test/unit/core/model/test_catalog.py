@@ -7,10 +7,10 @@ from unittest.mock import patch
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.migration_manager import MigrationManager
 from album.core.model.catalog import Catalog
+from album.core.model.catalog_index import CatalogIndex
 from album.core.model.configuration import Configuration
-from album.core.utils.operations.solution_operations import get_deploy_keys
-from album.runner.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
+from album.runner.model.coordinates import Coordinates
 from album.runner.model.solution import Solution
 from test.unit.test_unit_common import TestUnitCommon
 
@@ -263,7 +263,7 @@ class TestCatalog(TestUnitCommon):
         self.assertEqual(len(self.catalog.catalog_index), 10)
 
         d = {}
-        for key in get_deploy_keys():
+        for key in CatalogIndex.get_solution_column_keys():
             d[key] = "%s%s" % (key, "new")
 
         solution = Solution(d)
@@ -281,7 +281,7 @@ class TestCatalog(TestUnitCommon):
         self.assertEqual(len(self.catalog.catalog_index), 10)
 
         d = {}
-        for key in get_deploy_keys():
+        for key in CatalogIndex.get_solution_column_keys():
             d[key] = "%s%s" % (key, "0")
 
         solution = Solution(d)
@@ -298,7 +298,7 @@ class TestCatalog(TestUnitCommon):
         get_solution_cache_file_mock.side_effect = [Path(self.closed_tmp_file.name)]
 
         d = {}
-        for key in get_deploy_keys():
+        for key in CatalogIndex.get_solution_column_keys():
             d[key] = "%s%s" % (key, "0")
 
         solution = Solution(d)
@@ -314,7 +314,7 @@ class TestCatalog(TestUnitCommon):
         self.assertEqual(len(self.catalog.catalog_index), 10)
 
         d = {}
-        for key in get_deploy_keys():
+        for key in CatalogIndex.get_solution_column_keys():
             d[key] = "%s%s" % (key, "0")
 
         solution = Solution(d)
@@ -329,7 +329,7 @@ class TestCatalog(TestUnitCommon):
         self.assertEqual(len(self.catalog.catalog_index), 10)
 
         d = {}
-        for key in get_deploy_keys():
+        for key in CatalogIndex.get_solution_column_keys():
             d[key] = "%s%s" % (key, "new")
 
         solution = Solution(d)
@@ -347,7 +347,7 @@ class TestCatalog(TestUnitCommon):
         self.assertEqual(len(self.catalog.catalog_index), 10)
 
         d = {}
-        for key in get_deploy_keys():
+        for key in CatalogIndex.get_solution_column_keys():
             d[key] = "%s%s" % (key, "0")
 
         solution = Solution(d)

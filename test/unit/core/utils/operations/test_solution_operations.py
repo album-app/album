@@ -1,12 +1,11 @@
 from io import StringIO
 from pathlib import Path
 
-from album.core.model.default_values import DefaultValues
-
 from album.core.model.catalog import Catalog
-
+from album.core.model.catalog_index import CatalogIndex
 from album.core.model.configuration import Configuration
-from album.core.utils.operations.solution_operations import set_cache_paths, get_deploy_dict, get_deploy_keys
+from album.core.model.default_values import DefaultValues
+from album.core.utils.operations.solution_operations import set_cache_paths, get_deploy_dict
 from album.runner.model.solution import Solution
 from test.unit.test_unit_common import TestUnitCommon
 
@@ -72,12 +71,12 @@ channels:
     def test_get_deploy_dict_additional_values(self):
         # base keys
         attrs_dict_result = {}
-        for idx, key in enumerate(get_deploy_keys()):
+        for idx, key in enumerate(CatalogIndex.get_solution_column_keys()):
             attrs_dict_result[key] = str(idx)
 
         # additional values
         attrs_dict_additional = {
-            "this_should_not_appear": "Test"
+            "this_should_not_appear": lambda value: print(value)
         }
 
         # create album attrs dict

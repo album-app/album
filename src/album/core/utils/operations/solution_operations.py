@@ -1,4 +1,6 @@
 import copy
+import hashlib
+import json
 from pathlib import Path
 from typing import Optional
 
@@ -8,14 +10,6 @@ from album.runner import album_logging
 from album.runner.model.solution import Solution
 
 module_logger = album_logging.get_active_logger
-
-
-def get_deploy_keys():
-    return [
-        'group', 'name', 'description', 'version', 'album_api_version',
-        'album_version', 'license', 'acknowledgement', 'authors', 'cite', 'tags', 'documentation',
-        'covers', 'args', 'title', 'timestamp'
-    ]
 
 
 def set_cache_paths(solution: Solution, catalog):
@@ -37,13 +31,15 @@ def set_environment_paths(solution: Solution, environment: Environment):
     solution.installation.environment_name = environment.name
 
 
-def get_deploy_dict(solution: Solution):
+def get_deploy_dict(solution: Solution) -> dict:
     """Return a dictionary with the relevant deployment key/values for a given album."""
     d = {}
 
-    for k in get_deploy_keys():
-        # deepcopy necessary. Else original album object will loose "action" attributes in its arguments
-        d[k] = copy.deepcopy(solution.setup[k])
+    for k in solution.setup.keys():
+        value = solution.setup[k]
+        if not callable(value) and k is not 'dependencies':
+            # deepcopy necessary. Else original album object will loose "action" attributes in its arguments
+            d[k] = copy.deepcopy(value)
 
     return _remove_action_from_args(d)
 
@@ -66,3 +62,15 @@ def get_parent_dict(solution: Solution) -> Optional[dict]:
 
 def get_steps_dict(solution) -> Optional[dict]:
     return solution.setup.steps
+
+
+def create_hash(string_representation):
+    hash_val = hashlib.md5(string_representation.encode('utf-8')).hexdigest()
+
+    return hash_val
+
+
+def get_solution_hash(solution_attrs, keys):
+    return create_hash(
+        ":".join([json.dumps(solution_attrs[k]) for k in keys if k in solution_attrs])
+    )
