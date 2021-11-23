@@ -207,7 +207,7 @@ def zip_folder(folder_path, zip_archive_file):
 
     create_path_recursively(zip_archive_file.parent)
 
-    return shutil.make_archive(zip_archive_file, 'zip', folder_path)
+    return shutil.make_archive(str(zip_archive_file), 'zip', folder_path)
 
 
 def zip_paths(paths_to_include, zip_archive_file):

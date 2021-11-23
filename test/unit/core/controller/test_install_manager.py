@@ -3,6 +3,7 @@ from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
+from album.core import Solution
 from album.core.controller.install_manager import InstallManager
 from album.core.model.resolve_result import ResolveResult
 from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
@@ -103,17 +104,17 @@ class TestInstallManager(TestUnitCommon):
         )
 
         # assert
-        run_solution_install_routine.assert_called_once_with(self.active_solution, ["myargs"])
+        run_solution_install_routine.assert_called_once_with(self.active_solution, None, ["myargs"])
         set_environment.assert_not_called()
         install_environment.assert_called_once()
 
     def test__install_active_solution_with_parent(self):
-        self.active_solution.album_version = "test"
+        self.active_solution.setup.album_api_version = "test"
 
-        self.parent_solution = deepcopy(self.active_solution)
+        self.parent_solution = Solution(deepcopy(dict(self.active_solution.setup)))
         self.parent_solution.environment = EmptyTestClass()  # different object in memory
 
-        self.active_solution.parent = "aParent"
+        self.active_solution.setup.dependencies = {"parent": "aParent"}
 
         # mocks
         install_environment = MagicMock(return_value=None)
@@ -136,7 +137,7 @@ class TestInstallManager(TestUnitCommon):
 
         # assert
         _install_parent.assert_called_once_with("aParent")
-        run_solution_install_routine.assert_called_once_with(self.active_solution, ["myargs"])
+        run_solution_install_routine.assert_called_once_with(self.active_solution, set_environment.return_value, ["myargs"])
         set_environment.assert_called_once()
         install_environment.assert_not_called()
 

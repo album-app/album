@@ -17,14 +17,14 @@ class TestUnitInit(TestUnitCommon):
         get_active_solution = album.get_active_solution()
         self.assertIsNone(get_active_solution)
         self.attrs = {
-            "name": "myname",
-            "group": "mygroup",
-            "version": "myversion"
+            'name': 'myname',
+            'group': 'mygroup',
+            'version': 'myversion'
         }
         self.assertIsNone(album.setup_solution(**self.attrs))
         active_solution = album.get_active_solution()
         self.assertIsNotNone(active_solution)
-        self.assertEqual("myname", active_solution["name"])
+        self.assertEqual('myname', active_solution.coordinates.name)
         album.pop_active_solution()
 
 

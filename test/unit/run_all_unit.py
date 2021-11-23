@@ -2,8 +2,7 @@ import unittest
 
 from test.unit.ci import test_ci_argument_parsing, test_ci_commandline
 from test.unit.ci.controller import test_release_manager, test_zenodo_manager
-from test.unit.ci.utils import test_zenodo_api, test_ci_utils, test_deploy_environment
-
+from test.unit.ci.utils import test_ci_utils, test_deploy_environment
 from test.unit.core import test__init__, test_argument_parsing, test_server
 from test.unit.core.concept import test_singleton, test_database
 from test.unit.core.controller import test_search_manager, test_install_manager, test_run_manager, test_deploy_manager, \
@@ -11,10 +10,10 @@ from test.unit.core.controller import test_search_manager, test_install_manager,
     test_environment_manager
 from test.unit.core.controller.collection import test_collection_manager, test_catalog_handler, test_solution_handler
 from test.unit.core.model import test_catalog, test_configuration, test_environment, \
-    test_solution, test_catalog_index, test_collection_index, test_coordinates, test_task
+    test_catalog_index, test_collection_index, test_coordinates, test_task
 from test.unit.core.utils import test_subcommand
 from test.unit.core.utils.operations import test_url_operations, test_file_operations, test_git_operations, \
-    test_resolve_operations
+    test_resolve_operations, test_solution_operations
 
 
 def main():
@@ -45,7 +44,6 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_test_manager))
 
     # album.core.model
-    suite.addTests(loader.loadTestsFromModule(test_solution))
     suite.addTests(loader.loadTestsFromModule(test_catalog))
     suite.addTests(loader.loadTestsFromModule(test_catalog_index))
     suite.addTests(loader.loadTestsFromModule(test_collection_index))
@@ -66,6 +64,8 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_git_operations))
     suite.addTests(loader.loadTestsFromModule(test_resolve_operations))
     suite.addTests(loader.loadTestsFromModule(test_url_operations))
+    suite.addTests(loader.loadTestsFromModule(test_solution_operations))
+
 
     # album.ci
     suite.addTests(loader.loadTestsFromModule(test_ci_argument_parsing))

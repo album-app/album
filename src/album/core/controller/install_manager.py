@@ -1,13 +1,16 @@
 from typing import Optional
 
+from album.core.model.environment import Environment
+
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.environment_manager import EnvironmentManager
 from album.core.model.catalog import Catalog
 from album.core.model.configuration import Configuration
-from album.core.model.coordinates import Coordinates
+from album.core.utils.operations.solution_operations import get_deploy_dict, get_parent_dict
+from album.runner.model.coordinates import Coordinates
 from album.core.model.resolve_result import ResolveResult
-from album.core.model.solution import Solution
+from album.runner.model.solution import Solution
 from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.resolve_operations import clean_resolve_tmp, build_resolve_string
 from album.runner import album_logging
@@ -101,7 +104,7 @@ class InstallManager(metaclass=Singleton):
 
         CAUTION: Solution must be loaded!
         """
-        module_logger().info('Installing \"%s\"..' % resolve_result.loaded_solution.name)
+        module_logger().info('Installing \"%s\"..' % resolve_result.loaded_solution.coordinates.name)
         if not parent:  # fail when already installed
             if self._resolve_result_is_installed(resolve_result):
                 raise RuntimeError("Solution already installed. Uninstall solution first!")
@@ -117,7 +120,7 @@ class InstallManager(metaclass=Singleton):
                 resolve_result.path.parent  # the directory holding the solution file
             )
             if not parent:
-                clean_resolve_tmp(self.configuration.cache_path_tmp)
+                clean_resolve_tmp(self.configuration.cache_path_tmp_user)
         else:
             # update the collection holding the solution entry
             self.update_in_collection_index(resolve_result)
@@ -131,7 +134,7 @@ class InstallManager(metaclass=Singleton):
         )
         module_logger().info(
             'Installed \"%s\"! execute with `album run %s`' % (
-                resolve_result.loaded_solution['name'],
+                resolve_result.loaded_solution.coordinates.name,
                 str(resolve_result.coordinates)
             )
         )
@@ -151,7 +154,7 @@ class InstallManager(metaclass=Singleton):
         self.collection_manager.solutions().update_solution(
             resolve_result.catalog,
             resolve_result.coordinates,
-            resolve_result.loaded_solution.get_deploy_dict()
+            get_deploy_dict(resolve_result.loaded_solution)
         )
 
     def _install_active_solution(
@@ -164,34 +167,35 @@ class InstallManager(metaclass=Singleton):
 
         parent_resolve_result = None
 
-        if active_solution.parent:
+        parent = get_parent_dict(active_solution)
+        if parent:
             # install dependencies first. Recursive call to install with dependencies
-            parent_resolve_result = self._install_parent(active_solution.parent)
+            parent_resolve_result = self._install_parent(parent)
 
             # resolve environment - at this point all parents should be already installed
-            self.environment_manager.set_environment(active_solution, catalog)
+            environment = self.environment_manager.set_environment(active_solution, catalog)
         else:
-            self.environment_manager.install_environment(active_solution, catalog)
+            environment = self.environment_manager.install_environment(active_solution, catalog)
 
-        self.run_solution_install_routine(active_solution, argv)
+        self.run_solution_install_routine(active_solution, environment, argv)
 
         return parent_resolve_result
 
-    def run_solution_install_routine(self, active_solution, argv):
+    def run_solution_install_routine(self, active_solution: Solution, environment: Environment, argv):
         """Run install routine of album if specified"""
         script_creator_install = ScriptCreatorInstall()
 
-        if active_solution.install and callable(active_solution.install):
+        if active_solution.setup.install and callable(active_solution.setup.install):
             module_logger().debug('Creating install script...')
             script = script_creator_install.create_script(active_solution, argv)
             module_logger().debug('Calling install routine specified in solution...')
-            album_logging.configure_logging(active_solution.name)
-            self.environment_manager.run_scripts(active_solution, [script])
+            album_logging.configure_logging(active_solution.coordinates.name)
+            self.environment_manager.run_scripts(environment, [script])
             album_logging.pop_active_logger()
         else:
             module_logger().debug(
                 'No \"install\" routine configured for solution \"%s\". Skipping...' %
-                active_solution['name']
+                active_solution.coordinates.name
             )
 
     def _install_parent(self, parent_dict: dict) -> ResolveResult:
@@ -218,15 +222,16 @@ class InstallManager(metaclass=Singleton):
     def _uninstall(self, resolve_solution, rm_dep=False, argv=None, parent=False):
         """Internal installation entry point for `uninstall` subcommand of `album`."""
         resolve_result = self.collection_manager.resolve_require_installation_and_load(resolve_solution)
-        module_logger().info("Uninstalling \"%s\".." % resolve_result.loaded_solution['name'])
+        module_logger().info("Uninstalling \"%s\".." % resolve_result.loaded_solution.coordinates.name)
 
-        # set the environment
-        self.environment_manager.set_environment(resolve_result.loaded_solution, resolve_result.catalog)
+        # get the environment
+        environment = self.environment_manager.set_environment(resolve_result.loaded_solution, resolve_result.catalog)
 
-        self.run_solution_uninstall_routine(resolve_result.loaded_solution, argv)
+        self.run_solution_uninstall_routine(resolve_result.loaded_solution, environment, argv)
 
-        if not resolve_result.loaded_solution.parent:
-            self.environment_manager.remove_environment(resolve_result.loaded_solution, resolve_result.catalog)
+        parent = get_parent_dict(resolve_result.loaded_solution)
+        if not parent:
+            self.environment_manager.remove_environment(environment)
 
         if resolve_result.collection_entry["children"]:
             children = []
@@ -251,42 +256,49 @@ class InstallManager(metaclass=Singleton):
                 % resolve_result.collection_entry["name"]
             )
 
-        self.remove_disc_content(resolve_result.loaded_solution)
+        self.remove_disc_content_from_solution(resolve_result.loaded_solution)
+        self.remove_disc_content_from_environment(environment)
         self.collection_manager.solutions().set_uninstalled(resolve_result.catalog,
                                                             resolve_result.loaded_solution.coordinates)
 
         if rm_dep:  # remove dependencies (parent of the solution) last
             self.remove_dependencies(resolve_result.loaded_solution, rm_dep)
 
-        module_logger().info("Uninstalled \"%s\"!" % resolve_result.loaded_solution.name)
+        module_logger().info("Uninstalled \"%s\"!" % resolve_result.loaded_solution.coordinates.name)
 
-    def run_solution_uninstall_routine(self, active_solution, argv):
+    def run_solution_uninstall_routine(self, active_solution: Solution, environment: Environment, argv):
         """Run uninstall routine of album if specified. Expects environment to be set!"""
         script_creator_un_install = ScriptCreatorUnInstall()
 
-        if active_solution.uninstall and callable(active_solution.uninstall):
+        if active_solution.setup.uninstall and callable(active_solution.setup.uninstall):
             module_logger().debug('Creating uninstall script...')
             script = script_creator_un_install.create_script(active_solution, argv)
             module_logger().debug('Calling uninstall routine specified in solution...')
-            album_logging.configure_logging(active_solution.name)
-            self.environment_manager.run_scripts(active_solution, [script])
+            album_logging.configure_logging(active_solution.coordinates.name)
+            self.environment_manager.run_scripts(environment, [script])
             album_logging.pop_active_logger()
         else:
             module_logger().info(
                 'No \"uninstall\" routine configured for solution \"%s\"! Skipping...' %
-                active_solution.name
+                active_solution.coordinates.name
             )
 
-    def remove_dependencies(self, solution, rm_dep=False):
-        if solution.parent:
+    def remove_dependencies(self, solution: Solution, rm_dep=False):
+        parent = get_parent_dict(solution)
+        if parent:
             # recursive call to remove the parent
-            resolve_solution = build_resolve_string(solution.parent)
+            resolve_solution = build_resolve_string(parent)
             self._uninstall(resolve_solution, rm_dep, parent=True)
 
     @staticmethod
-    def remove_disc_content(solution):
-        force_remove(solution.environment.cache_path)
-        force_remove(solution.data_path)
-        force_remove(solution.app_path)
-        force_remove(solution.package_path)
-        force_remove(solution.cache_path)
+    def remove_disc_content_from_solution(solution: Solution):
+        force_remove(solution.installation.data_path)
+        force_remove(solution.installation.app_path)
+        force_remove(solution.installation.package_path)
+        force_remove(solution.installation.user_cache_path)
+        force_remove(solution.installation.internal_cache_path)
+
+    @staticmethod
+    def remove_disc_content_from_environment(environment: Environment):
+        force_remove(environment.cache_path)
+

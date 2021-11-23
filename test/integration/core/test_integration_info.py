@@ -25,40 +25,41 @@ class TestIntegrationTest(TestIntegrationCommon):
         self.assertIn("--testArg1: testArg1Description", self.captured_output.getvalue())
 
     def test_info_json(self):
-        self.fake_install(self.get_test_solution_path("solution0_dummy_no_routines.py"), create_environment=False)
+        self.fake_install(self.get_test_solution_path(), create_environment=False)
 
         # run
         stdout_content = io.StringIO()
         with contextlib.redirect_stdout(stdout_content):
             # define and run search
-            sys.argv = ["", "info", self.get_test_solution_path("solution0_dummy_no_routines.py"), "--json"]
+            sys.argv = ["", "info", self.get_test_solution_path(), "--json"]
             self.assertIsNone(main())
 
         # assert
         self.assertNotIn("ERROR", self.captured_output)
         self.assertEqual({
-            "args": [
+            'group': 'group',
+            'name': 'name',
+            'title': 'name',
+            'version': '0.1.0',
+            'doi': 'a/doi',
+            'description': 'A description',
+            'authors': ['Me'],
+            'cite': [],
+            'acknowledgement': 'Hi mom',
+            'tags': ['tag1', 'tag2'],
+            'license': 'license',
+            'documentation': ['file.md'],
+            'covers': [],
+            'album_api_version': '0.1.1',
+            'args': [
                 {
-                    "description": "testArg1Description",
-                    "name": "testArg1"
+                    'name': 'testArg1',
+                    'description': 'testArg1Description',
+                    'type': 'string',
+                    'default': 'Useless callable',
                 }
             ],
-            "authors": "",
-            "cite": "",
-            "covers": [],
-            "description": "",
-            "documentation": [""],
-            "format_version": "0.3.0",
-            "git_repo": "",
-            "group": "group",
-            "license": "license",
-            "album_version": "0.1.1",
-            "album_api_version": "0.1.1",
-            "name": "name",
-            "tags": [],
-            "timestamp": "",
-            "title": "name",
-            "version": "0.1.0"
+            'dependencies': {}
         }, json.loads(stdout_content.getvalue()))
 
 

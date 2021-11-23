@@ -3,9 +3,9 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from album.core.controller.collection.solution_handler import SolutionHandler
+from album.core.model.catalog_index import CatalogIndex
 from album.core.model.collection_index import CollectionIndex
-from album.core.model.coordinates import Coordinates
+from album.runner.model.coordinates import Coordinates
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -239,8 +239,10 @@ class TestCollectionIndex(TestUnitCommon):
         expected["parent"]["children"] = [1]
 
         r.pop("install_date")
+        r.pop("installation_unfinished")
         r.pop("hash")
         r["parent"].pop("install_date")
+        r["parent"].pop("installation_unfinished")
         r["parent"].pop("hash")
 
         # expect the parent to be recursively resolved. The children are only IDs
@@ -387,6 +389,7 @@ class TestCollectionIndex(TestUnitCommon):
                 "version": "version%s" % str(i)
             })
             r[i - 1].pop("install_date")
+            r[i - 1].pop("installation_unfinished")
             r[i - 1].pop("hash")
             self.assertDictEqual(expected, r[i - 1])
 
@@ -419,6 +422,7 @@ class TestCollectionIndex(TestUnitCommon):
 
         r.pop("install_date")
         r.pop("hash")
+        r.pop("installation_unfinished")
 
         self.assertDictEqual(expected, r)
 
@@ -436,6 +440,7 @@ class TestCollectionIndex(TestUnitCommon):
             "catalog_id_exceptionell", Coordinates("grp_exceptionell", "name_exceptionell", "version_exceptionell")
         )
         r.pop("install_date")
+        r.pop("installation_unfinished")
         r.pop("hash")
 
         expected = self._get_expected_attrs({
@@ -472,6 +477,7 @@ class TestCollectionIndex(TestUnitCommon):
                 "version": "version",
             })
             r[i - 1].pop("install_date")
+            r[i - 1].pop("installation_unfinished")
             r[i - 1].pop("hash")
 
             self.assertDictEqual(expected, r[i - 1])
@@ -549,6 +555,7 @@ class TestCollectionIndex(TestUnitCommon):
         # remove hash
         for i, _ in enumerate(r):
             r[i].pop("hash")
+            r[i].pop("installation_unfinished")
             r[i]["last_execution"] = None
 
         self.assertEqual(exp, r)
@@ -637,6 +644,7 @@ class TestCollectionIndex(TestUnitCommon):
         for i, _ in enumerate(r):
             r[i].pop("hash")
             r[i].pop("install_date")
+            r[i].pop("installation_unfinished")
 
         self.assertEqual(exp, r)
 
@@ -652,7 +660,7 @@ class TestCollectionIndex(TestUnitCommon):
         self.assertIsNone(r["last_execution"])
 
         self.test_catalog_collection_index.update_solution("cat2", Coordinates("grp", "name", "version"), {},
-                                                           SolutionHandler.get_solution_keys())
+                                                           CatalogIndex.get_solution_column_keys())
 
         r = self.test_catalog_collection_index.get_solution(2)
         self.assertIsNotNone(r["last_execution"])

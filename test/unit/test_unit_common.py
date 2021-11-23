@@ -51,22 +51,22 @@ class TestUnitCommon(unittest.TestCase):
     @staticmethod
     def get_solution_dict():
         return {
-            'group': "tsg",
-            'name': "tsn",
-            'description': "d1",
-            'version': "tsv",
-            'album_api_version': "t1",
-            'album_version': "mhv1",
-            'license': "l1",
-            'git_repo': "g1",
-            'authors': ["a1", "a2"],
-            'cite': [{"text": "c1"}],
-            'tags': ["t1"],
-            'documentation': ["do1"],
-            'covers': [{"source": "co1", "description": ""}],
-            'args': [{"name": "a1", "type": "string", "description": ""}],
-            'title': "t1",
-            'timestamp': "",
+            'group': 'tsg',
+            'name': 'tsn',
+            'description': 'd1',
+            'version': 'tsv',
+            'album_api_version': 't1',
+            'album_version': 'mhv1',
+            'license': 'l1',
+            'acknowledgement': 'a1',
+            'authors': ['a1', 'a2'],
+            'cite': [{'text': 'c1', 'doi': 'doi1', 'url': 'url1'}],
+            'tags': ['t1'],
+            'documentation': ['do1'],
+            'covers': [{'source': 'co1', 'description': ''}],
+            'args': [{'name': 'a1', 'type': 'string', 'description': ''}],
+            'title': 't1',
+            'timestamp': '',
         }
 
     @staticmethod
@@ -160,7 +160,7 @@ class TestUnitCommon(unittest.TestCase):
 
         return my_album
 
-    @patch('album.core.model.solution.Solution.get_deploy_dict')
+    @patch('album.core.utils.operations.solution_operations.get_deploy_dict')
     def create_test_solution_no_env(self, deploy_dict_mock):
         deploy_dict_mock.return_value = self.solution_default_dict
         self.active_solution = Solution(deploy_dict_mock.return_value)

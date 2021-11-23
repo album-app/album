@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 from album.ci.utils.zenodo_api import ZenodoAPI
-from album.core.model.coordinates import Coordinates
+from album.runner.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove, \
     create_path_recursively, rand_folder_name, check_zip, unzip_archive, copy, copy_folder

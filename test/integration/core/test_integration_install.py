@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from album.core.model.coordinates import Coordinates
+from album.runner.model.coordinates import Coordinates
 
 from album.argument_parsing import main
 from album.core.controller.conda_manager import CondaManager
@@ -18,12 +18,12 @@ class TestIntegrationInstall(TestIntegrationCommon):
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     @patch('album.core.controller.conda_manager.CondaManager.install')
-    def test_install_no_install_routine(self, install, get_environment_path):
+    def test_install_minimal_solution(self, install, get_environment_path):
         get_environment_path.return_value = CondaManager().get_active_environment_path()
 
         # this solution has no install() configured
 
-        sys.argv = ["", "install", str(self.get_test_solution_path("solution0_dummy_no_routines.py")), "--log", "DEBUG"]
+        sys.argv = ["", "install", str(self.get_test_solution_path("solution11_minimal.py")), "--log", "DEBUG"]
 
         # run
         self.assertIsNone(main())
@@ -112,13 +112,13 @@ class TestIntegrationInstall(TestIntegrationCommon):
 
     def test_install_with_parent(self):
         # gather arguments
-        sys.argv = ["", "install", str(self.get_test_solution_path("app1.py"))]
+        sys.argv = ['', 'install', str(self.get_test_solution_path('app1.py'))]
         self.assertIsNone(main())
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output)
 
-        sys.argv = ["", "install", str(self.get_test_solution_path("solution1_app1.py"))]
+        sys.argv = ['', 'install', str(self.get_test_solution_path('solution1_app1.py'))]
         self.assertIsNone(main())
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output)
 
         # assert solution was added to local catalog
         collection = self.collection_manager.catalog_collection
@@ -129,15 +129,15 @@ class TestIntegrationInstall(TestIntegrationCommon):
         parent_solution_path = Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
             str(self.collection_manager.catalogs().get_local_catalog().name),
-            DefaultValues.cache_path_solution_prefix.value, "group",
-            "app1", "0.1.0", "solution.py"
+            DefaultValues.cache_path_solution_prefix.value, 'group',
+            'app1', '0.1.0', 'solution.py'
         )
         self.assertTrue(parent_solution_path.exists())
         solution_path = Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
             str(self.collection_manager.catalogs().get_local_catalog().name),
-            DefaultValues.cache_path_solution_prefix.value, "group",
-            "solution1_app1", "0.1.0", "solution.py"
+            DefaultValues.cache_path_solution_prefix.value, 'group',
+            'solution1_app1', '0.1.0', 'solution.py'
         )
         self.assertTrue(solution_path.exists())
 

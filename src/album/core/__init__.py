@@ -1,8 +1,9 @@
 import sys
 from typing import Optional
 
-from album.core.model.solution import Solution
+from album.core.controller.migration_manager import MigrationManager
 from album.runner import album_logging
+from album.runner.model.solution import Solution
 
 module_logger = album_logging.get_active_logger
 
@@ -15,7 +16,6 @@ __email__ = "album@kyleharrington.com"
 Global variable for tracking the currently active solution. Do not use this 
 directly instead use get_active_solution()
 """
-global _active_solution
 _active_solution = []
 
 
@@ -86,6 +86,7 @@ def load(path) -> Optional[Solution]:
         solution = f.read()
     exec(solution)
     active_solution = get_active_solution()
+    MigrationManager().validate_solution(active_solution)
     active_solution.script = solution
     pop_active_solution()
     return active_solution

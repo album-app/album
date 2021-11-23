@@ -10,7 +10,7 @@ from album.core.controller.collection.solution_handler import SolutionHandler
 from album.core.model.catalog import Catalog
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.configuration import Configuration
-from album.core.model.coordinates import Coordinates
+from album.runner.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
@@ -196,14 +196,14 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         self.collection_manager.resolve_require_installation_and_load("grp:name:version")
 
         # assert
-        check_file_or_url_mock.assert_called_once_with("grp:name:version", Configuration().cache_path_tmp)
+        check_file_or_url_mock.assert_called_once_with("grp:name:version", Configuration().cache_path_tmp_user)
 
     @unittest.skip("Needs to be implemented!")
     def test_resolve_download_and_load(self):
         # todo: implement
         pass
 
-    @patch('album.core.model.solution.Solution.set_cache_paths')
+    @patch('album.core.controller.collection.collection_manager.set_cache_paths')
     def test_resolve_download_and_load_catalog_coordinates(self, set_cache_paths_mock):
         catalog = Catalog("aNiceId", "aNiceName", "aValidPath")
         coordinates = Coordinates("g", "n", "v")
@@ -230,7 +230,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         retrieve_and_load_mock.assert_called_once()
         set_cache_paths_mock.assert_called_once()
 
-    @patch('album.core.model.solution.Solution.set_cache_paths')
+    @patch('album.core.controller.collection.collection_manager.set_cache_paths')
     def test_resolve_download_and_load_coordinates(self, set_cache_paths_mock):
         coordinates = Coordinates("g", "n", "v")
         local_catalog = self.collection_manager.catalogs().get_local_catalog()

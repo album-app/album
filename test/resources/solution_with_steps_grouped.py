@@ -1,33 +1,16 @@
 from album.runner import setup
 
 
-def album_init():
-    pass
-
-
 setup(
     group="group",
     name="solution_with_steps_grouped",
     title="album with steps grouped",
     version="0.1.0",
-    timestamp="",
-    description="",
-    authors="",
-    cite=[],
-    git_repo="",
-    tags=[],
-    license="license",
-    documentation=[""],
-    covers=[],
-    sample_inputs=[],
-    sample_outputs=[],
-    album_version="0.1.1",
     album_api_version="0.1.1",
     args=[{
         "name": "file",
         "description": "",
     }],
-    init=album_init,
     steps=[
         [
             {

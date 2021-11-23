@@ -3,7 +3,7 @@ from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
 
-from album.core.model.coordinates import Coordinates
+from album.runner.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.resolve_operations import get_doi_from_input, get_cgnv_from_input, get_gnv_from_input, \
     get_attributes_from_string, check_file_or_url, dict_to_coordinates, get_zip_name_prefix, get_zip_name, \

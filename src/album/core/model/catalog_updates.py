@@ -2,7 +2,7 @@ from enum import Enum
 from typing import List, Optional
 
 from album.core.model.catalog import Catalog
-from album.core.model.coordinates import Coordinates
+from album.runner.model.coordinates import Coordinates
 
 
 class ChangeType(Enum):

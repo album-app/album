@@ -1,13 +1,13 @@
-import hashlib
 import json
 import pkgutil
 from datetime import datetime
 from typing import Optional
 
 from album.core.concept.database import Database
-from album.core.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import get_dict_entry, write_dict_to_json
+from album.core.utils.operations.solution_operations import get_solution_hash
 from album.runner import album_logging
+from album.runner.model.coordinates import Coordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -31,7 +31,7 @@ class CatalogIndex(Database):
         super().__init__(path)
 
     def create(self):
-        data = pkgutil.get_data('album.core.database', 'catalog_index_schema.sql')
+        data = pkgutil.get_data('album.core.schema', 'catalog_index_schema.sql')
 
         cursor = self.get_cursor()
         cursor.executescript(data.decode("utf-8"))
@@ -122,79 +122,93 @@ class CatalogIndex(Database):
 
         return solutions
 
+    @staticmethod
+    def get_solution_column_keys():
+        return ['group', 'name', 'description', 'version', 'album_api_version', 'album_version', 'license',
+                'acknowledgement', 'title', 'timestamp']
+
     def _insert_solution(self, solution_attrs, close=True) -> int:
-        hash_val = self.create_hash(":".join([json.dumps(solution_attrs[k]) for k in solution_attrs.keys()]))
+        hash_val = get_solution_hash(solution_attrs, self.get_solution_column_keys())
         solution_id = self.next_id("solution")
 
         cursor = self.get_cursor()
         cursor.execute(
-            "INSERT INTO solution values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            'INSERT INTO solution values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             (
                 solution_id,
-                solution_attrs["group"],
-                solution_attrs["name"],
-                solution_attrs["title"],
-                solution_attrs["version"],
+                solution_attrs['group'],
+                solution_attrs['name'],
+                get_dict_entry(solution_attrs, 'title'),
+                solution_attrs['version'],
                 datetime.now().isoformat(),
-                solution_attrs["description"],
-                get_dict_entry(solution_attrs, "doi"),  # allow to be none
-                solution_attrs["git_repo"],
-                solution_attrs["license"],
-                solution_attrs["album_version"],
-                solution_attrs["album_api_version"],
-                get_dict_entry(solution_attrs, "changelog"),  # allow to be none
+                get_dict_entry(solution_attrs, 'description'),
+                get_dict_entry(solution_attrs, 'doi'),  # allow to be none
+                get_dict_entry(solution_attrs, 'license'),
+                get_dict_entry(solution_attrs, 'album_version'),
+                get_dict_entry(solution_attrs, 'album_api_version'),
+                get_dict_entry(solution_attrs, 'changelog'),  # allow to be none
+                get_dict_entry(solution_attrs, 'acknowledgement'),
                 hash_val
             )
         )
-        for author in solution_attrs["authors"]:
-            author_id = self._insert_author(author, close=False)
-            solution_author_id = self.next_id("solution_author")
-            cursor.execute(
-                "INSERT INTO solution_author values (?, ?, ?)",
-                (
-                    solution_author_id,
-                    solution_id,
-                    author_id
+        if 'authors' in solution_attrs:
+            for author in solution_attrs['authors']:
+                author_id = self._insert_author(author, close=False)
+                solution_author_id = self.next_id('solution_author')
+                cursor.execute(
+                    'INSERT INTO solution_author values (?, ?, ?)',
+                    (
+                        solution_author_id,
+                        solution_id,
+                        author_id
+                    )
                 )
-            )
-        for tag in solution_attrs["tags"]:
-            tag_id = self._insert_tag(tag, close=False)
-            solution_tag_id = self.next_id("solution_tag")
-            cursor.execute(
-                "INSERT INTO solution_tag values (?, ?, ?)",
-                (
-                    solution_tag_id,
-                    solution_id,
-                    tag_id
-                )
-            )
-        for argument in solution_attrs["args"]:
-            argument_id = self._insert_argument(argument, close=False)
-            solution_argument_id = self.next_id("solution_argument")
-            cursor.execute(
-                "INSERT INTO solution_argument values (?, ?, ?)",
-                (
-                    solution_argument_id,
-                    solution_id,
-                    argument_id
-                )
-            )
-        for citation in solution_attrs["cite"]:
-            citation_id = self._insert_citation(citation, close=False)
-            solution_citation_id = self.next_id("solution_citation")
-            cursor.execute(
-                "INSERT INTO solution_citation values (?, ?, ?)",
-                (
-                    solution_citation_id,
-                    solution_id,
-                    citation_id
-                )
-            )
-        for cover in solution_attrs["covers"]:
-            self._insert_cover(cover, solution_id, close=False)
 
-        for documentation in solution_attrs["documentation"]:
-            self._insert_documentation(documentation, solution_id, close=False)
+        if 'tags' in solution_attrs:
+            for tag in solution_attrs['tags']:
+                tag_id = self._insert_tag(tag, close=False)
+                solution_tag_id = self.next_id('solution_tag')
+                cursor.execute(
+                    'INSERT INTO solution_tag values (?, ?, ?)',
+                    (
+                        solution_tag_id,
+                        solution_id,
+                        tag_id
+                    )
+                )
+
+        if 'args' in solution_attrs:
+            for argument in solution_attrs['args']:
+                argument_id = self._insert_argument(argument, close=False)
+                solution_argument_id = self.next_id('solution_argument')
+                cursor.execute(
+                    'INSERT INTO solution_argument values (?, ?, ?)',
+                    (
+                        solution_argument_id,
+                        solution_id,
+                        argument_id
+                    )
+                )
+        if 'cite' in solution_attrs:
+            for citation in solution_attrs['cite']:
+                citation_id = self._insert_citation(citation, close=False)
+                solution_citation_id = self.next_id('solution_citation')
+                cursor.execute(
+                    'INSERT INTO solution_citation values (?, ?, ?)',
+                    (
+                        solution_citation_id,
+                        solution_id,
+                        citation_id
+                    )
+                )
+
+        if 'covers' in solution_attrs:
+            for cover in solution_attrs['covers']:
+                self._insert_cover(cover, solution_id, close=False)
+
+        if 'documentation' in solution_attrs:
+            for documentation in solution_attrs['documentation']:
+                self._insert_documentation(documentation, solution_id, close=False)
 
         self.save()
 
@@ -243,13 +257,14 @@ class CatalogIndex(Database):
 
         cursor = self.get_cursor()
         cursor.execute(
-            "INSERT INTO argument values (?, ?, ?, ?, ?)",
+            "INSERT INTO argument values (?, ?, ?, ?, ?, ?)",
             (
                 argument_id,
                 argument["name"],
                 get_dict_entry(argument, "type"),
                 argument["description"],
-                get_dict_entry(argument, "default_value")
+                get_dict_entry(argument, "default_value"),
+                get_dict_entry(argument, "required")
             )
         )
 
@@ -262,11 +277,12 @@ class CatalogIndex(Database):
         citation_id = self.next_id("citation")
         cursor = self.get_cursor()
         cursor.execute(
-            "INSERT INTO citation values (?, ?, ?)",
+            "INSERT INTO citation values (?, ?, ?, ?)",
             (
                 citation_id,
                 citation["text"],
-                get_dict_entry(citation, "doi")
+                get_dict_entry(citation, "doi"),
+                get_dict_entry(citation, "url")
             )
         )
 
@@ -412,7 +428,7 @@ class CatalogIndex(Database):
         return solution
 
     def _update_solution(self, solution_attrs, close=True) -> None:
-        hash_val = self.create_hash(":".join([json.dumps(solution_attrs[k]) for k in solution_attrs.keys()]))
+        hash_val = get_solution_hash(solution_attrs, self.get_solution_column_keys())
 
         cursor = self.get_cursor()
         cursor.execute(
@@ -421,7 +437,7 @@ class CatalogIndex(Database):
             "timestamp=:timestamp, "
             "description=:description, "
             "doi=:doi, "
-            "git_repo=:git_repo, "
+            "acknowledgement=:acknowledgement, "
             "license=:license, "
             "album_version=:album_version, "
             "album_api_version=:album_api_version, "
@@ -432,14 +448,14 @@ class CatalogIndex(Database):
                 "group": solution_attrs["group"],
                 "name": solution_attrs["name"],
                 "version": solution_attrs["version"],
-                "title": solution_attrs["title"],
+                "title": get_dict_entry(solution_attrs, "title"),
                 "timestamp": "",
-                "description": solution_attrs["description"],
+                "description": get_dict_entry(solution_attrs, "description"),
                 "doi": get_dict_entry(solution_attrs, "doi"),
-                "git_repo": solution_attrs["git_repo"],
-                "license": solution_attrs["license"],
-                "album_version": solution_attrs["album_version"],
-                "album_api_version": solution_attrs["album_api_version"],
+                "acknowledgement": get_dict_entry(solution_attrs, "acknowledgement"),
+                "license": get_dict_entry(solution_attrs, "license"),
+                "album_version": get_dict_entry(solution_attrs, "album_version"),
+                "album_api_version": get_dict_entry(solution_attrs, "album_api_version"),
                 "changelog": get_dict_entry(solution_attrs, "changelog"),
                 "hash_val": hash_val
             }
@@ -717,9 +733,3 @@ class CatalogIndex(Database):
             self.close_current_connection()
 
         return res
-
-    @staticmethod
-    def create_hash(string_representation):
-        hash_val = hashlib.md5(string_representation.encode('utf-8')).hexdigest()
-
-        return hash_val

@@ -40,11 +40,6 @@ class TestSolutionHandler(TestCatalogCollectionCommon):
         pass
 
     @unittest.skip("Needs to be implemented!")
-    def test_get_solution_keys(self):
-        # todo: implement
-        pass
-
-    @unittest.skip("Needs to be implemented!")
     def test_apply_change(self):
         # todo: implement
         pass

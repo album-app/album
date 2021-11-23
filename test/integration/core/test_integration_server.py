@@ -7,7 +7,7 @@ from unittest.mock import patch
 import flask_unittest
 
 from album.core.controller.conda_manager import CondaManager
-from album.core.model.coordinates import Coordinates
+from album.runner.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.model.task import Task
 from album.core.server import AlbumServer
@@ -213,7 +213,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         solution_path = self.get_test_solution_path("solution9_throws_exception.py")
         solution = self.fake_install(solution_path, create_environment=False)
 
-        res_run = client.get(f"/run/{solution.group}/{solution.name}/{solution.version}")
+        res_run = client.get(f"/run/{solution.coordinates.group}/{solution.coordinates.name}/{solution.coordinates.version}")
         self.assertEqual(200, res_run.status_code)
         self.assertIsNotNone(res_run.json)
         task_run_id = res_run.json["id"]

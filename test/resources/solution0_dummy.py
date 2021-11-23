@@ -1,10 +1,6 @@
 from album.runner import setup
 
 
-def album_init():
-    pass
-
-
 def album_run():
     pass
 
@@ -18,20 +14,15 @@ setup(
     name="name",
     title="name",
     version="0.1.0",
-    doi="",
-    deposit_id="",
-    timestamp="",
-    description="",
-    authors="",
+    doi="a/doi",
+    description="A description",
+    authors=["Me"],
     cite=[],
-    git_repo="",
-    tags=[],
+    acknowledgement="Hi mom",
+    tags=["tag1", "tag2"],
     license="license",
-    documentation=[""],
+    documentation=["file.md"],
     covers=[],
-    sample_inputs=[],
-    sample_outputs=[],
-    album_version="0.1.1",
     album_api_version="0.1.1",
     args=[
         {
@@ -41,7 +32,6 @@ setup(
             "default": "Useless callable",
         }
     ],
-    init=album_init,
     run=album_run,
     install=album_install,
     dependencies={}

@@ -3,6 +3,7 @@ from pathlib import Path
 
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.catalog_index import CatalogIndex
+from album.runner.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations import file_operations
 
@@ -18,7 +19,7 @@ def build_empty_catalog(name, path):
     if path.exists():
         file_operations.force_remove(path)
     path.mkdir(parents=True)
-    CatalogHandler.create_new_catalog(path)
+    CatalogHandler.create_new_catalog(path, name)
     db_file = path.joinpath(DefaultValues.catalog_index_file_name.value)
     catalog_index = CatalogIndex(name, db_file)
     catalog_index.get_connection().commit()
@@ -27,7 +28,7 @@ def build_empty_catalog(name, path):
 
 def build_test_catalog(name, path):
     catalog_index = build_empty_catalog(name, path)
-    catalog_index.update(solution_attrs={
+    catalog_index.update(Coordinates("ida-mdc", "solution0_dummy", "0.1.0"), solution_attrs={
         "args": [
             {
                 "default": "inp1",
@@ -70,8 +71,8 @@ def build_test_catalog(name, path):
                 "name": "inp8"
             }
         ],
-        "authors": "Sample Author",
-        "cite": "citation",
+        "authors": ["Sample Author"],
+        "cite": [],
         "covers": [
             {
                 "description": "coverDescription",
@@ -79,23 +80,10 @@ def build_test_catalog(name, path):
             }
         ],
         "description": "keyword1",
-        "documentation": "",
-        "format_version": "0.3.0",
-        "git_repo": "https://gitlab.com/album-app/album",
+        "documentation": [],
+        "acknowledgement": "",
         "license": "MIT",
         "album_version": "0.1.0",
-        "sample_inputs": [
-            {
-                "description": "sampleInputDescription1",
-                "value": "sampleInput.tif"
-            }
-        ],
-        "sample_outputs": [
-            {
-                "description": "sampleOutputDescription1",
-                "value": "sampleResult.txt"
-            }
-        ],
         "group": "ida-mdc",
         "name": "solution0_dummy",
         "title": "solution0_dummy",
@@ -103,10 +91,10 @@ def build_test_catalog(name, path):
         "tags": [
             "tag1"
         ],
-        "album_api_version": "0.1.0",
+        "album_api_version": "0.1.1",
         "timestamp": "2021-02-08T22:16:03.331998"
     })
-    catalog_index.update(solution_attrs={
+    catalog_index.update(Coordinates("ida-mdc", "solution0_dummy2", "0.1.0"), solution_attrs={
         "args": [
             {
                 "default": "",
@@ -114,8 +102,7 @@ def build_test_catalog(name, path):
                 "name": "inp1"
             }
         ],
-        "authors": "Sample Author",
-        "cite": "Citation",
+        "authors": ["Sample Author"],
         "covers": [
             {
                 "description": "coverDescription",
@@ -123,13 +110,10 @@ def build_test_catalog(name, path):
             }
         ],
         "description": "keyword2",
-        "documentation": "",
-        "format_version": "0.3.0",
-        "git_repo": "https://gitlab.com/album-app/album",
+        "documentation": [],
+        "acknowledgement": "",
         "license": "MIT",
         "album_version": "0.1.0",
-        "sample_inputs": [],
-        "sample_outputs": [],
         "group": "ida-mdc",
         "name": "solution0_dummy2",
         "title": "solution0_dummy2",
@@ -138,7 +122,7 @@ def build_test_catalog(name, path):
             "tag2",
             "tag3"
         ],
-        "album_api_version": "0.1.0",
+        "album_api_version": "0.1.1",
         "timestamp": "2021-02-08T22:16:03.331998"
     })
     catalog_index.get_connection().commit()
@@ -146,7 +130,7 @@ def build_test_catalog(name, path):
 
 def build_single_solution_catalog(name, path):
     catalog_index = build_empty_catalog(name, path)
-    catalog_index.update(solution_attrs={
+    catalog_index.update(Coordinates("testGroup", "testName", "testVersion"), solution_attrs={
         "args": [
             {
                 "default": "",
@@ -157,12 +141,9 @@ def build_single_solution_catalog(name, path):
         "authors": [],
         "cite": [],
         "covers": [],
-        "sample_inputs": [],
-        "sample_outputs": [],
         "description": "",
         "documentation": "",
-        "format_version": "0.3.0",
-        "git_repo": "",
+        "acknowledgement": "",
         "license": "",
         "album_version": "0.1.0",
         "group": "testGroup",
@@ -170,7 +151,7 @@ def build_single_solution_catalog(name, path):
         "title": "testTitle",
         "version": "testVersion",
         "tags": [],
-        "album_api_version": "0.1.0",
+        "album_api_version": "0.1.1",
         "timestamp": "2021-02-08T22:16:03.331998"
     })
     catalog_index.get_connection().commit()

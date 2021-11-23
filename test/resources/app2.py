@@ -2,10 +2,6 @@ from album.runner import setup
 from album.runner.api import get_args
 
 
-def album_init():
-    pass
-
-
 def album_run():
     args = get_args()
 
@@ -28,18 +24,6 @@ setup(
     name="app2",
     title="app two",
     version="0.1.0",
-    timestamp="",
-    description="",
-    authors="",
-    cite=[],
-    git_repo="",
-    tags=[],
-    license="license",
-    documentation=[""],
-    covers=[],
-    sample_inputs=[],
-    sample_outputs=[],
-    album_version="0.1.1",
     album_api_version="0.1.1",
     args=[{
         "name": "file",
@@ -48,7 +32,6 @@ setup(
         "name": "app2_param",
         "description": "",
     }],
-    init=album_init,
     run=album_run,
     close=album_close,
     dependencies={}

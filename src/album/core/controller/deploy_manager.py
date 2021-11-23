@@ -12,7 +12,8 @@ from album.core.controller.migration_manager import MigrationManager
 from album.core.model.catalog import Catalog
 from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
-from album.core.model.solution import Solution
+from album.core.utils.operations.solution_operations import get_deploy_dict
+from album.runner.model.solution import Solution
 from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, zip_paths, copy_in_file
 from album.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push
 from album.core.utils.operations.resolve_operations import get_zip_name
@@ -71,6 +72,8 @@ class DeployManager(metaclass=Singleton):
                 The git user to use. (Default: systems git configuration)
 
         """
+        module_logger().info('Deploying %s to %s...' % (deploy_path, catalog_name))
+
         deploy_path = Path(deploy_path)
 
         if deploy_path.is_dir():
@@ -86,9 +89,9 @@ class DeployManager(metaclass=Singleton):
 
         # case catalog in solution file specified
         # TODO: discuss this
-        elif active_solution["deploy"] and active_solution["deploy"]["catalog"]:
+        elif active_solution.setup.deploy and active_solution.setup.deploy["catalog"]:
             catalog = self.collection_manager.catalogs().get_by_src(
-                active_solution["deploy"]["catalog"]["src"]
+                active_solution.setup.deploy["catalog"]["src"]
             )
 
         # case no catalog given
@@ -103,6 +106,7 @@ class DeployManager(metaclass=Singleton):
             self._deploy_to_remote_catalog(
                 catalog, active_solution, deploy_path, dry_run, push_option, git_email, git_name
             )
+        module_logger().info('Successfully deployed %s to %s.' % (deploy_path, catalog_name))
 
     def _deploy_to_remote_catalog(self, catalog: Catalog, active_solution: Solution, deploy_path, dry_run, push_option,
                                   git_email=None, git_name=None):
@@ -144,7 +148,7 @@ class DeployManager(metaclass=Singleton):
         if not dry_run:
             catalog.add(active_solution, force_overwrite=force_deploy)
         else:
-            module_logger().info("Would add the solution %s to index..." % active_solution.name)
+            module_logger().info("Would add the solution %s to index..." % active_solution.coordinates.name)
 
         # include files/folders in catalog
         DeployManager._deploy_routine_in_local_src(catalog, catalog_local_src, active_solution, deploy_path)
@@ -256,7 +260,7 @@ class DeployManager(metaclass=Singleton):
         )
 
         module_logger().debug('Writing yaml file to: %s...' % yaml_path)
-        write_dict_to_yml(yaml_path, active_solution.get_deploy_dict())
+        write_dict_to_yml(yaml_path, get_deploy_dict(active_solution))
 
         return yaml_path
 
@@ -278,7 +282,7 @@ class DeployManager(metaclass=Singleton):
         docker_file_stream = docker_file_stream.replace("<version>", album.core.__version__)
         docker_file_stream = docker_file_stream.replace("<name>", zip_name)
         docker_file_stream = docker_file_stream.replace("<run_name>", str(coordinates))
-        author = "; ".join(active_solution.authors) if active_solution.authors else "\"\""
+        author = "; ".join(active_solution.setup.authors) if active_solution.setup.authors else "\"\""
         docker_file_stream = docker_file_stream.replace("<maintainer>", author)
 
         # replace template with entries and copy dockerfile to deploy_src
@@ -321,9 +325,9 @@ class DeployManager(metaclass=Singleton):
         target_path = DeployManager._get_absolute_zip_path(catalog, catalog_local_src, active_solution).parent
         cover_list = []
 
-        if hasattr(active_solution, "covers"):
+        if active_solution.setup.covers:
             module_logger().debug('Copying cover file to: %s...' % str(target_path))
-            for cover in active_solution["covers"]:
+            for cover in active_solution.setup.covers:
                 cover_name = cover["source"]
                 cover_path = folder_path.joinpath(cover_name)  # relative paths only
                 if cover_path.exists():

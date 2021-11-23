@@ -84,15 +84,18 @@ class TestTaskManager(TestUnitCommon):
         thread.start()
         thread.join()
 
-    def _log_to_active_logger_via_subcommand(self):
+    @staticmethod
+    def _log_to_active_logger_via_subcommand():
         subcommand.run(["echo", "test"])
 
-    def _log_to_active_logger(self):
+    @staticmethod
+    def _log_to_active_logger():
         album_logging.configure_logging("test", loglevel=LogLevel.INFO)
         album_logging.get_active_logger().info("test")
         album_logging.pop_active_logger()
 
-    def _log_to_active_logger_in_thread(self, parent_thread_id):
+    @staticmethod
+    def _log_to_active_logger_in_thread(parent_thread_id):
         album_logging.configure_logging("test", loglevel=LogLevel.INFO, parent_thread_id=parent_thread_id)
         album_logging.get_active_logger().info("test")
         album_logging.pop_active_logger()

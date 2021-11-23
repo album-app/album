@@ -2,10 +2,6 @@ from album.runner import setup
 from album.runner.api import get_args
 
 
-def album_init():
-    pass
-
-
 def album_run():
     print("solution8_arguments_run_start")
 
@@ -58,20 +54,6 @@ setup(
     name="solution8_arguments",
     title="solution7",
     version="0.1.0",
-    timestamp="",
-    description="",
-    authors="",
-    cite=[{
-        'text': "MyText"
-    }],
-    git_repo="",
-    tags=[],
-    license="license",
-    documentation=[""],
-    covers=[],
-    sample_inputs=[],
-    sample_outputs=[],
-    album_version="0.1.1",
     album_api_version="0.1.1",
     args=[
         {
@@ -106,7 +88,6 @@ setup(
             "action": lambda sa1: sa1 + ".gz" if sa1 else None
         }
     ],
-    init=album_init,
     run=album_run,
     install=album_install,
     pre_test=album_pre_test,

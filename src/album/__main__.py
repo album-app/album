@@ -16,5 +16,6 @@ def __retrieve_logger():
     configure_root_logger(LogLevel(debug_settings()))
     logging.getLogger().name = "album"
 
+
 if __name__ == "__main__":
     startup()
