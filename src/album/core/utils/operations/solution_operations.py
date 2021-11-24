@@ -1,6 +1,7 @@
 import copy
 import hashlib
 import json
+from datetime import date, time
 from pathlib import Path
 from typing import Optional
 
@@ -75,3 +76,21 @@ def get_solution_hash(solution_attrs, keys):
     return create_hash(
         ":".join([json.dumps(solution_attrs[k]) for k in keys if k in solution_attrs])
     )
+
+
+def serialize_json(catalogs_as_dict):
+    return json.dumps(catalogs_as_dict, sort_keys=True, indent=4, default=serialize)
+
+
+def serialize(obj):
+    """JSON serializer for objects not serializable by default json code"""
+
+    if isinstance(obj, date):
+        serial = obj.isoformat()
+        return serial
+
+    if isinstance(obj, time):
+        serial = obj.isoformat()
+        return serial
+
+    return obj.__dict__

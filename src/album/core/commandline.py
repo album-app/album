@@ -1,7 +1,7 @@
 import json
 import sys
 
-from album.core.utils.operations.solution_operations import get_deploy_dict
+from album.core.utils.operations.solution_operations import get_deploy_dict, serialize_json
 from album.runner.album_logging import get_active_logger
 
 from album.api import Album
@@ -218,7 +218,7 @@ def _get_print_json(args):
 
 
 def _as_json(data):
-    return json.dumps(data, sort_keys=True, indent=4)
+    return serialize_json(data)
 
 
 def get_credit_as_string(solution):
