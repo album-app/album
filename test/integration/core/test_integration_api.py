@@ -2,6 +2,7 @@ import json
 import unittest
 from pathlib import Path
 
+from album.core.utils.operations.solution_operations import serialize_json
 from album.runner.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.runner import album_logging
@@ -20,11 +21,11 @@ class TestIntegrationAPI(TestIntegrationCommon):
 
         # list index
         catalogs_as_dict = album.collection_manager().get_index_as_dict()
-        logger.info(json.dumps(catalogs_as_dict, sort_keys=True, indent=4))
+        logger.info(serialize_json(catalogs_as_dict))
 
         # list catalogs without solutions
         catalogs_as_dict = album.collection_manager().catalogs().get_all_as_dict()
-        logger.info(json.dumps(catalogs_as_dict, sort_keys=True, indent=4))
+        logger.info(serialize_json(catalogs_as_dict))
 
         # list configuration
         logger.info(f"conda executable: {album.configuration().conda_executable}")

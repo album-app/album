@@ -4,6 +4,8 @@ import re
 import sys
 from pathlib import Path
 
+from album.core.model.collection_index import CollectionIndex
+
 from album.ci.utils.zenodo_api import ZenodoAPI
 from album.runner.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
@@ -282,11 +284,11 @@ def build_resolve_string(resolve_solution_dict: dict, catalog=None):
     return resolve_solution
 
 
-def get_parent(parent_collection_entry: dict) -> dict:
+def get_parent(parent_collection_entry: CollectionIndex.CollectionSolution) -> CollectionIndex.CollectionSolution:
     """Given an collection entry (aka row of the collection table) this method returns the corresponding parent"""
-    if parent_collection_entry["parent"]:
-        parent = parent_collection_entry["parent"]
-        while parent["parent"]:
+    if parent_collection_entry.internal["parent"]:
+        parent = parent_collection_entry.internal["parent"]
+        while parent.internal["parent"]:
             parent = parent["parent"]
 
         return parent

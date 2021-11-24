@@ -2,6 +2,8 @@ from copy import deepcopy
 from pathlib import Path
 from unittest.mock import MagicMock, call, patch
 
+from album.core.model.collection_index import CollectionIndex
+
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.collection.solution_handler import SolutionHandler
 from album.core.controller.migration_manager import MigrationManager
@@ -650,22 +652,22 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
     def test__compare_solutions(self):
         # prepare
         solutions_old = [
-            {"hash": 1, "group": "g1", "name": "n1", "version": "v1"},
-            {"hash": 2, "group": "g2", "name": "n2", "version": "v1"},  # deleted
-            {"hash": 3, "group": "g3", "name": "n3", "version": "v1"}
+            CollectionIndex.CollectionSolution({'group': 'g1', 'name': 'n1', 'version': 'v1'}, {'hash': 1}),
+            CollectionIndex.CollectionSolution({'group': 'g2', 'name': 'n2', 'version': 'v1'}, {'hash': 2}),  # deleted
+            CollectionIndex.CollectionSolution({'group': 'g3', 'name': 'n3', 'version': 'v1'}, {'hash': 3})
         ]
         solutions_new = [
-            {"hash": 1, "group": "g1", "name": "n1", "version": "v1"},  # not touched
-            {"hash": 9, "group": "g3", "name": "n3", "version": "v1"},  # changed in some other attributes (not shown)
-            {"hash": 4, "group": "g4", "name": "n4", "version": "v1"}  # new
+            {'hash': 1, 'group': 'g1', 'name': 'n1', 'version': 'v1'},  # not touched
+            {'hash': 9, 'group': 'g3', 'name': 'n3', 'version': 'v1'},  # changed in some other attributes (not shown)
+            {'hash': 4, 'group': 'g4', 'name': 'n4', 'version': 'v1'}  # new
         ]
 
         r = CatalogHandler._compare_solutions(solutions_old, solutions_new)
 
         expected_result = [
-            SolutionChange(Coordinates("g3", "n3", "v1"), ChangeType.CHANGED),
-            SolutionChange(Coordinates("g2", "n2", "v1"), ChangeType.REMOVED),
-            SolutionChange(Coordinates("g4", "n4", "v1"), ChangeType.ADDED)
+            SolutionChange(Coordinates('g3', 'n3', 'v1'), ChangeType.CHANGED),
+            SolutionChange(Coordinates('g2', 'n2', 'v1'), ChangeType.REMOVED),
+            SolutionChange(Coordinates('g4', 'n4', 'v1'), ChangeType.ADDED)
         ]
 
         self.assertCountEqual(expected_result, r)

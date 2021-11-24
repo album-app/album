@@ -5,7 +5,7 @@ from typing import Optional
 
 from album.core.concept.database import Database
 from album.core.utils.operations.file_operations import get_dict_entry, write_dict_to_json
-from album.core.utils.operations.solution_operations import get_solution_hash
+from album.core.utils.operations.solution_operations import get_solution_hash, serialize_json
 from album.runner import album_logging
 from album.runner.model.coordinates import Coordinates
 
@@ -125,7 +125,7 @@ class CatalogIndex(Database):
     @staticmethod
     def get_solution_column_keys():
         return ['group', 'name', 'description', 'version', 'album_api_version', 'album_version', 'license',
-                'acknowledgement', 'title', 'timestamp']
+                'acknowledgement', 'title', 'timestamp', 'doi']
 
     def _insert_solution(self, solution_attrs, close=True) -> int:
         hash_val = get_solution_hash(solution_attrs, self.get_solution_column_keys())
@@ -597,7 +597,7 @@ class CatalogIndex(Database):
             for solution in r:
                 solution = dict(solution)
                 self._append_metadata_to_solution_dict(solution)
-                json_dumps_list.append(json.dumps(solution))
+                json_dumps_list.append(serialize_json(solution))
 
             write_dict_to_json(path, json_dumps_list)
         else:

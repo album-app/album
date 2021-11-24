@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from album.core import Solution
 from album.core.model.catalog import Catalog
@@ -51,8 +52,8 @@ class SolutionHandler:
         )
 
         self.catalog_collection.insert_collection_collection(
-            parent_entry["collection_id"],
-            child_entry["collection_id"],
+            parent_entry.internal["collection_id"],
+            child_entry.internal["collection_id"],
             catalog_parent.catalog_id,
             catalog_child.catalog_id
         )

@@ -3,11 +3,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from album.runner.model.coordinates import Coordinates
-
 from album.argument_parsing import main
 from album.core.controller.conda_manager import CondaManager
 from album.core.model.default_values import DefaultValues
+from album.runner.model.coordinates import Coordinates
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -140,6 +139,96 @@ class TestIntegrationInstall(TestIntegrationCommon):
             'solution1_app1', '0.1.0', 'solution.py'
         )
         self.assertTrue(solution_path.exists())
+
+        sys.argv = ["", "uninstall", str(self.get_test_solution_path("solution1_app1.py"))]
+        self.assertIsNone(main())
+        self.assertNotIn("ERROR", self.captured_output)
+
+        solution_path = Path(self.tmp_dir.name).joinpath(
+            DefaultValues.catalog_folder_prefix.value,
+            str(self.collection_manager.catalogs().get_local_catalog().name),
+            DefaultValues.cache_path_solution_prefix.value, 'group',
+            'solution1_app1', '0.1.0', 'solution.py'
+        )
+        self.assertFalse(solution_path.exists())
+
+        sys.argv = ["", "install", str(self.get_test_solution_path("solution1_app1.py"))]
+        self.assertIsNone(main())
+        self.assertNotIn("ERROR", self.captured_output)
+        self.assertTrue(solution_path.exists())
+
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    @patch('album.core.controller.conda_manager.CondaManager.environment_exists')
+    def test_install_with_parent_with_parent(self, environment_exists, get_environment_path):
+        get_environment_path.return_value = CondaManager().get_active_environment_path()
+        environment_exists.return_value = True
+        # gather arguments
+        sys.argv = ['', 'install', str(self.get_test_solution_path('app1.py'))]
+        self.assertIsNone(main())
+        self.assertNotIn('ERROR', self.captured_output)
+
+        sys.argv = ['', 'install', str(self.get_test_solution_path('solution1_app1.py'))]
+        self.assertIsNone(main())
+        self.assertNotIn('ERROR', self.captured_output)
+
+        sys.argv = ['', 'install', str(self.get_test_solution_path('solution12_solution1_app1.py'))]
+        self.assertIsNone(main())
+        self.assertNotIn('ERROR', self.captured_output)
+
+        # assert solution was added to local catalog
+        collection = self.collection_manager.catalog_collection
+        self.assertEqual(3, len(collection.get_solutions_by_catalog(
+            self.collection_manager.catalogs().get_local_catalog().catalog_id)))
+
+        # assert solution is in the right place and has the right name
+        parent_solution_path = Path(self.tmp_dir.name).joinpath(
+            DefaultValues.catalog_folder_prefix.value,
+            str(self.collection_manager.catalogs().get_local_catalog().name),
+            DefaultValues.cache_path_solution_prefix.value, 'group',
+            'app1', '0.1.0', 'solution.py'
+        )
+        self.assertTrue(parent_solution_path.exists())
+        solution_path = Path(self.tmp_dir.name).joinpath(
+            DefaultValues.catalog_folder_prefix.value,
+            str(self.collection_manager.catalogs().get_local_catalog().name),
+            DefaultValues.cache_path_solution_prefix.value, 'group',
+            'solution1_app1', '0.1.0', 'solution.py'
+        )
+        self.assertTrue(solution_path.exists())
+        self.assertTrue(parent_solution_path.exists())
+        solution_child_path = Path(self.tmp_dir.name).joinpath(
+            DefaultValues.catalog_folder_prefix.value,
+            str(self.collection_manager.catalogs().get_local_catalog().name),
+            DefaultValues.cache_path_solution_prefix.value, 'group',
+            'solution12_solution1_app1', '0.1.0', 'solution.py'
+        )
+        self.assertTrue(solution_child_path.exists())
+
+        sys.argv = ["", "uninstall", str(self.get_test_solution_path("solution1_app1.py"))]
+        self.assertIsNone(main())
+        self.assertNotIn("ERROR", self.captured_output)
+        self.assertIn("The following solutions depend on this installation", self.captured_output.getvalue())
+        self.assertTrue(solution_path.exists())
+
+        sys.argv = ["", "uninstall", str(self.get_test_solution_path("solution12_solution1_app1.py"))]
+        self.assertIsNone(main())
+        self.assertNotIn("ERROR", self.captured_output)
+        self.assertFalse(solution_child_path.exists())
+
+        sys.argv = ["", "uninstall", str(self.get_test_solution_path("solution1_app1.py"))]
+        self.assertIsNone(main())
+        self.assertNotIn("ERROR", self.captured_output)
+        self.assertFalse(solution_path.exists())
+
+        sys.argv = ["", "install", str(self.get_test_solution_path("solution1_app1.py"))]
+        self.assertIsNone(main())
+        self.assertNotIn("ERROR", self.captured_output)
+        self.assertTrue(solution_path.exists())
+
+        sys.argv = ["", "install", str(self.get_test_solution_path("solution12_solution1_app1.py"))]
+        self.assertIsNone(main())
+        self.assertNotIn("ERROR", self.captured_output)
+        self.assertTrue(solution_child_path.exists())
 
     def test_install_with_dependencies(self):
         # fake register app1 dependency but not install

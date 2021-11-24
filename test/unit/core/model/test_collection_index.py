@@ -196,7 +196,8 @@ class TestCollectionIndex(TestUnitCommon):
         r = self.test_catalog_collection_index._get_children_of_solution(1)  # this should then be solution 2
 
         # assert
-        self.assertEqual([2], r)
+        self.assertEqual(1, len(r))
+        self.assertEqual(2, r[0]['collection_id_child'])
 
     def test_get_parent_of_solution(self):
         self.test_catalog_collection_index.insert_catalog(
@@ -218,35 +219,20 @@ class TestCollectionIndex(TestUnitCommon):
         # call
         r = self.test_catalog_collection_index.get_parent_of_solution(2)
 
-        # assert
-        expected = self._get_expected_attrs({
-            "collection_id": 1,
-            "solution_id": 1,
-            "catalog_id": 1,
-            "group": "grp",
-            "name": "name",
-            "version": "version"
-        })
-        expected["children"] = [2]
-        expected["parent"] = self._get_expected_attrs({
-            "collection_id": 3,
-            "solution_id": 3,
-            "catalog_id": 1,
-            "group": "grp3",
-            "name": "name3",
-            "version": "version3"
-        })
-        expected["parent"]["children"] = [1]
-
-        r.pop("install_date")
-        r.pop("installation_unfinished")
-        r.pop("hash")
-        r["parent"].pop("install_date")
-        r["parent"].pop("installation_unfinished")
-        r["parent"].pop("hash")
-
         # expect the parent to be recursively resolved. The children are only IDs
-        self.assertEqual(expected, r)
+        self.assertEqual(1, len(r.internal['children']))
+        self.assertEqual(2, r.internal['children'][0]['collection_id_child'])
+        self.assertEqual(1, r.internal['collection_id'])
+        self.assertEqual(1, r.internal['solution_id'])
+        self.assertEqual(1, r.internal['catalog_id'])
+        self.assertEqual(1, len(r.internal['parent'].internal['children']))
+        self.assertEqual(1, r.internal['parent'].internal['children'][0]['collection_id_child'])
+        self.assertEqual(3, r.internal['parent'].internal['collection_id'])
+        self.assertEqual(3, r.internal['parent'].internal['solution_id'])
+        self.assertEqual(1, r.internal['parent'].internal['catalog_id'])
+        self.assertEqual('grp3', r.internal['parent'].setup['group'])
+        self.assertEqual('name3', r.internal['parent'].setup['name'])
+        self.assertEqual('version3', r.internal['parent'].setup['version'])
 
     @unittest.skip("Needs to be implemented!")
     def test__append_metadata_to_solution(self):
@@ -380,18 +366,12 @@ class TestCollectionIndex(TestUnitCommon):
 
         self.assertEqual(3, len(r))
         for i in range(1, 4):
-            expected = self._get_expected_attrs({
-                "collection_id": i,
-                "solution_id": i,
-                "catalog_id": "cat%s" % str(i),
-                "group": "grp%s" % str(i),
-                "name": "name%s" % str(i),
-                "version": "version%s" % str(i)
-            })
-            r[i - 1].pop("install_date")
-            r[i - 1].pop("installation_unfinished")
-            r[i - 1].pop("hash")
-            self.assertDictEqual(expected, r[i - 1])
+            self.assertEqual(i, r[i - 1].internal['collection_id'])
+            self.assertEqual(i, r[i - 1].internal['solution_id'])
+            self.assertEqual('cat%s' % str(i), r[i - 1].internal['catalog_id'])
+            self.assertEqual('grp%s' % str(i), r[i - 1].setup['group'])
+            self.assertEqual('name%s' % str(i), r[i - 1].setup['name'])
+            self.assertEqual('version%s' % str(i), r[i - 1].setup['version'])
 
     @unittest.skip("Needs to be implemented!")
     def test_get_solutions_by_catalog(self):
@@ -409,22 +389,18 @@ class TestCollectionIndex(TestUnitCommon):
         self.test_catalog_collection_index.insert_solution("cat3",
                                                            self._get_solution_attrs(3, "grp3", "name3", "version3"))
 
-        r = self.test_catalog_collection_index.get_solution(3)
+        r = self.test_catalog_collection_index.get_solution_by_collection_id(3)
 
-        expected = self._get_expected_attrs({
-            "collection_id": 3,
-            "solution_id": 3,
+        expected = self._get_expected_attrs_setup({
             "catalog_id": "cat3",
             "group": "grp3",
             "name": "name3",
             "version": "version3"
         })
 
-        r.pop("install_date")
-        r.pop("hash")
-        r.pop("installation_unfinished")
-
-        self.assertDictEqual(expected, r)
+        self.assertEqual(3, r.internal['collection_id'])
+        self.assertEqual(3, r.internal['solution_id'])
+        self.assertDictEqual(expected, r.setup)
 
     @unittest.skip("Needs to be implemented!")
     def test_get_solution_by_doi(self):
@@ -439,20 +415,13 @@ class TestCollectionIndex(TestUnitCommon):
         r = self.test_catalog_collection_index.get_solution_by_catalog_grp_name_version(
             "catalog_id_exceptionell", Coordinates("grp_exceptionell", "name_exceptionell", "version_exceptionell")
         )
-        r.pop("install_date")
-        r.pop("installation_unfinished")
-        r.pop("hash")
 
-        expected = self._get_expected_attrs({
-            "collection_id": 1,
-            "solution_id": 1,
-            "catalog_id": "catalog_id_exceptionell",
-            "group": "grp_exceptionell",
-            "name": "name_exceptionell",
-            "version": "version_exceptionell",
-        })
-
-        self.assertDictEqual(expected, r)
+        self.assertEqual(1, r.internal['collection_id'])
+        self.assertEqual(1, r.internal['solution_id'])
+        self.assertEqual('catalog_id_exceptionell', r.internal['catalog_id'])
+        self.assertEqual('grp_exceptionell', r.setup['group'])
+        self.assertEqual('name_exceptionell', r.setup['name'])
+        self.assertEqual('version_exceptionell', r.setup['version'])
 
     def test_get_solutions_by_grp_name_version(self):
         # same grp, name, version but different catalogs
@@ -468,19 +437,12 @@ class TestCollectionIndex(TestUnitCommon):
         r = self.test_catalog_collection_index.get_solutions_by_grp_name_version(Coordinates("grp", "name", "version"))
 
         for i in range(1, 4):
-            expected = self._get_expected_attrs({
-                "collection_id": i,
-                "solution_id": i,
-                "catalog_id": "cat%s" % str(i),
-                "group": "grp",
-                "name": "name",
-                "version": "version",
-            })
-            r[i - 1].pop("install_date")
-            r[i - 1].pop("installation_unfinished")
-            r[i - 1].pop("hash")
-
-            self.assertDictEqual(expected, r[i - 1])
+            self.assertEqual(i, r[i-1].internal['collection_id'])
+            self.assertEqual(i, r[i-1].internal['solution_id'])
+            self.assertEqual('cat%s' % str(i), r[i-1].internal['catalog_id'])
+            self.assertEqual('grp', r[i-1].setup['group'])
+            self.assertEqual('name', r[i-1].setup['name'])
+            self.assertEqual('version', r[i-1].setup['version'])
 
     def test_get_recently_installed_solutions(self):
         self.test_catalog_collection_index.insert_solution(
@@ -518,47 +480,31 @@ class TestCollectionIndex(TestUnitCommon):
         r = self.test_catalog_collection_index.get_recently_installed_solutions()
 
         # assert
-        exp = [
-            self._get_expected_attrs({
-                "collection_id": 1,
-                "solution_id": 1,
-                "catalog_id": 1,
-                "group": "grp",
-                "name": "name",
-                "version": "version",
-            }),
-            self._get_expected_attrs({
-                "collection_id": 3,
-                "solution_id": 3,
-                "catalog_id": 1,
-                "group": "grp_d",
-                "name": "name_d",
-                "version": "version_d",
-            }),
-            self._get_expected_attrs({
-                "collection_id": 2,
-                "solution_id": 2,
-                "catalog_id": 2,
-                "group": "grp",
-                "name": "name",
-                "version": "version",
-            })
-        ]
-        exp[0]["install_date"] = inst_date1
-        exp[1]["install_date"] = inst_date3
-        exp[2]["install_date"] = inst_date2
-
-        exp[0]["installed"] = 1
-        exp[1]["installed"] = 1
-        exp[2]["installed"] = 1
-
-        # remove hash
-        for i, _ in enumerate(r):
-            r[i].pop("hash")
-            r[i].pop("installation_unfinished")
-            r[i]["last_execution"] = None
-
-        self.assertEqual(exp, r)
+        self.assertEqual(3, len(r))
+        self.assertEqual(inst_date1, r[0].internal['install_date'])
+        self.assertEqual(inst_date3, r[1].internal['install_date'])
+        self.assertEqual(inst_date2, r[2].internal['install_date'])
+        self.assertEqual(1, r[0].internal['installed'])
+        self.assertEqual(1, r[1].internal['installed'])
+        self.assertEqual(1, r[2].internal['installed'])
+        self.assertEqual(1, r[0].internal['collection_id'])
+        self.assertEqual(3, r[1].internal['collection_id'])
+        self.assertEqual(2, r[2].internal['collection_id'])
+        self.assertEqual(1, r[0].internal['solution_id'])
+        self.assertEqual(3, r[1].internal['solution_id'])
+        self.assertEqual(2, r[2].internal['solution_id'])
+        self.assertEqual(1, r[0].internal['catalog_id'])
+        self.assertEqual(1, r[1].internal['catalog_id'])
+        self.assertEqual(2, r[2].internal['catalog_id'])
+        self.assertEqual('grp', r[0].setup['group'])
+        self.assertEqual('grp_d', r[1].setup['group'])
+        self.assertEqual('grp', r[2].setup['group'])
+        self.assertEqual('name', r[0].setup['name'])
+        self.assertEqual('name_d', r[1].setup['name'])
+        self.assertEqual('name', r[2].setup['name'])
+        self.assertEqual('version', r[0].setup['version'])
+        self.assertEqual('version_d', r[1].setup['version'])
+        self.assertEqual('version', r[2].setup['version'])
 
     def test_get_recently_launched_solutions(self):
         self.test_catalog_collection_index.insert_solution(
@@ -596,57 +542,39 @@ class TestCollectionIndex(TestUnitCommon):
         r = self.test_catalog_collection_index.get_recently_launched_solutions()
 
         # assert
-        exp = [
-            self._get_expected_attrs({
-                "collection_id": 1,
-                "solution_id": 1,
-                "catalog_id": 1,
-                "group": "grp",
-                "name": "name",
-                "version": "version",
-            }),
-            self._get_expected_attrs({
-                "collection_id": 3,
-                "solution_id": 3,
-                "catalog_id": 1,
-                "group": "grp_d",
-                "name": "name_d",
-                "version": "version_d",
-            }),
-            self._get_expected_attrs({
-                "collection_id": 2,
-                "solution_id": 2,
-                "catalog_id": 2,
-                "group": "grp",
-                "name": "name",
-                "version": "version",
-            }),
-            self._get_expected_attrs({
-                "collection_id": 4,
-                "solution_id": 4,
-                "catalog_id": 1,
-                "group": "grp_u",
-                "name": "name_u",
-                "version": "version_u",
-            })
-        ]
-        exp[0]["last_execution"] = inst_date1
-        exp[1]["last_execution"] = inst_date3
-        exp[2]["last_execution"] = inst_date2
-        exp[3]["last_execution"] = inst_date4
-
-        exp[0]["installed"] = 1
-        exp[1]["installed"] = 1
-        exp[2]["installed"] = 1
-        exp[3]["installed"] = 0
-
-        # remove hash
-        for i, _ in enumerate(r):
-            r[i].pop("hash")
-            r[i].pop("install_date")
-            r[i].pop("installation_unfinished")
-
-        self.assertEqual(exp, r)
+        self.assertEqual(4, len(r))
+        self.assertEqual(inst_date1, r[0].internal['last_execution'])
+        self.assertEqual(inst_date3, r[1].internal['last_execution'])
+        self.assertEqual(inst_date2, r[2].internal['last_execution'])
+        self.assertEqual(inst_date4, r[3].internal['last_execution'])
+        self.assertEqual(1, r[0].internal['installed'])
+        self.assertEqual(1, r[1].internal['installed'])
+        self.assertEqual(1, r[2].internal['installed'])
+        self.assertEqual(0, r[3].internal['installed'])
+        self.assertEqual(1, r[0].internal['collection_id'])
+        self.assertEqual(3, r[1].internal['collection_id'])
+        self.assertEqual(2, r[2].internal['collection_id'])
+        self.assertEqual(4, r[3].internal['collection_id'])
+        self.assertEqual(1, r[0].internal['solution_id'])
+        self.assertEqual(3, r[1].internal['solution_id'])
+        self.assertEqual(2, r[2].internal['solution_id'])
+        self.assertEqual(4, r[3].internal['solution_id'])
+        self.assertEqual(1, r[0].internal['catalog_id'])
+        self.assertEqual(1, r[1].internal['catalog_id'])
+        self.assertEqual(2, r[2].internal['catalog_id'])
+        self.assertEqual(1, r[3].internal['catalog_id'])
+        self.assertEqual('grp', r[0].setup['group'])
+        self.assertEqual('grp_d', r[1].setup['group'])
+        self.assertEqual('grp', r[2].setup['group'])
+        self.assertEqual('grp_u', r[3].setup['group'])
+        self.assertEqual('name', r[0].setup['name'])
+        self.assertEqual('name_d', r[1].setup['name'])
+        self.assertEqual('name', r[2].setup['name'])
+        self.assertEqual('name_u', r[3].setup['name'])
+        self.assertEqual('version', r[0].setup['version'])
+        self.assertEqual('version_d', r[1].setup['version'])
+        self.assertEqual('version', r[2].setup['version'])
+        self.assertEqual('version_u', r[3].setup['version'])
 
     def test_update_solution(self):
         self.test_catalog_collection_index.insert_solution("cat1",
@@ -656,14 +584,14 @@ class TestCollectionIndex(TestUnitCommon):
         self.test_catalog_collection_index.insert_solution("cat1",
                                                            self._get_solution_attrs(3, "grp_d", "name_d", "version_d"))
 
-        r = self.test_catalog_collection_index.get_solution(2)
-        self.assertIsNone(r["last_execution"])
+        r = self.test_catalog_collection_index.get_solution_by_collection_id(2)
+        self.assertIsNone(r.internal["last_execution"])
 
         self.test_catalog_collection_index.update_solution("cat2", Coordinates("grp", "name", "version"), {},
                                                            CatalogIndex.get_solution_column_keys())
 
-        r = self.test_catalog_collection_index.get_solution(2)
-        self.assertIsNotNone(r["last_execution"])
+        r = self.test_catalog_collection_index.get_solution_by_collection_id(2)
+        self.assertIsNotNone(r.internal["last_execution"])
 
     def test_add_or_replace_solution(self):
         self.test_catalog_collection_index.insert_catalog(
@@ -747,22 +675,22 @@ class TestCollectionIndex(TestUnitCommon):
 
         return d
 
-    def _get_expected_attrs(self, attrs):
-        d = self.get_solution_dict()
-
+    def _get_expected_attrs_internal(self, attrs):
+        d = dict()
         d["collection_id"] = attrs["collection_id"]
         d["solution_id"] = attrs["solution_id"]
         d["catalog_id"] = attrs["catalog_id"]
-        d["group"] = attrs["group"]
-        d["name"] = attrs["name"]
-        d["version"] = attrs["version"]
-        d["doi"] = attrs.get("doi", None)
-
-        # additional fields from collection
         d["changelog"] = None
         d["last_execution"] = None
         d["parent"] = None
         d["children"] = []
         d["installed"] = 0
+        return d
 
+    def _get_expected_attrs_setup(self, attrs):
+        d = self.get_solution_dict()
+        d["group"] = attrs["group"]
+        d["name"] = attrs["name"]
+        d["version"] = attrs["version"]
+        d["doi"] = attrs.get("doi", None)
         return d

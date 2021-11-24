@@ -56,7 +56,7 @@ class TestIntegrationUninstall(TestIntegrationCommon):
         solutions = self.collection_manager.catalog_collection.get_solutions_by_catalog(
             self.collection_manager.catalogs().get_local_catalog().catalog_id)
         self.assertEqual(1, len(solutions))
-        self.assertEqual(0, solutions[0]["installed"])
+        self.assertEqual(0, solutions[0].internal["installed"])
 
         # assert that the correct paths are deleted
         self.assertFalse(

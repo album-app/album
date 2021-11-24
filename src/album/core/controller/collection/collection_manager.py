@@ -1,23 +1,22 @@
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from album.core import load
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.collection.solution_handler import SolutionHandler
-from album.core.controller.conda_manager import CondaManager
 from album.core.controller.migration_manager import MigrationManager
 from album.core.model.catalog import Catalog
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.configuration import Configuration
-from album.core.utils.operations.solution_operations import set_cache_paths
-from album.runner.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import write_dict_to_json
 from album.core.utils.operations.resolve_operations import check_file_or_url, get_attributes_from_string, \
     dict_to_coordinates, get_doi_from_input, check_doi, build_resolve_string, get_parent
+from album.core.utils.operations.solution_operations import set_cache_paths
 from album.runner import album_logging
+from album.runner.model.coordinates import Coordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -107,9 +106,15 @@ class CollectionManager(metaclass=Singleton):
     def get_index_as_dict(self):
         catalogs = self.catalog_collection.get_all_catalogs()
         for catalog in catalogs:
-            catalog["solutions"] = self.catalog_collection.get_solutions_by_catalog(catalog["catalog_id"])
+            solutions = []
+            for solution in self.catalog_collection.get_solutions_by_catalog(catalog["catalog_id"]):
+                solutions.append({
+                    'setup': solution.setup,
+                    'internal': solution.internal
+                })
+            catalog['solutions'] = solutions
         return {
-            "catalogs": catalogs
+            'catalogs': catalogs
         }
 
     def resolve_require_installation(self, resolve_solution) -> ResolveResult:
@@ -128,7 +133,7 @@ class CollectionManager(metaclass=Singleton):
         if not resolve_result.collection_entry:
             raise LookupError("Solution not found!")
 
-        if not resolve_result.collection_entry["installed"]:
+        if not resolve_result.collection_entry.internal["installed"]:
             raise ValueError("Solution seems not to be installed! Please install solution first!", resolve_result)
 
         return resolve_result
@@ -214,7 +219,7 @@ class CollectionManager(metaclass=Singleton):
 
         """
         collection_entry = self._search_by_coordinates(coordinates)
-        catalog = self.catalogs().get_by_id(collection_entry["catalog_id"])
+        catalog = self.catalogs().get_by_id(collection_entry.internal["catalog_id"])
 
         solution_path = catalog.get_solution_file(coordinates)
         resolve_result = ResolveResult(
@@ -258,7 +263,7 @@ class CollectionManager(metaclass=Singleton):
         parent = get_parent(parent_resolve_result.collection_entry)
 
         # case parent itself has no further parent
-        if parent["collection_id"] == parent_resolve_result.collection_entry["collection_id"]:
+        if parent.internal["collection_id"] == parent_resolve_result.collection_entry.internal["collection_id"]:
 
             loaded_solution = load(parent_resolve_result.path)
             set_cache_paths(loaded_solution, parent_resolve_result.catalog)
@@ -267,8 +272,8 @@ class CollectionManager(metaclass=Singleton):
 
         # case parent itself has another parent
         else:
-            parent_catalog = self.catalogs().get_by_id(parent["catalog_id"])
-            parent_coordinates = dict_to_coordinates(parent)
+            parent_catalog = self.catalogs().get_by_id(parent.internal["catalog_id"])
+            parent_coordinates = dict_to_coordinates(parent.setup)
             path = parent_catalog.get_solution_file(parent_coordinates)
 
             loaded_solution = load(path)
@@ -302,7 +307,7 @@ class CollectionManager(metaclass=Singleton):
 
                 # either a doi is found in the collection or it will be downloaded and ends up in a local catalog
                 if solution_entry:
-                    catalog = self.catalog_handler.get_by_id(solution_entry["catalog_id"])
+                    catalog = self.catalog_handler.get_by_id(solution_entry.internal["catalog_id"])
                 else:
                     # download DOI
                     path = check_doi(doi["doi"], self.configuration.cache_path_tmp_user)
@@ -314,14 +319,14 @@ class CollectionManager(metaclass=Singleton):
                 if not solution_entry:
                     raise LookupError("Solution cannot be resolved in any catalog!")
 
-                catalog = self.catalog_handler.get_by_id(solution_entry["catalog_id"])
+                catalog = self.catalog_handler.get_by_id(solution_entry.internal["catalog_id"])
 
-                path = catalog.get_solution_file(dict_to_coordinates(solution_entry))
+                path = catalog.get_solution_file(dict_to_coordinates(solution_entry.setup))
 
         coordinates = None
 
         if solution_entry:
-            coordinates = dict_to_coordinates(solution_entry)
+            coordinates = dict_to_coordinates(solution_entry.setup)
 
         resolve = ResolveResult(
             path=path, catalog=catalog, collection_entry=solution_entry, coordinates=coordinates
@@ -329,7 +334,7 @@ class CollectionManager(metaclass=Singleton):
 
         return resolve
 
-    def _search_for_local_file(self, path) -> dict:
+    def _search_for_local_file(self, path) -> CollectionIndex.CollectionSolution:
         active_solution = load(path)
 
         # check in collection
@@ -345,7 +350,7 @@ class CollectionManager(metaclass=Singleton):
 
         return solution_entry
 
-    def _search(self, str_input) -> dict:
+    def _search(self, str_input) -> CollectionIndex.CollectionSolution:
         """Searches ONLY in the catalog collection, given a string which is interpreted."""
         attrs = get_attributes_from_string(str_input)
 
@@ -372,7 +377,7 @@ class CollectionManager(metaclass=Singleton):
 
         return solution_entry
 
-    def _search_by_coordinates(self, coordinates: Coordinates) -> Optional[dict]:
+    def _search_by_coordinates(self, coordinates: Coordinates) -> Optional[CollectionIndex.CollectionSolution]:
         solution_entry = self._search_in_local_catalog(coordinates)  # resolve in local catalog first!
 
         if not solution_entry:
@@ -386,15 +391,15 @@ class CollectionManager(metaclass=Singleton):
 
         return solution_entry
 
-    def _search_in_local_catalog(self, coordinates: Coordinates) -> Optional[dict]:
+    def _search_in_local_catalog(self, coordinates: Coordinates) -> Optional[CollectionIndex.CollectionSolution]:
         """Searches in the local catalog only"""
         return self._search_in_specific_catalog(self.catalog_handler.get_local_catalog().catalog_id, coordinates)
 
-    def _search_in_specific_catalog(self, catalog_id, coordinates: Coordinates) -> Optional[dict]:
+    def _search_in_specific_catalog(self, catalog_id, coordinates: Coordinates) -> Optional[CollectionIndex.CollectionSolution]:
         """Searches in a given catalog only"""
         return self.catalog_collection.get_solution_by_catalog_grp_name_version(catalog_id, coordinates)
 
-    def _search_in_catalogs(self, coordinates: Coordinates):
+    def _search_in_catalogs(self, coordinates: Coordinates) -> List[CollectionIndex.CollectionSolution]:
         """Searches the whole collection giving coordinates"""
         solution_entries = self.catalog_collection.get_solutions_by_grp_name_version(coordinates)
 
@@ -404,7 +409,7 @@ class CollectionManager(metaclass=Singleton):
     def _retrieve_and_load_resolve_result(resolve_result: ResolveResult):
         if not Path(resolve_result.path).exists():
             resolve_result.catalog.retrieve_solution(
-                dict_to_coordinates(resolve_result.collection_entry)
+                dict_to_coordinates(resolve_result.collection_entry.setup)
             )
         resolve_result.loaded_solution = load(resolve_result.path)
         resolve_result.coordinates = resolve_result.loaded_solution.coordinates

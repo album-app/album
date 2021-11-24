@@ -12,7 +12,7 @@ from album.runner.model.coordinates import Coordinates
 from album.core.model.resolve_result import ResolveResult
 from album.runner.model.solution import Solution
 from album.core.utils.operations.file_operations import force_remove
-from album.core.utils.operations.resolve_operations import clean_resolve_tmp, build_resolve_string
+from album.core.utils.operations.resolve_operations import clean_resolve_tmp, build_resolve_string, dict_to_coordinates
 from album.runner import album_logging
 from album.runner.concept.script_creator import ScriptCreatorInstall, ScriptCreatorUnInstall
 
@@ -229,32 +229,29 @@ class InstallManager(metaclass=Singleton):
 
         self.run_solution_uninstall_routine(resolve_result.loaded_solution, environment, argv)
 
-        parent = get_parent_dict(resolve_result.loaded_solution)
+        parent = resolve_result.collection_entry.internal["parent"]
         if not parent:
             self.environment_manager.remove_environment(environment)
 
-        if resolve_result.collection_entry["children"]:
+        if resolve_result.collection_entry.internal["children"]:
             children = []
-            for dependency_dict in resolve_result.collection_entry["children"]:
+            for dependency_dict in resolve_result.collection_entry.internal["children"]:
                 # get the child entry
-                child_entry = self.collection_manager.catalog_collection.get_solution(
-                    dependency_dict["collection_id_child"]
+                child_solution = self.collection_manager.catalog_collection.get_solution_by_collection_id(dependency_dict["collection_id_child"])
+                if child_solution.internal['installed']:
+                    children.append(str(dict_to_coordinates(child_solution.setup)))
+
+            if children:
+
+                module_logger().info("The following solutions depend on this installation: %s. Not uninstalling %s..."
+                                     % (", ".join(children), str(resolve_result.coordinates)))
+                if parent:
+                    return
+
+                raise RuntimeError(
+                    "Cannot uninstall \"%s\". Other solution depend on this installation! Inspect log for more information!"
+                    % resolve_result.coordinates
                 )
-                # get the child catalog
-                child_catalog = self.collection_manager.catalogs().get_by_id(dependency_dict["catalog_id_child"])
-
-                children.append(build_resolve_string(child_entry, child_catalog))
-
-            module_logger().info(
-                "The following solutions depend on this installation: %s. Aborting..." % ", ".join(children)
-            )
-            if parent:
-                return
-
-            raise RuntimeError(
-                "Cannot uninstall \"%s\". Other solution depend on this installation! Inspect log for more information!"
-                % resolve_result.collection_entry["name"]
-            )
 
         self.remove_disc_content_from_solution(resolve_result.loaded_solution)
         self.remove_disc_content_from_environment(environment)

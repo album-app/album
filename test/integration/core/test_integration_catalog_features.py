@@ -159,7 +159,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
             if key == "timestamp":
                 continue
             sol[key] = solution.setup[key]
-            solution_in_col[key] = solution_in_collection[key]
+            solution_in_col[key] = solution_in_collection.setup[key]
 
         self.assertEqual(sol, solution_in_col)
 

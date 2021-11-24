@@ -75,10 +75,9 @@ class MigrationManager(metaclass=Singleton):
             return True
         return False
 
-    def validate_solution(self, active_solution):
+    def validate_solution_attrs(self, attrs):
         self.load_solution_schema()
-        data = active_solution.setup
-        validate(data, self.schema_solution)
+        validate(attrs, self.schema_solution)
 
     def load_solution_schema(self):
         if not self.schema_solution:

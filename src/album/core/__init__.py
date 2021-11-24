@@ -29,6 +29,7 @@ def setup_solution(**attrs):
 
     # todo: MIGRATION MANAGER SHOULD LOAD SOLUTIONS AND FAIL IF VERSION MISSMATCH
 
+    MigrationManager().validate_solution_attrs(attrs)
     next_solution = Solution(attrs)
     push_active_solution(next_solution)
 
@@ -86,7 +87,6 @@ def load(path) -> Optional[Solution]:
         solution = f.read()
     exec(solution)
     active_solution = get_active_solution()
-    MigrationManager().validate_solution(active_solution)
     active_solution.script = solution
     pop_active_solution()
     return active_solution

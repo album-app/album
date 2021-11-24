@@ -1,7 +1,7 @@
 import json
 import sys
 
-from album.core.utils.operations.solution_operations import get_deploy_dict
+from album.core.utils.operations.solution_operations import get_deploy_dict, serialize_json
 from album.runner.album_logging import get_active_logger
 
 from album.api import Album
@@ -91,18 +91,24 @@ def info(args):
         for arg in deploy_dict['args']:
             param_example_str += '--%s PARAMETER_VALUE ' % arg['name']
         res = 'Solution details about %s:\n\n' % args.path
-        res += '%s\n' % solution.setup.title
-        res += '%s\n' % ('=' * len(solution.setup.title))
-        res += '%s\n\n' % solution.setup.description
+        if solution.setup.title:
+            res += '%s\n' % solution.setup.title
+            res += '%s\n' % ('=' * len(solution.setup.title))
+        if solution.setup.description:
+            res += '%s\n\n' % solution.setup.description
         res += 'Group            : %s\n' % solution.setup.group
         res += 'Name             : %s\n' % solution.setup.name
         res += 'Version          : %s' % solution.setup.version
         res += '%s' % get_credit_as_string(solution)
         res += 'Solution metadata:\n\n'
-        res += 'Solution authors : %s\n' % ", ".join(solution.setup.authors)
-        res += 'License          : %s\n' % solution.setup.license
-        res += 'Acknowledgement  : %s\n' % solution.setup.acknowledgement
-        res += 'Tags             : %s\n' % ", ".join(solution.setup.tags)
+        if solution.setup.authors:
+            res += 'Solution authors : %s\n' % ", ".join(solution.setup.authors)
+        if solution.setup.license:
+            res += 'License          : %s\n' % solution.setup.license
+        if solution.setup.acknowledgement:
+            res += 'Acknowledgement  : %s\n' % solution.setup.acknowledgement
+        if solution.setup.tags:
+            res += 'Tags             : %s\n' % ", ".join(solution.setup.tags)
         res += '\n'
         res += 'Usage:\n\n'
         res += '  album install %s\n' % args.path
@@ -170,9 +176,9 @@ def index(args):
                     res += '└─ solutions:\n'
                     for i, solution in enumerate(catalog['solutions']):
                         if i is len(catalog['solutions']) - 1:
-                            res += '   └─ %s:%s:%s\n' % (solution['group'], solution['name'], solution['version'])
+                            res += '   └─ %s:%s:%s\n' % (solution.setup['group'], solution.setup['name'], solution.setup['version'])
                         else:
-                            res += '   ├─ %s:%s:%s\n' % (solution['group'], solution['name'], solution['version'])
+                            res += '   ├─ %s:%s:%s\n' % (solution.setup['group'], solution.setup['name'], solution.setup['version'])
                 else:
                     res += '└─ deletable: %s\n' % catalog['deletable']
         module_logger().info('Catalogs in your local collection: %s' % res)
@@ -218,15 +224,17 @@ def _get_print_json(args):
 
 
 def _as_json(data):
-    return json.dumps(data, sort_keys=True, indent=4)
+    return serialize_json(data)
 
 
 def get_credit_as_string(solution):
-    res = '\n\nCredits:\n\n'
-    for citation in solution.setup['cite']:
-        text = citation['text']
-        if 'doi' in citation:
-            text += ' (DOI: %s)' % citation['doi']
-        res += '%s\n' % text
-    res += '\n'
+    res = ''
+    if solution.setup.cite:
+        res += '\n\nCredits:\n\n'
+        for citation in solution.setup.cite:
+            text = citation['text']
+            if 'doi' in citation:
+                text += ' (DOI: %s)' % citation['doi']
+            res += '%s\n' % text
+        res += '\n'
     return res

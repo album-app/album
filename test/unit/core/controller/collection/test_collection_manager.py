@@ -187,7 +187,9 @@ class TestCollectionManager(TestCatalogCollectionCommon):
     def test_resolve_require_installation_and_load_grp_name_version(self, load_mock, check_file_or_url_mock):
         # mocks
         search_mock = MagicMock(
-            return_value={"catalog_id": 1, "group": "grp", "name": "name", "version": "version", "installed": True})
+            return_value=CollectionIndex.CollectionSolution(
+                internal={"catalog_id": 1, "installed": True},
+                setup={"group": "grp", "name": "name", "version": "version"}))
         self.collection_manager._search = search_mock
         load_mock.return_value = Solution({"group": "grp", "name": "name", "version": "version"})
         check_file_or_url_mock.return_value = None
@@ -238,7 +240,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         # mocks
         get_catalog_mock = MagicMock(return_value=local_catalog)
         get_solution_mock = MagicMock(return_value="path/to/solution")
-        search_mock = MagicMock(return_value={"catalog_id": 1})
+        search_mock = MagicMock(return_value=CollectionIndex.CollectionSolution(internal={"catalog_id": 1}))
         retrieve_and_load_mock = MagicMock()
         retrieve_and_load_mock.side_effect = lambda x: setattr(x, "loaded_solution",
                                                                Solution(self.solution_default_dict))
