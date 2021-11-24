@@ -336,14 +336,14 @@ class CatalogHandler:
         return divergence
 
     @staticmethod
-    def _compare_solutions(solutions_old, solutions_new) -> List[SolutionChange]:
+    def _compare_solutions(solutions_old: List[CollectionIndex.CollectionSolution], solutions_new: List[dict]) -> List[SolutionChange]:
         res = []
         # CAUTION: solutions should not be compared based on their id as this might change
 
         dict_old_coordinates = {}
-        list_old_hash = list([s["hash"] for s in solutions_old])
+        list_old_hash = list([s.internal["hash"] for s in solutions_old])
         for s in solutions_old:
-            dict_old_coordinates[dict_to_coordinates(s)] = s
+            dict_old_coordinates[dict_to_coordinates(s.setup)] = s
 
         dict_new_coordinates = {}
         dict_new_hash = {}

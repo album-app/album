@@ -28,14 +28,15 @@ class SearchManager(metaclass=Singleton):
         search_index = self.catalog_collection.get_all_solutions()
         match_score = {}
         for solution_entry in search_index:
-            group, name, version = solution_entry['group'], solution_entry["name"], solution_entry["version"]
-            catalog_id = solution_entry["catalog_id"]
+            solution_attrs = solution_entry.setup
+            group, name, version = solution_attrs['group'], solution_attrs["name"], solution_attrs["version"]
+            catalog_id = solution_entry.internal["catalog_id"]
             catalog_name = CollectionManager().catalogs().get_by_id(catalog_id).name
             unique_id = ":".join([str(catalog_name), group, name, version])
 
             # todo: nice searching algorithm here
             for keyword in keywords:
-                self._find_matches(keyword, match_score, solution_entry, unique_id)
+                self._find_matches(keyword, match_score, solution_attrs, unique_id)
 
         sorted_results = sorted(match_score.items(), key=operator.itemgetter(1), reverse=True)
         return sorted_results

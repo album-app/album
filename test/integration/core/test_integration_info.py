@@ -58,8 +58,7 @@ class TestIntegrationTest(TestIntegrationCommon):
                     'type': 'string',
                     'default': 'Useless callable',
                 }
-            ],
-            'dependencies': {}
+            ]
         }, json.loads(stdout_content.getvalue()))
 
 

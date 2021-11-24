@@ -125,7 +125,7 @@ class CatalogIndex(Database):
     @staticmethod
     def get_solution_column_keys():
         return ['group', 'name', 'description', 'version', 'album_api_version', 'album_version', 'license',
-                'acknowledgement', 'title', 'timestamp']
+                'acknowledgement', 'title', 'timestamp', 'doi']
 
     def _insert_solution(self, solution_attrs, close=True) -> int:
         hash_val = get_solution_hash(solution_attrs, self.get_solution_column_keys())

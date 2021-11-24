@@ -67,7 +67,9 @@ class AlbumServer(metaclass=Singleton):
 
         @self.app.route("/index")
         def get_index():
-            return self.album_instance.collection_manager().get_index_as_dict()
+            index_dict = self.album_instance.collection_manager().get_index_as_dict()
+            index_dict
+            return index_dict
 
         @self.app.route("/catalogs")
         def get_catalogs():
@@ -75,11 +77,23 @@ class AlbumServer(metaclass=Singleton):
 
         @self.app.route("/recently-launched")
         def get_recently_launched_solutions():
-            return {"solutions": self.album_instance.collection_manager().catalog_collection.get_recently_launched_solutions()}
+            solutions = []
+            for solution in self.album_instance.collection_manager().catalog_collection.get_recently_launched_solutions():
+                solutions.append({
+                    'setup': solution.setup,
+                    'internal': solution.internal
+                })
+            return {'solutions': solutions}
 
         @self.app.route("/recently-installed")
         def get_recently_installed_solutions():
-            return {"solutions": self.album_instance.collection_manager().catalog_collection.get_recently_installed_solutions()}
+            solutions = []
+            for solution in self.album_instance.collection_manager().catalog_collection.get_recently_installed_solutions():
+                solutions.append({
+                    'setup': solution.setup,
+                    'internal': solution.internal
+                })
+            return {'solutions': solutions}
 
         @self.app.route('/run/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/run/<catalog>/<group>/<name>/<version>')

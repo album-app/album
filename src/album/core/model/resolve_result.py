@@ -1,14 +1,14 @@
-from album.core.model.catalog import Catalog
-from album.runner.model.coordinates import Coordinates
-
 from album.core import Solution
+from album.core.model.catalog import Catalog
+from album.core.model.collection_index import CollectionIndex
+from album.runner.model.coordinates import Coordinates
 
 
 class ResolveResult:
-    def __init__(self, path, catalog, collection_entry, coordinates, loaded_solution=None):
+    def __init__(self, path, catalog: Catalog, collection_entry: CollectionIndex.CollectionSolution, coordinates: Coordinates, loaded_solution=None):
         self.catalog: Catalog = catalog
         self.path = path
-        self.collection_entry: dict = collection_entry
+        self.collection_entry: CollectionIndex.CollectionSolution = collection_entry
         self.coordinates: Coordinates = coordinates
         self.loaded_solution: Solution = loaded_solution
 
