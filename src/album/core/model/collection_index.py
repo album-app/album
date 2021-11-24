@@ -886,6 +886,23 @@ class CollectionIndex(Database):
 
         return solutions_list
 
+    def get_unfinished_installation_solutions(self, close=True):
+        solutions_list = []
+
+        cursor = self.get_cursor()
+        for row in cursor.execute(
+                "SELECT * FROM collection WHERE installation_unfinished=:installation_unfinished ",
+                {"installation_unfinished": 1}
+        ).fetchall():
+            solution = dict(row)
+            self._append_metadata_to_solution(solution, close=False)
+            solutions_list.append(solution)
+
+        if close:
+            self.close_current_connection()
+
+        return solutions_list
+
     def update_solution(self, catalog_id, coordinates: Coordinates, solution_attrs, supported_attrs, close=True):
         exec_str = "UPDATE collection SET last_execution=:cur_date"
         exec_args = {

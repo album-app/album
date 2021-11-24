@@ -217,7 +217,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         get_solution_file_mock = MagicMock(return_value="path/to/solution")
 
         self.collection_manager._search_in_specific_catalog = search_mock
-        self.collection_manager._retrieve_and_load_resolve_result = retrieve_and_load_mock
+        self.collection_manager.retrieve_and_load_resolve_result = retrieve_and_load_mock
         catalog.get_solution_file = get_solution_file_mock
 
         # call
@@ -248,7 +248,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         self.collection_manager._search_by_coordinates = search_mock
         self.collection_manager.catalogs().get_by_id = get_catalog_mock
         local_catalog.get_solution_file = get_solution_mock
-        self.collection_manager._retrieve_and_load_resolve_result = retrieve_and_load_mock
+        self.collection_manager.retrieve_and_load_resolve_result = retrieve_and_load_mock
 
         # call
         res = self.collection_manager.resolve_download_and_load_coordinates(coordinates)

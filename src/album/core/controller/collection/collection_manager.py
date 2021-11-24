@@ -173,7 +173,7 @@ class CollectionManager(metaclass=Singleton):
         """
 
         resolve_result = self._resolve(resolve_solution)
-        self._retrieve_and_load_resolve_result(resolve_result)
+        self.retrieve_and_load_resolve_result(resolve_result)
         set_cache_paths(resolve_result.loaded_solution, resolve_result.catalog)
 
         return resolve_result
@@ -199,7 +199,7 @@ class CollectionManager(metaclass=Singleton):
         resolve_result = ResolveResult(
             path=solution_path, catalog=catalog, collection_entry=collection_entry, coordinates=coordinates
         )
-        self._retrieve_and_load_resolve_result(resolve_result)
+        self.retrieve_and_load_resolve_result(resolve_result)
 
         set_cache_paths(resolve_result.loaded_solution, resolve_result.catalog)
 
@@ -225,7 +225,7 @@ class CollectionManager(metaclass=Singleton):
         resolve_result = ResolveResult(
             path=solution_path, catalog=catalog, collection_entry=collection_entry, coordinates=coordinates
         )
-        self._retrieve_and_load_resolve_result(resolve_result)
+        self.retrieve_and_load_resolve_result(resolve_result)
 
         set_cache_paths(resolve_result.loaded_solution, resolve_result.catalog)
 
@@ -406,7 +406,7 @@ class CollectionManager(metaclass=Singleton):
         return solution_entries if solution_entries else None
 
     @staticmethod
-    def _retrieve_and_load_resolve_result(resolve_result: ResolveResult):
+    def retrieve_and_load_resolve_result(resolve_result: ResolveResult):
         if not Path(resolve_result.path).exists():
             resolve_result.catalog.retrieve_solution(
                 dict_to_coordinates(resolve_result.collection_entry.setup)

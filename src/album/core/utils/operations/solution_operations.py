@@ -5,6 +5,8 @@ from datetime import date, time
 from pathlib import Path
 from typing import Optional
 
+from album.core.utils.operations.file_operations import force_remove
+
 from album.core.model.configuration import Configuration
 from album.core.model.environment import Environment
 from album.runner import album_logging
@@ -24,6 +26,14 @@ def set_cache_paths(solution: Solution, catalog):
     solution.installation.package_path = catalog.get_solution_path(solution.coordinates)
     solution.installation.internal_cache_path = Configuration().cache_path_tmp_internal.joinpath(str(catalog.name), path_suffix)
     solution.installation.user_cache_path = Configuration().cache_path_tmp_user.joinpath(str(catalog.name), path_suffix)
+
+
+def remove_disc_content_from_solution(solution: Solution):
+    force_remove(solution.installation.data_path)
+    force_remove(solution.installation.app_path)
+    force_remove(solution.installation.package_path)
+    force_remove(solution.installation.user_cache_path)
+    force_remove(solution.installation.internal_cache_path)
 
 
 def set_environment_paths(solution: Solution, environment: Environment):

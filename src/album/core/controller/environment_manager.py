@@ -1,3 +1,5 @@
+from album.core.utils.operations.file_operations import force_remove
+
 from album.core import Solution
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
@@ -73,3 +75,7 @@ class EnvironmentManager(metaclass=Singleton):
     @staticmethod
     def get_environment_name(coordinates: Coordinates, catalog: Catalog):
         return "_".join([str(catalog.name), coordinates.group, coordinates.name, coordinates.version])
+
+    @staticmethod
+    def remove_disc_content_from_environment(environment: Environment):
+        force_remove(environment.cache_path)
