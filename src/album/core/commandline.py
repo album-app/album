@@ -1,8 +1,4 @@
-import json
 import sys
-
-from album.core.utils.operations.solution_operations import get_deploy_dict, serialize_json
-from album.runner.album_logging import get_active_logger
 
 from album.api import Album
 from album.core.controller.clone_manager import CloneManager
@@ -13,6 +9,8 @@ from album.core.controller.run_manager import RunManager
 from album.core.controller.search_manager import SearchManager
 from album.core.controller.test_manager import TestManager
 from album.core.server import AlbumServer
+from album.core.utils.operations.solution_operations import get_deploy_dict, serialize_json
+from album.runner.album_logging import get_active_logger
 
 module_logger = get_active_logger
 
