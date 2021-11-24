@@ -81,8 +81,8 @@ class TestMigrationManager(TestUnitCommon):
         self.catalog = Catalog(1, "catalog_name", "catalog/path", "http://google.com/doesNotExist.ico")
         self.assertFalse(MigrationManager().refresh_index(self.catalog))
 
-    def test_validate_solution(self):
+    def test_validate_solution_attrs(self):
         self.create_test_solution_no_env()
         self.active_solution.setup.pop('timestamp')
         self.active_solution.setup.pop('album_version')
-        MigrationManager().validate_solution(self.active_solution)
+        MigrationManager().validate_solution_attrs(self.active_solution.setup)
