@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 import validators
 
@@ -184,16 +184,16 @@ class CatalogHandler:
         else:
             self.update_all()
 
-    def update_collection(self, catalog_name=None, dry_run: bool = False) -> List[CatalogUpdates]:
+    def update_collection(self, catalog_name=None, dry_run: bool = False) -> Dict[str, CatalogUpdates]:
         """Includes all new changes from a given catalog (or all catalogs) in the catalog_collection."""
         if dry_run:
             if catalog_name:
-                return [self._get_divergence_between_catalog_and_collection(catalog_name)]
+                return {catalog_name: self._get_divergence_between_catalog_and_collection(catalog_name)}
             else:
                 return self._get_divergence_between_catalogs_and_collection()
         else:
             if catalog_name:
-                return [self._update_collection_from_catalog(catalog_name)]
+                return {catalog_name: self._update_collection_from_catalog(catalog_name)}
             else:
                 return self._update_collection_from_catalogs()
 
@@ -299,11 +299,11 @@ class CatalogHandler:
         if not catalog.path.exists():
             catalog.path.mkdir(parents=True)
 
-    def _get_divergence_between_catalogs_and_collection(self) -> List[CatalogUpdates]:
+    def _get_divergence_between_catalogs_and_collection(self) -> Dict[str, CatalogUpdates]:
         """Gets the divergence list between all catalogs and the catalog_collection."""
-        res = []
+        res = {}
         for catalog in self.get_all():
-            res.append(self._get_divergence_between_catalog_and_collection(catalog_name=catalog.name))
+            res[catalog.name] = self._get_divergence_between_catalog_and_collection(catalog_name=catalog.name)
         return res
 
     def _get_divergence_between_catalog_and_collection(self, catalog_name) -> CatalogUpdates:
@@ -322,10 +322,10 @@ class CatalogHandler:
 
         return res
 
-    def _update_collection_from_catalogs(self) -> List[CatalogUpdates]:
-        res = []
+    def _update_collection_from_catalogs(self) -> Dict[str, CatalogUpdates]:
+        res = {}
         for catalog in self.get_all():
-            res.append(self._update_collection_from_catalog(catalog_name=catalog.name))
+            res[catalog.name] = self._update_collection_from_catalog(catalog_name=catalog.name)
         return res
 
     def _update_collection_from_catalog(self, catalog_name) -> CatalogUpdates:

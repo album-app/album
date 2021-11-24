@@ -562,7 +562,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
 
         # assert
         self.assertEqual(2, _get_divergence_b_catalog_a_coll_mock.call_count)
-        self.assertEqual([1, 1], x)
+        self.assertEqual({'n': 1, 'm': 1}, x)
 
     def test__get_divergence_between_catalog_and_collection(self):
         # prepare
@@ -605,7 +605,9 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         # prepare
         c1 = Catalog(None, "n", "p")
         c2 = Catalog(None, "m", "r")
-        s_e = [CatalogUpdates(c1), CatalogUpdates(c2)]
+        u1 = CatalogUpdates(c1)
+        u2 = CatalogUpdates(c2)
+        s_e = [u1, u2]
 
         # mock
         _update_collection_from_catalog_mock = MagicMock(side_effect=s_e)
@@ -619,7 +621,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
 
         # assert
         self.assertEqual(2, _update_collection_from_catalog_mock.call_count)
-        self.assertEqual(s_e, x)
+        self.assertEqual({'n': u1, 'm': u2}, x)
 
     def test__update_collection_from_catalog(self):
         # prepare

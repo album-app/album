@@ -251,10 +251,10 @@ class AlbumServer(metaclass=Singleton):
                 res = self.album_instance.collection_manager().catalogs().update_collection(catalog_name=catalog.name, dry_run=dry_run)
             else:
                 res = self.album_instance.collection_manager().catalogs().update_collection(catalog_name=name, dry_run=dry_run)
-            r = []
-            for update_obj in res:
-                r.append(update_obj.as_dict())
-            return {"changes": r}
+            r = {}
+            for catalog_name in res:
+                r[catalog_name] = res[catalog_name].as_dict()
+            return r
 
         @self.app.route('/update')
         def update():
