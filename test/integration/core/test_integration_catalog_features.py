@@ -38,7 +38,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         catalogs = CollectionManager().catalog_collection.get_all_catalogs()
         catalog_cache_path_to_be_deleted = catalogs[-1]["path"]
         self.assertEqual(initial_len + 1, len(catalogs))
@@ -51,7 +51,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         catalogs = CollectionManager().catalog_collection.get_all_catalogs()
         self.assertEqual(initial_len, len(catalogs))
         for catalog in catalogs:
@@ -142,13 +142,13 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         sys.argv = ["", "update"]
         self.assertIsNone(main())
 
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         # upgrade collection
         sys.argv = ["", "upgrade"]
         self.assertIsNone(main())
 
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         # assert
         solutions = CollectionManager().catalog_collection.get_solutions_by_catalog(catalog.catalog_id)

@@ -173,11 +173,11 @@ class TestDeployManager(TestGitCommon):
         )
 
     @patch('album.core.controller.deploy_manager.DeployManager._copy_and_zip', return_value="solution_zip")
-    @patch('album.core.controller.deploy_manager.DeployManager._copy_cover_to_local_src', return_value=["cover1", "cover2"])
-    @patch('album.core.controller.deploy_manager.DeployManager._create_docker_file_in_local_src', return_value="dockerfile")
+    @patch('album.core.controller.deploy_manager.DeployManager._copy_files_from_solution', return_value=["cover1", "cover2"])
+    @patch('album.core.controller.deploy_manager.create_docker_file', return_value="dockerfile")
     @patch('album.core.controller.deploy_manager.DeployManager._create_yaml_file_in_local_src', return_value="copiedYmlFilePath")
-    @patch('album.core.controller.deploy_manager.DeployManager._create_changelog_file_in_local_src', return_value="CHANGELOG.md")
-    def test__deploy_routine_in_local_src(self, _create_changelog_file_in_local_src, _create_yaml_file_in_local_src, _create_docker_file_in_local_src, _copy_cover_to_local_src, _copy_and_zip):
+    @patch('album.core.controller.deploy_manager.create_changelog_file', return_value="CHANGELOG.md")
+    def test__deploy_routine_in_local_src(self, _create_changelog_file_in_local_src, _create_yaml_file_in_local_src, _create_docker_file_in_local_src, _copy_files_from_solution, _copy_and_zip):
 
         # call
         self.deploy_manager._deploy_routine_in_local_src(None, "", self.active_solution, "None")
@@ -187,7 +187,7 @@ class TestDeployManager(TestGitCommon):
         _create_docker_file_in_local_src.assert_called_once()  # docker file created
         _create_yaml_file_in_local_src.assert_called_once()  # yml created
         _create_changelog_file_in_local_src.assert_called_once()  # yml created
-        _copy_cover_to_local_src.assert_called_once_with(None, "", self.active_solution, "None")  # cover copied
+        self.assertEqual(2, _copy_files_from_solution.call_count)
 
     @patch('album.core.controller.deploy_manager.load')
     def test_deploy_catalog_not_given(self, load_mock):
@@ -203,7 +203,7 @@ class TestDeployManager(TestGitCommon):
         # call
         with self.assertRaises(RuntimeError):
             self.deploy_manager.deploy(deploy_path="myPath",
-                                       catalog_name=None,
+                                       catalog_name='',
                                        dry_run=False,
                                        push_option=False)
 
@@ -272,8 +272,6 @@ class TestDeployManager(TestGitCommon):
         Path(self.tmp_dir.name).joinpath(DefaultValues.solution_default_name.value).touch()
 
         self.create_tmp_repo()
-        catalog_local_src = self.repo.working_tree_dir
-        catalog = self.collection_manager.catalogs().get_local_catalog()
 
         tmp_dir = Path(self.tmp_dir.name)
         target_dir = Path(self.repo.working_tree_dir).joinpath(
@@ -285,17 +283,13 @@ class TestDeployManager(TestGitCommon):
 
         # assert
         self.assertEqual(["absPathCopyOfCover", "absPathCopyOfCover"],
-                         DeployManager._copy_cover_to_local_src(catalog, catalog_local_src, self.active_solution, tmp_dir))
+                         DeployManager._copy_cover_to_local_src(self.active_solution, tmp_dir, target_dir))
 
         calls = [call(tmp_dir.joinpath("example_cover1.png"), target_dir.joinpath("example_cover1.png")),
                  call(tmp_dir.joinpath("example_cover2.png"), target_dir.joinpath("example_cover2.png"))]
         copy_mock.assert_has_calls(calls)
         self.repo.close()
 
-    @unittest.skip("Needs to be implemented!")
-    def test__create_docker_file_in_local_src(self):
-        # todo: implement
-        pass
 
     @unittest.skip("Needs to be implemented!")
     def test_get_download_path(self):

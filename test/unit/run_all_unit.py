@@ -12,6 +12,8 @@ from test.unit.core.controller.collection import test_collection_manager, test_c
 from test.unit.core.model import test_catalog, test_configuration, test_environment, \
     test_catalog_index, test_collection_index, test_coordinates, test_task
 from test.unit.core.utils import test_subcommand
+from test.unit.core.utils.export import test_changelog, test_docker
+from test.unit.core.utils.operations import test_dict_operations
 from test.unit.core.utils.operations import test_url_operations, test_file_operations, test_git_operations, \
     test_resolve_operations, test_solution_operations
 
@@ -65,7 +67,11 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_resolve_operations))
     suite.addTests(loader.loadTestsFromModule(test_url_operations))
     suite.addTests(loader.loadTestsFromModule(test_solution_operations))
+    suite.addTests(loader.loadTestsFromModule(test_dict_operations))
 
+    # album.core.utils.export
+    suite.addTests(loader.loadTestsFromModule(test_docker))
+    suite.addTests(loader.loadTestsFromModule(test_changelog))
 
     # album.ci
     suite.addTests(loader.loadTestsFromModule(test_ci_argument_parsing))
