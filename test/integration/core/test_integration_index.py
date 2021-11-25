@@ -20,7 +20,7 @@ class TestIntegrationClone(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertIn('name: catalog_local', self.captured_output.getvalue())
 
     def test_index_json(self):
@@ -31,7 +31,7 @@ class TestIntegrationClone(TestIntegrationCommon):
         with contextlib.redirect_stdout(stdout_content):
             self.assertIsNone(main())
 
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         index_dict = json.loads(stdout_content.getvalue())
         self.assertIsNotNone(index_dict)
         self.assertIsNotNone(index_dict['catalogs'])

@@ -21,7 +21,7 @@ class TestIntegrationTest(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertIn("--testArg1: testArg1Description", self.captured_output.getvalue())
 
     def test_info_json(self):
@@ -35,7 +35,7 @@ class TestIntegrationTest(TestIntegrationCommon):
             self.assertIsNone(main())
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertEqual({
             'group': 'group',
             'name': 'name',

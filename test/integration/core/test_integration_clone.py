@@ -24,7 +24,7 @@ class TestIntegrationClone(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         # FIXME this assertion fails because resolving the input path points to a different solution path in a temp download dir
         # self.assertIn(f"INFO - Copied solution {str(input_path)} to {self.tmp_dir.name}/my_catalog/my_solution/solution.py", self.captured_output.getvalue())
         self.assertTrue(target_dir.joinpath("my_solution", DefaultValues.solution_default_name.value).exists())
@@ -39,7 +39,7 @@ class TestIntegrationClone(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertTrue(target_dir.joinpath("my_solution", DefaultValues.solution_default_name.value).exists())
 
     def test_clone_catalog_template(self):
@@ -51,7 +51,7 @@ class TestIntegrationClone(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         target_path = Path(self.tmp_dir.name).joinpath("my_catalogs", "my_catalog")
         self.assertIn(f"INFO - Downloaded template from https://gitlab.com/album-app/catalogs/templates/catalog/-/archive/main/catalog-main.zip to {str(target_path)}", self.captured_output.getvalue())
         self.assertTrue(target_path.joinpath("album_catalog_index.json").exists())

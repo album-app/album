@@ -15,7 +15,7 @@ class TestIntegrationRepl(TestIntegrationCommon):
         # todo: proper implement
         sys.argv = ["", "repl", self.get_test_solution_path()]
         self.assertIsNone(main())
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
 
 
 if __name__ == '__main__':

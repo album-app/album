@@ -23,7 +23,7 @@ class TestIntegrationTest(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertIn("WARNING - No \"test\" routine configured for solution", self.captured_output.getvalue())
 
     def test_test_not_installed(self):
@@ -50,7 +50,7 @@ class TestIntegrationTest(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         # NOTE: assertion also happens in test routine!
 
         # todo: change this. first assure subprocess logging is possible in windows

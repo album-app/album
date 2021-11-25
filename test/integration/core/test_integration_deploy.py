@@ -34,7 +34,7 @@ class TestIntegrationDeploy(TestIntegrationCommon):
                     ]
 
         self.assertIsNone(main())
-        self.assertNotIn('ERROR', self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertIn('Pretending to deploy', self.captured_output.getvalue())
         self.collection_manager.catalogs().update_any('test_catalog')
         updates = self.collection_manager.catalogs().update_collection('test_catalog')
@@ -54,7 +54,7 @@ class TestIntegrationDeploy(TestIntegrationCommon):
                     ]
 
         self.assertIsNone(main())
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.collection_manager.catalogs().update_any('test_catalog')
         updates = self.collection_manager.catalogs().update_collection('test_catalog')
         self.assertIn('test_catalog', updates)
