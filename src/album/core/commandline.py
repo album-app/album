@@ -10,6 +10,8 @@ from album.core.controller.search_manager import SearchManager
 from album.core.controller.test_manager import TestManager
 from album.core.server import AlbumServer
 from album.core.utils.operations.solution_operations import get_deploy_dict, serialize_json
+from album.core.utils.operations.view_operations import get_solution_as_string, \
+    get_updates_as_string, get_index_as_string, get_search_result_as_string
 from album.runner.album_logging import get_active_logger
 
 module_logger = get_active_logger
@@ -40,26 +42,7 @@ def upgrade(args):
             res += 'An upgrade would apply the following updates:\n'
         else:
             res += "Applied the following updates:\n"
-        for change in updates:
-            res += 'Catalog: %s\n' % change.catalog.name
-            if len(change.catalog_attribute_changes) > 0:
-                res += '  Catalog attribute changes:\n'
-                for item in change.catalog_attribute_changes:
-                    res += '  name: %s, new value: %s\n' % (item.attribute, item.new_value)
-            if len(change.solution_changes) > 0:
-                res += '  Catalog solution changes:\n'
-                for i, item in enumerate(change.solution_changes):
-                    if i is len(change.solution_changes) - 1:
-                        res += '  └─ [%s] %s\n' % (item.change_type.name, item.coordinates)
-                        separator = ' '
-                    else:
-                        res += '  ├─ [%s] %s\n' % (item.change_type.name, item.coordinates)
-                        separator = '|'
-                    res += '  %s     %schangelog: %s\n' % (
-                        separator, (" " * len(item.change_type.name)), item.change_log)
-
-            if len(change.catalog_attribute_changes) == 0 and len(change.solution_changes) == 0:
-                res += '  No changes.\n'
+        res += get_updates_as_string(updates)
         module_logger().info(res)
 
 
@@ -78,45 +61,15 @@ def uninstall(args):
 
 
 def info(args):
-    resolve_result = CollectionManager().resolve_download_and_load(str(args.path))
+    solution_path = args.path
+    resolve_result = CollectionManager().resolve_download_and_load(str(solution_path))
     print_json = _get_print_json(args)
     solution = resolve_result.loaded_solution
-    deploy_dict = get_deploy_dict(solution)
     if print_json:
+        deploy_dict = get_deploy_dict(solution)
         print(_as_json(deploy_dict))
     else:
-        param_example_str = ''
-        for arg in deploy_dict['args']:
-            param_example_str += '--%s PARAMETER_VALUE ' % arg['name']
-        res = 'Solution details about %s:\n\n' % args.path
-        if solution.setup.title:
-            res += '%s\n' % solution.setup.title
-            res += '%s\n' % ('=' * len(solution.setup.title))
-        if solution.setup.description:
-            res += '%s\n\n' % solution.setup.description
-        res += 'Group            : %s\n' % solution.setup.group
-        res += 'Name             : %s\n' % solution.setup.name
-        res += 'Version          : %s' % solution.setup.version
-        res += '%s' % get_credit_as_string(solution)
-        res += 'Solution metadata:\n\n'
-        if solution.setup.authors:
-            res += 'Solution authors : %s\n' % ", ".join(solution.setup.authors)
-        if solution.setup.license:
-            res += 'License          : %s\n' % solution.setup.license
-        if solution.setup.acknowledgement:
-            res += 'Acknowledgement  : %s\n' % solution.setup.acknowledgement
-        if solution.setup.tags:
-            res += 'Tags             : %s\n' % ", ".join(solution.setup.tags)
-        res += '\n'
-        res += 'Usage:\n\n'
-        res += '  album install %s\n' % args.path
-        res += '  album run %s %s\n' % (solution.coordinates, param_example_str)
-        res += '  album test %s\n' % solution.coordinates
-        res += '  album uninstall %s\n' % solution.coordinates
-        res += '\n'
-        res += 'Run parameters:\n\n'
-        for arg in deploy_dict['args']:
-            res += '  --%s: %s\n' % (arg["name"], arg["description"])
+        res = get_solution_as_string(solution, solution_path)
         module_logger().info(res)
 
 
@@ -130,15 +83,7 @@ def search(args):
     if print_json:
         print(_as_json(search_result))
     else:
-        res = ''
-        if len(search_result) > 0:
-            res += 'Search results for "%s" - run `album info SOLUTION_ID` for more information:\n' % ' '.join(
-                args.keywords)
-            res += '[SCORE] SOLUTION_ID\n'
-            for result in search_result:
-                res += '[%s] %s\n' % (result[1], result[0])
-        else:
-            res += 'No search results for "%s".' % ' '.join(args.keywords)
+        res = get_search_result_as_string(args, search_result)
         module_logger().info(res)
 
 
@@ -162,23 +107,7 @@ def index(args):
     if print_json:
         print(_as_json(index_dict))
     else:
-        res = '\n'
-        if 'catalogs' in index_dict:
-            for catalog in index_dict['catalogs']:
-                res += 'Catalog \'%s\':\n' % catalog['name']
-                res += '├─ name: %s\n' % catalog['name']
-                res += '├─ src: %s\n' % catalog['src']
-                res += '├─ catalog_id: %s\n' % catalog['catalog_id']
-                if len(catalog['solutions']) > 0:
-                    res += '├─ deletable: %s\n' % catalog['deletable']
-                    res += '└─ solutions:\n'
-                    for i, solution in enumerate(catalog['solutions']):
-                        if i is len(catalog['solutions']) - 1:
-                            res += '   └─ %s:%s:%s\n' % (solution.setup['group'], solution.setup['name'], solution.setup['version'])
-                        else:
-                            res += '   ├─ %s:%s:%s\n' % (solution.setup['group'], solution.setup['name'], solution.setup['version'])
-                else:
-                    res += '└─ deletable: %s\n' % catalog['deletable']
+        res = get_index_as_string(index_dict)
         module_logger().info('Catalogs in your local collection: %s' % res)
 
 
@@ -187,6 +116,14 @@ def repl(args):
     module_logger().info("This feature will be available soon!")
     # this loads a solution, opens python session in terminal, and lets you run python commands in the environment of the solution
     # Load solution
+
+
+def _get_print_json(args):
+    return getattr(args, "json", False)
+
+
+def _as_json(data):
+    return serialize_json(data)
 
 
 #     solution_script = open(args.path).read()
@@ -215,24 +152,3 @@ def repl(args):
 # console.interact()
 # """
 #     solution.run_scripts(script)
-
-
-def _get_print_json(args):
-    return getattr(args, "json", False)
-
-
-def _as_json(data):
-    return serialize_json(data)
-
-
-def get_credit_as_string(solution):
-    res = ''
-    if solution.setup.cite:
-        res += '\n\nCredits:\n\n'
-        for citation in solution.setup.cite:
-            text = citation['text']
-            if 'doi' in citation:
-                text += ' (DOI: %s)' % citation['doi']
-            res += '%s\n' % text
-        res += '\n'
-    return res
