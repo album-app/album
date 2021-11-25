@@ -3,6 +3,8 @@ import unittest
 from pathlib import Path
 from shutil import copy
 
+from album.core.model.configuration import Configuration
+
 from album.argument_parsing import main
 from album.core.utils.operations.file_operations import force_remove
 from album.runner.model.coordinates import Coordinates
@@ -126,6 +128,8 @@ class TestIntegrationDeploy(TestIntegrationCommon):
                             '\n\n## [0.1.0] - %s\n%s\n\n' % ('21/11/25', '- my changes')
         with open(source.joinpath('CHANGELOG.md'), 'w') as file:
             file.write(changelog_content)
+        with open(source.joinpath('file.md'), 'w') as file:
+            file.write('my documentation')
 
         # run deploy while providing changelog via file
         sys.argv = ['', 'deploy', str(source), '--catalog', 'test_catalog']
@@ -138,8 +142,10 @@ class TestIntegrationDeploy(TestIntegrationCommon):
         self.collection_manager.catalogs().update_collection(catalog.name)
         solution = self.collection_manager.catalog_collection.get_solution_by_catalog_grp_name_version(catalog.catalog_id, coordinates)
         self.assertIsNotNone(solution)
-        print(self.captured_output.getvalue())
         self.assertEqual('- my changes', str(solution.setup['changelog'].strip()))
+
+        # check of documentation file was deployed into the catalog and copied into the collection cache
+        self.assertTrue(catalog.src.joinpath(Configuration.get_solution_path_suffix(coordinates), 'file.md').exists())
 
 
 if __name__ == '__main__':

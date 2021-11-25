@@ -329,6 +329,7 @@ class DeployManager(metaclass=Singleton):
         solution_home = Path(catalog_local_src).joinpath(Configuration.get_solution_path_suffix(coordinates))
         res = []
         res.extend(DeployManager._copy_files_from_solution(active_solution, deploy_path, solution_home, 'cover', 'covers.source'))
+        res.extend(DeployManager._copy_files_from_solution(active_solution, deploy_path, solution_home, 'documentation', 'documentation'))
         res.append(create_docker_file(active_solution, solution_home))
         res.append(DeployManager._create_yaml_file_in_local_src(active_solution, solution_home))
         res.append(create_changelog_file(active_solution, catalog, solution_home))
