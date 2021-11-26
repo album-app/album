@@ -67,12 +67,13 @@ class TestIntegrationCommon(unittest.TestCase):
             local_catalog_name + "_group_solution8_arguments_0.1.0",
             local_catalog_name + "_group_solution9_throws_exception_0.1.0",
             local_catalog_name + "_group_solution10_uninstall_0.1.0",
+            local_catalog_name + "_group_solution13_faultySolution_0.1.0",
             local_catalog_name + "_group_solution_with_steps_0.1.0",
             local_catalog_name + "_solution_with_steps_grouped_0.1.0"
         ]
         for e in env_names:
-            if CondaManager().environment_exists(e):
-                CondaManager().remove_environment(e)
+            if self.album.environment_manager().conda_manager.environment_exists(e):
+                self.album.environment_manager().conda_manager.remove_environment(e)
 
         TestUnitCommon.tear_down_singletons()
 

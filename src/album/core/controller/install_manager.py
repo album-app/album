@@ -1,5 +1,7 @@
 from typing import Optional
 
+from album.core.utils.operations.file_operations import force_remove
+
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.environment_manager import EnvironmentManager
@@ -7,9 +9,6 @@ from album.core.model.catalog import Catalog
 from album.core.model.configuration import Configuration
 from album.core.model.environment import Environment
 from album.core.model.resolve_result import ResolveResult
-from album.runner.model.solution import Solution
-from album.core.utils.operations.file_operations import force_remove
-from album.core.utils.operations.resolve_operations import clean_resolve_tmp, build_resolve_string, dict_to_coordinates
 from album.core.utils.operations.resolve_operations import clean_resolve_tmp, build_resolve_string, dict_to_coordinates
 from album.core.utils.operations.solution_operations import get_deploy_dict, get_parent_dict, set_cache_paths, \
     remove_disc_content_from_solution
@@ -111,11 +110,17 @@ class InstallManager(metaclass=Singleton):
             if self._resolve_result_is_installed(resolve_result):
                 raise RuntimeError("Solution already installed. Uninstall solution first!")
 
-        self.clean_unfinished_installations()
+        if not parent:
+            self.clean_unfinished_installations()
 
-        self._register(resolve_result, parent)
+        self._register(resolve_result)
 
-        # mark as installation unfinished
+        if not parent:
+            if resolve_result.catalog.is_cache():
+                # always clean after registration to a catalog!
+                clean_resolve_tmp(self.configuration.cache_path_tmp_user)
+
+        # mark as "installation unfinished"
         self.collection_manager.solutions().set_installation_unfinished(
             resolve_result.catalog, resolve_result.loaded_solution.coordinates
         )
@@ -128,7 +133,7 @@ class InstallManager(metaclass=Singleton):
         if parent_resolve_result:
             self.set_parent(parent_resolve_result, resolve_result)
 
-        # mark as installed
+        # mark as installed and remove "installation unfinished"
         self.collection_manager.solutions().set_installed(
             resolve_result.catalog, resolve_result.loaded_solution.coordinates
         )
@@ -139,7 +144,7 @@ class InstallManager(metaclass=Singleton):
             )
         )
 
-    def _register(self, resolve_result: ResolveResult, parent=False):
+    def _register(self, resolve_result: ResolveResult):
         """Registers a resolve result in the collection"""
         # register in collection
         if resolve_result.catalog.is_cache():
@@ -148,8 +153,6 @@ class InstallManager(metaclass=Singleton):
                 resolve_result.loaded_solution,
                 resolve_result.path.parent  # the directory holding the solution file
             )
-            if not parent:
-                clean_resolve_tmp(self.configuration.cache_path_tmp_user)
         else:
             # update the collection holding the solution entry
             self.update_in_collection_index(resolve_result)
@@ -252,7 +255,8 @@ class InstallManager(metaclass=Singleton):
             children = []
             for dependency_dict in resolve_result.collection_entry.internal["children"]:
                 # get the child entry
-                child_solution = self.collection_manager.catalog_collection.get_solution_by_collection_id(dependency_dict["collection_id_child"])
+                child_solution = self.collection_manager.catalog_collection.get_solution_by_collection_id(
+                    dependency_dict["collection_id_child"])
                 if child_solution.internal['installed']:
                     children.append(str(dict_to_coordinates(child_solution.setup)))
 
@@ -303,26 +307,37 @@ class InstallManager(metaclass=Singleton):
             self._uninstall(resolve_solution, rm_dep, parent=True)
 
     def clean_unfinished_installations(self):
-        solution_list = self.collection_manager.catalog_collection.get_unfinished_installation_solutions()
-        for solution_entry in solution_list:
-            catalog = self.collection_manager.catalog_handler.get_by_id(solution_entry["catalog_id"])
-            path = catalog.get_solution_file(dict_to_coordinates(solution_entry))
+        collection_solution_list = self.collection_manager.catalog_collection.get_unfinished_installation_solutions()
+        for collection_solution in collection_solution_list:
+            catalog = self.collection_manager.catalog_handler.get_by_id(collection_solution.internal["catalog_id"])
+            path = catalog.get_solution_file(dict_to_coordinates(collection_solution.setup))
+            coordinates = dict_to_coordinates(collection_solution.setup)
 
             resolve = ResolveResult(
                 path=path,
                 catalog=catalog,
-                collection_entry=solution_entry,
-                coordinates=dict_to_coordinates(solution_entry)
+                collection_entry=collection_solution,
+                coordinates=coordinates
             )
             self.collection_manager.retrieve_and_load_resolve_result(resolve)
 
             set_cache_paths(resolve.loaded_solution, resolve.catalog)
 
-            # only remove environment when it has its own environment
+            # only remove environment when solution has its own environment
             if not get_parent_dict(resolve.loaded_solution):
-                environment = self.environment_manager.set_environment(resolve.loaded_solution, resolve.catalog)
-                self.environment_manager.remove_environment(environment)
+                self._clean_unfinished_installations_environment(resolve)
 
             remove_disc_content_from_solution(resolve.loaded_solution)
 
-            self.collection_manager.solutions().set_uninstalled(resolve.catalog, resolve.loaded_solution.coordinates)
+            self.collection_manager.solutions().set_uninstalled(resolve.catalog, coordinates)
+
+    def _clean_unfinished_installations_environment(self, resolve: ResolveResult):
+        environment = self.environment_manager.set_environment(resolve.loaded_solution, resolve.catalog)
+        remove_status = self.environment_manager.remove_environment(environment)
+
+        if not remove_status:
+            # try to clean environment folder if exists
+            environment_folder = self.environment_manager.get_environment_base_folder().joinpath(
+                self.environment_manager.get_environment_name(resolve.coordinates, resolve.catalog)
+            )
+            force_remove(environment_folder)

@@ -15,17 +15,12 @@ class TestSolutionHandler(TestCatalogCollectionCommon):
         super().tearDown()
 
     @unittest.skip("Needs to be implemented!")
-    def test_get_solution_path_by_group_name_version(self):
-        # todo: implement
-        pass
-
-    @unittest.skip("Needs to be implemented!")
-    def test_get_solution_path_by_doi(self):
-        # todo: implement
-        pass
-
-    @unittest.skip("Needs to be implemented!")
     def test_add_or_replace(self):
+        # todo: implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_set_parent(self):
         # todo: implement
         pass
 
@@ -46,6 +41,16 @@ class TestSolutionHandler(TestCatalogCollectionCommon):
 
     @unittest.skip("Needs to be implemented!")
     def test_set_installed(self):
+        # todo: implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_set_uninstalled(self):
+        # todo: implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_set_installation_unfinished(self):
         # todo: implement
         pass
 

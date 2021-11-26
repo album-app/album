@@ -69,6 +69,35 @@ class TestIntegrationInstall(TestIntegrationCommon):
         self.assertEqual("aPath", run_scripts_mock.call_args[0][0].path)
         pip_install_mock.assert_called_once()
 
+    def test_install_lambda_breaks(self):
+        sys.argv = ["", "install", str(self.get_test_solution_path('solution13_faulty_routine.py'))]
+
+        self.assertEqual([], self.collection_manager.catalog_collection.get_unfinished_installation_solutions())
+
+        # call
+        with self.assertRaises(SystemExit):
+            main()
+
+        # the environment stays
+        local_catalog = self.collection_manager.catalogs().get_local_catalog()
+        local_catalog_name = str(local_catalog.name)
+        leftover_env_name = local_catalog_name + "_group_faultySolution_0.1.0"
+        self.assertTrue(self.album.environment_manager().conda_manager.environment_exists(leftover_env_name))
+
+        # check file is copied
+        local_file = local_catalog.get_solution_file(Coordinates("group", "faultySolution", "0.1.0"))
+        self.assertTrue(local_file.exists())
+
+        # try to install smth. else (or the same, after routine is fixed)
+        # should remove the faulty environment from previously failed installation
+        sys.argv = ["", "install", str(self.get_test_solution_path())]
+        self.assertIsNone(main())
+
+        # check cleaned up
+        self.assertFalse(local_file.exists())
+        self.assertFalse(self.album.environment_manager().conda_manager.environment_exists(leftover_env_name))
+        self.assertEqual([], self.collection_manager.catalog_collection.get_unfinished_installation_solutions())
+
     def test_install_twice(self):
         sys.argv = ["", "install", str(self.get_test_solution_path())]
         self.assertIsNone(main())
