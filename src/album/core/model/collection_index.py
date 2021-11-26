@@ -286,35 +286,41 @@ class CollectionIndex(Database):
 
         if 'authors' in solution_attrs:
             for author in solution_attrs['authors']:
-                # fixme: what if author already in DB?
-                author_id = self._insert_author(author, catalog_id, close=False)
+                author_id = self._exists_author(author, catalog_id, close=False)
+                if not author_id:
+                    author_id = self._insert_author(author, catalog_id, close=False)
                 self._insert_collection_author(collection_id, author_id, catalog_id, close=False)
 
         if 'tags' in solution_attrs:
             for tag in solution_attrs['tags']:
-                # fixme: what if author already in DB?
-                tag_id = self._insert_tag(tag, catalog_id, close=False)
+                tag_id = self._exists_tag(tag, catalog_id, close=False)
+                if not tag_id:
+                    tag_id = self._insert_tag(tag, catalog_id, close=False)
                 self._insert_collection_tag(collection_id, tag_id, catalog_id, close=False)
 
         if 'cite' in solution_attrs:
             for citation in solution_attrs['cite']:
-                # fixme: what if author already in DB?
-                citation_id = self._insert_citation(citation, catalog_id, close=False)
+                citation_id = self._exists_citation(citation, catalog_id, close=False)
+                if not citation_id:
+                    citation_id = self._insert_citation(citation, catalog_id, close=False)
                 self._insert_collection_citation(collection_id, citation_id, catalog_id, close=False)
 
         if 'args' in solution_attrs:
             for argument in solution_attrs['args']:
-                # fixme: what if author already in DB?
-                argument_id = self._insert_argument(argument, catalog_id, close=False)
+                argument_id = self._exists_argument(argument, catalog_id)
+                if not argument_id:
+                    argument_id = self._insert_argument(argument, catalog_id, close=False)
                 self._insert_collection_argument(collection_id, argument_id, catalog_id, close=False)
 
         if 'covers' in solution_attrs:
             for cover in solution_attrs['covers']:
-                self._insert_cover(cover, catalog_id, collection_id, close=False)
+                if not self._exists_cover(cover, catalog_id, collection_id):
+                    self._insert_cover(cover, catalog_id, collection_id, close=False)
 
         if 'documentation' in solution_attrs:
             for documentation in solution_attrs['documentation']:
-                self._insert_documentation(documentation, catalog_id, collection_id, close=False)
+                if not self._exists_documentation(documentation, catalog_id, collection_id, close=False):
+                    self._insert_documentation(documentation, catalog_id, collection_id, close=False)
 
         if close:
             self.close_current_connection()
@@ -397,6 +403,21 @@ class CollectionIndex(Database):
 
         return collection_author_id
 
+    def _exists_author(self, author_name, catalog_id, close=True):
+        cursor = self.get_cursor()
+        r = cursor.execute(
+            "SELECT * FROM author WHERE name=:author_name AND catalog_id=:catalog_id",
+            {
+                "author_name": author_name,
+                "catalog_id": catalog_id
+            }
+        ).fetchone()
+
+        if close:
+            self.close_current_connection()
+
+        return r["author_id"] if r else None
+
     def _insert_author(self, author, catalog_id, close=True):
         author_id = self.next_id("author")
 
@@ -414,6 +435,21 @@ class CollectionIndex(Database):
             self.close_current_connection()
 
         return author_id
+
+    def _exists_tag(self, tag_name, catalog_id, close=True):
+        cursor = self.get_cursor()
+        r = cursor.execute(
+            "SELECT * FROM tag WHERE name=:tag_name AND catalog_id=:catalog_id",
+            {
+                "tag_name": tag_name,
+                "catalog_id": catalog_id
+            }
+        ).fetchone()
+
+        if close:
+            self.close_current_connection()
+
+        return r["tag_id"] if r else None
 
     def _insert_tag(self, tag, catalog_id, close=True):
         tag_id = self.next_id("tag")
@@ -433,6 +469,38 @@ class CollectionIndex(Database):
             self.close_current_connection()
 
         return tag_id
+
+    def _exists_argument(self, argument, catalog_id, close=True):
+        cursor = self.get_cursor()
+
+        exc_str = "SELECT * FROM argument WHERE name=:argument_name AND description=:argument_description " \
+                  "AND catalog_id=:catalog_id "
+        exc_val = {
+            "argument_name": argument["name"],
+            "argument_description": argument["description"],
+            "catalog_id": catalog_id,
+        }
+        argument_type = get_dict_entry(argument, "type")
+        argument_default_value = get_dict_entry(argument, "default_value")
+
+        if argument_type:
+            exc_str += "AND type=:argument_type "
+            exc_val["argument_type"] = argument_type
+        else:
+            exc_str += "AND type IS NULL "
+
+        if argument_default_value:
+            exc_str += "AND default_value=:argument_default_value "
+            exc_val["argument_default_value"] = argument_default_value
+        else:
+            exc_str += "AND default_value IS NULL "
+
+        r = cursor.execute(exc_str, exc_val).fetchone()
+
+        if close:
+            self.close_current_connection()
+
+        return r["argument_id"] if r else None
 
     def _insert_argument(self, argument, catalog_id, close=True):
         argument_id = self.next_id("argument")
@@ -456,6 +524,29 @@ class CollectionIndex(Database):
 
         return argument_id
 
+    def _exists_citation(self, citation, catalog_id, close=True):
+        cursor = self.get_cursor()
+
+        exc_str = "SELECT * FROM citation WHERE text=:citation_text AND catalog_id=:catalog_id "
+        exc_val = {
+            "citation_text": citation["text"],
+            "catalog_id": catalog_id
+        }
+        citation_doi = get_dict_entry(citation, "doi")
+
+        if citation_doi:
+            exc_str += "AND doi=:citation_doi"
+            exc_val["citation_doi"] = citation_doi
+        else:
+            exc_str += "AND doi IS NULL"
+
+        r = cursor.execute(exc_str, exc_val).fetchone()
+
+        if close:
+            self.close_current_connection()
+
+        return r["citation_id"] if r else None
+
     def _insert_citation(self, citation, catalog_id, close=True):
         citation_id = self.next_id('citation')
 
@@ -476,6 +567,24 @@ class CollectionIndex(Database):
 
         return citation_id
 
+    def _exists_cover(self, cover, catalog_id, collection_id, close=True):
+        cursor = self.get_cursor()
+        r = cursor.execute(
+            "SELECT * FROM cover WHERE source=:cover_source AND description=:cover_description "
+            "AND catalog_id=:catalog_id AND collection_id=:collection_id",
+            {
+                "cover_source": cover["source"],
+                "cover_description": cover["description"],
+                "catalog_id": catalog_id,
+                "collection_id": collection_id
+            }
+        ).fetchone()
+
+        if close:
+            self.close_current_connection()
+
+        return r["cover_id"] if r else None
+
     def _insert_cover(self, cover, catalog_id, collection_id, close=True):
         cover_id = self.next_id("cover")
 
@@ -495,6 +604,23 @@ class CollectionIndex(Database):
             self.close_current_connection()
 
         return cover_id
+
+    def _exists_documentation(self, documentation, catalog_id, collection_id, close=True):
+        cursor = self.get_cursor()
+        r = cursor.execute(
+            "SELECT * FROM main.documentation WHERE documentation=:documentation "
+            "AND catalog_id=:catalog_id AND collection_id=:collection_id",
+            {
+                "documentation": documentation,
+                "catalog_id": catalog_id,
+                "collection_id": collection_id
+            }
+        ).fetchone()
+
+        if close:
+            self.close_current_connection()
+
+        return r["documentation_id"] if r else None
 
     def _insert_documentation(self, documentation, catalog_id, collection_id, close=True):
         documentation_id = self.next_id("documentation")
