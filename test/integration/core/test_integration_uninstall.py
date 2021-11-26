@@ -49,7 +49,7 @@ class TestIntegrationUninstall(TestIntegrationCommon):
 
         self.assertIsNone(main())
 
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         # assert that solution is removed from the catalog
         self.assertIn("Uninstalled \"name\"", self.captured_output.getvalue())

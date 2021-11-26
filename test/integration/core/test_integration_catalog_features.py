@@ -38,7 +38,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         catalogs = CollectionManager().catalog_collection.get_all_catalogs()
         catalog_cache_path_to_be_deleted = catalogs[-1]["path"]
         self.assertEqual(initial_len + 1, len(catalogs))
@@ -51,7 +51,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         catalogs = CollectionManager().catalog_collection.get_all_catalogs()
         self.assertEqual(initial_len, len(catalogs))
         for catalog in catalogs:
@@ -79,11 +79,12 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         dif = self.collection_manager.catalogs().update_collection(catalog.name, dry_run=True)
 
         self.assertIsNotNone(dif)
-        self.assertEqual(1, len(dif))
-        self.assertIsNotNone(dif[0].catalog_attribute_changes)
-        self.assertIsNotNone(dif[0].solution_changes)
-        self.assertEqual(0, len(dif[0].catalog_attribute_changes))
-        self.assertEqual(0, len(dif[0].solution_changes))
+        self.assertEqual(1, len(dif.keys()))
+        self.assertIsNotNone(dif[catalog.name])
+        self.assertIsNotNone(dif[catalog.name].catalog_attribute_changes)
+        self.assertIsNotNone(dif[catalog.name].solution_changes)
+        self.assertEqual(0, len(dif[catalog.name].catalog_attribute_changes))
+        self.assertEqual(0, len(dif[catalog.name].solution_changes))
 
         # add new solution to catalog
         catalog.add(solution)
@@ -92,22 +93,25 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
 
         dif = self.collection_manager.catalogs().update_collection(catalog.name, dry_run=True)
 
-        self.assertEqual(0, len(dif[0].catalog_attribute_changes))
-        self.assertEqual(2, len(dif[0].solution_changes))
-        self.assertEqual(ChangeType.ADDED, dif[0].solution_changes[0].change_type)
+        self.assertEqual(1, len(dif.keys()))
+        self.assertIsNotNone(dif[catalog.name])
+        self.assertEqual(0, len(dif[catalog.name].catalog_attribute_changes))
+        self.assertEqual(2, len(dif[catalog.name].solution_changes))
+        self.assertEqual(ChangeType.ADDED, dif[catalog.name].solution_changes[0].change_type)
 
         # update collection
 
         dif = self.collection_manager.catalogs().update_collection(catalog.name, dry_run=False)
 
-        self.assertEqual(0, len(dif[0].catalog_attribute_changes))
-        self.assertEqual(2, len(dif[0].solution_changes))
-        self.assertEqual(ChangeType.ADDED, dif[0].solution_changes[0].change_type)
+        self.assertIsNotNone(dif[catalog.name])
+        self.assertEqual(0, len(dif[catalog.name].catalog_attribute_changes))
+        self.assertEqual(2, len(dif[catalog.name].solution_changes))
+        self.assertEqual(ChangeType.ADDED, dif[catalog.name].solution_changes[0].change_type)
 
         dif = self.collection_manager.catalogs().update_collection(catalog.name, dry_run=True)
 
-        self.assertEqual(0, len(dif[0].catalog_attribute_changes))
-        self.assertEqual(0, len(dif[0].solution_changes))
+        self.assertEqual(0, len(dif[catalog.name].catalog_attribute_changes))
+        self.assertEqual(0, len(dif[catalog.name].solution_changes))
 
     def test_update_upgrade(self):
         initial_len = len(CollectionManager().catalog_collection.get_all_catalogs())  # has the two default catalogs
@@ -138,13 +142,13 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         sys.argv = ["", "update"]
         self.assertIsNone(main())
 
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         # upgrade collection
         sys.argv = ["", "upgrade"]
         self.assertIsNone(main())
 
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         # assert
         solutions = CollectionManager().catalog_collection.get_solutions_by_catalog(catalog.catalog_id)

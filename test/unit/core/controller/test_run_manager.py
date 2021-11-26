@@ -1,6 +1,5 @@
 import unittest
 from copy import deepcopy
-from pathlib import Path
 from queue import Queue
 from unittest.mock import MagicMock
 from unittest.mock import patch

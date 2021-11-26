@@ -1,12 +1,11 @@
-import json
 import unittest
 from pathlib import Path
 
-from album.core.utils.operations.solution_operations import serialize_json
-from album.runner.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
+from album.core.utils.operations.solution_operations import serialize_json
 from album.runner import album_logging
 from album.runner.album_logging import LogLevel
+from album.runner.model.coordinates import Coordinates
 from test.integration.test_integration_common import TestIntegrationCommon
 
 

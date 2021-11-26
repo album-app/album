@@ -25,7 +25,7 @@ class TestIntegrationRun(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertIsNone(album.get_active_solution())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
@@ -61,7 +61,7 @@ class TestIntegrationRun(TestIntegrationCommon):
         # run
         self.assertIsNone(main())
 
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         log = self.captured_output.getvalue()
 
@@ -88,7 +88,7 @@ class TestIntegrationRun(TestIntegrationCommon):
         # run
         self.assertIsNone(main())
 
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         # assert
         self.assertIsNone(album.get_active_solution())
@@ -106,7 +106,7 @@ class TestIntegrationRun(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertIn("No \"run\" routine configured for solution", self.captured_output.getvalue())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
@@ -123,7 +123,7 @@ class TestIntegrationRun(TestIntegrationCommon):
         # run
         self.assertIsNone(main())
 
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         # assert file logs
         with open(self.closed_tmp_file.name, "r") as f:
@@ -154,7 +154,7 @@ class TestIntegrationRun(TestIntegrationCommon):
         # run
         self.assertIsNone(main())
 
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         # assert file logs
         with open(self.closed_tmp_file.name, "r") as f:
@@ -193,7 +193,7 @@ class TestIntegrationRun(TestIntegrationCommon):
         # run
         self.assertIsNone(main())
 
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         # assert file logs
         with open(self.closed_tmp_file.name, "r") as f:
             log = f.read().strip().split("\n")

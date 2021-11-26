@@ -8,15 +8,15 @@ from git import Repo
 
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.configuration import Configuration
-from album.core.utils.operations.solution_operations import get_deploy_dict
-from album.runner.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import unzip_archive, copy, copy_folder, get_dict_from_json, \
     write_dict_to_json, force_remove
 from album.core.utils.operations.git_operations import download_repository, init_repository
 from album.core.utils.operations.resolve_operations import get_zip_name, dict_to_coordinates
+from album.core.utils.operations.solution_operations import get_deploy_dict
 from album.core.utils.operations.url_operations import download_resource
 from album.runner import album_logging, Solution
+from album.runner.model.coordinates import Coordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -492,3 +492,10 @@ class Catalog:
             "name": self.name,
             "version": self.version
         }
+
+    def get_all_solution_versions(self, group: str, name: str):
+        versions = self.catalog_index.get_all_solution_versions(group, name)
+        res = []
+        for version in versions:
+            res.append(Solution(attrs=version))
+        return res

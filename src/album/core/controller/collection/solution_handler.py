@@ -1,9 +1,7 @@
 from datetime import datetime
-from typing import Optional
 
 from album.core import Solution
 from album.core.model.catalog import Catalog
-from album.core.model.catalog_index import CatalogIndex
 from album.core.model.catalog_updates import ChangeType, SolutionChange
 from album.core.model.collection_index import CollectionIndex
 from album.core.utils.operations.file_operations import copy_folder

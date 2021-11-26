@@ -1,5 +1,3 @@
-from typing import List
-
 from album.core.model.environment import Environment
 
 from album.runner.model.coordinates import Coordinates

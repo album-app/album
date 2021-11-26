@@ -1,7 +1,6 @@
-import json
 import pkgutil
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 from album.core.concept.database import Database
 from album.core.utils.operations.file_operations import get_dict_entry, write_dict_to_json
@@ -125,7 +124,7 @@ class CatalogIndex(Database):
     @staticmethod
     def get_solution_column_keys():
         return ['group', 'name', 'description', 'version', 'album_api_version', 'album_version', 'license',
-                'acknowledgement', 'title', 'timestamp', 'doi']
+                'acknowledgement', 'title', 'timestamp', 'doi', 'changelog']
 
     def _insert_solution(self, solution_attrs, close=True) -> int:
         hash_val = get_solution_hash(solution_attrs, self.get_solution_column_keys())
@@ -396,7 +395,7 @@ class CatalogIndex(Database):
 
         Args:
             close:
-                if speficied closes the connection after execution
+                if specified closes the connection after execution
             doi:
                 The doi to resolve for.
 
@@ -426,6 +425,42 @@ class CatalogIndex(Database):
             self.close_current_connection()
 
         return solution
+
+    def get_all_solution_versions(self, group, name, close=True) -> Optional[List[dict]]:
+        """Resolves solutions by group and name, sorted by version.
+
+        Args:
+            close:
+                if specified closes the connection after execution
+            group:
+                The group of the solutions
+            name:
+                The name of the solutions
+
+        Returns:
+            All solutions matching group and name, sorted by version
+
+        """
+        module_logger().debug("Get solution by group and name: \"%s:%s\"..." % (group, name))
+
+        cursor = self.get_cursor()
+        r = cursor.execute(
+            "SELECT * FROM solution WHERE \"group\"=:group_value AND name=:name_value ORDER BY version DESC",
+            {
+                "group_value": group,
+                "name_value": name,
+            }
+        ).fetchall()
+
+        solutions = []
+        if r:
+            for solution in r:
+                solutions.append(dict(solution))
+
+        if close:
+            self.close_current_connection()
+
+        return solutions
 
     def _update_solution(self, solution_attrs, close=True) -> None:
         hash_val = get_solution_hash(solution_attrs, self.get_solution_column_keys())
@@ -554,7 +589,7 @@ class CatalogIndex(Database):
 
         Args:
             close:
-                if speficied closes the connection after execution
+                if specified closes the connection after execution
             coordinates:
                 The coordinates of the solution.
             solution_attrs:
@@ -577,7 +612,7 @@ class CatalogIndex(Database):
 
         Args:
             close:
-                if speficied closes the connection after execution
+                if specified closes the connection after execution
             path:
                 The path to store the export to.
             export_format:

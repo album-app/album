@@ -58,6 +58,7 @@ class TestUnitCommon(unittest.TestCase):
             'album_api_version': 't1',
             'album_version': 'mhv1',
             'license': 'l1',
+            'changelog': 'ch1',
             'acknowledgement': 'a1',
             'authors': ['a1', 'a2'],
             'cite': [{'text': 'c1', 'doi': 'doi1', 'url': 'url1'}],

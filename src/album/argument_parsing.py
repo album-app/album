@@ -115,6 +115,12 @@ def create_parser():
              ' Useful if the solution has already been deployed once.',
         action='store_false'
     )
+    p.add_argument(
+        '--changelog',
+        required=False,
+        help='Description of changes from the previous version of the solution to this version.',
+        default=None
+    )
 
     parser.create_file_command_parser('install', install, 'install an album solution')
     p = parser.create_file_command_parser('uninstall', uninstall, 'uninstall an album solution')

@@ -28,7 +28,7 @@ class TestIntegrationInstall(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertIn("No \"install\" routine configured for solution", self.captured_output.getvalue())
 
     @patch('album.core.controller.conda_manager.CondaManager.create')
@@ -45,7 +45,7 @@ class TestIntegrationInstall(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert solution was added to local catalog
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         collection = self.collection_manager.catalog_collection
         self.assertEqual(1, len(
             collection.get_solutions_by_catalog(self.collection_manager.catalogs().get_local_catalog().catalog_id)))
@@ -94,7 +94,7 @@ class TestIntegrationInstall(TestIntegrationCommon):
         self.assertIsNone(main())
 
         # assert solution was added to local catalog
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         collection = self.collection_manager.catalog_collection
         self.assertEqual(1, len(
             collection.get_solutions_by_catalog(self.collection_manager.catalogs().get_local_catalog().catalog_id)))
@@ -113,11 +113,11 @@ class TestIntegrationInstall(TestIntegrationCommon):
         # gather arguments
         sys.argv = ['', 'install', str(self.get_test_solution_path('app1.py'))]
         self.assertIsNone(main())
-        self.assertNotIn('ERROR', self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         sys.argv = ['', 'install', str(self.get_test_solution_path('solution1_app1.py'))]
         self.assertIsNone(main())
-        self.assertNotIn('ERROR', self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         # assert solution was added to local catalog
         collection = self.collection_manager.catalog_collection
@@ -142,7 +142,7 @@ class TestIntegrationInstall(TestIntegrationCommon):
 
         sys.argv = ["", "uninstall", str(self.get_test_solution_path("solution1_app1.py"))]
         self.assertIsNone(main())
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         solution_path = Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
@@ -154,7 +154,7 @@ class TestIntegrationInstall(TestIntegrationCommon):
 
         sys.argv = ["", "install", str(self.get_test_solution_path("solution1_app1.py"))]
         self.assertIsNone(main())
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertTrue(solution_path.exists())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
@@ -165,15 +165,15 @@ class TestIntegrationInstall(TestIntegrationCommon):
         # gather arguments
         sys.argv = ['', 'install', str(self.get_test_solution_path('app1.py'))]
         self.assertIsNone(main())
-        self.assertNotIn('ERROR', self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         sys.argv = ['', 'install', str(self.get_test_solution_path('solution1_app1.py'))]
         self.assertIsNone(main())
-        self.assertNotIn('ERROR', self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         sys.argv = ['', 'install', str(self.get_test_solution_path('solution12_solution1_app1.py'))]
         self.assertIsNone(main())
-        self.assertNotIn('ERROR', self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         # assert solution was added to local catalog
         collection = self.collection_manager.catalog_collection
@@ -206,28 +206,28 @@ class TestIntegrationInstall(TestIntegrationCommon):
 
         sys.argv = ["", "uninstall", str(self.get_test_solution_path("solution1_app1.py"))]
         self.assertIsNone(main())
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertIn("The following solutions depend on this installation", self.captured_output.getvalue())
         self.assertTrue(solution_path.exists())
 
         sys.argv = ["", "uninstall", str(self.get_test_solution_path("solution12_solution1_app1.py"))]
         self.assertIsNone(main())
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertFalse(solution_child_path.exists())
 
         sys.argv = ["", "uninstall", str(self.get_test_solution_path("solution1_app1.py"))]
         self.assertIsNone(main())
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertFalse(solution_path.exists())
 
         sys.argv = ["", "install", str(self.get_test_solution_path("solution1_app1.py"))]
         self.assertIsNone(main())
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertTrue(solution_path.exists())
 
         sys.argv = ["", "install", str(self.get_test_solution_path("solution12_solution1_app1.py"))]
         self.assertIsNone(main())
-        self.assertNotIn("ERROR", self.captured_output)
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertTrue(solution_child_path.exists())
 
     def test_install_with_dependencies(self):
