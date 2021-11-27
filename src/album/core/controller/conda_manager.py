@@ -4,8 +4,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from album.core.concept.singleton import Singleton
-from album.core.model.configuration import Configuration
+from album.api.config_interface import ConfigurationInterface
 from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
 from album.core.utils import subcommand
@@ -16,7 +15,7 @@ from album.runner.album_logging import debug_settings
 module_logger = album_logging.get_active_logger
 
 
-class CondaManager(metaclass=Singleton):
+class CondaManager():
     """Class for handling conda environments.
 
     The conda class manages the environments a solution is supposed to run in. It provides all features necessary for
@@ -29,9 +28,9 @@ class CondaManager(metaclass=Singleton):
     # singletons
     configuration = None
 
-    def __init__(self):
-        self.configuration = Configuration()
-        self.conda_executable = self.configuration.conda_executable
+    def __init__(self, configuration: ConfigurationInterface):
+        self.configuration = configuration
+        self.conda_executable = self.configuration.get_conda_executable()
 
     def get_environment_dict(self):
         """Returns the conda environments available for the conda installation."""

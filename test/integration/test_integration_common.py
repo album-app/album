@@ -6,18 +6,16 @@ import unittest.mock
 from io import StringIO
 from pathlib import Path
 from typing import Optional
+from unittest.mock import patch
 
-from album.core.model.catalog import Catalog
-
-import album.core as album
-from album.api import Album
-from album.core import Solution
+from album.api.album import Album
 from album.core.controller.collection.catalog_handler import CatalogHandler
-from album.core.controller.conda_manager import CondaManager
+from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
 from album.core.utils.operations.file_operations import copy, force_remove
 from album.runner.album_logging import configure_logging, LogLevel
+from album.runner.model.solution import Solution
 from test.global_exception_watcher import GlobalExceptionWatcher
 from test.unit.test_unit_common import TestUnitCommon
 
@@ -36,14 +34,16 @@ class TestIntegrationCommon(unittest.TestCase):
         self.configure_silent_test_logging(self.captured_output)
 
         # load gateway with test configuration
-        self.album = Album(base_cache_path=self.tmp_dir.name)
-        self.collection_manager = self.album.collection_manager()
+        self.album_instance = Album(base_cache_path=self.tmp_dir.name)
+        self.collection_manager = self.album_instance.collection_manager()
         self.collection_manager.load_or_create_collection()
-        self.test_collection = self.collection_manager.catalog_collection
+        self.test_collection = self.collection_manager.get_collection_index()
         self.assertFalse(self.test_collection.is_empty())
+        self.create_album_instance_patch = patch('album.argument_parsing.create_album_instance', return_value = self.album_instance)
+        self.create_album_instance_patch.start()
 
     def get_album(self):
-        return self.album
+        return self.album_instance
 
     def add_test_catalog(self) -> Catalog:
         path = Path(self.tmp_dir.name).joinpath("my-catalogs", "test_catalog")
@@ -52,6 +52,7 @@ class TestIntegrationCommon(unittest.TestCase):
 
     def tearDown(self) -> None:
         # clean all environments specified in test-resources
+        self.create_album_instance_patch.stop()
         local_catalog_name = str(self.collection_manager.catalogs().get_local_catalog().name)
         env_names = [
             local_catalog_name + "_group_name_0.1.0",
@@ -72,9 +73,10 @@ class TestIntegrationCommon(unittest.TestCase):
             local_catalog_name + "_solution_with_steps_grouped_0.1.0"
         ]
         for e in env_names:
-            if self.album.environment_manager().conda_manager.environment_exists(e):
-                self.album.environment_manager().conda_manager.remove_environment(e)
+            if self.album_instance.environment_manager().get_conda_manager().environment_exists(e):
+                self.album_instance.environment_manager().get_conda_manager().remove_environment(e)
 
+        self.album_instance.close()
         TestUnitCommon.tear_down_singletons()
 
         try:
@@ -113,12 +115,12 @@ class TestIntegrationCommon(unittest.TestCase):
 
     def fake_install(self, path, create_environment=True) -> Optional[Solution]:
         # add to local catalog
-        a = album.load(path)
+        a = self.album_instance.state_manager().load(path)
 
         local_catalog = self.collection_manager.catalogs().get_local_catalog()
         if create_environment:
             env_name = "_".join([local_catalog.name, a.get_identifier()])
-            CondaManager().install(Environment(None, env_name, "unusedCachePath"))
+            self.album_instance.environment_manager().get_conda_manager().install(Environment(None, env_name, "unusedCachePath"))
 
         # add to collection, assign to local catalog
         len_catalog_before = len(self.test_collection.get_solutions_by_catalog(local_catalog.catalog_id))

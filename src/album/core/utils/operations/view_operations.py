@@ -1,7 +1,7 @@
 from typing import Dict
 
 from album.core.model.catalog_updates import CatalogUpdates
-from album.runner import Solution
+from album.runner.model.solution import Solution
 
 
 def get_solution_as_string(solution, solution_path):

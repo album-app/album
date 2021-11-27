@@ -2,9 +2,6 @@ import sys
 import unittest
 from unittest.mock import patch
 
-from album.core.controller.conda_manager import CondaManager
-
-import album.core as album
 from album.argument_parsing import main
 from test.integration.test_integration_common import TestIntegrationCommon
 
@@ -26,11 +23,11 @@ class TestIntegrationRun(TestIntegrationCommon):
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
-        self.assertIsNone(album.get_active_solution())
+        self.assertIsNone(self.album_instance.state_manager().get_active_solution())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_arguments(self, get_environment_path):
-        get_environment_path.return_value = CondaManager().get_active_environment_path()
+        get_environment_path.return_value = self.album_instance.environment_manager().get_conda_manager().get_active_environment_path()
         p = self.get_test_solution_path("solution8_arguments.py")
         self.fake_install(p, create_environment=False)
 
@@ -46,7 +43,7 @@ class TestIntegrationRun(TestIntegrationCommon):
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_arguments_given(self, get_environment_path):
-        get_environment_path.return_value = CondaManager().get_active_environment_path()
+        get_environment_path.return_value = self.album_instance.environment_manager().get_conda_manager().get_active_environment_path()
         # create test environment
         p = self.get_test_solution_path("solution8_arguments.py")
         self.fake_install(p, create_environment=False)
@@ -78,7 +75,7 @@ class TestIntegrationRun(TestIntegrationCommon):
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_with_group_name_version(self, get_environment_path):
-        get_environment_path.return_value = CondaManager().get_active_environment_path()
+        get_environment_path.return_value = self.album_instance.environment_manager().get_conda_manager().get_active_environment_path()
         # create test environment
         solution = self.fake_install(self.get_test_solution_path(), create_environment=False)
 
@@ -91,11 +88,11 @@ class TestIntegrationRun(TestIntegrationCommon):
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         # assert
-        self.assertIsNone(album.get_active_solution())
+        self.assertIsNone(self.album_instance.state_manager().get_active_solution())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_minimal_solution(self, get_environment_path):
-        get_environment_path.return_value = CondaManager().get_active_environment_path()
+        get_environment_path.return_value = self.album_instance.environment_manager().get_conda_manager().get_active_environment_path()
         self.fake_install(self.get_test_solution_path("solution11_minimal.py"), create_environment=False)
 
         # this solution has no install() configured
@@ -111,7 +108,7 @@ class TestIntegrationRun(TestIntegrationCommon):
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_with_parent(self, get_environment_path):
-        get_environment_path.return_value = CondaManager().get_active_environment_path()
+        get_environment_path.return_value = self.album_instance.environment_manager().get_conda_manager().get_active_environment_path()
         # fake install what we need
         self.fake_install(self.get_test_solution_path("app1.py"), create_environment=False)
         self.fake_install(self.get_test_solution_path("solution1_app1.py"), create_environment=False)
@@ -134,11 +131,11 @@ class TestIntegrationRun(TestIntegrationCommon):
             self.assertEqual("solution1_app1_run", log[2])
             self.assertEqual("solution1_app1_close", log[3])
             self.assertEqual("app1_close", log[4])
-            self.assertIsNone(album.get_active_solution())
+            self.assertIsNone(self.album_instance.state_manager().get_active_solution())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_with_steps(self, get_environment_path):
-        get_environment_path.return_value = CondaManager().get_active_environment_path()
+        get_environment_path.return_value = self.album_instance.environment_manager().get_conda_manager().get_active_environment_path()
         # fake install what we need
         self.fake_install(self.get_test_solution_path("app1.py"), create_environment=False)
         self.fake_install(self.get_test_solution_path("solution3_noparent.py"), create_environment=False)
@@ -172,11 +169,11 @@ class TestIntegrationRun(TestIntegrationCommon):
             self.assertEqual("app1_close", log[9])
             self.assertEqual("solution3_noparent_run", log[10])
             self.assertEqual("solution3_noparent_close", log[11])
-            self.assertIsNone(album.get_active_solution())
+            self.assertIsNone(self.album_instance.state_manager().get_active_solution())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_with_grouped_steps(self, get_environment_path):
-        get_environment_path.return_value = CondaManager().get_active_environment_path()
+        get_environment_path.return_value = self.album_instance.environment_manager().get_conda_manager().get_active_environment_path()
         self.fake_install(self.get_test_solution_path("app1.py"), create_environment=False)
         self.fake_install(self.get_test_solution_path("app2.py"), create_environment=False)
         self.fake_install(self.get_test_solution_path("solution1_app1.py"), create_environment=False)
@@ -216,7 +213,7 @@ class TestIntegrationRun(TestIntegrationCommon):
             self.assertEqual("app2_close", log[15])
             self.assertEqual("solution3_noparent_run", log[16])
             self.assertEqual("solution3_noparent_close", log[17])
-            self.assertIsNone(album.get_active_solution())
+            self.assertIsNone(self.album_instance.state_manager().get_active_solution())
 
 
 if __name__ == '__main__':

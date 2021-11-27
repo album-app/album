@@ -1,17 +1,18 @@
 from distutils import util
 from pathlib import Path
+from typing import Optional
 
 from flask import Flask, request
 from werkzeug.exceptions import abort
 
 import album
-from album.api import Album
+from album.api.album_interface import AlbumInterface
+from album.api.task_interface import TaskInterface
 from album.core.concept.singleton import Singleton
-from album.core.controller.task_manager import TaskManager
-from album.runner.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.model.task import Task
 from album.runner import album_logging
+from album.runner.model.coordinates import Coordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -25,14 +26,10 @@ class AlbumServer(metaclass=Singleton):
     def __init__(self, port: int, host: str = None):
         self.port = port
         self.host = host
-        self.album_instance = None
+        self.album_instance: Optional[AlbumInterface] = None
 
-    def setup(self, album_instance: Album = None):
-        if album_instance:
-            self.album_instance = album_instance
-        else:
-            self.album_instance = Album()
-            self.album_instance.collection_manager().load_or_create_collection()
+    def setup(self, album_instance: AlbumInterface):
+        self.album_instance = album_instance
 
     def start(self, test_config=None):
         module_logger().info('Starting server..')
@@ -58,17 +55,16 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route("/config")
         def get_config():
             return {
-                "cache_base": str(self.album_instance.configuration().base_cache_path),
-                "cache_tmp_internal": str(self.album_instance.configuration().cache_path_tmp_internal),
-                "cache_tmp_user": str(self.album_instance.configuration().cache_path_tmp_user),
-                "cache_apps": str(self.album_instance.configuration().cache_path_app),
-                "cache_downloads": str(self.album_instance.configuration().cache_path_download)
+                "cache_base": str(self.album_instance.configuration().get_base_cache_path()),
+                "cache_tmp_internal": str(self.album_instance.configuration().get_cache_path_tmp_internal()),
+                "cache_tmp_user": str(self.album_instance.configuration().get_cache_path_tmp_user()),
+                "cache_apps": str(self.album_instance.configuration().get_cache_path_app()),
+                "cache_downloads": str(self.album_instance.configuration().get_cache_path_download())
             }
 
         @self.app.route("/index")
         def get_index():
             index_dict = self.album_instance.collection_manager().get_index_as_dict()
-            index_dict
             return index_dict
 
         @self.app.route("/catalogs")
@@ -78,7 +74,7 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route("/recently-launched")
         def get_recently_launched_solutions():
             solutions = []
-            for solution in self.album_instance.collection_manager().catalog_collection.get_recently_launched_solutions():
+            for solution in self.album_instance.collection_manager().get_collection_index().get_recently_launched_solutions():
                 solutions.append({
                     'setup': solution.setup,
                     'internal': solution.internal
@@ -88,7 +84,7 @@ class AlbumServer(metaclass=Singleton):
         @self.app.route("/recently-installed")
         def get_recently_installed_solutions():
             solutions = []
-            for solution in self.album_instance.collection_manager().catalog_collection.get_recently_installed_solutions():
+            for solution in self.album_instance.collection_manager().get_collection_index().get_recently_installed_solutions():
                 solutions.append({
                     'setup': solution.setup,
                     'internal': solution.internal
@@ -204,8 +200,8 @@ class AlbumServer(metaclass=Singleton):
         def status_solution(catalog, group, name, version):
             try:
                 collection_manager = self.album_instance.collection_manager()
-                catalog_id = collection_manager.catalog_handler.get_by_name(catalog).catalog_id
-                installed = collection_manager.catalog_collection.is_installed(
+                catalog_id = collection_manager.catalogs().get_by_name(catalog).catalog_id
+                installed = collection_manager.get_collection_index().is_installed(
                     catalog_id,
                     Coordinates(group, name, version)
                 )
@@ -281,7 +277,7 @@ class AlbumServer(metaclass=Singleton):
             func()
             return 'Server shutting down...'
 
-    def task_manager(self) -> TaskManager:
+    def task_manager(self) -> TaskInterface:
         return self.album_instance.task_manager()
 
     def _run_solution_method_async(self, catalog, group_name_version: Coordinates, method, args=None):

@@ -5,7 +5,6 @@ import sys
 import unittest
 
 from album.argument_parsing import main
-from album.core import load
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -27,7 +26,7 @@ class TestIntegrationSearch(TestIntegrationCommon):
 
     def test_search_filled_index(self):
         # populate tmp_index!
-        h = load(self.get_test_solution_path())
+        h = self.album_instance.state_manager().load(self.get_test_solution_path())
         h.setup.description = "keyword1"
         local_catalog = self.collection_manager.catalogs().get_local_catalog()
         self.collection_manager.add_solution_to_local_catalog(h, self.get_test_solution_path())
@@ -48,7 +47,7 @@ class TestIntegrationSearch(TestIntegrationCommon):
 
     def test_search_as_json(self):
         # populate tmp_index!
-        h = load(self.get_test_solution_path())
+        h = self.album_instance.state_manager().load(self.get_test_solution_path())
         h.setup.description = "keyword1"
         local_catalog = self.collection_manager.catalogs().get_local_catalog()
         self.collection_manager.add_solution_to_local_catalog(h, self.get_test_solution_path())

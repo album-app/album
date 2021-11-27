@@ -1,38 +1,19 @@
 import sys
 from pathlib import Path
 
-from album.core.concept.singleton import Singleton
+from album.api.config_interface import ConfigurationInterface
 from album.core.model.default_values import DefaultValues
-from album.runner.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import create_paths_recursively, force_remove, get_dict_from_json
 from album.runner import album_logging
+from album.runner.model.coordinates import Coordinates
 
 module_logger = album_logging.get_active_logger
 
 
-class Configuration(metaclass=Singleton):
-    """Configuration of the album framework installation instance.
-
-    This class manages the cache paths of the album framework installation instance.
-
-    Attributes:
-         base_cache_path:
-            The base path all other cache folder have as parent folder.
-         conda_executable:
-            The conda executable. Either a full path to a conda executable/binary or a command
-        cache_path_app:
-            Path for app solutions.
-        cache_path_download:
-            Path for downloads a solution makes.
-        cache_path_tmp_internal:
-            Path for solution specific temporary files of album.
-        cache_path_tmp_user:
-            Path for solution specific temporary files of the user.
-
-    """
+class Configuration(ConfigurationInterface):
 
     def __init__(self):
-        self.is_setup = False
+        self._is_setup = False
         self.base_cache_path = None
         self.conda_executable = None
         self.cache_path_app = None
@@ -41,10 +22,31 @@ class Configuration(metaclass=Singleton):
         self.cache_path_tmp_user = None
         self.catalog_collection_path = None
 
+    def get_base_cache_path(self):
+        return self.base_cache_path
+
+    def get_conda_executable(self):
+        return self.conda_executable
+
+    def get_cache_path_app(self):
+        return self.cache_path_app
+
+    def get_cache_path_download(self):
+        return self.cache_path_download
+
+    def get_cache_path_tmp_internal(self):
+        return self.cache_path_tmp_internal
+
+    def get_cache_path_tmp_user(self):
+        return self.cache_path_tmp_user
+
+    def is_setup(self):
+        return self._is_setup
+
     def setup(self, base_cache_path=None):
-        if self.is_setup:
+        if self._is_setup:
             raise RuntimeError("Configuration::setup was already called and should not be called twice.")
-        self.is_setup = True
+        self._is_setup = True
         # base root path where everything lives
         self.base_cache_path = DefaultValues.app_data_dir.value
         if base_cache_path:
@@ -72,7 +74,7 @@ class Configuration(metaclass=Singleton):
             ]
         )
 
-        self.empty_tmp()
+        self._empty_tmp()
 
     @staticmethod
     def _build_conda_executable(conda_path):
@@ -82,9 +84,7 @@ class Configuration(metaclass=Singleton):
         else:
             return str(Path(conda_path).joinpath("Scripts", "conda.exe"))
 
-    @staticmethod
-    def get_solution_path_suffix(coordinates: Coordinates) -> Path:
-        """Returns the suffix path for a solution giving its group, name and version"""
+    def get_solution_path_suffix(self, coordinates: Coordinates) -> Path:
         return Path("").joinpath(
             DefaultValues.cache_path_solution_prefix.value,
             coordinates.group,
@@ -93,18 +93,9 @@ class Configuration(metaclass=Singleton):
         )
 
     def get_cache_path_catalog(self, catalog_name):
-        """Get the cache path to the catalog with a certain ID. Catalog independent!
-
-        Args:
-            catalog_name: The ID of the album catalog
-
-        Returns: Path to local cache of a catalog identified by the ID
-
-        """
         return self.base_cache_path.joinpath(DefaultValues.catalog_folder_prefix.value, catalog_name)
 
     def get_catalog_collection_path(self):
-        """Returns the path of the collection database file."""
         collection_db_path = Path(self.catalog_collection_path).joinpath(
             DefaultValues.catalog_collection_db_name.value)
         return collection_db_path
@@ -123,20 +114,17 @@ class Configuration(metaclass=Singleton):
         )
 
     def get_initial_catalogs(self):
-        """Returns the catalogs initially added to the collection as a dict."""
         return {
             DefaultValues.local_catalog_name.value: self.get_cache_path_catalog(DefaultValues.local_catalog_name.value),
             DefaultValues.default_catalog_name.value: DefaultValues.default_catalog_src.value
         }
 
-    @staticmethod
-    def get_initial_catalogs_branch_name():
-        """Returns the default catalogs branches to use."""
+    def get_initial_catalogs_branch_name(self):
         return {
             DefaultValues.local_catalog_name.value: "main",
             DefaultValues.default_catalog_name.value: DefaultValues.default_catalog_src_branch.value
         }
 
-    def empty_tmp(self):
+    def _empty_tmp(self):
         """Removes the content of the tmp folder"""
         force_remove(self.cache_path_tmp_user)

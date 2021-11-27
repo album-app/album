@@ -4,12 +4,9 @@ from pathlib import Path
 
 from git import Repo
 
-from album.core import load
-from album.core.concept.singleton import Singleton
-from album.core.controller.collection.collection_manager import CollectionManager
-from album.core.controller.migration_manager import MigrationManager
+from album.api.album_interface import AlbumInterface
+from album.api.deploy_interface import DeployInterface
 from album.core.model.catalog import Catalog
-from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.utils.export.changelog import create_changelog_file, \
     process_changelog_file
@@ -24,59 +21,16 @@ from album.runner import album_logging, Solution
 module_logger = album_logging.get_active_logger
 
 
-class DeployManager(metaclass=Singleton):
-    """Class handling the deployment process.
+class DeployManager(DeployInterface):
 
-    During deployment, a solution file will be requested to be added to a catalog. This catalog must be configured or
-    specified in the solution file.
-    When deploying to a remote catalog, deployment happens via a merge request to the git repository of the catalog.
-    A deployment can also be requested to a catalog only existing locally.
-    In this case, no merge request will be created!
-
-    Attributes:
-        collection_manager:
-            Holding all configured catalogs.
-
-    Notes:
-        Git credentials required when deploying to a remote catalog!
-
-    """
-    # singletons
-    collection_manager = None
-
-    def __init__(self):
-        self.collection_manager = CollectionManager()
+    def __init__(self, album: AlbumInterface):
+        print(album)
+        self.album = album
 
     def deploy(self, deploy_path, catalog_name: str, dry_run: bool, push_option=None, git_email: str = None,
                git_name: str = None,
                force_deploy: bool = False, changelog: str = ""):
-        """Function corresponding to the `deploy` subcommand of `album`.
 
-        Generates the yml for a album and creates a merge request to the catalog only
-        including the yaml and solution file.
-
-        Args:
-            force_deploy:
-                Force overwrites a existing solution during deployment. Only for local catalogs.
-            deploy_path:
-                Path to a directory or a file.
-                If directory: Must contain "solution.py" file.
-            catalog_name:
-                The catalog to deploy to. Either specify via argument in deploy-call, via url in solution or use
-                default catalog.
-            dry_run:
-                When set, prepares deployment in local src of the catlog (creating zip, docker, yml),
-                but not adding to the catalog src.
-            push_option:
-                Push options for the catalog repository.
-            git_email:
-                The git email to use. (Default: systems git configuration)
-            git_name:
-                The git user to use. (Default: systems git configuration)
-            changelog:
-                The change associated with this version of a solution compared to the last version.
-
-        """
         if dry_run:
             module_logger().info('Pretending to deploy %s to %s...' % (deploy_path, catalog_name))
         else:
@@ -89,17 +43,17 @@ class DeployManager(metaclass=Singleton):
         else:
             path_to_solution = deploy_path
 
-        active_solution = load(path_to_solution)
+        active_solution = self.album.state_manager().load(path_to_solution)
         active_solution.setup.changelog = changelog
 
         # case catalog given
         if catalog_name:
-            catalog = self.collection_manager.catalogs().get_by_name(catalog_name)
+            catalog = self.album.collection_manager().catalogs().get_by_name(catalog_name)
 
         # case catalog in solution file specified
         # TODO: discuss this
         elif active_solution.setup.deploy and active_solution.setup.deploy["catalog"]:
-            catalog = self.collection_manager.catalogs().get_by_src(
+            catalog = self.album.collection_manager().catalogs().get_by_src(
                 active_solution.setup.deploy["catalog"]["src"]
             )
 
@@ -107,7 +61,7 @@ class DeployManager(metaclass=Singleton):
         else:
             raise RuntimeError("No catalog specified for deployment!")
 
-        MigrationManager().load_index(catalog)
+        self.album.migration_manager().load_index(catalog)
 
         process_changelog_file(catalog, active_solution, deploy_path)
 
@@ -148,10 +102,9 @@ class DeployManager(metaclass=Singleton):
         repo.close()
 
     def get_download_path(self, catalog: Catalog):
-        return Path(self.collection_manager.configuration.cache_path_download).joinpath(catalog.name)
+        return Path(self.album.configuration().get_cache_path_download()).joinpath(catalog.name)
 
-    @staticmethod
-    def _deploy_to_local_catalog(catalog: Catalog, active_solution: Solution, deploy_path, dry_run: bool,
+    def _deploy_to_local_catalog(self, catalog: Catalog, active_solution: Solution, deploy_path, dry_run: bool,
                                  force_deploy: bool):
         """Routine to deploy to a local catalog."""
         # check for cache catalog only
@@ -163,7 +116,7 @@ class DeployManager(metaclass=Singleton):
         active_solution.setup["timestamp"] = datetime.strftime(datetime.now(), '%Y-%m-%dT%H:%M:%S.%f')
 
         # check if catalog_local_src is empty
-        catalog_local_src_solution_path = DeployManager.get_absolute_prefix_path(
+        catalog_local_src_solution_path = self._get_absolute_prefix_path(
             catalog, catalog_local_src, active_solution
         )
         if catalog_local_src_solution_path.exists() and not folder_empty(catalog_local_src_solution_path):
@@ -179,7 +132,7 @@ class DeployManager(metaclass=Singleton):
             module_logger().info("Would add the solution %s to index..." % active_solution.coordinates.name)
 
         # include files/folders in catalog
-        zip_path, export = DeployManager._deploy_routine_in_local_src(catalog, catalog_local_src, active_solution,
+        zip_path, export = self._deploy_routine_in_local_src(catalog, catalog_local_src, active_solution,
                                                                       deploy_path)
 
         # copy to source
@@ -194,7 +147,7 @@ class DeployManager(metaclass=Singleton):
                 raise OSError("Deploy failed!")
 
             # refresh the local index of the catalog
-            MigrationManager().refresh_index(catalog)
+            self.album.migration_manager().refresh_index(catalog)
         else:
             module_logger().info(
                 "Would copy the index to src %s to %s..." % (catalog.index_path, catalog.src)
@@ -203,16 +156,15 @@ class DeployManager(metaclass=Singleton):
                 "Would refresh the index from src"
             )
 
-    @staticmethod
-    def _deploy_routine_in_local_src(catalog, catalog_local_src, active_solution, deploy_path):
+    def _deploy_routine_in_local_src(self, catalog, catalog_local_src, active_solution, deploy_path):
         """Performs all routines a deploy process needs to do locally.
 
         Returns:
             solution zip file and additional attachments.
 
         """
-        solution_zip = DeployManager._copy_and_zip(catalog, catalog_local_src, active_solution, deploy_path)
-        exports = DeployManager._attach_exports(catalog, catalog_local_src, active_solution, deploy_path)
+        solution_zip = self._copy_and_zip(catalog, catalog_local_src, active_solution, deploy_path)
+        exports = self._attach_exports(catalog, catalog_local_src, active_solution, deploy_path)
 
         return solution_zip, exports
 
@@ -265,19 +217,15 @@ class DeployManager(metaclass=Singleton):
             username=username
         )
 
-    @staticmethod
-    def _get_absolute_zip_path(catalog: Catalog, catalog_local_src: str, active_solution: Solution):
+    def _get_absolute_zip_path(self, catalog: Catalog, catalog_local_src: str, active_solution: Solution):
         """ Gets the absolute path to the zip."""
         return Path(catalog_local_src).joinpath(
-            catalog.get_solution_zip_suffix(
-                active_solution.coordinates
-            )
+            self.album.collection_manager().solutions().get_solution_zip_suffix(active_solution.coordinates)
         )
 
-    @staticmethod
-    def get_absolute_prefix_path(catalog: Catalog, catalog_local_src: str, active_solution: Solution):
+    def _get_absolute_prefix_path(self, catalog: Catalog, catalog_local_src: str, active_solution: Solution):
         return Path(catalog_local_src).joinpath(
-            catalog.get_solution_path(active_solution.coordinates)
+            self.album.collection_manager().solutions().get_solution_path(catalog, active_solution.coordinates)
         )
 
     @staticmethod
@@ -297,15 +245,15 @@ class DeployManager(metaclass=Singleton):
 
         return yaml_path
 
-    @staticmethod
-    def _copy_and_zip(catalog: Catalog, catalog_local_src: str, active_solution: Solution, folder_path) -> Path:
+
+    def _copy_and_zip(self, catalog: Catalog, catalog_local_src: str, active_solution: Solution, folder_path) -> Path:
         """Copies the deploy-file or -folder to the catalog repository.
 
         Returns:
             The path to the zip.
 
         """
-        zip_path = DeployManager._get_absolute_zip_path(catalog, catalog_local_src, active_solution)
+        zip_path = self._get_absolute_zip_path(catalog, catalog_local_src, active_solution)
         module_logger().debug('Creating zip file in: %s...' % str(zip_path))
 
         if folder_path.is_dir():
@@ -345,12 +293,11 @@ class DeployManager(metaclass=Singleton):
                     'Cannot find %s %s, proceeding without copying...' % (name, file_source_path.absolute()))
         return files
 
-    @staticmethod
-    def _attach_exports(catalog: Catalog, catalog_local_src: str, active_solution: Solution, deploy_path: Path):
+    def _attach_exports(self, catalog: Catalog, catalog_local_src: str, active_solution: Solution, deploy_path: Path):
         coordinates = active_solution.coordinates
 
         catalog_solution_local_src_path = Path(catalog_local_src).joinpath(
-            Configuration.get_solution_path_suffix(coordinates)
+            self.album.configuration().get_solution_path_suffix(coordinates)
         )
 
         res = []

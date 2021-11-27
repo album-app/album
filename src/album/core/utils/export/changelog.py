@@ -6,7 +6,8 @@ import keepachangelog
 from album.core.utils.operations.file_operations import create_path_recursively
 
 from album.core.model.catalog import Catalog
-from album.runner import Solution, get_active_logger
+from album.runner.model.solution import Solution
+from album.runner import get_active_logger
 
 
 def get_changelog_file_name():

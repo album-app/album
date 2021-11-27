@@ -3,9 +3,8 @@ import unittest
 from pathlib import Path
 
 from album.argument_parsing import main
-from album.core import Solution
+from album.runner.model.solution import Solution
 from album.core.controller.collection.catalog_handler import CatalogHandler
-from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.model.catalog_updates import ChangeType
 from album.core.utils.operations.solution_operations import get_deploy_dict
 from test.integration.test_integration_common import TestIntegrationCommon
@@ -19,7 +18,8 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
 
     def setUp(self):
         super().setUp()
-        self.catalog_configuration = CollectionManager().configuration
+        self.catalog_configuration = self.album_instance.configuration()
+        self.collection_manager = self.album_instance.collection_manager()
 
     def test_add_remove_catalog(self):
         # prepare
@@ -39,7 +39,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
-        catalogs = CollectionManager().catalog_collection.get_all_catalogs()
+        catalogs = self.collection_manager.catalog_collection.get_all_catalogs()
         catalog_cache_path_to_be_deleted = catalogs[-1]["path"]
         self.assertEqual(initial_len + 1, len(catalogs))
         self.assertEqual(somedir, catalogs[len(catalogs) - 1]["src"])
@@ -52,7 +52,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
-        catalogs = CollectionManager().catalog_collection.get_all_catalogs()
+        catalogs = self.collection_manager.catalog_collection.get_all_catalogs()
         self.assertEqual(initial_len, len(catalogs))
         for catalog in catalogs:
             self.assertIsNotNone(initial_catalogs.get(catalog["name"], None))
@@ -114,14 +114,14 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         self.assertEqual(0, len(dif[catalog.name].solution_changes))
 
     def test_update_upgrade(self):
-        initial_len = len(CollectionManager().catalog_collection.get_all_catalogs())  # has the two default catalogs
+        initial_len = len(self.collection_manager.catalog_collection.get_all_catalogs())  # has the two default catalogs
 
         # add catalog
         catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", "my-catalog")
         CatalogHandler.create_new_catalog(catalog_src, "my-catalog")
         catalog = self.collection_manager.catalogs().add_by_src(catalog_src)  # its emtpy
         # assert it got added
-        self.assertEqual(initial_len + 1, len(CollectionManager().catalog_collection.get_all_catalogs()))
+        self.assertEqual(initial_len + 1, len(self.collection_manager.catalog_collection.get_all_catalogs()))
 
         self.assertTrue(catalog.is_local())
         # check its empty
@@ -151,7 +151,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         # assert
-        solutions = CollectionManager().catalog_collection.get_solutions_by_catalog(catalog.catalog_id)
+        solutions = self.collection_manager.catalog_collection.get_solutions_by_catalog(catalog.catalog_id)
         self.assertEqual(1, len(solutions))
 
         # compare solution in collection to original solution

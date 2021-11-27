@@ -4,7 +4,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from album.argument_parsing import main
-from album.core.controller.conda_manager import CondaManager
 from album.core.model.default_values import DefaultValues
 from album.runner.model.coordinates import Coordinates
 from test.integration.test_integration_common import TestIntegrationCommon
@@ -18,7 +17,7 @@ class TestIntegrationInstall(TestIntegrationCommon):
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     @patch('album.core.controller.conda_manager.CondaManager.install')
     def test_install_minimal_solution(self, install, get_environment_path):
-        get_environment_path.return_value = CondaManager().get_active_environment_path()
+        get_environment_path.return_value = self.album_instance.environment_manager().get_conda_manager().get_active_environment_path()
 
         # this solution has no install() configured
 
@@ -82,10 +81,10 @@ class TestIntegrationInstall(TestIntegrationCommon):
         local_catalog = self.collection_manager.catalogs().get_local_catalog()
         local_catalog_name = str(local_catalog.name)
         leftover_env_name = local_catalog_name + "_group_faultySolution_0.1.0"
-        self.assertTrue(self.album.environment_manager().conda_manager.environment_exists(leftover_env_name))
+        self.assertTrue(self.album_instance.environment_manager().conda_manager.environment_exists(leftover_env_name))
 
         # check file is copied
-        local_file = local_catalog.get_solution_file(Coordinates("group", "faultySolution", "0.1.0"))
+        local_file = self.collection_manager.solutions().get_solution_file(local_catalog, Coordinates("group", "faultySolution", "0.1.0"))
         self.assertTrue(local_file.exists())
 
         # try to install smth. else (or the same, after routine is fixed)
@@ -95,7 +94,7 @@ class TestIntegrationInstall(TestIntegrationCommon):
 
         # check cleaned up
         self.assertFalse(local_file.exists())
-        self.assertFalse(self.album.environment_manager().conda_manager.environment_exists(leftover_env_name))
+        self.assertFalse(self.album_instance.environment_manager().conda_manager.environment_exists(leftover_env_name))
         self.assertEqual([], self.collection_manager.catalog_collection.get_unfinished_installation_solutions())
 
     def test_install_twice(self):
@@ -189,7 +188,7 @@ class TestIntegrationInstall(TestIntegrationCommon):
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     @patch('album.core.controller.conda_manager.CondaManager.environment_exists')
     def test_install_with_parent_with_parent(self, environment_exists, get_environment_path):
-        get_environment_path.return_value = CondaManager().get_active_environment_path()
+        get_environment_path.return_value = self.album_instance.environment_manager().get_conda_manager().get_active_environment_path()
         environment_exists.return_value = True
         # gather arguments
         sys.argv = ['', 'install', str(self.get_test_solution_path('app1.py'))]

@@ -1,37 +1,27 @@
 import operator
 
-from album.core.concept.singleton import Singleton
-from album.core.controller.collection.collection_manager import CollectionManager
+from album.api.album_interface import AlbumInterface
+from album.api.search_interface import SearchInterface
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
 
-class SearchManager(metaclass=Singleton):
-    """Class responsible for searching with keywords through all configured catalogs. Solutions must not be installed
-    to be findable in a search request.
+class SearchManager(SearchInterface):
 
-
-    """
-
-    def __init__(self):
-        self.catalog_collection = CollectionManager().catalog_collection
+    def __init__(self, album: AlbumInterface):
+        self.collection_manager = album.collection_manager()
 
     def search(self, keywords):
-        """Function corresponding to the `search` subcommand of `album`.
-
-        Searches through album catalogs to find closest matching solution.
-
-        """
         module_logger().debug("Searching with following arguments %s..." % ", ".join(keywords))
 
-        search_index = self.catalog_collection.get_all_solutions()
+        search_index = self.collection_manager.get_collection_index().get_all_solutions()
         match_score = {}
         for solution_entry in search_index:
             solution_attrs = solution_entry.setup
             group, name, version = solution_attrs['group'], solution_attrs["name"], solution_attrs["version"]
             catalog_id = solution_entry.internal["catalog_id"]
-            catalog_name = CollectionManager().catalogs().get_by_id(catalog_id).name
+            catalog_name = self.collection_manager.catalogs().get_by_id(catalog_id).name
             unique_id = ":".join([str(catalog_name), group, name, version])
 
             # todo: nice searching algorithm here

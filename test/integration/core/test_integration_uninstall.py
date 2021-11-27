@@ -3,9 +3,8 @@ import unittest
 from unittest.mock import patch
 
 from album.argument_parsing import main
-from album.core.controller.conda_manager import CondaManager
-from album.runner.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import create_path_recursively
+from album.runner.model.coordinates import Coordinates
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -16,7 +15,7 @@ class TestIntegrationUninstall(TestIntegrationCommon):
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_uninstall(self, get_environment_path):
-        get_environment_path.return_value = CondaManager().get_active_environment_path()
+        get_environment_path.return_value = self.album_instance.environment_manager().get_conda_manager().get_active_environment_path()
 
         self.assertEqual(
             0,
@@ -27,19 +26,19 @@ class TestIntegrationUninstall(TestIntegrationCommon):
         self.fake_install(self.get_test_solution_path(), create_environment=False)
 
         # lets assume solution had downloads, caches and apps
-        p = self.collection_manager.configuration.cache_path_tmp_internal.joinpath(
+        p = self.album_instance.configuration().get_cache_path_tmp_internal().joinpath(
             "catalog_local", "group", "name", "0.1.0", "a_cache_solution_file.txt"
         )
         create_path_recursively(p.parent)
         p.touch()
 
-        p = self.collection_manager.configuration.cache_path_download.joinpath(
+        p = self.album_instance.configuration().get_cache_path_download().joinpath(
             "catalog_local", "group", "name", "0.1.0", "a_cache_download_file.txt"
         )
         create_path_recursively(p.parent)
         p.touch()
 
-        p = self.collection_manager.configuration.cache_path_app.joinpath(
+        p = self.album_instance.configuration().get_cache_path_app().joinpath(
             "catalog_local", "group", "name", "0.1.0", "a_cache_app_file.txt"
         )
         create_path_recursively(p.parent)
@@ -53,31 +52,31 @@ class TestIntegrationUninstall(TestIntegrationCommon):
 
         # assert that solution is removed from the catalog
         self.assertIn("Uninstalled \"name\"", self.captured_output.getvalue())
-        solutions = self.collection_manager.catalog_collection.get_solutions_by_catalog(
+        solutions = self.collection_manager.get_collection_index().get_solutions_by_catalog(
             self.collection_manager.catalogs().get_local_catalog().catalog_id)
         self.assertEqual(1, len(solutions))
         self.assertEqual(0, solutions[0].internal["installed"])
 
         # assert that the correct paths are deleted
         self.assertFalse(
-            self.collection_manager.configuration.cache_path_tmp_internal.joinpath(
+            self.album_instance.configuration().get_cache_path_tmp_internal().joinpath(
                 "catalog_local", "group", "name", "0.1.0"
             ).exists()
         )
         self.assertFalse(
-            self.collection_manager.configuration.cache_path_download.joinpath(
+            self.album_instance.configuration().get_cache_path_download().joinpath(
                 "catalog_local", "group", "name", "0.1.0"
             ).exists()
         )
         self.assertFalse(
-            self.collection_manager.configuration.cache_path_app.joinpath(
+            self.album_instance.configuration().get_cache_path_app().joinpath(
                 "catalog_local", "group", "name", "0.1.0"
             ).exists()
         )
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_uninstall_with_routine(self, get_environment_path):
-        get_environment_path.return_value = CondaManager().get_active_environment_path()
+        get_environment_path.return_value = self.album_instance.environment_manager().get_conda_manager().get_active_environment_path()
 
         # create test environment
         p = self.get_test_solution_path("solution10_uninstall.py")

@@ -7,12 +7,10 @@ import validators
 from git import Repo
 
 from album.core.model.catalog_index import CatalogIndex
-from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import unzip_archive, copy, copy_folder, get_dict_from_json, \
-    write_dict_to_json, force_remove
+from album.core.utils.operations.file_operations import copy, copy_folder, write_dict_to_json, force_remove
 from album.core.utils.operations.git_operations import download_repository, init_repository
-from album.core.utils.operations.resolve_operations import get_zip_name, dict_to_coordinates
+from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.core.utils.operations.solution_operations import get_deploy_dict
 from album.core.utils.operations.url_operations import download_resource
 from album.runner import album_logging, Solution
@@ -105,7 +103,6 @@ class Catalog:
 
         self.solution_list_path = self.path.joinpath(DefaultValues.catalog_solution_list_file_name.value)
         self._meta_path = self.path.joinpath(DefaultValues.catalog_index_metafile_json.value)
-
         self.index_path = self.path.joinpath(DefaultValues.catalog_index_file_name.value)
 
     def __eq__(self, other):
@@ -126,133 +123,6 @@ class Catalog:
     def is_local(self):
         """Returns Boolean indicating whether the catalog is remote or local."""
         return not validators.url(str(self.src))
-
-    def resolve(self, coordinates: Coordinates):
-        """Resolves (also: finds, looks up) a solution in the catalog, returning the absolute path to the solution file.
-
-        Args:
-            coordinates:
-                The group affiliation, name, and version of the solution.
-
-        Returns: the path to the solution file.
-
-        """
-        solution_entry = self.catalog_index.get_solution_by_coordinates(coordinates)
-
-        if solution_entry:
-            path_to_solution = self.get_solution_file(coordinates)
-
-            return path_to_solution
-
-        return None  # could not resolve
-
-    def resolve_doi(self, doi):
-        """Resolves an album via doi. Returns the absolute path to the solution.
-
-        Args:
-            doi:
-                The doi of the solution
-
-        Returns:
-            Absolute path to the solution file.
-
-        """
-        solution_entry = self.catalog_index.get_solution_by_doi(doi)
-
-        if solution_entry:
-            path_to_solution = self.get_solution_file(
-                dict_to_coordinates(solution_entry)
-            )
-
-            return path_to_solution
-
-        return None  # could not resolve
-
-    def get_solution_path(self, coordinates: Coordinates):
-        """Gets the cache path of a solution given its group, name and version.
-
-        Args:
-            coordinates:
-                The group affiliation, name, and version of the solution.
-
-        Returns:
-            The absolute path to the cache folder of the solution.
-
-        """
-        return self.path.joinpath(Configuration.get_solution_path_suffix(coordinates))
-
-    def get_solution_file(self, coordinates: Coordinates):
-        """Gets the file to the solution.py file of the extracted solution.zip living inside the catalog.
-
-        Args:
-            coordinates:
-                The group affiliation, name, and version of the solution.
-
-        Returns:
-            The path where the file is supposed to be once the zip is extracted during installation.
-
-        """
-        p = self.get_solution_path(coordinates).joinpath(DefaultValues.solution_default_name.value)
-
-        return p
-
-    def get_solution_zip(self, coordinates: Coordinates):
-        """Gets the cache zip of a solution given its group, name and version living inside the catalog.
-
-        Args:
-            coordinates:
-                The group affiliation, name, and version of the solution.
-
-        Returns:
-            The absolute path to the solution.py cache file.
-
-        """
-        return self.get_solution_path(coordinates).joinpath(get_zip_name(coordinates))
-
-    @staticmethod
-    def get_solution_zip_suffix(coordinates: Coordinates):
-        """Gets the cache zip suffix of a solution given its group, name and version living inside the catalog.
-
-        Args:
-            coordinates:
-                The group affiliation, name, and version of the solution.
-
-        Returns:
-            The absolute path to the cache folder of the solution.
-
-        """
-        return Path("").joinpath(
-            Configuration.get_solution_path_suffix(coordinates),
-            get_zip_name(coordinates)
-        )
-
-    def retrieve_solution(self, coordinates: Coordinates):
-        """Downloads or copies a solution from the catalog to the local resource (cache path of the catalog).
-
-        Args:
-            coordinates:
-                The group affiliation, name, and version of the solution.
-        Returns:
-            The absolute path of the downloaded solution.
-
-        """
-        if self.is_cache():  # no src to download form or src to copy from
-            raise RuntimeError("Cannot download from a cache catalog!")
-
-        elif self.is_local():  # src to copy from
-            src_path = Path(self.src).joinpath(self.get_solution_zip_suffix(coordinates))
-            solution_zip_file = self.get_solution_zip(coordinates)
-            copy(src_path, solution_zip_file)
-
-        else:  # src to download from
-            url = get_solution_src(self.src, coordinates, self.branch_name)
-            solution_zip_file = self.get_solution_zip(coordinates)
-            download_resource(url, solution_zip_file)
-
-        solution_zip_path = unzip_archive(solution_zip_file)
-        solution_path = solution_zip_path.joinpath(DefaultValues.solution_default_name.value)
-
-        return solution_path
 
     def update_index_cache_if_possible(self):
         try:
@@ -292,22 +162,7 @@ class Catalog:
             self.dispose()
             # index got deleted in src so we do the same locally
             force_remove(self.index_path)
-
         return True
-
-    def get_version(self):
-        database_version = self.catalog_index.get_version()
-        meta_dict = Catalog.retrieve_catalog_meta_information(self.path, self.branch_name)
-        if meta_dict:
-            meta_version = meta_dict['version']
-        else:
-            raise ValueError("Catalog meta information cannot be found! Refresh the catalog!")
-
-        if database_version != meta_version:
-            raise ValueError(
-                f"Catalog meta information (version {meta_version}) unequal to actual version {database_version}!")
-
-        return database_version
 
     def add(self, active_solution: Solution, force_overwrite=False):
         """Adds an active solution_object to the index. Does not copy anything from A to B.
@@ -464,29 +319,6 @@ class Catalog:
 
             return repo
 
-    @staticmethod
-    def retrieve_catalog_meta_information(identifier, branch_name="main"):
-        if validators.url(str(identifier)):
-            _, meta_src = get_index_url(identifier, branch_name)
-            meta_file = download_resource(
-                meta_src, Configuration().cache_path_download.joinpath(DefaultValues.catalog_index_metafile_json.value)
-            )
-        elif Path(identifier).exists():
-            _, meta_src = get_index_dir(identifier)
-            if meta_src.exists():
-                meta_file = copy(
-                    meta_src,
-                    Configuration().cache_path_download.joinpath(DefaultValues.catalog_index_metafile_json.value)
-                )
-            else:
-                raise FileNotFoundError("Cannot retrieve meta information for the catalog!")
-        else:
-            raise RuntimeError("Cannot retrieve meta information for the catalog!")
-
-        meta_dict = get_dict_from_json(meta_file)
-
-        return meta_dict
-
     def write_catalog_meta_information(self):
         d = self.get_meta_information()
         write_dict_to_json(self._meta_path, d)
@@ -503,3 +335,7 @@ class Catalog:
         for version in versions:
             res.append(Solution(attrs=version))
         return res
+
+    def load_index(self):
+        self.catalog_index = CatalogIndex(self.name, self.index_path)
+

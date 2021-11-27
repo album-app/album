@@ -1,7 +1,7 @@
-from album.core import Solution
 from album.core.model.catalog import Catalog
 from album.core.model.collection_index import CollectionIndex
 from album.runner.model.coordinates import Coordinates
+from album.runner.model.solution import Solution
 
 
 class ResolveResult:

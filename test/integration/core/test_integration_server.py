@@ -6,13 +6,12 @@ from unittest.mock import patch
 
 import flask_unittest
 
-from album.core.controller.conda_manager import CondaManager
-from album.runner.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.model.task import Task
 from album.core.server import AlbumServer
 from album.runner import album_logging
 from album.runner.album_logging import LogLevel
+from album.runner.model.coordinates import Coordinates
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -70,7 +69,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
             f"/clone/template:catalog?target_dir={urllib.parse.quote(local_catalogs)}&name={local_catalog_name}"
         )
         self.assertEqual(200, res_clone_catalog.status_code)
-        self._finish_taskmanager_with_timeout(self.server.task_manager(), 30)
+        self._finish_taskmanager_with_timeout(self.album_instance.task_manager(), 30)
         self.assertCatalogPresence(
             self.get_album().collection_manager().catalogs().get_all(), local_catalog_path, False
         )
@@ -107,7 +106,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
             f"={urllib.parse.quote(str(solution_target_dir))}&name={solution_target_name}"
         )
         self.assertEqual(200, res_clone_solution.status_code)
-        self._finish_taskmanager_with_timeout(self.server.task_manager(), 30)
+        self._finish_taskmanager_with_timeout(self.album_instance.task_manager(), 30)
 
         self.assertTrue(solution_target_dir.exists())
         self.assertTrue(solution_target_dir.joinpath(solution_target_name).exists())
@@ -120,7 +119,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         self.assertIsNotNone(res_deploy.json)
         self.assertIsNotNone(res_deploy.json["id"])
 
-        self._finish_taskmanager_with_timeout(self.server.task_manager(), 30)
+        self._finish_taskmanager_with_timeout(self.album_instance.task_manager(), 30)
 
         # update catalog cache
         res_update_catalog = client.get("/update?src=" + urllib.parse.quote(str(local_catalog_path)))
@@ -142,11 +141,11 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         self.assertIsNotNone(res_install.json)
         self.assertIsNotNone(res_deploy.json["id"])
 
-        self._finish_taskmanager_with_timeout(self.server.task_manager(), 600)
+        self._finish_taskmanager_with_timeout(self.album_instance.task_manager(), 600)
 
         # check that solution is installed
         self.assertTrue(
-            self.get_album().collection_manager().catalog_collection.is_installed(catalog_id,
+            self.get_album().collection_manager().get_collection_index().is_installed(catalog_id,
                                                                                   Coordinates(group, name, version))
         )
         res_status = client.get(f'/status/{local_catalog_name}/{group}/{name}/{version}')
@@ -171,17 +170,17 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         self.assertIsNotNone(task_run_id)
         self.assertIsNotNone(task_test_id)
 
-        self.assertTrue(self.server.task_manager().server_queue.unfinished_tasks)
+        self.assertTrue(self.album_instance.task_manager().server_queue.unfinished_tasks)
 
         # wait for completion of tasks
-        self._finish_taskmanager_with_timeout(self.server.task_manager(), 30)
+        self._finish_taskmanager_with_timeout(self.album_instance.task_manager(), 30)
 
-        self.assertEqual(Task.Status.FINISHED, self.server.task_manager().get_task(task_run_id).status)
-        self.assertEqual(Task.Status.FINISHED, self.server.task_manager().get_task(task_test_id).status)
+        self.assertEqual(Task.Status.FINISHED, self.album_instance.task_manager().get_task(task_run_id).status)
+        self.assertEqual(Task.Status.FINISHED, self.album_instance.task_manager().get_task(task_test_id).status)
 
         # check that tasks were executed properly
-        run_logs = self.server.task_manager().get_task(task_run_id).log_handler
-        test_logs = self.server.task_manager().get_task(task_test_id).log_handler
+        run_logs = self.album_instance.task_manager().get_task(task_run_id).log_handler
+        test_logs = self.album_instance.task_manager().get_task(task_test_id).log_handler
         self.assertIsNotNone(run_logs)
         self.assertIsNotNone(test_logs)
         self.assertTrue(len(run_logs.records) > 0)
@@ -209,7 +208,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_server_add_solution(self, client, get_environment_path):
-        get_environment_path.return_value = CondaManager().get_active_environment_path()
+        get_environment_path.return_value = self.album_instance.environment_manager().get_conda_manager().get_active_environment_path()
         solution_path = self.get_test_solution_path("solution9_throws_exception.py")
         solution = self.fake_install(solution_path, create_environment=False)
 
@@ -220,9 +219,9 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         self.assertEqual("0", task_run_id)
 
         # wait for completion of tasks
-        self._finish_taskmanager_with_timeout(self.server.task_manager(), 30)
+        self._finish_taskmanager_with_timeout(self.album_instance.task_manager(), 30)
 
-        self.assertEqual(Task.Status.FAILED, self.server.task_manager().get_task(task_run_id).status)
+        self.assertEqual(Task.Status.FAILED, self.album_instance.task_manager().get_task(task_run_id).status)
         res_status = client.get(f'/status/{task_run_id}')
         self.assertEqual(200, res_status.status_code)
         self.assertIsNotNone(res_status.json)

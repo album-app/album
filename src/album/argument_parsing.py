@@ -3,7 +3,8 @@ import sys
 import traceback
 
 import album
-from album.api import Album
+
+from album.api.album import Album
 from album.core.commandline import add_catalog, remove_catalog, deploy, \
     install, repl, run, search, start_server, test, update, clone, upgrade, index, uninstall, info
 from album.runner.album_logging import debug_settings, get_active_logger, set_loglevel, LogLevel, to_loglevel
@@ -39,7 +40,7 @@ def _capture_output():
 
 
 def _handle_exception(e):
-    get_active_logger().error('album command failed:')
+    get_active_logger().error('album command failed: %s' % str(e))
     get_active_logger().debug(traceback.format_exc())
     sys.exit(e)
 
@@ -55,12 +56,18 @@ def __run_subcommand(args, parser):
     sys.argv = [sys.argv[0]] + args[1]
 
     # Makes sure album is initialized.
-    Album().collection_manager().load_or_create_collection()
+    album_instance = create_album_instance()
+    album_instance.collection_manager().load_or_create_collection()
 
     try:
-        args[0].func(args[0])  # execute entry point function
+        args[0].func(album_instance, args[0])  # execute entry point function
     except Exception as e:
         _handle_exception(e)
+
+
+def create_album_instance():
+    album = Album()
+    return album
 
 
 def create_parser():

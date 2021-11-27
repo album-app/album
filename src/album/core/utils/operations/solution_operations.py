@@ -2,30 +2,14 @@ import copy
 import hashlib
 import json
 from datetime import date, time
-from pathlib import Path
 from typing import Optional
 
-from album.core.utils.operations.file_operations import force_remove
-
-from album.core.model.configuration import Configuration
 from album.core.model.environment import Environment
+from album.core.utils.operations.file_operations import force_remove
 from album.runner import album_logging
 from album.runner.model.solution import Solution
 
 module_logger = album_logging.get_active_logger
-
-
-def set_cache_paths(solution: Solution, catalog):
-    """Sets the available cache paths of the solution object, given its catalog_name (where it lives)."""
-
-    # Note: cache paths need the catalog the solution lives in - otherwise there might be problems with solutions
-    # of different catalogs doing similar operations (e.g. downloads) as they might share the same cache path.
-    path_suffix = Path("").joinpath(solution.coordinates.group, solution.coordinates.name, solution.coordinates.version)
-    solution.installation.data_path = Configuration().cache_path_download.joinpath(str(catalog.name), path_suffix)
-    solution.installation.app_path = Configuration().cache_path_app.joinpath(str(catalog.name), path_suffix)
-    solution.installation.package_path = catalog.get_solution_path(solution.coordinates)
-    solution.installation.internal_cache_path = Configuration().cache_path_tmp_internal.joinpath(str(catalog.name), path_suffix)
-    solution.installation.user_cache_path = Configuration().cache_path_tmp_user.joinpath(str(catalog.name), path_suffix)
 
 
 def remove_disc_content_from_solution(solution: Solution):

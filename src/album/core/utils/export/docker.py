@@ -4,7 +4,8 @@ from pathlib import Path
 import album
 from album.core.utils.operations.file_operations import copy_in_file
 from album.core.utils.operations.resolve_operations import get_zip_name
-from album.runner import Solution, get_active_logger
+from album.runner.model.solution import Solution
+from album.runner import get_active_logger
 
 
 def create_docker_file(active_solution: Solution, target_folder: Path) -> Path:

@@ -4,64 +4,49 @@ from typing import List, Optional, Dict
 
 import validators
 
-from album.core.controller.collection.solution_handler import SolutionHandler
-from album.core.controller.migration_manager import MigrationManager
-from album.core.model.catalog import Catalog
+from album.api.album_interface import AlbumInterface
+from album.api.collection.catalog_interface import CatalogInterface
+from album.core.model.catalog import Catalog, get_index_url, get_index_dir
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.catalog_updates import CatalogUpdates, SolutionChange, ChangeType
 from album.core.model.collection_index import CollectionIndex
-from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import force_remove
+from album.core.utils.operations.file_operations import force_remove, copy, get_dict_from_json
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
+from album.core.utils.operations.url_operations import download_resource
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
 
-class CatalogHandler:
+class CatalogHandler(CatalogInterface):
     """Helper class responsible for catalog handling."""
-    # singletons
-    migration_manager = None
 
-    def __init__(self, configuration: Configuration, collection: CollectionIndex, solution_handler: SolutionHandler):
-        self.catalog_collection = collection
-        self.configuration = configuration
-        self.solution_handler = solution_handler
-        self.migration_manager = MigrationManager()
+    def __init__(self, album: AlbumInterface):
+        self.album = album
 
     def create_local_catalog(self):
-        """Creates the local catalog on the disk from the available initial catalogs.
-
-         Does not contain a DB file. Used only when album starts the first time.
-
-         """
-        initial_catalogs = self.configuration.get_initial_catalogs()
+        initial_catalogs = self.album.configuration().get_initial_catalogs()
         name = DefaultValues.local_catalog_name.value
         local_path = initial_catalogs[name]
         self.create_new_catalog(local_path, name)
 
     def add_initial_catalogs(self):
-        """Adds the initial catalogs to the catalog_collection.
-
-        Copies/downloads them from their src to their local cache. (Except local_catalog)
-
-        """
-        initial_catalogs = self.configuration.get_initial_catalogs()
-        initial_catalogs_branch_name = self.configuration.get_initial_catalogs_branch_name()
+        self.create_local_catalog()
+        initial_catalogs = self.album.configuration().get_initial_catalogs()
+        initial_catalogs_branch_name = self.album.configuration().get_initial_catalogs_branch_name()
         for catalog in initial_catalogs.keys():
             self.add_by_src(initial_catalogs[catalog], initial_catalogs_branch_name[catalog]).dispose()
 
     def add_by_src(self, identifier, branch_name="main") -> Catalog:
-        """ Adds a catalog. Creates them from their src. (Git, network-drive, folder outside cache, etc.)"""
-        catalog_meta_information = Catalog.retrieve_catalog_meta_information(identifier, branch_name)
+        catalog_meta_information = self._retrieve_catalog_meta_information(identifier, branch_name)
 
         catalog = self._create_catalog_from_src(identifier, catalog_meta_information, branch_name)
 
         # always keep the local copy up to date
         if not catalog.is_cache():
             catalog_meta_information = catalog_meta_information
-            self.migration_manager.migrate_catalog_index_db(
+            self.album.migration_manager().migrate_catalog_index_db(
                 catalog.index_path,  # the path to the catalog
                 catalog_meta_information["version"],  # eventually outdated remote version
                 CatalogIndex.version  # current version in the library
@@ -69,22 +54,13 @@ class CatalogHandler:
 
         self._add_to_index(catalog)
         self._create_catalog_cache_if_missing(catalog)
-        self.migration_manager.load_index(catalog)
+        self.album.migration_manager().load_index(catalog)
 
         module_logger().info('Added catalog %s!' % identifier)
         return catalog
 
     def _add_to_index(self, catalog: Catalog) -> int:
-        """ Adds a catalog to the collection index.
-
-        Args:
-            catalog: The catalog object
-
-        Returns:
-            The database ID of the catalog.
-
-        """
-        catalog.catalog_id = self.catalog_collection.insert_catalog(
+        catalog.catalog_id = self.album.collection_manager().get_collection_index().insert_catalog(
             catalog.name,
             str(catalog.src),
             str(catalog.path),
@@ -94,37 +70,33 @@ class CatalogHandler:
         return catalog.catalog_id
 
     def get_by_id(self, catalog_id) -> Catalog:
-        """Looks up a catalog by its id and returns it."""
-        catalog = self.catalog_collection.get_catalog(catalog_id)
+        catalog = self.album.collection_manager().get_collection_index().get_catalog(catalog_id)
         if not catalog:
             raise LookupError("Catalog with id \"%s\" not configured!" % catalog_id)
         return self._as_catalog(catalog)
 
     def get_by_src(self, src) -> Catalog:
-        """Returns the catalog object of a given url if configured."""
-        catalog_dict = self.catalog_collection.get_catalog_by_src(src)
+        catalog_dict = self.album.collection_manager().get_collection_index().get_catalog_by_src(src)
         if not catalog_dict:
             raise LookupError("Catalog with src \"%s\" not configured!" % src)
         return self._as_catalog(catalog_dict)
 
     def get_by_name(self, name) -> Catalog:
         """Looks up a catalog by its id and returns it."""
-        catalog_dict = self.catalog_collection.get_catalog_by_name(name)
+        catalog_dict = self.album.collection_manager().get_collection_index().get_catalog_by_name(name)
         if not catalog_dict:
             raise LookupError("Catalog with name \"%s\" not configured!" % name)
         return self._as_catalog(catalog_dict)
 
     def get_by_path(self, path) -> Catalog:
-        """Looks up a catalog by its id and returns it."""
-        catalog_dict = self.catalog_collection.get_catalog_by_path(path)
+        catalog_dict = self.album.collection_manager().get_collection_index().get_catalog_by_path(path)
         if not catalog_dict:
             raise LookupError("Catalog with path \"%s\" not configured!" % path)
         return self._as_catalog(catalog_dict)
 
     def get_all(self) -> List[Catalog]:
-        """Creates the catalog objects from the catalogs specified in the configuration."""
         catalogs = []
-        catalog_list = self.catalog_collection.get_all_catalogs()
+        catalog_list = self.album.collection_manager().get_collection_index().get_all_catalogs()
 
         for catalog_entry in catalog_list:
             catalogs.append(self._as_catalog(catalog_entry))
@@ -132,7 +104,6 @@ class CatalogHandler:
         return catalogs
 
     def get_local_catalog(self) -> Catalog:
-        """Returns the first local catalog in the configuration (Reads db table from top)."""
         local_catalog = None
         for catalog in self.get_all():
             if catalog.is_local:
@@ -144,6 +115,9 @@ class CatalogHandler:
 
         return local_catalog
 
+    def create_new(self, local_path, name):
+        CatalogHandler.create_new_catalog(local_path, name)
+
     @staticmethod
     def create_new_catalog(local_path, name):
         """Creates the meta-file for a new catalog on the disk."""
@@ -153,18 +127,16 @@ class CatalogHandler:
             meta.writelines("{\"name\": \"" + name + "\", \"version\": \"" + CatalogIndex.version + "\"}")
 
     def _update(self, catalog: Catalog) -> bool:
-        r = self.migration_manager.refresh_index(catalog)
+        r = self.album.migration_manager().refresh_index(catalog)
         module_logger().info('Updated catalog %s!' % catalog.name)
         return r
 
     def update_by_name(self, catalog_name) -> bool:
-        """Updates a catalog by its name."""
         catalog = self.get_by_name(catalog_name)
 
         return self._update(catalog)
 
     def update_all(self) -> List[bool]:
-        """Updates all available catalogs"""
         catalog_r = []
         for catalog in self.get_all():
             try:
@@ -178,14 +150,12 @@ class CatalogHandler:
         return catalog_r
 
     def update_any(self, catalog_name=None):
-        """Updates either all catalogs or one by its name."""
         if catalog_name:
             self.update_by_name(catalog_name)
         else:
             self.update_all()
 
     def update_collection(self, catalog_name=None, dry_run: bool = False) -> Dict[str, CatalogUpdates]:
-        """Includes all new changes from a given catalog (or all catalogs) in the catalog_collection."""
         if dry_run:
             if catalog_name:
                 return {catalog_name: self._get_divergence_between_catalog_and_collection(catalog_name)}
@@ -208,7 +178,7 @@ class CatalogHandler:
             return None
 
         # todo: check for installed solutions and or parents! and fail
-        self.catalog_collection.remove_catalog(catalog_to_remove.catalog_id)
+        self.album.collection_manager().get_collection_index().remove_catalog(catalog_to_remove.catalog_id)
 
         force_remove(catalog_to_remove.path)
 
@@ -217,12 +187,7 @@ class CatalogHandler:
         return catalog_to_remove
 
     def remove_from_collection_by_path(self, path) -> Optional[Catalog]:
-        """Removes a catalog given by its path from the catalog_collection.
-
-        Thereby deleting all its entries from the collection.
-
-        """
-        catalog_dict = self.catalog_collection.get_catalog_by_path(path)
+        catalog_dict = self.album.collection_manager().get_collection_index().get_catalog_by_path(path)
 
         if not catalog_dict:
             module_logger().warning("Cannot remove catalog, catalog with path %s not found!" % str(path))
@@ -235,8 +200,7 @@ class CatalogHandler:
         return catalog_to_remove
 
     def remove_from_collection_by_name(self, name) -> Optional[Catalog]:
-        """Removes a catalog given its name from the catalog_collection."""
-        catalog_dict = self.catalog_collection.get_catalog_by_name(name)
+        catalog_dict = self.album.collection_manager().get_collection_index().get_catalog_by_name(name)
 
         if not catalog_dict:
             module_logger().warning("Cannot remove catalog, catalog with name \"%s\", not found!" % str(name))
@@ -249,8 +213,6 @@ class CatalogHandler:
         return catalog_to_remove
 
     def remove_from_collection_by_src(self, src) -> Optional[Catalog]:
-        """Removes a catalog given its src from the catalog_collection."""
-
         if not validators.url(str(src)):
             if Path(src).exists():
                 src = os.path.abspath(src)
@@ -258,7 +220,7 @@ class CatalogHandler:
                 module_logger().warning("Cannot remove catalog with source \"%s\"! Not configured!" % str(src))
                 return None
 
-        catalog_dict = self.catalog_collection.get_catalog_by_src(src)
+        catalog_dict = self.album.collection_manager().get_collection_index().get_catalog_by_src(src)
 
         if not catalog_dict:
             module_logger().warning("Cannot remove catalog with source \"%s\"! Not configured!" % str(src))
@@ -271,18 +233,54 @@ class CatalogHandler:
         return catalog_to_remove
 
     def get_all_as_dict(self) -> dict:
-        """Get all catalogs as dictionary."""
         return {
-            "catalogs": self.catalog_collection.get_all_catalogs()
+            "catalogs": self.album.collection_manager().get_collection_index().get_all_catalogs()
         }
+
+    def set_version(self, catalog: Catalog):
+        database_version = catalog.catalog_index.get_version()
+        meta_dict = self._retrieve_catalog_meta_information(catalog.path, catalog.branch_name)
+        if meta_dict:
+            meta_version = meta_dict['version']
+        else:
+            raise ValueError("Catalog meta information cannot be found! Refresh the catalog!")
+
+        if database_version != meta_version:
+            raise ValueError(
+                f"Catalog meta information (version {meta_version}) unequal to actual version {database_version}!")
+
+        catalog.version = database_version
+        return database_version
+
+    def _retrieve_catalog_meta_information(self, identifier, branch_name="main"):
+        if validators.url(str(identifier)):
+            _, meta_src = get_index_url(identifier, branch_name)
+            meta_file = download_resource(
+                meta_src, self.album.configuration().get_cache_path_download().joinpath(DefaultValues.catalog_index_metafile_json.value)
+            )
+        elif Path(identifier).exists():
+            _, meta_src = get_index_dir(identifier)
+            if meta_src.exists():
+                meta_file = copy(
+                    meta_src,
+                    self.album.configuration().get_cache_path_download().joinpath(DefaultValues.catalog_index_metafile_json.value)
+                )
+            else:
+                raise FileNotFoundError("Cannot retrieve meta information for the catalog!")
+        else:
+            raise RuntimeError("Cannot retrieve meta information for the catalog!")
+
+        meta_dict = get_dict_from_json(meta_file)
+
+        return meta_dict
 
     def _create_catalog_from_src(self, src, catalog_meta_information=None, branch_name="main") -> Catalog:
         """Creates the local cache path for a catalog given its src. (Network drive, git-link, etc.)"""
         if not catalog_meta_information:
-            catalog_meta_information = Catalog.retrieve_catalog_meta_information(src, branch_name)
+            catalog_meta_information = CatalogHandler._retrieve_catalog_meta_information(src, branch_name)
 
         # the path where the catalog lives based on its metadata
-        catalog_path = self.configuration.get_cache_path_catalog(catalog_meta_information["name"])
+        catalog_path = self.album.configuration().get_cache_path_catalog(catalog_meta_information["name"])
 
         catalog = Catalog(None, catalog_meta_information["name"], catalog_path, src=src, branch_name=branch_name)
 
@@ -315,8 +313,8 @@ class CatalogHandler:
             # cache catalog is always up to date since src and path are the same
             return res
 
-        solutions_in_collection = self.catalog_collection.get_solutions_by_catalog(catalog.catalog_id)
-        self.migration_manager.load_index(catalog)
+        solutions_in_collection = self.album.collection_manager().get_collection_index().get_solutions_by_catalog(catalog.catalog_id)
+        self.album.migration_manager().load_index(catalog)
         solutions_in_catalog = catalog.catalog_index.get_all_solutions()
         res.solution_changes = self._compare_solutions(solutions_in_collection, solutions_in_catalog)
 
@@ -332,7 +330,7 @@ class CatalogHandler:
         divergence = self._get_divergence_between_catalog_and_collection(catalog_name)
         # TODO apply changes to catalog attributes
         for change in divergence.solution_changes:
-            self.solution_handler.apply_change(divergence.catalog, change)
+            self.album.collection_manager().solutions().apply_change(divergence.catalog, change)
         return divergence
 
     @staticmethod

@@ -4,8 +4,6 @@ from pathlib import Path
 
 from album.ci.argument_parsing import main
 from album.ci.controller.release_manager import ReleaseManager
-from album.core.controller.collection.collection_manager import CollectionManager
-from album.core.controller.deploy_manager import DeployManager
 from album.core.model.catalog import Catalog
 from album.core.utils.operations.file_operations import copy_folder
 from test.integration.test_integration_common import TestIntegrationCommon
@@ -25,9 +23,9 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
     def fake_deploy(self):
         self._catalog = Catalog(None, name=self.name, path=self.path, src=self.src)
 
-        CollectionManager().catalogs()._add_to_index(self._catalog)
+        self.album_instance.collection_manager().catalogs()._add_to_index(self._catalog)
 
-        deploy_manager = DeployManager()
+        deploy_manager = self.album_instance.deploy_manager()
         deploy_manager.deploy(
             deploy_path=self.get_test_solution_path(),
             catalog_name=self.name,

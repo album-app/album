@@ -1,36 +1,41 @@
 from datetime import datetime
+from pathlib import Path
 
-from album.core import Solution
-from album.core.model.catalog import Catalog
+from album.api.album_interface import AlbumInterface
+from album.api.collection.solution_interface import SolutionInterface
+from album.core.model.catalog import Catalog, get_solution_src
 from album.core.model.catalog_updates import ChangeType, SolutionChange
 from album.core.model.collection_index import CollectionIndex
-from album.core.utils.operations.file_operations import copy_folder
-from album.core.utils.operations.resolve_operations import dict_to_coordinates
+from album.core.model.default_values import DefaultValues
+from album.core.utils.operations.file_operations import copy_folder, copy, unzip_archive
+from album.core.utils.operations.resolve_operations import dict_to_coordinates, get_zip_name
 from album.core.utils.operations.solution_operations import get_deploy_dict
+from album.core.utils.operations.url_operations import download_resource
 from album.runner import album_logging
 from album.runner.model.coordinates import Coordinates
+from album.runner.model.solution import Solution
 
 module_logger = album_logging.get_active_logger
 
 
-class SolutionHandler:
+class SolutionHandler(SolutionInterface):
     """Handles everything inside the Collection responsible for a solution entry.
 
     Is NOT responsible for resolving paths as this is part of a catalog.
     """
 
-    def __init__(self, collection: CollectionIndex):
-        self.catalog_collection = collection
+    def __init__(self, album: AlbumInterface):
+        self.album = album
 
     def add_or_replace(self, catalog: Catalog, active_solution: Solution, path):
         deploy_dict = get_deploy_dict(active_solution)
-        self.catalog_collection.add_or_replace_solution(
+        self.album.collection_manager().get_collection_index().add_or_replace_solution(
             catalog.catalog_id,
             active_solution.coordinates,
             deploy_dict
         )
         # get the install location
-        install_location = catalog.get_solution_path(dict_to_coordinates(deploy_dict))
+        install_location = self.get_solution_path(catalog, dict_to_coordinates(deploy_dict))
 
         copy_folder(path, install_location, copy_root_folder=False)
 
@@ -38,15 +43,15 @@ class SolutionHandler:
                    coordinates_child: Coordinates):
 
         # retrieve parent entry
-        parent_entry = self.catalog_collection.get_solution_by_catalog_grp_name_version(
+        parent_entry = self.album.collection_manager().get_collection_index().get_solution_by_catalog_grp_name_version(
             catalog_parent.catalog_id, coordinates_parent, close=False
         )
         # retrieve child entry
-        child_entry = self.catalog_collection.get_solution_by_catalog_grp_name_version(
+        child_entry = self.album.collection_manager().get_collection_index().get_solution_by_catalog_grp_name_version(
             catalog_child.catalog_id, coordinates_child, close=False
         )
 
-        self.catalog_collection.insert_collection_collection(
+        self.album.collection_manager().get_collection_index().insert_collection_collection(
             parent_entry.internal["collection_id"],
             child_entry.internal["collection_id"],
             catalog_parent.catalog_id,
@@ -54,16 +59,16 @@ class SolutionHandler:
         )
 
     def remove_solution(self, catalog: Catalog, coordinates: Coordinates):
-        self.catalog_collection.remove_solution(catalog.catalog_id, coordinates)
+        self.album.collection_manager().get_collection_index().remove_solution(catalog.catalog_id, coordinates)
 
     def update_solution(self, catalog: Catalog, coordinates: Coordinates, attrs):
-        self.catalog_collection.update_solution(catalog.catalog_id, coordinates, attrs,
+        self.album.collection_manager().get_collection_index().update_solution(catalog.catalog_id, coordinates, attrs,
                                                 CollectionIndex.get_collection_column_keys())
 
     def apply_change(self, catalog, change: SolutionChange):
         # FIXME handle other tables (tags etc)
         if change.change_type is ChangeType.ADDED:
-            self.catalog_collection.add_or_replace_solution(
+            self.album.collection_manager().get_collection_index().add_or_replace_solution(
                 catalog.catalog_id,
                 change.coordinates,
                 catalog.catalog_index.get_solution_by_coordinates(change.coordinates)
@@ -74,7 +79,7 @@ class SolutionHandler:
 
         elif change.change_type is ChangeType.CHANGED:
             self.remove_solution(catalog, change.coordinates)
-            self.catalog_collection.add_or_replace_solution(
+            self.album.collection_manager().get_collection_index().add_or_replace_solution(
                 catalog.catalog_id,
                 change.coordinates,
                 catalog.catalog_index.get_solution_by_coordinates(change.coordinates)
@@ -94,4 +99,50 @@ class SolutionHandler:
         self.update_solution(catalog, coordinates, {"installed": 0, "installation_unfinished": 1})
 
     def is_installed(self, catalog: Catalog, coordinates: Coordinates) -> bool:
-        return self.catalog_collection.is_installed(catalog.catalog_id, coordinates)
+        return self.album.collection_manager().get_collection_index().is_installed(catalog.catalog_id, coordinates)
+
+    def get_solution_path(self, catalog: Catalog, coordinates: Coordinates):
+        return catalog.path.joinpath(self.album.configuration().get_solution_path_suffix(coordinates))
+
+    def get_solution_file(self, catalog: Catalog, coordinates: Coordinates):
+        p = self.get_solution_path(catalog, coordinates).joinpath(DefaultValues.solution_default_name.value)
+
+        return p
+
+    def get_solution_zip(self, catalog: Catalog, coordinates: Coordinates):
+        return self.get_solution_path(catalog, coordinates).joinpath(get_zip_name(coordinates))
+
+    def get_solution_zip_suffix(self, coordinates: Coordinates):
+        return Path("").joinpath(
+            self.album.configuration().get_solution_path_suffix(coordinates),
+            get_zip_name(coordinates)
+        )
+
+    def retrieve_solution(self, catalog: Catalog, coordinates: Coordinates):
+        if catalog.is_cache():  # no src to download form or src to copy from
+            raise RuntimeError("Cannot download from a cache catalog!")
+
+        elif catalog.is_local():  # src to copy from
+            src_path = Path(catalog.src).joinpath(self.get_solution_zip_suffix(coordinates))
+            solution_zip_file = self.get_solution_zip(catalog, coordinates)
+            copy(src_path, solution_zip_file)
+
+        else:  # src to download from
+            url = get_solution_src(catalog.src, coordinates, catalog.branch_name)
+            solution_zip_file = self.get_solution_zip(catalog, coordinates)
+            download_resource(url, solution_zip_file)
+
+        solution_zip_path = unzip_archive(solution_zip_file)
+        solution_path = solution_zip_path.joinpath(DefaultValues.solution_default_name.value)
+
+        return solution_path
+
+    def set_cache_paths(self, solution: Solution, catalog):
+        # Note: cache paths need the catalog the solution lives in - otherwise there might be problems with solutions
+        # of different catalogs doing similar operations (e.g. downloads) as they might share the same cache path.
+        path_suffix = Path("").joinpath(solution.coordinates.group, solution.coordinates.name, solution.coordinates.version)
+        solution.installation.data_path = self.album.configuration().get_cache_path_download().joinpath(str(catalog.name), path_suffix)
+        solution.installation.app_path = self.album.configuration().get_cache_path_app().joinpath(str(catalog.name), path_suffix)
+        solution.installation.package_path = self.get_solution_path(catalog, solution.coordinates)
+        solution.installation.internal_cache_path = self.album.configuration().get_cache_path_tmp_internal().joinpath(str(catalog.name), path_suffix)
+        solution.installation.user_cache_path = self.album.configuration().get_cache_path_tmp_user().joinpath(str(catalog.name), path_suffix)
