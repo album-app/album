@@ -70,17 +70,6 @@ def pop_active_solution():
         return None
 
 
-def load_and_push_solution(path) -> Optional[Solution]:
-    """Load album script"""
-    module_logger().debug(f'Loading solution from {path}...')
-    with open(path, "r") as f:
-        solution_script = f.read()
-    exec(solution_script)
-    active_solution = get_active_solution()
-    active_solution.script = solution_script
-    return active_solution
-
-
 def load(path) -> Optional[Solution]:
     module_logger().debug(f'Loading solution from {path}...')
     with open(path, "r") as f:

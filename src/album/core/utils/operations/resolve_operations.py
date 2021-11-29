@@ -4,15 +4,14 @@ import re
 import sys
 from pathlib import Path
 
-from album.core.model.collection_index import CollectionIndex
-
 from album.ci.utils.zenodo_api import ZenodoAPI
-from album.runner.model.coordinates import Coordinates
+from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove, \
     create_path_recursively, rand_folder_name, check_zip, unzip_archive, copy, copy_folder
 from album.core.utils.operations.url_operations import is_url, download, retrieve_redirect_url, download_resource
 from album.runner import album_logging
+from album.runner.model.coordinates import Coordinates
 
 module_logger = album_logging.get_active_logger
 

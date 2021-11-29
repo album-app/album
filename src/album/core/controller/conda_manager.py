@@ -89,7 +89,7 @@ class CondaManager(metaclass=Singleton):
         conda_list = self.get_info()
         return conda_list["active_prefix"]
 
-    def remove_environment(self, environment_name, timeout1=60, timeout2=120):
+    def remove_environment(self, environment_name, timeout1=60, timeout2=120) -> bool:
         """Removes an environment given its name. Does nothing when environment does not exist.
 
         Args:
@@ -102,14 +102,17 @@ class CondaManager(metaclass=Singleton):
                 Timeout in seconds after timeout1 passed, after which the process behind the
                 operation is declared dead. Timeout is resets each time a feedback is passed to the main process.
 
+        Returns:
+            True, when removal succeeded, else False
+
         """
         if self.get_active_environment_name() == environment_name:
             module_logger().warning("Cannot remove active environment! Skipping...")
-            return
+            return False
 
         if not self.environment_exists(environment_name):
             module_logger().warning("Environment does not exist! Skipping...")
-            return
+            return False
 
         path = self.get_environment_path(environment_name)
 
@@ -121,6 +124,8 @@ class CondaManager(metaclass=Singleton):
 
         # try to remove file content if any but don't fail:
         force_remove(path)
+
+        return True
 
     def get_info(self):
         """Get the info of the conda installation on the corresponding system.

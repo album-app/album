@@ -165,26 +165,14 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         ]}
         self.assertEqual(expected_dict, self.collection_manager.get_index_as_dict())
 
-    def test_remove_by_src(self):
-        # mock
-        remove_catalog_from_collection_by_src = MagicMock()
-        self.collection_manager.remove_catalog_from_collection_by_src = remove_catalog_from_collection_by_src
-
-        # call
-        self.collection_manager.remove_catalog_from_collection_by_src(self.catalog_list[0]['src'])
-
-        # assert
-        remove_catalog_from_collection_by_src.assert_called_once_with(
-            self.collection_manager.catalog_collection.get_all_catalogs()[0]['src'])
-
     @unittest.skip("Needs to be implemented!")
-    def test_resolve_require_installation_and_load_valid_path(self):
+    def test_resolve_require_installation(self):
         # todo: implement
         pass
 
     @patch('album.core.controller.collection.collection_manager.check_file_or_url')
     @patch('album.core.controller.collection.collection_manager.load')
-    def test_resolve_require_installation_and_load_grp_name_version(self, load_mock, check_file_or_url_mock):
+    def test_resolve_require_installation_and_load(self, load_mock, check_file_or_url_mock):
         # mocks
         search_mock = MagicMock(
             return_value=CollectionIndex.CollectionSolution(
@@ -199,6 +187,11 @@ class TestCollectionManager(TestCatalogCollectionCommon):
 
         # assert
         check_file_or_url_mock.assert_called_once_with("grp:name:version", Configuration().cache_path_tmp_user)
+
+    @unittest.skip("Needs to be implemented!")
+    def test_resolve_require_installation_and_load_valid_path(self):
+        # todo: implement
+        pass
 
     @unittest.skip("Needs to be implemented!")
     def test_resolve_download_and_load(self):
@@ -217,7 +210,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         get_solution_file_mock = MagicMock(return_value="path/to/solution")
 
         self.collection_manager._search_in_specific_catalog = search_mock
-        self.collection_manager._retrieve_and_load_resolve_result = retrieve_and_load_mock
+        self.collection_manager.retrieve_and_load_resolve_result = retrieve_and_load_mock
         catalog.get_solution_file = get_solution_file_mock
 
         # call
@@ -248,7 +241,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         self.collection_manager._search_by_coordinates = search_mock
         self.collection_manager.catalogs().get_by_id = get_catalog_mock
         local_catalog.get_solution_file = get_solution_mock
-        self.collection_manager._retrieve_and_load_resolve_result = retrieve_and_load_mock
+        self.collection_manager.retrieve_and_load_resolve_result = retrieve_and_load_mock
 
         # call
         res = self.collection_manager.resolve_download_and_load_coordinates(coordinates)
@@ -306,6 +299,11 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         _resolve.assert_called_once_with("myInput")
         retrieve_solution.assert_not_called()
         self.assertEqual(resolve, r)
+
+    @unittest.skip("Needs to be implemented!")
+    def test_resolve_parent(self):
+        # todo: implement
+        pass
 
     @patch('album.core.controller.collection.collection_manager.check_file_or_url')
     def test__resolve_case_local_file(self, check_file_or_url_mock):
@@ -421,6 +419,11 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         pass
 
     @unittest.skip("Needs to be implemented!")
+    def test__search_doi(self):
+        # todo: implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
     def test__search_by_coordinates(self):
         # todo: implement
         pass
@@ -439,6 +442,19 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         # todo: implement
         pass
 
+    @unittest.skip("Needs to be implemented!")
+    def test__search_in_catalogs(self):
+        # todo: implement
+        pass
+
+    def test_retrieve_and_load_resolve_result(self):
+        # todo: implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_write_version_to_yml(self):
+        # todo: implement
+        pass
 
 if __name__ == '__main__':
     unittest.main()

@@ -24,6 +24,26 @@ class TestEnvironmentManager(TestUnitCommon):
         pass
 
     @unittest.skip("Needs to be implemented!")
+    def test_remove_environment(self):
+        # ToDo: implement!
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_get_environment_base_folder(self):
+        # ToDo: implement!
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_run_scripts(self):
+        # ToDo: implement!
+        pass
+
+    @unittest.skip("Needs to be implemented!")
     def test_get_environment_name(self):
+        # ToDo: implement!
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_remove_disc_content_from_environment(self):
         # ToDo: implement!
         pass

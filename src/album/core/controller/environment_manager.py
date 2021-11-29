@@ -1,3 +1,7 @@
+from pathlib import Path
+
+from album.core.utils.operations.file_operations import force_remove
+
 from album.core import Solution
 from album.core.concept.singleton import Singleton
 from album.core.controller.collection.collection_manager import CollectionManager
@@ -59,9 +63,13 @@ class EnvironmentManager(metaclass=Singleton):
         set_environment_paths(active_solution, environment)
         return environment
 
-    def remove_environment(self, environment: Environment):
+    def remove_environment(self, environment: Environment) -> bool:
         """Removes an environment."""
-        self.conda_manager.remove_environment(environment.name)
+        return self.conda_manager.remove_environment(environment.name)
+
+    def get_environment_base_folder(self):
+        """Returns the location all album-created environments live in."""
+        return Path(self.conda_manager.get_base_environment_path())
 
     def run_scripts(self, environment: Environment, scripts):
         """Runs scripts in an environment"""
@@ -73,3 +81,7 @@ class EnvironmentManager(metaclass=Singleton):
     @staticmethod
     def get_environment_name(coordinates: Coordinates, catalog: Catalog):
         return "_".join([str(catalog.name), coordinates.group, coordinates.name, coordinates.version])
+
+    @staticmethod
+    def remove_disc_content_from_environment(environment: Environment):
+        force_remove(environment.cache_path)

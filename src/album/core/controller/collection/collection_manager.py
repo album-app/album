@@ -173,12 +173,13 @@ class CollectionManager(metaclass=Singleton):
         """
 
         resolve_result = self._resolve(resolve_solution)
-        self._retrieve_and_load_resolve_result(resolve_result)
+        self.retrieve_and_load_resolve_result(resolve_result)
         set_cache_paths(resolve_result.loaded_solution, resolve_result.catalog)
 
         return resolve_result
 
-    def resolve_download_and_load_catalog_coordinates(self, catalog: Catalog, coordinates: Coordinates) -> ResolveResult:
+    def resolve_download_and_load_catalog_coordinates(self, catalog: Catalog,
+                                                      coordinates: Coordinates) -> ResolveResult:
         """Resolves a string input and loads its content.
 
         Downloads a catalog if not already cached.
@@ -199,7 +200,7 @@ class CollectionManager(metaclass=Singleton):
         resolve_result = ResolveResult(
             path=solution_path, catalog=catalog, collection_entry=collection_entry, coordinates=coordinates
         )
-        self._retrieve_and_load_resolve_result(resolve_result)
+        self.retrieve_and_load_resolve_result(resolve_result)
 
         set_cache_paths(resolve_result.loaded_solution, resolve_result.catalog)
 
@@ -225,7 +226,7 @@ class CollectionManager(metaclass=Singleton):
         resolve_result = ResolveResult(
             path=solution_path, catalog=catalog, collection_entry=collection_entry, coordinates=coordinates
         )
-        self._retrieve_and_load_resolve_result(resolve_result)
+        self.retrieve_and_load_resolve_result(resolve_result)
 
         set_cache_paths(resolve_result.loaded_solution, resolve_result.catalog)
 
@@ -395,7 +396,8 @@ class CollectionManager(metaclass=Singleton):
         """Searches in the local catalog only"""
         return self._search_in_specific_catalog(self.catalog_handler.get_local_catalog().catalog_id, coordinates)
 
-    def _search_in_specific_catalog(self, catalog_id, coordinates: Coordinates) -> Optional[CollectionIndex.CollectionSolution]:
+    def _search_in_specific_catalog(self, catalog_id, coordinates: Coordinates) -> Optional[
+        CollectionIndex.CollectionSolution]:
         """Searches in a given catalog only"""
         return self.catalog_collection.get_solution_by_catalog_grp_name_version(catalog_id, coordinates)
 
@@ -406,7 +408,7 @@ class CollectionManager(metaclass=Singleton):
         return solution_entries if solution_entries else None
 
     @staticmethod
-    def _retrieve_and_load_resolve_result(resolve_result: ResolveResult):
+    def retrieve_and_load_resolve_result(resolve_result: ResolveResult):
         if not Path(resolve_result.path).exists():
             resolve_result.catalog.retrieve_solution(
                 dict_to_coordinates(resolve_result.collection_entry.setup)

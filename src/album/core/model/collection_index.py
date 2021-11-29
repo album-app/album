@@ -23,6 +23,9 @@ class CollectionIndex(Database):
             else:
                 self.internal = {}
 
+        def __eq__(self, other) -> bool:
+            return other.setup == self.setup and other.internal == self.internal
+
     def __init__(self, name, path):
         self.name = name
         super().__init__(path)
@@ -1012,7 +1015,23 @@ class CollectionIndex(Database):
 
         return solutions_list
 
-    def update_solution(self, catalog_id, coordinates: Coordinates, solution_attrs, supported_attrs, close=True):
+    def get_unfinished_installation_solutions(self, close=True):
+        solutions_list = []
+
+        cursor = self.get_cursor()
+        for row in cursor.execute(
+                "SELECT * FROM collection WHERE installation_unfinished=:installation_unfinished ",
+                {"installation_unfinished": 1}
+        ).fetchall():
+            solution = self._process_solution_row(dict(row), close=False)
+            solutions_list.append(solution)
+
+        if close:
+            self.close_current_connection()
+
+        return solutions_list
+
+    def update_solution(self, catalog_id, coordinates: Coordinates, solution_attrs: dict, supported_attrs: list, close=True):
         exec_str = "UPDATE collection SET last_execution=:cur_date"
         exec_args = {
             "cur_date": datetime.now().isoformat(),

@@ -414,7 +414,8 @@ class TestCollectionIndex(TestUnitCommon):
         self.test_catalog_collection_index.insert_catalog(
             "myName1", "mySrc1", "myPath1", True, None
         )
-        self.test_catalog_collection_index.insert_solution(1, self._get_solution_attrs(1, "grp1", "name1", "version1", None, {'authors': []}))
+        self.test_catalog_collection_index.insert_solution(1, self._get_solution_attrs(1, "grp1", "name1", "version1",
+                                                                                       None, {'authors': []}))
         self.test_catalog_collection_index._insert_author("authorName", 1, close=False)
         self.test_catalog_collection_index._insert_author("authorName2", 1, close=False)
 
@@ -464,7 +465,8 @@ class TestCollectionIndex(TestUnitCommon):
         self.test_catalog_collection_index.insert_catalog(
             "myName1", "mySrc1", "myPath1", True, None
         )
-        self.test_catalog_collection_index.insert_solution(1, self._get_solution_attrs(1, "grp1", "name1", "version1", None, {"tags": []}))
+        self.test_catalog_collection_index.insert_solution(1, self._get_solution_attrs(1, "grp1", "name1", "version1",
+                                                                                       None, {"tags": []}))
         self.test_catalog_collection_index._insert_tag("myTag1", 1, close=False)
         self.test_catalog_collection_index._insert_tag("myTag2", 1, close=False)
 
@@ -481,7 +483,8 @@ class TestCollectionIndex(TestUnitCommon):
         self.test_catalog_collection_index.insert_catalog(
             "myName1", "mySrc1", "myPath1", True, None
         )
-        self.test_catalog_collection_index.insert_solution(1, self._get_solution_attrs(1, "grp1", "name1", "version1", None, {"cite": []}))
+        self.test_catalog_collection_index.insert_solution(1, self._get_solution_attrs(1, "grp1", "name1", "version1",
+                                                                                       None, {"cite": []}))
 
         citation1 = {
             "text": "myText",
@@ -507,7 +510,8 @@ class TestCollectionIndex(TestUnitCommon):
         self.test_catalog_collection_index.insert_catalog(
             "myName1", "mySrc1", "myPath1", True, None
         )
-        self.test_catalog_collection_index.insert_solution(1, self._get_solution_attrs(1, "grp1", "name1", "version1", None, {"covers": []}))
+        self.test_catalog_collection_index.insert_solution(1, self._get_solution_attrs(1, "grp1", "name1", "version1",
+                                                                                       None, {"covers": []}))
 
         cover1 = {
             "source": "mySrc",
@@ -609,12 +613,12 @@ class TestCollectionIndex(TestUnitCommon):
         r = self.test_catalog_collection_index.get_solutions_by_grp_name_version(Coordinates("grp", "name", "version"))
 
         for i in range(1, 4):
-            self.assertEqual(i, r[i-1].internal['collection_id'])
-            self.assertEqual(i, r[i-1].internal['solution_id'])
-            self.assertEqual('cat%s' % str(i), r[i-1].internal['catalog_id'])
-            self.assertEqual('grp', r[i-1].setup['group'])
-            self.assertEqual('name', r[i-1].setup['name'])
-            self.assertEqual('version', r[i-1].setup['version'])
+            self.assertEqual(i, r[i - 1].internal['collection_id'])
+            self.assertEqual(i, r[i - 1].internal['solution_id'])
+            self.assertEqual('cat%s' % str(i), r[i - 1].internal['catalog_id'])
+            self.assertEqual('grp', r[i - 1].setup['group'])
+            self.assertEqual('name', r[i - 1].setup['name'])
+            self.assertEqual('version', r[i - 1].setup['version'])
 
     def test_get_recently_installed_solutions(self):
         self.test_catalog_collection_index.insert_solution(
@@ -748,7 +752,32 @@ class TestCollectionIndex(TestUnitCommon):
         self.assertEqual('version', r[2].setup['version'])
         self.assertEqual('version_u', r[3].setup['version'])
 
+    def test_get_unfinished_installation_solutions(self):
+        self.assertEqual([], self.test_catalog_collection_index.get_all_solutions())
+        self.test_catalog_collection_index.insert_solution("cat1",
+                                                           self._get_solution_attrs(1, "grp", "name", "version"))
+        s2 = self.test_catalog_collection_index.insert_solution("cat2",
+                                                           self._get_solution_attrs(2, "grp", "name", "version"))
+        self.test_catalog_collection_index.insert_solution("cat1",
+                                                           self._get_solution_attrs(3, "grp_d", "name_d", "version_d"))
+
+        self.assertEqual(3, len(self.test_catalog_collection_index.get_all_solutions()))
+
+        self.test_catalog_collection_index.update_solution(
+            "cat2", Coordinates("grp", "name", "version"), {"installation_unfinished": 1}, ["installation_unfinished"]
+        )
+
+        expected_collection_solution = self.test_catalog_collection_index.get_solution_by_collection_id(s2)
+
+        # call
+        r = self.test_catalog_collection_index.get_unfinished_installation_solutions()
+
+        # assert
+        self.assertEqual(1, len(r))
+        self.assertEqual(expected_collection_solution, r[0])
+
     def test_update_solution(self):
+        self.assertEqual([], self.test_catalog_collection_index.get_all_solutions())
         self.test_catalog_collection_index.insert_solution("cat1",
                                                            self._get_solution_attrs(1, "grp", "name", "version"))
         self.test_catalog_collection_index.insert_solution("cat2",
@@ -756,9 +785,12 @@ class TestCollectionIndex(TestUnitCommon):
         self.test_catalog_collection_index.insert_solution("cat1",
                                                            self._get_solution_attrs(3, "grp_d", "name_d", "version_d"))
 
+        self.assertEqual(3, len(self.test_catalog_collection_index.get_all_solutions()))
+
         r = self.test_catalog_collection_index.get_solution_by_collection_id(2)
         self.assertIsNone(r.internal["last_execution"])
 
+        # call
         self.test_catalog_collection_index.update_solution("cat2", Coordinates("grp", "name", "version"), {},
                                                            CatalogIndex.get_solution_column_keys())
 

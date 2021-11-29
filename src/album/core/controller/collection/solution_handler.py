@@ -34,9 +34,6 @@ class SolutionHandler:
 
         copy_folder(path, install_location, copy_root_folder=False)
 
-    def set_uninstalled(self, catalog: Catalog, coordinates: Coordinates):
-        self.update_solution(catalog, coordinates, {"installed": 0})
-
     def set_parent(self, catalog_parent: Catalog, catalog_child: Catalog, coordinates_parent: Coordinates,
                    coordinates_child: Coordinates):
 
@@ -84,7 +81,17 @@ class SolutionHandler:
             )
 
     def set_installed(self, catalog: Catalog, coordinates: Coordinates):
-        self.update_solution(catalog, coordinates, {"installed": 1, "install_date": datetime.now().isoformat()})
+        self.update_solution(
+            catalog,
+            coordinates,
+            {"installed": 1, "installation_unfinished": 0, "install_date": datetime.now().isoformat()}
+        )
+
+    def set_uninstalled(self, catalog: Catalog, coordinates: Coordinates):
+        self.update_solution(catalog, coordinates, {"installed": 0, "installation_unfinished": 0})
+
+    def set_installation_unfinished(self, catalog: Catalog, coordinates: Coordinates):
+        self.update_solution(catalog, coordinates, {"installed": 0, "installation_unfinished": 1})
 
     def is_installed(self, catalog: Catalog, coordinates: Coordinates) -> bool:
         return self.catalog_collection.is_installed(catalog.catalog_id, coordinates)
