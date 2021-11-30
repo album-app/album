@@ -124,6 +124,16 @@ def get_dict_from_json(json_file):
     return d
 
 
+def folder_empty(path) -> bool:
+    path = Path(path)
+
+    if path.exists():
+        if path.is_dir() and os.listdir(path) == []:
+            return True
+        return False
+    return True
+
+
 def create_empty_file_recursively(path_to_file):
     """Creates an empty file. Creates missing parent folders."""
     p = Path(path_to_file)
@@ -174,7 +184,7 @@ def copy_folder(folder_to_copy, destination, copy_root_folder=True, force_copy=F
     return destination
 
 
-def copy(file, path_to):
+def copy(file, path_to) -> Path:
     """Copies a file A to either folder B or file B. Makes sure folder structure for target exists."""
     file = Path(file)
     path_to = Path(path_to)
@@ -187,7 +197,7 @@ def copy(file, path_to):
     return Path(shutil.copy(file, path_to))
 
 
-def copy_in_file(file_content, file_path):
+def copy_in_file(file_content, file_path) -> Path:
     """Copies a stream content to a file."""
     file_path = Path(file_path)
     create_path_recursively(file_path.parent)
@@ -246,7 +256,7 @@ def force_remove(path, warning=True):
                 try:
                     path.unlink()
                 except PermissionError:
-                    handle_remove_readonly(os.unlink, path,  sys.exc_info())
+                    handle_remove_readonly(os.unlink, path, sys.exc_info())
             else:
                 shutil.rmtree(path, ignore_errors=False, onerror=handle_remove_readonly)
         except PermissionError as e:

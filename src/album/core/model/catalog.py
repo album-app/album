@@ -24,7 +24,9 @@ module_logger = album_logging.get_active_logger
 def get_index_url(src, branch_name="main"):
     """Gets the download link for an index."""
     index_src = re.sub(r"\.git$", "", src) + "/-/raw/%s/%s" % (branch_name, DefaultValues.catalog_index_file_name.value)
-    index_meta_src = re.sub(r"\.git$", "", src) + "/-/raw/%s/%s" % (branch_name, DefaultValues.catalog_index_metafile_json.value)
+    index_meta_src = re.sub(r"\.git$", "", src) + "/-/raw/%s/%s" % (
+        branch_name, DefaultValues.catalog_index_metafile_json.value
+    )
     return index_src, index_meta_src
 
 
@@ -37,9 +39,10 @@ def get_index_dir(src):
 
 def get_solution_src(src, coordinates: Coordinates, branch_name="main"):
     """Gets the download link for a solution."""
-    return re.sub(r"\.git$", "", src) + "/-/raw/%s/solutions/%s/%s/%s/%s" \
-           % (branch_name, coordinates.group, coordinates.name, coordinates.version,
-              "%s_%s_%s%s" % (coordinates.group, coordinates.name, coordinates.version, ".zip"))
+    return re.sub(r"\.git$", "", src) + "/-/raw/%s/solutions/%s/%s/%s/%s" % (
+        branch_name, coordinates.group, coordinates.name, coordinates.version,
+        "%s_%s_%s%s" % (coordinates.group, coordinates.name, coordinates.version, ".zip")
+    )
 
 
 class Catalog:
@@ -394,7 +397,7 @@ class Catalog:
         return True
 
     def copy_index_from_cache_to_src(self):
-        """Copy the index file if a catalog and its metadata from the catalog cache folder into the source folder."""
+        """Copy the index file of a catalog and its metadata from the catalog cache folder into the source folder."""
         src_path_index = Path(self.src).joinpath(DefaultValues.catalog_index_file_name.value)
 
         if not src_path_index.exists():
