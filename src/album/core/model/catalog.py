@@ -307,7 +307,8 @@ class Catalog:
         return database_version
 
     def add(self, active_solution: Solution, force_overwrite=False):
-        """Adds an active solution_object to the index. Does not copy anything from A to B. Expects the local catalog index to be loaded.
+        """Adds an active solution_object to the index. Does not copy anything from A to B.
+        Expects the local catalog index to be loaded.
 
         Args:
             active_solution:

@@ -286,7 +286,6 @@ class CollectionIndex(Database):
             )
         )
 
-
         if 'authors' in solution_attrs:
             for author in solution_attrs['authors']:
                 author_id = self._exists_author(author, catalog_id, close=False)
@@ -1031,7 +1030,8 @@ class CollectionIndex(Database):
 
         return solutions_list
 
-    def update_solution(self, catalog_id, coordinates: Coordinates, solution_attrs: dict, supported_attrs: list, close=True):
+    def update_solution(self, catalog_id, coordinates: Coordinates, solution_attrs: dict, supported_attrs: list,
+                        close=True):
         exec_str = "UPDATE collection SET last_execution=:cur_date"
         exec_args = {
             "cur_date": datetime.now().isoformat(),

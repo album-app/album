@@ -5,8 +5,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from album.core.model.catalog_index import CatalogIndex
-from album.runner.model.coordinates import Coordinates
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
+from album.runner.model.coordinates import Coordinates
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -90,7 +90,7 @@ class TestCatalogIndex(TestUnitCommon):
 
     def test_get_version(self):
         self.assertEqual("0.1.0", self.catalog_index.get_version())
-        
+
     # ### metadata ###
     def test__insert_author(self):
         self.is_empty_or_full(empty=True)
@@ -313,23 +313,31 @@ class TestCatalogIndex(TestUnitCommon):
 
         self.catalog_index._insert_solution(self.solution_default_dict)
 
-        solution = self.catalog_index.get_solution_by_coordinates(
-            dict_to_coordinates(self.solution_default_dict)
-        )
+        coordinates = dict_to_coordinates(self.solution_default_dict)
+
+        solution = self.catalog_index.get_solution_by_coordinates(coordinates)
         self.assertEqual("d1", solution["description"])
 
         solution_update_default_dict = self.solution_default_dict.copy()
         solution_update_default_dict["description"] = "aNewD"
 
         # call
-        self.catalog_index._update_solution(solution_update_default_dict)
+        self.catalog_index._update_solution(coordinates, solution_update_default_dict)
 
         # assert
         updated_sol = self.catalog_index.get_solution_by_coordinates(
-            dict_to_coordinates(solution_update_default_dict)
+            coordinates
         )
 
         self.assertEqual("aNewD", updated_sol["description"])
+
+    def test__update_solution_not_exist(self):
+        self.assertTrue(self.catalog_index.is_table_empty("solution"))
+
+        coordinates = dict_to_coordinates(self.solution_default_dict)
+
+        with self.assertRaises(RuntimeError):
+            self.catalog_index._update_solution(coordinates, self.solution_default_dict)
 
     def test_remove_solution(self):
         solution_id1, solution_id2 = self.fill_solution()
@@ -416,7 +424,7 @@ class TestCatalogIndex(TestUnitCommon):
 
         # assert
         get_solution_by_coordinates.assert_called_once_with(coordinates, close=False)
-        update_solution.assert_called_once_with(attrs, close=True)
+        update_solution.assert_called_once_with(coordinates, attrs, close=True)
         insert_solution.assert_not_called()
 
     def test_export(self):
