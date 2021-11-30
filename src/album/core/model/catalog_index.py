@@ -231,7 +231,8 @@ class CatalogIndex(Database):
         r = cursor.execute(
             "SELECT * FROM author WHERE name=:author_name",
             {
-                "author_name": author_name            }
+                "author_name": author_name
+            }
         ).fetchone()
 
         if close:
@@ -584,39 +585,16 @@ class CatalogIndex(Database):
 
         return solutions
 
-    def _update_solution(self, solution_attrs, close=True) -> None:
-        hash_val = get_solution_hash(solution_attrs, self.get_solution_column_keys())
+    def _update_solution(self, coordinates: Coordinates, solution_attrs: dict, close=True) -> None:
+        # it is easier to delete and insert again instead of updating all connection-tables
+        solution_dict = self.get_solution_by_coordinates(coordinates, close=False)
+        if solution_dict:
+            self.remove_solution(solution_dict["solution_id"])
+        else:
+            raise RuntimeError("Cannot update solution \"%s\"! Does not exist!" % str(coordinates))
 
-        cursor = self.get_cursor()
-        cursor.execute(
-            "UPDATE solution SET "
-            "title=:title, "
-            "timestamp=:timestamp, "
-            "description=:description, "
-            "doi=:doi, "
-            "acknowledgement=:acknowledgement, "
-            "license=:license, "
-            "album_version=:album_version, "
-            "album_api_version=:album_api_version, "
-            "changelog=:changelog,"
-            "hash=:hash_val "
-            "WHERE \"group\"=:group AND name=:name AND version=:version",
-            {
-                "group": solution_attrs["group"],
-                "name": solution_attrs["name"],
-                "version": solution_attrs["version"],
-                "title": get_dict_entry(solution_attrs, "title"),
-                "timestamp": "",
-                "description": get_dict_entry(solution_attrs, "description"),
-                "doi": get_dict_entry(solution_attrs, "doi"),
-                "acknowledgement": get_dict_entry(solution_attrs, "acknowledgement"),
-                "license": get_dict_entry(solution_attrs, "license"),
-                "album_version": get_dict_entry(solution_attrs, "album_version"),
-                "album_api_version": get_dict_entry(solution_attrs, "album_api_version"),
-                "changelog": get_dict_entry(solution_attrs, "changelog"),
-                "hash_val": hash_val
-            }
-        )
+        self._insert_solution(solution_attrs, close=False)
+
         self.save()
 
         if close:
@@ -720,7 +698,7 @@ class CatalogIndex(Database):
         """
         if self.get_solution_by_coordinates(coordinates, close=False):
             module_logger().debug("Update solution...")
-            self._update_solution(solution_attrs, close=close)
+            self._update_solution(coordinates, solution_attrs, close=close)
         else:
             module_logger().debug("Insert solution...")
             self._insert_solution(solution_attrs, close=close)

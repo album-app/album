@@ -103,7 +103,7 @@ class DeployManager(metaclass=Singleton):
 
         # case no catalog given
         else:
-            raise RuntimeError("No catalog specified for deployment")
+            raise RuntimeError("No catalog specified for deployment!")
 
         MigrationManager().load_index(catalog)
 
