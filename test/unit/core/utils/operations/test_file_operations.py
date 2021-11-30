@@ -8,7 +8,7 @@ from pathlib import Path
 from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, \
     create_empty_file_recursively, \
     create_path_recursively, write_dict_to_json, force_remove, zip_folder, unzip_archive, copy, \
-    copy_folder, zip_paths, rand_folder_name
+    copy_folder, zip_paths, rand_folder_name, folder_empty
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -72,6 +72,14 @@ class TestFileOperations(TestUnitCommon):
         self.assertTrue(tmp_json_file.stat().st_size > 0)
         d_loaded = json.load(open(tmp_json_file))
         self.assertEqual(d_loaded, d)
+
+    def test_folder_empty(self):
+        self.assertTrue(folder_empty(Path(self.tmp_dir.name).joinpath("myFolder")))
+        p = Path(self.tmp_dir.name).joinpath("myFolder")
+        p.mkdir()
+        self.assertTrue(folder_empty(p))
+        p.joinpath("myfile.txt").touch()
+        self.assertFalse(folder_empty(p))
 
     def test_create_empty_file_recursively(self):
         tmp_file = pathlib.Path(self.tmp_dir.name).joinpath("test_folder", "new_folder", "t.txt")
