@@ -5,32 +5,19 @@ import tempfile
 import unittest
 from io import StringIO
 from pathlib import Path
+from typing import Optional
 from unittest.mock import patch, MagicMock
 
 import git
 
-import album
-from album.api import Album
-from album.ci.controller.release_manager import ReleaseManager
-from album.ci.controller.zenodo_manager import ZenodoManager
+from album.api.album import Album
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
-from album.core import Solution
-from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection.collection_manager import CollectionManager
-from album.core.controller.conda_manager import CondaManager
-from album.core.controller.deploy_manager import DeployManager
-from album.core.controller.environment_manager import EnvironmentManager
-from album.core.controller.install_manager import InstallManager
-from album.core.controller.migration_manager import MigrationManager
-from album.core.controller.run_manager import RunManager
-from album.core.controller.search_manager import SearchManager
-from album.core.controller.task_manager import TaskManager
-from album.core.controller.test_manager import TestManager
-from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
-from album.core.server import AlbumServer
 from album.core.utils.operations.file_operations import force_remove
+from album.runner import album_logging
 from album.runner.album_logging import pop_active_logger, LogLevel, configure_logging
+from album.runner.model.solution import Solution
 from test.global_exception_watcher import GlobalExceptionWatcher
 
 
@@ -46,7 +33,8 @@ class TestUnitCommon(unittest.TestCase):
         self.tmp_dir = tempfile.TemporaryDirectory()
         self.closed_tmp_file = tempfile.NamedTemporaryFile(delete=False)
         self.closed_tmp_file.close()
-        self.collection_manager = None
+        self.collection_manager: Optional[CollectionManager] = None
+        self.album: Optional[Album] = None
 
     @staticmethod
     def get_solution_dict():
@@ -70,35 +58,9 @@ class TestUnitCommon(unittest.TestCase):
             'timestamp': '',
         }
 
-    @staticmethod
-    def tear_down_singletons():
-        # this is here to make sure all mocks are reset each time a test is executed
-        album.runner.album_logging._active_logger = {}
-        TestUnitCommon._delete(AlbumServer)
-        TestUnitCommon._delete(Configuration)
-        TestUnitCommon._delete(CollectionManager)
-        TestUnitCommon._delete(CondaManager)
-        TestUnitCommon._delete(DeployManager)
-        TestUnitCommon._delete(InstallManager)
-        TestUnitCommon._delete(RunManager)
-        TestUnitCommon._delete(SearchManager)
-        TestUnitCommon._delete(TaskManager)
-        TestUnitCommon._delete(TestManager)
-        TestUnitCommon._delete(ReleaseManager)
-        TestUnitCommon._delete(ZenodoManager)
-        TestUnitCommon._delete(MigrationManager)
-        TestUnitCommon._delete(CloneManager)
-        TestUnitCommon._delete(EnvironmentManager)
-        TestUnitCommon._delete(Album)
-
-    @staticmethod
-    def _delete(singleton):
-        if singleton.instance is not None:
-            del singleton.instance
-
     def tearDown(self) -> None:
-        if self.collection_manager is not None and self.collection_manager.catalog_collection is not None:
-            self.collection_manager.catalog_collection.close()
+        if self.collection_manager is not None and self.collection_manager.get_collection_index() is not None:
+            self.collection_manager.get_collection_index().close()
             self.collection_manager = None
         self.captured_output.close()
 
@@ -108,7 +70,9 @@ class TestUnitCommon(unittest.TestCase):
                 break
 
         Path(self.closed_tmp_file.name).unlink()
-        self.tear_down_singletons()
+        if self.album:
+            self.album.close()
+        album_logging._active_logger = {}
         gc.collect()
         try:
             self.tmp_dir.cleanup()
@@ -136,30 +100,36 @@ class TestUnitCommon(unittest.TestCase):
         logs = logs.strip()
         return logs.split("\n")
 
-    def create_album_test_instance(self, init_catalogs=True) -> Album:
-        my_album = Album(base_cache_path=Path(self.tmp_dir.name).joinpath("album"))
+    def create_album_test_instance(self, init_collection=True, init_catalogs=True) -> Album:
+        self.album = Album(base_cache_path=Path(self.tmp_dir.name).joinpath("album"))
+        self.album.collection_manager()
+        self.collection_manager = self.album._collection_manager
+        self.assertEqual(self.album.collection_manager(), self.collection_manager)
+
         if init_catalogs:
+            catalogs_dict = {
+                    DefaultValues.local_catalog_name.value:
+                        Path(self.tmp_dir.name).joinpath("album", DefaultValues.catalog_folder_prefix.value,
+                                                         DefaultValues.local_catalog_name.value)
+                }
             # mock retrieve_catalog_meta_information as it involves a http request
-            with patch("album.core.model.catalog.Catalog.retrieve_catalog_meta_information") as retrieve_c_m_i_mock:
+            with patch("album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information") as retrieve_c_m_i_mock:
                 get_initial_catalogs_mock = MagicMock(
-                    return_value={
-                        DefaultValues.local_catalog_name.value:
-                            Path(self.tmp_dir.name).joinpath("album", DefaultValues.catalog_folder_prefix.value,
-                                                             DefaultValues.local_catalog_name.value)
-                    }
+                    return_value=catalogs_dict
                 )
-                my_album.configuration().get_initial_catalogs = get_initial_catalogs_mock
+                self.album.configuration().get_initial_catalogs = get_initial_catalogs_mock
                 retrieve_c_m_i_mock.side_effect = [
                     {"name": "catalog_local", "version": "0.1.0"},  # local catalog creation call
                     {"name": "catalog_local", "version": "0.1.0"},  # local catalog load_index call
                 ]
-
                 # create collection
-                self.collection_manager = my_album.collection_manager()
                 self.collection_manager.load_or_create_collection()
-                # self.assertEqual(2, retrieve_c_m_i_mock.call_count)
+        elif init_collection:
+            # mock retrieve_catalog_meta_information as it involves a http request
+            with patch("album.core.controller.collection.catalog_handler.CatalogHandler.add_initial_catalogs"):
+                self.collection_manager.load_or_create_collection()
 
-        return my_album
+        return self.album
 
     @patch('album.core.utils.operations.solution_operations.get_deploy_dict')
     def create_test_solution_no_env(self, deploy_dict_mock):

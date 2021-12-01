@@ -13,7 +13,6 @@ class TestConfiguration(TestUnitCommon):
 
     def setUp(self) -> None:
         super().setUp()
-        self.conf = Configuration()
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -30,55 +29,59 @@ class TestConfiguration(TestUnitCommon):
         self.assertTrue(leftover_file.exists())
 
         # call
-        self.conf.setup(base_cache_path=base_path)
+        conf = Configuration()
+        conf.setup(base_cache_path=base_path)
 
         # assert
         self.assertFalse(leftover_file.exists())
-        self.assertEqual(DefaultValues.conda_path.value, self.conf.conda_executable)
-        self.assertEqual(base_path, self.conf.base_cache_path)
+        self.assertEqual(DefaultValues.conda_path.value, conf.conda_executable)
+        self.assertEqual(base_path, conf.base_cache_path)
 
     def test_base_cache_path(self):
         new_tmp_dir = tempfile.TemporaryDirectory(dir=self.tmp_dir.name)
 
         # set
-        self.conf.setup(base_cache_path=new_tmp_dir.name)
+        conf = Configuration()
+        conf.setup(base_cache_path=new_tmp_dir.name)
 
         # assert
         self.assertEqual(
             Path(new_tmp_dir.name),
-            self.conf.base_cache_path
+            conf.base_cache_path
         )
         self.assertEqual(
             Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_solution_prefix.value),
-            self.conf.cache_path_tmp_internal
+            conf.cache_path_tmp_internal
         )
         self.assertEqual(
             Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_app_prefix.value),
-            self.conf.cache_path_app
+            conf.cache_path_app
         )
         self.assertEqual(
             Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_download_prefix.value),
-            self.conf.cache_path_download
+            conf.cache_path_download
         )
         self.assertEqual(
             Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value),
-            self.conf.cache_path_tmp_user
+            conf.cache_path_tmp_user
         )
         self.assertEqual(
             Path(new_tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value),
-            self.conf.catalog_collection_path
+            conf.catalog_collection_path
         )
 
     @unittest.skipUnless(sys.platform.startswith("win"), "requires Windoofs")
     def test__build_conda_executable_windows(self):
-        r = self.conf._build_conda_executable("myPathToConda")
+        conf = Configuration()
+        r = conf._build_conda_executable("myPathToConda")
 
         expected = Path("myPathToConda").joinpath("Scripts", "conda.exe")
         self.assertEqual(r, str(expected))
 
     @unittest.skipUnless(sys.platform == 'linux' or sys.platform == 'darwin', "requires a proper OS")
     def test__build_conda_executable_linux(self):
-        r = self.conf._build_conda_executable("myPathToConda")
+        conf = Configuration()
+        r = conf._build_conda_executable("myPathToConda")
 
         expected = Path("myPathToConda").joinpath("bin", "conda")
         self.assertEqual(r, str(expected))
@@ -107,8 +110,9 @@ class TestConfiguration(TestUnitCommon):
     def test_empty_tmp(self, force_remove_mock):
         force_remove_mock.return_value = None
         # call
-        self.conf.cache_path_tmp_user = Path(self.tmp_dir.name)
-        self.conf.empty_tmp()
+        conf = Configuration()
+        conf.cache_path_tmp_user = Path(self.tmp_dir.name)
+        conf._empty_tmp()
 
         force_remove_mock.assert_called_once()
 

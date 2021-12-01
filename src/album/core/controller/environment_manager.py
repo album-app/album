@@ -1,26 +1,24 @@
 from pathlib import Path
 
-from album.core.utils.operations.file_operations import force_remove
-
-from album.core import Solution
-from album.core.concept.singleton import Singleton
-from album.core.controller.collection.collection_manager import CollectionManager
+from album.api.album_interface import AlbumInterface
+from album.api.environment_interface import EnvironmentInterface
 from album.core.controller.conda_manager import CondaManager
 from album.core.model.catalog import Catalog
-from album.core.utils.operations.solution_operations import set_environment_paths, get_parent_dict
-from album.runner.model.coordinates import Coordinates
 from album.core.model.environment import Environment
+from album.core.utils.operations.file_operations import force_remove
+from album.core.utils.operations.solution_operations import set_environment_paths, get_parent_dict
 from album.runner import album_logging
+from album.runner.model.coordinates import Coordinates
+from album.runner.model.solution import Solution
 
 module_logger = album_logging.get_active_logger
 
 
-class EnvironmentManager(metaclass=Singleton):
-    """Manages everything around the environment a solution lives in."""
+class EnvironmentManager(EnvironmentInterface):
 
-    def __init__(self):
-        self.conda_manager = CondaManager()
-        self.collection_manager = CollectionManager()
+    def __init__(self, album: AlbumInterface):
+        self.conda_manager = CondaManager(album.configuration())
+        self.collection_manager = album.collection_manager()
 
     def install_environment(self, active_solution: Solution, catalog: Catalog) -> Environment:
         environment = Environment(
@@ -33,11 +31,6 @@ class EnvironmentManager(metaclass=Singleton):
         return environment
 
     def set_environment(self, active_solution: Solution, catalog: Catalog) -> Environment:
-        """Resolves the environment the active solution runs in.
-
-        Returns the resolve result of the parent of the active solution.
-
-        """
         parent = get_parent_dict(active_solution)
         # solution runs in its own environment
         if not parent:
@@ -68,15 +61,16 @@ class EnvironmentManager(metaclass=Singleton):
         return self.conda_manager.remove_environment(environment.name)
 
     def get_environment_base_folder(self):
-        """Returns the location all album-created environments live in."""
         return Path(self.conda_manager.get_base_environment_path())
 
     def run_scripts(self, environment: Environment, scripts):
-        """Runs scripts in an environment"""
         if environment:
             self.conda_manager.run_scripts(environment, scripts)
         else:
             raise EnvironmentError("Environment not set! Cannot run scripts!")
+
+    def get_conda_manager(self):
+        return self.conda_manager
 
     @staticmethod
     def get_environment_name(coordinates: Coordinates, catalog: Catalog):

@@ -15,8 +15,8 @@ class TestCondaManager(TestUnitCommon):
 
     def setUp(self):
         super().setUp()
-        self.create_album_test_instance(init_catalogs=False)
-        self.conda = CondaManager()
+        album = self.create_album_test_instance(init_catalogs=False)
+        self.conda = CondaManager(album.configuration())
 
     def tearDown(self) -> None:
         env_dict = self.conda.get_environment_dict()

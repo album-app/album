@@ -2,6 +2,7 @@ import os
 import sys
 from argparse import ArgumentParser
 
+from album.api.album import Album
 from album.argument_parsing import ArgumentParser as AlbumAP
 from album.ci.commandline import configure_repo, configure_ssh, zenodo_publish, zenodo_upload, update_index, \
     push_changes, merge
@@ -25,8 +26,18 @@ def main():
         album_ci_command = sys.argv[1]  # album command always expected at second position
     except IndexError:
         ci_parser.error("Please provide a valid action!")
+
+    # Makes sure album is initialized.
+    album_instance = create_album_instance()
+    album_instance.collection_manager().load_or_create_collection()
+
     module_logger().debug("Running %s command..." % album_ci_command)
-    args.func(args)  # execute entry point function
+    args.func(album_instance, args)  # execute entry point function
+
+
+def create_album_instance():
+    album = Album()
+    return album
 
 
 def create_parser():

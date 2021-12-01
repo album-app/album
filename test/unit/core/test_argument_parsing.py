@@ -4,16 +4,13 @@ import tempfile
 import unittest.mock
 from unittest.mock import patch
 
+from album.core.commandline import search, remove_catalog, add_catalog, uninstall, install, repl, deploy, run, \
+    start_server, test
+
 from album import argument_parsing
-# the functions to call. Caution: do not import as module!
-from album.core.commandline import deploy, install, uninstall, repl, run, search, test, start_server, \
-    add_catalog, remove_catalog
 
 
 class TestArgumentParsing(unittest.TestCase):
-
-    def setUp(self):
-        pass
 
     @patch('album.argument_parsing.__run_subcommand', return_value=True)
     def test_run(self, _):

@@ -3,8 +3,6 @@ import unittest
 from pathlib import Path
 from shutil import copy
 
-from album.core.model.configuration import Configuration
-
 from album.argument_parsing import main
 from album.core.utils.operations.file_operations import force_remove
 from album.runner.model.coordinates import Coordinates
@@ -16,7 +14,7 @@ class TestIntegrationDeploy(TestIntegrationCommon):
     def tearDown(self) -> None:
         # try to avoid git-removal windows errors
         try:
-            force_remove(self.collection_manager.configuration.cache_path_download, warning=False)
+            force_remove(self.album_instance.configuration().get_cache_path_download(), warning=False)
         except TimeoutError:
             # todo: fixme! rather sooner than later!
             if sys.platform == 'win32' or sys.platform == 'cygwin':
@@ -145,7 +143,7 @@ class TestIntegrationDeploy(TestIntegrationCommon):
         self.assertEqual('- my changes', str(solution.setup['changelog'].strip()))
 
         # check of documentation file was deployed into the catalog and copied into the collection cache
-        self.assertTrue(catalog.src.joinpath(Configuration.get_solution_path_suffix(coordinates), 'file.md').exists())
+        self.assertTrue(catalog.src.joinpath(self.album_instance.configuration().get_solution_path_suffix(coordinates), 'file.md').exists())
 
 
 if __name__ == '__main__':

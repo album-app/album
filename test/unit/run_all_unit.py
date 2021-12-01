@@ -4,7 +4,7 @@ from test.unit.ci import test_ci_argument_parsing, test_ci_commandline
 from test.unit.ci.controller import test_release_manager, test_zenodo_manager
 from test.unit.ci.utils import test_ci_utils, test_deploy_environment
 from test.unit.core import test__init__, test_argument_parsing, test_server
-from test.unit.core.concept import test_singleton, test_database
+from test.unit.core.concept import test_database
 from test.unit.core.controller import test_search_manager, test_install_manager, test_run_manager, test_deploy_manager, \
     test_conda_manager, test_test_manager, test_task_manager, test_clone_manager, test_migration_manager, \
     test_environment_manager
@@ -55,7 +55,6 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_task))
 
     # album.core.concept
-    suite.addTests(loader.loadTestsFromModule(test_singleton))
     suite.addTests(loader.loadTestsFromModule(test_database))
 
     # album.core.utils

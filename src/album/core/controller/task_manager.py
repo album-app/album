@@ -2,21 +2,20 @@ import queue
 import threading
 from threading import Thread
 
-from album.core.concept.singleton import Singleton
+from album.api.task_interface import TaskInterface
 from album.core.model.task import Task, LogHandler
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
 
-class TaskManager(metaclass=Singleton):
-    """Class for retrieving the status of a solution.
-    """
+class TaskManager(TaskInterface):
 
     server_queue = None
-    num_fetch_threads = 3
 
+    num_fetch_threads = 3
     tasks = {}
+
     task_count = 0
     workers_initialized = False
 
@@ -36,11 +35,9 @@ class TaskManager(metaclass=Singleton):
             worker.start()
 
     def get_task(self, task_id):
-        """Get a task managed by the task manager."""
         return self.tasks[task_id]
 
     def get_status(self, task):
-        """Get the status of a task managed by the task manager."""
         return {
             "status": task.status.name,
             "records": self._records_to_json(task.log_handler.records)
@@ -58,7 +55,7 @@ class TaskManager(metaclass=Singleton):
             })
         return res
 
-    def finish_queue(self):
+    def _finish_queue(self):
         self.server_queue.join()
         # TODO add timeout parameter and do something like the following if timeout is set:
         # timeout = 10  # waiting for 10 seconds for queue to finish
@@ -101,7 +98,9 @@ class TaskManager(metaclass=Singleton):
         album_logging.pop_active_logger()
         module_logger().info(f"TaskManager: finished task {task.id}.")
 
+    def finish_tasks(self):
+        self.server_queue.join()
+
     @staticmethod
     def _run_task(task):
         return task.method(*task.args)
-

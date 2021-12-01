@@ -3,8 +3,6 @@ import unittest
 from unittest.mock import patch
 
 from album.argument_parsing import main
-from album.core import get_active_solution
-from album.core.controller.conda_manager import CondaManager
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -39,7 +37,7 @@ class TestIntegrationTest(TestIntegrationCommon):
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_test(self, get_environment_path):
-        get_environment_path.return_value = CondaManager().get_active_environment_path()
+        get_environment_path.return_value = self.album_instance.environment_manager().conda_manager.get_active_environment_path()
 
         self.fake_install(self.get_test_solution_path("solution6_noparent_test.py"), create_environment=False)
 
@@ -61,7 +59,7 @@ class TestIntegrationTest(TestIntegrationCommon):
             self.assertIn("solution6_noparent_test_close", log)
             self.assertIn("solution6_noparent_test_test", log)
 
-        self.assertIsNone(get_active_solution())
+        self.assertIsNone(self.album_instance.state_manager().get_active_solution())
 
 
 if __name__ == '__main__':

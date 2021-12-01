@@ -1,7 +1,7 @@
 import unittest
 
 
-class TestSingleton(unittest.TestCase):
+class TestDatabase(unittest.TestCase):
 
     @unittest.skip("Needs to be implemented!")
     def test__init__(self):

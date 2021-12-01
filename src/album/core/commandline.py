@@ -1,13 +1,6 @@
 import sys
 
-from album.api import Album
-from album.core.controller.clone_manager import CloneManager
-from album.core.controller.collection.collection_manager import CollectionManager
-from album.core.controller.deploy_manager import DeployManager
-from album.core.controller.install_manager import InstallManager
-from album.core.controller.run_manager import RunManager
-from album.core.controller.search_manager import SearchManager
-from album.core.controller.test_manager import TestManager
+from album.api.album_interface import AlbumInterface
 from album.core.server import AlbumServer
 from album.core.utils.operations.solution_operations import get_deploy_dict, serialize_json
 from album.core.utils.operations.view_operations import get_solution_as_string, \
@@ -17,21 +10,21 @@ from album.runner.album_logging import get_active_logger
 module_logger = get_active_logger
 
 
-def add_catalog(args) -> None:
-    CollectionManager().catalogs().add_by_src(args.src)
+def add_catalog(album_instance: AlbumInterface, args) -> None:
+    album_instance.collection_manager().catalogs().add_by_src(args.src)
 
 
-def remove_catalog(args) -> None:
-    CollectionManager().catalogs().remove_from_collection_by_src(args.src)
+def remove_catalog(album_instance: AlbumInterface, args) -> None:
+    album_instance.collection_manager().catalogs().remove_from_collection_by_src(args.src)
 
 
-def update(args):
-    CollectionManager().catalogs().update_any(getattr(args, "catalog_name", None))
+def update(album_instance: AlbumInterface, args):
+    album_instance.collection_manager().catalogs().update_any(getattr(args, "catalog_name", None))
 
 
-def upgrade(args):
+def upgrade(album_instance: AlbumInterface, args):
     dry_run = getattr(args, "dry_run", False)
-    updates = CollectionManager().catalogs().update_collection(getattr(args, "catalog_name", None),
+    updates = album_instance.collection_manager().catalogs().update_collection(getattr(args, "catalog_name", None),
                                                                dry_run=dry_run)
     print_json = _get_print_json(args)
     if print_json:
@@ -46,23 +39,23 @@ def upgrade(args):
         module_logger().info(res)
 
 
-def deploy(args):
-    DeployManager().deploy(
+def deploy(album_instance: AlbumInterface, args):
+    album_instance.deploy_manager().deploy(
         args.path, args.catalog, args.dry_run, args.push_option, args.git_email, args.git_name, args.force_deploy, args.changelog
     )
 
 
-def install(args):
-    InstallManager().install(args.path, sys.argv)
+def install(album_instance: AlbumInterface, args):
+    album_instance.install_manager().install(args.path, sys.argv)
 
 
-def uninstall(args):
-    InstallManager().uninstall(args.path, args.uninstall_deps, sys.argv)
+def uninstall(album_instance: AlbumInterface, args):
+    album_instance.install_manager().uninstall(args.path, args.uninstall_deps, sys.argv)
 
 
-def info(args):
+def info(album_instance: AlbumInterface, args):
     solution_path = args.path
-    resolve_result = CollectionManager().resolve_download_and_load(str(solution_path))
+    resolve_result = album_instance.collection_manager().resolve_download_and_load(str(solution_path))
     print_json = _get_print_json(args)
     solution = resolve_result.loaded_solution
     if print_json:
@@ -73,13 +66,13 @@ def info(args):
         module_logger().info(res)
 
 
-def run(args):
-    RunManager().run(args.path, args.run_immediately, sys.argv)
+def run(album_instance: AlbumInterface, args):
+    album_instance.run_manager().run(args.path, args.run_immediately, sys.argv)
 
 
-def search(args):
+def search(album_instance: AlbumInterface, args):
     print_json = _get_print_json(args)
-    search_result = SearchManager().search(args.keywords)
+    search_result = album_instance.search_manager().search(args.keywords)
     if print_json:
         print(_as_json(search_result))
     else:
@@ -87,22 +80,22 @@ def search(args):
         module_logger().info(res)
 
 
-def start_server(args):
+def start_server(album_instance: AlbumInterface, args):
     server = AlbumServer(args.port, args.host)
-    server.setup(Album())
+    server.setup(album_instance)
     server.start()
 
 
-def test(args):
-    TestManager().test(args.path, sys.argv)
+def test(album_instance, args):
+    album_instance.test_manager().test(args.path, sys.argv)
 
 
-def clone(args):
-    CloneManager().clone(args.src, args.target_dir, args.name)
+def clone(album_instance: AlbumInterface, args):
+    album_instance.clone_manager().clone(args.src, args.target_dir, args.name)
 
 
-def index(args):
-    index_dict = CollectionManager().get_index_as_dict()
+def index(album_instance: AlbumInterface, args):
+    index_dict = album_instance.collection_manager().get_index_as_dict()
     print_json = _get_print_json(args)
     if print_json:
         print(_as_json(index_dict))
@@ -111,7 +104,7 @@ def index(args):
         module_logger().info('Catalogs in your local collection: %s' % res)
 
 
-def repl(args):
+def repl(album_instance: AlbumInterface, args):
     """Function corresponding to the `repl` subcommand of `album`."""
     module_logger().info("This feature will be available soon!")
     # this loads a solution, opens python session in terminal, and lets you run python commands in the environment of the solution

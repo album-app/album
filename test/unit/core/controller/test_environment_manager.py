@@ -1,6 +1,5 @@
 import unittest.mock
 
-from album.core.controller.environment_manager import EnvironmentManager
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -8,7 +7,8 @@ class TestEnvironmentManager(TestUnitCommon):
 
     def setUp(self):
         super().setUp()
-        self.environment_manager = EnvironmentManager()
+        album = self.create_album_test_instance(init_catalogs=False)
+        self.environment_manager = album.environment_manager()
 
     def tearDown(self) -> None:
         super().tearDown()

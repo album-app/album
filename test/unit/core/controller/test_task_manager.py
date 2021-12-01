@@ -34,7 +34,7 @@ class TestTaskManager(TestUnitCommon):
         task_manager.register_task(task)
         self.assertTrue(task_manager.server_queue.unfinished_tasks)
 
-        task_manager.finish_queue()
+        task_manager._finish_queue()
         self.assertFalse(task_manager.server_queue.unfinished_tasks)
 
         self.assertEqual(1, len(task.log_handler.records))
@@ -52,7 +52,7 @@ class TestTaskManager(TestUnitCommon):
         task_manager.register_task(task)
         self.assertTrue(task_manager.server_queue.unfinished_tasks)
 
-        task_manager.finish_queue()
+        task_manager._finish_queue()
         self.assertFalse(task_manager.server_queue.unfinished_tasks)
 
         self.assertEqual(1, len(task.log_handler.records))
@@ -70,7 +70,7 @@ class TestTaskManager(TestUnitCommon):
         task_manager.register_task(task)
         self.assertTrue(task_manager.server_queue.unfinished_tasks)
 
-        task_manager.finish_queue()
+        task_manager._finish_queue()
         self.assertFalse(task_manager.server_queue.unfinished_tasks)
 
         for record in task.log_handler.records:

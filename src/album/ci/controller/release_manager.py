@@ -2,40 +2,37 @@ from pathlib import Path
 
 from git import Repo
 
+from album.api.album_interface import AlbumInterface
 from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.ci_utils import get_ssh_url
-from album.core.concept.singleton import Singleton
-from album.core.controller.migration_manager import MigrationManager
 from album.core.model.catalog import Catalog
-from album.core.model.configuration import Configuration
-from album.runner.model.coordinates import Coordinates
 from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_dict_entry
 from album.core.utils.operations.git_operations import checkout_branch, add_files_commit_and_push, \
     retrieve_single_file_from_head, configure_git
 from album.core.utils.operations.resolve_operations import get_zip_name, get_zip_name_prefix, dict_to_coordinates
 from album.runner import album_logging
+from album.runner.model.coordinates import Coordinates
 
 module_logger = album_logging.get_active_logger
 
 
-class ReleaseManager(metaclass=Singleton):
+class ReleaseManager():
     """Class for handling a catalog as administrator."""
 
-    # Singletons
     configuration = None
 
-    def __init__(self, catalog_name, catalog_path, catalog_src, force_retrieve):
+    def __init__(self, album_instance: AlbumInterface, catalog_name, catalog_path, catalog_src, force_retrieve):
         self.catalog_name = catalog_name
         self.catalog_path = catalog_path
         self.catalog_src = catalog_src
 
-        self.configuration = Configuration()
-        if not self.configuration.is_setup:
+        self.configuration = album_instance.configuration()
+        if not self.configuration.is_setup():
             self.configuration.setup()
 
         self.catalog = Catalog(None, name=self.catalog_name, path=catalog_path, src=self.catalog_src)
         self.catalog_repo: Repo = self.catalog.retrieve_catalog(force_retrieve=force_retrieve, update=False)
-        MigrationManager().load_index(self.catalog)
+        album_instance.migration_manager().load_index(self.catalog)
 
     def __del__(self):
         if self.catalog:
@@ -72,7 +69,7 @@ class ReleaseManager(metaclass=Singleton):
     def zenodo_publish(self, branch_name, zenodo_base_url, zenodo_access_token):
         zenodo_base_url, zenodo_access_token = self.__prepare_zenodo_arguments(zenodo_base_url, zenodo_access_token)
 
-        zenodo_manager = ZenodoManager(zenodo_base_url, zenodo_access_token)
+        zenodo_manager = self._get_zenodo_manager(zenodo_access_token, zenodo_base_url)
 
         head = checkout_branch(self.catalog_repo, branch_name)
 
@@ -96,7 +93,7 @@ class ReleaseManager(metaclass=Singleton):
     def zenodo_upload(self, branch_name, zenodo_base_url, zenodo_access_token):
         zenodo_base_url, zenodo_access_token = self.__prepare_zenodo_arguments(zenodo_base_url, zenodo_access_token)
 
-        zenodo_manager = ZenodoManager(zenodo_base_url, zenodo_access_token)
+        zenodo_manager = self._get_zenodo_manager(zenodo_access_token, zenodo_base_url)
 
         head = checkout_branch(self.catalog_repo, branch_name)
 
@@ -208,3 +205,8 @@ class ReleaseManager(metaclass=Singleton):
             username=ci_user_name,
             email=ci_user_email
         )
+
+    def _get_zenodo_manager(self, zenodo_access_token, zenodo_base_url):
+        # TODO in case one wants to reuse the zenodo manager, this needs to be smarter, but be aware that another call
+        #  to this method might have different parameters
+        return ZenodoManager(zenodo_base_url, zenodo_access_token)

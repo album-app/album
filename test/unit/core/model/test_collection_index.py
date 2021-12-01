@@ -634,7 +634,7 @@ class TestCollectionIndex(TestUnitCommon):
             1, self._get_solution_attrs(4, "grp_u", "name_u", "version_u")
         )
 
-        supp_attrs = {"install_date", "installed"}
+        supp_attrs = ["install_date", "installed"]
         inst_date1 = datetime(1991, 6, 23, 3, 23, 44).isoformat()
         self.test_catalog_collection_index.update_solution(
             1, Coordinates("grp", "name", "version"), {"installed": 1, "install_date": inst_date1}, supp_attrs
@@ -696,7 +696,7 @@ class TestCollectionIndex(TestUnitCommon):
             1, self._get_solution_attrs(4, "grp_u", "name_u", "version_u")
         )
 
-        supp_attrs = {"last_execution", "installed"}
+        supp_attrs = ["last_execution", "installed"]
         inst_date1 = datetime(1991, 6, 23, 3, 23, 44).isoformat()
         self.test_catalog_collection_index.update_solution(
             1, Coordinates("grp", "name", "version"), {"installed": 1, "last_execution": inst_date1}, supp_attrs

@@ -31,11 +31,11 @@ setup(
     run=album_run,
     close=album_close,
     dependencies={
-        'parent': {
-            'name': 'app2',
-            'group': 'group',
-            'version': '0.1.0',
-            'args': [
+        "parent": {
+            "name": "app2",
+            "group": "group",
+            "version": "0.1.0",
+            "args": [
                 {
                     "name": "app2_param",
                     "value": "app2_param_value"
