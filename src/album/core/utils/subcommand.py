@@ -89,7 +89,7 @@ class SaveThreadWithReturn:
             signal.pthread_kill(self.thread_id, signal.SIGKILL)
 
 
-def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=120):
+def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=120, pipe_output=True):
     """Runs a command in a subprocess thereby logging its output.
 
     Args:
@@ -107,6 +107,8 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
             The timeout in seconds after timeout 1 has unsuccessfully passed, after which the process is declared dead.
             Timeout resets when subprocess gives feedback to the main process.
             WindowsOS option only. Default: 120s
+        pipe_output:
+            Indicates whether to pipe the output of the subprocess or just return it as is.
 
     Returns:
         Exit status of the subprocess.
@@ -128,6 +130,16 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
 
     operation_system = sys.platform
     if operation_system == 'linux' or operation_system == 'darwin':
+        exit_status = _run_process_linux_macos(command, exit_status, log, pipe_output)
+    else:
+        exit_status = _run_process_windows(command, exit_status, log, timeout1, timeout2, pipe_output)
+
+    album_logging.pop_active_logger()
+    return exit_status
+
+
+def _run_process_linux_macos(command, exit_status, log, pipe_output):
+    if pipe_output:
         (command_output, exit_status) = pexpect.run(
             " ".join(command), logfile=log, withexitstatus=1, timeout=None, encoding=sys.getfilesystemencoding()
         )
@@ -135,7 +147,13 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
             module_logger().error(command_output)
             album_logging.pop_active_logger()
             raise RuntimeError("Command " + " ".join(command) + " failed: " + command_output)
+        return exit_status
     else:
+        return subprocess.run(command)
+
+
+def _run_process_windows(command, exit_status, log, timeout1, timeout2, pipe_output):
+    if pipe_output:
         process = subprocess.Popen(
             command,
             stdin=subprocess.PIPE,
@@ -145,9 +163,7 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
             bufsize=1,  # line buffered
             shell=True
         )
-
         save_communicate = True
-
         current_logger_name = album_logging.get_active_logger().name
         poll = SaveThreadWithReturn("poll", process.poll, parent_thread_name=current_logger_name)
         read_message = SaveThreadWithReturn(
@@ -158,7 +174,6 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
             timeout2=timeout2,
             parent_thread_name=current_logger_name
         )
-
         while True:
             # runs poll in a thread catching timeout errors
             r = poll.run()
@@ -177,7 +192,6 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
             # log message
             if output:
                 log.write(output)
-
         # cmd not frozen and it is save to communicate
         if save_communicate:
             _, err = process.communicate()
@@ -188,7 +202,6 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
                 "Process timed out. Process shut down. Last messages from the process: %s"
                 % log.getvalue()
             )
-
         # cmd failed
         if process.returncode:
             err_msg = err if err else log.getvalue()
@@ -197,16 +210,20 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
                 "{\"ret_code\": %(ret_code)s, \"err_msg\": %(err_msg)s}"
                 % {"ret_code": process.returncode, "err_msg": err_msg}
             )
-
         # cmd passed but with errors
         if err:
             module_logger().warning(
                 "Process terminated but reported the following error or warning: \n\t %s" % err)
 
             exit_status = process.returncode
-
-    album_logging.pop_active_logger()
-    return exit_status
+        return exit_status
+    else:
+        process = subprocess.run(
+            command,
+            universal_newlines=True,
+            bufsize=1,  # line buffered
+            shell=True
+        )
 
 
 def check_output(command):

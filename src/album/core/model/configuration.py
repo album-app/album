@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -48,7 +49,7 @@ class Configuration(ConfigurationInterface):
             raise RuntimeError("Configuration::setup was already called and should not be called twice.")
         self._is_setup = True
         # base root path where everything lives
-        self.base_cache_path = DefaultValues.app_data_dir.value
+        self.base_cache_path = Path(os.getenv('ALBUM_BASE_CACHE_PATH', DefaultValues.app_data_dir.value))
         if base_cache_path:
             self.base_cache_path = Path(base_cache_path)
 
