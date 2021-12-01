@@ -11,8 +11,6 @@ from unittest.mock import patch, MagicMock
 import git
 
 from album.api.album import Album
-from album.ci.controller.release_manager import ReleaseManager
-from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.model.default_values import DefaultValues
@@ -66,9 +64,6 @@ class TestUnitCommon(unittest.TestCase):
         # this is here to make sure all mocks are reset each time a test is executed
         album_logging._active_logger = {}
         TestUnitCommon._delete(AlbumServer)
-        TestUnitCommon._delete(ReleaseManager)
-        TestUnitCommon._delete(ZenodoManager)
-
     @staticmethod
     def _delete(singleton):
         if singleton.instance is not None:
