@@ -8,7 +8,6 @@ from werkzeug.exceptions import abort
 import album
 from album.api.album_interface import AlbumInterface
 from album.api.task_interface import TaskInterface
-from album.core.concept.singleton import Singleton
 from album.core.model.default_values import DefaultValues
 from album.core.model.task import Task
 from album.runner import album_logging
@@ -17,7 +16,7 @@ from album.runner.model.coordinates import Coordinates
 module_logger = album_logging.get_active_logger
 
 
-class AlbumServer(metaclass=Singleton):
+class AlbumServer():
     port = DefaultValues.server_port.value
     host = DefaultValues.server_port.value
 

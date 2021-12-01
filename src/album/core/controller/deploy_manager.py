@@ -24,7 +24,6 @@ module_logger = album_logging.get_active_logger
 class DeployManager(DeployInterface):
 
     def __init__(self, album: AlbumInterface):
-        print(album)
         self.album = album
 
     def deploy(self, deploy_path, catalog_name: str, dry_run: bool, push_option=None, git_email: str = None,

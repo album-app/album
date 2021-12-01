@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Optional
 from unittest.mock import patch
 
+from album.runner import album_logging
+
 from album.api.album import Album
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.catalog import Catalog
@@ -77,7 +79,7 @@ class TestIntegrationCommon(unittest.TestCase):
                 self.album_instance.environment_manager().get_conda_manager().remove_environment(e)
 
         self.album_instance.close()
-        TestUnitCommon.tear_down_singletons()
+        album_logging._active_logger = {}
 
         try:
             Path(self.closed_tmp_file.name).unlink()

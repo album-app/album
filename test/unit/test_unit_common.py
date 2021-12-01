@@ -14,7 +14,6 @@ from album.api.album import Album
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.model.default_values import DefaultValues
-from album.core.server import AlbumServer
 from album.core.utils.operations.file_operations import force_remove
 from album.runner import album_logging
 from album.runner.album_logging import pop_active_logger, LogLevel, configure_logging
@@ -59,16 +58,6 @@ class TestUnitCommon(unittest.TestCase):
             'timestamp': '',
         }
 
-    @staticmethod
-    def tear_down_singletons():
-        # this is here to make sure all mocks are reset each time a test is executed
-        album_logging._active_logger = {}
-        TestUnitCommon._delete(AlbumServer)
-    @staticmethod
-    def _delete(singleton):
-        if singleton.instance is not None:
-            del singleton.instance
-
     def tearDown(self) -> None:
         if self.collection_manager is not None and self.collection_manager.get_collection_index() is not None:
             self.collection_manager.get_collection_index().close()
@@ -83,7 +72,7 @@ class TestUnitCommon(unittest.TestCase):
         Path(self.closed_tmp_file.name).unlink()
         if self.album:
             self.album.close()
-        self.tear_down_singletons()
+        album_logging._active_logger = {}
         gc.collect()
         try:
             self.tmp_dir.cleanup()

@@ -11,7 +11,6 @@ module_logger = album_logging.get_active_logger
 
 class CloneManager(CloneInterface):
 
-    # singletons
     collection_manager = None
 
     def __init__(self, album: AlbumInterface):
