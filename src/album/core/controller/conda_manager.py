@@ -302,7 +302,7 @@ class CondaManager():
 
         subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
 
-    def run_script(self, environment_path, script_full_path, timeout1=60, timeout2=120):
+    def run_script(self, environment_path, script_full_path, timeout1=60, timeout2=120, pipe_output=True):
         """Runs a script in the given environment.
 
         Args:
@@ -316,6 +316,8 @@ class CondaManager():
             timeout2:
                 Timeout in seconds after timeout1 passed, after which the process behind the
                 operation is declared dead. Timeout is resets each time a feedback is passed to the main process.
+            pipe_output:
+                Indicates whether to pipe the output of the subprocess or just return it as is.
 
         """
         if sys.platform == 'win32' or sys.platform == 'cygwin':
@@ -332,7 +334,7 @@ class CondaManager():
                 self.conda_executable, 'run', '--no-capture-output', '--prefix',
                 environment_path, 'python', script_full_path
             ]
-        subcommand.run(subprocess_args, timeout1=timeout1, timeout2=timeout2)
+        subcommand.run(subprocess_args, timeout1=timeout1, timeout2=timeout2, pipe_output=pipe_output)
 
     def cmd_available(self, environment_path, cmd):
         """Checks whether a command is available when running the command in the given environment.
@@ -387,7 +389,7 @@ class CondaManager():
 
         return False
 
-    def run_scripts(self, environment: Environment, scripts):
+    def run_scripts(self, environment: Environment, scripts, pipe_output=True):
         """Runs the solution in the target environment
 
         Args:
@@ -400,15 +402,6 @@ class CondaManager():
             raise EnvironmentError('Could not find environment %s. Is the solution installed?' % environment.name)
 
         module_logger().debug('run_in_environment: %s...' % str(environment.path))
-
-        # Use an environment path and a temporary file to store the script
-        if debug_settings():
-            fp = open(str(DefaultValues.app_cache_dir.value.joinpath('album_test.py')), 'w')
-            module_logger().debug(
-                "Executable file in: %s..." % str(DefaultValues.app_cache_dir.value.joinpath('album_test.py')))
-        else:
-            fp = tempfile.NamedTemporaryFile(mode='w+', delete=False)
-            module_logger().debug('Executable file in: %s...' % fp.name)
 
         # first write scripts to disc, create meta-script to execute them in the order of the list
         if len(scripts) > 1:
@@ -423,13 +416,31 @@ class CondaManager():
         else:
             script = scripts[0]
 
+        self.write_and_run_script(environment, script, pipe_output=pipe_output)
+
+    def write_and_run_script(self, environment, script, pipe_output):
+        """Use an environment path and a temporary file to store the script
+        Args:
+
+            environment:
+                The virtual environment used to run the scripts
+            script:
+                The virtual environment used to run the scripts
+            pipe_output:
+                Indicates whether to pipe the output of the subprocess or just return it as is.
+        """
+        if debug_settings():
+            fp = open(str(DefaultValues.app_cache_dir.value.joinpath('album_test.py')), 'w')
+            module_logger().debug(
+                "Executable file in: %s..." % str(DefaultValues.app_cache_dir.value.joinpath('album_test.py')))
+        else:
+            fp = tempfile.NamedTemporaryFile(mode='w+', delete=False)
+            module_logger().debug('Executable file in: %s...' % fp.name)
         fp.write(script)
         fp.flush()
         os.fsync(fp)
         fp.close()
-
-        self.run_script(str(environment.path), fp.name)
-
+        self.run_script(str(environment.path), fp.name, pipe_output=pipe_output)
         Path(fp.name).unlink()
 
     def create_or_update_env(self, environment: Environment):

@@ -1,9 +1,10 @@
 from album.runner import setup
+from album.runner.album_logging import get_active_logger
 from album.runner.api import get_args
 
 
 def album_run():
-    print("solution8_arguments_run_start")
+    get_active_logger().info("solution8_arguments_run_start")
 
     args = get_args()
 
@@ -14,27 +15,27 @@ def album_run():
     la1 = args.lambda_arg1
     la2 = args.lambda_arg2
 
-    print("integer_arg1")
-    print(type(ia1))
-    print(ia1)
+    get_active_logger().info("integer_arg1")
+    get_active_logger().info(type(ia1))
+    get_active_logger().info(ia1)
 
-    print("integer_arg2")
-    print(type(ia2))
-    print(ia2)
+    get_active_logger().info("integer_arg2")
+    get_active_logger().info(type(ia2))
+    get_active_logger().info(ia2)
 
-    print("string_arg1")
-    print(type(sa1))
-    print(sa1)
+    get_active_logger().info("string_arg1")
+    get_active_logger().info(type(sa1))
+    get_active_logger().info(sa1)
 
-    print("lambda_arg1")
-    print(type(la1))
-    print(la1)
+    get_active_logger().info("lambda_arg1")
+    get_active_logger().info(type(la1))
+    get_active_logger().info(la1)
 
-    print("lambda_arg2")
-    print(type(la2))
-    print(la2)
+    get_active_logger().info("lambda_arg2")
+    get_active_logger().info(type(la2))
+    get_active_logger().info(la2)
 
-    print("solution8_arguments_run_end")
+    get_active_logger().info("solution8_arguments_run_end")
 
 
 def album_install():

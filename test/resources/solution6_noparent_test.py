@@ -1,6 +1,7 @@
 import tempfile
 
 from album.runner import setup
+from album.runner.album_logging import get_active_logger
 from album.runner.api import get_args
 
 
@@ -8,7 +9,7 @@ def album_run():
     args = get_args()
 
     # log-output
-    print("solution6_noparent_test_run")
+    get_active_logger().info("solution6_noparent_test_run")
 
     # log output in file passed as argument
     file = open(args.file, "a")
@@ -20,7 +21,7 @@ def album_close():
     args = get_args()
 
     # log-output
-    print("solution6_noparent_test_close")
+    get_active_logger().info("solution6_noparent_test_close")
 
     # log output in file passed as argument
     file = open(args.file, "a")

@@ -1,6 +1,7 @@
 import time
 
 from album.runner import setup
+from album.runner.album_logging import get_active_logger
 
 
 def album_run():
@@ -8,9 +9,9 @@ def album_run():
 
 
 def album_uninstall():
-    print("solution10_uninstall_album_uninstall_start")
+    get_active_logger().info("solution10_uninstall_album_uninstall_start")
     time.sleep(5)
-    print("solution10_uninstall_album_uninstall_end")
+    get_active_logger().info("solution10_uninstall_album_uninstall_end")
 
 
 def album_install():

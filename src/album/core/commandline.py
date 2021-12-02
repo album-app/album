@@ -1,4 +1,5 @@
 import sys
+from queue import Queue
 
 from album.api.album_interface import AlbumInterface
 from album.core.server import AlbumServer
@@ -6,6 +7,8 @@ from album.core.utils.operations.solution_operations import get_deploy_dict, ser
 from album.core.utils.operations.view_operations import get_solution_as_string, \
     get_updates_as_string, get_index_as_string, get_search_result_as_string
 from album.runner.album_logging import get_active_logger
+from album.runner.concept.script_creator import ScriptCreatorRun
+from album.runner.model.solution import Solution
 
 module_logger = get_active_logger
 
@@ -106,9 +109,15 @@ def index(album_instance: AlbumInterface, args):
 
 def repl(album_instance: AlbumInterface, args):
     """Function corresponding to the `repl` subcommand of `album`."""
-    module_logger().info("This feature will be available soon!")
-    # this loads a solution, opens python session in terminal, and lets you run python commands in the environment of the solution
-    # Load solution
+    # resolve the input
+    resolve_result = album_instance.collection_manager().resolve_require_installation_and_load(args.path)
+    queue = Queue()
+    script_creator = ScriptRepl()
+    album_instance.run_manager().build_queue(resolve_result.loaded_solution, resolve_result.catalog, queue,
+                                         script_creator, False, [""])
+    script_queue_entry = queue.get(block=False)
+    album_instance.environment_manager().get_conda_manager().run_scripts(script_queue_entry.environment, script_queue_entry.scripts, pipe_output=False)
+    module_logger().info('Ran REPL for \"%s\"!' % resolve_result.loaded_solution.coordinates.name)
 
 
 def _get_print_json(args):
@@ -119,29 +128,17 @@ def _as_json(data):
     return serialize_json(data)
 
 
-#     solution_script = open(args.path).read()
-#     exec(solution_script)
-#
-#     solution = get_active_solution()
-#
-#     if debug_settings():
-#         module_logger().debug('album loaded locally: %s...' % str(solution))
-#
-#     # Get environment name
-#     environment_name = solution.environment_name
-#
-#     script = """from code import InteractiveConsole
-# """
-#
-#     script += solution_script
-#
-#     # Create an interactive console with our globals and locals
-#     script += """
-# console = InteractiveConsole(locals={
-#     **globals(),
-#     **locals()
-# },
-#                              filename="<console>")
-# console.interact()
-# """
-#     solution.run_scripts(script)
+class ScriptRepl(ScriptCreatorRun):
+    def get_execution_block(self, solution_object: Solution):
+        return """
+from code import InteractiveConsole
+try:
+    import readline
+except ImportError:
+    print("Module readline not available.")
+else:
+    import rlcompleter
+    readline.parse_and_bind("tab: complete")
+console = InteractiveConsole(locals={**globals(), **locals()})
+console.interact()
+"""

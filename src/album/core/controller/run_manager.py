@@ -257,10 +257,10 @@ class RunManager(RunInterface):
 
         """
         module_logger().debug('Creating standalone album script \"%s\"...' % active_solution.coordinates.name)
-        script = script_creator.create_script(active_solution, args)
 
         self._print_credit([active_solution])
         environment = self.album.environment_manager().set_environment(active_solution, catalog)
+        script = script_creator.create_script(active_solution, args)
 
         return ScriptQueueEntry(active_solution.coordinates, [script], environment=environment)
 

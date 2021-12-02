@@ -1,32 +1,33 @@
 import time
 
 from album.runner import setup
+from album.runner.album_logging import get_active_logger
 
 global args
 
 
 def album_run():
-    print("solution7_long_routines_run_start")
+    get_active_logger().info("solution7_long_routines_run_start")
     time.sleep(5)
-    print("solution7_long_routines_run_end")
+    get_active_logger().info("solution7_long_routines_run_end")
 
 
 def album_install():
-    print("solution7_long_routines_install_start")
+    get_active_logger().info("solution7_long_routines_install_start")
     time.sleep(5)
-    print("solution7_long_routines_install_end")
+    get_active_logger().info("solution7_long_routines_install_end")
 
 
 def album_pre_test():
-    print("solution7_long_routines_pre_test_start")
-    print("solution7_long_routines_pre_test_end")
+    get_active_logger().info("solution7_long_routines_pre_test_start")
+    get_active_logger().info("solution7_long_routines_pre_test_end")
     return {}
 
 
 def album_test():
-    print("solution7_long_routines_test_start")
+    get_active_logger().info("solution7_long_routines_test_start")
     time.sleep(5)
-    print("solution7_long_routines_test_end")
+    get_active_logger().info("solution7_long_routines_test_end")
 
 
 setup(
