@@ -27,8 +27,8 @@ class TestIntegrationAPI(TestIntegrationCommon):
         logger.info(serialize_json(catalogs_as_dict))
 
         # list configuration
-        logger.info(f"conda executable: {album.configuration().conda_executable}")
-        logger.info(f"album cache base: {album.configuration().base_cache_path}")
+        logger.info(f"conda executable: {album.configuration().conda_executable()}")
+        logger.info(f"album cache base: {album.configuration().base_cache_path()}")
 
         # add remote catalog
         remote_catalog = "https://gitlab.com/album-app/catalogs/templates/catalog"
@@ -111,7 +111,7 @@ class TestIntegrationAPI(TestIntegrationCommon):
     def assertCatalogPresence(self, catalogs, src, should_be_present):
         present = False
         for catalog in catalogs:
-            if str(catalog.src) == src:
+            if str(catalog.src()) == src:
                 present = True
         self.assertEqual(should_be_present, present)
 

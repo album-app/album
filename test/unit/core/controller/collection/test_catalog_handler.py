@@ -118,13 +118,13 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         c = self.catalog_handler.get_by_src(str(DefaultValues.default_catalog_src.value))
 
         # assert
-        self.assertEqual(c.name, "default")
+        self.assertEqual(c.name(), "default")
 
     def test_get_by_name(self):
-        expected_name = self.catalog_handler.get_all()[0].name
+        expected_name = self.catalog_handler.get_all()[0].name()
 
         # call & assert
-        self.assertEqual(expected_name, self.catalog_handler.get_by_name(expected_name).name)
+        self.assertEqual(expected_name, self.catalog_handler.get_by_name(expected_name).name())
 
     def test_get_by_name_not_configured(self):
         with self.assertRaises(LookupError):
@@ -132,24 +132,24 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
 
     def test_get_by_path(self):
         c = self.catalog_handler.get_by_path(self.catalog_list[0]['path'])
-        self.assertEqual(c.name, self.catalog_list[0]['name'])
+        self.assertEqual(c.name(), self.catalog_list[0]['name'])
 
     def test_get_all(self):
         c = self.catalog_handler.get_all()
 
         self.assertEqual(len(c), 3)
 
-        self.assertFalse(c[0].is_deletable)
-        self.assertTrue(c[1].is_deletable)
-        self.assertTrue(c[2].is_deletable)
+        self.assertFalse(c[0].is_deletable())
+        self.assertTrue(c[1].is_deletable())
+        self.assertTrue(c[2].is_deletable())
 
     def test_get_local_catalog(self):
         r = self.catalog_handler.get_local_catalog()
 
         local_catalog = self.catalog_handler.get_all()[0]
-        self.assertEqual(r.catalog_id, local_catalog.catalog_id)
-        self.assertEqual(r.name, local_catalog.name)
-        self.assertEqual(r.src, local_catalog.src)
+        self.assertEqual(r.catalog_id(), local_catalog.catalog_id())
+        self.assertEqual(r.name(), local_catalog.name())
+        self.assertEqual(r.src(), local_catalog.src())
 
     def test_create_new(self):
         # prepare
@@ -256,7 +256,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.assertEqual(3, len(res))
         self.assertEqual(3, _update_collection_from_catalog.call_count)
         self.assertEqual(
-            [call(catalog_name=catalog.name), call(catalog_name='default'), call(catalog_name='test_catalog2')],
+            [call(catalog_name=catalog.name()), call(catalog_name='default'), call(catalog_name='test_catalog2')],
             _update_collection_from_catalog.call_args_list)
 
     def test_update_collection_dry_run(self):
@@ -275,7 +275,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.assertEqual(3, len(res))
         self.assertEqual(3, _get_divergence_between_catalog_and_collection.call_count)
         self.assertEqual(
-            [call(catalog_name=catalog.name), call(catalog_name='default'), call(catalog_name='test_catalog2')],
+            [call(catalog_name=catalog.name()), call(catalog_name='default'), call(catalog_name='test_catalog2')],
             _get_divergence_between_catalog_and_collection.call_args_list)
         _update_collection_from_catalog.assert_not_called()
 
@@ -286,11 +286,11 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.catalog_handler._update_collection_from_catalog = _update_collection_from_catalog
 
         # call
-        res = self.catalog_handler.update_collection(catalog_name=catalog.name)
+        res = self.catalog_handler.update_collection(catalog_name=catalog.name())
 
         # assert
         self.assertEqual(1, len(res))
-        _update_collection_from_catalog.assert_called_once_with(catalog.name)
+        _update_collection_from_catalog.assert_called_once_with(catalog.name())
 
     def test_update_collection_specific_catalog_dry_run(self):
         # mocks
@@ -302,11 +302,11 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.catalog_handler._update_collection_from_catalog = _update_collection_from_catalog
 
         # call
-        res = self.catalog_handler.update_collection(catalog_name=catalog.name, dry_run=True)
+        res = self.catalog_handler.update_collection(catalog_name=catalog.name(), dry_run=True)
 
         # assert
         self.assertEqual(1, len(res))
-        _get_divergence_between_catalog_and_collection.assert_called_once_with(catalog.name)
+        _get_divergence_between_catalog_and_collection.assert_called_once_with(catalog.name())
         _update_collection_from_catalog.assert_not_called()
 
     @patch('album.core.controller.collection.catalog_handler.force_remove')
@@ -526,10 +526,10 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             catalog = self.catalog_handler._create_catalog_from_src(self.tmp_dir.name)
 
             # assert
-            self.assertEqual("mynewcatalog", catalog.name)
-            self.assertEqual(Path(self.tmp_dir.name), catalog.src)
-            self.assertEqual(self.album.configuration().get_cache_path_catalog("mynewcatalog"), catalog.path)
-            self.assertIsNone(catalog.catalog_id)
+            self.assertEqual("mynewcatalog", catalog.name())
+            self.assertEqual(Path(self.tmp_dir.name), catalog.src())
+            self.assertEqual(self.album.configuration().get_cache_path_catalog("mynewcatalog"), catalog.path())
+            self.assertIsNone(catalog.catalog_id())
 
     def test__create_catalog_cache_if_missing(self):
         # prepare
@@ -582,7 +582,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         ]
         get_all_solutions_mock = MagicMock(return_value=r_val)
         c1_index.get_all_solutions = get_all_solutions_mock
-        c1.catalog_index = c1_index
+        c1._catalog_index = c1_index
 
         with patch("album.core.controller.migration_manager.MigrationManager.load_index") as load_index_mock:
             load_index_mock.return_value = c1
@@ -632,7 +632,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             SolutionChange(Coordinates("g", "n2", "v"), ChangeType.CHANGED)
         ]
 
-        c_updates.solution_changes = sol_change_list
+        c_updates._solution_changes = sol_change_list
 
         # mock
         _get_div_b_cat_and_coll_mock = MagicMock(return_value=c_updates)
@@ -684,11 +684,11 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
 
         c = self.catalog_handler._as_catalog(catalog_dict)
 
-        self.assertEqual("myCatalog", c.name)
-        self.assertEqual(Path("myPath"), c.path)
-        self.assertEqual("mySrc", c.src)
-        self.assertEqual(1, c.catalog_id)
-        self.assertEqual(1, c.is_deletable)
+        self.assertEqual("myCatalog", c.name())
+        self.assertEqual(Path("myPath"), c.path())
+        self.assertEqual(Path("mySrc").absolute(), c.src())
+        self.assertEqual(1, c.catalog_id())
+        self.assertEqual(1, c.is_deletable())
 
     def test_set_version(self):
         catalog = self.create_test_catalog()
@@ -701,8 +701,8 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             self.catalog_handler.set_version(catalog)
 
             # assert
-            self.assertEqual("0.1.0", catalog.version)
-            retrieve_c_m_i_mock.assert_called_once_with(catalog.path, 'main')
+            self.assertEqual("0.1.0", catalog.version())
+            retrieve_c_m_i_mock.assert_called_once_with(catalog.path(), 'main')
 
             catalog.dispose()
 
@@ -727,7 +727,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
                 self.catalog_handler.set_version(catalog)
 
             # assert
-            retrieve_c_m_i_mock.assert_called_once_with(catalog.path, 'main')
+            retrieve_c_m_i_mock.assert_called_once_with(catalog.path(), 'main')
 
     def test_set_version_no_meta(self):
         catalog = self.create_test_catalog()
@@ -741,7 +741,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
                 self.catalog_handler.set_version(catalog)
 
             # assert
-            retrieve_c_m_i_mock.assert_called_once_with(catalog.path, "main")
+            retrieve_c_m_i_mock.assert_called_once_with(catalog.path(), "main")
 
         catalog.dispose()
 

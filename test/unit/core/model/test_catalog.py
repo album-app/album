@@ -50,10 +50,10 @@ class TestCatalog(TestUnitCommon):
 
     def test__init__(self):
         new_catalog = self.catalog
-        self.assertEqual(new_catalog.path, Path(self.tmp_dir.name).joinpath('testPath'))
-        self.assertIsNotNone(new_catalog.src)
+        self.assertEqual(new_catalog._path, Path(self.tmp_dir.name).joinpath('testPath'))
+        self.assertIsNotNone(new_catalog._src)
         self.assertTrue(new_catalog.is_local())
-        self.assertEqual(new_catalog.name, 'test')
+        self.assertEqual(new_catalog._name, 'test')
         self.assertEqual('{\'name\': \'test\', \'version\': \'0.1.0\'}', str(new_catalog.get_meta_information()))
 
     @unittest.skip("Needs to be implemented!")
@@ -62,7 +62,7 @@ class TestCatalog(TestUnitCommon):
 
     @patch('album.core.model.catalog.force_remove')
     def test_update_index_cache_remote_catalog_src_deleted(self, force_remove_mock):
-        self.catalog.src = "https://mycatalog.org"
+        self.catalog._src = "https://mycatalog.org"
         # mock
         copy_index_from_src_to_cache = MagicMock(return_value=True)
         self.catalog.copy_index_from_src_to_cache = copy_index_from_src_to_cache
@@ -80,7 +80,7 @@ class TestCatalog(TestUnitCommon):
 
     @patch('album.core.model.catalog.force_remove')
     def test_update_index_cache_remote_catalog(self, force_remove_mock):
-        self.catalog.src = "https://mycatalog.org"
+        self.catalog._src = "https://mycatalog.org"
         # mock
         copy_index_from_src_to_cache = MagicMock(return_value=True)
         self.catalog.copy_index_from_src_to_cache = copy_index_from_src_to_cache
@@ -114,18 +114,18 @@ class TestCatalog(TestUnitCommon):
         download_index.assert_not_called()
 
     def test_update_index_cache_cache_catalog(self):
-        self.catalog.src = None  # set to cache only catalog
+        self.catalog._src = None  # set to cache only catalog
 
         # call
         self.assertFalse(self.catalog.update_index_cache())
 
     def test_add_and_len(self):
         self.populate_index()
-        self.assertEqual(len(self.catalog.catalog_index), 10)
+        self.assertEqual(len(self.catalog._catalog_index), 10)
 
     def test_add_doi_already_present(self):
         self.populate_index()
-        self.assertEqual(len(self.catalog.catalog_index), 10)
+        self.assertEqual(len(self.catalog._catalog_index), 10)
 
         d = {}
         for key in CatalogIndex.get_solution_column_keys():
@@ -134,7 +134,7 @@ class TestCatalog(TestUnitCommon):
         solution = Solution(d)
 
         # this doi is already in index
-        solution.setup.doi = 'doi1'
+        solution._setup.doi = 'doi1'
 
         # call
         with self.assertRaises(RuntimeError):
@@ -142,7 +142,7 @@ class TestCatalog(TestUnitCommon):
 
     def test_add_solution_already_present_no_overwrite(self):
         self.populate_index()
-        self.assertEqual(len(self.catalog.catalog_index), 10)
+        self.assertEqual(len(self.catalog._catalog_index), 10)
 
         d = {}
         for key in CatalogIndex.get_solution_column_keys():
@@ -157,7 +157,7 @@ class TestCatalog(TestUnitCommon):
     @patch('album.core.controller.collection.solution_handler.SolutionHandler.get_solution_file')
     def test_add_solution_already_present_overwrite(self, get_solution_cache_file_mock):
         self.populate_index()
-        self.assertEqual(len(self.catalog.catalog_index), 10)
+        self.assertEqual(len(self.catalog._catalog_index), 10)
 
         get_solution_cache_file_mock.side_effect = [Path(self.closed_tmp_file.name)]
 
@@ -171,11 +171,11 @@ class TestCatalog(TestUnitCommon):
         self.catalog.add(solution, force_overwrite=True)
 
         # assert
-        self.assertEqual(len(self.catalog.catalog_index), 10)
+        self.assertEqual(len(self.catalog._catalog_index), 10)
 
     def test_remove(self):
         self.populate_index()
-        self.assertEqual(len(self.catalog.catalog_index), 10)
+        self.assertEqual(len(self.catalog._catalog_index), 10)
 
         d = {}
         for key in CatalogIndex.get_solution_column_keys():
@@ -186,11 +186,11 @@ class TestCatalog(TestUnitCommon):
         self.catalog.remove(solution)
 
         # assert
-        self.assertEqual(len(self.catalog.catalog_index), 9)
+        self.assertEqual(len(self.catalog._catalog_index), 9)
 
     def test_remove_not_installed(self):
         self.populate_index()
-        self.assertEqual(len(self.catalog.catalog_index), 10)
+        self.assertEqual(len(self.catalog._catalog_index), 10)
 
         d = {}
         for key in CatalogIndex.get_solution_column_keys():
@@ -203,12 +203,12 @@ class TestCatalog(TestUnitCommon):
 
         # assert
         self.assertIn("WARNING - Solution not installed!", self.get_logs()[-1])
-        self.assertEqual(len(self.catalog.catalog_index), 10)
+        self.assertEqual(len(self.catalog._catalog_index), 10)
 
     def test_remove_not_local(self):
         # prepare
         self.populate_index()
-        self.assertEqual(len(self.catalog.catalog_index), 10)
+        self.assertEqual(len(self.catalog._catalog_index), 10)
 
         d = {}
         for key in CatalogIndex.get_solution_column_keys():
@@ -222,74 +222,74 @@ class TestCatalog(TestUnitCommon):
 
         # assert
         self.assertIn("WARNING - Cannot remove entries", self.get_logs()[-1])
-        self.assertEqual(len(self.catalog.catalog_index), 10)
+        self.assertEqual(len(self.catalog._catalog_index), 10)
 
     def test_copy_index_from_src_to_cache(self):
         # prepare
-        self.catalog.src.joinpath("album_catalog_index.db").touch()
-        self.catalog.src.joinpath("album_catalog_index.json").touch()
+        self.catalog._src.joinpath("album_catalog_index.db").touch()
+        self.catalog._src.joinpath("album_catalog_index.json").touch()
 
-        Path(self.catalog.path).joinpath("album_catalog_index.db").unlink()
-        Path(self.catalog.path).joinpath("album_catalog_index.json").unlink()
+        Path(self.catalog._path).joinpath("album_catalog_index.db").unlink()
+        Path(self.catalog._path).joinpath("album_catalog_index.json").unlink()
 
-        self.assertFalse(Path(self.catalog.path).joinpath("album_catalog_index.db").exists())
-        self.assertFalse(Path(self.catalog.path).joinpath("album_catalog_index.json").exists())
+        self.assertFalse(Path(self.catalog._path).joinpath("album_catalog_index.db").exists())
+        self.assertFalse(Path(self.catalog._path).joinpath("album_catalog_index.json").exists())
 
         # deliberately not mocking copy call
         self.assertTrue(self.catalog.copy_index_from_src_to_cache())
 
         # assert
-        self.assertTrue(Path(self.catalog.path).joinpath("album_catalog_index.db").exists())
-        self.assertTrue(Path(self.catalog.path).joinpath("album_catalog_index.json").exists())
+        self.assertTrue(Path(self.catalog._path).joinpath("album_catalog_index.db").exists())
+        self.assertTrue(Path(self.catalog._path).joinpath("album_catalog_index.json").exists())
 
     def test_copy_index_from_src_to_cache_no_db(self):
         # prepare
-        self.catalog.src.joinpath("album_catalog_index.json").touch()
+        self.catalog._src.joinpath("album_catalog_index.json").touch()
 
-        Path(self.catalog.path).joinpath("album_catalog_index.db").unlink()
-        Path(self.catalog.path).joinpath("album_catalog_index.json").unlink()
+        Path(self.catalog._path).joinpath("album_catalog_index.db").unlink()
+        Path(self.catalog._path).joinpath("album_catalog_index.json").unlink()
 
-        self.assertFalse(Path(self.catalog.path).joinpath("album_catalog_index.db").exists())
-        self.assertFalse(Path(self.catalog.path).joinpath("album_catalog_index.json").exists())
+        self.assertFalse(Path(self.catalog._path).joinpath("album_catalog_index.db").exists())
+        self.assertFalse(Path(self.catalog._path).joinpath("album_catalog_index.json").exists())
 
         # deliberately not mocking copy call
         self.assertTrue(self.catalog.copy_index_from_src_to_cache())
 
         # assert
-        self.assertFalse(Path(self.catalog.path).joinpath("album_catalog_index.db").exists())
-        self.assertTrue(Path(self.catalog.path).joinpath("album_catalog_index.json").exists())
+        self.assertFalse(Path(self.catalog._path).joinpath("album_catalog_index.db").exists())
+        self.assertTrue(Path(self.catalog._path).joinpath("album_catalog_index.json").exists())
 
     def test_copy_index_from_src_to_cache_db_deleted(self):
         # prepare
-        self.catalog.src.joinpath("album_catalog_index.json").touch()
+        self.catalog._src.joinpath("album_catalog_index.json").touch()
 
-        Path(self.catalog.path).joinpath("album_catalog_index.db").touch()
-        Path(self.catalog.path).joinpath("album_catalog_index.json").touch()
+        Path(self.catalog._path).joinpath("album_catalog_index.db").touch()
+        Path(self.catalog._path).joinpath("album_catalog_index.json").touch()
 
-        self.assertTrue(Path(self.catalog.path).joinpath("album_catalog_index.db").exists())
-        self.assertTrue(Path(self.catalog.path).joinpath("album_catalog_index.json").exists())
+        self.assertTrue(Path(self.catalog._path).joinpath("album_catalog_index.db").exists())
+        self.assertTrue(Path(self.catalog._path).joinpath("album_catalog_index.json").exists())
 
         # deliberately not mocking copy call
         self.assertFalse(self.catalog.copy_index_from_src_to_cache())
 
         # assert
-        self.assertTrue(Path(self.catalog.path).joinpath("album_catalog_index.db").exists())
-        self.assertTrue(Path(self.catalog.path).joinpath("album_catalog_index.json").exists())
+        self.assertTrue(Path(self.catalog._path).joinpath("album_catalog_index.db").exists())
+        self.assertTrue(Path(self.catalog._path).joinpath("album_catalog_index.json").exists())
 
     def test_copy_index_from_cache_to_src(self):
         # prepare
-        self.catalog.index_path.touch()
-        self.catalog.path.joinpath("album_solution_list.json").touch()
+        self.catalog._index_path.touch()
+        self.catalog._path.joinpath("album_solution_list.json").touch()
 
-        self.assertFalse(Path(self.catalog.src).joinpath("album_catalog_index.db").exists())
-        self.assertFalse(Path(self.catalog.src).joinpath("album_solution_list.json").exists())
+        self.assertFalse(Path(self.catalog._src).joinpath("album_catalog_index.db").exists())
+        self.assertFalse(Path(self.catalog._src).joinpath("album_solution_list.json").exists())
 
         # deliberately not mocking copy call
         self.catalog.copy_index_from_cache_to_src()
 
         # assert
-        self.assertTrue(Path(self.catalog.src).joinpath("album_catalog_index.db").exists())
-        self.assertTrue(Path(self.catalog.src).joinpath("album_solution_list.json").exists())
+        self.assertTrue(Path(self.catalog._src).joinpath("album_catalog_index.db").exists())
+        self.assertTrue(Path(self.catalog._src).joinpath("album_solution_list.json").exists())
 
     @unittest.skip("Needs to be implemented!")
     def test_download_index(self):
@@ -297,7 +297,7 @@ class TestCatalog(TestUnitCommon):
         pass
 
     def test_download_index_not_downloadable(self):
-        self.catalog = Catalog(self.catalog.catalog_id, self.catalog.name, self.catalog.path,
+        self.catalog = Catalog(self.catalog._catalog_id, self.catalog._name, self.catalog._path,
                                "http://google.com/doesNotExist.ico")
 
         # call
@@ -305,7 +305,7 @@ class TestCatalog(TestUnitCommon):
             self.catalog.download_index()
 
     def test_download_index_wrong_format(self):
-        self.catalog = Catalog(self.catalog.catalog_id, self.catalog.name, self.catalog.path,
+        self.catalog = Catalog(self.catalog._catalog_id, self.catalog._name, self.catalog._path,
                                "https://www.google.com/favicon.ico")
 
         # call
@@ -314,7 +314,7 @@ class TestCatalog(TestUnitCommon):
 
     def test_retrieve_catalog(self):
         # prepare
-        self.catalog = Catalog(self.catalog.catalog_id, self.catalog.name, self.catalog.path,
+        self.catalog = Catalog(self.catalog._catalog_id, self.catalog._name, self.catalog._path,
                                DefaultValues.default_catalog_src.value)
 
         dl_path = Path(self.tmp_dir.name).joinpath("test")
@@ -339,14 +339,14 @@ class TestCatalog(TestUnitCommon):
         self.catalog.write_catalog_meta_information()
 
         write_dict_to_json_mock.assert_called_once_with(
-            self.catalog.path.joinpath("album_catalog_index.json"),
-            {"name": self.catalog.name, "version": self.catalog.version}
+            self.catalog._path.joinpath("album_catalog_index.json"),
+            {"name": self.catalog._name, "version": self.catalog._version}
         )
 
     def test_get_meta_information(self):
         self.assertEqual(
             self.catalog.get_meta_information(),
-            {"name": self.catalog.name, "version": self.catalog.version}
+            {"name": self.catalog._name, "version": self.catalog._version}
         )
 
 

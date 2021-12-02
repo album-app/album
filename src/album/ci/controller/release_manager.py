@@ -11,12 +11,12 @@ from album.core.utils.operations.git_operations import checkout_branch, add_file
     retrieve_single_file_from_head, configure_git
 from album.core.utils.operations.resolve_operations import get_zip_name, get_zip_name_prefix, dict_to_coordinates
 from album.runner import album_logging
-from album.runner.model.coordinates import Coordinates
+from album.runner.api.model.coordinates import ICoordinates
 
 module_logger = album_logging.get_active_logger
 
 
-class ReleaseManager():
+class ReleaseManager:
     """Class for handling a catalog as administrator."""
 
     configuration = None
@@ -51,11 +51,11 @@ class ReleaseManager():
         if not self.catalog_repo.remote().url.startswith("git"):
             self.catalog_repo.remote().set_url(get_ssh_url(project_path, self.catalog_src))
 
-    def _get_zip_path(self, coordinates: Coordinates):
+    def _get_zip_path(self, coordinates: ICoordinates):
         zip_name = get_zip_name(coordinates)
         return self.configuration.get_solution_path_suffix(coordinates).joinpath(zip_name)
 
-    def _get_docker_path(self, coordinates: Coordinates):
+    def _get_docker_path(self, coordinates: ICoordinates):
         docker_name = "Dockerfile"
         return self.configuration.get_solution_path_suffix(coordinates).joinpath(docker_name)
 
@@ -150,9 +150,9 @@ class ReleaseManager():
 
         yml_dict, _ = self._get_yml_dict(head)
 
-        self.catalog.catalog_index.update(dict_to_coordinates(yml_dict), yml_dict)
-        self.catalog.catalog_index.save()
-        self.catalog.catalog_index.export(self.catalog.solution_list_path)
+        self.catalog.index().update(dict_to_coordinates(yml_dict), yml_dict)
+        self.catalog.index().save()
+        self.catalog.index().export(self.catalog.solution_list_path())
 
     def push_changes(self, branch_name, dry_run, push_option, ci_user_name, ci_user_email):
         head = checkout_branch(self.catalog_repo, branch_name)
@@ -189,7 +189,7 @@ class ReleaseManager():
         head = checkout_branch(self.catalog_repo, branch_name)
 
         commit_files = [
-            self.catalog.solution_list_path, self.catalog.index_path
+            self.catalog.solution_list_path(), self.catalog.index_path()
         ]
         if not all([Path(f).is_file() for f in commit_files]):
             raise FileNotFoundError("Invalid deploy request or broken catalog repository!")

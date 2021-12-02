@@ -2,29 +2,36 @@ import pkgutil
 from datetime import datetime
 from typing import Optional, List
 
+from album.api.model.collection_index import ICollectionIndex
 from album.core.concept.database import Database
 from album.core.model.catalog_index import CatalogIndex
 from album.core.utils.operations.file_operations import get_dict_entry
 from album.core.utils.operations.solution_operations import get_solution_hash
-from album.runner.model.coordinates import Coordinates
+from album.runner.api.model.coordinates import ICoordinates
 
 
-class CollectionIndex(Database):
+class CollectionIndex(ICollectionIndex, Database):
     version = "0.1.0"
 
-    class CollectionSolution:
+    class CollectionSolution(ICollectionIndex.ICollectionSolution):
         def __init__(self, setup: dict = None, internal: dict = None):
             if setup:
-                self.setup = setup
+                self._setup = setup
             else:
-                self.setup = {}
+                self._setup = {}
             if internal:
-                self.internal = internal
+                self._internal = internal
             else:
-                self.internal = {}
+                self._internal = {}
 
         def __eq__(self, other) -> bool:
-            return other.setup == self.setup and other.internal == self.internal
+            return other.setup() == self._setup and other.internal() == self._internal
+
+        def setup(self) -> dict:
+            return self._setup
+
+        def internal(self) -> dict:
+            return self._internal
 
     def __init__(self, name, path):
         self.name = name
@@ -721,22 +728,23 @@ class CollectionIndex(Database):
         return installed_solutions_list
 
     def _process_solution_row(self, solution_dict, close=True) -> CollectionSolution:
-        res = CollectionIndex.CollectionSolution()
+        setup = {}
+        internal = {}
         collection_id = solution_dict["collection_id"]
         for key in CatalogIndex.get_solution_column_keys():
-            res.setup[key] = solution_dict[key]
+            setup[key] = solution_dict[key]
         for key in solution_dict.keys():
-            if key not in res.setup:
-                res.internal[key] = solution_dict[key]
-        res.setup["authors"] = self._get_authors_by_solution(collection_id, close=False)
-        res.setup["tags"] = self._get_tags_by_solution(collection_id, close=False)
-        res.setup["cite"] = self._get_citations_by_solution(collection_id, close=False)
-        res.setup["args"] = self._get_arguments_by_solution(collection_id, close=False)
-        res.setup["covers"] = self._get_covers_by_solution(collection_id, close=False)
-        res.setup["documentation"] = self._get_documentation_by_solution(collection_id, close=False)
-        res.internal["children"] = self._get_children_of_solution(collection_id, close=False)
-        res.internal["parent"] = self.get_parent_of_solution(collection_id, close=close)
-        return res
+            if key not in setup:
+                internal[key] = solution_dict[key]
+        setup["authors"] = self._get_authors_by_solution(collection_id, close=False)
+        setup["tags"] = self._get_tags_by_solution(collection_id, close=False)
+        setup["cite"] = self._get_citations_by_solution(collection_id, close=False)
+        setup["args"] = self._get_arguments_by_solution(collection_id, close=False)
+        setup["covers"] = self._get_covers_by_solution(collection_id, close=False)
+        setup["documentation"] = self._get_documentation_by_solution(collection_id, close=False)
+        internal["children"] = self._get_children_of_solution(collection_id, close=False)
+        internal["parent"] = self.get_parent_of_solution(collection_id, close=close)
+        return CollectionIndex.CollectionSolution(setup, internal)
 
     def _get_authors_by_solution(self, collection_id, close=True):
         cursor = self.get_cursor()
@@ -937,7 +945,7 @@ class CollectionIndex(Database):
 
         return solution
 
-    def get_solution_by_catalog_grp_name_version(self, catalog_id, coordinates: Coordinates, close=True) \
+    def get_solution_by_catalog_grp_name_version(self, catalog_id, coordinates: ICoordinates, close=True) \
             -> Optional[CollectionSolution]:
         cursor = self.get_cursor()
         r = cursor.execute(
@@ -945,15 +953,15 @@ class CollectionIndex(Database):
             "WHERE catalog_id=:catalog_id AND \"group\"=:group AND name=:name AND version=:version",
             {
                 "catalog_id": catalog_id,
-                "group": coordinates.group,
-                "name": coordinates.name,
-                "version": coordinates.version,
+                "group": coordinates.group(),
+                "name": coordinates.name(),
+                "version": coordinates.version(),
             }
         ).fetchall()
 
         if len(r) > 1:
             raise KeyError("Database error. Please reinstall the solution %s from catalog %s !"
-                           % (coordinates.group, catalog_id))
+                           % (coordinates.group(), catalog_id))
 
         solution = None
         for row in r:
@@ -964,16 +972,16 @@ class CollectionIndex(Database):
 
         return solution
 
-    def get_solutions_by_grp_name_version(self, coordinates: Coordinates, close=True) -> List[CollectionSolution]:
+    def get_solutions_by_grp_name_version(self, coordinates: ICoordinates, close=True) -> List[CollectionSolution]:
         installed_solutions_list = []
 
         cursor = self.get_cursor()
         for row in cursor.execute(
                 "SELECT * FROM collection WHERE \"group\"=:group AND name=:name AND version=:version",
                 {
-                    "group": coordinates.group,
-                    "name": coordinates.name,
-                    "version": coordinates.version,
+                    "group": coordinates.group(),
+                    "name": coordinates.name(),
+                    "version": coordinates.version(),
                 }
         ).fetchall():
             solution = self._process_solution_row(dict(row), close=False)
@@ -1030,15 +1038,15 @@ class CollectionIndex(Database):
 
         return solutions_list
 
-    def update_solution(self, catalog_id, coordinates: Coordinates, solution_attrs: dict, supported_attrs: list,
+    def update_solution(self, catalog_id, coordinates: ICoordinates, solution_attrs: dict, supported_attrs: list,
                         close=True):
         exec_str = "UPDATE collection SET last_execution=:cur_date"
         exec_args = {
             "cur_date": datetime.now().isoformat(),
             "catalog_id": catalog_id,
-            "group": coordinates.group,
-            "name": coordinates.name,
-            "version": coordinates.version
+            "group": coordinates.group(),
+            "name": coordinates.name(),
+            "version": coordinates.version()
         }
 
         for key in supported_attrs:
@@ -1058,17 +1066,17 @@ class CollectionIndex(Database):
         if close:
             self.close_current_connection()
 
-    def add_or_replace_solution(self, catalog_id, coordinates: Coordinates, solution_attrs, close=True):
+    def add_or_replace_solution(self, catalog_id, coordinates: ICoordinates, solution_attrs, close=True):
         solution = self.get_solution_by_catalog_grp_name_version(catalog_id, coordinates, close=False)
         if solution:
             self.remove_solution(catalog_id, coordinates, close=False)
         self.insert_solution(catalog_id, solution_attrs, close=close)
 
-    def remove_solution(self, catalog_id, coordinates: Coordinates, close=True):
+    def remove_solution(self, catalog_id, coordinates: ICoordinates, close=True):
         solution = self.get_solution_by_catalog_grp_name_version(catalog_id, coordinates, close=False)
         if not solution:
             return
-        collection_id = solution.internal["collection_id"]
+        collection_id = solution.internal()["collection_id"]
 
         cursor = self.get_cursor()
         cursor.execute(
@@ -1150,20 +1158,20 @@ class CollectionIndex(Database):
             "WHERE catalog_id=:catalog_id AND \"group\"=:group AND name=:name AND version=:version",
             {
                 "catalog_id": catalog_id,
-                "group": coordinates.group,
-                "name": coordinates.name,
-                "version": coordinates.version,
+                "group": coordinates.group(),
+                "name": coordinates.name(),
+                "version": coordinates.version(),
             }
         )
 
         if close:
             self.close_current_connection()
 
-    def is_installed(self, catalog_id, coordinates: Coordinates, close=True):
+    def is_installed(self, catalog_id, coordinates: ICoordinates, close=True):
         r = self.get_solution_by_catalog_grp_name_version(catalog_id, coordinates, close=close)
         if not r:
             raise LookupError(f"Solution {catalog_id}:{coordinates} not found!")
-        return True if r.internal["installed"] else False
+        return True if r.internal()["installed"] else False
 
     def __len__(self, close=True):
         cursor = self.get_cursor()

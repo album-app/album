@@ -80,7 +80,7 @@ class TestIntegrationRun(TestIntegrationCommon):
         solution = self.fake_install(self.get_test_solution_path(), create_environment=False)
 
         # gather arguments
-        sys.argv = ["", "run", ":".join([solution.coordinates.group, solution.coordinates.name, solution.coordinates.version])]
+        sys.argv = ["", "run", ":".join([solution.coordinates().group(), solution.coordinates().name(), solution.coordinates().version()])]
 
         # run
         self.assertIsNone(main())

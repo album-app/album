@@ -2,7 +2,7 @@ import os
 import sys
 from pathlib import Path
 
-from album.api.config_interface import ConfigurationInterface
+from album.api.controller.config_interface import ConfigurationInterface
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import create_paths_recursively, force_remove, get_dict_from_json
 from album.runner import album_logging
@@ -15,35 +15,35 @@ class Configuration(ConfigurationInterface):
 
     def __init__(self):
         self._is_setup = False
-        self.base_cache_path = None
-        self.conda_executable = None
-        self.cache_path_app = None
-        self.cache_path_download = None
-        self.cache_path_tmp_internal = None
-        self.cache_path_tmp_user = None
-        self.cache_path_envs = None
-        self.catalog_collection_path = None
+        self._base_cache_path = None
+        self._conda_executable = None
+        self._cache_path_app = None
+        self._cache_path_download = None
+        self._cache_path_tmp_internal = None
+        self._cache_path_tmp_user = None
+        self._cache_path_envs = None
+        self._catalog_collection_path = None
 
-    def get_base_cache_path(self):
-        return self.base_cache_path
+    def base_cache_path(self):
+        return self._base_cache_path
 
-    def get_conda_executable(self):
-        return self.conda_executable
+    def conda_executable(self):
+        return self._conda_executable
 
-    def get_cache_path_app(self):
-        return self.cache_path_app
+    def cache_path_app(self):
+        return self._cache_path_app
 
-    def get_cache_path_download(self):
-        return self.cache_path_download
+    def cache_path_download(self):
+        return self._cache_path_download
 
-    def get_cache_path_tmp_internal(self):
-        return self.cache_path_tmp_internal
+    def cache_path_tmp_internal(self):
+        return self._cache_path_tmp_internal
 
-    def get_cache_path_tmp_user(self):
-        return self.cache_path_tmp_user
+    def cache_path_tmp_user(self):
+        return self._cache_path_tmp_user
 
-    def get_cache_path_envs(self):
-        return self.cache_path_envs
+    def cache_path_envs(self):
+        return self._cache_path_envs
 
     def is_setup(self):
         return self._is_setup
@@ -53,31 +53,31 @@ class Configuration(ConfigurationInterface):
             raise RuntimeError("Configuration::setup was already called and should not be called twice.")
         self._is_setup = True
         # base root path where everything lives
-        self.base_cache_path = Path(os.getenv('ALBUM_BASE_CACHE_PATH', DefaultValues.app_data_dir.value))
+        self._base_cache_path = Path(os.getenv('ALBUM_BASE_CACHE_PATH', DefaultValues.app_data_dir.value))
         if base_cache_path:
-            self.base_cache_path = Path(base_cache_path)
+            self._base_cache_path = Path(base_cache_path)
 
         # conda executable
         conda_path = DefaultValues.conda_path.value
         if conda_path is not DefaultValues.conda_default_executable.value:
-            self.conda_executable = self._build_conda_executable(conda_path)
+            self._conda_executable = self._build_conda_executable(conda_path)
         else:
-            self.conda_executable = conda_path
+            self._conda_executable = conda_path
 
-        self.cache_path_tmp_internal = self.base_cache_path.joinpath(DefaultValues.cache_path_solution_prefix.value)
-        self.cache_path_app = self.base_cache_path.joinpath(DefaultValues.cache_path_app_prefix.value)
-        self.cache_path_download = self.base_cache_path.joinpath(DefaultValues.cache_path_download_prefix.value)
-        self.cache_path_tmp_user = self.base_cache_path.joinpath(DefaultValues.cache_path_tmp_prefix.value)
-        self.cache_path_envs = self.base_cache_path.joinpath(DefaultValues.cache_path_envs_prefix.value)
-        self.catalog_collection_path = self.base_cache_path.joinpath(DefaultValues.catalog_folder_prefix.value)
+        self._cache_path_tmp_internal = self._base_cache_path.joinpath(DefaultValues.cache_path_solution_prefix.value)
+        self._cache_path_app = self._base_cache_path.joinpath(DefaultValues.cache_path_app_prefix.value)
+        self._cache_path_download = self._base_cache_path.joinpath(DefaultValues.cache_path_download_prefix.value)
+        self._cache_path_tmp_user = self._base_cache_path.joinpath(DefaultValues.cache_path_tmp_prefix.value)
+        self._cache_path_envs = self._base_cache_path.joinpath(DefaultValues.cache_path_envs_prefix.value)
+        self._catalog_collection_path = self._base_cache_path.joinpath(DefaultValues.catalog_folder_prefix.value)
         create_paths_recursively(
             [
-                self.cache_path_tmp_internal,
-                self.cache_path_app,
-                self.cache_path_download,
-                self.cache_path_tmp_user,
-                self.cache_path_envs,
-                self.catalog_collection_path
+                self._cache_path_tmp_internal,
+                self._cache_path_app,
+                self._cache_path_download,
+                self._cache_path_tmp_user,
+                self._cache_path_envs,
+                self._catalog_collection_path
             ]
         )
 
@@ -94,16 +94,16 @@ class Configuration(ConfigurationInterface):
     def get_solution_path_suffix(self, coordinates: Coordinates) -> Path:
         return Path("").joinpath(
             DefaultValues.cache_path_solution_prefix.value,
-            coordinates.group,
-            coordinates.name,
-            coordinates.version
+            coordinates.group(),
+            coordinates.name(),
+            coordinates.version()
         )
 
     def get_cache_path_catalog(self, catalog_name):
-        return self.base_cache_path.joinpath(DefaultValues.catalog_folder_prefix.value, catalog_name)
+        return self._base_cache_path.joinpath(DefaultValues.catalog_folder_prefix.value, catalog_name)
 
     def get_catalog_collection_path(self):
-        collection_db_path = Path(self.catalog_collection_path).joinpath(
+        collection_db_path = Path(self._catalog_collection_path).joinpath(
             DefaultValues.catalog_collection_db_name.value)
         return collection_db_path
 
@@ -116,7 +116,7 @@ class Configuration(ConfigurationInterface):
         return catalog_collection_dict
 
     def get_catalog_collection_meta_path(self):
-        return self.catalog_collection_path.parent.joinpath(
+        return self._catalog_collection_path.parent.joinpath(
             DefaultValues.catalog_collection_json_name.value
         )
 
@@ -134,4 +134,4 @@ class Configuration(ConfigurationInterface):
 
     def _empty_tmp(self):
         """Removes the content of the tmp folder"""
-        force_remove(self.cache_path_tmp_user)
+        force_remove(self._cache_path_tmp_user)

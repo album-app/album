@@ -1,8 +1,8 @@
 from abc import ABCMeta, abstractmethod
 
-from album.core.model.catalog import Catalog
-from album.core.model.environment import Environment
-from album.runner.model.solution import Solution
+from album.api.model.catalog import ICatalog
+from album.api.model.environment import IEnvironment
+from album.runner.api.model.solution import ISolution
 
 
 class EnvironmentInterface:
@@ -11,11 +11,11 @@ class EnvironmentInterface:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def install_environment(self, active_solution: Solution, catalog: Catalog) -> Environment:
+    def install_environment(self, active_solution: ISolution, catalog: ICatalog) -> IEnvironment:
         raise NotImplementedError
 
     @abstractmethod
-    def set_environment(self, active_solution: Solution, catalog: Catalog) -> Environment:
+    def set_environment(self, active_solution: ISolution, catalog: ICatalog) -> IEnvironment:
         """Resolves the environment the active solution runs in.
 
         Returns the resolve result of the parent of the active solution.
@@ -24,12 +24,12 @@ class EnvironmentInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def remove_environment(self, environment: Environment):
+    def remove_environment(self, environment: IEnvironment):
         """Removes an environment."""
         raise NotImplementedError
 
     @abstractmethod
-    def run_scripts(self, environment: Environment, scripts):
+    def run_scripts(self, environment: IEnvironment, scripts):
         """Runs scripts in an environment"""
         raise NotImplementedError
 

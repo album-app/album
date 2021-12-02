@@ -1,11 +1,13 @@
-import abc
 import gc
 import sqlite3
 import threading
+from abc import ABC
 from pathlib import Path
 
+from album.api.model.database import IDatabase
 
-class Database(abc.ABC):
+
+class Database(IDatabase, ABC):
     """Abstract class for all album sqlite databases"""
     # attributes
     connections = None
@@ -126,14 +128,6 @@ class Database(abc.ABC):
 
         return False if r else True
 
-    @abc.abstractmethod
-    def __len__(self, close=True):
-        pass
 
-    @abc.abstractmethod
-    def create(self):
-        pass
-
-    @abc.abstractmethod
-    def is_empty(self, close=True):
-        pass
+    def get_path(self):
+        return self.path

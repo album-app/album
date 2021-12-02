@@ -4,34 +4,34 @@ import json
 from datetime import date, time
 from typing import Optional
 
-from album.core.model.environment import Environment
+from album.api.model.environment import IEnvironment
 from album.core.utils.operations.file_operations import force_remove
 from album.runner import album_logging
-from album.runner.model.solution import Solution
+from album.runner.api.model.solution import ISolution
 
 module_logger = album_logging.get_active_logger
 
 
-def remove_disc_content_from_solution(solution: Solution):
-    force_remove(solution.installation.data_path)
-    force_remove(solution.installation.app_path)
-    force_remove(solution.installation.package_path)
-    force_remove(solution.installation.user_cache_path)
-    force_remove(solution.installation.internal_cache_path)
+def remove_disc_content_from_solution(solution: ISolution):
+    force_remove(solution.installation().data_path())
+    force_remove(solution.installation().app_path())
+    force_remove(solution.installation().package_path())
+    force_remove(solution.installation().user_cache_path())
+    force_remove(solution.installation().internal_cache_path())
 
 
-def set_environment_paths(solution: Solution, environment: Environment):
+def set_environment_paths(solution: ISolution, environment: IEnvironment):
     """Sets the available cache paths of the solution object, given the environment used to run it."""
-    solution.installation.environment_path = environment.path
-    solution.installation.environment_name = environment.name
+    solution.installation().set_environment_path(environment.path())
+    solution.installation().set_environment_name(environment.name())
 
 
-def get_deploy_dict(solution: Solution) -> dict:
+def get_deploy_dict(solution: ISolution) -> dict:
     """Return a dictionary with the relevant deployment key/values for a given album."""
     d = {}
 
-    for k in solution.setup.keys():
-        value = solution.setup[k]
+    for k in solution.setup().keys():
+        value = solution.setup()[k]
         if not callable(value) and k is not 'dependencies':
             # deepcopy necessary. Else original album object will loose "action" attributes in its arguments
             d[k] = copy.deepcopy(value)
@@ -50,14 +50,14 @@ def _remove_action_from_args(solution_dict):
     return solution_dict
 
 
-def get_parent_dict(solution: Solution) -> Optional[dict]:
-    if solution.setup.dependencies and 'parent' in solution.setup.dependencies:
-        return solution.setup.dependencies['parent']
+def get_parent_dict(solution: ISolution) -> Optional[dict]:
+    if solution.setup().dependencies and 'parent' in solution.setup().dependencies:
+        return solution.setup().dependencies['parent']
     return None
 
 
-def get_steps_dict(solution) -> Optional[dict]:
-    return solution.setup.steps
+def get_steps_dict(solution: ISolution) -> Optional[dict]:
+    return solution.setup().steps
 
 
 def create_hash(string_representation):

@@ -1,14 +1,14 @@
 from abc import ABCMeta, abstractmethod
 from typing import Optional
 
-from album.runner.model.solution import Solution
+from album.runner.api.model.solution import ISolution
 
 
 class StateInterface:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def load(self, path) -> Optional[Solution]:
+    def load(self, path) -> Optional[ISolution]:
         raise NotImplementedError
 
     @abstractmethod
@@ -16,9 +16,9 @@ class StateInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def get_active_solution(self) -> Optional[Solution]:
+    def get_active_solution(self) -> Optional[ISolution]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_parent_solution(self) -> Optional[Solution]:
+    def get_parent_solution(self) -> Optional[ISolution]:
         raise NotImplementedError

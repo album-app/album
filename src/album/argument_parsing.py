@@ -66,8 +66,7 @@ def __run_subcommand(args, parser):
 
 
 def create_album_instance():
-    album = Album()
-    return album
+    return Album()
 
 
 def create_parser():

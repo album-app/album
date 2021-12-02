@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 
-from album.core.model.catalog import Catalog
-from album.core.model.collection_index import CollectionIndex
+from album.api.model.catalog import ICatalog
+from album.api.model.collection_index import ICollectionIndex
 
 
 class MigrationInterface:
@@ -15,7 +15,7 @@ class MigrationInterface:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def migrate_collection_index(self, collection_index: CollectionIndex, initial_version):
+    def migrate_collection_index(self, collection_index: ICollectionIndex, initial_version):
         """Migrates a collection index database to the target version."""
         raise NotImplementedError
 
@@ -30,12 +30,12 @@ class MigrationInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def load_index(self, catalog: Catalog):
+    def load_index(self, catalog: ICatalog):
         """Loads the index from file or src. If a file and src exists routine tries to update the index."""
         raise NotImplementedError
 
     @abstractmethod
-    def refresh_index(self, catalog: Catalog) -> bool:
+    def refresh_index(self, catalog: ICatalog) -> bool:
         """Routine to refresh the catalog index. Downloads or copies the index_file."""
         raise NotImplementedError
 

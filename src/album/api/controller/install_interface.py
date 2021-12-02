@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 
-from album.core.model.resolve_result import ResolveResult
-from album.runner.model.coordinates import Coordinates
+from album.api.model.resolve_result import IResolveResult
+from album.runner.api.model.coordinates import ICoordinates
 
 
 class InstallInterface:
@@ -16,12 +16,12 @@ class InstallInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def install_from_catalog_coordinates(self, catalog_name: str, coordinates: Coordinates, argv=None) -> ResolveResult:
+    def install_from_catalog_coordinates(self, catalog_name: str, coordinates: ICoordinates, argv=None) -> IResolveResult:
         """API entry point for installation from a specific catalog"""
         raise NotImplementedError
 
     @abstractmethod
-    def install_from_coordinates(self, coordinates: Coordinates, argv=None) -> ResolveResult:
+    def install_from_coordinates(self, coordinates: ICoordinates, argv=None) -> IResolveResult:
         """API entry point for installation from any catalog"""
         raise NotImplementedError
 

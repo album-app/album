@@ -1,49 +1,49 @@
 from abc import ABCMeta, abstractmethod
 
-from album.core.model.catalog import Catalog
-from album.core.model.catalog_updates import SolutionChange
-from album.runner.model.coordinates import Coordinates
-from album.runner.model.solution import Solution
+from album.api.model.catalog import ICatalog
+from album.api.model.catalog_updates import ISolutionChange
+from album.runner.api.model.coordinates import ICoordinates
+from album.runner.api.model.solution import ISolution
 
 
 class SolutionInterface:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def add_or_replace(self, catalog: Catalog, active_solution: Solution, path):
+    def add_or_replace(self, catalog: ICatalog, active_solution: ISolution, path):
         raise NotImplementedError
 
     @abstractmethod
-    def set_uninstalled(self, catalog: Catalog, coordinates: Coordinates):
+    def set_uninstalled(self, catalog: ICatalog, coordinates: ICoordinates):
         raise NotImplementedError
 
     @abstractmethod
-    def set_parent(self, catalog_parent: Catalog, catalog_child: Catalog, coordinates_parent: Coordinates,
-                       coordinates_child: Coordinates):
+    def set_parent(self, catalog_parent: ICatalog, catalog_child: ICatalog, coordinates_parent: ICoordinates,
+                       coordinates_child: ICoordinates):
         raise NotImplementedError
 
     @abstractmethod
-    def remove_solution(self, catalog: Catalog, coordinates: Coordinates):
+    def remove_solution(self, catalog: ICatalog, coordinates: ICoordinates):
         raise NotImplementedError
 
     @abstractmethod
-    def update_solution(self, catalog: Catalog, coordinates: Coordinates, attrs):
+    def update_solution(self, catalog: ICatalog, coordinates: ICoordinates, attrs):
         raise NotImplementedError
 
     @abstractmethod
-    def apply_change(self, catalog, change: SolutionChange):
+    def apply_change(self, catalog, change: ISolutionChange):
         raise NotImplementedError
 
     @abstractmethod
-    def set_installed(self, catalog: Catalog, coordinates: Coordinates):
+    def set_installed(self, catalog: ICatalog, coordinates: ICoordinates):
         raise NotImplementedError
 
     @abstractmethod
-    def is_installed(self, catalog: Catalog, coordinates: Coordinates) -> bool:
+    def is_installed(self, catalog: ICatalog, coordinates: ICoordinates) -> bool:
         raise NotImplementedError
 
     @abstractmethod
-    def get_solution_path(self, catalog: Catalog, coordinates: Coordinates):
+    def get_solution_path(self, catalog: ICatalog, coordinates: ICoordinates):
         """Gets the cache path of a solution in a catalog given its group, name and version.
 
         Args:
@@ -59,10 +59,12 @@ class SolutionInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def get_solution_file(self, catalog: Catalog, coordinates: Coordinates):
+    def get_solution_file(self, catalog: ICatalog, coordinates: ICoordinates):
         """Gets the file to the solution.py file of the extracted solution.zip living inside the catalog.
 
         Args:
+            catalog:
+                The catalog this solution belongs to.
             coordinates:
                 The group affiliation, name, and version of the solution.
 
@@ -73,10 +75,12 @@ class SolutionInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def get_solution_zip(self, catalog: Catalog, coordinates: Coordinates):
+    def get_solution_zip(self, catalog: ICatalog, coordinates: ICoordinates):
         """Gets the cache zip of a solution given its group, name and version living inside the catalog.
 
         Args:
+            catalog:
+                The catalog this solution belongs to.
             coordinates:
                 The group affiliation, name, and version of the solution.
 
@@ -87,10 +91,12 @@ class SolutionInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def retrieve_solution(self, catalog: Catalog, coordinates: Coordinates):
+    def retrieve_solution(self, catalog: ICatalog, coordinates: ICoordinates):
         """Downloads or copies a solution from the catalog to the local resource (cache path of the catalog).
 
         Args:
+            catalog:
+                The catalog this solution belongs to.
             coordinates:
                 The group affiliation, name, and version of the solution.
         Returns:
@@ -100,7 +106,7 @@ class SolutionInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def get_solution_zip_suffix(self, coordinates: Coordinates):
+    def get_solution_zip_suffix(self, coordinates: ICoordinates):
         """Gets the cache zip suffix of a solution given its group, name and version living inside the catalog.
 
         Args:
@@ -114,10 +120,10 @@ class SolutionInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def set_cache_paths(self, solution: Solution, catalog):
+    def set_cache_paths(self, solution: ISolution, catalog):
         """Sets the available cache paths of the solution object, given its catalog_name (where it lives)."""
         raise NotImplementedError
 
     @abstractmethod
-    def set_installation_unfinished(self, catalog: Catalog, coordinates: Coordinates):
+    def set_installation_unfinished(self, catalog: ICatalog, coordinates: ICoordinates):
         raise NotImplementedError

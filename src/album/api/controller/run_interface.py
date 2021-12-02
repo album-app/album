@@ -1,10 +1,10 @@
 from abc import ABCMeta, abstractmethod
 from queue import Queue
 
-from album.core.model.catalog import Catalog
-from album.runner.model.solution import Solution
-from album.runner.concept.script_creator import ScriptCreatorRun
-from album.runner.model.coordinates import Coordinates
+from album.api.model.catalog import ICatalog
+from album.runner.api.concept.script_creator import IScriptCreator
+from album.runner.api.model.coordinates import ICoordinates
+from album.runner.api.model.solution import ISolution
 
 
 class RunInterface:
@@ -23,12 +23,12 @@ class RunInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def run_from_catalog_coordinates(self, catalog_name: str, coordinates: Coordinates, run_immediately=False,
+    def run_from_catalog_coordinates(self, catalog_name: str, coordinates: ICoordinates, run_immediately=False,
                                          argv=None):
         raise NotImplementedError
 
     @abstractmethod
-    def run_from_coordinates(self, coordinates: Coordinates, run_immediately=False, argv=None):
+    def run_from_coordinates(self, coordinates: ICoordinates, run_immediately=False, argv=None):
         raise NotImplementedError
 
     @abstractmethod
@@ -43,7 +43,7 @@ class RunInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def build_queue(self, solution: Solution, catalog: Catalog, queue, script_creator: ScriptCreatorRun, run_immediately=False,
+    def build_queue(self, solution: ISolution, catalog: ICatalog, queue, script_creator: IScriptCreator, run_immediately=False,
                     argv=None):
         """Builds the queue of an active-album object.
 

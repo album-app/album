@@ -3,7 +3,6 @@ import unittest
 from pathlib import Path
 
 from album.ci.argument_parsing import main
-from album.ci.controller.release_manager import ReleaseManager
 from album.core.model.catalog import Catalog
 from album.core.utils.operations.file_operations import copy_folder
 from test.integration.test_integration_common import TestIntegrationCommon

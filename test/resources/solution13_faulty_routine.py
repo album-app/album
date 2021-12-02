@@ -1,4 +1,5 @@
-from album.runner import setup
+from album.runner.api.runner import setup
+
 
 def album_install():
     import notExistandLibraryRaisingAnUglyError

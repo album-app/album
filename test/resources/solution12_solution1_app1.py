@@ -1,4 +1,5 @@
-from album.runner import setup
+from album.runner.api.runner import setup
+
 
 setup(
     group="group",

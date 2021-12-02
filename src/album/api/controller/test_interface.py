@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 
-from album.runner.model.coordinates import Coordinates
+from album.runner.api.model.coordinates import ICoordinates
 
 
 class TestInterface:
@@ -16,10 +16,10 @@ class TestInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def test_from_catalog_coordinates(self, catalog_name: str, coordinates: Coordinates, argv=None):
+    def test_from_catalog_coordinates(self, catalog_name: str, coordinates: ICoordinates, argv=None):
         raise NotImplementedError
 
     @abstractmethod
-    def test_from_coordinates(self, coordinates: Coordinates, argv=None):
+    def test_from_coordinates(self, coordinates: ICoordinates, argv=None):
         raise NotImplementedError
 

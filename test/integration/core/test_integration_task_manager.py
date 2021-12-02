@@ -14,17 +14,17 @@ class TestIntegrationTaskManager(TestIntegrationCommon):
         solution_path = self.get_test_solution_path()
         self.fake_install(solution_path, create_environment=False)
         task = Task()
-        task.method = self.album_instance.run_manager().run
-        task.args = [solution_path]
+        task._method = self.album_instance.run_manager().run
+        task._args = [solution_path]
         task_manager = self.album_instance.task_manager()
-        id = task_manager.register_task(task)
-        self.assertEqual("0", id)
-        self.assertEqual(task, task_manager.get_task(id))
+        task_id = task_manager.register_task(task)
+        self.assertEqual("0", task_id)
+        self.assertEqual(task, task_manager.get_task(task_id))
         self._finish_taskmanager_with_timeout(task_manager, 30)
         self.assertFalse(task_manager.server_queue.unfinished_tasks)
         status = task_manager.get_status(task)
         self.assertEqual("FINISHED", status.get("status"))
-        self.assertEqual(Task.Status.FINISHED, task.status)
+        self.assertEqual(Task.Status.FINISHED, task.status())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_sad_solution(self, get_environment_path):
@@ -40,7 +40,7 @@ class TestIntegrationTaskManager(TestIntegrationCommon):
         self.assertFalse(task_manager.server_queue.unfinished_tasks)
         status = task_manager.get_status(task)
         self.assertEqual("FAILED", status.get("status"))
-        self.assertEqual(Task.Status.FAILED, task.status)
+        self.assertEqual(Task.Status.FAILED, task.status())
 
     def _finish_taskmanager_with_timeout(self, task_manager, timeout):
         # since queue.join has no timeout, we are doing something else to check if the queue is processed

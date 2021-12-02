@@ -14,9 +14,9 @@ class TestCoordinates(TestUnitCommon):
     def test__init__(self):
         x = Coordinates("a", "b", "c")
 
-        self.assertEqual(x.group, "a")
-        self.assertEqual(x.name, "b")
-        self.assertEqual(x.version, "c")
+        self.assertEqual(x._group, "a")
+        self.assertEqual(x._name, "b")
+        self.assertEqual(x._version, "c")
 
     def test__str__(self):
         x = Coordinates("a", "B", "c")

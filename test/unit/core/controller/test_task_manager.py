@@ -15,19 +15,19 @@ class TestTaskManager(TestUnitCommon):
     def test_handle_task(self):
         album_logging.set_loglevel(LogLevel.INFO)
         task = Task()
-        task.id = 0
-        task.method = self._log_to_active_logger
+        task._id = 0
+        task._method = self._log_to_active_logger
         task_manager = TaskManager()
         task_manager._handle_task(task)
-        self.assertEqual(1, len(task.log_handler.records))
-        self.assertEqual("test", task.log_handler.records[0].msg)
+        self.assertEqual(1, len(task.log_handler().records()))
+        self.assertEqual("test", task.log_handler().records()[0].msg)
 
     def test_register_task(self):
 
         album_logging.set_loglevel(LogLevel.INFO)
 
         task = Task()
-        task.method = self._log_to_active_logger
+        task._method = self._log_to_active_logger
 
         task_manager = TaskManager()
 
@@ -37,15 +37,15 @@ class TestTaskManager(TestUnitCommon):
         task_manager._finish_queue()
         self.assertFalse(task_manager.server_queue.unfinished_tasks)
 
-        self.assertEqual(1, len(task.log_handler.records))
-        self.assertEqual("test", task.log_handler.records[0].msg)
+        self.assertEqual(1, len(task.log_handler().records()))
+        self.assertEqual("test", task.log_handler().records()[0].msg)
 
     def test_register_task_in_thread(self):
 
         album_logging.set_loglevel(LogLevel.INFO)
 
         task = Task()
-        task.method = self._log_to_active_logger_via_thread
+        task._method = self._log_to_active_logger_via_thread
 
         task_manager = TaskManager()
 
@@ -55,15 +55,15 @@ class TestTaskManager(TestUnitCommon):
         task_manager._finish_queue()
         self.assertFalse(task_manager.server_queue.unfinished_tasks)
 
-        self.assertEqual(1, len(task.log_handler.records))
-        self.assertEqual("test", task.log_handler.records[0].msg)
+        self.assertEqual(1, len(task.log_handler().records()))
+        self.assertEqual("test", task.log_handler().records()[0].msg)
 
     def test_register_task_in_subcommand(self):
 
         album_logging.set_loglevel(LogLevel.DEBUG)
 
         task = Task()
-        task.method = self._log_to_active_logger_via_subcommand
+        task._method = self._log_to_active_logger_via_subcommand
 
         task_manager = TaskManager()
 
@@ -73,11 +73,11 @@ class TestTaskManager(TestUnitCommon):
         task_manager._finish_queue()
         self.assertFalse(task_manager.server_queue.unfinished_tasks)
 
-        for record in task.log_handler.records:
+        for record in task.log_handler().records():
             print(record.msg)
-        self.assertTrue(len(task.log_handler.records) > 1)
-        self.assertEqual("Running command: echo test...", task.log_handler.records[0].msg)
-        self.assertEqual("test", task.log_handler.records[1].msg)
+        self.assertTrue(len(task.log_handler().records()) > 1)
+        self.assertEqual("Running command: echo test...", task.log_handler().records()[0].msg)
+        self.assertEqual("test", task.log_handler().records()[1].msg)
 
     def _log_to_active_logger_via_thread(self):
         thread = Thread(target=self._log_to_active_logger_in_thread, args=(threading.current_thread().ident, ))

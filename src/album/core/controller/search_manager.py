@@ -1,7 +1,7 @@
 import operator
 
 from album.api.album_interface import AlbumInterface
-from album.api.search_interface import SearchInterface
+from album.api.controller.search_interface import SearchInterface
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
@@ -18,10 +18,10 @@ class SearchManager(SearchInterface):
         search_index = self.collection_manager.get_collection_index().get_all_solutions()
         match_score = {}
         for solution_entry in search_index:
-            solution_attrs = solution_entry.setup
+            solution_attrs = solution_entry.setup()
             group, name, version = solution_attrs['group'], solution_attrs["name"], solution_attrs["version"]
-            catalog_id = solution_entry.internal["catalog_id"]
-            catalog_name = self.collection_manager.catalogs().get_by_id(catalog_id).name
+            catalog_id = solution_entry.internal()["catalog_id"]
+            catalog_name = self.collection_manager.catalogs().get_by_id(catalog_id).name()
             unique_id = ":".join([str(catalog_name), group, name, version])
 
             # todo: nice searching algorithm here

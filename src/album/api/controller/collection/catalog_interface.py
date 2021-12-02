@@ -1,8 +1,8 @@
 from abc import ABCMeta, abstractmethod
 from typing import Optional, List, Dict
 
-from album.core.model.catalog import Catalog
-from album.core.model.catalog_updates import CatalogUpdates
+from album.api.model.catalog import ICatalog
+from album.api.model.catalog_updates import ICatalogUpdates
 
 
 class CatalogInterface:
@@ -27,12 +27,12 @@ class CatalogInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def add_by_src(self, identifier, branch_name="main") -> Catalog:
+    def add_by_src(self, identifier, branch_name="main") -> ICatalog:
         """ Adds a catalog. Creates them from their src. (Git, network-drive, folder outside cache, etc.)"""
         raise NotImplementedError
 
     @abstractmethod
-    def _add_to_index(self, catalog: Catalog) -> int:
+    def _add_to_index(self, catalog: ICatalog) -> int:
         """ Adds a catalog to the collection index.
 
         Args:
@@ -45,32 +45,32 @@ class CatalogInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def get_by_id(self, catalog_id) -> Catalog:
+    def get_by_id(self, catalog_id) -> ICatalog:
         """Looks up a catalog by its id and returns it."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_by_src(self, src) -> Catalog:
+    def get_by_src(self, src) -> ICatalog:
         """Returns the catalog object of a given url if configured."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_by_name(self, name) -> Catalog:
+    def get_by_name(self, name) -> ICatalog:
         """Looks up a catalog by its id and returns it."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_by_path(self, path) -> Catalog:
+    def get_by_path(self, path) -> ICatalog:
         """Looks up a catalog by its id and returns it."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_all(self) -> List[Catalog]:
+    def get_all(self) -> List[ICatalog]:
         """Creates the catalog objects from the catalogs specified in the configuration."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_local_catalog(self) -> Catalog:
+    def get_local_catalog(self) -> ICatalog:
         """Returns the first local catalog in the configuration (Reads db table from top)."""
         raise NotImplementedError
 
@@ -94,12 +94,12 @@ class CatalogInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def update_collection(self, catalog_name=None, dry_run: bool = False) -> Dict[str, CatalogUpdates]:
+    def update_collection(self, catalog_name=None, dry_run: bool = False) -> Dict[str, ICatalogUpdates]:
         """Includes all new changes from a given catalog (or all catalogs) in the catalog_collection."""
         raise NotImplementedError
 
     @abstractmethod
-    def remove_from_collection_by_path(self, path) -> Optional[Catalog]:
+    def remove_from_collection_by_path(self, path) -> Optional[ICatalog]:
         """Removes a catalog given by its path from the catalog_collection.
 
         Thereby deleting all its entries from the collection.
@@ -108,12 +108,12 @@ class CatalogInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def remove_from_collection_by_name(self, name) -> Optional[Catalog]:
+    def remove_from_collection_by_name(self, name) -> Optional[ICatalog]:
         """Removes a catalog given its name from the catalog_collection."""
         raise NotImplementedError
 
     @abstractmethod
-    def remove_from_collection_by_src(self, src) -> Optional[Catalog]:
+    def remove_from_collection_by_src(self, src) -> Optional[ICatalog]:
         """Removes a catalog given its src from the catalog_collection."""
         raise NotImplementedError
 
@@ -123,5 +123,5 @@ class CatalogInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def set_version(self, catalog: Catalog):
+    def set_version(self, catalog: ICatalog):
         raise NotImplementedError

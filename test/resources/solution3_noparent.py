@@ -1,5 +1,5 @@
-from album.runner import setup
-from album.runner.api import get_args
+from album.runner.api.runner import get_args
+from album.runner.api.runner import setup
 
 
 def album_run():

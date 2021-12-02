@@ -76,42 +76,42 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         solution2 = Solution(solution2_dict)
 
         # check that initially no updates are available
-        dif = self.collection_manager.catalogs().update_collection(catalog.name, dry_run=True)
+        dif = self.collection_manager.catalogs().update_collection(catalog.name(), dry_run=True)
 
         self.assertIsNotNone(dif)
         self.assertEqual(1, len(dif.keys()))
-        self.assertIsNotNone(dif[catalog.name])
-        self.assertIsNotNone(dif[catalog.name].catalog_attribute_changes)
-        self.assertIsNotNone(dif[catalog.name].solution_changes)
-        self.assertEqual(0, len(dif[catalog.name].catalog_attribute_changes))
-        self.assertEqual(0, len(dif[catalog.name].solution_changes))
+        self.assertIsNotNone(dif[catalog.name()])
+        self.assertIsNotNone(dif[catalog.name()].catalog_attribute_changes())
+        self.assertIsNotNone(dif[catalog.name()].solution_changes())
+        self.assertEqual(0, len(dif[catalog.name()].catalog_attribute_changes()))
+        self.assertEqual(0, len(dif[catalog.name()].solution_changes()))
 
         # add new solution to catalog
         catalog.add(solution)
         catalog.add(solution2)
         catalog.copy_index_from_cache_to_src()
 
-        dif = self.collection_manager.catalogs().update_collection(catalog.name, dry_run=True)
+        dif = self.collection_manager.catalogs().update_collection(catalog.name(), dry_run=True)
 
         self.assertEqual(1, len(dif.keys()))
-        self.assertIsNotNone(dif[catalog.name])
-        self.assertEqual(0, len(dif[catalog.name].catalog_attribute_changes))
-        self.assertEqual(2, len(dif[catalog.name].solution_changes))
-        self.assertEqual(ChangeType.ADDED, dif[catalog.name].solution_changes[0].change_type)
+        self.assertIsNotNone(dif[catalog.name()])
+        self.assertEqual(0, len(dif[catalog.name()].catalog_attribute_changes()))
+        self.assertEqual(2, len(dif[catalog.name()].solution_changes()))
+        self.assertEqual(ChangeType.ADDED, dif[catalog.name()].solution_changes()[0].change_type())
 
         # update collection
 
-        dif = self.collection_manager.catalogs().update_collection(catalog.name, dry_run=False)
+        dif = self.collection_manager.catalogs().update_collection(catalog.name(), dry_run=False)
 
-        self.assertIsNotNone(dif[catalog.name])
-        self.assertEqual(0, len(dif[catalog.name].catalog_attribute_changes))
-        self.assertEqual(2, len(dif[catalog.name].solution_changes))
-        self.assertEqual(ChangeType.ADDED, dif[catalog.name].solution_changes[0].change_type)
+        self.assertIsNotNone(dif[catalog.name()])
+        self.assertEqual(0, len(dif[catalog.name()].catalog_attribute_changes()))
+        self.assertEqual(2, len(dif[catalog.name()].solution_changes()))
+        self.assertEqual(ChangeType.ADDED, dif[catalog.name()].solution_changes()[0].change_type())
 
-        dif = self.collection_manager.catalogs().update_collection(catalog.name, dry_run=True)
+        dif = self.collection_manager.catalogs().update_collection(catalog.name(), dry_run=True)
 
-        self.assertEqual(0, len(dif[catalog.name].catalog_attribute_changes))
-        self.assertEqual(0, len(dif[catalog.name].solution_changes))
+        self.assertEqual(0, len(dif[catalog.name()].catalog_attribute_changes()))
+        self.assertEqual(0, len(dif[catalog.name()].solution_changes()))
 
     def test_update_upgrade(self):
         initial_len = len(self.collection_manager.catalog_collection.get_all_catalogs())  # has the two default catalogs
@@ -125,7 +125,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
 
         self.assertTrue(catalog.is_local())
         # check its empty
-        self.assertEqual(0, len(catalog.catalog_index.get_all_solutions()))
+        self.assertEqual(0, len(catalog.index().get_all_solutions()))
 
         # add new solution to catalog  - not yet in the collection
         solution_dict = TestUnitCommon.get_solution_dict()
@@ -133,7 +133,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         solution = Solution(solution_dict)
         catalog.add(solution)
         # check solution got added
-        self.assertEqual(1, len(catalog.catalog_index.get_all_solutions()))
+        self.assertEqual(1, len(catalog.index().get_all_solutions()))
 
         # fake deploy by copying index to src
         catalog.copy_index_from_cache_to_src()
@@ -151,7 +151,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         # assert
-        solutions = self.collection_manager.catalog_collection.get_solutions_by_catalog(catalog.catalog_id)
+        solutions = self.collection_manager.catalog_collection.get_solutions_by_catalog(catalog.catalog_id())
         self.assertEqual(1, len(solutions))
 
         # compare solution in collection to original solution
@@ -162,8 +162,8 @@ class TestIntegrationCatalogFeatures(TestIntegrationCommon):
         for key in get_deploy_dict(solution).keys():
             if key == "timestamp":
                 continue
-            sol[key] = solution.setup[key]
-            solution_in_col[key] = solution_in_collection.setup[key]
+            sol[key] = solution.setup()[key]
+            solution_in_col[key] = solution_in_collection.setup()[key]
 
         self.assertEqual(sol, solution_in_col)
 

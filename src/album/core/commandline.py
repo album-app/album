@@ -7,8 +7,8 @@ from album.core.utils.operations.solution_operations import get_deploy_dict, ser
 from album.core.utils.operations.view_operations import get_solution_as_string, \
     get_updates_as_string, get_index_as_string, get_search_result_as_string
 from album.runner.album_logging import get_active_logger
+from album.runner.api.model.solution import ISolution
 from album.runner.concept.script_creator import ScriptCreatorRun
-from album.runner.model.solution import Solution
 
 module_logger = get_active_logger
 
@@ -60,7 +60,7 @@ def info(album_instance: AlbumInterface, args):
     solution_path = args.path
     resolve_result = album_instance.collection_manager().resolve_download_and_load(str(solution_path))
     print_json = _get_print_json(args)
-    solution = resolve_result.loaded_solution
+    solution = resolve_result.loaded_solution()
     if print_json:
         deploy_dict = get_deploy_dict(solution)
         print(_as_json(deploy_dict))
@@ -89,7 +89,7 @@ def start_server(album_instance: AlbumInterface, args):
     server.start()
 
 
-def test(album_instance, args):
+def test(album_instance: AlbumInterface, args):
     album_instance.test_manager().test(args.path, sys.argv)
 
 
@@ -113,11 +113,11 @@ def repl(album_instance: AlbumInterface, args):
     resolve_result = album_instance.collection_manager().resolve_require_installation_and_load(args.path)
     queue = Queue()
     script_creator = ScriptRepl()
-    album_instance.run_manager().build_queue(resolve_result.loaded_solution, resolve_result.catalog, queue,
+    album_instance.run_manager().build_queue(resolve_result.loaded_solution(), resolve_result.catalog(), queue,
                                          script_creator, False, [""])
     script_queue_entry = queue.get(block=False)
     album_instance.environment_manager().get_conda_manager().run_scripts(script_queue_entry.environment, script_queue_entry.scripts, pipe_output=False)
-    module_logger().info('Ran REPL for \"%s\"!' % resolve_result.loaded_solution.coordinates.name)
+    module_logger().info('Ran REPL for \"%s\"!' % resolve_result.loaded_solution().coordinates().name())
 
 
 def _get_print_json(args):
@@ -129,7 +129,7 @@ def _as_json(data):
 
 
 class ScriptRepl(ScriptCreatorRun):
-    def get_execution_block(self, solution_object: Solution):
+    def get_execution_block(self, solution_object: ISolution):
         return """
 from code import InteractiveConsole
 try:

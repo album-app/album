@@ -2,8 +2,9 @@ import queue
 import threading
 from threading import Thread
 
-from album.api.task_interface import TaskInterface
-from album.core.model.task import Task, LogHandler
+from album.api.controller.task_interface import TaskInterface
+from album.api.model.task import ITask
+from album.core.model.task import LogHandler
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
@@ -37,10 +38,10 @@ class TaskManager(TaskInterface):
     def get_task(self, task_id):
         return self.tasks[task_id]
 
-    def get_status(self, task):
+    def get_status(self, task: ITask):
         return {
-            "status": task.status.name,
-            "records": self._records_to_json(task.log_handler.records)
+            "status": task.status().name,
+            "records": self._records_to_json(task.log_handler().records())
         }
 
     @staticmethod
@@ -63,16 +64,16 @@ class TaskManager(TaskInterface):
         # while self.server.task_manager.server_queue.unfinished_tasks and time() < stop:
         #     sleep(1)
 
-    def register_task(self, task):
+    def register_task(self, task: ITask):
         if not self.workers_initialized:
             self._initialize_workers()
-        task.id = str(self.task_count)
-        module_logger().info(f"TaskManager: registering task {task.id}")
-        task.status = Task.Status.WAITING
+        task.set_id(str(self.task_count))
+        module_logger().info(f"TaskManager: registering task {task.id()}")
+        task.set_status(ITask.Status.WAITING)
         self.task_count += 1
-        self.tasks[task.id] = task
+        self.tasks[task.id()] = task
         self.server_queue.put(task)
-        return task.id
+        return task.id()
 
     def _run_queue_entry(self, i, parent_thread):
         album_logging.configure_logging("worker" + str(i), parent_thread_id=parent_thread)
@@ -81,26 +82,26 @@ class TaskManager(TaskInterface):
             self._handle_task(task)
             self.server_queue.task_done()
 
-    def _handle_task(self, task):
-        module_logger().info(f"TaskManager: starting task {task.id}..")
-        logger = album_logging.configure_logging("task" + str(task.id))
+    def _handle_task(self, task: ITask):
+        module_logger().info(f"TaskManager: starting task {task.id()}..")
+        logger = album_logging.configure_logging("task" + str(task.id()))
         handler = LogHandler()
-        task.log_handler = handler
+        task.set_log_handler(handler)
         logger.addHandler(handler)
-        task.status = Task.Status.RUNNING
+        task.set_status(ITask.Status.RUNNING)
         try:
             self._run_task(task)
-            task.status = Task.Status.FINISHED
+            task.set_status(ITask.Status.FINISHED)
         except Exception as e:
             logger.error(e)
-            task.status = Task.Status.FAILED
+            task.set_status(ITask.Status.FAILED)
         logger.removeHandler(handler)
         album_logging.pop_active_logger()
-        module_logger().info(f"TaskManager: finished task {task.id}.")
+        module_logger().info(f"TaskManager: finished task {task.id()}.")
 
     def finish_tasks(self):
         self.server_queue.join()
 
     @staticmethod
-    def _run_task(task):
-        return task.method(*task.args)
+    def _run_task(task: ITask):
+        return task.method()(*task.args())

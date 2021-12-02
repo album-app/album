@@ -3,6 +3,7 @@ from pathlib import Path
 
 import validators
 
+from album.api.model.environment import IEnvironment
 from album.core.utils.operations.file_operations import create_path_recursively, copy, write_dict_to_yml, \
     get_dict_from_yml
 from album.core.utils.operations.url_operations import download_resource
@@ -11,15 +12,7 @@ from album.runner import album_logging
 module_logger = album_logging.get_active_logger
 
 
-class Environment:
-    """Class managing an environment a solution lives in.
-
-    Each solution lives in its own environment having different dependencies. These can be libraries, programs, etc.
-    Each environment has its own environment path and is identified by such. Each album environment has to have
-    the album-runner installed for the album framework to be able to run the solution in its environment.
-    An environment can be set up by environment file or only by name.
-
-    """
+class Environment(IEnvironment):
 
     def __init__(self, dependencies_dict, environment_name, cache_path):
         """Init routine
@@ -33,12 +26,12 @@ class Environment:
             cache_path:
                 cache path where to store downloads (yaml file, etc.)
         """
-        self.name = environment_name
-        self.cache_path = Path(cache_path)
-        self.yaml_file = self.prepare_env_file(dependencies_dict)
-        self.path = None
+        self._name = environment_name
+        self._cache_path = Path(cache_path)
+        self._yaml_file = self._prepare_env_file(dependencies_dict)
+        self._path = None
 
-    def prepare_env_file(self, dependencies_dict):
+    def _prepare_env_file(self, dependencies_dict):
         """Checks how to set up an environment. Returns a path to a valid yaml file. Environment name in that file
         will be overwritten!
 
@@ -57,8 +50,8 @@ class Environment:
             if 'environment_file' in dependencies_dict:
                 env_file = dependencies_dict['environment_file']
 
-                yaml_path = self.cache_path.joinpath(
-                    "%s%s" % (self.name, ".yml"))
+                yaml_path = self._cache_path.joinpath(
+                    "%s%s" % (self._name, ".yml"))
                 create_path_recursively(yaml_path.parent)
 
                 if isinstance(env_file, str):
@@ -82,9 +75,25 @@ class Environment:
                                        ' Don\'t know where to run solution!')
 
                 yaml_dict = get_dict_from_yml(yaml_path)
-                yaml_dict["name"] = self.name
+                yaml_dict["name"] = self._name
                 write_dict_to_yml(yaml_path, yaml_dict)
 
                 return yaml_path
             return None
         return None
+
+    def name(self):
+        return self._name
+
+    def cache_path(self):
+        return self._cache_path
+
+    def yaml_file(self):
+        return self._yaml_file
+
+    def path(self):
+        return self._path
+
+    def set_path(self, path):
+        self._path = path
+

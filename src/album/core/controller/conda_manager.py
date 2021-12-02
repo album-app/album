@@ -4,9 +4,9 @@ import sys
 import tempfile
 from pathlib import Path
 
-from album.api.config_interface import ConfigurationInterface
+from album.api.controller.config_interface import ConfigurationInterface
+from album.api.model.environment import IEnvironment
 from album.core.model.default_values import DefaultValues
-from album.core.model.environment import Environment
 from album.core.utils import subcommand
 from album.core.utils.operations.file_operations import force_remove
 from album.runner import album_logging
@@ -15,7 +15,7 @@ from album.runner.album_logging import debug_settings
 module_logger = album_logging.get_active_logger
 
 
-class CondaManager():
+class CondaManager:
     """Class for handling conda environments.
 
     The conda class manages the environments a solution is supposed to run in. It provides all features necessary for
@@ -25,11 +25,11 @@ class CondaManager():
         An installed \"conda\" program must be available and callable via commandline or powershell.
 
     """
-    configuration = None
+    _configuration = None
 
     def __init__(self, configuration: ConfigurationInterface):
-        self.configuration = configuration
-        self.conda_executable = self.configuration.get_conda_executable()
+        self._configuration = configuration
+        self._conda_executable = self._configuration.conda_executable()
 
     def get_environment_list(self):
         """Returns the conda environments available for the conda installation."""
@@ -54,7 +54,7 @@ class CondaManager():
             True when environment exists else false.
         """
         environment_list = self.get_environment_list()
-        path_expected = str(self.configuration.get_cache_path_envs().joinpath(environment_name))
+        path_expected = str(self._configuration.cache_path_envs().joinpath(environment_name))
 
         return True if path_expected in environment_list else False
 
@@ -69,7 +69,7 @@ class CondaManager():
             None or the path
         """
         environment_list = self.get_environment_list()
-        path_expected = str(self.configuration.get_cache_path_envs().joinpath(environment_name))
+        path_expected = str(self._configuration.cache_path_envs().joinpath(environment_name))
 
         if path_expected in environment_list:
             return path_expected
@@ -113,7 +113,7 @@ class CondaManager():
         path = self.get_environment_path(environment_name)
 
         subprocess_args = [
-            self.conda_executable, 'env', 'remove', '-y', '--json', '-p', path
+            self._conda_executable, 'env', 'remove', '-y', '--json', '-p', path
         ]
 
         subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
@@ -130,7 +130,7 @@ class CondaManager():
             dictionary corresponding to conda info.
         """
         subprocess_args = [
-            self.conda_executable, 'info', '--json'
+            self._conda_executable, 'info', '--json'
         ]
         output = subcommand.check_output(subprocess_args)
         return json.loads(output)
@@ -146,7 +146,7 @@ class CondaManager():
             dictionary containing the available packages in the given conda environment.
         """
         subprocess_args = [
-            self.conda_executable, 'list', '--json', '--prefix', environment_path,
+            self._conda_executable, 'list', '--json', '--prefix', environment_path,
         ]
         output = subcommand.check_output(subprocess_args)
         return json.loads(output)
@@ -186,10 +186,10 @@ class CondaManager():
         if not (yaml_path.is_file() and yaml_path.stat().st_size > 0):
             raise ValueError("File not a valid yml file!")
 
-        env_prefix = str(self.configuration.get_cache_path_envs().joinpath(environment_name))
+        env_prefix = str(self._configuration.cache_path_envs().joinpath(environment_name))
 
         subprocess_args = [
-            self.conda_executable, 'env', 'create', '--json', '-f',
+            self._conda_executable, 'env', 'create', '--json', '-f',
             str(yaml_path), '-p', env_prefix
         ]
 
@@ -228,10 +228,10 @@ class CondaManager():
             if env_exists:
                 raise EnvironmentError("Environment with name %s already exists!" % environment_name)
 
-        env_prefix = str(self.configuration.get_cache_path_envs().joinpath(environment_name))
+        env_prefix = str(self._configuration.cache_path_envs().joinpath(environment_name))
 
         subprocess_args = [
-            self.conda_executable, 'create', '--force', '--json', '-y', '-p', env_prefix, 'python=3.6', 'pip'
+            self._conda_executable, 'create', '--force', '--json', '-y', '-p', env_prefix, 'python=3.6', 'pip'
         ]
 
         try:
@@ -261,7 +261,7 @@ class CondaManager():
                 operation is declared dead. Timeout is resets each time a feedback is passed to the main process.
         """
         subprocess_args_base = [
-            self.conda_executable, 'run', '--no-capture-output', '--prefix', environment_path
+            self._conda_executable, 'run', '--no-capture-output', '--prefix', environment_path
         ]
 
         if sys.platform == 'win32' or sys.platform == 'cygwin':
@@ -301,7 +301,7 @@ class CondaManager():
 
         """
         subprocess_args = [
-            self.conda_executable, 'install', '--prefix', environment_path, '-y', module
+            self._conda_executable, 'install', '--prefix', environment_path, '-y', module
         ]
 
         subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
@@ -330,12 +330,12 @@ class CondaManager():
             # COMES FIRST IN ENVIRONMENT VARIABLE "%PATH%". THUS, FULL PATH IS NECESSARY TO CALL
             # THE CORRECT PYTHON OR PIP! ToDo: keep track of this!
             subprocess_args = [
-                self.conda_executable, 'run', '--no-capture-output', '--prefix',
+                self._conda_executable, 'run', '--no-capture-output', '--prefix',
                 environment_path, str(Path(environment_path).joinpath('python')), script_full_path
             ]
         else:
             subprocess_args = [
-                self.conda_executable, 'run', '--no-capture-output', '--prefix',
+                self._conda_executable, 'run', '--no-capture-output', '--prefix',
                 environment_path, 'python', script_full_path
             ]
         subcommand.run(subprocess_args, timeout1=timeout1, timeout2=timeout2, pipe_output=pipe_output)
@@ -354,7 +354,7 @@ class CondaManager():
 
         """
         subprocess_args = [
-                              self.conda_executable, 'run', '--no-capture-output', '--prefix',
+                              self._conda_executable, 'run', '--no-capture-output', '--prefix',
                               environment_path
                           ] + cmd
         try:
@@ -364,10 +364,10 @@ class CondaManager():
 
         return True
 
-    def set_environment_path(self, environment: Environment):
-        path = self.get_environment_path(environment.name)
+    def set_environment_path(self, environment: IEnvironment):
+        path = self.get_environment_path(environment.name())
         module_logger().debug('Set environment path to %s...' % path)
-        environment.path = path
+        environment.set_path(path)
 
     def is_installed(self, environment_path: str, package_name, min_package_version=None):
         """Checks if package is installed in a certain version."""
@@ -393,7 +393,7 @@ class CondaManager():
 
         return False
 
-    def run_scripts(self, environment: Environment, scripts, pipe_output=True):
+    def run_scripts(self, environment: IEnvironment, scripts, pipe_output=True):
         """Runs the solution in the target environment
 
         Args:
@@ -401,11 +401,13 @@ class CondaManager():
                 List of he scripts calling the solution(s)
             environment:
                 The virtual environment used to run the scripts
+            pipe_output:
+                Indicates whether to pipe the output of the subprocess or just return it as is.
         """
-        if not environment.path:
-            raise EnvironmentError('Could not find environment %s. Is the solution installed?' % environment.name)
+        if not environment.path():
+            raise EnvironmentError('Could not find environment %s. Is the solution installed?' % environment.name())
 
-        module_logger().debug('run_in_environment: %s...' % str(environment.path))
+        module_logger().debug('run_in_environment: %s...' % str(environment.path()))
 
         # first write scripts to disc, create meta-script to execute them in the order of the list
         if len(scripts) > 1:
@@ -444,34 +446,34 @@ class CondaManager():
         fp.flush()
         os.fsync(fp)
         fp.close()
-        self.run_script(str(environment.path), fp.name, pipe_output=pipe_output)
+        self.run_script(str(environment.path()), fp.name, pipe_output=pipe_output)
         Path(fp.name).unlink()
 
-    def create_or_update_env(self, environment: Environment):
+    def create_or_update_env(self, environment: IEnvironment):
         """Creates or updates the environment"""
-        if self.environment_exists(environment.name):
+        if self.environment_exists(environment.name()):
             self.update(environment)
         else:
             self.create(environment)
 
-    def update(self, environment: Environment):
+    def update(self, environment: IEnvironment):
         """Updates the environment"""
-        module_logger().debug('Skip installing environment %s...' % environment.name)
+        module_logger().debug('Skip installing environment %s...' % environment.name())
         pass  # ToDo: implement and change log message
 
-    def create(self, environment: Environment):
+    def create(self, environment: IEnvironment):
         """Creates environment a solution runs in."""
-        if environment.yaml_file:
-            self.create_environment_from_file(environment.yaml_file, environment.name)
+        if environment.yaml_file():
+            self.create_environment_from_file(environment.yaml_file(), environment.name())
         else:
             module_logger().warning("No yaml file specified. Creating Environment without dependencies!")
-            self.create_environment(environment.name)
+            self.create_environment(environment.name())
 
-    def install(self, environment: Environment, album_api_version=None):
+    def install(self, environment: IEnvironment, album_api_version=None):
         """Creates or updates an an environment and installs album in the target environment."""
         self.create_or_update_env(environment)
         self.set_environment_path(environment)
-        self.install_framework(environment.path, album_api_version)
+        self.install_framework(environment.path(), album_api_version)
 
     # ToDo: use explicit versioning of album
     def install_framework(self, environment_path: str, min_framework_version=None):

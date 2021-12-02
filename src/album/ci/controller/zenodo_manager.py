@@ -6,7 +6,7 @@ from album.runner import album_logging
 module_logger = album_logging.get_active_logger
 
 
-class ZenodoManager():
+class ZenodoManager:
 
     def __init__(self, zenodo_base_url, zenodo_access_token):
         self.query = zenodo_api.ZenodoAPI(
