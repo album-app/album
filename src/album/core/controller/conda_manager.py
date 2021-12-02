@@ -31,16 +31,11 @@ class CondaManager():
         self.configuration = configuration
         self.conda_executable = self.configuration.get_conda_executable()
 
-    def get_environment_dict(self):
+    def get_environment_list(self):
         """Returns the conda environments available for the conda installation."""
-        environment_dict = dict()
-
         conda_info = self.get_info()
 
-        for env in conda_info["envs"]:
-            environment_dict[os.path.basename(env)] = env
-
-        return environment_dict
+        return conda_info["envs"]
 
     def get_base_environment_path(self):
         """Gets the first of the paths the conda installation uses to manage its environments."""
@@ -58,8 +53,10 @@ class CondaManager():
         Returns:
             True when environment exists else false.
         """
-        environment_dict = self.get_environment_dict()
-        return True if environment_name in environment_dict.keys() else False
+        environment_list = self.get_environment_list()
+        path_expected = str(self.configuration.get_cache_path_envs().joinpath(environment_name))
+
+        return True if path_expected in environment_list else False
 
     def get_environment_path(self, environment_name: str):
         """Gets the environment path for a given environment
@@ -71,14 +68,15 @@ class CondaManager():
         Returns:
             None or the path
         """
-        environment_dict = self.get_environment_dict()
-        path = environment_dict[environment_name] if environment_name in environment_dict.keys() else None
-        if not path:
-            raise RuntimeError('Could not find environment %s.' % environment_name)
-        return path
+        environment_list = self.get_environment_list()
+        path_expected = str(self.configuration.get_cache_path_envs().joinpath(environment_name))
+
+        if path_expected in environment_list:
+            return path_expected
+        raise RuntimeError('Could not find environment %s.' % environment_name)
 
     def get_active_environment_name(self):
-        """Returns the environment form the active album."""
+        """Returns the environment from the active album."""
         conda_list = self.get_info()
         return conda_list["active_prefix_name"]
 
@@ -115,7 +113,7 @@ class CondaManager():
         path = self.get_environment_path(environment_name)
 
         subprocess_args = [
-            self.conda_executable, 'env', 'remove', '-y', '--json', '-n', environment_name
+            self.conda_executable, 'env', 'remove', '-y', '--json', '-p', path
         ]
 
         subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
@@ -188,7 +186,12 @@ class CondaManager():
         if not (yaml_path.is_file() and yaml_path.stat().st_size > 0):
             raise ValueError("File not a valid yml file!")
 
-        subprocess_args = [self.conda_executable, 'env', 'create', '--json', '-f', str(yaml_path)]
+        env_prefix = str(self.configuration.get_cache_path_envs().joinpath(environment_name))
+
+        subprocess_args = [
+            self.conda_executable, 'env', 'create', '--json', '-f',
+            str(yaml_path), '-p', env_prefix
+        ]
 
         try:
             subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
@@ -225,8 +228,10 @@ class CondaManager():
             if env_exists:
                 raise EnvironmentError("Environment with name %s already exists!" % environment_name)
 
+        env_prefix = str(self.configuration.get_cache_path_envs().joinpath(environment_name))
+
         subprocess_args = [
-            self.conda_executable, 'create', '--force', '--json', '-y', '-n', environment_name, 'python=3.6', 'pip'
+            self.conda_executable, 'create', '--force', '--json', '-y', '-p', env_prefix, 'python=3.6', 'pip'
         ]
 
         try:
@@ -279,12 +284,12 @@ class CondaManager():
 
         subcommand.run(subprocess_call, log_output=False, timeout1=timeout1, timeout2=timeout2)
 
-    def conda_install(self, environment, module, timeout1=60, timeout2=120):
+    def conda_install(self, environment_path, module, timeout1=60, timeout2=120):
         """Installs a package in the given environment via conda.
 
         Args:
-            environment:
-                The environment to install the package into.
+            environment_path:
+                The environment path to install the package into.
             module:
                 The module or package name.
             timeout1:
@@ -296,8 +301,7 @@ class CondaManager():
 
         """
         subprocess_args = [
-            self.conda_executable, 'install', '--prefix',
-            environment.path, '-y', module
+            self.conda_executable, 'install', '--prefix', environment_path, '-y', module
         ]
 
         subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)

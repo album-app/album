@@ -21,6 +21,7 @@ class Configuration(ConfigurationInterface):
         self.cache_path_download = None
         self.cache_path_tmp_internal = None
         self.cache_path_tmp_user = None
+        self.cache_path_envs = None
         self.catalog_collection_path = None
 
     def get_base_cache_path(self):
@@ -40,6 +41,9 @@ class Configuration(ConfigurationInterface):
 
     def get_cache_path_tmp_user(self):
         return self.cache_path_tmp_user
+
+    def get_cache_path_envs(self):
+        return self.cache_path_envs
 
     def is_setup(self):
         return self._is_setup
@@ -64,6 +68,7 @@ class Configuration(ConfigurationInterface):
         self.cache_path_app = self.base_cache_path.joinpath(DefaultValues.cache_path_app_prefix.value)
         self.cache_path_download = self.base_cache_path.joinpath(DefaultValues.cache_path_download_prefix.value)
         self.cache_path_tmp_user = self.base_cache_path.joinpath(DefaultValues.cache_path_tmp_prefix.value)
+        self.cache_path_envs = self.base_cache_path.joinpath(DefaultValues.cache_path_envs_prefix.value)
         self.catalog_collection_path = self.base_cache_path.joinpath(DefaultValues.catalog_folder_prefix.value)
         create_paths_recursively(
             [
@@ -71,6 +76,7 @@ class Configuration(ConfigurationInterface):
                 self.cache_path_app,
                 self.cache_path_download,
                 self.cache_path_tmp_user,
+                self.cache_path_envs,
                 self.catalog_collection_path
             ]
         )

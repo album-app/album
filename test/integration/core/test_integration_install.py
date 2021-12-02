@@ -16,7 +16,7 @@ class TestIntegrationInstall(TestIntegrationCommon):
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     @patch('album.core.controller.conda_manager.CondaManager.install')
-    def test_install_minimal_solution(self, install, get_environment_path):
+    def test_install_minimal_solution(self, _, get_environment_path):
         get_environment_path.return_value = self.album_instance.environment_manager().get_conda_manager().get_active_environment_path()
 
         # this solution has no install() configured
@@ -30,14 +30,7 @@ class TestIntegrationInstall(TestIntegrationCommon):
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertIn("No \"install\" routine configured for solution", self.captured_output.getvalue())
 
-    @patch('album.core.controller.conda_manager.CondaManager.create')
-    @patch('album.core.controller.conda_manager.CondaManager.list_environment', return_value=[])
-    @patch('album.core.controller.conda_manager.CondaManager.get_environment_dict',
-           side_effect=[{}, {"catalog_local_group_name_0.1.0": "aPath"}])
-    @patch('album.core.controller.conda_manager.CondaManager.pip_install')
-    @patch('album.core.controller.conda_manager.CondaManager.run_scripts')
-    def test_install(self, run_scripts_mock, pip_install_mock, get_environment_dict_mock, list_environment_mock,
-                     create_mock):
+    def test_install(self):
         # gather arguments
         sys.argv = ["", "install", str(self.get_test_solution_path())]
 
@@ -58,15 +51,6 @@ class TestIntegrationInstall(TestIntegrationCommon):
                 "group", "name", "0.1.0", "solution.py"
             ).exists()
         )
-
-        create_mock.assert_called_once()
-        self.assertIsNone(create_mock.call_args[0][0].yaml_file)
-        self.assertEqual("catalog_local_group_name_0.1.0", create_mock.call_args[0][0].name)
-        list_environment_mock.assert_called_once()
-        self.assertEqual(2, get_environment_dict_mock.call_count)
-        run_scripts_mock.assert_called_once()
-        self.assertEqual("aPath", run_scripts_mock.call_args[0][0].path)
-        pip_install_mock.assert_called_once()
 
     def test_install_lambda_breaks(self):
         sys.argv = ["", "install", str(self.get_test_solution_path('solution13_faulty_routine.py'))]
