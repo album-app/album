@@ -1,9 +1,10 @@
 from album.runner import setup
+from album.runner.album_logging import get_active_logger
 from album.runner.api import get_args, get_cache_path
 
 
 def album_install():
-    print(get_cache_path().absolute())
+    get_active_logger().info(get_cache_path().absolute())
 
 
 def album_run():
@@ -12,8 +13,8 @@ def album_run():
     file = open(args.file_solution1_app1, "a")
     file.write("solution1_app1_run\n")
     file.close()
-    print("A nice log run message!")
-    print(get_cache_path().absolute())
+    get_active_logger().info("A nice log run message!")
+    get_active_logger().info(get_cache_path().absolute())
 
 
 def album_close():
@@ -22,7 +23,7 @@ def album_close():
     file = open(args.file_solution1_app1, "a")
     file.write("solution1_app1_close\n")
     file.close()
-    print("A nice log close message!")
+    get_active_logger().info("A nice log close message!")
 
 
 setup(
