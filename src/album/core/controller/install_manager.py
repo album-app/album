@@ -306,6 +306,6 @@ class InstallManager(InstallInterface):
         if not remove_status:
             # try to clean environment folder if exists
             environment_folder = self.album.environment_manager().get_environment_base_folder().joinpath(
-                self.album.environment_manager().get_environment_name(resolve.coordinates, resolve.catalog)
+                EnvironmentManager.get_environment_name(resolve.coordinates, resolve.catalog)
             )
             force_remove(environment_folder)
