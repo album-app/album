@@ -9,8 +9,7 @@ class DefaultValues(Enum):
     """Add an entry here to initialize default attributes for a album framework installation instance."""
 
     # deployment
-    # runner_url = 'https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip'  # default runner url
-    runner_url = 'https://gitlab.com/album-app/album-runner/-/archive/introduce_conda_env_dir/album-runner-introduce_conda_env_dir.zip'
+    runner_url = 'https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip'  # default runner url
     catalog_template_url = 'https://gitlab.com/album-app/catalogs/templates'  # base URL of available catalog templates
 
     # catalog
