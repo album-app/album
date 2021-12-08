@@ -481,11 +481,12 @@ class RunManager(RunInterface):
     @staticmethod
     def _print_credit(active_solutions: List[ISolution]) -> None:
         res = RunManager._get_credit_as_string(active_solutions)
-        module_logger().info(res)
+        if res:
+            module_logger().info(res)
 
     @staticmethod
     def _get_credit_as_string(active_solutions: List[ISolution]):
-        res = '\n\nSolution credits:\n\n'
+        res = ''
         for active_solution in active_solutions:
             if active_solution.setup().cite:
                 for citation in active_solution.setup().cite:
@@ -493,5 +494,6 @@ class RunManager(RunInterface):
                     if 'doi' in citation:
                         text += ' (DOI: %s)' % citation['doi']
                     res += '%s\n' % text
-        res += '\n'
-        return res
+        if len(res) > 0:
+            return '\n\nSolution credits:\n\n%s\n' % res
+        return None
