@@ -300,8 +300,12 @@ class InstallManager(InstallInterface):
             self.album.collection_manager().solutions().set_uninstalled(resolve.catalog(), coordinates)
 
     def _clean_unfinished_installations_environment(self, resolve: IResolveResult):
-        environment = self.album.environment_manager().set_environment(resolve.loaded_solution(), resolve.catalog())
-        remove_status = self.album.environment_manager().remove_environment(environment)
+        remove_status = False
+        try:
+            environment = self.album.environment_manager().set_environment(resolve.loaded_solution(), resolve.catalog())
+            remove_status = self.album.environment_manager().remove_environment(environment)
+        except LookupError:
+            pass
 
         if not remove_status:
             # try to clean environment folder if exists

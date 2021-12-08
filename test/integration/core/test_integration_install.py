@@ -81,6 +81,33 @@ class TestIntegrationInstall(TestIntegrationCommon):
         self.assertFalse(self.album_instance.environment_manager().conda_manager.environment_exists(leftover_env_name))
         self.assertEqual([], self.collection_manager.catalog_collection.get_unfinished_installation_solutions())
 
+    def test_install_faulty_environment(self):
+        sys.argv = ["", "install", str(self.get_test_solution_path('solution14_faulty_environment.py'))]
+
+        self.assertEqual([], self.collection_manager.catalog_collection.get_unfinished_installation_solutions())
+
+        # call
+        with self.assertRaises(SystemExit):
+            main()
+
+        # the environment stays
+        local_catalog = self.collection_manager.catalogs().get_local_catalog()
+        local_catalog_name = str(local_catalog.name())
+        leftover_env_name = local_catalog_name + "_solution14_faulty_environment_0.1.0"
+        self.assertFalse(self.album_instance.environment_manager().conda_manager.environment_exists(leftover_env_name))
+
+        # check file is copied
+        local_file = self.collection_manager.solutions().get_solution_file(local_catalog, Coordinates("group", "faultySolution", "0.1.0"))
+        self.assertTrue(local_file.exists())
+
+        # try to install smth. else (or the same, after routine is fixed)
+        # should remove the faulty environment from previously failed installation
+        sys.argv = ["", "install", str(self.get_test_solution_path())]
+        self.assertIsNone(main())
+
+        self.assertFalse(local_file.exists())
+        self.assertEqual([], self.collection_manager.catalog_collection.get_unfinished_installation_solutions())
+
     def test_install_twice(self):
         sys.argv = ["", "install", str(self.get_test_solution_path())]
         self.assertIsNone(main())

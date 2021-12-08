@@ -70,7 +70,7 @@ class TestCondaManager(TestUnitCommon):
     def test_get_environment_path_invalid_env(self):
         self.assertFalse(self.conda.environment_exists("NotExistingEnv"))
         name = "NotExistingEnv"
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(LookupError):
             self.conda.get_environment_path(name)
 
     @patch('album.core.controller.conda_manager.CondaManager.get_info')
@@ -221,7 +221,7 @@ class TestCondaManager(TestUnitCommon):
         name = "NotExistingEnv"
         self.assertFalse(self.conda.environment_exists(name))
         environment = Environment(None, name, "aPath")
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(LookupError):
             self.conda.set_environment_path(environment)
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_list')

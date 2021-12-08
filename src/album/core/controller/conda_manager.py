@@ -73,7 +73,7 @@ class CondaManager:
 
         if path_expected in environment_list:
             return path_expected
-        raise RuntimeError('Could not find environment %s.' % environment_name)
+        raise LookupError('Could not find environment %s.' % environment_name)
 
     def get_active_environment_name(self):
         """Returns the environment from the active album."""
