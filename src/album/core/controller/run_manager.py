@@ -441,7 +441,8 @@ class RunManager(RunInterface):
                     step_args.insert(0, f"--{param['name']}={str(param['value'])}")
 
             # add parent arguments
-            [step_parser.add_argument("--" + element["name"]) for element in parent_solution.setup()["args"]]
+            if 'args' in parent_solution.setup():
+                [step_parser.add_argument("--" + element["name"]) for element in parent_solution.setup()["args"]]
 
             # parse all known arguments
             args_known, args_unknown = step_parser.parse_known_args(step_args)
