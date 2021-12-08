@@ -110,6 +110,18 @@
     - echo $tmpdir
     - rm -rf $tmpdir
 
+# Deploy base template
+#
+# Only works on DIND runners!.
+#
+.deploy_base_template:
+  tags:
+    - DeployRunner
+  before_script:
+    - docker info
+    - docker login -u "$DOCKER_DEPLOY_USER" -p "$DOCKER_DEPLOY_TOKEN" docker.io
+
+
 #----------------------------
 # stages
 #----------------------------
@@ -117,11 +129,30 @@
 stages:
   - build
   - test
+  - deploy
 
 
 #----------------------------
 # jobs
 #----------------------------
+
+docker deploy:
+  extends: .deploy_base_template
+  stage: deploy
+  script:
+    # get the deploy version from setup.cfg
+    - version=$(cat setup.cfg | grep "version=*" | awk '{split($0, s, " "); print s[3]}')
+    - echo "deploying version "$version
+    # building deploy tag
+    - tag=$(echo $DOCKER_DEPLOY_USER/album:$version)
+    - echo "Building image with tag " $tag
+    # build image
+    - docker build -t $tag .
+    # push image
+    # docker push $tag
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
 
 cmdline linux:
   extends: .linux_base_template
