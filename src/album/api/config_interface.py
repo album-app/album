@@ -43,6 +43,11 @@ class ConfigurationInterface:
         raise NotImplementedError
 
     @abstractmethod
+    def get_cache_path_envs(self):
+        """Path for solution specific environment files of album."""
+        raise NotImplementedError
+
+    @abstractmethod
     def is_setup(self):
         """If configuration was already initialized."""
         raise NotImplementedError
