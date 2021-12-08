@@ -59,6 +59,14 @@ class SolutionHandler(SolutionInterface):
             catalog_child.catalog_id()
         )
 
+    def remove_parent(self, catalog: ICatalog, coordinates: ICoordinates):
+        entry = self.album.collection_manager().get_collection_index().get_solution_by_catalog_grp_name_version(
+            catalog.catalog_id(), coordinates, close=False
+        )
+        self.album.collection_manager().get_collection_index().remove_parent(
+            entry.internal()["collection_id"]
+        )
+
     def remove_solution(self, catalog: ICatalog, coordinates: ICoordinates):
         self.album.collection_manager().get_collection_index().remove_solution(catalog.catalog_id(), coordinates)
 

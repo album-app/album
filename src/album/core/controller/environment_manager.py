@@ -3,10 +3,12 @@ from pathlib import Path
 from album.api.album_interface import AlbumInterface
 from album.api.controller.environment_interface import EnvironmentInterface
 from album.api.model.catalog import ICatalog
+from album.api.model.collection_index import ICollectionIndex
 from album.api.model.environment import IEnvironment
 from album.core.controller.conda_manager import CondaManager
 from album.core.model.environment import Environment
 from album.core.utils.operations.file_operations import force_remove
+from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.core.utils.operations.solution_operations import set_environment_paths, get_parent_dict
 from album.runner import album_logging
 from album.runner.api.model.coordinates import ICoordinates
@@ -50,6 +52,33 @@ class EnvironmentManager(EnvironmentInterface):
             environment = Environment(
                 None,
                 self.get_environment_name(parent_resolve_result.coordinates(), parent_resolve_result.catalog()),
+                active_solution.installation().package_path()
+            )
+            self.conda_manager.set_environment_path(environment)
+
+        set_environment_paths(active_solution, environment)
+        return environment
+
+    def set_environment_from_database(self, active_solution: ISolution, collection_entry: ICollectionIndex.ICollectionSolution, catalog: ICatalog) -> IEnvironment:
+        parent = collection_entry.internal()['parent']
+        # solution runs in its own environment
+        if not parent:
+
+            environment = Environment(
+                None,
+                self.get_environment_name(active_solution.coordinates(), catalog),
+                active_solution.installation().package_path()
+            )
+            self.conda_manager.set_environment_path(environment)
+
+        # solution runs in the parents environment - we need to resolve first to get info about parents environment
+        else:
+            coordinates = dict_to_coordinates(parent.setup())
+            catalog = self.collection_manager.catalogs().get_by_id(parent.internal()['catalog_id'])
+
+            environment = Environment(
+                None,
+                self.get_environment_name(coordinates, catalog),
                 active_solution.installation().package_path()
             )
             self.conda_manager.set_environment_path(environment)

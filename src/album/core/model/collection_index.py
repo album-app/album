@@ -670,6 +670,18 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return solution_solution_id
 
+    def remove_parent(self, collection_id, close=True):
+        cursor = self.get_cursor()
+        cursor.execute(
+            "DELETE FROM collection_collection WHERE collection_id_child=:collection_id",
+            {
+                "collection_id": collection_id
+            }
+        )
+
+        if close:
+            self.close_current_connection()
+
     def _get_children_of_solution(self, collection_id, close=True):
         child_solutions = []
         cursor = self.get_cursor()

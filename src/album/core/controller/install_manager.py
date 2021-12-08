@@ -111,6 +111,8 @@ class InstallManager(InstallInterface):
 
         if parent_resolve_result:
             self._set_parent(parent_resolve_result, resolve_result)
+        else:
+           self._remove_parent(resolve_result)
 
         # mark as installed and remove "installation unfinished"
         self.album.collection_manager().solutions().set_installed(
@@ -142,6 +144,13 @@ class InstallManager(InstallInterface):
             parent_resolve_result.catalog(),
             resolve_result.catalog(),
             parent_resolve_result.coordinates(),
+            resolve_result.coordinates()
+        )
+
+    def _remove_parent(self, resolve_result: IResolveResult):
+        """Sets the parent of a solution"""
+        self.album.collection_manager().solutions().remove_parent(
+            resolve_result.catalog(),
             resolve_result.coordinates()
         )
 
@@ -211,7 +220,7 @@ class InstallManager(InstallInterface):
         module_logger().info("Uninstalling \"%s\".." % resolve_result.loaded_solution().coordinates().name())
 
         # get the environment
-        environment = self.album.environment_manager().set_environment(resolve_result.loaded_solution(), resolve_result.catalog())
+        environment = self.album.environment_manager().set_environment_from_database(resolve_result.loaded_solution(), resolve_result.collection_entry(), resolve_result.catalog())
 
         self._run_solution_uninstall_routine(resolve_result.loaded_solution(), environment, argv)
 

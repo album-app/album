@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 
 from album.api.model.catalog import ICatalog
+from album.api.model.collection_index import ICollectionIndex
 from album.api.model.environment import IEnvironment
 from album.runner.api.model.solution import ISolution
 
@@ -17,6 +18,15 @@ class EnvironmentInterface:
     @abstractmethod
     def set_environment(self, active_solution: ISolution, catalog: ICatalog) -> IEnvironment:
         """Resolves the environment the active solution runs in.
+
+        Returns the resolve result of the parent of the active solution.
+
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def set_environment_from_database(self, active_solution: ISolution, collection_entry: ICollectionIndex.ICollectionSolution, catalog: ICatalog) -> IEnvironment:
+        """Resolves the environment the active solution runs in (based on the database entries).
 
         Returns the resolve result of the parent of the active solution.
 

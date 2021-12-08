@@ -23,6 +23,10 @@ class SolutionInterface:
         raise NotImplementedError
 
     @abstractmethod
+    def remove_parent(self, catalog: ICatalog, coordinates: ICoordinates):
+        raise NotImplementedError
+
+    @abstractmethod
     def remove_solution(self, catalog: ICatalog, coordinates: ICoordinates):
         raise NotImplementedError
 

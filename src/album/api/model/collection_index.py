@@ -132,3 +132,7 @@ class ICollectionIndex(IDatabase):
     def insert_collection_collection(self, collection_id_parent, collection_id_child, catalog_id_parent,
                                      catalog_id_child, close=True):
         raise NotImplementedError
+
+    @abstractmethod
+    def remove_parent(self, collection_id, close=True):
+        raise NotImplementedError
