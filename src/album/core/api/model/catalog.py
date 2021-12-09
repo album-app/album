@@ -4,8 +4,8 @@ from typing import Optional, List
 
 from git import Repo
 
-from album.api.model.catalog_index import ICatalogIndex
-from album.runner.api.model.solution import ISolution
+from album.core.api.model.catalog_index import ICatalogIndex
+from album.runner.core.api.model.solution import ISolution
 
 
 class ICatalog:

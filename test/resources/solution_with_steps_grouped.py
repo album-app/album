@@ -1,4 +1,4 @@
-from album.runner.api.runner import setup
+from album.runner.api import setup
 
 
 setup(

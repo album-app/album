@@ -4,8 +4,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-from album.api.controller.config_interface import ConfigurationInterface
-from album.api.model.environment import IEnvironment
+from album.core.api.model.configuration import IConfiguration
+from album.core.api.model.environment import IEnvironment
 from album.core.model.default_values import DefaultValues
 from album.core.utils import subcommand
 from album.core.utils.operations.file_operations import force_remove
@@ -27,7 +27,7 @@ class CondaManager:
     """
     _configuration = None
 
-    def __init__(self, configuration: ConfigurationInterface):
+    def __init__(self, configuration: IConfiguration):
         self._configuration = configuration
         self._conda_executable = self._configuration.conda_executable()
 

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import validators
 
-from album.api.model.environment import IEnvironment
+from album.core.api.model.environment import IEnvironment
 from album.core.utils.operations.file_operations import create_path_recursively, copy, write_dict_to_yml, \
     get_dict_from_yml
 from album.core.utils.operations.url_operations import download_resource

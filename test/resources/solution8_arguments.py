@@ -1,6 +1,6 @@
 from album.runner.album_logging import get_active_logger
-from album.runner.api.runner import get_args
-from album.runner.api.runner import setup
+from album.runner.api import get_args
+from album.runner.api import setup
 
 
 def album_run():

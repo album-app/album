@@ -1,6 +1,6 @@
 from logging import LogRecord
 
-from album.api.model.task import ILogHandler, ITask
+from album.core.api.model.task import ILogHandler, ITask
 
 
 class LogHandler(ILogHandler):

@@ -1,9 +1,9 @@
 from abc import ABCMeta, abstractmethod
 
-from album.api.model.task import ITask
+from album.core.api.model.task import ITask
 
 
-class TaskInterface:
+class ITaskManager:
     """Interface for retrieving the status of a solution.
         """
 

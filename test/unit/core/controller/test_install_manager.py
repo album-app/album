@@ -7,8 +7,8 @@ from album.core.controller.install_manager import InstallManager
 
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.resolve_result import ResolveResult
-from album.runner.model.coordinates import Coordinates
-from album.runner.model.solution import Solution
+from album.runner.core.model.coordinates import Coordinates
+from album.runner.core.model.solution import Solution
 from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
 
 

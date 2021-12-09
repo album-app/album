@@ -3,7 +3,7 @@ from pathlib import Path
 
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.catalog_index import CatalogIndex
-from album.runner.model.coordinates import Coordinates
+from album.runner.core.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations import file_operations
 

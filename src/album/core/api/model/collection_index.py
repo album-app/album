@@ -1,8 +1,8 @@
 from abc import abstractmethod, ABCMeta
 from typing import Optional, List
 
-from album.api.model.database import IDatabase
-from album.runner.api.model.coordinates import ICoordinates
+from album.core.api.model.database import IDatabase
+from album.runner.core.api.model.coordinates import ICoordinates
 
 
 class ICollectionIndex(IDatabase):

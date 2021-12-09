@@ -4,8 +4,8 @@ from unittest.mock import patch, MagicMock
 
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
-from album.runner.model.coordinates import Coordinates
-from album.runner.model.solution import Solution
+from album.runner.core.model.coordinates import Coordinates
+from album.runner.core.model.solution import Solution
 from test.unit.core.controller.collection.test_collection_manager import TestCatalogCollectionCommon
 
 

@@ -1,15 +1,15 @@
 from abc import ABCMeta, abstractmethod
 
-from album.api.model.catalog import ICatalog
-from album.api.model.collection_index import ICollectionIndex
-from album.api.model.resolve_result import IResolveResult
+from album.core.api.model.catalog import ICatalog
+from album.core.api.model.collection_index import ICollectionIndex
+from album.core.api.model.resolve_result import IResolveResult
 
-from album.api.controller.collection.catalog_interface import CatalogInterface
-from album.api.controller.collection.solution_interface import SolutionInterface
-from album.runner.api.model.coordinates import ICoordinates
+from album.core.api.controller.collection.catalog_handler import ICatalogHandler
+from album.core.api.controller.collection.solution_handler import ISolutionHandler
+from album.runner.core.api.model.coordinates import ICoordinates
 
 
-class CollectionInterface:
+class ICollectionManager:
     """The Album Catalog Collection class.
 
     An album framework installation instance can hold arbitrarily many catalogs. This class holds all configured
@@ -26,11 +26,11 @@ class CollectionInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def catalogs(self) -> CatalogInterface:
+    def catalogs(self) -> ICatalogHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def solutions(self) -> SolutionInterface:
+    def solutions(self) -> ISolutionHandler:
         raise NotImplementedError
 
     @abstractmethod

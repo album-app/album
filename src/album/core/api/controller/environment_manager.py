@@ -1,12 +1,12 @@
 from abc import ABCMeta, abstractmethod
 
-from album.api.model.catalog import ICatalog
-from album.api.model.collection_index import ICollectionIndex
-from album.api.model.environment import IEnvironment
-from album.runner.api.model.solution import ISolution
+from album.core.api.model.catalog import ICatalog
+from album.core.api.model.collection_index import ICollectionIndex
+from album.core.api.model.environment import IEnvironment
+from album.runner.core.api.model.solution import ISolution
 
 
-class EnvironmentInterface:
+class IEnvironmentManager:
     """Manages everything around the environment a solution lives in."""
 
     __metaclass__ = ABCMeta

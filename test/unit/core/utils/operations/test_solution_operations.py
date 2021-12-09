@@ -2,7 +2,7 @@ from io import StringIO
 
 from album.core.model.catalog_index import CatalogIndex
 from album.core.utils.operations.solution_operations import get_deploy_dict
-from album.runner.model.solution import Solution
+from album.runner.core.model.solution import Solution
 from test.unit.test_unit_common import TestUnitCommon
 
 

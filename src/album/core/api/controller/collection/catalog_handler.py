@@ -1,11 +1,11 @@
 from abc import ABCMeta, abstractmethod
 from typing import Optional, List, Dict
 
-from album.api.model.catalog import ICatalog
-from album.api.model.catalog_updates import ICatalogUpdates
+from album.core.api.model.catalog import ICatalog
+from album.core.api.model.catalog_updates import ICatalogUpdates
 
 
-class CatalogInterface:
+class ICatalogHandler:
     __metaclass__ = ABCMeta
 
     @abstractmethod

@@ -3,10 +3,10 @@ from pathlib import Path
 from typing import List, Optional, Dict
 
 import validators
-from album.api.album_interface import AlbumInterface
+from album.core.api.album import IAlbum
 
-from album.api.controller.collection.catalog_interface import CatalogInterface
-from album.api.model.catalog import ICatalog
+from album.core.api.controller.collection.catalog_handler import ICatalogHandler
+from album.core.api.model.catalog import ICatalog
 from album.core.model.catalog import Catalog, get_index_url, get_index_dir
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.catalog_updates import CatalogUpdates, SolutionChange, ChangeType
@@ -20,10 +20,10 @@ from album.runner import album_logging
 module_logger = album_logging.get_active_logger
 
 
-class CatalogHandler(CatalogInterface):
+class CatalogHandler(ICatalogHandler):
     """Helper class responsible for catalog handling."""
 
-    def __init__(self, album: AlbumInterface):
+    def __init__(self, album: IAlbum):
         self.album = album
 
     def create_local_catalog(self):

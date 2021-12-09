@@ -4,9 +4,9 @@ from pathlib import Path
 import keepachangelog
 from album.runner.album_logging import get_active_logger
 
-from album.api.model.catalog import ICatalog
+from album.core.api.model.catalog import ICatalog
 from album.core.utils.operations.file_operations import create_path_recursively
-from album.runner.api.model.solution import ISolution
+from album.runner.core.api.model.solution import ISolution
 
 
 def get_changelog_file_name():

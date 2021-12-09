@@ -1,15 +1,15 @@
 import operator
 
-from album.api.album_interface import AlbumInterface
-from album.api.controller.search_interface import SearchInterface
+from album.core.api.album import IAlbum
+from album.core.api.controller.search_manager import ISearchManager
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
 
-class SearchManager(SearchInterface):
+class SearchManager(ISearchManager):
 
-    def __init__(self, album: AlbumInterface):
+    def __init__(self, album: IAlbum):
         self.collection_manager = album.collection_manager()
 
     def search(self, keywords):

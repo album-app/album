@@ -1,6 +1,6 @@
 from io import StringIO
 
-from album.runner.api.runner import setup
+from album.runner.api import setup
 
 env_file = StringIO("""name: template-python
 channels:

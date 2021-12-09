@@ -6,7 +6,7 @@ from album.runner.album_logging import get_active_logger
 import album
 from album.core.utils.operations.file_operations import copy_in_file
 from album.core.utils.operations.resolve_operations import get_zip_name
-from album.runner.api.model.solution import ISolution
+from album.runner.core.api.model.solution import ISolution
 
 
 def create_docker_file(active_solution: ISolution, target_folder: Path) -> Path:

@@ -1,13 +1,13 @@
 from pathlib import Path
 from typing import Optional, List
 
-from album.api.album_interface import AlbumInterface
-from album.api.controller.collection.catalog_interface import CatalogInterface
-from album.api.controller.collection.collection_interface import CollectionInterface
-from album.api.controller.collection.solution_interface import SolutionInterface
-from album.api.model.catalog import ICatalog
-from album.api.model.collection_index import ICollectionIndex
-from album.api.model.resolve_result import IResolveResult
+from album.core.api.album import IAlbum
+from album.core.api.controller.collection.catalog_handler import ICatalogHandler
+from album.core.api.controller.collection.collection_manager import ICollectionManager
+from album.core.api.controller.collection.solution_handler import ISolutionHandler
+from album.core.api.model.catalog import ICatalog
+from album.core.api.model.collection_index import ICollectionIndex
+from album.core.api.model.resolve_result import IResolveResult
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.collection.solution_handler import SolutionHandler
 from album.core.model.collection_index import CollectionIndex
@@ -17,14 +17,14 @@ from album.core.utils.operations.file_operations import write_dict_to_json
 from album.core.utils.operations.resolve_operations import check_file_or_url, get_attributes_from_string, \
     dict_to_coordinates, get_doi_from_input, check_doi, build_resolve_string, get_parent
 from album.runner import album_logging
-from album.runner.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.coordinates import ICoordinates
 
 module_logger = album_logging.get_active_logger
 
 
-class CollectionManager(CollectionInterface):
+class CollectionManager(ICollectionManager):
 
-    def __init__(self, album: AlbumInterface):
+    def __init__(self, album: IAlbum):
         self.album = album
         self.solution_handler = SolutionHandler(self.album)
         self.catalog_handler = CatalogHandler(self.album)
@@ -80,10 +80,10 @@ class CollectionManager(CollectionInterface):
             self.catalog_handler.update_any()
             self.catalog_handler.update_collection()
 
-    def catalogs(self) -> CatalogInterface:
+    def catalogs(self) -> ICatalogHandler:
         return self.catalog_handler
 
-    def solutions(self) -> SolutionInterface:
+    def solutions(self) -> ISolutionHandler:
         return self.solution_handler
 
     def add_solution_to_local_catalog(self, active_solution, path):

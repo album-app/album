@@ -2,18 +2,18 @@ import argparse
 from queue import Queue, Empty
 from typing import List
 
-from album.api.controller.run_interface import RunInterface
-from album.api.album_interface import AlbumInterface
-from album.api.model.catalog import ICatalog
-from album.api.model.resolve_result import IResolveResult
+from album.core.api.controller.run_manager import IRunManager
+from album.core.api.album import IAlbum
+from album.core.api.model.catalog import ICatalog
+from album.core.api.model.resolve_result import IResolveResult
 from album.core.model.script_queue_entry import ScriptQueueEntry
 from album.core.utils.operations.resolve_operations import build_resolve_string
 from album.core.utils.operations.solution_operations import get_steps_dict, get_parent_dict
 from album.runner import album_logging
-from album.runner.api.concept.script_creator import IScriptCreator
-from album.runner.api.model.coordinates import ICoordinates
-from album.runner.api.model.solution import ISolution
-from album.runner.concept.script_creator import ScriptCreatorRun, ScriptCreatorRunWithParent
+from album.runner.core.api.concept.script_creator import IScriptCreator
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
+from album.runner.core.concept.script_creator import ScriptCreatorRun, ScriptCreatorRunWithParent
 
 module_logger = album_logging.get_active_logger
 
@@ -49,9 +49,9 @@ class SolutionCollection:
                o.steps == self.steps
 
 
-class RunManager(RunInterface):
+class RunManager(IRunManager):
 
-    def __init__(self, album: AlbumInterface):
+    def __init__(self, album: IAlbum):
         self.album = album
 
         self.init_script = ""

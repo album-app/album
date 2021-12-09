@@ -11,7 +11,7 @@ from album.core.model.task import Task
 from album.core.server import AlbumServer
 from album.runner import album_logging
 from album.runner.album_logging import LogLevel
-from album.runner.model.coordinates import Coordinates
+from album.runner.core.model.coordinates import Coordinates
 from test.integration.test_integration_common import TestIntegrationCommon
 
 

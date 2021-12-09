@@ -1,5 +1,5 @@
-from album.api.model.environment import IEnvironment
-from album.runner.api.model.coordinates import ICoordinates
+from album.core.api.model.environment import IEnvironment
+from album.runner.core.api.model.coordinates import ICoordinates
 
 
 class ScriptQueueEntry:

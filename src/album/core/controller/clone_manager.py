@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from album.api.album_interface import AlbumInterface
-from album.api.controller.clone_interface import CloneInterface
+from album.core.api.album import IAlbum
+from album.core.api.controller.clone_manager import ICloneManager
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations import url_operations, file_operations
 from album.runner import album_logging
@@ -9,11 +9,11 @@ from album.runner import album_logging
 module_logger = album_logging.get_active_logger
 
 
-class CloneManager(CloneInterface):
+class CloneManager(ICloneManager):
 
     collection_manager = None
 
-    def __init__(self, album: AlbumInterface):
+    def __init__(self, album: IAlbum):
         self.collection_manager = album.collection_manager()
         self.configuration = album.configuration()
 

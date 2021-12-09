@@ -1,7 +1,7 @@
 import unittest.suite
 from pathlib import Path
 
-from album.api.album import Album
+from album.album import Album
 from test.unit.test_unit_common import TestUnitCommon
 
 

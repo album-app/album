@@ -8,7 +8,7 @@ from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.catalog import Catalog
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.default_values import DefaultValues
-from album.runner.model.solution import Solution
+from album.runner.core.model.solution import Solution
 from test.unit.test_unit_common import TestUnitCommon
 
 

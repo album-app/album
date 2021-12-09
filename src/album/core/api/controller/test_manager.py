@@ -1,9 +1,9 @@
 from abc import ABCMeta, abstractmethod
 
-from album.runner.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.coordinates import ICoordinates
 
 
-class TestInterface:
+class ITestManager:
     """Interface managing testing routine of a solution. Similar to the installation process, a configured \"test \"
     routine of a solution is executed in the target environment (The conda environment the solution lives in).
     Solutions must be installed to run their testing routine."""

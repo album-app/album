@@ -1,8 +1,8 @@
 from typing import List, Optional
 
-from album.api.model.catalog import ICatalog
-from album.api.model.catalog_updates import ISolutionChange, ChangeType, ICatalogAttributeChange, ICatalogUpdates
-from album.runner.api.model.coordinates import ICoordinates
+from album.core.api.model.catalog import ICatalog
+from album.core.api.model.catalog_updates import ISolutionChange, ChangeType, ICatalogAttributeChange, ICatalogUpdates
+from album.runner.core.api.model.coordinates import ICoordinates
 
 
 class SolutionChange(ISolutionChange):

@@ -6,7 +6,7 @@ from unittest.mock import patch, MagicMock
 from album.ci.utils.zenodo_api import ZenodoAPI
 from album.core.controller.deploy_manager import DeployManager
 from album.core.model.default_values import DefaultValues
-from album.runner.model.coordinates import Coordinates
+from album.runner.core.model.coordinates import Coordinates
 from test.unit.test_unit_common import TestGitCommon, EmptyTestClass
 
 

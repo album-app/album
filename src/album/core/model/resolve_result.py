@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from album.api.model.catalog import ICatalog
-from album.api.model.collection_index import ICollectionIndex
-from album.api.model.resolve_result import IResolveResult
-from album.runner.api.model.coordinates import ICoordinates
-from album.runner.api.model.solution import ISolution
+from album.core.api.model.catalog import ICatalog
+from album.core.api.model.collection_index import ICollectionIndex
+from album.core.api.model.resolve_result import IResolveResult
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
 
 
 class ResolveResult(IResolveResult):

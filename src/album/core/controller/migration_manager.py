@@ -6,19 +6,19 @@ from album.core.model.collection_index import CollectionIndex
 from album.core.model.catalog_index import CatalogIndex
 from jsonschema import validate
 
-from album.api.album_interface import AlbumInterface
-from album.api.controller.migration_interface import MigrationInterface
+from album.core.api.album import IAlbum
+from album.core.api.controller.migration_manager import IMigrationManager
 
-from album.api.model.catalog import ICatalog
-from album.api.model.collection_index import ICollectionIndex
+from album.core.api.model.catalog import ICatalog
+from album.core.api.model.collection_index import ICollectionIndex
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
 
-class MigrationManager(MigrationInterface):
+class MigrationManager(IMigrationManager):
 
-    def __init__(self, album: AlbumInterface):
+    def __init__(self, album: IAlbum):
         self.schema_solution = None
         self.collection_manager = album.collection_manager()
 

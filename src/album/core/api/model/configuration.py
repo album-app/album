@@ -1,10 +1,10 @@
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
 
-from album.runner.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.coordinates import ICoordinates
 
 
-class ConfigurationInterface:
+class IConfiguration:
     """Configuration of the album framework installation instance.
 
     This interface manages the cache paths of the album framework installation instance.

@@ -1,25 +1,25 @@
 from pathlib import Path
 
-from album.api.album_interface import AlbumInterface
-from album.api.controller.environment_interface import EnvironmentInterface
-from album.api.model.catalog import ICatalog
-from album.api.model.collection_index import ICollectionIndex
-from album.api.model.environment import IEnvironment
+from album.core.api.album import IAlbum
+from album.core.api.controller.environment_manager import IEnvironmentManager
+from album.core.api.model.catalog import ICatalog
+from album.core.api.model.collection_index import ICollectionIndex
+from album.core.api.model.environment import IEnvironment
 from album.core.controller.conda_manager import CondaManager
 from album.core.model.environment import Environment
 from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.core.utils.operations.solution_operations import set_environment_paths, get_parent_dict
 from album.runner import album_logging
-from album.runner.api.model.coordinates import ICoordinates
-from album.runner.api.model.solution import ISolution
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
 
 module_logger = album_logging.get_active_logger
 
 
-class EnvironmentManager(EnvironmentInterface):
+class EnvironmentManager(IEnvironmentManager):
 
-    def __init__(self, album: AlbumInterface):
+    def __init__(self, album: IAlbum):
         self.conda_manager = CondaManager(album.configuration())
         self.collection_manager = album.collection_manager()
 

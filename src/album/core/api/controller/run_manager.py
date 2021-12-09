@@ -1,13 +1,13 @@
 from abc import ABCMeta, abstractmethod
 from queue import Queue
 
-from album.api.model.catalog import ICatalog
-from album.runner.api.concept.script_creator import IScriptCreator
-from album.runner.api.model.coordinates import ICoordinates
-from album.runner.api.model.solution import ISolution
+from album.core.api.model.catalog import ICatalog
+from album.runner.core.api.concept.script_creator import IScriptCreator
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
 
 
-class RunInterface:
+class IRunManager:
     """Interface managing the running process of a solution.
 
     A solution is executed in its target environment which is created during installation. This class performs all

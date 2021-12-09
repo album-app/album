@@ -1,10 +1,10 @@
 from abc import ABCMeta, abstractmethod
 
-from album.api.model.catalog import ICatalog
-from album.api.model.collection_index import ICollectionIndex
+from album.core.api.model.catalog import ICatalog
+from album.core.api.model.collection_index import ICollectionIndex
 
 
-class MigrationInterface:
+class IMigrationManager:
     """Interface handling the migration from Indices of different versions. Responsible for execution of SQL migration!
 
     Tries to always migrate the catalog index or collection index to the current framework version

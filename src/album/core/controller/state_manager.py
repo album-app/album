@@ -1,20 +1,20 @@
 from typing import Optional
 
-from album.api.album_interface import AlbumInterface
-from album.api.controller.state_interface import StateInterface
+from album.core.api.album import IAlbum
+from album.core.api.controller.state_manager import IStateManager
+from album.runner import api
 from album.runner.album_logging import get_active_logger
-from album.runner.api import runner
-from album.runner.api.model.solution import ISolution
-from album.runner.model.solution import Solution
+from album.runner.core.api.model.solution import ISolution
+from album.runner.core.model.solution import Solution
 
 
-class StateManager(StateInterface):
+class StateManager(IStateManager):
 
-    def __init__(self, album: AlbumInterface):
+    def __init__(self, album: IAlbum):
         self._active_solution = []
         self.album = album
         # overwrite album setup with this setup
-        runner.setup = self._setup_solution
+        api.setup = self._setup_solution
 
     def _setup_solution(self, **attrs):
         """This configures a solution for use by the main album tool."""

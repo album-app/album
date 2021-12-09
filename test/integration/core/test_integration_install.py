@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from album.argument_parsing import main
 from album.core.model.default_values import DefaultValues
-from album.runner.model.coordinates import Coordinates
+from album.runner.core.model.coordinates import Coordinates
 from test.integration.test_integration_common import TestIntegrationCommon
 
 

@@ -2,7 +2,7 @@ from pathlib import Path
 
 from git import Repo
 
-from album.api.album_interface import AlbumInterface
+from album.core.api.album import IAlbum
 from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.ci_utils import get_ssh_url
 from album.core.model.catalog import Catalog
@@ -11,7 +11,7 @@ from album.core.utils.operations.git_operations import checkout_branch, add_file
     retrieve_single_file_from_head, configure_git
 from album.core.utils.operations.resolve_operations import get_zip_name, get_zip_name_prefix, dict_to_coordinates
 from album.runner import album_logging
-from album.runner.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.coordinates import ICoordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -21,7 +21,7 @@ class ReleaseManager:
 
     configuration = None
 
-    def __init__(self, album_instance: AlbumInterface, catalog_name, catalog_path, catalog_src, force_retrieve):
+    def __init__(self, album_instance: IAlbum, catalog_name, catalog_path, catalog_src, force_retrieve):
         self.catalog_name = catalog_name
         self.catalog_path = catalog_path
         self.catalog_src = catalog_src

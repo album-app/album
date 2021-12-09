@@ -4,7 +4,7 @@ import threading
 from abc import ABC
 from pathlib import Path
 
-from album.api.model.database import IDatabase
+from album.core.api.model.database import IDatabase
 
 
 class Database(IDatabase, ABC):

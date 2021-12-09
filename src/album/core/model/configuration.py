@@ -2,16 +2,16 @@ import os
 import sys
 from pathlib import Path
 
-from album.api.controller.config_interface import ConfigurationInterface
+from album.core.api.model.configuration import IConfiguration
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import create_paths_recursively, force_remove, get_dict_from_json
 from album.runner import album_logging
-from album.runner.model.coordinates import Coordinates
+from album.runner.core.model.coordinates import Coordinates
 
 module_logger = album_logging.get_active_logger
 
 
-class Configuration(ConfigurationInterface):
+class Configuration(IConfiguration):
 
     def __init__(self):
         self._is_setup = False

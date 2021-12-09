@@ -4,10 +4,10 @@ import json
 from datetime import date, time
 from typing import Optional
 
-from album.api.model.environment import IEnvironment
+from album.core.api.model.environment import IEnvironment
 from album.core.utils.operations.file_operations import force_remove
 from album.runner import album_logging
-from album.runner.api.model.solution import ISolution
+from album.runner.core.api.model.solution import ISolution
 
 module_logger = album_logging.get_active_logger
 

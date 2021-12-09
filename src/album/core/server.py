@@ -6,12 +6,12 @@ from flask import Flask, request
 from werkzeug.exceptions import abort
 
 import album
-from album.api.album_interface import AlbumInterface
-from album.api.controller.task_interface import TaskInterface
+from album.core.api.album import IAlbum
+from album.core.api.controller.task_manager import ITaskManager
 from album.core.model.default_values import DefaultValues
 from album.core.model.task import Task
 from album.runner import album_logging
-from album.runner.model.coordinates import Coordinates
+from album.runner.core.model.coordinates import Coordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -25,9 +25,9 @@ class AlbumServer:
     def __init__(self, port: int, host: str = None):
         self.port = port
         self.host = host
-        self.album_instance: Optional[AlbumInterface] = None
+        self.album_instance: Optional[IAlbum] = None
 
-    def setup(self, album_instance: AlbumInterface):
+    def setup(self, album_instance: IAlbum):
         self.album_instance = album_instance
 
     def start(self, test_config=None):
@@ -276,7 +276,7 @@ class AlbumServer:
             func()
             return 'Server shutting down...'
 
-    def task_manager(self) -> TaskInterface:
+    def task_manager(self) -> ITaskManager:
         return self.album_instance.task_manager()
 
     def _run_solution_method_async(self, catalog, group_name_version: Coordinates, method, args=None):

@@ -4,9 +4,9 @@ from pathlib import Path
 
 from git import Repo
 
-from album.api.album_interface import AlbumInterface
-from album.api.controller.deploy_interface import DeployInterface
-from album.api.model.catalog import ICatalog
+from album.core.api.album import IAlbum
+from album.core.api.controller.deploy_manager import IDeployManager
+from album.core.api.model.catalog import ICatalog
 from album.core.model.default_values import DefaultValues
 from album.core.utils.export.changelog import create_changelog_file, \
     process_changelog_file
@@ -17,15 +17,15 @@ from album.core.utils.operations.file_operations import copy, write_dict_to_yml,
 from album.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push
 from album.core.utils.operations.solution_operations import get_deploy_dict
 from album.runner import album_logging
-from album.runner.api.model.solution import ISolution
-from album.runner.model.solution import Solution
+from album.runner.core.api.model.solution import ISolution
+from album.runner.core.model.solution import Solution
 
 module_logger = album_logging.get_active_logger
 
 
-class DeployManager(DeployInterface):
+class DeployManager(IDeployManager):
 
-    def __init__(self, album: AlbumInterface):
+    def __init__(self, album: IAlbum):
         self.album = album
 
     def deploy(self, deploy_path, catalog_name: str, dry_run: bool, push_option=None, git_email: str = None,

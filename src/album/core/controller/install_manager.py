@@ -1,10 +1,10 @@
 from typing import Optional
 
-from album.api.album_interface import AlbumInterface
-from album.api.controller.install_interface import InstallInterface
-from album.api.model.catalog import ICatalog
-from album.api.model.environment import IEnvironment
-from album.api.model.resolve_result import IResolveResult
+from album.core.api.album import IAlbum
+from album.core.api.controller.install_manager import IInstallManager
+from album.core.api.model.catalog import ICatalog
+from album.core.api.model.environment import IEnvironment
+from album.core.api.model.resolve_result import IResolveResult
 from album.core.controller.environment_manager import EnvironmentManager
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import force_remove
@@ -12,16 +12,16 @@ from album.core.utils.operations.resolve_operations import clean_resolve_tmp, bu
 from album.core.utils.operations.solution_operations import get_deploy_dict, get_parent_dict
 from album.core.utils.operations.solution_operations import remove_disc_content_from_solution
 from album.runner import album_logging
-from album.runner.api.model.coordinates import ICoordinates
-from album.runner.api.model.solution import ISolution
-from album.runner.concept.script_creator import ScriptCreatorInstall, ScriptCreatorUnInstall
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
+from album.runner.core.concept.script_creator import ScriptCreatorInstall, ScriptCreatorUnInstall
 
 module_logger = album_logging.get_active_logger
 
 
-class InstallManager(InstallInterface):
+class InstallManager(IInstallManager):
 
-    def __init__(self, album: AlbumInterface):
+    def __init__(self, album: IAlbum):
         self.album = album
 
     def install(self, resolve_solution, argv=None):
@@ -112,7 +112,7 @@ class InstallManager(InstallInterface):
         if parent_resolve_result:
             self._set_parent(parent_resolve_result, resolve_result)
         else:
-           self._remove_parent(resolve_result)
+            self._remove_parent(resolve_result)
 
         # mark as installed and remove "installation unfinished"
         self.album.collection_manager().solutions().set_installed(

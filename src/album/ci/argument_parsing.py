@@ -2,7 +2,7 @@ import os
 import sys
 from argparse import ArgumentParser
 
-from album.api.album import Album
+from album.album import Album
 from album.argument_parsing import ArgumentParser as AlbumAP
 from album.ci.commandline import configure_repo, configure_ssh, zenodo_publish, zenodo_upload, update_index, \
     push_changes, merge

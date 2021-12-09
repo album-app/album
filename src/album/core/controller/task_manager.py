@@ -2,15 +2,15 @@ import queue
 import threading
 from threading import Thread
 
-from album.api.controller.task_interface import TaskInterface
-from album.api.model.task import ITask
+from album.core.api.controller.task_manager import ITaskManager
+from album.core.api.model.task import ITask
 from album.core.model.task import LogHandler
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
 
-class TaskManager(TaskInterface):
+class TaskManager(ITaskManager):
 
     server_queue = None
 

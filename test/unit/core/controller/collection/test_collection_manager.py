@@ -8,8 +8,8 @@ from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
-from album.runner.model.coordinates import Coordinates
-from album.runner.model.solution import Solution
+from album.runner.core.model.coordinates import Coordinates
+from album.runner.core.model.solution import Solution
 from test.unit.test_unit_common import TestUnitCommon
 
 

@@ -5,16 +5,16 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from album.api.model.catalog import ICatalog
-from album.api.model.collection_index import ICollectionIndex
+from album.core.api.model.catalog import ICatalog
+from album.core.api.model.collection_index import ICollectionIndex
 from album.ci.utils.zenodo_api import ZenodoAPI
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove, \
     create_path_recursively, rand_folder_name, check_zip, unzip_archive, copy, copy_folder
 from album.core.utils.operations.url_operations import is_url, download, retrieve_redirect_url, download_resource
 from album.runner import album_logging
-from album.runner.api.model.coordinates import ICoordinates
-from album.runner.model.coordinates import Coordinates
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.model.coordinates import Coordinates
 
 module_logger = album_logging.get_active_logger
 

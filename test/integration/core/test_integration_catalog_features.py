@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from album.argument_parsing import main
-from album.runner.model.solution import Solution
+from album.runner.core.model.solution import Solution
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.catalog_updates import ChangeType
 from album.core.utils.operations.solution_operations import get_deploy_dict

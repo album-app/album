@@ -1,10 +1,10 @@
 from abc import ABCMeta, abstractmethod
 
-from album.api.model.resolve_result import IResolveResult
-from album.runner.api.model.coordinates import ICoordinates
+from album.core.api.model.resolve_result import IResolveResult
+from album.runner.core.api.model.coordinates import ICoordinates
 
 
-class InstallInterface:
+class IInstallManager:
     """Interface handling the installation and uninstallation process of a solution.
     """
 

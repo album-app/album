@@ -1,10 +1,10 @@
 from abc import ABCMeta, abstractmethod
 from typing import Optional
 
-from album.runner.api.model.solution import ISolution
+from album.runner.core.api.model.solution import ISolution
 
 
-class StateInterface:
+class IStateManager:
     __metaclass__ = ABCMeta
 
     @abstractmethod

@@ -6,8 +6,8 @@ from typing import Optional, Tuple, List
 import validators
 from git import Repo
 
-from album.api.model.catalog import ICatalog
-from album.api.model.catalog_index import ICatalogIndex
+from album.core.api.model.catalog import ICatalog
+from album.core.api.model.catalog_index import ICatalogIndex
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import copy, copy_folder, write_dict_to_json, force_remove
@@ -16,9 +16,9 @@ from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.core.utils.operations.solution_operations import get_deploy_dict
 from album.core.utils.operations.url_operations import download_resource
 from album.runner import album_logging
-from album.runner.api.model.coordinates import ICoordinates
-from album.runner.api.model.solution import ISolution
-from album.runner.model.solution import Solution
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
+from album.runner.core.model.solution import Solution
 
 module_logger = album_logging.get_active_logger
 

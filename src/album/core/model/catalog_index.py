@@ -2,12 +2,12 @@ import pkgutil
 from datetime import datetime
 from typing import Optional, List
 
-from album.api.model.catalog_index import ICatalogIndex
+from album.core.api.model.catalog_index import ICatalogIndex
 from album.core.concept.database import Database
 from album.core.utils.operations.file_operations import get_dict_entry, write_dict_to_json
 from album.core.utils.operations.solution_operations import get_solution_hash, serialize_json
 from album.runner import album_logging
-from album.runner.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.coordinates import ICoordinates
 
 module_logger = album_logging.get_active_logger
 

@@ -8,15 +8,15 @@ from pathlib import Path
 from typing import Optional
 from unittest.mock import patch
 
-from album.api.album import Album
-from album.api.model.catalog import ICatalog
+from album.album import Album
+from album.core.api.model.catalog import ICatalog
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
 from album.core.utils.operations.file_operations import copy, force_remove
 from album.runner import album_logging
 from album.runner.album_logging import configure_logging, LogLevel
-from album.runner.model.solution import Solution
+from album.runner.core.model.solution import Solution
 from test.global_exception_watcher import GlobalExceptionWatcher
 
 

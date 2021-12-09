@@ -2,8 +2,8 @@ from abc import ABCMeta, abstractmethod
 from enum import Enum
 from typing import List
 
-from album.api.model.catalog import ICatalog
-from album.runner.api.model.coordinates import ICoordinates
+from album.core.api.model.catalog import ICatalog
+from album.runner.core.api.model.coordinates import ICoordinates
 
 
 class ChangeType(Enum):

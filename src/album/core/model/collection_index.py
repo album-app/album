@@ -2,12 +2,12 @@ import pkgutil
 from datetime import datetime
 from typing import Optional, List
 
-from album.api.model.collection_index import ICollectionIndex
+from album.core.api.model.collection_index import ICollectionIndex
 from album.core.concept.database import Database
 from album.core.model.catalog_index import CatalogIndex
 from album.core.utils.operations.file_operations import get_dict_entry
 from album.core.utils.operations.solution_operations import get_solution_hash
-from album.runner.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.coordinates import ICoordinates
 
 
 class CollectionIndex(ICollectionIndex, Database):

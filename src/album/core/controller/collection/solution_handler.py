@@ -1,10 +1,10 @@
 from datetime import datetime
 from pathlib import Path
 
-from album.api.album_interface import AlbumInterface
-from album.api.controller.collection.solution_interface import SolutionInterface
-from album.api.model.catalog import ICatalog
-from album.api.model.catalog_updates import ISolutionChange, ChangeType
+from album.core.api.album import IAlbum
+from album.core.api.controller.collection.solution_handler import ISolutionHandler
+from album.core.api.model.catalog import ICatalog
+from album.core.api.model.catalog_updates import ISolutionChange, ChangeType
 from album.core.model.catalog import get_solution_src
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
@@ -13,19 +13,19 @@ from album.core.utils.operations.resolve_operations import dict_to_coordinates, 
 from album.core.utils.operations.solution_operations import get_deploy_dict
 from album.core.utils.operations.url_operations import download_resource
 from album.runner import album_logging
-from album.runner.api.model.coordinates import ICoordinates
-from album.runner.api.model.solution import ISolution
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
 
 module_logger = album_logging.get_active_logger
 
 
-class SolutionHandler(SolutionInterface):
+class SolutionHandler(ISolutionHandler):
     """Handles everything inside the Collection responsible for a solution entry.
 
     Is NOT responsible for resolving paths as this is part of a catalog.
     """
 
-    def __init__(self, album: AlbumInterface):
+    def __init__(self, album: IAlbum):
         self.album = album
 
     def add_or_replace(self, catalog: ICatalog, active_solution: ISolution, path):

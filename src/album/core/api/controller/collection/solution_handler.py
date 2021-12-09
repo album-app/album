@@ -1,12 +1,12 @@
 from abc import ABCMeta, abstractmethod
 
-from album.api.model.catalog import ICatalog
-from album.api.model.catalog_updates import ISolutionChange
-from album.runner.api.model.coordinates import ICoordinates
-from album.runner.api.model.solution import ISolution
+from album.core.api.model.catalog import ICatalog
+from album.core.api.model.catalog_updates import ISolutionChange
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
 
 
-class SolutionInterface:
+class ISolutionHandler:
     __metaclass__ = ABCMeta
 
     @abstractmethod

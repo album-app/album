@@ -4,7 +4,7 @@ import traceback
 
 import album
 
-from album.api.album import Album
+from album.album import Album
 from album.core.commandline import add_catalog, remove_catalog, deploy, \
     install, repl, run, search, start_server, test, update, clone, upgrade, index, uninstall, info
 from album.runner.album_logging import debug_settings, get_active_logger, set_loglevel, LogLevel, to_loglevel

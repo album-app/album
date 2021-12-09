@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from album.core.model.catalog_index import CatalogIndex
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
-from album.runner.model.coordinates import Coordinates
+from album.runner.core.model.coordinates import Coordinates
 from test.unit.test_unit_common import TestUnitCommon
 
 
