@@ -117,10 +117,10 @@
 #----------------------------
 
 stages:
+  - build
+  - test
   - release
   - deploy
-  - build  # FIXME: PUT TO POS 1
-  - test  # FIXME: PUT TO POS 2
 
 
 #----------------------------
@@ -274,6 +274,8 @@ unit tests macos:
 
 integration tests macos:
   extends: .macos_base_template
+  needs:
+    - job: unit tests macos
   stage: test
   script:
     - python -m unittest test/integration/run_all_integration.py
