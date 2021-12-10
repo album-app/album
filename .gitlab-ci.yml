@@ -119,6 +119,7 @@
 stages:
   - build
   - test
+  - release-test
   - release
   - deploy
 
@@ -293,3 +294,29 @@ integration tests windows:
   script:
     - $cmnd = powershell.exe -command {conda env create --force -f album.yml 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip uninstall -y album 2>&1 | Write-Host; pip uninstall -y album_runner 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration.py 2>&1 | Write-Host; exit(0)}
     - if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}
+
+release tests linux:
+  extends: .linux_base_template
+  stage: release-test
+  script:
+    # install templates in default catalog
+    - album install album:template-python:0.1.0-SNAPSHOT
+    - album install album:template-java:0.1.0-SNAPSHOT
+    - album install album:template-r:0.1.0-SNAPSHOT
+    - album install album:template-scijava:0.1.0-SNAPSHOT
+    - album install album:template-imagej:0.1.0-SNAPSHOT
+    - album install album:template-imagej2:0.1.0-SNAPSHOT
+    - album install album:template-bdv:0.1.0-SNAPSHOT
+    - album install album:template-napari:0.1.0-SNAPSHOT
+    - album install album:template-minimal:0.1.0-SNAPSHOT
+    # run non-interactive templates
+    - album run album:template-minimal:0.1.0-SNAPSHOT
+    - album run album:template-python:0.1.0-SNAPSHOT
+    - album run album:template-java:0.1.0-SNAPSHOT
+    - album run album:template-r:0.1.0-SNAPSHOT
+    - album run album:template-scijava:0.1.0-SNAPSHOT
+  rules:
+    # - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH  FIXME: UNCOMMENT AFTER TESTING
+    - if: $CI_COMMIT_BRANCH == "introduce_ci_release_routine"  #  FIXME: DELETE ME AFTER TESTING
+
+
