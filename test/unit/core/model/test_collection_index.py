@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.collection_index import CollectionIndex
-from album.runner.model.coordinates import Coordinates
+from album.runner.core.model.coordinates import Coordinates
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -43,12 +43,12 @@ class TestCollectionIndex(TestUnitCommon):
         self.test_catalog_collection_index.close_current_connection()
 
     @staticmethod
-    def get_test_catalog_dict(id):
+    def get_test_catalog_dict(catalog_id):
         return {
-            "catalog_id": id,
-            "name": "myName" + str(id),
-            "src": "mySrc" + str(id),
-            "path": "myPath" + str(id),
+            "catalog_id": catalog_id,
+            "name": "myName" + str(catalog_id),
+            "src": "mySrc" + str(catalog_id),
+            "path": "myPath" + str(catalog_id),
             "branch_name": None,
             "deletable": True
         }
@@ -392,19 +392,19 @@ class TestCollectionIndex(TestUnitCommon):
         r = self.test_catalog_collection_index.get_parent_of_solution(2)
 
         # expect the parent to be recursively resolved. The children are only IDs
-        self.assertEqual(1, len(r.internal['children']))
-        self.assertEqual(2, r.internal['children'][0]['collection_id_child'])
-        self.assertEqual(1, r.internal['collection_id'])
-        self.assertEqual(1, r.internal['solution_id'])
-        self.assertEqual(1, r.internal['catalog_id'])
-        self.assertEqual(1, len(r.internal['parent'].internal['children']))
-        self.assertEqual(1, r.internal['parent'].internal['children'][0]['collection_id_child'])
-        self.assertEqual(3, r.internal['parent'].internal['collection_id'])
-        self.assertEqual(3, r.internal['parent'].internal['solution_id'])
-        self.assertEqual(1, r.internal['parent'].internal['catalog_id'])
-        self.assertEqual('grp3', r.internal['parent'].setup['group'])
-        self.assertEqual('name3', r.internal['parent'].setup['name'])
-        self.assertEqual('version3', r.internal['parent'].setup['version'])
+        self.assertEqual(1, len(r._internal['children']))
+        self.assertEqual(2, r._internal['children'][0]['collection_id_child'])
+        self.assertEqual(1, r._internal['collection_id'])
+        self.assertEqual(1, r._internal['solution_id'])
+        self.assertEqual(1, r._internal['catalog_id'])
+        self.assertEqual(1, len(r._internal['parent']._internal['children']))
+        self.assertEqual(1, r._internal['parent']._internal['children'][0]['collection_id_child'])
+        self.assertEqual(3, r._internal['parent']._internal['collection_id'])
+        self.assertEqual(3, r._internal['parent']._internal['solution_id'])
+        self.assertEqual(1, r._internal['parent']._internal['catalog_id'])
+        self.assertEqual('grp3', r._internal['parent']._setup['group'])
+        self.assertEqual('name3', r._internal['parent']._setup['name'])
+        self.assertEqual('version3', r._internal['parent']._setup['version'])
 
     @unittest.skip("Needs to be implemented!")
     def test__append_metadata_to_solution(self):
@@ -542,12 +542,12 @@ class TestCollectionIndex(TestUnitCommon):
 
         self.assertEqual(3, len(r))
         for i in range(1, 4):
-            self.assertEqual(i, r[i - 1].internal['collection_id'])
-            self.assertEqual(i, r[i - 1].internal['solution_id'])
-            self.assertEqual('cat%s' % str(i), r[i - 1].internal['catalog_id'])
-            self.assertEqual('grp%s' % str(i), r[i - 1].setup['group'])
-            self.assertEqual('name%s' % str(i), r[i - 1].setup['name'])
-            self.assertEqual('version%s' % str(i), r[i - 1].setup['version'])
+            self.assertEqual(i, r[i - 1]._internal['collection_id'])
+            self.assertEqual(i, r[i - 1]._internal['solution_id'])
+            self.assertEqual('cat%s' % str(i), r[i - 1]._internal['catalog_id'])
+            self.assertEqual('grp%s' % str(i), r[i - 1]._setup['group'])
+            self.assertEqual('name%s' % str(i), r[i - 1]._setup['name'])
+            self.assertEqual('version%s' % str(i), r[i - 1]._setup['version'])
 
     @unittest.skip("Needs to be implemented!")
     def test_get_solutions_by_catalog(self):
@@ -574,9 +574,9 @@ class TestCollectionIndex(TestUnitCommon):
             "version": "version3"
         })
 
-        self.assertEqual(3, r.internal['collection_id'])
-        self.assertEqual(3, r.internal['solution_id'])
-        self.assertDictEqual(expected, r.setup)
+        self.assertEqual(3, r._internal['collection_id'])
+        self.assertEqual(3, r._internal['solution_id'])
+        self.assertDictEqual(expected, r._setup)
 
     @unittest.skip("Needs to be implemented!")
     def test_get_solution_by_doi(self):
@@ -592,12 +592,12 @@ class TestCollectionIndex(TestUnitCommon):
             "catalog_id_exceptionell", Coordinates("grp_exceptionell", "name_exceptionell", "version_exceptionell")
         )
 
-        self.assertEqual(1, r.internal['collection_id'])
-        self.assertEqual(1, r.internal['solution_id'])
-        self.assertEqual('catalog_id_exceptionell', r.internal['catalog_id'])
-        self.assertEqual('grp_exceptionell', r.setup['group'])
-        self.assertEqual('name_exceptionell', r.setup['name'])
-        self.assertEqual('version_exceptionell', r.setup['version'])
+        self.assertEqual(1, r._internal['collection_id'])
+        self.assertEqual(1, r._internal['solution_id'])
+        self.assertEqual('catalog_id_exceptionell', r._internal['catalog_id'])
+        self.assertEqual('grp_exceptionell', r._setup['group'])
+        self.assertEqual('name_exceptionell', r._setup['name'])
+        self.assertEqual('version_exceptionell', r._setup['version'])
 
     def test_get_solutions_by_grp_name_version(self):
         # same grp, name, version but different catalogs
@@ -613,12 +613,12 @@ class TestCollectionIndex(TestUnitCommon):
         r = self.test_catalog_collection_index.get_solutions_by_grp_name_version(Coordinates("grp", "name", "version"))
 
         for i in range(1, 4):
-            self.assertEqual(i, r[i - 1].internal['collection_id'])
-            self.assertEqual(i, r[i - 1].internal['solution_id'])
-            self.assertEqual('cat%s' % str(i), r[i - 1].internal['catalog_id'])
-            self.assertEqual('grp', r[i - 1].setup['group'])
-            self.assertEqual('name', r[i - 1].setup['name'])
-            self.assertEqual('version', r[i - 1].setup['version'])
+            self.assertEqual(i, r[i - 1]._internal['collection_id'])
+            self.assertEqual(i, r[i - 1]._internal['solution_id'])
+            self.assertEqual('cat%s' % str(i), r[i - 1]._internal['catalog_id'])
+            self.assertEqual('grp', r[i - 1]._setup['group'])
+            self.assertEqual('name', r[i - 1]._setup['name'])
+            self.assertEqual('version', r[i - 1]._setup['version'])
 
     def test_get_recently_installed_solutions(self):
         self.test_catalog_collection_index.insert_solution(
@@ -657,30 +657,30 @@ class TestCollectionIndex(TestUnitCommon):
 
         # assert
         self.assertEqual(3, len(r))
-        self.assertEqual(inst_date1, r[0].internal['install_date'])
-        self.assertEqual(inst_date3, r[1].internal['install_date'])
-        self.assertEqual(inst_date2, r[2].internal['install_date'])
-        self.assertEqual(1, r[0].internal['installed'])
-        self.assertEqual(1, r[1].internal['installed'])
-        self.assertEqual(1, r[2].internal['installed'])
-        self.assertEqual(1, r[0].internal['collection_id'])
-        self.assertEqual(3, r[1].internal['collection_id'])
-        self.assertEqual(2, r[2].internal['collection_id'])
-        self.assertEqual(1, r[0].internal['solution_id'])
-        self.assertEqual(3, r[1].internal['solution_id'])
-        self.assertEqual(2, r[2].internal['solution_id'])
-        self.assertEqual(1, r[0].internal['catalog_id'])
-        self.assertEqual(1, r[1].internal['catalog_id'])
-        self.assertEqual(2, r[2].internal['catalog_id'])
-        self.assertEqual('grp', r[0].setup['group'])
-        self.assertEqual('grp_d', r[1].setup['group'])
-        self.assertEqual('grp', r[2].setup['group'])
-        self.assertEqual('name', r[0].setup['name'])
-        self.assertEqual('name_d', r[1].setup['name'])
-        self.assertEqual('name', r[2].setup['name'])
-        self.assertEqual('version', r[0].setup['version'])
-        self.assertEqual('version_d', r[1].setup['version'])
-        self.assertEqual('version', r[2].setup['version'])
+        self.assertEqual(inst_date1, r[0]._internal['install_date'])
+        self.assertEqual(inst_date3, r[1]._internal['install_date'])
+        self.assertEqual(inst_date2, r[2]._internal['install_date'])
+        self.assertEqual(1, r[0]._internal['installed'])
+        self.assertEqual(1, r[1]._internal['installed'])
+        self.assertEqual(1, r[2]._internal['installed'])
+        self.assertEqual(1, r[0]._internal['collection_id'])
+        self.assertEqual(3, r[1]._internal['collection_id'])
+        self.assertEqual(2, r[2]._internal['collection_id'])
+        self.assertEqual(1, r[0]._internal['solution_id'])
+        self.assertEqual(3, r[1]._internal['solution_id'])
+        self.assertEqual(2, r[2]._internal['solution_id'])
+        self.assertEqual(1, r[0]._internal['catalog_id'])
+        self.assertEqual(1, r[1]._internal['catalog_id'])
+        self.assertEqual(2, r[2]._internal['catalog_id'])
+        self.assertEqual('grp', r[0]._setup['group'])
+        self.assertEqual('grp_d', r[1]._setup['group'])
+        self.assertEqual('grp', r[2]._setup['group'])
+        self.assertEqual('name', r[0]._setup['name'])
+        self.assertEqual('name_d', r[1]._setup['name'])
+        self.assertEqual('name', r[2]._setup['name'])
+        self.assertEqual('version', r[0]._setup['version'])
+        self.assertEqual('version_d', r[1]._setup['version'])
+        self.assertEqual('version', r[2]._setup['version'])
 
     def test_get_recently_launched_solutions(self):
         self.test_catalog_collection_index.insert_solution(
@@ -719,38 +719,38 @@ class TestCollectionIndex(TestUnitCommon):
 
         # assert
         self.assertEqual(4, len(r))
-        self.assertEqual(inst_date1, r[0].internal['last_execution'])
-        self.assertEqual(inst_date3, r[1].internal['last_execution'])
-        self.assertEqual(inst_date2, r[2].internal['last_execution'])
-        self.assertEqual(inst_date4, r[3].internal['last_execution'])
-        self.assertEqual(1, r[0].internal['installed'])
-        self.assertEqual(1, r[1].internal['installed'])
-        self.assertEqual(1, r[2].internal['installed'])
-        self.assertEqual(0, r[3].internal['installed'])
-        self.assertEqual(1, r[0].internal['collection_id'])
-        self.assertEqual(3, r[1].internal['collection_id'])
-        self.assertEqual(2, r[2].internal['collection_id'])
-        self.assertEqual(4, r[3].internal['collection_id'])
-        self.assertEqual(1, r[0].internal['solution_id'])
-        self.assertEqual(3, r[1].internal['solution_id'])
-        self.assertEqual(2, r[2].internal['solution_id'])
-        self.assertEqual(4, r[3].internal['solution_id'])
-        self.assertEqual(1, r[0].internal['catalog_id'])
-        self.assertEqual(1, r[1].internal['catalog_id'])
-        self.assertEqual(2, r[2].internal['catalog_id'])
-        self.assertEqual(1, r[3].internal['catalog_id'])
-        self.assertEqual('grp', r[0].setup['group'])
-        self.assertEqual('grp_d', r[1].setup['group'])
-        self.assertEqual('grp', r[2].setup['group'])
-        self.assertEqual('grp_u', r[3].setup['group'])
-        self.assertEqual('name', r[0].setup['name'])
-        self.assertEqual('name_d', r[1].setup['name'])
-        self.assertEqual('name', r[2].setup['name'])
-        self.assertEqual('name_u', r[3].setup['name'])
-        self.assertEqual('version', r[0].setup['version'])
-        self.assertEqual('version_d', r[1].setup['version'])
-        self.assertEqual('version', r[2].setup['version'])
-        self.assertEqual('version_u', r[3].setup['version'])
+        self.assertEqual(inst_date1, r[0]._internal['last_execution'])
+        self.assertEqual(inst_date3, r[1]._internal['last_execution'])
+        self.assertEqual(inst_date2, r[2]._internal['last_execution'])
+        self.assertEqual(inst_date4, r[3]._internal['last_execution'])
+        self.assertEqual(1, r[0]._internal['installed'])
+        self.assertEqual(1, r[1]._internal['installed'])
+        self.assertEqual(1, r[2]._internal['installed'])
+        self.assertEqual(0, r[3]._internal['installed'])
+        self.assertEqual(1, r[0]._internal['collection_id'])
+        self.assertEqual(3, r[1]._internal['collection_id'])
+        self.assertEqual(2, r[2]._internal['collection_id'])
+        self.assertEqual(4, r[3]._internal['collection_id'])
+        self.assertEqual(1, r[0]._internal['solution_id'])
+        self.assertEqual(3, r[1]._internal['solution_id'])
+        self.assertEqual(2, r[2]._internal['solution_id'])
+        self.assertEqual(4, r[3]._internal['solution_id'])
+        self.assertEqual(1, r[0]._internal['catalog_id'])
+        self.assertEqual(1, r[1]._internal['catalog_id'])
+        self.assertEqual(2, r[2]._internal['catalog_id'])
+        self.assertEqual(1, r[3]._internal['catalog_id'])
+        self.assertEqual('grp', r[0]._setup['group'])
+        self.assertEqual('grp_d', r[1]._setup['group'])
+        self.assertEqual('grp', r[2]._setup['group'])
+        self.assertEqual('grp_u', r[3]._setup['group'])
+        self.assertEqual('name', r[0]._setup['name'])
+        self.assertEqual('name_d', r[1]._setup['name'])
+        self.assertEqual('name', r[2]._setup['name'])
+        self.assertEqual('name_u', r[3]._setup['name'])
+        self.assertEqual('version', r[0]._setup['version'])
+        self.assertEqual('version_d', r[1]._setup['version'])
+        self.assertEqual('version', r[2]._setup['version'])
+        self.assertEqual('version_u', r[3]._setup['version'])
 
     def test_get_unfinished_installation_solutions(self):
         self.assertEqual([], self.test_catalog_collection_index.get_all_solutions())
@@ -774,6 +774,7 @@ class TestCollectionIndex(TestUnitCommon):
 
         # assert
         self.assertEqual(1, len(r))
+        self.assertEqual(expected_collection_solution._internal['solution_id'], r[0]._internal['solution_id'])
         self.assertEqual(expected_collection_solution, r[0])
 
     def test_update_solution(self):
@@ -788,14 +789,14 @@ class TestCollectionIndex(TestUnitCommon):
         self.assertEqual(3, len(self.test_catalog_collection_index.get_all_solutions()))
 
         r = self.test_catalog_collection_index.get_solution_by_collection_id(2)
-        self.assertIsNone(r.internal["last_execution"])
+        self.assertIsNone(r._internal["last_execution"])
 
         # call
         self.test_catalog_collection_index.update_solution("cat2", Coordinates("grp", "name", "version"), {},
                                                            CatalogIndex.get_solution_column_keys())
 
         r = self.test_catalog_collection_index.get_solution_by_collection_id(2)
-        self.assertIsNotNone(r.internal["last_execution"])
+        self.assertIsNotNone(r._internal["last_execution"])
 
     def test_add_or_replace_solution(self):
         self.test_catalog_collection_index.insert_catalog(

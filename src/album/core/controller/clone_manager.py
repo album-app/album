@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from album.api.album_interface import AlbumInterface
-from album.api.clone_interface import CloneInterface
+from album.core.api.album import IAlbum
+from album.core.api.controller.clone_manager import ICloneManager
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations import url_operations, file_operations
 from album.runner import album_logging
@@ -9,11 +9,11 @@ from album.runner import album_logging
 module_logger = album_logging.get_active_logger
 
 
-class CloneManager(CloneInterface):
+class CloneManager(ICloneManager):
 
     collection_manager = None
 
-    def __init__(self, album: AlbumInterface):
+    def __init__(self, album: IAlbum):
         self.collection_manager = album.collection_manager()
         self.configuration = album.configuration()
 
@@ -32,16 +32,16 @@ class CloneManager(CloneInterface):
         """Copies a solution (by resolving and downloading) to a given target path."""
         resolve_result = self.collection_manager.resolve_download(path)
         target_path_solution = target_path.joinpath(DefaultValues.solution_default_name.value)
-        file_operations.copy(resolve_result.path, target_path_solution)
-        module_logger().info('Copied solution %s to %s!' % (resolve_result.path, target_path_solution))
+        file_operations.copy(resolve_result.path(), target_path_solution)
+        module_logger().info('Copied solution %s to %s!' % (resolve_result.path(), target_path_solution))
 
     def _clone_catalog_template(self, template_name, target_path, name):
         """Clones a template by looking up the template name in the template catalog"""
         template_url = f"{DefaultValues.catalog_template_url.value}/{template_name}/-/archive/main/{template_name}-main.zip"
         if url_operations.is_downloadable(template_url):
             target_path.mkdir(parents=True)
-            download_zip_target = self.configuration.get_cache_path_download().joinpath(template_name + ".zip")
-            download_unzip_target = self.configuration.get_cache_path_download().joinpath(template_name)
+            download_zip_target = self.configuration.cache_path_download().joinpath(template_name + ".zip")
+            download_unzip_target = self.configuration.cache_path_download().joinpath(template_name)
             url_operations.download_resource(template_url, download_zip_target)
             file_operations.unzip_archive(download_zip_target, download_unzip_target)
             download_unzip_target_subdir = download_unzip_target.joinpath(f"{template_name}-main")

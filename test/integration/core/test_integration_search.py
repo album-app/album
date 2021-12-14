@@ -27,11 +27,11 @@ class TestIntegrationSearch(TestIntegrationCommon):
     def test_search_filled_index(self):
         # populate tmp_index!
         h = self.album_instance.state_manager().load(self.get_test_solution_path())
-        h.setup.description = "keyword1"
+        h.setup().description = "keyword1"
         local_catalog = self.collection_manager.catalogs().get_local_catalog()
         self.collection_manager.add_solution_to_local_catalog(h, self.get_test_solution_path())
 
-        self.assertEqual(1, len(self.collection_manager.catalog_collection.get_solutions_by_catalog(local_catalog.catalog_id)))
+        self.assertEqual(1, len(self.collection_manager.catalog_collection.get_solutions_by_catalog(local_catalog.catalog_id())))
 
         # define and run search
         sys.argv = ["", "search", "keyword1"]
@@ -41,18 +41,18 @@ class TestIntegrationSearch(TestIntegrationCommon):
 
         # check output to have found the solution behind keyword1
         self.assertIn(
-            '%s:%s:%s:%s' % (local_catalog.name, h.coordinates.group, h.coordinates.name, h.coordinates.version),
+            '%s:%s:%s:%s' % (local_catalog.name(), h.coordinates().group(), h.coordinates().name(), h.coordinates().version()),
             self.captured_output.getvalue()
         )
 
     def test_search_as_json(self):
         # populate tmp_index!
         h = self.album_instance.state_manager().load(self.get_test_solution_path())
-        h.setup.description = "keyword1"
+        h.setup().description = "keyword1"
         local_catalog = self.collection_manager.catalogs().get_local_catalog()
         self.collection_manager.add_solution_to_local_catalog(h, self.get_test_solution_path())
 
-        self.assertEqual(1, len(self.collection_manager.catalog_collection.get_solutions_by_catalog(local_catalog.catalog_id)))
+        self.assertEqual(1, len(self.collection_manager.catalog_collection.get_solutions_by_catalog(local_catalog.catalog_id())))
 
         # capture stdout
         f = io.StringIO()

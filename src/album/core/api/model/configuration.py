@@ -1,10 +1,10 @@
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
 
-from album.runner.model.coordinates import Coordinates
+from album.runner.core.api.model.coordinates import ICoordinates
 
 
-class ConfigurationInterface:
+class IConfiguration:
     """Configuration of the album framework installation instance.
 
     This interface manages the cache paths of the album framework installation instance.
@@ -13,37 +13,37 @@ class ConfigurationInterface:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def get_base_cache_path(self):
+    def base_cache_path(self):
         """The base path all other cache folder have as parent folder."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_conda_executable(self):
+    def conda_executable(self):
         """The conda executable. Either a full path to a conda executable/binary or a command"""
         raise NotImplementedError
 
     @abstractmethod
-    def get_cache_path_app(self):
+    def cache_path_app(self):
         """Path for app solutions."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_cache_path_download(self):
+    def cache_path_download(self):
         """Path for downloads a solution makes."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_cache_path_tmp_internal(self):
+    def cache_path_tmp_internal(self):
         """Path for solution specific temporary files of album."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_cache_path_tmp_user(self):
+    def cache_path_tmp_user(self):
         """Path for solution specific temporary files of the user."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_cache_path_envs(self):
+    def cache_path_envs(self):
         """Path for solution specific environment files of album."""
         raise NotImplementedError
 
@@ -57,7 +57,7 @@ class ConfigurationInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def get_solution_path_suffix(self, coordinates: Coordinates) -> Path:
+    def get_solution_path_suffix(self, coordinates: ICoordinates) -> Path:
         """Returns the suffix path for a solution giving its group, name and version"""
         raise NotImplementedError
 

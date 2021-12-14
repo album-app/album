@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 
 
-class CloneInterface:
+class ICloneManager:
     """Interface handling the creation of new catalogs and solutions."""
 
     __metaclass__ = ABCMeta

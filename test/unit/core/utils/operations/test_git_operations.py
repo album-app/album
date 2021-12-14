@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import album.core.utils.operations.git_operations as git_op
 from album.core.model.default_values import DefaultValues
-from album.runner.model.solution import Solution
+from album.runner.core.model.solution import Solution
 from album.core.utils.operations.file_operations import copy
 from test.unit.test_unit_common import TestGitCommon
 
@@ -91,14 +91,14 @@ class TestGitOperations(TestGitCommon):
 
         tmp_file_in_repo = Path(self.repo.working_tree_dir).joinpath(
             "solutions",
-            active_solution.coordinates.group,
-            active_solution.coordinates.name,
-            active_solution.coordinates.version,
-            "%s%s" % (active_solution.coordinates.name, ".py")
+            active_solution.coordinates().group(),
+            active_solution.coordinates().name(),
+            active_solution.coordinates().version(),
+            "%s%s" % (active_solution.coordinates().name(), ".py")
         )
         copy(tmp_file.name, tmp_file_in_repo)
 
-        commit_msg = "Adding new/updated %s" % active_solution.coordinates.name
+        commit_msg = "Adding new/updated %s" % active_solution.coordinates().name()
 
         git_op.add_files_commit_and_push(new_head, [tmp_file_in_repo], commit_msg, push=False)
 

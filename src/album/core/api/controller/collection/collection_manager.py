@@ -1,15 +1,15 @@
 from abc import ABCMeta, abstractmethod
 
-from album.core.model.collection_index import CollectionIndex
+from album.core.api.model.catalog import ICatalog
+from album.core.api.model.collection_index import ICollectionIndex
+from album.core.api.model.resolve_result import IResolveResult
 
-from album.api.collection.catalog_interface import CatalogInterface
-from album.api.collection.solution_interface import SolutionInterface
-from album.core.model.catalog import Catalog
-from album.core.model.resolve_result import ResolveResult
-from album.runner.model.coordinates import Coordinates
+from album.core.api.controller.collection.catalog_handler import ICatalogHandler
+from album.core.api.controller.collection.solution_handler import ISolutionHandler
+from album.runner.core.api.model.coordinates import ICoordinates
 
 
-class CollectionInterface:
+class ICollectionManager:
     """The Album Catalog Collection class.
 
     An album framework installation instance can hold arbitrarily many catalogs. This class holds all configured
@@ -26,11 +26,11 @@ class CollectionInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def catalogs(self) -> CatalogInterface:
+    def catalogs(self) -> ICatalogHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def solutions(self) -> SolutionInterface:
+    def solutions(self) -> ISolutionHandler:
         raise NotImplementedError
 
     @abstractmethod
@@ -43,7 +43,7 @@ class CollectionInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def resolve_require_installation(self, resolve_solution) -> ResolveResult:
+    def resolve_require_installation(self, resolve_solution) -> IResolveResult:
         """Resolves an input. Expects solution to be installed.
 
         Args:
@@ -57,7 +57,7 @@ class CollectionInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def resolve_require_installation_and_load(self, resolve_solution) -> ResolveResult:
+    def resolve_require_installation_and_load(self, resolve_solution) -> IResolveResult:
         """Resolves an input. Expects solution to be installed.
 
         Args:
@@ -71,7 +71,7 @@ class CollectionInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def resolve_download_and_load(self, resolve_solution) -> ResolveResult:
+    def resolve_download_and_load(self, resolve_solution) -> IResolveResult:
         """Resolves a string input and loads its content.
 
         Downloads a catalog if not already cached.
@@ -87,7 +87,7 @@ class CollectionInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def resolve_download_and_load_catalog_coordinates(self, catalog: Catalog, coordinates: Coordinates) -> ResolveResult:
+    def resolve_download_and_load_catalog_coordinates(self, catalog: ICatalog, coordinates: ICoordinates) -> IResolveResult:
         """Resolves a string input and loads its content.
 
         Downloads a catalog if not already cached.
@@ -105,7 +105,7 @@ class CollectionInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def resolve_download_and_load_coordinates(self, coordinates: Coordinates) -> ResolveResult:
+    def resolve_download_and_load_coordinates(self, coordinates: ICoordinates) -> IResolveResult:
         """Resolves a string input and loads its content.
 
         Downloads a catalog if not already cached.
@@ -121,7 +121,7 @@ class CollectionInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def resolve_download(self, resolve_solution) -> ResolveResult:
+    def resolve_download(self, resolve_solution) -> IResolveResult:
         """Resolves a string input and loads its content.
 
         Downloads a catalog if not already cached.
@@ -137,13 +137,13 @@ class CollectionInterface:
         raise NotImplementedError
 
     @abstractmethod
-    def resolve_parent(self, parent_dict: dict) -> ResolveResult:
+    def resolve_parent(self, parent_dict: dict) -> IResolveResult:
         raise NotImplementedError
 
-    def get_collection_index(self) -> CollectionIndex:
+    def get_collection_index(self) -> ICollectionIndex:
         raise NotImplementedError
 
     @abstractmethod
-    def retrieve_and_load_resolve_result(self, resolve_result: ResolveResult):
+    def retrieve_and_load_resolve_result(self, resolve_result: IResolveResult):
         raise NotImplementedError
 

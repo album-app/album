@@ -3,9 +3,10 @@ from pathlib import Path
 from typing import List, Optional, Dict
 
 import validators
+from album.core.api.album import IAlbum
 
-from album.api.album_interface import AlbumInterface
-from album.api.collection.catalog_interface import CatalogInterface
+from album.core.api.controller.collection.catalog_handler import ICatalogHandler
+from album.core.api.model.catalog import ICatalog
 from album.core.model.catalog import Catalog, get_index_url, get_index_dir
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.catalog_updates import CatalogUpdates, SolutionChange, ChangeType
@@ -19,10 +20,10 @@ from album.runner import album_logging
 module_logger = album_logging.get_active_logger
 
 
-class CatalogHandler(CatalogInterface):
+class CatalogHandler(ICatalogHandler):
     """Helper class responsible for catalog handling."""
 
-    def __init__(self, album: AlbumInterface):
+    def __init__(self, album: IAlbum):
         self.album = album
 
     def create_local_catalog(self):
@@ -47,7 +48,7 @@ class CatalogHandler(CatalogInterface):
         if not catalog.is_cache():
             catalog_meta_information = catalog_meta_information
             self.album.migration_manager().migrate_catalog_index_db(
-                catalog.index_path,  # the path to the catalog
+                catalog.index_path(),  # the path to the catalog
                 catalog_meta_information["version"],  # eventually outdated remote version
                 CatalogIndex.version  # current version in the library
             )
@@ -59,15 +60,16 @@ class CatalogHandler(CatalogInterface):
         module_logger().info('Added catalog %s!' % identifier)
         return catalog
 
-    def _add_to_index(self, catalog: Catalog) -> int:
-        catalog.catalog_id = self.album.collection_manager().get_collection_index().insert_catalog(
-            catalog.name,
-            str(catalog.src),
-            str(catalog.path),
-            int(catalog.is_deletable),
-            str(catalog.branch_name)
+    def _add_to_index(self, catalog: ICatalog) -> int:
+        catalog_id = self.album.collection_manager().get_collection_index().insert_catalog(
+            catalog.name(),
+            str(catalog.src()),
+            str(catalog.path()),
+            int(catalog.is_deletable()),
+            str(catalog.branch_name())
         )
-        return catalog.catalog_id
+        catalog.set_catalog_id(catalog_id)
+        return catalog.catalog_id()
 
     def get_by_id(self, catalog_id) -> Catalog:
         catalog = self.album.collection_manager().get_collection_index().get_catalog(catalog_id)
@@ -173,14 +175,14 @@ class CatalogHandler(CatalogInterface):
         except LookupError as err:
             raise LookupError("Cannot remove catalog! Not configured...") from err
 
-        if not catalog_to_remove.is_deletable:
+        if not catalog_to_remove.is_deletable():
             module_logger().warning("Cannot remove catalog! Marked as not deletable! Will do nothing...")
             return None
 
         # todo: check for installed solutions and or parents! and fail
-        self.album.collection_manager().get_collection_index().remove_catalog(catalog_to_remove.catalog_id)
+        self.album.collection_manager().get_collection_index().remove_catalog(catalog_to_remove.catalog_id())
 
-        force_remove(catalog_to_remove.path)
+        force_remove(catalog_to_remove.path())
 
         catalog_to_remove.dispose()
 
@@ -237,9 +239,9 @@ class CatalogHandler(CatalogInterface):
             "catalogs": self.album.collection_manager().get_collection_index().get_all_catalogs()
         }
 
-    def set_version(self, catalog: Catalog):
-        database_version = catalog.catalog_index.get_version()
-        meta_dict = self._retrieve_catalog_meta_information(catalog.path, catalog.branch_name)
+    def set_version(self, catalog: ICatalog):
+        database_version = catalog.index().get_version()
+        meta_dict = self._retrieve_catalog_meta_information(catalog.path(), catalog.branch_name())
         if meta_dict:
             meta_version = meta_dict['version']
         else:
@@ -249,21 +251,21 @@ class CatalogHandler(CatalogInterface):
             raise ValueError(
                 f"Catalog meta information (version {meta_version}) unequal to actual version {database_version}!")
 
-        catalog.version = database_version
+        catalog.set_version(database_version)
         return database_version
 
     def _retrieve_catalog_meta_information(self, identifier, branch_name="main"):
         if validators.url(str(identifier)):
             _, meta_src = get_index_url(identifier, branch_name)
             meta_file = download_resource(
-                meta_src, self.album.configuration().get_cache_path_download().joinpath(DefaultValues.catalog_index_metafile_json.value)
+                meta_src, self.album.configuration().cache_path_download().joinpath(DefaultValues.catalog_index_metafile_json.value)
             )
         elif Path(identifier).exists():
             _, meta_src = get_index_dir(identifier)
             if meta_src.exists():
                 meta_file = copy(
                     meta_src,
-                    self.album.configuration().get_cache_path_download().joinpath(DefaultValues.catalog_index_metafile_json.value)
+                    self.album.configuration().cache_path_download().joinpath(DefaultValues.catalog_index_metafile_json.value)
                 )
             else:
                 raise FileNotFoundError("Cannot retrieve meta information for the catalog!")
@@ -284,9 +286,6 @@ class CatalogHandler(CatalogInterface):
 
         catalog = Catalog(None, catalog_meta_information["name"], catalog_path, src=src, branch_name=branch_name)
 
-        if catalog.is_local():
-            catalog.src = Path(catalog.src).absolute()
-
         catalog.dispose()
 
         return catalog
@@ -294,43 +293,41 @@ class CatalogHandler(CatalogInterface):
     @staticmethod
     def _create_catalog_cache_if_missing(catalog):
         """Creates the path of a catalog if it is missing."""
-        if not catalog.path.exists():
-            catalog.path.mkdir(parents=True)
+        if not catalog.path().exists():
+            catalog.path().mkdir(parents=True)
 
     def _get_divergence_between_catalogs_and_collection(self) -> Dict[str, CatalogUpdates]:
         """Gets the divergence list between all catalogs and the catalog_collection."""
         res = {}
         for catalog in self.get_all():
-            res[catalog.name] = self._get_divergence_between_catalog_and_collection(catalog_name=catalog.name)
+            res[catalog.name()] = self._get_divergence_between_catalog_and_collection(catalog_name=catalog.name())
         return res
 
     def _get_divergence_between_catalog_and_collection(self, catalog_name) -> CatalogUpdates:
         """Gets the divergence between a given catalog and the catalog_collection"""
         catalog = self.get_by_name(catalog_name)
-        res = CatalogUpdates(catalog)
 
         if catalog.is_cache():
             # cache catalog is always up to date since src and path are the same
-            return res
+            return CatalogUpdates(catalog)
 
-        solutions_in_collection = self.album.collection_manager().get_collection_index().get_solutions_by_catalog(catalog.catalog_id)
+        solutions_in_collection = self.album.collection_manager().get_collection_index().get_solutions_by_catalog(catalog.catalog_id())
         self.album.migration_manager().load_index(catalog)
-        solutions_in_catalog = catalog.catalog_index.get_all_solutions()
-        res.solution_changes = self._compare_solutions(solutions_in_collection, solutions_in_catalog)
-
-        return res
+        solutions_in_catalog = catalog.index().get_all_solutions()
+        solution_changes = self._compare_solutions(solutions_in_collection, solutions_in_catalog)
+        return CatalogUpdates(catalog, solution_changes=solution_changes)
 
     def _update_collection_from_catalogs(self) -> Dict[str, CatalogUpdates]:
         res = {}
         for catalog in self.get_all():
-            res[catalog.name] = self._update_collection_from_catalog(catalog_name=catalog.name)
+            res[catalog.name()] = self._update_collection_from_catalog(catalog_name=catalog.name())
         return res
 
     def _update_collection_from_catalog(self, catalog_name) -> CatalogUpdates:
         divergence = self._get_divergence_between_catalog_and_collection(catalog_name)
         # TODO apply changes to catalog attributes
-        for change in divergence.solution_changes:
-            self.album.collection_manager().solutions().apply_change(divergence.catalog, change)
+        for change in divergence.solution_changes():
+            self.album.collection_manager().solutions().apply_change(divergence.catalog(), change)
         return divergence
 
     @staticmethod
@@ -339,9 +336,9 @@ class CatalogHandler(CatalogInterface):
         # CAUTION: solutions should not be compared based on their id as this might change
 
         dict_old_coordinates = {}
-        list_old_hash = list([s.internal["hash"] for s in solutions_old])
+        list_old_hash = list([s.internal()["hash"] for s in solutions_old])
         for s in solutions_old:
-            dict_old_coordinates[dict_to_coordinates(s.setup)] = s
+            dict_old_coordinates[dict_to_coordinates(s.setup())] = s
 
         dict_new_coordinates = {}
         dict_new_hash = {}

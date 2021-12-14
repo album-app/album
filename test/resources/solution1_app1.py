@@ -1,7 +1,6 @@
-from album.runner import setup
 from album.runner.album_logging import get_active_logger
 from album.runner.api import get_args, get_cache_path
-from album.runner.album_logging import get_active_logger
+from album.runner.api import setup
 
 
 def album_install():
@@ -54,4 +53,3 @@ setup(
         }
     }
     )
-

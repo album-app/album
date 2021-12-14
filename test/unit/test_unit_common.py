@@ -10,14 +10,14 @@ from unittest.mock import patch, MagicMock
 
 import git
 
-from album.api.album import Album
+from album.album import Album
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove
 from album.runner import album_logging
 from album.runner.album_logging import pop_active_logger, LogLevel, configure_logging
-from album.runner.model.solution import Solution
+from album.runner.core.model.solution import Solution
 from test.global_exception_watcher import GlobalExceptionWatcher
 
 

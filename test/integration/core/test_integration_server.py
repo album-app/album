@@ -11,7 +11,7 @@ from album.core.model.task import Task
 from album.core.server import AlbumServer
 from album.runner import album_logging
 from album.runner.album_logging import LogLevel
-from album.runner.model.coordinates import Coordinates
+from album.runner.core.model.coordinates import Coordinates
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -175,20 +175,20 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         # wait for completion of tasks
         self._finish_taskmanager_with_timeout(self.album_instance.task_manager(), 30)
 
-        self.assertEqual(Task.Status.FINISHED, self.album_instance.task_manager().get_task(task_run_id).status)
-        self.assertEqual(Task.Status.FINISHED, self.album_instance.task_manager().get_task(task_test_id).status)
+        self.assertEqual(Task.Status.FINISHED, self.album_instance.task_manager().get_task(task_run_id).status())
+        self.assertEqual(Task.Status.FINISHED, self.album_instance.task_manager().get_task(task_test_id).status())
 
         # check that tasks were executed properly
-        run_logs = self.album_instance.task_manager().get_task(task_run_id).log_handler
-        test_logs = self.album_instance.task_manager().get_task(task_test_id).log_handler
+        run_logs = self.album_instance.task_manager().get_task(task_run_id).log_handler()
+        test_logs = self.album_instance.task_manager().get_task(task_test_id).log_handler()
         self.assertIsNotNone(run_logs)
         self.assertIsNotNone(test_logs)
-        self.assertTrue(len(run_logs.records) > 0)
-        self.assertTrue(len(test_logs.records) > 0)
-        self.assertTrue(self.includes_msg(run_logs.records, "solution7_long_routines_run_start"))
-        self.assertTrue(self.includes_msg(run_logs.records, "solution7_long_routines_run_end"))
-        self.assertTrue(self.includes_msg(test_logs.records, "solution7_long_routines_test_start"))
-        self.assertTrue(self.includes_msg(test_logs.records, "solution7_long_routines_test_end"))
+        self.assertTrue(len(run_logs.records()) > 0)
+        self.assertTrue(len(test_logs.records()) > 0)
+        self.assertTrue(self.includes_msg(run_logs.records(), "solution7_long_routines_run_start"))
+        self.assertTrue(self.includes_msg(run_logs.records(), "solution7_long_routines_run_end"))
+        self.assertTrue(self.includes_msg(test_logs.records(), "solution7_long_routines_test_start"))
+        self.assertTrue(self.includes_msg(test_logs.records(), "solution7_long_routines_test_end"))
 
         # test recently launched and installed solutions
         res_recently_installed = client.get("/recently-installed")
@@ -212,7 +212,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         solution_path = self.get_test_solution_path("solution9_throws_exception.py")
         solution = self.fake_install(solution_path, create_environment=False)
 
-        res_run = client.get(f"/run/{solution.coordinates.group}/{solution.coordinates.name}/{solution.coordinates.version}")
+        res_run = client.get(f"/run/{solution.coordinates().group()}/{solution.coordinates().name()}/{solution.coordinates().version()}")
         self.assertEqual(200, res_run.status_code)
         self.assertIsNotNone(res_run.json)
         task_run_id = res_run.json["id"]
@@ -221,7 +221,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         # wait for completion of tasks
         self._finish_taskmanager_with_timeout(self.album_instance.task_manager(), 30)
 
-        self.assertEqual(Task.Status.FAILED, self.album_instance.task_manager().get_task(task_run_id).status)
+        self.assertEqual(Task.Status.FAILED, self.album_instance.task_manager().get_task(task_run_id).status())
         res_status = client.get(f'/status/{task_run_id}')
         self.assertEqual(200, res_status.status_code)
         self.assertIsNotNone(res_status.json)
@@ -247,7 +247,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
     def assertCatalogPresence(self, catalogs, src, should_be_present):
         present = False
         for catalog in catalogs:
-            if str(catalog.src) == src:
+            if str(catalog.src()) == src:
                 present = True
         self.assertEqual(should_be_present, present)
 

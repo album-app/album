@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from album.argument_parsing import main
 from album.core.model.default_values import DefaultValues
-from album.runner.model.coordinates import Coordinates
+from album.runner.core.model.coordinates import Coordinates
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -40,13 +40,13 @@ class TestIntegrationInstall(TestIntegrationCommon):
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         collection = self.collection_manager.catalog_collection
         self.assertEqual(1, len(
-            collection.get_solutions_by_catalog(self.collection_manager.catalogs().get_local_catalog().catalog_id)))
+            collection.get_solutions_by_catalog(self.collection_manager.catalogs().get_local_catalog().catalog_id())))
 
         # assert solution is in the right place and has the right name
         self.assertTrue(
             Path(self.tmp_dir.name).joinpath(
                 DefaultValues.catalog_folder_prefix.value,
-                str(self.collection_manager.catalogs().get_local_catalog().name),
+                str(self.collection_manager.catalogs().get_local_catalog().name()),
                 DefaultValues.cache_path_solution_prefix.value,
                 "group", "name", "0.1.0", "solution.py"
             ).exists()
@@ -63,7 +63,7 @@ class TestIntegrationInstall(TestIntegrationCommon):
 
         # the environment stays
         local_catalog = self.collection_manager.catalogs().get_local_catalog()
-        local_catalog_name = str(local_catalog.name)
+        local_catalog_name = str(local_catalog.name())
         leftover_env_name = local_catalog_name + "_group_faultySolution_0.1.0"
         self.assertTrue(self.album_instance.environment_manager().conda_manager.environment_exists(leftover_env_name))
 
@@ -79,6 +79,33 @@ class TestIntegrationInstall(TestIntegrationCommon):
         # check cleaned up
         self.assertFalse(local_file.exists())
         self.assertFalse(self.album_instance.environment_manager().conda_manager.environment_exists(leftover_env_name))
+        self.assertEqual([], self.collection_manager.catalog_collection.get_unfinished_installation_solutions())
+
+    def test_install_faulty_environment(self):
+        sys.argv = ["", "install", str(self.get_test_solution_path('solution14_faulty_environment.py'))]
+
+        self.assertEqual([], self.collection_manager.catalog_collection.get_unfinished_installation_solutions())
+
+        # call
+        with self.assertRaises(SystemExit):
+            main()
+
+        # the environment stays
+        local_catalog = self.collection_manager.catalogs().get_local_catalog()
+        local_catalog_name = str(local_catalog.name())
+        leftover_env_name = local_catalog_name + "_solution14_faulty_environment_0.1.0"
+        self.assertFalse(self.album_instance.environment_manager().conda_manager.environment_exists(leftover_env_name))
+
+        # check file is copied
+        local_file = self.collection_manager.solutions().get_solution_file(local_catalog, Coordinates("group", "faultySolution", "0.1.0"))
+        self.assertTrue(local_file.exists())
+
+        # try to install smth. else (or the same, after routine is fixed)
+        # should remove the faulty environment from previously failed installation
+        sys.argv = ["", "install", str(self.get_test_solution_path())]
+        self.assertIsNone(main())
+
+        self.assertFalse(local_file.exists())
         self.assertEqual([], self.collection_manager.catalog_collection.get_unfinished_installation_solutions())
 
     def test_install_twice(self):
@@ -134,19 +161,19 @@ class TestIntegrationInstall(TestIntegrationCommon):
         # assert solution was added to local catalog
         collection = self.collection_manager.catalog_collection
         self.assertEqual(2, len(collection.get_solutions_by_catalog(
-            self.collection_manager.catalogs().get_local_catalog().catalog_id)))
+            self.collection_manager.catalogs().get_local_catalog().catalog_id())))
 
         # assert solution is in the right place and has the right name
         parent_solution_path = Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
-            str(self.collection_manager.catalogs().get_local_catalog().name),
+            str(self.collection_manager.catalogs().get_local_catalog().name()),
             DefaultValues.cache_path_solution_prefix.value, 'group',
             'app1', '0.1.0', 'solution.py'
         )
         self.assertTrue(parent_solution_path.exists())
         solution_path = Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
-            str(self.collection_manager.catalogs().get_local_catalog().name),
+            str(self.collection_manager.catalogs().get_local_catalog().name()),
             DefaultValues.cache_path_solution_prefix.value, 'group',
             'solution1_app1', '0.1.0', 'solution.py'
         )
@@ -158,7 +185,7 @@ class TestIntegrationInstall(TestIntegrationCommon):
 
         solution_path = Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
-            str(self.collection_manager.catalogs().get_local_catalog().name),
+            str(self.collection_manager.catalogs().get_local_catalog().name()),
             DefaultValues.cache_path_solution_prefix.value, 'group',
             'solution1_app1', '0.1.0', 'solution.py'
         )
@@ -190,19 +217,19 @@ class TestIntegrationInstall(TestIntegrationCommon):
         # assert solution was added to local catalog
         collection = self.collection_manager.catalog_collection
         self.assertEqual(3, len(collection.get_solutions_by_catalog(
-            self.collection_manager.catalogs().get_local_catalog().catalog_id)))
+            self.collection_manager.catalogs().get_local_catalog().catalog_id())))
 
         # assert solution is in the right place and has the right name
         parent_solution_path = Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
-            str(self.collection_manager.catalogs().get_local_catalog().name),
+            str(self.collection_manager.catalogs().get_local_catalog().name()),
             DefaultValues.cache_path_solution_prefix.value, 'group',
             'app1', '0.1.0', 'solution.py'
         )
         self.assertTrue(parent_solution_path.exists())
         solution_path = Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
-            str(self.collection_manager.catalogs().get_local_catalog().name),
+            str(self.collection_manager.catalogs().get_local_catalog().name()),
             DefaultValues.cache_path_solution_prefix.value, 'group',
             'solution1_app1', '0.1.0', 'solution.py'
         )
@@ -210,7 +237,7 @@ class TestIntegrationInstall(TestIntegrationCommon):
         self.assertTrue(parent_solution_path.exists())
         solution_child_path = Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
-            str(self.collection_manager.catalogs().get_local_catalog().name),
+            str(self.collection_manager.catalogs().get_local_catalog().name()),
             DefaultValues.cache_path_solution_prefix.value, 'group',
             'solution12_solution1_app1', '0.1.0', 'solution.py'
         )
@@ -256,7 +283,7 @@ class TestIntegrationInstall(TestIntegrationCommon):
         # assert solution was added to local catalog
         collection = self.collection_manager.catalog_collection
         self.assertEqual(2, len(collection.get_solutions_by_catalog(
-            self.collection_manager.catalogs().get_local_catalog().catalog_id)))
+            self.collection_manager.catalogs().get_local_catalog().catalog_id())))
 
         self.assertTrue(self.collection_manager.solutions().is_installed(
             self.collection_manager.catalogs().get_local_catalog(),

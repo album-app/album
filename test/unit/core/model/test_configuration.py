@@ -34,8 +34,8 @@ class TestConfiguration(TestUnitCommon):
 
         # assert
         self.assertFalse(leftover_file.exists())
-        self.assertEqual(DefaultValues.conda_path.value, conf.conda_executable)
-        self.assertEqual(base_path, conf.base_cache_path)
+        self.assertEqual(DefaultValues.conda_path.value, conf.conda_executable())
+        self.assertEqual(base_path, conf.base_cache_path())
 
     def test_base_cache_path(self):
         new_tmp_dir = tempfile.TemporaryDirectory(dir=self.tmp_dir.name)
@@ -47,27 +47,27 @@ class TestConfiguration(TestUnitCommon):
         # assert
         self.assertEqual(
             Path(new_tmp_dir.name),
-            conf.base_cache_path
+            conf.base_cache_path()
         )
         self.assertEqual(
             Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_solution_prefix.value),
-            conf.cache_path_tmp_internal
+            conf.cache_path_tmp_internal()
         )
         self.assertEqual(
             Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_app_prefix.value),
-            conf.cache_path_app
+            conf.cache_path_app()
         )
         self.assertEqual(
             Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_download_prefix.value),
-            conf.cache_path_download
+            conf.cache_path_download()
         )
         self.assertEqual(
             Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value),
-            conf.cache_path_tmp_user
+            conf.cache_path_tmp_user()
         )
         self.assertEqual(
-            Path(new_tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value),
-            conf.catalog_collection_path
+            Path(new_tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, DefaultValues.catalog_collection_db_name.value),
+            conf.get_catalog_collection_path()
         )
 
     @unittest.skipUnless(sys.platform.startswith("win"), "requires Windoofs")
@@ -111,7 +111,7 @@ class TestConfiguration(TestUnitCommon):
         force_remove_mock.return_value = None
         # call
         conf = Configuration()
-        conf.cache_path_tmp_user = Path(self.tmp_dir.name)
+        conf._cache_path_tmp_user = Path(self.tmp_dir.name)
         conf._empty_tmp()
 
         force_remove_mock.assert_called_once()

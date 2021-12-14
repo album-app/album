@@ -8,18 +8,16 @@ from pathlib import Path
 from typing import Optional
 from unittest.mock import patch
 
-from album.runner import album_logging
-
-from album.api.album import Album
+from album.album import Album
+from album.core.api.model.catalog import ICatalog
 from album.core.controller.collection.catalog_handler import CatalogHandler
-from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
 from album.core.utils.operations.file_operations import copy, force_remove
+from album.runner import album_logging
 from album.runner.album_logging import configure_logging, LogLevel
-from album.runner.model.solution import Solution
+from album.runner.core.model.solution import Solution
 from test.global_exception_watcher import GlobalExceptionWatcher
-from test.unit.test_unit_common import TestUnitCommon
 
 
 class TestIntegrationCommon(unittest.TestCase):
@@ -47,7 +45,7 @@ class TestIntegrationCommon(unittest.TestCase):
     def get_album(self):
         return self.album_instance
 
-    def add_test_catalog(self) -> Catalog:
+    def add_test_catalog(self) -> ICatalog:
         path = Path(self.tmp_dir.name).joinpath("my-catalogs", "test_catalog")
         CatalogHandler.create_new_catalog(path, "test_catalog")
         return self.collection_manager.catalogs().add_by_src(path)
@@ -55,7 +53,7 @@ class TestIntegrationCommon(unittest.TestCase):
     def tearDown(self) -> None:
         # clean all environments specified in test-resources
         self.create_album_instance_patch.stop()
-        local_catalog_name = str(self.collection_manager.catalogs().get_local_catalog().name)
+        local_catalog_name = str(self.collection_manager.catalogs().get_local_catalog().name())
         env_names = [
             local_catalog_name + "_group_name_0.1.0",
             local_catalog_name + "_group_app1_0.1.0",
@@ -121,23 +119,23 @@ class TestIntegrationCommon(unittest.TestCase):
 
         local_catalog = self.collection_manager.catalogs().get_local_catalog()
         if create_environment:
-            env_name = "_".join([local_catalog.name, a.get_identifier()])
+            env_name = "_".join([local_catalog.name(), a.get_identifier()])
             self.album_instance.environment_manager().get_conda_manager().install(Environment(None, env_name, "unusedCachePath"))
 
         # add to collection, assign to local catalog
-        len_catalog_before = len(self.test_collection.get_solutions_by_catalog(local_catalog.catalog_id))
+        len_catalog_before = len(self.test_collection.get_solutions_by_catalog(local_catalog.catalog_id()))
         self.collection_manager.add_solution_to_local_catalog(a, path)
-        self.collection_manager.solutions().set_installed(local_catalog, a.coordinates)
-        self.assertEqual(len_catalog_before + 1, len(self.test_collection.get_solutions_by_catalog(local_catalog.catalog_id)))
+        self.collection_manager.solutions().set_installed(local_catalog, a.coordinates())
+        self.assertEqual(len_catalog_before + 1, len(self.test_collection.get_solutions_by_catalog(local_catalog.catalog_id())))
 
         # copy to correct folder
         copy(
             path,
-            self.collection_manager.catalogs().get_local_catalog().path.joinpath(
+            self.collection_manager.catalogs().get_local_catalog().path().joinpath(
                 DefaultValues.cache_path_solution_prefix.value,
-                a.coordinates.group,
-                a.coordinates.name,
-                a.coordinates.version,
+                a.coordinates().group(),
+                a.coordinates().name(),
+                a.coordinates().version(),
                 DefaultValues.solution_default_name.value
             )
         )

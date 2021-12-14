@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 
 
-class DeployInterface:
+class IDeployManager:
     """Class handling the deployment process.
 
     During deployment, a solution file will be requested to be added to a catalog. This catalog must be configured or

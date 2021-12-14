@@ -1,7 +1,7 @@
 import unittest.suite
 from pathlib import Path
 
-from album.api.album import Album
+from album.album import Album
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -26,7 +26,7 @@ class TestUnitInit(TestUnitCommon):
         self.assertIsNone(self.album._state_manager._setup_solution(**self.attrs))
         active_solution = self.album.state_manager().get_active_solution()
         self.assertIsNotNone(active_solution)
-        self.assertEqual('myname', active_solution.coordinates.name)
+        self.assertEqual('myname', active_solution.coordinates().name())
         self.album.state_manager().pop_active_solution()
 
 

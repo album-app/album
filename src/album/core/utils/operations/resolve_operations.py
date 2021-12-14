@@ -3,15 +3,18 @@ import os
 import re
 import sys
 from pathlib import Path
+from typing import Optional
 
+from album.core.api.model.catalog import ICatalog
+from album.core.api.model.collection_index import ICollectionIndex
 from album.ci.utils.zenodo_api import ZenodoAPI
-from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove, \
     create_path_recursively, rand_folder_name, check_zip, unzip_archive, copy, copy_folder
 from album.core.utils.operations.url_operations import is_url, download, retrieve_redirect_url, download_resource
 from album.runner import album_logging
-from album.runner.model.coordinates import Coordinates
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.model.coordinates import Coordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -250,21 +253,21 @@ def prepare_path(path, tmp_cache_dir):
         return p
 
 
-def dict_to_coordinates(solution_attr) -> Coordinates:
+def dict_to_coordinates(solution_attr) -> ICoordinates:
     if not all([k in solution_attr.keys() for k in ["name", "version", "group"]]):
         raise ValueError("Cannot resolve solution! Group, name and version must be specified!")
     return Coordinates(group=solution_attr["group"], name=solution_attr["name"], version=solution_attr["version"])
 
 
-def get_zip_name(coordinates: Coordinates):
+def get_zip_name(coordinates: ICoordinates):
     return get_zip_name_prefix(coordinates) + ".zip"
 
 
-def get_zip_name_prefix(coordinates: Coordinates):
-    return "_".join([coordinates.group, coordinates.name, coordinates.version])
+def get_zip_name_prefix(coordinates: ICoordinates):
+    return "_".join([coordinates.group(), coordinates.name(), coordinates.version()])
 
 
-def build_resolve_string(resolve_solution_dict: dict, catalog=None):
+def build_resolve_string(resolve_solution_dict: dict, catalog: Optional[ICatalog] = None):
     if "doi" in resolve_solution_dict.keys():
         resolve_solution = resolve_solution_dict["doi"]
     elif all([x in resolve_solution_dict.keys() for x in ["group", "name", "version"]]):
@@ -273,7 +276,7 @@ def build_resolve_string(resolve_solution_dict: dict, catalog=None):
         )
 
         if catalog:
-            resolve_solution = ":".join([catalog.name, resolve_solution])
+            resolve_solution = ":".join([catalog.name(), resolve_solution])
 
     elif "resolve_solution" in resolve_solution_dict.keys():
         resolve_solution = resolve_solution_dict["resolve_solution"]
@@ -283,11 +286,11 @@ def build_resolve_string(resolve_solution_dict: dict, catalog=None):
     return resolve_solution
 
 
-def get_parent(parent_collection_entry: CollectionIndex.CollectionSolution) -> CollectionIndex.CollectionSolution:
+def get_parent(parent_collection_entry: ICollectionIndex.ICollectionSolution) -> ICollectionIndex.ICollectionSolution:
     """Given an collection entry (aka row of the collection table) this method returns the corresponding parent"""
-    if parent_collection_entry.internal["parent"]:
-        parent = parent_collection_entry.internal["parent"]
-        while parent.internal["parent"]:
+    if parent_collection_entry.internal()["parent"]:
+        parent = parent_collection_entry.internal()["parent"]
+        while parent.internal()["parent"]:
             parent = parent["parent"]
 
         return parent

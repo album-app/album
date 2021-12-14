@@ -23,7 +23,7 @@ class TestCondaManager(TestUnitCommon):
             self.conda.remove_environment(self.test_environment_name)
             self.assertFalse(self.conda.environment_exists(self.test_environment_name))
             # try to delete rest of disc content
-            p = str(self.album.configuration().get_cache_path_envs().joinpath(self.test_environment_name))
+            p = str(self.album.configuration().cache_path_envs().joinpath(self.test_environment_name))
             force_remove(p)
         super().tearDown()
 
@@ -48,7 +48,7 @@ class TestCondaManager(TestUnitCommon):
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_list')
     def test_environment_exists(self, ged_mock):
-        p = str(self.conda.configuration.get_cache_path_envs().joinpath("envName1"))
+        p = str(self.conda._configuration.cache_path_envs().joinpath("envName1"))
 
         ged_mock.return_value = [
             p,
@@ -60,7 +60,7 @@ class TestCondaManager(TestUnitCommon):
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_list')
     def test_get_environment_path(self, ged_mock):
-        p = str(self.conda.configuration.get_cache_path_envs().joinpath("envName1"))
+        p = str(self.conda._configuration.cache_path_envs().joinpath("envName1"))
         ged_mock.return_value = [
             p,
             Path("anotherPath").joinpath("envName2")
@@ -70,7 +70,7 @@ class TestCondaManager(TestUnitCommon):
     def test_get_environment_path_invalid_env(self):
         self.assertFalse(self.conda.environment_exists("NotExistingEnv"))
         name = "NotExistingEnv"
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(LookupError):
             self.conda.get_environment_path(name)
 
     @patch('album.core.controller.conda_manager.CondaManager.get_info')
@@ -211,22 +211,22 @@ class TestCondaManager(TestUnitCommon):
         environment = Environment(None, name, cache_path)
         self.conda.set_environment_path(environment)
 
-        self.assertFalse(self.conda.is_installed(environment.path, "perl"))
+        self.assertFalse(self.conda.is_installed(environment.path(), "perl"))
 
-        self.conda.conda_install(environment.path, "perl")
+        self.conda.conda_install(environment.path(), "perl")
 
-        self.assertTrue(self.conda.is_installed(environment.path, "perl"))
+        self.assertTrue(self.conda.is_installed(environment.path(), "perl"))
 
     def test_set_environment_path_None(self):
         name = "NotExistingEnv"
         self.assertFalse(self.conda.environment_exists(name))
         environment = Environment(None, name, "aPath")
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(LookupError):
             self.conda.set_environment_path(environment)
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_list')
     def test_set_environment_path(self, ged_mock):
-        p = str(self.conda.configuration.get_cache_path_envs().joinpath(self.test_environment_name))
+        p = str(self.conda._configuration.cache_path_envs().joinpath(self.test_environment_name))
         ged_mock.return_value = [
             p,
             Path("anotherPath").joinpath("envName2")
@@ -251,16 +251,16 @@ class TestCondaManager(TestUnitCommon):
             ]"""
         )
         environment = Environment(None, "aName", "aPath")
-        self.assertTrue(self.conda.is_installed(environment.path, "python"))
-        self.assertTrue(self.conda.is_installed(environment.path, "python", "3.9.5"))
-        self.assertFalse(self.conda.is_installed(environment.path, "python", "500.1"))
-        self.assertTrue(self.conda.is_installed(environment.path, "python", "2.7"))
+        self.assertTrue(self.conda.is_installed(environment.path(), "python"))
+        self.assertTrue(self.conda.is_installed(environment.path(), "python", "3.9.5"))
+        self.assertFalse(self.conda.is_installed(environment.path(), "python", "500.1"))
+        self.assertTrue(self.conda.is_installed(environment.path(), "python", "2.7"))
 
     @patch('album.core.controller.conda_manager.CondaManager.run_script', return_value="ranScript")
     def test_run_scripts(self, conda_run_mock):
         script = "print(\"%s\")" % self.test_environment_name
         environment = Environment(None, "aName", "aPath")
-        environment.path = "NotNone"
+        environment._path = "NotNone"
 
         self.conda.run_scripts(environment, script)
         conda_run_mock.assert_called_once()
@@ -269,7 +269,7 @@ class TestCondaManager(TestUnitCommon):
     def test_run_scripts_no_path(self, conda_run_mock):
         script = "print(\"%s\")" % self.test_environment_name
         environment = Environment(None, "aName", "aPath")
-        environment.path = None
+        environment._path = None
 
         with self.assertRaises(EnvironmentError):
             self.conda.run_scripts(environment, script)
@@ -309,7 +309,7 @@ class TestCondaManager(TestUnitCommon):
     @patch('album.core.controller.conda_manager.CondaManager.create_environment_from_file')
     def test_create_valid_yaml(self, create_environment_from_file_mock, create_environment_mock):
         environment = Environment(None, "aName", "aPath")
-        environment.yaml_file = Path("aPath")
+        environment._yaml_file = Path("aPath")
 
         self.conda.create(environment)
 
@@ -341,16 +341,16 @@ class TestCondaManager(TestUnitCommon):
     @patch('album.core.controller.conda_manager.CondaManager.is_installed', return_value=False)
     def test_install_framework(self, is_installed_mock, pip_install_mock):
         environment = Environment(None, "aName", "aPath")
-        environment.path = "NotNone"
-        self.conda.install_framework(environment.path, "version")
+        environment._path = "NotNone"
+        self.conda.install_framework(environment.path(), "version")
         is_installed_mock.assert_called_once_with("NotNone", "album-runner", "version")
         pip_install_mock.assert_called_once()
 
     @patch('album.core.controller.conda_manager.CondaManager.pip_install')
     def test_pip_install_into_environment(self, conda_install_mock):
         environment = Environment(None, "aName", "aPath")
-        environment.path = "aPath"
-        self.conda.pip_install_into_environment(environment.path, "test", "testVersion")
+        environment._path = "aPath"
+        self.conda.pip_install_into_environment(environment.path(), "test", "testVersion")
 
         conda_install_mock.assert_called_once_with("aPath", "test==testVersion", True)
 

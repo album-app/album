@@ -8,8 +8,8 @@ from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
-from album.runner.model.coordinates import Coordinates
-from album.runner.model.solution import Solution
+from album.runner.core.model.coordinates import Coordinates
+from album.runner.core.model.solution import Solution
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -155,7 +155,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         self.collection_manager.resolve_require_installation_and_load("grp:name:version")
 
         # assert
-        check_file_or_url_mock.assert_called_once_with("grp:name:version", self.album.configuration().get_cache_path_tmp_user())
+        check_file_or_url_mock.assert_called_once_with("grp:name:version", self.album.configuration().cache_path_tmp_user())
 
     @unittest.skip("Needs to be implemented!")
     def test_resolve_require_installation_and_load_valid_path(self):
@@ -176,7 +176,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
             setup={"group": "g", "name": "n", "version": "v"}))
         retrieve_and_load_mock = MagicMock()
         retrieve_and_load_mock.side_effect = lambda x: setattr(x, "loaded_solution",
-                                                               Solution(self.solution_default_dict))
+                                                               lambda: Solution(self.solution_default_dict))
         get_solution_file_mock = MagicMock(return_value="path/to/solution")
 
         self.collection_manager._search_in_specific_catalog = search_mock
@@ -187,11 +187,11 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         res = self.collection_manager.resolve_download_and_load_catalog_coordinates(catalog, coordinates)
 
         # assert
-        self.assertEqual(catalog, res.catalog)
-        self.assertEqual(search_mock.return_value, res.collection_entry)
+        self.assertEqual(catalog, res.catalog())
+        self.assertEqual(search_mock.return_value, res.collection_entry())
 
         get_solution_file_mock.assert_called_once_with(catalog, coordinates)
-        search_mock.assert_called_once_with(catalog.catalog_id, coordinates)
+        search_mock.assert_called_once_with(catalog.catalog_id(), coordinates)
         retrieve_and_load_mock.assert_called_once()
         set_cache_paths_mock.assert_called_once()
 
@@ -206,7 +206,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         search_mock = MagicMock(return_value=CollectionIndex.CollectionSolution(internal={"catalog_id": 1}))
         retrieve_and_load_mock = MagicMock()
         retrieve_and_load_mock.side_effect = lambda x: setattr(x, "loaded_solution",
-                                                               Solution(self.solution_default_dict))
+                                                               lambda: Solution(self.solution_default_dict))
 
         self.collection_manager._search_by_coordinates = search_mock
         self.collection_manager.catalogs().get_by_id = get_catalog_mock
@@ -217,9 +217,9 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         res = self.collection_manager.resolve_download_and_load_coordinates(coordinates)
 
         # assert
-        self.assertEqual(local_catalog, res.catalog)
-        self.assertEqual(get_solution_mock.return_value, res.path)
-        self.assertEqual(search_mock.return_value, res.collection_entry)
+        self.assertEqual(local_catalog, res.catalog())
+        self.assertEqual(get_solution_mock.return_value, res.path())
+        self.assertEqual(search_mock.return_value, res.collection_entry())
 
         get_catalog_mock.assert_called_once_with(1)
         get_solution_mock.assert_called_once_with(local_catalog, coordinates)
@@ -404,7 +404,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         self.collection_manager._search_in_specific_catalog = search_mock
         res = self.collection_manager._search_in_local_catalog(coordinates)
         self.assertEqual(search_mock.return_value, res)
-        search_mock.assert_called_once_with(self.collection_manager.catalogs().get_local_catalog().catalog_id,
+        search_mock.assert_called_once_with(self.collection_manager.catalogs().get_local_catalog().catalog_id(),
                                             coordinates)
 
     @unittest.skip("Needs to be implemented!")

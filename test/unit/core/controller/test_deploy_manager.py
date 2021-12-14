@@ -6,7 +6,7 @@ from unittest.mock import patch, MagicMock
 from album.ci.utils.zenodo_api import ZenodoAPI
 from album.core.controller.deploy_manager import DeployManager
 from album.core.model.default_values import DefaultValues
-from album.runner.model.coordinates import Coordinates
+from album.runner.core.model.coordinates import Coordinates
 from test.unit.test_unit_common import TestGitCommon, EmptyTestClass
 
 
@@ -117,9 +117,7 @@ class TestDeployManager(TestGitCommon):
         )
 
         # assert
-        _deploy_routine_in_local_src.assert_called_once_with(
-            self.local_catalog, self.local_catalog.src, self.active_solution, "None"
-        )
+        _deploy_routine_in_local_src.assert_called_once_with(self.local_catalog, self.local_catalog.src(), self.active_solution, "None")
         add.assert_called_once_with(self.active_solution, force_overwrite=False)  # index updated
         copy_index_from_cache_to_src.assert_called_once()
         refresh_index.assert_called_once_with(self.local_catalog)
@@ -142,7 +140,7 @@ class TestDeployManager(TestGitCommon):
 
         # prepare src
         p = self.deploy_manager._get_absolute_prefix_path(
-            self.local_catalog, self.local_catalog.src, self.active_solution
+            self.local_catalog, self.local_catalog.src(), self.active_solution
         )
         p.mkdir(parents=True)
         p.joinpath("myPreviousDeployStuff.thx").touch()
@@ -177,7 +175,7 @@ class TestDeployManager(TestGitCommon):
 
         # prepare src
         p = self.deploy_manager._get_absolute_prefix_path(
-            self.local_catalog, self.local_catalog.src, self.active_solution
+            self.local_catalog, self.local_catalog.src(), self.active_solution
         )
         p.mkdir(parents=True)
         p = p.joinpath("myPreviousDeployStuff.thx")
@@ -189,9 +187,7 @@ class TestDeployManager(TestGitCommon):
         )
 
         # assert
-        _deploy_routine_in_local_src.assert_called_once_with(
-            self.local_catalog, self.local_catalog.src, self.active_solution, "None"
-        )
+        _deploy_routine_in_local_src.assert_called_once_with(self.local_catalog, self.local_catalog.src(), self.active_solution, "None")
         add.assert_called_once_with(self.active_solution, force_overwrite=True)  # index updated
         copy_index_from_cache_to_src.assert_called_once()
         refresh_index.assert_called_once_with(self.local_catalog)
@@ -205,7 +201,7 @@ class TestDeployManager(TestGitCommon):
     def test__deploy_to_local_catalog_copy_fail(self, _create_merge_request, _deploy_routine_in_local_src, _):
         # mocks
         catalog_local_src_solution_path = self.deploy_manager._get_absolute_prefix_path(
-            self.local_catalog, self.local_catalog.src, self.active_solution
+            self.local_catalog, self.local_catalog.src(), self.active_solution
         )
         catalog_local_src_solution_path.mkdir(parents=True)
 
@@ -239,16 +235,13 @@ class TestDeployManager(TestGitCommon):
             )
 
         # assert
-        _deploy_routine_in_local_src.assert_called_once_with(
-            self.local_catalog, self.local_catalog.src, self.active_solution, "None"
-        )
+        _deploy_routine_in_local_src.assert_called_once_with(self.local_catalog, self.local_catalog.src(), self.active_solution, "None")
         add.assert_called_once_with(self.active_solution, force_overwrite=True)  # index updated
         copy_index_from_cache_to_src.assert_called_once()
         refresh_index.assert_not_called()
 
         _create_merge_request.assert_not_called()
         self.assertEqual([], os.listdir(catalog_local_src_solution_path))  # empty src folder
-
 
     @patch('album.core.controller.deploy_manager.DeployManager._deploy_routine_in_local_src', return_value=["a", "b"])
     @patch('album.core.controller.deploy_manager.DeployManager._create_merge_request', return_value=None)
@@ -270,8 +263,7 @@ class TestDeployManager(TestGitCommon):
         )
 
         # assert
-        _deploy_routine_in_local_src.assert_called_once_with(self.local_catalog, self.local_catalog.src,
-                                                             self.active_solution, "None")
+        _deploy_routine_in_local_src.assert_called_once_with(self.local_catalog, self.local_catalog.src(), self.active_solution, "None")
         add.assert_not_called()  # index NOT updated
         copy_index_from_cache_to_src.assert_not_called()  # NOT copied to src
         refresh_index.assert_not_called()  # NOT refreshed from src.
@@ -317,7 +309,7 @@ class TestDeployManager(TestGitCommon):
         self.deploy_manager._deploy_routine_in_local_src(None, "", self.active_solution, "None")
 
         # assert
-        _copy_and_zip.assert_called_once_with(None, "", self.active_solution, "None")
+        _copy_and_zip.assert_called_once_with("", self.active_solution, "None")
         _create_docker_file_in_local_src.assert_called_once()  # docker file created
         _create_yaml_file_in_local_src.assert_called_once()  # yml created
         _create_changelog_file_in_local_src.assert_called_once()  # yml created
@@ -392,7 +384,7 @@ class TestDeployManager(TestGitCommon):
             "_".join(["tsg", "tsn", "tsv"]) + ".zip"
         )
 
-        self.assertEqual(result, self.deploy_manager._get_absolute_zip_path(catalog, catalog_local_src, self.active_solution))
+        self.assertEqual(result, self.deploy_manager._get_absolute_zip_path(catalog_local_src, self.active_solution))
         self.repo.close()
 
     @unittest.skip("Needs to be implemented!")
@@ -417,7 +409,7 @@ class TestDeployManager(TestGitCommon):
         )
 
         # copy and zip a folder
-        self.deploy_manager._copy_and_zip(catalog, catalog_local_src, self.active_solution, solution_folder_to_deploy_locally)
+        self.deploy_manager._copy_and_zip(catalog_local_src, self.active_solution, solution_folder_to_deploy_locally)
         zip_folder.assert_called_once_with(solution_folder_to_deploy_locally, r)
         zip_path_mock.assert_not_called()
 
@@ -426,7 +418,7 @@ class TestDeployManager(TestGitCommon):
         zip_folder.reset_mock()
 
         # copy and zip a file
-        self.deploy_manager._copy_and_zip(catalog, catalog_local_src, self.active_solution, solution_file_to_deploy_locally)
+        self.deploy_manager._copy_and_zip(catalog_local_src, self.active_solution, solution_file_to_deploy_locally)
         zip_path_mock.assert_called_once()
         zip_folder.assert_not_called()
         self.repo.close()

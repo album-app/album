@@ -13,7 +13,7 @@ class TestIntegrationRepl(TestIntegrationCommon):
     def test_repl(self):
         self.fake_install(self.get_test_solution_path())
         env = os.environ.copy()
-        env['ALBUM_BASE_CACHE_PATH'] = str(self.album_instance.configuration().get_base_cache_path())
+        env['ALBUM_BASE_CACHE_PATH'] = str(self.album_instance.configuration().base_cache_path())
         if hasattr(pexpect, 'spawn'):
             cmd = ['-m', 'album', 'repl', self.get_test_solution_path()]
             child = pexpect.spawn(sys.executable, cmd, env=env)

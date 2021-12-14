@@ -1,18 +1,18 @@
 from queue import Queue
 
-from album.api.album_interface import AlbumInterface
-from album.api.test_interface import TestInterface
-from album.core.model.resolve_result import ResolveResult
+from album.core.api.album import IAlbum
+from album.core.api.controller.test_manager import ITestManager
+from album.core.api.model.resolve_result import IResolveResult
 from album.runner import album_logging
-from album.runner.concept.script_creator import ScriptTestCreator
-from album.runner.model.coordinates import Coordinates
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.concept.script_creator import ScriptTestCreator
 
 module_logger = album_logging.get_active_logger
 
 
-class TestManager(TestInterface):
+class TestManager(ITestManager):
 
-    def __init__(self, album: AlbumInterface):
+    def __init__(self, album: IAlbum):
         self.album = album
 
     def test(self, path, args=None):
@@ -24,35 +24,35 @@ class TestManager(TestInterface):
 
         self._test(resolve_result, args)
 
-        module_logger().info('Ran test routine for \"%s\"!' % resolve_result.loaded_solution.coordinates.name)
+        module_logger().info('Ran test routine for \"%s\"!' % resolve_result.loaded_solution().coordinates().name())
 
-    def test_from_catalog_coordinates(self, catalog_name: str, coordinates: Coordinates, argv=None):
+    def test_from_catalog_coordinates(self, catalog_name: str, coordinates: ICoordinates, argv=None):
         catalog = self.album.collection_manager().catalogs().get_by_name(catalog_name)
         resolve_result = self.album.collection_manager().resolve_download_and_load_catalog_coordinates(catalog, coordinates)
 
         self._test(resolve_result, argv)
 
-    def test_from_coordinates(self, coordinates: Coordinates, argv=None):
+    def test_from_coordinates(self, coordinates: ICoordinates, argv=None):
         resolve_result = self.album.collection_manager().resolve_download_and_load_coordinates(coordinates)
         self._test(resolve_result, argv)
 
-    def _test(self, resolve_result: ResolveResult, args=None):
+    def _test(self, resolve_result: IResolveResult, args=None):
         if args is None:
             args = [""]
 
-        solution = resolve_result.loaded_solution
+        solution = resolve_result.loaded_solution()
 
-        if resolve_result.loaded_solution.setup.pre_test and callable(solution.setup.pre_test) \
-                and solution.setup.test and callable(solution.setup.test):
+        if solution.setup().pre_test and callable(solution.setup().pre_test) \
+                and solution.setup().test and callable(solution.setup().test):
             queue = Queue()
             script_test_creator = ScriptTestCreator()
 
             # do not run queue immediately
-            self.album.run_manager().build_queue(resolve_result.loaded_solution, resolve_result.catalog, queue, script_test_creator, False, args)
+            self.album.run_manager().build_queue(solution, resolve_result.catalog(), queue, script_test_creator, False, args)
 
             # runs the queue
             self.album.run_manager().run_queue(queue)
         else:
             module_logger().warning(
-                'No \"test\" routine configured for solution \"%s\"! Skipping...' % solution.coordinates.name
+                'No \"test\" routine configured for solution \"%s\"! Skipping...' % solution.coordinates().name()
             )

@@ -6,17 +6,17 @@ from flask import Flask, request
 from werkzeug.exceptions import abort
 
 import album
-from album.api.album_interface import AlbumInterface
-from album.api.task_interface import TaskInterface
+from album.core.api.album import IAlbum
+from album.core.api.controller.task_manager import ITaskManager
 from album.core.model.default_values import DefaultValues
 from album.core.model.task import Task
 from album.runner import album_logging
-from album.runner.model.coordinates import Coordinates
+from album.runner.core.model.coordinates import Coordinates
 
 module_logger = album_logging.get_active_logger
 
 
-class AlbumServer():
+class AlbumServer:
     port = DefaultValues.server_port.value
     host = DefaultValues.server_port.value
 
@@ -25,9 +25,9 @@ class AlbumServer():
     def __init__(self, port: int, host: str = None):
         self.port = port
         self.host = host
-        self.album_instance: Optional[AlbumInterface] = None
+        self.album_instance: Optional[IAlbum] = None
 
-    def setup(self, album_instance: AlbumInterface):
+    def setup(self, album_instance: IAlbum):
         self.album_instance = album_instance
 
     def start(self, test_config=None):
@@ -54,11 +54,11 @@ class AlbumServer():
         @self.app.route("/config")
         def get_config():
             return {
-                "cache_base": str(self.album_instance.configuration().get_base_cache_path()),
-                "cache_tmp_internal": str(self.album_instance.configuration().get_cache_path_tmp_internal()),
-                "cache_tmp_user": str(self.album_instance.configuration().get_cache_path_tmp_user()),
-                "cache_apps": str(self.album_instance.configuration().get_cache_path_app()),
-                "cache_downloads": str(self.album_instance.configuration().get_cache_path_download())
+                "cache_base": str(self.album_instance.configuration().base_cache_path()),
+                "cache_tmp_internal": str(self.album_instance.configuration().cache_path_tmp_internal()),
+                "cache_tmp_user": str(self.album_instance.configuration().cache_path_tmp_user()),
+                "cache_apps": str(self.album_instance.configuration().cache_path_app()),
+                "cache_downloads": str(self.album_instance.configuration().cache_path_download())
             }
 
         @self.app.route("/index")
@@ -75,8 +75,8 @@ class AlbumServer():
             solutions = []
             for solution in self.album_instance.collection_manager().get_collection_index().get_recently_launched_solutions():
                 solutions.append({
-                    'setup': solution.setup,
-                    'internal': solution.internal
+                    'setup': solution.setup(),
+                    'internal': solution.internal()
                 })
             return {'solutions': solutions}
 
@@ -85,8 +85,8 @@ class AlbumServer():
             solutions = []
             for solution in self.album_instance.collection_manager().get_collection_index().get_recently_installed_solutions():
                 solutions.append({
-                    'setup': solution.setup,
-                    'internal': solution.internal
+                    'setup': solution.setup(),
+                    'internal': solution.internal()
                 })
             return {'solutions': solutions}
 
@@ -96,7 +96,7 @@ class AlbumServer():
             args = self._get_arguments(request.args)
             task = self._run_solution_method_async(catalog, Coordinates(group, name, version), self.album_instance.run_manager().run,
                                                    [True, args])
-            return {"id": task.id, "msg": "process started"}
+            return {"id": task.id(), "msg": "process started"}
 
         @self.app.route('/install/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/install/<catalog>/<group>/<name>/<version>')
@@ -106,7 +106,7 @@ class AlbumServer():
                 Coordinates(group, name, version),
                 self.album_instance.install_manager().install
             )
-            return {"id": task.id, "msg": "process started"}
+            return {"id": task.id(), "msg": "process started"}
 
         @self.app.route('/uninstall/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/uninstall/<catalog>/<group>/<name>/<version>')
@@ -116,13 +116,13 @@ class AlbumServer():
                 Coordinates(group, name, version),
                 self.album_instance.install_manager().uninstall
             )
-            return {"id": task.id, "msg": "process started"}
+            return {"id": task.id(), "msg": "process started"}
 
         @self.app.route('/test/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/test/<catalog>/<group>/<name>/<version>')
         def test(catalog, group, name, version):
             task = self._run_solution_method_async(catalog, Coordinates(group, name, version), self.album_instance.test_manager().test)
-            return {"id": task.id, "msg": "process started"}
+            return {"id": task.id(), "msg": "process started"}
 
         @self.app.route('/deploy')
         def deploy():
@@ -137,10 +137,10 @@ class AlbumServer():
             dryrun = bool(util.strtobool(request.args.get("dryrun", default="false")))
             trigger_pipeline = False
             task = Task()
-            task.args = (solution_path, catalog_name, dryrun, trigger_pipeline)
-            task.method = self.album_instance.deploy_manager().deploy
+            task._args = (solution_path, catalog_name, dryrun, trigger_pipeline)
+            task._method = self.album_instance.deploy_manager().deploy
             self.task_manager().register_task(task)
-            return {"id": task.id, "msg": "process started"}
+            return {"id": task.id(), "msg": "process started"}
 
         @self.app.route('/clone/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/clone/<catalog>/<group>/<name>/<version>')
@@ -157,7 +157,7 @@ class AlbumServer():
                 Coordinates(group, name, version),
                 self.album_instance.clone_manager().clone, args
             )
-            return {"id": task.id, "msg": "process started"}
+            return {"id": task.id(), "msg": "process started"}
 
         @self.app.route('/clone')
         def clone_solution_py_path():
@@ -176,10 +176,10 @@ class AlbumServer():
             if args:
                 for arg in args:
                     task_args.append(arg)
-            task.args = tuple(task_args)
-            task.method = self.album_instance.clone_manager().clone
+            task._args = tuple(task_args)
+            task._method = self.album_instance.clone_manager().clone
             self.task_manager().register_task(task)
-            return {"id": task.id, "msg": "process started"}
+            return {"id": task.id(), "msg": "process started"}
 
         @self.app.route('/clone/<template_name>')
         def clone_catalog(template_name):
@@ -190,16 +190,16 @@ class AlbumServer():
             if name is None:
                 abort(404, description=f"`name` argument missing")
             task = Task()
-            task.args = tuple([template_name, target_dir, name])
-            task.method = self.album_instance.clone_manager().clone
+            task._args = tuple([template_name, target_dir, name])
+            task._method = self.album_instance.clone_manager().clone
             self.task_manager().register_task(task)
-            return {"id": task.id, "msg": "process started"}
+            return {"id": task.id(), "msg": "process started"}
 
         @self.app.route('/status/<catalog>/<group>/<name>/<version>')
         def status_solution(catalog, group, name, version):
             try:
                 collection_manager = self.album_instance.collection_manager()
-                catalog_id = collection_manager.catalogs().get_by_name(catalog).catalog_id
+                catalog_id = collection_manager.catalogs().get_by_name(catalog).catalog_id()
                 installed = collection_manager.get_collection_index().is_installed(
                     catalog_id,
                     Coordinates(group, name, version)
@@ -221,7 +221,7 @@ class AlbumServer():
         def add_catalog():
             url = request.args.get("src")
             catalog = self.album_instance.collection_manager().catalogs().add_by_src(url)
-            catalog_id = catalog.catalog_id
+            catalog_id = catalog.catalog_id()
             return {"catalog_id": catalog_id}
 
         @self.app.route('/remove-catalog')
@@ -243,7 +243,7 @@ class AlbumServer():
                 res = self.album_instance.collection_manager().catalogs().update_collection(dry_run=dry_run)
             elif name is None:
                 catalog = self.album_instance.collection_manager().catalogs().get_by_src(src)
-                res = self.album_instance.collection_manager().catalogs().update_collection(catalog_name=catalog.name, dry_run=dry_run)
+                res = self.album_instance.collection_manager().catalogs().update_collection(catalog_name=catalog.name(), dry_run=dry_run)
             else:
                 res = self.album_instance.collection_manager().catalogs().update_collection(catalog_name=name, dry_run=dry_run)
             r = {}
@@ -259,7 +259,7 @@ class AlbumServer():
                 self.album_instance.collection_manager().catalogs().update_any()
             elif name is None:
                 catalog = self.album_instance.collection_manager().catalogs().get_by_src(src)
-                self.album_instance.collection_manager().catalogs().update_any(catalog.name)
+                self.album_instance.collection_manager().catalogs().update_any(catalog.name())
             else:
                 self.album_instance.collection_manager().catalogs().update_any(name)
             return {}
@@ -276,7 +276,7 @@ class AlbumServer():
             func()
             return 'Server shutting down...'
 
-    def task_manager(self) -> TaskInterface:
+    def task_manager(self) -> ITaskManager:
         return self.album_instance.task_manager()
 
     def _run_solution_method_async(self, catalog, group_name_version: Coordinates, method, args=None):
@@ -289,8 +289,8 @@ class AlbumServer():
         if args:
             for arg in args:
                 task_args.append(arg)
-        task.args = tuple(task_args)
-        task.method = method
+        task._args = tuple(task_args)
+        task._method = method
         self.task_manager().register_task(task)
         return task
 

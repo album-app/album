@@ -1,33 +1,34 @@
 from typing import Dict
 
-from album.core.model.catalog_updates import CatalogUpdates
-from album.runner.model.solution import Solution
+from album.core.api.model.catalog_updates import ICatalogUpdates
+from album.runner.core.api.model.solution import ISolution
 
 
-def get_solution_as_string(solution, solution_path):
+def get_solution_as_string(solution: ISolution, solution_path):
     param_example_str = ''
-    if solution.setup.args:
-        for arg in solution.setup.args:
+    setup = solution.setup()
+    if setup.args:
+        for arg in setup.args:
             param_example_str += '--%s PARAMETER_VALUE ' % arg['name']
     res = 'Solution details about %s:\n\n' % solution_path
-    if solution.setup.title:
-        res += '%s\n' % solution.setup.title
-        res += '%s\n' % ('=' * len(solution.setup.title))
-    if solution.setup.description:
-        res += '%s\n\n' % solution.setup.description
-    res += 'Group            : %s\n' % solution.setup.group
-    res += 'Name             : %s\n' % solution.setup.name
-    res += 'Version          : %s' % solution.setup.version
+    if setup.title:
+        res += '%s\n' % setup.title
+        res += '%s\n' % ('=' * len(setup.title))
+    if setup.description:
+        res += '%s\n\n' % setup.description
+    res += 'Group            : %s\n' % setup.group
+    res += 'Name             : %s\n' % setup.name
+    res += 'Version          : %s' % setup.version
     res += '%s' % get_credit_as_string(solution)
     res += 'Solution metadata:\n\n'
-    if solution.setup.authors:
-        res += 'Solution authors : %s\n' % ", ".join(solution.setup.authors)
-    if solution.setup.license:
-        res += 'License          : %s\n' % solution.setup.license
-    if solution.setup.acknowledgement:
-        res += 'Acknowledgement  : %s\n' % solution.setup.acknowledgement
-    if solution.setup.tags:
-        res += 'Tags             : %s\n' % ", ".join(solution.setup.tags)
+    if setup.authors:
+        res += 'Solution authors : %s\n' % ", ".join(setup.authors)
+    if setup.license:
+        res += 'License          : %s\n' % setup.license
+    if setup.acknowledgement:
+        res += 'Acknowledgement  : %s\n' % setup.acknowledgement
+    if setup.tags:
+        res += 'Tags             : %s\n' % ", ".join(setup.tags)
     res += '\n'
     res += 'Usage:\n\n'
     res += '  album install %s\n' % solution_path
@@ -35,18 +36,18 @@ def get_solution_as_string(solution, solution_path):
     res += '  album test %s\n' % solution.coordinates
     res += '  album uninstall %s\n' % solution.coordinates
     res += '\n'
-    if solution.setup.args:
+    if setup.args:
         res += 'Run parameters:\n\n'
-        for arg in solution.setup.args:
+        for arg in setup.args:
             res += '  --%s: %s\n' % (arg["name"], arg["description"])
     return res
 
 
-def get_credit_as_string(solution: Solution) -> str:
+def get_credit_as_string(solution: ISolution) -> str:
     res = ''
-    if solution.setup.cite:
+    if solution.setup().cite:
         res += '\n\nCredits:\n\n'
-        for citation in solution.setup.cite:
+        for citation in solution.setup().cite:
             text = citation['text']
             if 'doi' in citation:
                 text += ' (DOI: %s)' % citation['doi']
@@ -55,28 +56,28 @@ def get_credit_as_string(solution: Solution) -> str:
     return res
 
 
-def get_updates_as_string(updates: Dict[str, CatalogUpdates]) -> str:
+def get_updates_as_string(updates: Dict[str, ICatalogUpdates]) -> str:
     res = ''
     for catalog_name in updates:
         change = updates[catalog_name]
-        res += 'Catalog: %s\n' % change.catalog.name
-        if len(change.catalog_attribute_changes) > 0:
+        res += 'Catalog: %s\n' % change.catalog().name()
+        if len(change.catalog_attribute_changes()) > 0:
             res += '  Catalog attribute changes:\n'
-            for item in change.catalog_attribute_changes:
-                res += '  name: %s, new value: %s\n' % (item.attribute, item.new_value)
-        if len(change.solution_changes) > 0:
+            for item in change.catalog_attribute_changes():
+                res += '  name: %s, new value: %s\n' % (item.attribute(), item.new_value())
+        if len(change.solution_changes()) > 0:
             res += '  Catalog solution changes:\n'
-            for i, item in enumerate(change.solution_changes):
-                if i is len(change.solution_changes) - 1:
-                    res += '  └─ [%s] %s\n' % (item.change_type.name, item.coordinates)
+            for i, item in enumerate(change.solution_changes()):
+                if i is len(change.solution_changes()) - 1:
+                    res += '  └─ [%s] %s\n' % (item.change_type().name, item.coordinates())
                     separator = ' '
                 else:
-                    res += '  ├─ [%s] %s\n' % (item.change_type.name, item.coordinates)
+                    res += '  ├─ [%s] %s\n' % (item.change_type().name, item.coordinates())
                     separator = '|'
                 res += '  %s     %schangelog: %s\n' % (
-                    separator, (" " * len(item.change_type.name)), item.change_log)
+                    separator, (" " * len(item.change_type().name)), item.change_log())
 
-        if len(change.catalog_attribute_changes) == 0 and len(change.solution_changes) == 0:
+        if len(change.catalog_attribute_changes()) == 0 and len(change.solution_changes()) == 0:
             res += '  No changes.\n'
     return res
 

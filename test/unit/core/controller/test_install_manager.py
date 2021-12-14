@@ -7,8 +7,8 @@ from album.core.controller.install_manager import InstallManager
 
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.resolve_result import ResolveResult
-from album.runner.model.coordinates import Coordinates
-from album.runner.model.solution import Solution
+from album.runner.core.model.coordinates import Coordinates
+from album.runner.core.model.solution import Solution
 from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
 
 
@@ -38,7 +38,7 @@ class TestInstallManager(TestUnitCommon):
             catalog=self.collection_manager.catalogs().get_local_catalog(),
             loaded_solution=self.active_solution,
             collection_entry=None,
-            coordinates=self.active_solution.coordinates
+            coordinates=self.active_solution.coordinates()
         )
 
         resolve_and_load = MagicMock(
@@ -125,12 +125,12 @@ class TestInstallManager(TestUnitCommon):
         install_environment.assert_called_once()
 
     def test__install_active_solution_with_parent(self):
-        self.active_solution.setup.album_api_version = "test"
+        self.active_solution._setup.album_api_version = "test"
 
-        self.parent_solution = Solution(deepcopy(dict(self.active_solution.setup)))
-        self.parent_solution.environment = EmptyTestClass()  # different object in memory
+        self.parent_solution = Solution(deepcopy(dict(self.active_solution.setup())))
+        self.parent_solution.environment = lambda: EmptyTestClass()  # different object in memory
 
-        self.active_solution.setup.dependencies = {"parent": "aParent"}
+        self.active_solution._setup.dependencies = {"parent": "aParent"}
 
         # mocks
         install_environment = MagicMock(return_value=None)
@@ -327,7 +327,7 @@ class TestInstallManager(TestUnitCommon):
     @patch('album.core.controller.install_manager.force_remove')
     def test__clean_unfinished_installations_environment_env_not_deleted(self, force_remove):
         c = EmptyTestClass()
-        c.name = "myName"
+        c.name = lambda: "myName"
 
         # mocks
         set_environment = MagicMock(return_value="myEnv")

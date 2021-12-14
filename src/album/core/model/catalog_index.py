@@ -2,17 +2,17 @@ import pkgutil
 from datetime import datetime
 from typing import Optional, List
 
+from album.core.api.model.catalog_index import ICatalogIndex
 from album.core.concept.database import Database
 from album.core.utils.operations.file_operations import get_dict_entry, write_dict_to_json
 from album.core.utils.operations.solution_operations import get_solution_hash, serialize_json
 from album.runner import album_logging
-from album.runner.model.coordinates import Coordinates
+from album.runner.core.api.model.coordinates import ICoordinates
 
 module_logger = album_logging.get_active_logger
 
 
-class CatalogIndex(Database):
-    """Class handling the index of all solutions in a catalog."""
+class CatalogIndex(ICatalogIndex, Database):
 
     version = "0.1.0"
 
@@ -468,19 +468,7 @@ class CatalogIndex(Database):
 
         return solution
 
-    def get_solution_by_coordinates(self, coordinates: Coordinates, close=True) -> Optional[dict]:
-        """Resolves a solution by its name, version and group.
-
-        Args:
-            close:
-                if specified closes the connection after execution
-            coordinates:
-                The group affiliation, name, and version of the solution.
-
-        Returns:
-            None or row not found.
-
-        """
+    def get_solution_by_coordinates(self, coordinates: ICoordinates, close=True) -> Optional[dict]:
         module_logger().debug("Get solution by coordinates: \"%s\"..." % str(coordinates))
 
         cursor = self.get_cursor()
@@ -488,9 +476,9 @@ class CatalogIndex(Database):
             "SELECT s.* FROM solution s "
             "WHERE s.\"group\"=:group AND s.name=:name AND s.version=:version",
             {
-                "group": coordinates.group,
-                "name": coordinates.name,
-                "version": coordinates.version,
+                "group": coordinates.group(),
+                "name": coordinates.name(),
+                "version": coordinates.version(),
             }
         ).fetchone()
 
@@ -514,22 +502,6 @@ class CatalogIndex(Database):
         solution["tags"] = self._get_tags_by_solution(solution_id)
 
     def get_solution_by_doi(self, doi, close=True) -> Optional[dict]:
-        """Resolves a solution by its DOI.
-
-        Args:
-            close:
-                if specified closes the connection after execution
-            doi:
-                The doi to resolve for.
-
-        Returns:
-            None or a node if any found.
-
-        Raises:
-            RuntimeError if the DOI was found more than once.
-                         if the node found is not a leaf
-
-        """
         module_logger().debug("Get solution by doi: \"%s\"..." % doi)
 
         cursor = self.get_cursor()
@@ -550,20 +522,6 @@ class CatalogIndex(Database):
         return solution
 
     def get_all_solution_versions(self, group, name, close=True) -> Optional[List[dict]]:
-        """Resolves solutions by group and name, sorted by version.
-
-        Args:
-            close:
-                if specified closes the connection after execution
-            group:
-                The group of the solutions
-            name:
-                The name of the solutions
-
-        Returns:
-            All solutions matching group and name, sorted by version
-
-        """
         module_logger().debug("Get solution by group and name: \"%s:%s\"..." % (group, name))
 
         cursor = self.get_cursor()
@@ -585,7 +543,7 @@ class CatalogIndex(Database):
 
         return solutions
 
-    def _update_solution(self, coordinates: Coordinates, solution_attrs: dict, close=True) -> None:
+    def _update_solution(self, coordinates: ICoordinates, solution_attrs: dict, close=True) -> None:
         # it is easier to delete and insert again instead of updating all connection-tables
         solution_dict = self.get_solution_by_coordinates(coordinates, close=False)
         if solution_dict:
@@ -676,26 +634,14 @@ class CatalogIndex(Database):
         if close:
             self.close_current_connection()
 
-    def remove_solution_by_group_name_version(self, coordinates: Coordinates, close=True):
+    def remove_solution_by_group_name_version(self, coordinates: ICoordinates, close=True):
         solution_dict = self.get_solution_by_coordinates(coordinates, close=close)
         if solution_dict:
             self.remove_solution(solution_dict["solution_id"])
 
     # ### catalog_features ###
 
-    def update(self, coordinates: Coordinates, solution_attrs: dict, close=True):
-        """Updates a catalog to include a solution as a node with the attributes given.
-         Updates exiting nodes if node already present in tree.
-
-        Args:
-            close:
-                if specified closes the connection after execution
-            coordinates:
-                The coordinates of the solution.
-            solution_attrs:
-                The solution attributes. Must hold group, name, version.
-
-        """
+    def update(self, coordinates: ICoordinates, solution_attrs: dict, close=True):
         if self.get_solution_by_coordinates(coordinates, close=False):
             module_logger().debug("Update solution...")
             self._update_solution(coordinates, solution_attrs, close=close)
@@ -708,20 +654,6 @@ class CatalogIndex(Database):
         self.get_connection().commit()
 
     def export(self, path, export_format="JSON", close=True):
-        """Exports the index tree to disk.
-
-        Args:
-            close:
-                if specified closes the connection after execution
-            path:
-                The path to store the export to.
-            export_format:
-                The format to save to. Choose from ["JSON"]. (Default: JSON)
-
-        Raises:
-            NotImplementedError if the format is not supported.
-
-        """
         module_logger().debug("Export index...")
 
         cursor = self.get_cursor()
