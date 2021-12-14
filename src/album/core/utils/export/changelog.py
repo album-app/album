@@ -60,8 +60,9 @@ def process_changelog_file(catalog: ICatalog, active_solution: ISolution, deploy
     if changelog_file.exists():
         # process existing changelog file
         changelogs = keepachangelog.to_raw_dict(str(changelog_file))
-        if str(active_solution.setup().version).lower() in changelogs:
-            active_solution.setup().changelog = changelogs[active_solution.setup().version]['raw']
+        keyword = str(active_solution.setup().version).lower()
+        if keyword in changelogs:
+            active_solution.setup().changelog = changelogs[keyword]['raw']
     else:
         # no changelog file found
         if not active_solution.setup().changelog:
