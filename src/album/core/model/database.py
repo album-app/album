@@ -8,7 +8,7 @@ from album.core.api.model.database import IDatabase
 
 
 class Database(IDatabase, ABC):
-    """Abstract class for all album sqlite databases"""
+    """Abstract model class for all album sqlite databases"""
     # attributes
     connections = None
     cursors = None
@@ -127,7 +127,6 @@ class Database(IDatabase, ABC):
             self.close_current_connection()
 
         return False if r else True
-
 
     def get_path(self):
         return self.path

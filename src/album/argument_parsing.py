@@ -3,7 +3,6 @@ import sys
 import traceback
 
 import album
-
 from album.album import Album
 from album.core.commandline import add_catalog, remove_catalog, deploy, \
     install, repl, run, search, start_server, test, update, clone, upgrade, index, uninstall, info
@@ -166,19 +165,20 @@ def create_parser():
         action='store_true'
     )
     p = parser.create_command_parser('clone', clone, 'clone an album solution or catalog template.')
-    p.add_argument('src', type=str,
-                   help='path for the solution file, group:name:version or name of the catalog template.')
     p.add_argument(
-        '--target-dir',
-        required=True,
-        help='The target directory where the solution or catalog will be added to.',
-        default=None
+        'src',
+        type=str,
+        help='path for the solution file, group:name:version or name of the catalog template.'
     )
     p.add_argument(
-        '--name',
-        required=True,
-        help='The new name of the cloned solution or catalog.',
-        default=None
+        'target-dir',
+        type=str,
+        help='The target directory where the solution or catalog will be added to.'
+    )
+    p.add_argument(
+        'name',
+        type=str,
+        help='The new name of the cloned solution or catalog.'
     )
     p = parser.create_command_parser('index', index, 'print the index of the local album collection.')
     parser.create_file_command_parser(
