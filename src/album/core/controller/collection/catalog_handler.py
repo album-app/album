@@ -3,8 +3,8 @@ from pathlib import Path
 from typing import List, Optional, Dict
 
 import validators
-from album.core.api.album import IAlbum
 
+from album.core.api.album import IAlbum
 from album.core.api.controller.collection.catalog_handler import ICatalogHandler
 from album.core.api.model.catalog import ICatalog
 from album.core.model.catalog import Catalog, get_index_url, get_index_dir
@@ -37,9 +37,10 @@ class CatalogHandler(ICatalogHandler):
         initial_catalogs = self.album.configuration().get_initial_catalogs()
         initial_catalogs_branch_name = self.album.configuration().get_initial_catalogs_branch_name()
         for catalog in initial_catalogs.keys():
-            self.add_by_src(initial_catalogs[catalog], initial_catalogs_branch_name[catalog]).dispose()
+            self.add_by_src(str(initial_catalogs[catalog]), initial_catalogs_branch_name[catalog]).dispose()
 
     def add_by_src(self, identifier, branch_name="main") -> Catalog:
+        identifier = str(identifier)
         catalog_dict = self.album.collection_manager().get_collection_index().get_catalog_by_src(identifier)
         if catalog_dict:
             module_logger().warning("Cannot add catalog twice! Doing nothing...")
@@ -83,6 +84,7 @@ class CatalogHandler(ICatalogHandler):
         return self._as_catalog(catalog)
 
     def get_by_src(self, src) -> Catalog:
+        src = str(src)
         catalog_dict = self.album.collection_manager().get_collection_index().get_catalog_by_src(src)
         if not catalog_dict:
             raise LookupError("Catalog with src \"%s\" not configured!" % src)
@@ -90,12 +92,14 @@ class CatalogHandler(ICatalogHandler):
 
     def get_by_name(self, name) -> Catalog:
         """Looks up a catalog by its id and returns it."""
+        name = str(name)
         catalog_dict = self.album.collection_manager().get_collection_index().get_catalog_by_name(name)
         if not catalog_dict:
             raise LookupError("Catalog with name \"%s\" not configured!" % name)
         return self._as_catalog(catalog_dict)
 
     def get_by_path(self, path) -> Catalog:
+        path = str(path)
         catalog_dict = self.album.collection_manager().get_collection_index().get_catalog_by_path(path)
         if not catalog_dict:
             raise LookupError("Catalog with path \"%s\" not configured!" % path)
@@ -263,14 +267,16 @@ class CatalogHandler(ICatalogHandler):
         if validators.url(str(identifier)):
             _, meta_src = get_index_url(identifier, branch_name)
             meta_file = download_resource(
-                meta_src, self.album.configuration().cache_path_download().joinpath(DefaultValues.catalog_index_metafile_json.value)
+                meta_src, self.album.configuration().cache_path_download().joinpath(
+                    DefaultValues.catalog_index_metafile_json.value)
             )
         elif Path(identifier).exists():
             _, meta_src = get_index_dir(identifier)
             if meta_src.exists():
                 meta_file = copy(
                     meta_src,
-                    self.album.configuration().cache_path_download().joinpath(DefaultValues.catalog_index_metafile_json.value)
+                    self.album.configuration().cache_path_download().joinpath(
+                        DefaultValues.catalog_index_metafile_json.value)
                 )
             else:
                 raise FileNotFoundError("Cannot retrieve meta information for the catalog!")
@@ -316,7 +322,8 @@ class CatalogHandler(ICatalogHandler):
             # cache catalog is always up to date since src and path are the same
             return CatalogUpdates(catalog)
 
-        solutions_in_collection = self.album.collection_manager().get_collection_index().get_solutions_by_catalog(catalog.catalog_id())
+        solutions_in_collection = self.album.collection_manager().get_collection_index().get_solutions_by_catalog(
+            catalog.catalog_id())
         self.album.migration_manager().load_index(catalog)
         solutions_in_catalog = catalog.index().get_all_solutions()
         solution_changes = self._compare_solutions(solutions_in_collection, solutions_in_catalog)
@@ -336,7 +343,8 @@ class CatalogHandler(ICatalogHandler):
         return divergence
 
     @staticmethod
-    def _compare_solutions(solutions_old: List[CollectionIndex.CollectionSolution], solutions_new: List[dict]) -> List[SolutionChange]:
+    def _compare_solutions(solutions_old: List[CollectionIndex.CollectionSolution], solutions_new: List[dict]) -> List[
+        SolutionChange]:
         res = []
         # CAUTION: solutions should not be compared based on their id as this might change
 

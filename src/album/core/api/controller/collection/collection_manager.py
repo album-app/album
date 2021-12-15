@@ -1,11 +1,12 @@
 from abc import ABCMeta, abstractmethod
 
-from album.core.api.model.catalog import ICatalog
-from album.core.api.model.collection_index import ICollectionIndex
-from album.core.api.model.resolve_result import IResolveResult
+from album.runner.core.api.model.solution import ISolution
 
 from album.core.api.controller.collection.catalog_handler import ICatalogHandler
 from album.core.api.controller.collection.solution_handler import ISolutionHandler
+from album.core.api.model.catalog import ICatalog
+from album.core.api.model.collection_index import ICollectionIndex
+from album.core.api.model.resolve_result import IResolveResult
 from album.runner.core.api.model.coordinates import ICoordinates
 
 
@@ -34,7 +35,7 @@ class ICollectionManager:
         raise NotImplementedError
 
     @abstractmethod
-    def add_solution_to_local_catalog(self, active_solution, path):
+    def add_solution_to_local_catalog(self, active_solution: ISolution, path):
         """Force adds the installation to the local catalog to be cached for running"""
         raise NotImplementedError
 
@@ -87,7 +88,8 @@ class ICollectionManager:
         raise NotImplementedError
 
     @abstractmethod
-    def resolve_download_and_load_catalog_coordinates(self, catalog: ICatalog, coordinates: ICoordinates) -> IResolveResult:
+    def resolve_download_and_load_catalog_coordinates(self, catalog: ICatalog,
+                                                      coordinates: ICoordinates) -> IResolveResult:
         """Resolves a string input and loads its content.
 
         Downloads a catalog if not already cached.
@@ -146,4 +148,3 @@ class ICollectionManager:
     @abstractmethod
     def retrieve_and_load_resolve_result(self, resolve_result: IResolveResult):
         raise NotImplementedError
-

@@ -13,7 +13,6 @@ class ChangeType(Enum):
 
 
 class ISolutionChange:
-
     __metaclass__ = ABCMeta
 
     @abstractmethod
@@ -34,7 +33,6 @@ class ISolutionChange:
 
 
 class ICatalogAttributeChange:
-
     __metaclass__ = ABCMeta
 
     @abstractmethod
@@ -51,7 +49,6 @@ class ICatalogAttributeChange:
 
 
 class ICatalogUpdates:
-
     __metaclass__ = ABCMeta
 
     @abstractmethod

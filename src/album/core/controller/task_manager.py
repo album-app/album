@@ -11,7 +11,6 @@ module_logger = album_logging.get_active_logger
 
 
 class TaskManager(ITaskManager):
-
     server_queue = None
 
     num_fetch_threads = 3

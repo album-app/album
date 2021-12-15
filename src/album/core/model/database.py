@@ -9,9 +9,6 @@ from album.core.api.model.database import IDatabase
 
 class Database(IDatabase, ABC):
     """Abstract model class for all album sqlite databases"""
-    # attributes
-    connections = None
-    cursors = None
 
     def __init__(self, path):
         self.connections = {}

@@ -10,9 +10,6 @@ module_logger = album_logging.get_active_logger
 
 
 class CloneManager(ICloneManager):
-
-    collection_manager = None
-
     def __init__(self, album: IAlbum):
         self.collection_manager = album.collection_manager()
         self.configuration = album.configuration()
@@ -37,7 +34,9 @@ class CloneManager(ICloneManager):
 
     def _clone_catalog_template(self, template_name, target_path, name):
         """Clones a template by looking up the template name in the template catalog"""
-        template_url = f"{DefaultValues.catalog_template_url.value}/{template_name}/-/archive/main/{template_name}-main.zip"
+        template_url = "%s/%s/-/archive/main/%s-main.zip" % (
+            DefaultValues.catalog_template_url.value, template_name, template_name
+        )
         if url_operations.is_downloadable(template_url):
             target_path.mkdir(parents=True)
             download_zip_target = self.configuration.cache_path_download().joinpath(template_name + ".zip")

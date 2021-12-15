@@ -180,7 +180,7 @@ def create_parser():
         type=str,
         help='The new name of the cloned solution or catalog.'
     )
-    p = parser.create_command_parser('index', index, 'print the index of the local album collection.')
+    parser.create_command_parser('index', index, 'print the index of the local album collection.')
     parser.create_file_command_parser(
         'test', test, 'execute the test routine of a solution.')
     p = parser.create_command_parser('server', start_server,
@@ -221,7 +221,8 @@ class AlbumParser(ArgumentParser):
         parent_parser.add_argument(
             '--json',
             required=False,
-            help='Adding this parameter prevents the log from being printed to the console. Instead, the result of the command - if present - is printed as JSON.',
+            help='Adding this parameter prevents the log from being printed to the console.'
+                 ' Instead, the result of the command - if present - is printed as JSON.',
             action='store_true'
         )
         return parent_parser

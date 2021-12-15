@@ -7,14 +7,14 @@ from album.runner.core.api.model.coordinates import ICoordinates
 
 class ICollectionIndex(IDatabase):
     __metaclass__ = ABCMeta
-    
+
     class ICollectionSolution:
         __metaclass__ = ABCMeta
 
         @abstractmethod
         def setup(self) -> dict:
             raise NotImplementedError
-        
+
         def internal(self) -> dict:
             raise NotImplementedError
 
@@ -47,15 +47,15 @@ class ICollectionIndex(IDatabase):
         raise NotImplementedError
 
     @abstractmethod
-    def get_catalog_by_name(self, catalog_name, close: bool = True) -> dict:
+    def get_catalog_by_name(self, catalog_name: str, close: bool = True) -> dict:
         raise NotImplementedError
 
     @abstractmethod
-    def get_catalog_by_path(self, catalog_path, close: bool = True) -> dict:
+    def get_catalog_by_path(self, catalog_path: str, close: bool = True) -> dict:
         raise NotImplementedError
 
     @abstractmethod
-    def get_catalog_by_src(self, catalog_src, close: bool = True) -> dict:
+    def get_catalog_by_src(self, catalog_src: str, close: bool = True) -> dict:
         raise NotImplementedError
 
     @abstractmethod
@@ -96,7 +96,8 @@ class ICollectionIndex(IDatabase):
         raise NotImplementedError
 
     @abstractmethod
-    def get_solutions_by_grp_name_version(self, coordinates: ICoordinates, close: bool = True) -> List[ICollectionSolution]:
+    def get_solutions_by_grp_name_version(self, coordinates: ICoordinates, close: bool = True) -> List[
+        ICollectionSolution]:
         raise NotImplementedError
 
     @abstractmethod

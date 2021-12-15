@@ -47,9 +47,6 @@ def get_solution_src(src, coordinates: ICoordinates, branch_name="main") -> str:
 
 class Catalog(ICatalog):
 
-    # default prefix how to organize solutions. gnv = Group Name Version folder structure.
-    gnv_solution_prefix = DefaultValues.cache_path_solution_prefix.value
-
     def __init__(self, catalog_id, name, path, src=None, deletable=True, branch_name="main"):
         """Init routine.
 
@@ -98,7 +95,9 @@ class Catalog(ICatalog):
 
     def is_cache(self):
         """Returns Boolean indicating whether the catalog is used for caching only."""
-        return self._src is None or self.is_local() and self._path.exists() and os.path.samefile(self._src, self._path)
+        return self._src is None or self.is_local() and self._path.exists() and os.path.samefile(
+            str(self._src), self._path
+        )
 
     def is_local(self):
         """Returns Boolean indicating whether the catalog is remote or local."""

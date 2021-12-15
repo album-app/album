@@ -94,7 +94,8 @@ class AlbumServer:
         @self.app.route('/run/<catalog>/<group>/<name>/<version>')
         def run(catalog, group, name, version):
             args = self._get_arguments(request.args)
-            task = self._run_solution_method_async(catalog, Coordinates(group, name, version), self.album_instance.run_manager().run,
+            task = self._run_solution_method_async(catalog, Coordinates(group, name, version),
+                                                   self.album_instance.run_manager().run,
                                                    [True, args])
             return {"id": task.id(), "msg": "process started"}
 
@@ -121,7 +122,8 @@ class AlbumServer:
         @self.app.route('/test/<group>/<name>/<version>', defaults={'catalog': None})
         @self.app.route('/test/<catalog>/<group>/<name>/<version>')
         def test(catalog, group, name, version):
-            task = self._run_solution_method_async(catalog, Coordinates(group, name, version), self.album_instance.test_manager().test)
+            task = self._run_solution_method_async(catalog, Coordinates(group, name, version),
+                                                   self.album_instance.test_manager().test)
             return {"id": task.id(), "msg": "process started"}
 
         @self.app.route('/deploy')
@@ -243,9 +245,11 @@ class AlbumServer:
                 res = self.album_instance.collection_manager().catalogs().update_collection(dry_run=dry_run)
             elif name is None:
                 catalog = self.album_instance.collection_manager().catalogs().get_by_src(src)
-                res = self.album_instance.collection_manager().catalogs().update_collection(catalog_name=catalog.name(), dry_run=dry_run)
+                res = self.album_instance.collection_manager().catalogs().update_collection(catalog_name=catalog.name(),
+                                                                                            dry_run=dry_run)
             else:
-                res = self.album_instance.collection_manager().catalogs().update_collection(catalog_name=name, dry_run=dry_run)
+                res = self.album_instance.collection_manager().catalogs().update_collection(catalog_name=name,
+                                                                                            dry_run=dry_run)
             r = {}
             for catalog_name in res:
                 r[catalog_name] = res[catalog_name].as_dict()

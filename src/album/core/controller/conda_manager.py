@@ -25,7 +25,6 @@ class CondaManager:
         An installed \"conda\" program must be available and callable via commandline or powershell.
 
     """
-    _configuration = None
 
     def __init__(self, configuration: IConfiguration):
         self._configuration = configuration

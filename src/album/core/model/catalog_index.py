@@ -13,7 +13,6 @@ module_logger = album_logging.get_active_logger
 
 
 class CatalogIndex(ICatalogIndex, Database):
-
     version = "0.1.0"
 
     def __init__(self, name, path):

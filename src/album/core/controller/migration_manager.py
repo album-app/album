@@ -1,16 +1,14 @@
 import json
 import pkgutil
 
-from album.core.model.collection_index import CollectionIndex
-
-from album.core.model.catalog_index import CatalogIndex
 from jsonschema import validate
 
 from album.core.api.album import IAlbum
 from album.core.api.controller.migration_manager import IMigrationManager
-
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
+from album.core.model.catalog_index import CatalogIndex
+from album.core.model.collection_index import CollectionIndex
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger

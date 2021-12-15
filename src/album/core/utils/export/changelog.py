@@ -2,10 +2,10 @@ from datetime import datetime
 from pathlib import Path
 
 import keepachangelog
-from album.runner.album_logging import get_active_logger
 
 from album.core.api.model.catalog import ICatalog
 from album.core.utils.operations.file_operations import create_path_recursively
+from album.runner.album_logging import get_active_logger
 from album.runner.core.api.model.solution import ISolution
 
 
@@ -49,7 +49,7 @@ def create_changelog_file(active_solution: ISolution, catalog: ICatalog, target_
     get_active_logger().debug('Writing changelog file to: %s...' % changelog_path)
     content = get_changelog_content(active_solution, catalog)
     create_path_recursively(changelog_path.parent)
-    with open(changelog_path, 'w+') as yml_f:
+    with open(str(changelog_path), 'w+') as yml_f:
         yml_f.write(content)
     return changelog_path
 
@@ -67,9 +67,13 @@ def process_changelog_file(catalog: ICatalog, active_solution: ISolution, deploy
         # no changelog file found
         if not active_solution.setup().changelog:
             content = get_changelog_content(active_solution, catalog, '- INSERT LIST OF CHANGES')
-            get_active_logger().warn('No %s file found.\nWe recommend documenting changes between versions. '
-                                 'You can either\n\t- use the \'--changelog\' parameter of the deploy command\n\t'
-                                 '- or add a file called %s next to the solution file.\nInsert what\'s printed '
-                                 'between the following lines into %s and add your changes to the version you are '
-                                 'about to release before running \'deploy\':\n\n-----------------\n%s'
-                                 '\n-----------------\n' % (changelog_name, changelog_name, changelog_name, content))
+            get_active_logger().warn(
+                'No %s file found.\nWe recommend documenting changes between versions. '
+                'You can either\n\t- use the \'--changelog\' parameter of the deploy command\n\t'
+                '- or add a file called %s next to the solution file.\nInsert what\'s printed '
+                'between the following lines into %s and add your changes to the version you are '
+                'about to release before running \'deploy\':\n\n-----------------\n%s'
+                '\n-----------------\n' % (
+                    changelog_name, changelog_name, changelog_name, content
+                )
+            )

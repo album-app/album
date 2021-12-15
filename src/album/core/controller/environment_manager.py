@@ -59,7 +59,9 @@ class EnvironmentManager(IEnvironmentManager):
         set_environment_paths(active_solution, environment)
         return environment
 
-    def set_environment_from_database(self, active_solution: ISolution, collection_entry: ICollectionIndex.ICollectionSolution, catalog: ICatalog) -> IEnvironment:
+    def set_environment_from_database(
+            self, active_solution: ISolution, collection_entry: ICollectionIndex.ICollectionSolution, catalog: ICatalog
+    ) -> IEnvironment:
         parent = collection_entry.internal()['parent']
         # solution runs in its own environment
         if not parent:
@@ -90,7 +92,7 @@ class EnvironmentManager(IEnvironmentManager):
         """Removes an environment."""
         return self.conda_manager.remove_environment(environment.name())
 
-    def get_environment_base_folder(self):
+    def get_environment_base_folder(self) -> Path:
         return Path(self.conda_manager.get_base_environment_path())
 
     def run_scripts(self, environment: IEnvironment, scripts):
@@ -103,7 +105,7 @@ class EnvironmentManager(IEnvironmentManager):
         return self.conda_manager
 
     @staticmethod
-    def get_environment_name(coordinates: ICoordinates, catalog: ICatalog):
+    def get_environment_name(coordinates: ICoordinates, catalog: ICatalog) -> str:
         return "_".join([str(catalog.name()), coordinates.group(), coordinates.name(), coordinates.version()])
 
     @staticmethod

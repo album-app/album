@@ -96,10 +96,10 @@ def get_index_as_string(index_dict: dict):
                 for i, solution in enumerate(catalog['solutions']):
                     if i is len(catalog['solutions']) - 1:
                         res += '   └─ %s:%s:%s\n' % (
-                        solution['setup']['group'], solution['setup']['name'], solution['setup']['version'])
+                            solution['setup']['group'], solution['setup']['name'], solution['setup']['version'])
                     else:
                         res += '   ├─ %s:%s:%s\n' % (
-                        solution['setup']['group'], solution['setup']['name'], solution['setup']['version'])
+                            solution['setup']['group'], solution['setup']['name'], solution['setup']['version'])
             else:
                 res += '└─ deletable: %s\n' % catalog['deletable']
     return res

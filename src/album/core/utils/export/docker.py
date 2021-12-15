@@ -1,11 +1,10 @@
 import pkgutil
 from pathlib import Path
 
-from album.runner.album_logging import get_active_logger
-
 import album
 from album.core.utils.operations.file_operations import copy_in_file
 from album.core.utils.operations.resolve_operations import get_zip_name
+from album.runner.album_logging import get_active_logger
 from album.runner.core.api.model.solution import ISolution
 
 

@@ -25,7 +25,9 @@ class IEnvironmentManager:
         raise NotImplementedError
 
     @abstractmethod
-    def set_environment_from_database(self, active_solution: ISolution, collection_entry: ICollectionIndex.ICollectionSolution, catalog: ICatalog) -> IEnvironment:
+    def set_environment_from_database(self, active_solution: ISolution,
+                                      collection_entry: ICollectionIndex.ICollectionSolution,
+                                      catalog: ICatalog) -> IEnvironment:
         """Resolves the environment the active solution runs in (based on the database entries).
 
         Returns the resolve result of the parent of the active solution.

@@ -2,8 +2,8 @@ import argparse
 from queue import Queue, Empty
 from typing import List
 
-from album.core.api.controller.run_manager import IRunManager
 from album.core.api.album import IAlbum
+from album.core.api.controller.run_manager import IRunManager
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.resolve_result import IResolveResult
 from album.core.model.script_queue_entry import ScriptQueueEntry
@@ -71,7 +71,8 @@ class RunManager(IRunManager):
     def run_from_catalog_coordinates(self, catalog_name: str, coordinates: ICoordinates, run_immediately=False,
                                      argv=None):
         catalog = self.album.collection_manager().catalogs().get_by_name(catalog_name)
-        resolve_result = self.album.collection_manager().resolve_download_and_load_catalog_coordinates(catalog, coordinates)
+        resolve_result = self.album.collection_manager().resolve_download_and_load_catalog_coordinates(catalog,
+                                                                                                       coordinates)
         self._run(resolve_result, run_immediately, argv)
 
     def run_from_coordinates(self, coordinates: ICoordinates, run_immediately=False, argv=None):
@@ -80,7 +81,8 @@ class RunManager(IRunManager):
 
     def _run(self, resolve_result: IResolveResult, run_immediately=False, argv=None):
         """Run an already loaded solution."""
-        module_logger().debug("Initializing script to run \"%s\"" % resolve_result.loaded_solution().coordinates().name())
+        module_logger().debug(
+            "Initializing script to run \"%s\"" % resolve_result.loaded_solution().coordinates().name())
 
         if argv is None:
             argv = [""]
@@ -89,12 +91,14 @@ class RunManager(IRunManager):
         que = Queue()
 
         # builds the queue
-        self.build_queue(resolve_result.loaded_solution(), resolve_result.catalog(), que, ScriptCreatorRun(), run_immediately, argv)
+        self.build_queue(resolve_result.loaded_solution(), resolve_result.catalog(), que, ScriptCreatorRun(),
+                         run_immediately, argv)
 
         # runs the queue
         self.run_queue(que)
 
-        module_logger().debug("Finished running script for solution \"%s\"" % resolve_result.loaded_solution().coordinates().name())
+        module_logger().debug(
+            "Finished running script for solution \"%s\"" % resolve_result.loaded_solution().coordinates().name())
 
     def run_queue(self, queue: Queue):
         module_logger().debug("Running queue...")
@@ -108,7 +112,8 @@ class RunManager(IRunManager):
         except Empty:
             module_logger().debug("Currently nothing more to run!")
 
-    def build_queue(self, solution: ISolution, catalog: ICatalog, queue, script_creator: ScriptCreatorRun, run_immediately=False,
+    def build_queue(self, solution: ISolution, catalog: ICatalog, queue, script_creator: ScriptCreatorRun,
+                    run_immediately=False,
                     argv=None):
         if argv is None:
             argv = [""]
@@ -164,7 +169,8 @@ class RunManager(IRunManager):
 
         for step in steps:
             module_logger().debug('resolving step \"%s\"...' % step["name"])
-            resolve_result = self.album.collection_manager().resolve_require_installation_and_load(build_resolve_string(step))
+            resolve_result = self.album.collection_manager().resolve_require_installation_and_load(
+                build_resolve_string(step))
 
             citations.append(resolve_result.loaded_solution())
 
@@ -328,11 +334,14 @@ class RunManager(IRunManager):
         """
         # load parent & steps
         parent_solution = self.album.state_manager().load(solution_collection.parent_script_path)
-        self.album.collection_manager().solutions().set_cache_paths(parent_solution, solution_collection.parent_script_catalog)
+        self.album.collection_manager().solutions().set_cache_paths(parent_solution,
+                                                                    solution_collection.parent_script_catalog)
 
-        environment = self.album.environment_manager().set_environment(parent_solution, solution_collection.parent_script_catalog)
+        environment = self.album.environment_manager().set_environment(parent_solution,
+                                                                       solution_collection.parent_script_catalog)
         module_logger().debug('Creating script for steps (%s) with parent \"%s\"...' % (
-            ", ".join([s.coordinates().name() for s in solution_collection.steps_solution]), parent_solution.coordinates().name()))
+            ", ".join([s.coordinates().name() for s in solution_collection.steps_solution]),
+            parent_solution.coordinates().name()))
 
         # handle arguments
         parsed_parent_args, parsed_steps_args_list = self._resolve_args(
@@ -453,21 +462,26 @@ class RunManager(IRunManager):
                 parsed_parent_args.extend(
                     ["--" + arg_name + "=" + getattr(args_known, arg_name) for arg_name in vars(args_known)])
                 module_logger().debug(
-                    'For step \"%s\" set parent arguments to %s...' % (step_solution.coordinates().name(), parsed_parent_args)
+                    'For step \"%s\" set parent arguments to %s...' % (
+                        step_solution.coordinates().name(), parsed_parent_args
+                    )
                 )
 
             # args_unknown are step args
             parsed_steps_args_list.append(args_unknown)
-            module_logger().debug('For step \"%s\" set step arguments to %s...' % (step_solution.coordinates().name(), args_unknown))
+            module_logger().debug(
+                'For step \"%s\" set step arguments to %s...' % (step_solution.coordinates().name(), args_unknown))
 
         return parsed_parent_args, parsed_steps_args_list
 
     def _run_in_environment_with_own_logger(self, script_queue_entry: ScriptQueueEntry):
         """Pushes a new logger to the stack before running the solution and pops it afterwards."""
         album_logging.configure_logging(script_queue_entry.coordinates.name())
-        module_logger().debug("Running script in environment of solution \"%s\"..." % script_queue_entry.coordinates.name())
+        module_logger().debug(
+            "Running script in environment of solution \"%s\"..." % script_queue_entry.coordinates.name())
         self.album.environment_manager().run_scripts(script_queue_entry.environment, script_queue_entry.scripts)
-        module_logger().debug("Done running script in environment of solution \"%s\"..." % script_queue_entry.coordinates.name())
+        module_logger().debug(
+            "Done running script in environment of solution \"%s\"..." % script_queue_entry.coordinates.name())
         album_logging.pop_active_logger()
 
     @staticmethod

@@ -14,6 +14,7 @@ class LogHandler(ILogHandler):
     def records(self):
         return self._records
 
+
 class Task(ITask):
     _id = None
     _method = None
@@ -44,5 +45,3 @@ class Task(ITask):
 
     def set_id(self, new_id):
         self._id = new_id
-
-

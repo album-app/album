@@ -22,4 +22,3 @@ class ITestManager:
     @abstractmethod
     def test_from_coordinates(self, coordinates: ICoordinates, argv=None):
         raise NotImplementedError
-

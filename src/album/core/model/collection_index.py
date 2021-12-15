@@ -3,8 +3,8 @@ from datetime import datetime
 from typing import Optional, List
 
 from album.core.api.model.collection_index import ICollectionIndex
-from album.core.model.database import Database
 from album.core.model.catalog_index import CatalogIndex
+from album.core.model.database import Database
 from album.core.utils.operations.file_operations import get_dict_entry
 from album.core.utils.operations.solution_operations import get_solution_hash
 from album.runner.core.api.model.coordinates import ICoordinates
@@ -142,7 +142,7 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return catalog
 
-    def get_catalog_by_name(self, catalog_name, close=True):
+    def get_catalog_by_name(self, catalog_name: str, close=True):
         cursor = self.get_cursor()
 
         r = cursor.execute(
@@ -160,7 +160,7 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return catalog
 
-    def get_catalog_by_path(self, catalog_path, close=True):
+    def get_catalog_by_path(self, catalog_path: str, close=True):
         cursor = self.get_cursor()
 
         r = cursor.execute(
@@ -178,7 +178,7 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return catalog
 
-    def get_catalog_by_src(self, catalog_src, close=True):
+    def get_catalog_by_src(self, catalog_src: str, close=True):
         cursor = self.get_cursor()
 
         r = cursor.execute(

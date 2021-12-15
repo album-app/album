@@ -72,7 +72,7 @@ class ICatalogIndex(IDatabase):
 
         """
         raise NotImplementedError
-    
+
     def get_all_solution_versions(self, group: str, name: str, close: bool = True) -> Optional[List[dict]]:
         raise NotImplementedError
 
