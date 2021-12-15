@@ -171,7 +171,7 @@ def create_parser():
         help='path for the solution file, group:name:version or name of the catalog template.'
     )
     p.add_argument(
-        'target-dir',
+        'target_dir',
         type=str,
         help='The target directory where the solution or catalog will be added to.'
     )

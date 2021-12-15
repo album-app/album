@@ -728,16 +728,32 @@ class CollectionIndex(ICollectionIndex, Database):
         return parent_solution
 
     def get_all_solutions(self, close=True) -> List[CollectionSolution]:
-        installed_solutions_list = []
+        solutions_list = []
         cursor = self.get_cursor()
         for row in cursor.execute("SELECT * FROM collection").fetchall():
             solution = self._process_solution_row(dict(row), close=False)
-            installed_solutions_list.append(solution)
+            solutions_list.append(solution)
 
         if close:
             self.close_current_connection()
 
-        return installed_solutions_list
+        return solutions_list
+
+    def get_all_installed_solutions_by_catalog(self, catalog_id, close=True):
+        solutions_list = []
+
+        cursor = self.get_cursor()
+        for row in cursor.execute(
+                "SELECT * FROM collection WHERE installed=:installed AND catalog_id=:catalog_id",
+                {"installed": 1, "catalog_id": catalog_id}
+        ).fetchall():
+            solution = self._process_solution_row(dict(row), close=False)
+            solutions_list.append(solution)
+
+        if close:
+            self.close_current_connection()
+
+        return solutions_list
 
     def _process_solution_row(self, solution_dict, close=True) -> CollectionSolution:
         setup = {}
@@ -985,7 +1001,7 @@ class CollectionIndex(ICollectionIndex, Database):
         return solution
 
     def get_solutions_by_grp_name_version(self, coordinates: ICoordinates, close=True) -> List[CollectionSolution]:
-        installed_solutions_list = []
+        solutions_list = []
 
         cursor = self.get_cursor()
         for row in cursor.execute(
@@ -997,12 +1013,12 @@ class CollectionIndex(ICollectionIndex, Database):
                 }
         ).fetchall():
             solution = self._process_solution_row(dict(row), close=False)
-            installed_solutions_list.append(solution)
+            solutions_list.append(solution)
 
         if close:
             self.close_current_connection()
 
-        return installed_solutions_list
+        return solutions_list
 
     def get_recently_installed_solutions(self, close=True) -> List[CollectionSolution]:
         solutions_list = []

@@ -185,10 +185,17 @@ class CatalogHandler(ICatalogHandler):
             raise LookupError("Cannot remove catalog! Not configured...") from err
 
         if not catalog_to_remove.is_deletable():
-            module_logger().warning("Cannot remove catalog! Marked as not deletable! Will do nothing...")
-            return None
+            raise AttributeError("Cannot remove catalog! Marked as not deletable!")
 
-        # todo: check for installed solutions and or parents! and fail
+        installed_solutions = self.get_installed_solutions(catalog_to_remove)
+
+        if installed_solutions:
+            installed_solutions_string = ", ".join([str(dict_to_coordinates(i.setup())) for i in installed_solutions])
+            raise RuntimeError(
+                "Cannot remove catalog! "
+                "Has the following solutions installed: %s" % installed_solutions_string
+            )
+
         self.album.collection_manager().get_collection_index().remove_catalog(catalog_to_remove.catalog_id())
 
         force_remove(catalog_to_remove.path())
@@ -242,6 +249,12 @@ class CatalogHandler(ICatalogHandler):
         module_logger().info("Removed catalog with source %s" % str(src))
 
         return catalog_to_remove
+
+    def get_installed_solutions(self, catalog: ICatalog):
+        installed_solutions = self.album.collection_manager().get_collection_index().get_all_installed_solutions_by_catalog(
+            catalog.catalog_id()
+        )
+        return installed_solutions
 
     def get_all_as_dict(self) -> dict:
         return {

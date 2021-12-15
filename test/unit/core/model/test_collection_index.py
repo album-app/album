@@ -549,6 +549,41 @@ class TestCollectionIndex(TestUnitCommon):
             self.assertEqual('name%s' % str(i), r[i - 1]._setup['name'])
             self.assertEqual('version%s' % str(i), r[i - 1]._setup['version'])
 
+    def test_get_all_installed_solutions_by_catalog(self):
+        self.test_catalog_collection_index.insert_solution(
+            "cat1", self._get_solution_attrs(1, "grp1", "name1", "version1")
+        )
+        self.test_catalog_collection_index.insert_solution(
+            "cat2", self._get_solution_attrs(2, "grp2", "name2", "version2")
+        )
+        self.test_catalog_collection_index.insert_solution(
+            "cat2", self._get_solution_attrs(3, "grp3", "name3", "version3")
+        )
+        self.test_catalog_collection_index.insert_solution(
+            "cat2", self._get_solution_attrs(4, "grp4", "name4", "version4")
+        )
+
+        supp_attrs = ["installed", "installation_unfinished"]
+        self.test_catalog_collection_index.update_solution(
+            "cat2", Coordinates("grp2", "name2", "version2"), {"installed": 1, "installation_unfinished": 0}, supp_attrs
+        )
+        self.test_catalog_collection_index.update_solution(
+            "cat2", Coordinates("grp4", "name4", "version4"), {"installed": 1, "installation_unfinished": 0}, supp_attrs
+        )
+
+        # call
+        r1 = self.test_catalog_collection_index.get_all_installed_solutions_by_catalog("cat1")
+        r2 = self.test_catalog_collection_index.get_all_installed_solutions_by_catalog("cat2")
+
+        # assert
+        expected = [
+            self.test_catalog_collection_index.get_solution_by_collection_id(2),
+            self.test_catalog_collection_index.get_solution_by_collection_id(4)
+        ]
+
+        self.assertEqual([], r1)
+        self.assertListEqual(expected, r2)
+
     @unittest.skip("Needs to be implemented!")
     def test_get_solutions_by_catalog(self):
         pass
@@ -757,7 +792,7 @@ class TestCollectionIndex(TestUnitCommon):
         self.test_catalog_collection_index.insert_solution("cat1",
                                                            self._get_solution_attrs(1, "grp", "name", "version"))
         s2 = self.test_catalog_collection_index.insert_solution("cat2",
-                                                           self._get_solution_attrs(2, "grp", "name", "version"))
+                                                                self._get_solution_attrs(2, "grp", "name", "version"))
         self.test_catalog_collection_index.insert_solution("cat1",
                                                            self._get_solution_attrs(3, "grp_d", "name_d", "version_d"))
 
@@ -860,7 +895,13 @@ class TestCollectionIndex(TestUnitCommon):
         self.test_catalog_collection_index.insert_solution("cat1",
                                                            self._get_solution_attrs(3, "grp_d", "name_d", "version_d"))
 
+        supp_attrs = ["installed", "installation_unfinished"]
+        self.test_catalog_collection_index.update_solution(
+            "cat2", Coordinates("grp", "name", "version"), {"installed": 1, "installation_unfinished": 0}, supp_attrs
+        )
+
         self.assertFalse(self.test_catalog_collection_index.is_installed("cat1", Coordinates("grp", "name", "version")))
+        self.assertTrue(self.test_catalog_collection_index.is_installed("cat2", Coordinates("grp", "name", "version")))
 
     def _get_solution_attrs(self, solution_id, group, name, version, doi=None, attrs=None):
 

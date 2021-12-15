@@ -67,7 +67,7 @@ def process_changelog_file(catalog: ICatalog, active_solution: ISolution, deploy
         # no changelog file found
         if not active_solution.setup().changelog:
             content = get_changelog_content(active_solution, catalog, '- INSERT LIST OF CHANGES')
-            get_active_logger().warn(
+            get_active_logger().warning(
                 'No %s file found.\nWe recommend documenting changes between versions. '
                 'You can either\n\t- use the \'--changelog\' parameter of the deploy command\n\t'
                 '- or add a file called %s next to the solution file.\nInsert what\'s printed '

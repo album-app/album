@@ -75,6 +75,10 @@ class ICollectionIndex(IDatabase):
         raise NotImplementedError
 
     @abstractmethod
+    def get_all_installed_solutions_by_catalog(self, catalog_id, close: bool = True) -> List[ICollectionSolution]:
+        raise NotImplementedError
+
+    @abstractmethod
     def get_solutions_by_catalog(self, catalog_id, close: bool = True) -> List[ICollectionSolution]:
         raise NotImplementedError
 

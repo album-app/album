@@ -196,6 +196,11 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         res_recently_launched = client.get("/recently-launched")
         self.assertEqual(200, res_recently_launched.status_code)
 
+        # remove solution
+        res_uninstall = client.get(f'/uninstall/{local_catalog_name}/{group}/{name}/{version}')
+        self.assertEqual(200, res_uninstall.status_code)
+        self._finish_taskmanager_with_timeout(self.album_instance.task_manager(), 600)
+
         # remove catalog
         res_status = client.get("/remove-catalog?src=" + urllib.parse.quote((str(local_catalog_path))))
         self.assertEqual(200, res_status.status_code)

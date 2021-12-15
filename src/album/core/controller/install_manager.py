@@ -244,7 +244,6 @@ class InstallManager(IInstallManager):
                     children.append(str(dict_to_coordinates(child_solution.setup())))
 
             if children:
-
                 module_logger().info("The following solutions depend on this installation: %s. Not uninstalling %s..."
                                      % (", ".join(children), str(resolve_result.coordinates())))
                 if parent:
