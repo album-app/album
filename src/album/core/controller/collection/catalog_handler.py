@@ -40,25 +40,30 @@ class CatalogHandler(ICatalogHandler):
             self.add_by_src(initial_catalogs[catalog], initial_catalogs_branch_name[catalog]).dispose()
 
     def add_by_src(self, identifier, branch_name="main") -> Catalog:
-        catalog_meta_information = self._retrieve_catalog_meta_information(identifier, branch_name)
+        catalog_dict = self.album.collection_manager().get_collection_index().get_catalog_by_src(identifier)
+        if catalog_dict:
+            module_logger().warning("Cannot add catalog twice! Doing nothing...")
+            return self._as_catalog(catalog_dict)
+        else:
+            catalog_meta_information = self._retrieve_catalog_meta_information(identifier, branch_name)
 
-        catalog = self._create_catalog_from_src(identifier, catalog_meta_information, branch_name)
+            catalog = self._create_catalog_from_src(identifier, catalog_meta_information, branch_name)
 
-        # always keep the local copy up to date
-        if not catalog.is_cache():
-            catalog_meta_information = catalog_meta_information
-            self.album.migration_manager().migrate_catalog_index_db(
-                catalog.index_path(),  # the path to the catalog
-                catalog_meta_information["version"],  # eventually outdated remote version
-                CatalogIndex.version  # current version in the library
-            )
+            # always keep the local copy up to date
+            if not catalog.is_cache():
+                catalog_meta_information = catalog_meta_information
+                self.album.migration_manager().migrate_catalog_index_db(
+                    catalog.index_path(),  # the path to the catalog
+                    catalog_meta_information["version"],  # eventually outdated remote version
+                    CatalogIndex.version  # current version in the library
+                )
 
-        self._add_to_index(catalog)
-        self._create_catalog_cache_if_missing(catalog)
-        self.album.migration_manager().load_index(catalog)
+            self._add_to_index(catalog)
+            self._create_catalog_cache_if_missing(catalog)
+            self.album.migration_manager().load_index(catalog)
 
-        module_logger().info('Added catalog %s!' % identifier)
-        return catalog
+            module_logger().info('Added catalog %s!' % identifier)
+            return catalog
 
     def _add_to_index(self, catalog: ICatalog) -> int:
         catalog_id = self.album.collection_manager().get_collection_index().insert_catalog(

@@ -1,3 +1,4 @@
+import json
 from copy import deepcopy
 from pathlib import Path
 from unittest.mock import MagicMock, call, patch
@@ -44,6 +45,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         # assert
         self.assertEqual(2, add_by_src_mock.call_count)
 
+    # Info: this is rather a small integration test.
     def test_add_by_src(self):
         catalog_name = "aNiceCatalog"
         catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", catalog_name)
@@ -52,7 +54,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             config.writelines("{\"name\": \"" + catalog_name + "\", \"version\": \"0.1.0\"}")
 
         # call
-        catalog = self.catalog_handler.add_by_src(catalog_src)
+        catalog = self.catalog_handler.add_by_src(str(catalog_src))
 
         # assert
         expected_list = deepcopy(self.catalog_list)
@@ -66,6 +68,33 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             "src": str(catalog_src),
         })
         self.assertEqual(expected_list, self.collection_manager.get_collection_index().get_all_catalogs())
+
+    # Info: this is rather a small integration test. 
+    def test_add_by_src_already_present(self):
+        catalog_name = "aNiceCatalog"
+        catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", catalog_name)
+        catalog_src.mkdir(parents=True)
+        catalog_index_metafile_json_path = catalog_src.joinpath(DefaultValues.catalog_index_metafile_json.value)
+        index_meta_string = "{\"name\": \"" + catalog_name + "\", \"version\": \"0.1.0\"}"
+
+        with open(catalog_index_metafile_json_path, 'w') as config:
+            config.writelines(index_meta_string)
+
+        catalog_index_metafile_json_dict = json.loads(index_meta_string)
+
+        _retrieve_catalog_meta_information = MagicMock(return_value=catalog_index_metafile_json_dict)
+        self.catalog_handler._retrieve_catalog_meta_information = _retrieve_catalog_meta_information
+
+        # add and assert
+        _ = self.catalog_handler.add_by_src(str(catalog_src))
+        _retrieve_catalog_meta_information.assert_called()
+        _retrieve_catalog_meta_information.reset_mock()
+
+        # call
+        self.catalog_handler.add_by_src(str(catalog_src))
+
+        # assert
+        _retrieve_catalog_meta_information.assert_not_called()
 
     def test__add_to_index(self):
         # prepare
@@ -519,7 +548,8 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.assertEqual({"catalogs": "abc"}, x)
 
     def test__create_catalog_from_src(self):
-        with patch("album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information") as retrieve_c_m_i_mock:
+        with patch(
+                "album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information") as retrieve_c_m_i_mock:
             retrieve_c_m_i_mock.side_effect = [{"name": "mynewcatalog", "version": "0.1.0"}]
 
             # call
@@ -694,7 +724,8 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         catalog = self.create_test_catalog()
 
         # mocks
-        with patch('album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information') as retrieve_c_m_i_mock:
+        with patch(
+                'album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information') as retrieve_c_m_i_mock:
             retrieve_c_m_i_mock.return_value = {'version': '0.1.0'}
 
             # call
@@ -719,7 +750,8 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         catalog = self.create_test_catalog()
 
         # mocks
-        with patch('album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information') as retrieve_c_m_i_mock:
+        with patch(
+                'album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information') as retrieve_c_m_i_mock:
             retrieve_c_m_i_mock.return_value = {"version": "0.1.1"}  # version the meta file claims
 
             # call
@@ -733,7 +765,8 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         catalog = self.create_test_catalog()
 
         # mocks
-        with patch('album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information') as retrieve_c_m_i_mock:
+        with patch(
+                'album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information') as retrieve_c_m_i_mock:
             retrieve_c_m_i_mock.return_value = None  # no meta info available
 
             # call
