@@ -133,7 +133,7 @@ gitlab release:
   image: registry.gitlab.com/gitlab-org/release-cli:latest
   tags:
     - DeployRunner
-    - docker
+    - DeployDocker
   script:
     - echo "running release_job"
     - version=$(cat setup.cfg | grep "version=*" | awk '{split($0, s, " "); print s[3]}')
@@ -174,7 +174,7 @@ pypi deploy:
   stage: deploy
   tags:
     - DeployRunner
-    - docker
+    - DeployDocker
   needs:
     - job: gitlab release
       artifacts: true
