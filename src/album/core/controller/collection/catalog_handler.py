@@ -130,7 +130,7 @@ class CatalogHandler(ICatalogHandler):
 
     def _update(self, catalog: Catalog) -> bool:
         r = self.album.migration_manager().refresh_index(catalog)
-        module_logger().info('Updated catalog %s!' % catalog.name)
+        module_logger().info('Updated catalog %s!' % catalog.name())
         return r
 
     def update_by_name(self, catalog_name) -> bool:
@@ -145,7 +145,7 @@ class CatalogHandler(ICatalogHandler):
                 r = self._update(catalog)
                 catalog_r.append(r)
             except Exception:
-                module_logger().warning("Failed to update catalog %s!" % catalog.name)
+                module_logger().warning("Failed to update catalog %s!" % catalog.name())
                 catalog_r.append(False)
                 pass
 

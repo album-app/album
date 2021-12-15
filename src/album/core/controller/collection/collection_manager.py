@@ -110,7 +110,7 @@ class CollectionManager(ICollectionManager):
             raise LookupError("Solution not found!")
 
         if not resolve_result.collection_entry().internal()["installed"]:
-            raise ValueError("Solution seems not to be installed! Please install solution first!", resolve_result)
+            raise ValueError("Solution seems not to be installed! Please install solution first!")
 
         return resolve_result
 

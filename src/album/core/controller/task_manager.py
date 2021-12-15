@@ -29,7 +29,7 @@ class TaskManager(ITaskManager):
     def _initialize_workers(self):
         self.workers_initialized = True
         current_thread = threading.current_thread().ident
-        module_logger().info(f"TaskManager: Initializing {self.num_fetch_threads} worker threads..")
+        module_logger().info(f"TaskManager: Initializing {self.num_fetch_threads} worker threads...")
         for i in range(self.num_fetch_threads):
             worker = Thread(target=self._run_queue_entry, args=(i, current_thread))
             worker.setDaemon(True)
@@ -83,7 +83,7 @@ class TaskManager(ITaskManager):
             self.server_queue.task_done()
 
     def _handle_task(self, task: ITask):
-        module_logger().info(f"TaskManager: starting task {task.id()}..")
+        module_logger().info(f"TaskManager: starting task {task.id()}...")
         logger = album_logging.configure_logging("task" + str(task.id()))
         handler = LogHandler()
         task.set_log_handler(handler)

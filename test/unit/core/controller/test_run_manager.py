@@ -165,7 +165,7 @@ class TestRunManager(TestUnitCommon):
                 catalog=catalog,
                 loaded_solution=self.active_solution,
                 collection_entry=None,
-                coordinates=self.active_solution.coordinates
+                coordinates=self.active_solution.coordinates()
             )
         )
         self.collection_manager.resolve_require_installation_and_load = resolve_require_installation_and_load
@@ -409,7 +409,7 @@ class TestRunManager(TestUnitCommon):
         # mock
         load_mock.return_value = self.active_solution
         catalog = EmptyTestClass()
-        catalog.name = lambda: "niceName"
+        catalog._name = lambda: "niceName"
 
         resolve_args = MagicMock(return_value=["parent_args", "active_solution_args"])
         self.run_manager._resolve_args = resolve_args

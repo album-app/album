@@ -84,7 +84,7 @@ class InstallManager(IInstallManager):
 
         CAUTION: Solution must be loaded!
         """
-        module_logger().info('Installing \"%s\"..' % resolve_result.loaded_solution().coordinates().name())
+        module_logger().info('Installing \"%s\"...' % resolve_result.loaded_solution().coordinates().name())
         if not parent:  # fail when already installed
             if self._resolve_result_is_installed(resolve_result):
                 raise RuntimeError("Solution already installed. Uninstall solution first!")
@@ -217,7 +217,7 @@ class InstallManager(IInstallManager):
     def _uninstall(self, resolve_solution, rm_dep=False, argv=None, parent=False):
         """Internal installation entry point for `uninstall` subcommand of `album`."""
         resolve_result = self.album.collection_manager().resolve_require_installation_and_load(resolve_solution)
-        module_logger().info("Uninstalling \"%s\".." % resolve_result.loaded_solution().coordinates().name())
+        module_logger().info("Uninstalling \"%s\"..." % resolve_result.loaded_solution().coordinates().name())
 
         # get the environment
         environment = self.album.environment_manager().set_environment_from_database(resolve_result.loaded_solution(), resolve_result.collection_entry(), resolve_result.catalog())

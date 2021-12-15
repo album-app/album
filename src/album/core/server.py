@@ -31,7 +31,7 @@ class AlbumServer:
         self.album_instance = album_instance
 
     def start(self, test_config=None):
-        module_logger().info('Starting server..')
+        module_logger().info('Starting server...')
         self.init_server(test_config)
         self.app.run(port=self.port, host=self.host)
 

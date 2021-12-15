@@ -32,9 +32,9 @@ def get_solution_as_string(solution: ISolution, solution_path):
     res += '\n'
     res += 'Usage:\n\n'
     res += '  album install %s\n' % solution_path
-    res += '  album run %s %s\n' % (solution.coordinates, param_example_str)
-    res += '  album test %s\n' % solution.coordinates
-    res += '  album uninstall %s\n' % solution.coordinates
+    res += '  album run %s %s\n' % (solution.coordinates(), param_example_str)
+    res += '  album test %s\n' % solution.coordinates()
+    res += '  album uninstall %s\n' % solution.coordinates()
     res += '\n'
     if setup.args:
         res += 'Run parameters:\n\n'
