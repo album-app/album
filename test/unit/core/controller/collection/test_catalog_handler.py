@@ -11,6 +11,7 @@ from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.runner.core.model.coordinates import Coordinates
 from test.unit.core.controller.collection.test_collection_manager import TestCatalogCollectionCommon
+from test.unit.test_unit_common import EmptyTestClass
 
 
 class TestCatalogHandler(TestCatalogCollectionCommon):
@@ -352,8 +353,8 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         catalog = self.catalog_handler._as_catalog(catalog_dict)
 
         # mocks
-        has_installed_solutions = MagicMock(return_value=False)
-        self.catalog_handler.has_installed_solutions = has_installed_solutions
+        get_installed_solutions = MagicMock(return_value=[])
+        self.catalog_handler.get_installed_solutions = get_installed_solutions
 
         get_by_id_mock = MagicMock(return_value=catalog)
         self.catalog_handler.get_by_id = get_by_id_mock
@@ -365,7 +366,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         c = self.catalog_handler._remove_from_collection(catalog_dict)
 
         # assert
-        has_installed_solutions.assert_called_once()
+        get_installed_solutions.assert_called_once()
         get_by_id_mock.assert_called_once_with(1)
         force_remove_mock.assert_called_once_with(Path("myPath"))
         self.assertEqual(catalog, c)
@@ -384,8 +385,13 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         catalog = self.catalog_handler._as_catalog(catalog_dict)
 
         # mocks
-        has_installed_solutions = MagicMock(return_value=True)
-        self.catalog_handler.has_installed_solutions = has_installed_solutions
+        def s():
+            return {"name": "n", "version": "v", "group": "g"}
+
+        e = EmptyTestClass()
+        e.setup = s
+        get_installed_solutions = MagicMock(return_value=[e])
+        self.catalog_handler.get_installed_solutions = get_installed_solutions
 
         get_by_id_mock = MagicMock(return_value=catalog)
         self.catalog_handler.get_by_id = get_by_id_mock
@@ -398,7 +404,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             self.catalog_handler._remove_from_collection(catalog_dict)
 
         # assert
-        has_installed_solutions.assert_called_once()
+        get_installed_solutions.assert_called_once()
         get_by_id_mock.assert_called_once_with(1)
         force_remove_mock.assert_not_called()
 
@@ -415,8 +421,8 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         }
 
         # mocks
-        has_installed_solutions = MagicMock(return_value=False)
-        self.catalog_handler.has_installed_solutions = has_installed_solutions
+        get_installed_solutions = MagicMock(return_value=[])
+        self.catalog_handler.get_installed_solutions = get_installed_solutions
 
         get_by_id_mock = MagicMock(side_effect=LookupError(""))
         self.catalog_handler.get_by_id = get_by_id_mock
@@ -429,7 +435,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             self.catalog_handler._remove_from_collection(catalog_dict)
 
         # assert
-        has_installed_solutions.assert_not_called()
+        get_installed_solutions.assert_not_called()
         get_by_id_mock.assert_called_once_with(1)
         force_remove_mock.assert_not_called()
 
@@ -447,7 +453,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         catalog = self.catalog_handler._as_catalog(catalog_dict)
 
         # mocks
-        has_installed_solutions = MagicMock(return_value=False)
+        has_installed_solutions = MagicMock(return_value=[])
         self.catalog_handler.has_installed_solutions = has_installed_solutions
 
         get_by_id_mock = MagicMock(return_value=catalog)
@@ -532,10 +538,10 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
     def test_remove_from_collection_by_name_undeletable(self):
         # call
         catalogs = self.collection_manager.get_collection_index().get_all_catalogs()
-        x = self.catalog_handler.remove_from_collection_by_name(catalogs[0]['name'])
+        with self.assertRaises(AttributeError):
+            self.catalog_handler.remove_from_collection_by_name(catalogs[0]['name'])
 
         # assert
-        self.assertIsNone(x)
         self.assertEqual(self.catalog_list,
                          self.collection_manager.get_collection_index().get_all_catalogs())  # nothing changed
 
