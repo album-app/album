@@ -159,7 +159,7 @@ gitlab pypi deploy:
   stage: deploy
   tags:
     - DeployRunner
-    - docker
+    - DeployDocker
   needs:
     - job: gitlab release
       artifacts: true
@@ -182,13 +182,16 @@ pypi deploy:
     - echo "deploying pypi version "$VERSION
     - echo "using pypi deploy user "$PYPI_DEPLOY_USER
   script:
-    - echo "Upload will follow here" # FIXME: INSERT CODE
+    - echo "deploying gitlab pypi version "$VERSION
+    - pip install twine
+    - python setup.py sdist bdist_wheel
+    #- TWINE_PASSWORD=${$PYPI_DEPLOY_TOKEN} TWINE_USERNAME=${$PYPI_DEPLOY_USER} python -m twine upload --repository-url https://upload.pypi.org/legacy/  dist/*  FIXME: UNCOMMENT AFTER TESTING
 
 gitlab docker deploy:
   stage: deploy
   tags:
     - DeployRunner
-    - shell
+    - DeployShell
   needs:
     - job: gitlab release
       artifacts: true
@@ -205,7 +208,7 @@ docker deploy:
   stage: deploy
   tags:
     - DeployRunner
-    - shell
+    - DeployShell
   needs:
     - job: gitlab release
       artifacts: true
