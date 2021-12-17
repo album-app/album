@@ -28,7 +28,7 @@ def update(album_instance: IAlbum, args):
 def upgrade(album_instance: IAlbum, args):
     dry_run = getattr(args, "dry_run", False)
     updates = album_instance.collection_manager().catalogs().update_collection(getattr(args, "catalog_name", None),
-                                                               dry_run=dry_run)
+                                                                               dry_run=dry_run)
     print_json = _get_print_json(args)
     if print_json:
         print(_as_json(updates))
@@ -44,7 +44,8 @@ def upgrade(album_instance: IAlbum, args):
 
 def deploy(album_instance: IAlbum, args):
     album_instance.deploy_manager().deploy(
-        args.path, args.catalog, args.dry_run, args.push_option, args.git_email, args.git_name, args.force_deploy, args.changelog
+        args.path, args.catalog, args.dry_run, args.push_option, args.git_email, args.git_name, args.force_deploy,
+        args.changelog
     )
 
 
@@ -114,9 +115,10 @@ def repl(album_instance: IAlbum, args):
     queue = Queue()
     script_creator = ScriptRepl()
     album_instance.run_manager().build_queue(resolve_result.loaded_solution(), resolve_result.catalog(), queue,
-                                         script_creator, False, [""])
+                                             script_creator, False, [""])
     script_queue_entry = queue.get(block=False)
-    album_instance.environment_manager().get_conda_manager().run_scripts(script_queue_entry.environment, script_queue_entry.scripts, pipe_output=False)
+    album_instance.environment_manager().get_conda_manager().run_scripts(script_queue_entry.environment,
+                                                                         script_queue_entry.scripts, pipe_output=False)
     module_logger().info('Ran REPL for \"%s\"!' % resolve_result.loaded_solution().coordinates().name())
 
 

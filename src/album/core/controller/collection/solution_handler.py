@@ -70,11 +70,15 @@ class SolutionHandler(ISolutionHandler):
     def remove_solution(self, catalog: ICatalog, coordinates: ICoordinates):
         self.album.collection_manager().get_collection_index().remove_solution(catalog.catalog_id(), coordinates)
 
-    def update_solution(self, catalog: ICatalog, coordinates: ICoordinates, attrs):
-        self.album.collection_manager().get_collection_index().update_solution(catalog.catalog_id(), coordinates, attrs,
-                                                CollectionIndex.get_collection_column_keys())
+    def update_solution(self, catalog: ICatalog, coordinates: ICoordinates, attrs: dict):
+        self.album.collection_manager().get_collection_index().update_solution(
+            catalog.catalog_id(),
+            coordinates,
+            attrs,
+            CollectionIndex.get_collection_column_keys()
+        )
 
-    def apply_change(self, catalog, change: ISolutionChange):
+    def apply_change(self, catalog: ICatalog, change: ISolutionChange):
         # FIXME handle other tables (tags etc)
         if change.change_type() is ChangeType.ADDED:
             self.album.collection_manager().get_collection_index().add_or_replace_solution(
@@ -146,10 +150,11 @@ class SolutionHandler(ISolutionHandler):
 
         return solution_path
 
-    def set_cache_paths(self, solution: ISolution, catalog):
+    def set_cache_paths(self, solution: ISolution, catalog: ICatalog):
         # Note: cache paths need the catalog the solution lives in - otherwise there might be problems with solutions
         # of different catalogs doing similar operations (e.g. downloads) as they might share the same cache path.
-        path_suffix = Path("").joinpath(solution.coordinates().group(), solution.coordinates().name(), solution.coordinates().version())
+        path_suffix = Path("").joinpath(solution.coordinates().group(), solution.coordinates().name(),
+                                        solution.coordinates().version())
         # FIXME this should be set differently, but not sure if we want to add public setters for these variables
         catalog_name = catalog.name()
         solution.installation().set_data_path(

@@ -16,7 +16,6 @@ class ILogHandler(Handler):
 
 
 class ITask:
-
     __metaclass__ = ABCMeta
 
     @unique

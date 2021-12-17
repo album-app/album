@@ -28,7 +28,10 @@ class TestManager(ITestManager):
 
     def test_from_catalog_coordinates(self, catalog_name: str, coordinates: ICoordinates, argv=None):
         catalog = self.album.collection_manager().catalogs().get_by_name(catalog_name)
-        resolve_result = self.album.collection_manager().resolve_download_and_load_catalog_coordinates(catalog, coordinates)
+        resolve_result = self.album.collection_manager().resolve_download_and_load_catalog_coordinates(
+            catalog,
+            coordinates
+        )
 
         self._test(resolve_result, argv)
 
@@ -48,7 +51,9 @@ class TestManager(ITestManager):
             script_test_creator = ScriptTestCreator()
 
             # do not run queue immediately
-            self.album.run_manager().build_queue(solution, resolve_result.catalog(), queue, script_test_creator, False, args)
+            self.album.run_manager().build_queue(
+                solution, resolve_result.catalog(), queue, script_test_creator, False, args
+            )
 
             # runs the queue
             self.album.run_manager().run_queue(queue)

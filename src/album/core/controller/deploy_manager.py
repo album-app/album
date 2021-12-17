@@ -78,7 +78,8 @@ class DeployManager(IDeployManager):
         else:
             module_logger().info('Successfully deployed %s to %s.' % (deploy_path, catalog_name))
 
-    def _deploy_to_remote_catalog(self, catalog: ICatalog, active_solution: ISolution, deploy_path, dry_run, push_option,
+    def _deploy_to_remote_catalog(self, catalog: ICatalog, active_solution: ISolution, deploy_path, dry_run,
+                                  push_option,
                                   git_email=None, git_name=None):
         """Routine to deploy to a remote catalog."""
         dl_path = self.get_download_path(catalog)
@@ -134,7 +135,7 @@ class DeployManager(IDeployManager):
 
         # include files/folders in catalog
         zip_path, export = self._deploy_routine_in_local_src(catalog, catalog_local_src, active_solution,
-                                                                      deploy_path)
+                                                             deploy_path)
 
         # copy to source
         if not dry_run:

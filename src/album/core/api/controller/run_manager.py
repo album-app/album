@@ -24,7 +24,7 @@ class IRunManager:
 
     @abstractmethod
     def run_from_catalog_coordinates(self, catalog_name: str, coordinates: ICoordinates, run_immediately=False,
-                                         argv=None):
+                                     argv=None):
         raise NotImplementedError
 
     @abstractmethod
@@ -43,7 +43,8 @@ class IRunManager:
         raise NotImplementedError
 
     @abstractmethod
-    def build_queue(self, solution: ISolution, catalog: ICatalog, queue, script_creator: IScriptCreator, run_immediately=False,
+    def build_queue(self, solution: ISolution, catalog: ICatalog, queue, script_creator: IScriptCreator,
+                    run_immediately=False,
                     argv=None):
         """Builds the queue of an active-album object.
 

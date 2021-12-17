@@ -8,7 +8,8 @@ from album.runner.core.api.model.solution import ISolution
 
 
 class ResolveResult(IResolveResult):
-    def __init__(self, path, catalog: ICatalog, collection_entry: ICollectionIndex.ICollectionSolution, coordinates: ICoordinates, loaded_solution=None):
+    def __init__(self, path, catalog: ICatalog, collection_entry: ICollectionIndex.ICollectionSolution,
+                 coordinates: ICoordinates, loaded_solution=None):
         self._catalog: ICatalog = catalog
         self._path = path
         self._collection_entry: ICollectionIndex.ICollectionSolution = collection_entry

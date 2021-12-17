@@ -1,13 +1,15 @@
-from album.core.api.album import IAlbum
 from album.ci.controller.release_manager import ReleaseManager
+from album.core.api.album import IAlbum
 
 
 def configure_repo(album_instance: IAlbum, args):
-    ReleaseManager(album_instance, args.name, args.path, args.src, args.force_retrieve).configure_repo(args.ci_user_name, args.ci_user_email)
+    ReleaseManager(album_instance, args.name, args.path, args.src, args.force_retrieve).configure_repo(
+        args.ci_user_name, args.ci_user_email)
 
 
 def configure_ssh(album_instance: IAlbum, args):
-    ReleaseManager(album_instance, args.name, args.path, args.src, args.force_retrieve).configure_ssh(args.ci_project_path)
+    ReleaseManager(album_instance, args.name, args.path, args.src, args.force_retrieve).configure_ssh(
+        args.ci_project_path)
 
 
 def zenodo_publish(album_instance: IAlbum, args):
@@ -36,4 +38,3 @@ def merge(album_instance: IAlbum, args):
     ReleaseManager(album_instance, args.name, args.path, args.src, args.force_retrieve).merge(
         args.branch_name, args.dry_run, args.push_option, args.ci_user_name, args.ci_user_email
     )
-

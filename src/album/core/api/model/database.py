@@ -3,7 +3,6 @@ from sqlite3 import Connection, Cursor
 
 
 class IDatabase:
-
     __metaclass__ = ABCMeta
 
     @abstractmethod

@@ -118,6 +118,11 @@ class ICatalogHandler:
         raise NotImplementedError
 
     @abstractmethod
+    def get_installed_solutions(self, catalog: ICatalog) -> list:
+        """Get all installed solutions of a catalog"""
+        raise NotImplementedError
+
+    @abstractmethod
     def get_all_as_dict(self) -> dict:
         """Get all catalogs as dictionary."""
         raise NotImplementedError

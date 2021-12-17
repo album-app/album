@@ -18,13 +18,6 @@ class StateManager(IStateManager):
 
     def _setup_solution(self, **attrs):
         """This configures a solution for use by the main album tool."""
-
-        # FIXME: what if the solution cant be created based on the attrs?
-        # suggestion: read out a setup parameter with a version and then decide what to do.
-        # also based on the version one could use another scrip-creator
-
-        # todo: MIGRATION MANAGER SHOULD LOAD SOLUTIONS AND FAIL IF VERSION MISSMATCH
-
         self.album.migration_manager().validate_solution_attrs(attrs)
         next_solution = Solution(attrs)
         self.push_active_solution(next_solution)

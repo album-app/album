@@ -13,12 +13,11 @@ class TestIntegrationClone(TestIntegrationCommon):
         super().tearDown()
 
     def test_clone_solution(self):
-
         input_path = self.get_test_solution_path("solution0_dummy_no_routines.py")
         self.fake_install(input_path)
         target_dir = Path(self.tmp_dir.name).joinpath("my_catalog")
 
-        sys.argv = ["", "clone", input_path, "--target-dir", str(target_dir), "--name", "my_solution"]
+        sys.argv = ["", "clone", input_path, str(target_dir), "my_solution"]
 
         # run
         self.assertIsNone(main())
@@ -30,10 +29,9 @@ class TestIntegrationClone(TestIntegrationCommon):
         self.assertTrue(target_dir.joinpath("my_solution", DefaultValues.solution_default_name.value).exists())
 
     def test_clone_solution_template(self):
-
         target_dir = Path(self.tmp_dir.name).joinpath("my_catalog")
 
-        sys.argv = ["", "clone", "album:template-r:0.1.0-SNAPSHOT", "--target-dir", str(target_dir), "--name", "my_solution"]
+        sys.argv = ["", "clone", "album:template-r:0.1.0-SNAPSHOT", str(target_dir), "my_solution"]
 
         # run
         self.assertIsNone(main())
@@ -45,7 +43,7 @@ class TestIntegrationClone(TestIntegrationCommon):
     def test_clone_catalog_template(self):
         target_dir = Path(self.tmp_dir.name).joinpath("my_catalogs")
 
-        sys.argv = ["", "clone", "template:catalog", "--target-dir", str(target_dir), "--name", "my_catalog"]
+        sys.argv = ["", "clone", "template:catalog", str(target_dir), "my_catalog"]
 
         # run
         self.assertIsNone(main())
@@ -53,12 +51,14 @@ class TestIntegrationClone(TestIntegrationCommon):
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         target_path = Path(self.tmp_dir.name).joinpath("my_catalogs", "my_catalog")
-        self.assertIn(f"INFO - Downloaded template from https://gitlab.com/album-app/catalogs/templates/catalog/-/archive/main/catalog-main.zip to {str(target_path)}", self.captured_output.getvalue())
+        self.assertIn(
+            f"INFO - Downloaded template from https://gitlab.com/album-app/catalogs/templates/catalog/-/archive/main/catalog-main.zip to {str(target_path)}",
+            self.captured_output.getvalue())
         self.assertTrue(target_path.joinpath("album_catalog_index.json").exists())
         self.assertTrue(target_path.joinpath("album_solution_list.json").exists())
 
     def test_clone_non_existing_solution(self):
-        sys.argv = ["", "clone", "weirdPath", "--target-dir", str(Path(self.tmp_dir.name)), "--name", "my_solution"]
+        sys.argv = ["", "clone", "weirdPath", str(Path(self.tmp_dir.name)), "my_solution"]
 
         # run
         with self.assertRaises(SystemExit) as e:

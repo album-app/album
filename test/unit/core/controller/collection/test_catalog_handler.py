@@ -1,3 +1,4 @@
+import json
 from copy import deepcopy
 from pathlib import Path
 from unittest.mock import MagicMock, call, patch
@@ -10,6 +11,7 @@ from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.runner.core.model.coordinates import Coordinates
 from test.unit.core.controller.collection.test_collection_manager import TestCatalogCollectionCommon
+from test.unit.test_unit_common import EmptyTestClass
 
 
 class TestCatalogHandler(TestCatalogCollectionCommon):
@@ -44,6 +46,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         # assert
         self.assertEqual(2, add_by_src_mock.call_count)
 
+    # Info: this is rather a small integration test.
     def test_add_by_src(self):
         catalog_name = "aNiceCatalog"
         catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", catalog_name)
@@ -52,7 +55,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             config.writelines("{\"name\": \"" + catalog_name + "\", \"version\": \"0.1.0\"}")
 
         # call
-        catalog = self.catalog_handler.add_by_src(catalog_src)
+        catalog = self.catalog_handler.add_by_src(str(catalog_src))
 
         # assert
         expected_list = deepcopy(self.catalog_list)
@@ -66,6 +69,33 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             "src": str(catalog_src),
         })
         self.assertEqual(expected_list, self.collection_manager.get_collection_index().get_all_catalogs())
+
+    # Info: this is rather a small integration test.
+    def test_add_by_src_already_present(self):
+        catalog_name = "aNiceCatalog"
+        catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", catalog_name)
+        catalog_src.mkdir(parents=True)
+        catalog_index_metafile_json_path = catalog_src.joinpath(DefaultValues.catalog_index_metafile_json.value)
+        index_meta_string = "{\"name\": \"" + catalog_name + "\", \"version\": \"0.1.0\"}"
+
+        with open(catalog_index_metafile_json_path, 'w') as config:
+            config.writelines(index_meta_string)
+
+        catalog_index_metafile_json_dict = json.loads(index_meta_string)
+
+        _retrieve_catalog_meta_information = MagicMock(return_value=catalog_index_metafile_json_dict)
+        self.catalog_handler._retrieve_catalog_meta_information = _retrieve_catalog_meta_information
+
+        # add and assert
+        _ = self.catalog_handler.add_by_src(str(catalog_src))
+        _retrieve_catalog_meta_information.assert_called()
+        _retrieve_catalog_meta_information.reset_mock()
+
+        # call
+        self.catalog_handler.add_by_src(str(catalog_src))
+
+        # assert
+        _retrieve_catalog_meta_information.assert_not_called()
 
     def test__add_to_index(self):
         # prepare
@@ -323,6 +353,9 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         catalog = self.catalog_handler._as_catalog(catalog_dict)
 
         # mocks
+        get_installed_solutions = MagicMock(return_value=[])
+        self.catalog_handler.get_installed_solutions = get_installed_solutions
+
         get_by_id_mock = MagicMock(return_value=catalog)
         self.catalog_handler.get_by_id = get_by_id_mock
 
@@ -333,9 +366,47 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         c = self.catalog_handler._remove_from_collection(catalog_dict)
 
         # assert
+        get_installed_solutions.assert_called_once()
         get_by_id_mock.assert_called_once_with(1)
         force_remove_mock.assert_called_once_with(Path("myPath"))
         self.assertEqual(catalog, c)
+
+    @patch('album.core.controller.collection.catalog_handler.force_remove')
+    def test__remove_from_collection_installed_solutions(self, force_remove_mock):
+        # prepare
+        catalog_dict = {
+            'catalog_id': 1,
+            'name': "myCatalog",
+            'path': "myPath",
+            'src': "mySrc",
+            'branch_name': "main",
+            'deletable': True
+        }
+        catalog = self.catalog_handler._as_catalog(catalog_dict)
+
+        # mocks
+        def s():
+            return {"name": "n", "version": "v", "group": "g"}
+
+        e = EmptyTestClass()
+        e.setup = s
+        get_installed_solutions = MagicMock(return_value=[e])
+        self.catalog_handler.get_installed_solutions = get_installed_solutions
+
+        get_by_id_mock = MagicMock(return_value=catalog)
+        self.catalog_handler.get_by_id = get_by_id_mock
+
+        remove_catalog_mock = MagicMock()
+        self.collection_manager.get_collection_index().remove_catalog = remove_catalog_mock
+
+        # call
+        with self.assertRaises(RuntimeError):
+            self.catalog_handler._remove_from_collection(catalog_dict)
+
+        # assert
+        get_installed_solutions.assert_called_once()
+        get_by_id_mock.assert_called_once_with(1)
+        force_remove_mock.assert_not_called()
 
     @patch('album.core.controller.collection.catalog_handler.force_remove')
     def test__remove_from_collection_not_configured(self, force_remove_mock):
@@ -350,6 +421,9 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         }
 
         # mocks
+        get_installed_solutions = MagicMock(return_value=[])
+        self.catalog_handler.get_installed_solutions = get_installed_solutions
+
         get_by_id_mock = MagicMock(side_effect=LookupError(""))
         self.catalog_handler.get_by_id = get_by_id_mock
 
@@ -361,6 +435,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             self.catalog_handler._remove_from_collection(catalog_dict)
 
         # assert
+        get_installed_solutions.assert_not_called()
         get_by_id_mock.assert_called_once_with(1)
         force_remove_mock.assert_not_called()
 
@@ -378,6 +453,9 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         catalog = self.catalog_handler._as_catalog(catalog_dict)
 
         # mocks
+        has_installed_solutions = MagicMock(return_value=[])
+        self.catalog_handler.has_installed_solutions = has_installed_solutions
+
         get_by_id_mock = MagicMock(return_value=catalog)
         self.catalog_handler.get_by_id = get_by_id_mock
 
@@ -385,10 +463,11 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.collection_manager.get_collection_index().remove_catalog = remove_catalog_mock
 
         # call
-        c = self.catalog_handler._remove_from_collection(catalog_dict)
+        with self.assertRaises(AttributeError):
+            self.catalog_handler._remove_from_collection(catalog_dict)
 
         # assert
-        self.assertIsNone(c)
+        has_installed_solutions.assert_not_called()
         get_by_id_mock.assert_called_once_with(1)
         force_remove_mock.assert_not_called()
 
@@ -459,10 +538,10 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
     def test_remove_from_collection_by_name_undeletable(self):
         # call
         catalogs = self.collection_manager.get_collection_index().get_all_catalogs()
-        x = self.catalog_handler.remove_from_collection_by_name(catalogs[0]['name'])
+        with self.assertRaises(AttributeError):
+            self.catalog_handler.remove_from_collection_by_name(catalogs[0]['name'])
 
         # assert
-        self.assertIsNone(x)
         self.assertEqual(self.catalog_list,
                          self.collection_manager.get_collection_index().get_all_catalogs())  # nothing changed
 
@@ -507,6 +586,21 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         _remove_from_collection_mock.assert_not_called()
         self.assertIsNone(c)
 
+    def test_get_installed_solutions(self):
+        # mocks
+        get_all_installed_solutions_by_catalog = MagicMock(return_value=["myInstalledSolution"])
+        self.collection_manager.get_collection_index().get_all_installed_solutions_by_catalog = get_all_installed_solutions_by_catalog
+
+        # prepare
+        p = Path(self.tmp_dir.name).joinpath("n")
+        c = Catalog(5, "n", p)
+
+        # call
+        self.catalog_handler.get_installed_solutions(c)
+
+        # assert
+        get_all_installed_solutions_by_catalog.assert_called_once_with(5)
+
     def test_get_all_as_dict(self):
         # mocks
         get_all_catalogs_mock = MagicMock(return_value="abc")
@@ -519,7 +613,8 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.assertEqual({"catalogs": "abc"}, x)
 
     def test__create_catalog_from_src(self):
-        with patch("album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information") as retrieve_c_m_i_mock:
+        with patch(
+                "album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information") as retrieve_c_m_i_mock:
             retrieve_c_m_i_mock.side_effect = [{"name": "mynewcatalog", "version": "0.1.0"}]
 
             # call
@@ -694,7 +789,8 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         catalog = self.create_test_catalog()
 
         # mocks
-        with patch('album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information') as retrieve_c_m_i_mock:
+        with patch(
+                'album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information') as retrieve_c_m_i_mock:
             retrieve_c_m_i_mock.return_value = {'version': '0.1.0'}
 
             # call
@@ -719,7 +815,8 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         catalog = self.create_test_catalog()
 
         # mocks
-        with patch('album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information') as retrieve_c_m_i_mock:
+        with patch(
+                'album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information') as retrieve_c_m_i_mock:
             retrieve_c_m_i_mock.return_value = {"version": "0.1.1"}  # version the meta file claims
 
             # call
@@ -733,7 +830,8 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         catalog = self.create_test_catalog()
 
         # mocks
-        with patch('album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information') as retrieve_c_m_i_mock:
+        with patch(
+                'album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information') as retrieve_c_m_i_mock:
             retrieve_c_m_i_mock.return_value = None  # no meta info available
 
             # call

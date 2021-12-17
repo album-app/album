@@ -74,11 +74,11 @@ class TestSolutionHandler(TestCatalogCollectionCommon):
         # call
         self.assertEqual(
             self.solution_handler.get_solution_path(self.catalog, Coordinates("g", "n", "v")),
-            self.catalog.path().joinpath(self.catalog.gnv_solution_prefix, "g", "n", "v")
+            self.catalog.path().joinpath(DefaultValues.cache_path_solution_prefix.value, "g", "n", "v")
         )
 
     def test_get_solution_file(self):
-        res = self.catalog.path().joinpath(self.catalog.gnv_solution_prefix, "g", "n", "v").joinpath("solution.py")
+        res = self.catalog.path().joinpath(DefaultValues.cache_path_solution_prefix.value, "g", "n", "v").joinpath("solution.py")
 
         # call
         self.assertEqual(res, self.solution_handler.get_solution_file(self.catalog, Coordinates("g", "n", "v")))

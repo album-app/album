@@ -19,7 +19,7 @@ class ISolutionHandler:
 
     @abstractmethod
     def set_parent(self, catalog_parent: ICatalog, catalog_child: ICatalog, coordinates_parent: ICoordinates,
-                       coordinates_child: ICoordinates):
+                   coordinates_child: ICoordinates):
         raise NotImplementedError
 
     @abstractmethod
@@ -31,11 +31,11 @@ class ISolutionHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def update_solution(self, catalog: ICatalog, coordinates: ICoordinates, attrs):
+    def update_solution(self, catalog: ICatalog, coordinates: ICoordinates, attrs: dict):
         raise NotImplementedError
 
     @abstractmethod
-    def apply_change(self, catalog, change: ISolutionChange):
+    def apply_change(self, catalog: ICatalog, change: ISolutionChange):
         raise NotImplementedError
 
     @abstractmethod
@@ -124,7 +124,7 @@ class ISolutionHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def set_cache_paths(self, solution: ISolution, catalog):
+    def set_cache_paths(self, solution: ISolution, catalog: ICatalog):
         """Sets the available cache paths of the solution object, given its catalog_name (where it lives)."""
         raise NotImplementedError
 

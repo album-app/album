@@ -16,7 +16,8 @@ class IInstallManager:
         raise NotImplementedError
 
     @abstractmethod
-    def install_from_catalog_coordinates(self, catalog_name: str, coordinates: ICoordinates, argv=None) -> IResolveResult:
+    def install_from_catalog_coordinates(self, catalog_name: str, coordinates: ICoordinates,
+                                         argv=None) -> IResolveResult:
         """API entry point for installation from a specific catalog"""
         raise NotImplementedError
 

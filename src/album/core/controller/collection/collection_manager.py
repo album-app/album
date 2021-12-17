@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import Optional, List
 
+from album.runner.core.api.model.solution import ISolution
+
 from album.core.api.album import IAlbum
 from album.core.api.controller.collection.catalog_handler import ICatalogHandler
 from album.core.api.controller.collection.collection_manager import ICollectionManager
@@ -86,7 +88,7 @@ class CollectionManager(ICollectionManager):
     def solutions(self) -> ISolutionHandler:
         return self.solution_handler
 
-    def add_solution_to_local_catalog(self, active_solution, path):
+    def add_solution_to_local_catalog(self, active_solution: ISolution, path):
         self.solution_handler.add_or_replace(self.catalog_handler.get_local_catalog(), active_solution, path)
 
     def get_index_as_dict(self):
@@ -110,14 +112,14 @@ class CollectionManager(ICollectionManager):
             raise LookupError("Solution not found!")
 
         if not resolve_result.collection_entry().internal()["installed"]:
-            raise ValueError("Solution seems not to be installed! Please install solution first!", resolve_result)
+            raise ValueError("Solution seems not to be installed! Please install solution first!")
 
         return resolve_result
 
     def resolve_require_installation_and_load(self, resolve_solution) -> IResolveResult:
         resolve_result = self.resolve_require_installation(resolve_solution)
 
-        loaded_solution =  self.album.state_manager().load(resolve_result.path())
+        loaded_solution = self.album.state_manager().load(resolve_result.path())
         self.solutions().set_cache_paths(loaded_solution, resolve_result.catalog())
 
         resolve_result.set_loaded_solution(loaded_solution)
@@ -308,8 +310,8 @@ class CollectionManager(ICollectionManager):
         """Searches in the local catalog only"""
         return self._search_in_specific_catalog(self.catalog_handler.get_local_catalog().catalog_id(), coordinates)
 
-    def _search_in_specific_catalog(self, catalog_id, coordinates: ICoordinates) -> Optional[
-        ICollectionIndex.ICollectionSolution]:
+    def _search_in_specific_catalog(self, catalog_id, coordinates: ICoordinates) \
+            -> Optional[ICollectionIndex.ICollectionSolution]:
         """Searches in a given catalog only"""
         return self.catalog_collection.get_solution_by_catalog_grp_name_version(catalog_id, coordinates)
 

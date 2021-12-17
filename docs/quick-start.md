@@ -24,9 +24,9 @@
 * `album test [group:name:version]` - Lookup and test a solution identified via group, name and version.
 
 ### Write your own solutions
-* `album clone [catalog-template-name] --target-dir [parent-dir-of-new-catalog] --name [name-of-new-catalog]` - Creates a new catalog based on any template from [here](https://gitlab.com/album-app/catalogs/templates) into the provided directory with the provided new name.
-* `album clone [solution-file-or-url] --target-dir [parent-dir-of-new-solution] --name [name-of-new-solution]` - Copies a solution  into the provided directory with the provided new name.
-* `album clone [group:name:version] --target-dir [parent-dir-of-new-solution] --name [name-of-new-solution]` - Looks up and copies a solution into the provided directory with the provided new name.
+* `album clone [catalog-template-name] [parent-dir-of-new-catalog] [name-of-new-catalog]` - Creates a new catalog based on any template from [here](https://gitlab.com/album-app/catalogs/templates) into the provided directory with the provided new name.
+* `album clone [solution-file-or-url] [parent-dir-of-new-solution] [name-of-new-solution]` - Copies a solution  into the provided directory with the provided new name.
+* `album clone [group:name:version] [parent-dir-of-new-solution] [name-of-new-solution]` - Looks up and copies a solution into the provided directory with the provided new name.
 * `album deploy [solution-file] --catalog [catalog-name]` - Deploy a solution into a catalog.
 * `album deploy [solution-file] --dry-run` - Simulate deploying a solution into a catalog.
 

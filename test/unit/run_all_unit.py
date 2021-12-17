@@ -4,13 +4,12 @@ from test.unit.ci import test_ci_argument_parsing, test_ci_commandline
 from test.unit.ci.controller import test_release_manager, test_zenodo_manager
 from test.unit.ci.utils import test_ci_utils, test_deploy_environment
 from test.unit.core import test__init__, test_argument_parsing, test_server
-from test.unit.core.concept import test_database
 from test.unit.core.controller import test_search_manager, test_install_manager, test_run_manager, test_deploy_manager, \
     test_conda_manager, test_test_manager, test_task_manager, test_clone_manager, test_migration_manager, \
     test_environment_manager
 from test.unit.core.controller.collection import test_collection_manager, test_catalog_handler, test_solution_handler
 from test.unit.core.model import test_catalog, test_configuration, test_environment, \
-    test_catalog_index, test_collection_index, test_coordinates, test_task
+    test_catalog_index, test_collection_index, test_coordinates, test_task, test_database
 from test.unit.core.utils import test_subcommand
 from test.unit.core.utils.export import test_changelog, test_docker
 from test.unit.core.utils.operations import test_dict_operations

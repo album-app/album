@@ -26,4 +26,3 @@ class ITaskManager:
     @abstractmethod
     def finish_tasks(self):
         raise NotImplementedError
-

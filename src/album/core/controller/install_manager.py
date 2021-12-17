@@ -50,14 +50,16 @@ class InstallManager(IInstallManager):
 
         return resolve_result
 
-    def install_from_catalog_coordinates(self, catalog_name: str, coordinates: ICoordinates, argv=None) -> IResolveResult:
+    def install_from_catalog_coordinates(self, catalog_name: str, coordinates: ICoordinates,
+                                         argv=None) -> IResolveResult:
         return self._install_from_catalog_coordinates(catalog_name, coordinates, argv, parent=False)
 
     def _install_from_catalog_coordinates(self, catalog_name: str, coordinates: ICoordinates, argv=None,
                                           parent=False) -> IResolveResult:
         """Internal entry point for installation from a specific catalog"""
         catalog = self.album.collection_manager().catalogs().get_by_name(catalog_name)
-        resolve_result = self.album.collection_manager().resolve_download_and_load_catalog_coordinates(catalog, coordinates)
+        resolve_result = self.album.collection_manager().resolve_download_and_load_catalog_coordinates(catalog,
+                                                                                                       coordinates)
         self._install_resolve_result(resolve_result, argv, parent=parent)
         return resolve_result
 
@@ -84,7 +86,7 @@ class InstallManager(IInstallManager):
 
         CAUTION: Solution must be loaded!
         """
-        module_logger().info('Installing \"%s\"..' % resolve_result.loaded_solution().coordinates().name())
+        module_logger().info('Installing \"%s\"...' % resolve_result.loaded_solution().coordinates().name())
         if not parent:  # fail when already installed
             if self._resolve_result_is_installed(resolve_result):
                 raise RuntimeError("Solution already installed. Uninstall solution first!")
@@ -212,15 +214,19 @@ class InstallManager(IInstallManager):
         return self._install(resolve_solution, parent=True)
 
     def uninstall(self, resolve_solution, rm_dep=False, argv=None):
-        self._uninstall(resolve_solution, rm_dep, parent=False, argv=argv)
+        self._uninstall(resolve_solution, rm_dep, argv=argv)
 
-    def _uninstall(self, resolve_solution, rm_dep=False, argv=None, parent=False):
+    def _uninstall(self, resolve_solution, rm_dep=False, argv=None):
         """Internal installation entry point for `uninstall` subcommand of `album`."""
         resolve_result = self.album.collection_manager().resolve_require_installation_and_load(resolve_solution)
-        module_logger().info("Uninstalling \"%s\".." % resolve_result.loaded_solution().coordinates().name())
+        module_logger().info("Uninstalling \"%s\"..." % resolve_result.loaded_solution().coordinates().name())
 
         # get the environment
-        environment = self.album.environment_manager().set_environment_from_database(resolve_result.loaded_solution(), resolve_result.collection_entry(), resolve_result.catalog())
+        environment = self.album.environment_manager().set_environment_from_database(
+            resolve_result.loaded_solution(),
+            resolve_result.collection_entry(),
+            resolve_result.catalog()
+        )
 
         self._run_solution_uninstall_routine(resolve_result.loaded_solution(), environment, argv)
 
@@ -238,21 +244,23 @@ class InstallManager(IInstallManager):
                     children.append(str(dict_to_coordinates(child_solution.setup())))
 
             if children:
-
                 module_logger().info("The following solutions depend on this installation: %s. Not uninstalling %s..."
                                      % (", ".join(children), str(resolve_result.coordinates())))
                 if parent:
                     return
 
                 raise RuntimeError(
-                    "Cannot uninstall \"%s\". Other solution depend on this installation! Inspect log for more information!"
+                    "Cannot uninstall \"%s\". Other solution depend on this installation! "
+                    "Inspect log for more information!"
                     % resolve_result.coordinates
                 )
 
         remove_disc_content_from_solution(resolve_result.loaded_solution())
         EnvironmentManager.remove_disc_content_from_environment(environment)
-        self.album.collection_manager().solutions().set_uninstalled(resolve_result.catalog(),
-                                                            resolve_result.loaded_solution().coordinates())
+        self.album.collection_manager().solutions().set_uninstalled(
+            resolve_result.catalog(),
+            resolve_result.loaded_solution().coordinates()
+        )
 
         if rm_dep:  # remove dependencies (parent of the solution) last
             self._remove_dependencies(resolve_result.loaded_solution(), rm_dep)
@@ -281,13 +289,15 @@ class InstallManager(IInstallManager):
         if parent:
             # recursive call to remove the parent
             resolve_solution = build_resolve_string(parent)
-            self._uninstall(resolve_solution, rm_dep, parent=True)
+            self._uninstall(resolve_solution, rm_dep)
 
     def clean_unfinished_installations(self):
         collection_solution_list = self.album.collection_manager().get_collection_index().get_unfinished_installation_solutions()
         for collection_solution in collection_solution_list:
             catalog = self.album.collection_manager().catalogs().get_by_id(collection_solution.internal()["catalog_id"])
-            path = self.album.collection_manager().solutions().get_solution_file(catalog, dict_to_coordinates(collection_solution.setup()))
+            path = self.album.collection_manager().solutions().get_solution_file(
+                catalog, dict_to_coordinates(collection_solution.setup())
+            )
             coordinates = dict_to_coordinates(collection_solution.setup())
 
             resolve = ResolveResult(
