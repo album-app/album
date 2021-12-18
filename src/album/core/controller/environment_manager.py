@@ -33,33 +33,7 @@ class EnvironmentManager(IEnvironmentManager):
         set_environment_paths(active_solution, environment)
         return environment
 
-    def set_environment(self, active_solution: ISolution, catalog: ICatalog) -> IEnvironment:
-        parent = get_parent_dict(active_solution)
-        # solution runs in its own environment
-        if not parent:
-
-            environment = Environment(
-                None,
-                self.get_environment_name(active_solution.coordinates(), catalog),
-                active_solution.installation().package_path()
-            )
-            self.conda_manager.set_environment_path(environment)
-
-        # solution runs in the parents environment - we need to resolve first to get info about parents environment
-        else:
-            parent_resolve_result = self.collection_manager.resolve_parent(parent)
-
-            environment = Environment(
-                None,
-                self.get_environment_name(parent_resolve_result.coordinates(), parent_resolve_result.catalog()),
-                active_solution.installation().package_path()
-            )
-            self.conda_manager.set_environment_path(environment)
-
-        set_environment_paths(active_solution, environment)
-        return environment
-
-    def set_environment_from_database(
+    def set_environment(
             self, active_solution: ISolution, collection_entry: ICollectionIndex.ICollectionSolution, catalog: ICatalog
     ) -> IEnvironment:
         parent = collection_entry.internal()['parent']

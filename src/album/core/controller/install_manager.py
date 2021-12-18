@@ -222,7 +222,7 @@ class InstallManager(IInstallManager):
         module_logger().info("Uninstalling \"%s\"..." % resolve_result.loaded_solution().coordinates().name())
 
         # get the environment
-        environment = self.album.environment_manager().set_environment_from_database(
+        environment = self.album.environment_manager().set_environment(
             resolve_result.loaded_solution(),
             resolve_result.collection_entry(),
             resolve_result.catalog()
