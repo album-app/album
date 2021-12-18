@@ -23,7 +23,6 @@ class TestIntegrationRun(TestIntegrationCommon):
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
-        self.assertIsNone(self.album_instance.state_manager().get_active_solution())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_arguments(self, get_environment_path):
@@ -85,10 +84,8 @@ class TestIntegrationRun(TestIntegrationCommon):
         # run
         self.assertIsNone(main())
 
-        self.assertNotIn('ERROR', self.captured_output.getvalue())
-
         # assert
-        self.assertIsNone(self.album_instance.state_manager().get_active_solution())
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_minimal_solution(self, get_environment_path):
@@ -131,7 +128,6 @@ class TestIntegrationRun(TestIntegrationCommon):
             self.assertEqual("solution1_app1_run", log[2])
             self.assertEqual("solution1_app1_close", log[3])
             self.assertEqual("app1_close", log[4])
-            self.assertIsNone(self.album_instance.state_manager().get_active_solution())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_with_steps(self, get_environment_path):
@@ -169,7 +165,6 @@ class TestIntegrationRun(TestIntegrationCommon):
             self.assertEqual("app1_close", log[9])
             self.assertEqual("solution3_noparent_run", log[10])
             self.assertEqual("solution3_noparent_close", log[11])
-            self.assertIsNone(self.album_instance.state_manager().get_active_solution())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_with_grouped_steps(self, get_environment_path):
@@ -213,7 +208,6 @@ class TestIntegrationRun(TestIntegrationCommon):
             self.assertEqual("app2_close", log[15])
             self.assertEqual("solution3_noparent_run", log[16])
             self.assertEqual("solution3_noparent_close", log[17])
-            self.assertIsNone(self.album_instance.state_manager().get_active_solution())
 
 
 if __name__ == '__main__':

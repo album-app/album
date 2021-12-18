@@ -59,8 +59,6 @@ class TestIntegrationTest(TestIntegrationCommon):
             self.assertIn("solution6_noparent_test_close", log)
             self.assertIn("solution6_noparent_test_test", log)
 
-        self.assertIsNone(self.album_instance.state_manager().get_active_solution())
-
 
 if __name__ == '__main__':
     unittest.main()
