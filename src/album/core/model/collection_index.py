@@ -1214,7 +1214,7 @@ class CollectionIndex(ICollectionIndex, Database):
 
     @staticmethod
     def _as_db_col(key):
-        if key is "group":
+        if key == "group":
             return "\"group\""
         return key
 
