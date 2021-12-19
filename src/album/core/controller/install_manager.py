@@ -74,7 +74,7 @@ class InstallManager(IInstallManager):
 
     def _resolve_result_is_installed(self, resolve_result: IResolveResult) -> bool:
         """Checks whether a resolve_result is already installed."""
-        if resolve_result.collection_entry():  # we know the solution is in the collection
+        if resolve_result.database_entry():  # we know the solution is in the collection
             return self.album.collection_manager().get_collection_index().is_installed(
                 resolve_result.catalog().catalog_id(),
                 resolve_result.coordinates()
@@ -224,19 +224,19 @@ class InstallManager(IInstallManager):
         # get the environment
         environment = self.album.environment_manager().set_environment(
             resolve_result.loaded_solution(),
-            resolve_result.collection_entry(),
+            resolve_result.database_entry(),
             resolve_result.catalog()
         )
 
         self._run_solution_uninstall_routine(resolve_result.loaded_solution(), environment, argv)
 
-        parent = resolve_result.collection_entry().internal()["parent"]
+        parent = resolve_result.database_entry().internal()["parent"]
         if not parent:
             self.album.environment_manager().remove_environment(environment)
 
-        if resolve_result.collection_entry().internal()["children"]:
+        if resolve_result.database_entry().internal()["children"]:
             children = []
-            for dependency_dict in resolve_result.collection_entry().internal()["children"]:
+            for dependency_dict in resolve_result.database_entry().internal()["children"]:
                 # get the child entry
                 child_solution = self.album.collection_manager().get_collection_index().get_solution_by_collection_id(
                     dependency_dict["collection_id_child"])

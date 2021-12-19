@@ -188,7 +188,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
 
         # assert
         self.assertEqual(catalog, res.catalog())
-        self.assertEqual(search_mock.return_value, res.collection_entry())
+        self.assertEqual(search_mock.return_value, res.database_entry())
 
         get_solution_file_mock.assert_called_once_with(catalog, coordinates)
         search_mock.assert_called_once_with(catalog.catalog_id(), coordinates)
@@ -219,7 +219,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         # assert
         self.assertEqual(local_catalog, res.catalog())
         self.assertEqual(get_solution_mock.return_value, res.path())
-        self.assertEqual(search_mock.return_value, res.collection_entry())
+        self.assertEqual(search_mock.return_value, res.database_entry())
 
         get_catalog_mock.assert_called_once_with(1)
         get_solution_mock.assert_called_once_with(local_catalog, coordinates)

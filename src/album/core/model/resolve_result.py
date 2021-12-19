@@ -21,7 +21,7 @@ class ResolveResult(IResolveResult):
                other.catalog() == self._catalog and \
                other.path() == self._path and \
                other.loaded_solution() == self._loaded_solution and \
-               other.collection_entry() == self._collection_entry and \
+               other.database_entry() == self._collection_entry and \
                other.coordinates() == self._coordinates
 
     def catalog(self) -> ICatalog:
@@ -30,7 +30,7 @@ class ResolveResult(IResolveResult):
     def path(self) -> Path:
         return self._path
 
-    def collection_entry(self) -> ICollectionIndex.ICollectionSolution:
+    def database_entry(self) -> ICollectionIndex.ICollectionSolution:
         return self._collection_entry
 
     def coordinates(self) -> ICoordinates:

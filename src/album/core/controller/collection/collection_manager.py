@@ -108,10 +108,10 @@ class CollectionManager(ICollectionManager):
     def resolve_require_installation(self, resolve_solution) -> IResolveResult:
         resolve_result = self._resolve(resolve_solution)
 
-        if not resolve_result.collection_entry():
+        if not resolve_result.database_entry():
             raise LookupError("Solution not found!")
 
-        if not resolve_result.collection_entry().internal()["installed"]:
+        if not resolve_result.database_entry().internal()["installed"]:
             raise ValueError("Solution seems not to be installed! Please install solution first!")
 
         return resolve_result
@@ -175,10 +175,10 @@ class CollectionManager(ICollectionManager):
         parent_resolve_result = self.resolve_require_installation(resolve_parent_info)
 
         # resolve parent of the parent
-        parent = get_parent(parent_resolve_result.collection_entry())
+        parent = get_parent(parent_resolve_result.database_entry())
 
         # case parent itself has no further parent
-        if parent.internal()["collection_id"] == parent_resolve_result.collection_entry().internal()["collection_id"]:
+        if parent.internal()["collection_id"] == parent_resolve_result.database_entry().internal()["collection_id"]:
 
             loaded_solution = self.album.state_manager().load(parent_resolve_result.path())
             self.solutions().set_cache_paths(loaded_solution, parent_resolve_result.catalog())
@@ -324,7 +324,7 @@ class CollectionManager(ICollectionManager):
     def retrieve_and_load_resolve_result(self, resolve_result: IResolveResult):
         if not Path(resolve_result.path()).exists():
             self.solutions().retrieve_solution(resolve_result.catalog(),
-                                               dict_to_coordinates(resolve_result.collection_entry().setup()))
+                                               dict_to_coordinates(resolve_result.database_entry().setup()))
         resolve_result.set_loaded_solution(self.album.state_manager().load(resolve_result.path()))
         resolve_result.set_coordinates(resolve_result.loaded_solution().coordinates())
 
