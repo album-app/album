@@ -475,12 +475,14 @@ class CondaManager:
         self.set_environment_path(environment)
         self.install_framework(environment.path(), album_api_version)
 
-    # ToDo: use explicit versioning of album
     def install_framework(self, environment_path: str, min_framework_version=None):
         """Installs the album dependency in the environment"""
 
+        if not min_framework_version:
+            min_framework_version = DefaultValues.runner_packet_version.value
+
         if not self.is_installed(environment_path, "album-runner", min_framework_version):
-            self.pip_install_into_environment(environment_path, DefaultValues.runner_url.value, use_cache=False)
+            self.pip_install_into_environment(environment_path, DefaultValues.runner_packet_name.value, use_cache=False)
 
     def pip_install_into_environment(self, environment_path: str, module, version=None, use_cache=True):
         """Installs the given module in the environment.
