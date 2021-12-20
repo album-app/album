@@ -132,11 +132,11 @@ prepare release:
     - DeployDocker
   script:
     - echo "preparing release"
-    - version=$(cat setup.cfg | grep "version=*" | awk '{split($0, s, " "); print s[3]}')
-    - TAG=v$version
-    - echo "prepare to release version $version with tag $TAG"
-    - echo "VERSION=$version" >> variables.env
-    - echo "TAG=v$version" >> variables.env
+    - VERSION=$(cat setup.cfg | grep "version=*" | awk '{split($0, s, " "); print s[3]}')
+    - TAG=v$VERSION
+    - echo "prepare to release version $VERSION with tag $TAG"
+    - echo "VERSION=$VERSION" >> variables.env
+    - echo "TAG=v$VERSION" >> variables.env
   artifacts:
     reports:
       dotenv: variables.env
@@ -156,7 +156,7 @@ gitlab release:
     - job: prepare release
       artifacts: true
   script:
-    - echo "running release_job for version $version and tag $TAG"
+    - echo "running release_job for version $VERSION and tag $TAG"
   artifacts:
     reports:
       dotenv: variables.env
@@ -182,7 +182,7 @@ gitlab pypi deploy:
     - job: gitlab release
       artifacts: true
   script:
-    - echo "deploying gitlab pypi version "$VERSION
+    - echo "deploying gitlab pypi version $VERSION"
     - pip install twine
     - python setup.py sdist bdist_wheel
     #- TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*  FIXME: UNCOMMENT AFTER TESTING
@@ -202,8 +202,8 @@ pypi deploy:
     - job: gitlab release
       artifacts: true
   before_script:
-    - echo "deploying pypi version "$VERSION
-    - echo "using pypi deploy user "$PYPI_DEPLOY_USER
+    - echo "deploying pypi version $VERSION"
+    - echo "using pypi deploy user $PYPI_DEPLOY_USER"
   script:
     - pip install twine
     - python setup.py sdist bdist_wheel
@@ -226,7 +226,7 @@ gitlab docker deploy:
   before_script:
     - docker info
   script:
-    - echo "deploying gitlab docker version "$VERSION
+    - echo "deploying gitlab docker version $VERSION"
     - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
     - docker build -t $CI_REGISTRY/group/project/image:$VERSION .
     #- docker push $CI_REGISTRY/group/project/image:$VERSION  FIXME: UNCOMMENT AFTER TESTING
@@ -248,11 +248,11 @@ docker deploy:
   before_script:
     - docker info
   script:
-    - echo "deploying docker version "$VERSION
+    - echo "deploying docker version $VERSION"
     - docker login -u "$DOCKER_DEPLOY_USER" -p "$DOCKER_DEPLOY_TOKEN" docker.io
     # building deploy tag
     - tag=$(echo $DOCKER_DEPLOY_USER/album:$VERSION)
-    - echo "Building image with tag " $tag
+    - echo "Building image with tag $tag"
     - docker build -t $tag .
     #- docker push $tag  FIXME: UNCOMMENT AFTER TESTING
   rules:
