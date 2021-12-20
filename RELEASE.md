@@ -19,10 +19,11 @@ increase version in:
 - `./setup.cfg` to set a new pypi version.
 - `./test/resources/*.py` to work with the new version. Fix failing unittests!
 - `./src/album/core/__init__.py` to output the new version on the logs
-- `./album.yml` to get dockerfiles to run
+- `./album.yml` to get dockerfiles to run, provide easy album installation
 
 Reason for the `album.yml`: in the latest pypi version there should be the correct `album.yml` file to create an environment 
-with `album` installed. This is necessary for docker templates to work correctly!
+with `album` installed. This is necessary for docker templates to work correctly, as well as conda brings
+necessary program dependencies - e.g. a `git` installation (not the python library, the program)
 
 if you increased the `album-runner` version additionally change:
 - `album_api_version` in `./test/resources/*.py` to use the new runner API version
