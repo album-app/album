@@ -10,10 +10,10 @@ from album.core.model.script_queue_entry import ScriptQueueEntry
 from album.core.utils.operations.resolve_operations import build_resolve_string
 from album.core.utils.operations.solution_operations import get_steps_dict, get_parent_dict
 from album.runner import album_logging
-from album.runner.core.api.concept.script_creator import IScriptCreator
+from album.runner.core.api.model.script_creator import IScriptCreator
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
-from album.runner.core.concept.script_creator import ScriptCreatorRun, ScriptCreatorRunWithParent
+from album.runner.core.model.script_creator import ScriptCreatorRun, ScriptCreatorRunWithParent
 
 module_logger = album_logging.get_active_logger
 

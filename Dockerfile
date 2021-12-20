@@ -6,5 +6,5 @@ EXPOSE 8080
 ENTRYPOINT ["/album/src/album/docker/entrypoint.sh"]
 CMD ["server", "--port=8080", "--host=0.0.0.0"]
 LABEL MAINTAINER="Max Delbrueck Centrum for Molecular Medicine"
-LABEL author="Jan Philipp Albrecht, Kyle Harrington, Deborah Schmidt"
+LABEL author="Jan Philipp Albrecht, Deborah Schmidt, Kyle Harrington"
 LABEL comment="album - spanning solutions across scales and tools"

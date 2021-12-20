@@ -5,7 +5,7 @@ from album.core.api.controller.test_manager import ITestManager
 from album.core.api.model.resolve_result import IResolveResult
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
-from album.runner.core.concept.script_creator import ScriptTestCreator
+from album.runner.core.model.script_creator import ScriptCreatorTest
 
 module_logger = album_logging.get_active_logger
 
@@ -45,7 +45,7 @@ class TestManager(ITestManager):
         if solution.setup().pre_test and callable(solution.setup().pre_test) \
                 and solution.setup().test and callable(solution.setup().test):
             queue = Queue()
-            script_test_creator = ScriptTestCreator()
+            script_test_creator = ScriptCreatorTest()
 
             # do not run queue immediately
             self.album.run_manager().build_queue(solution, resolve_result.catalog(), queue, script_test_creator, False, args)
