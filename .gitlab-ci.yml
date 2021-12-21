@@ -183,7 +183,7 @@ gitlab pypi deploy:
     - echo "deploying gitlab pypi version $VERSION"
     - pip install twine
     - python setup.py sdist bdist_wheel
-    #- TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*  FIXME: UNCOMMENT AFTER TESTING
+    - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
   rules:
       - if: $CI_COMMIT_TAG
         when: never
@@ -205,7 +205,7 @@ pypi deploy:
   script:
     - pip install twine
     - python setup.py sdist bdist_wheel
-    - TWINE_PASSWORD=$PYPI_DEPLOY_TOKEN} TWINE_USERNAME=$PYPI_DEPLOY_USER python -m twine upload --repository-url https://upload.pypi.org/legacy/  dist/*
+    - TWINE_PASSWORD=$PYPI_DEPLOY_TOKEN TWINE_USERNAME=$PYPI_DEPLOY_USER python -m twine upload --repository-url https://upload.pypi.org/legacy/  dist/*
   rules:
       - if: $CI_COMMIT_TAG
         when: never
