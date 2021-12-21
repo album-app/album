@@ -1,13 +1,15 @@
 import io
+import re
 import signal
 import subprocess
 import sys
 import threading
+from typing import Optional
 
 import pexpect
+from album.runner.album_logging import get_active_logger, LogEntry, LogLevel
 
 from album.runner import album_logging
-from album.runner.album_logging import LogfileBuffer
 
 module_logger = album_logging.get_active_logger
 
@@ -87,6 +89,137 @@ class SaveThreadWithReturn:
             pass
         else:
             signal.pthread_kill(self.thread_id, signal.SIGKILL)
+
+
+class LogfileBuffer(io.StringIO):
+    """Class for logging in a subprocess. Logs to the current active logger."""
+
+    def __init__(self, message_formatter=None):
+        super().__init__()
+        self.message_formatter = message_formatter
+        self.leftover_message = None
+        self.last_level = None
+
+    def write(self, input_string: str) -> int:
+        messages = self.split_messages(input_string)
+
+        for m in messages:
+            s = self.tabulate_multi_lines(m)
+
+            log_entry = self.parse_log(s)
+
+            if log_entry:
+
+                if self.message_formatter and callable(self.message_formatter):
+                    message = self.message_formatter(log_entry.message)
+                else:
+                    message = log_entry.message
+
+                old_name = get_active_logger().name
+                if not log_entry.name:
+                    log_entry.name = old_name
+                else:
+                    get_active_logger().name = log_entry.name
+
+                self._log(log_entry.level, message)
+
+                self.last_level = log_entry.level
+                get_active_logger().name = old_name
+
+            else:  # unknown message not using print or logging.
+                if self.last_level:
+                    self._log(self.last_level, s)
+                else:
+                    self._log('INFO', s)
+
+        return 1
+
+    def _log(self, current_level, message):
+        if LogLevel.INFO.name == current_level:
+            get_active_logger().info(message)
+        elif LogLevel.DEBUG.name == current_level:
+            get_active_logger().debug(message)
+        elif LogLevel.WARNING.name == current_level:
+            get_active_logger().warning(message)
+        else:
+            get_active_logger().error(message)
+
+    def split_messages(self, s: str):
+        # init empty return val
+        messages = []
+
+        if self.leftover_message:
+            s = self.leftover_message + s
+            self.leftover_message = None
+
+        # split
+        split_s = s.split("\n")
+
+        # strip - all message that are not interrupted
+        split_i = [l.strip() for l in split_s[:-1]]
+
+        # last message might be interrupted through buffer-size
+        if not split_s[-1].endswith("\n"):
+            self.leftover_message = split_s[-1]
+        else:
+            split_i.append(split_s[-1].strip())
+
+        for l in split_i:
+            log_entry = self.parse_log(l)
+
+            if log_entry:  # pattern found
+                messages.append(l)
+            else:  # pattern not found
+                if len(messages) > 0:  # message part of previous message
+                    messages[-1] += "\n" + l
+                else:  # message standalone
+                    messages.append(l)
+
+        return messages
+
+    @staticmethod
+    def tabulate_multi_lines(s: str, indent=2):
+        split_s = s.strip().split("\n")
+        r = split_s[0].strip()
+        if len(split_s) > 1:
+            r = r + "\n"
+            for l in split_s[1:]:
+                r = r + "".join(["\t"] * indent) + l.strip() + "\n"
+        return r.strip()
+
+    @staticmethod
+    def parse_log(text) -> Optional[LogEntry]:
+        # regex for log level
+        regex_log_level = "|".join([l.name for l in LogLevel])
+        # regex for log message.
+        regex_text = '([^ - ]+) - (%s) -([\s\S]+)?' % regex_log_level
+        # search
+        r = re.search(regex_text, text)
+
+        if not r:
+            regex_text = '([\s\S]+) (%s) ([\s\S]+)?' % regex_log_level
+            r = re.search(regex_text, text)
+            if not r:
+                regex_text = '(%s):([\s\S]+)?' % regex_log_level
+                r = re.search(regex_text, text)
+            if not r:
+                regex_text = '\[(%s)\] ([\s\S]+)?' % regex_log_level
+                r = re.search(regex_text, text)
+        if r:
+            if len(r.groups()) == 3:
+                name = r.group(1)
+                level = r.group(2)
+                message = r.group(3)
+            else:
+                name = None
+                level = r.group(1)
+                message = r.group(2)
+            if message:
+                message = message.strip(" ")
+            else:
+                message = ""
+            return LogEntry(name, level, message)
+        return None
 
 
 def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=120, pipe_output=True):
