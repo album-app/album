@@ -49,6 +49,8 @@
 #
 .linux_base_template:
   image: continuumio/miniconda3:latest
+  tags:
+    - docker
   before_script:
     - python -V  # Print out python version for debugging
     - pwd
