@@ -143,8 +143,7 @@ prepare release:
   rules:
     - if: $CI_COMMIT_TAG
       when: never
-      # - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH  FIXME: UNCOMMENT AFTER TESTING
-    - if: $CI_COMMIT_BRANCH == "introduce_ci_release_routine"  #  FIXME: DELETE ME AFTER TESTING
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 gitlab release:
   stage: release
@@ -160,13 +159,12 @@ gitlab release:
   rules:
       - if: $CI_COMMIT_TAG
         when: never
-      # - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH  FIXME: UNCOMMENT AFTER TESTING
-      - if: $CI_COMMIT_BRANCH == "introduce_ci_release_routine"  #  FIXME: DELETE ME AFTER TESTING
-#  release:  FIXME: UNCOMMENT AFTER TESTING
-#    name: 'Release $TAG'
-#    description: 'Created using the release-cli'
-#    tag_name: '$TAG'
-#    ref: '$CI_COMMIT_TAG'
+      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  release:
+    name: 'Release $TAG'
+    description: 'Created using the release-cli'
+    tag_name: '$TAG'
+    ref: '$CI_COMMIT_SHA'
 
 
 gitlab pypi deploy:
@@ -187,8 +185,7 @@ gitlab pypi deploy:
   rules:
       - if: $CI_COMMIT_TAG
         when: never
-      # - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH  FIXME: UNCOMMENT AFTER TESTING
-      - if: $CI_COMMIT_BRANCH == "introduce_ci_release_routine"  #  FIXME: DELETE ME AFTER TESTING
+      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 pypi deploy:
   image: python:latest
@@ -206,12 +203,11 @@ pypi deploy:
   script:
     - pip install twine
     - python setup.py sdist bdist_wheel
-    #- TWINE_PASSWORD=${PYPI_DEPLOY_TOKEN} TWINE_USERNAME=${PYPI_DEPLOY_USER} python -m twine upload --repository-url https://upload.pypi.org/legacy/  dist/*  FIXME: UNCOMMENT AFTER TESTING
+    - TWINE_PASSWORD=$PYPI_DEPLOY_TOKEN} TWINE_USERNAME=$PYPI_DEPLOY_USER python -m twine upload --repository-url https://upload.pypi.org/legacy/  dist/*
   rules:
       - if: $CI_COMMIT_TAG
         when: never
-      # - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH  FIXME: UNCOMMENT AFTER TESTING
-      - if: $CI_COMMIT_BRANCH == "introduce_ci_release_routine"  #  FIXME: DELETE ME AFTER TESTING
+      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 gitlab docker deploy:
   stage: deploy
@@ -229,12 +225,11 @@ gitlab docker deploy:
     - echo "deploying gitlab docker version $VERSION"
     - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
     - docker build -t $CI_REGISTRY/group/project/image:$VERSION .
-    #- docker push $CI_REGISTRY/group/project/image:$VERSION  FIXME: UNCOMMENT AFTER TESTING
+    - docker push $CI_REGISTRY/group/project/image:$VERSION
   rules:
       - if: $CI_COMMIT_TAG
         when: never
-      # - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH  FIXME: UNCOMMENT AFTER TESTING
-      - if: $CI_COMMIT_BRANCH == "introduce_ci_release_routine"  #  FIXME: DELETE ME AFTER TESTING
+      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 docker deploy:
   stage: deploy
@@ -255,12 +250,11 @@ docker deploy:
     - tag=$(echo $DOCKER_DEPLOY_USER/album:$VERSION)
     - echo "Building image with tag $tag"
     - docker build -t $tag .
-    #- docker push $tag  FIXME: UNCOMMENT AFTER TESTING
+    - docker push $tag
   rules:
       - if: $CI_COMMIT_TAG
         when: never
-      # - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH  FIXME: UNCOMMENT AFTER TESTING
-      - if: $CI_COMMIT_BRANCH == "introduce_ci_release_routine"  #  FIXME: DELETE ME AFTER TESTING
+      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 cmdline linux:
   extends: .linux_base_template
@@ -359,6 +353,5 @@ release tests linux:
     - album run album:template-java:0.1.0-SNAPSHOT
     - album run album:template-r:0.1.0-SNAPSHOT
   rules:
-    # - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH  FIXME: UNCOMMENT AFTER TESTING
-    - if: $CI_COMMIT_BRANCH == "introduce_ci_release_routine"  #  FIXME: DELETE ME AFTER TESTING
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
