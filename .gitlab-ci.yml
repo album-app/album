@@ -157,9 +157,6 @@ gitlab release:
       artifacts: true
   script:
     - echo "running release_job for version $VERSION and tag $TAG"
-  artifacts:
-    reports:
-      dotenv: variables.env
   rules:
       - if: $CI_COMMIT_TAG
         when: never
@@ -180,6 +177,7 @@ gitlab pypi deploy:
     - DeployDocker
   needs:
     - job: gitlab release
+    - job: prepare release
       artifacts: true
   script:
     - echo "deploying gitlab pypi version $VERSION"
@@ -200,6 +198,7 @@ pypi deploy:
     - DeployDocker
   needs:
     - job: gitlab release
+    - job: prepare release
       artifacts: true
   before_script:
     - echo "deploying pypi version $VERSION"
@@ -221,6 +220,7 @@ gitlab docker deploy:
     - DeployShell
   needs:
     - job: gitlab release
+    - job: prepare release
       artifacts: true
     - job: pypi deploy
   before_script:
@@ -243,6 +243,7 @@ docker deploy:
     - DeployShell
   needs:
     - job: gitlab release
+    - job: prepare release
       artifacts: true
     - job: pypi deploy
   before_script:
