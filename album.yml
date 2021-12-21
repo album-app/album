@@ -7,4 +7,4 @@ dependencies:
   - pip
   - git
   - pip:
-      - ablum==0.2.1  # point to latest pypi version here.
+      - album==0.2.2  # point to latest pypi version here.
