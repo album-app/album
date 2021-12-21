@@ -48,17 +48,15 @@
 # Creates a album environment.
 #
 .linux_base_template:
-  image: continuumio/miniconda3:4.9.2
+  image: continuumio/miniconda3:latest
   before_script:
     - python -V  # Print out python version for debugging
     - pwd
     - which python
-    - conda env create -f album.yml  # sets up environment including album installation
+    - conda create -y -n album python=3.6 pip git
     - conda init bash
     - source ~/.bashrc
     - conda activate album
-    - pip uninstall -y album
-    - pip uninstall -y album_runner
     - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
     - which python
     - pwd
@@ -98,11 +96,9 @@
     - bash $tmpdir/miniconda.sh -b -p $tmpdir/miniconda
     - export PATH=$PATH:$tmpdir/miniconda/bin/
     - echo $PATH
-    - conda env create -f album.yml
+    - conda create -y -n album python=3.6 pip git
     - source $tmpdir/miniconda/bin/activate
     - conda activate album
-    - pip uninstall -y album
-    - pip uninstall -y album_runner
     - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
     - python -V
   after_script:
@@ -110,16 +106,6 @@
     - echo $tmpdir
     - rm -rf $tmpdir
 
-# Deploy base template
-#
-# Only works on DIND runners!.
-#
-.deploy_base_template:
-  tags:
-    - DeployRunner
-  before_script:
-    - docker info
-    - docker login -u "$DOCKER_DEPLOY_USER" -p "$DOCKER_DEPLOY_TOKEN" docker.io
 
 
 #----------------------------
@@ -129,6 +115,8 @@
 stages:
   - build
   - test
+  - release-test
+  - release
   - deploy
 
 
@@ -136,23 +124,137 @@ stages:
 # jobs
 #----------------------------
 
-docker deploy:
-  extends: .deploy_base_template
-  stage: deploy
+prepare release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  tags:
+    - DeployRunner
+    - DeployDocker
   script:
-    # get the deploy version from setup.cfg
-    - version=$(cat setup.cfg | grep "version=*" | awk '{split($0, s, " "); print s[3]}')
-    - echo "deploying version "$version
-    # building deploy tag
-    - tag=$(echo $DOCKER_DEPLOY_USER/album:$version)
-    - echo "Building image with tag " $tag
-    # build image
-    - docker build -t $tag .
-    # push image
-    # docker push $tag
+    - echo "preparing release"
+    - VERSION=$(cat setup.cfg | grep "version=*" | awk '{split($0, s, " "); print s[3]}')
+    - TAG=v$VERSION
+    - echo "prepare to release version $VERSION with tag $TAG"
+    - echo "VERSION=$VERSION" >> variables.env
+    - echo "TAG=v$VERSION" >> variables.env
+  artifacts:
+    reports:
+      dotenv: variables.env
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-      when: manual
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+gitlab release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  tags:
+    - DeployRunner
+    - DeployDocker
+  needs:
+    - job: prepare release
+      artifacts: true
+  script:
+    - echo "running release_job for version $VERSION and tag $TAG"
+  rules:
+      - if: $CI_COMMIT_TAG
+        when: never
+      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  release:
+    name: 'Release $TAG'
+    description: 'Created using the release-cli'
+    tag_name: '$TAG'
+    ref: '$CI_COMMIT_SHA'
+
+
+gitlab pypi deploy:
+  image: python:latest
+  stage: deploy
+  tags:
+    - DeployRunner
+    - DeployDocker
+  needs:
+    - job: gitlab release
+    - job: prepare release
+      artifacts: true
+  script:
+    - echo "deploying gitlab pypi version $VERSION"
+    - pip install twine
+    - python setup.py sdist bdist_wheel
+    #- TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*  FIXME: UNCOMMENT AFTER TESTING
+  rules:
+      - if: $CI_COMMIT_TAG
+        when: never
+      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+pypi deploy:
+  image: python:latest
+  stage: deploy
+  tags:
+    - DeployRunner
+    - DeployDocker
+  needs:
+    - job: gitlab release
+    - job: prepare release
+      artifacts: true
+  before_script:
+    - echo "deploying pypi version $VERSION"
+    - echo "using pypi deploy user $PYPI_DEPLOY_USER"
+  script:
+    - pip install twine
+    - python setup.py sdist bdist_wheel
+    - TWINE_PASSWORD=$PYPI_DEPLOY_TOKEN} TWINE_USERNAME=$PYPI_DEPLOY_USER python -m twine upload --repository-url https://upload.pypi.org/legacy/  dist/*
+  rules:
+      - if: $CI_COMMIT_TAG
+        when: never
+      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+gitlab docker deploy:
+  stage: deploy
+  tags:
+    - DeployRunner
+    - DeployShell
+  needs:
+    - job: gitlab release
+    - job: prepare release
+      artifacts: true
+    - job: pypi deploy
+  before_script:
+    - docker info
+  script:
+    - echo "deploying gitlab docker version $VERSION"
+    - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $CI_REGISTRY/group/project/image:$VERSION .
+    - docker push $CI_REGISTRY/group/project/image:$VERSION
+  rules:
+      - if: $CI_COMMIT_TAG
+        when: never
+      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+docker deploy:
+  stage: deploy
+  tags:
+    - DeployRunner
+    - DeployShell
+  needs:
+    - job: gitlab release
+    - job: prepare release
+      artifacts: true
+    - job: pypi deploy
+  before_script:
+    - docker info
+  script:
+    - echo "deploying docker version $VERSION"
+    - docker login -u "$DOCKER_DEPLOY_USER" -p "$DOCKER_DEPLOY_TOKEN" docker.io
+    # building deploy tag
+    - tag=$(echo $DOCKER_DEPLOY_USER/album:$VERSION)
+    - echo "Building image with tag $tag"
+    - docker build -t $tag .
+    - docker push $tag
+  rules:
+      - if: $CI_COMMIT_TAG
+        when: never
+      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 cmdline linux:
   extends: .linux_base_template
@@ -208,6 +310,8 @@ unit tests macos:
 
 integration tests macos:
   extends: .macos_base_template
+  needs:
+    - job: unit tests macos
   stage: test
   script:
     - python -m unittest test/integration/run_all_integration.py
@@ -216,12 +320,38 @@ unit tests windows:
   extends: .windows_base_template
   stage: test
   script:
-    - $cmnd = powershell.exe -command {conda env create --force -f album.yml 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip uninstall -y album 2>&1 | Write-Host; pip uninstall -y album_runner 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit.py 2>&1 | Write-Host; exit(0)}
+    - $cmnd = powershell.exe -command {conda create -y -n album python=3.6 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit.py 2>&1 | Write-Host; exit(0)}
     - if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}
 
 integration tests windows:
   extends: .windows_base_template
   stage: test
   script:
-    - $cmnd = powershell.exe -command {conda env create --force -f album.yml 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip uninstall -y album 2>&1 | Write-Host; pip uninstall -y album_runner 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration.py 2>&1 | Write-Host; exit(0)}
+    - $cmnd = powershell.exe -command {conda create -y -n album python=3.6 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration.py 2>&1 | Write-Host; exit(0)}
     - if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}
+
+release tests linux:
+  extends: .linux_base_template
+  stage: release-test
+  script:
+    # install system requirements
+    - apt-get -y update
+    - apt-get install -y libgl1-mesa-dev
+    # install templates in default catalog
+    - album install album:template-python:0.1.0-SNAPSHOT
+    - album install album:template-java:0.1.0-SNAPSHOT
+    - album install album:template-r:0.1.0-SNAPSHOT
+    - album install album:template-scijava:0.1.0-SNAPSHOT
+    - album install album:template-imagej:0.1.0-SNAPSHOT
+    - album install album:template-imagej2:0.1.0-SNAPSHOT
+    - album install album:template-bdv:0.1.0-SNAPSHOT
+    - album install album:template-napari:0.1.0-SNAPSHOT
+    - album install album:template-minimal:0.1.0-SNAPSHOT
+    # run non-interactive templates
+    - album run album:template-minimal:0.1.0-SNAPSHOT
+    - album run album:template-python:0.1.0-SNAPSHOT
+    - album run album:template-java:0.1.0-SNAPSHOT
+    - album run album:template-r:0.1.0-SNAPSHOT
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+

@@ -66,7 +66,7 @@ setup(
     name="solution6_noparent_test",
     title="solution six, no parent, nice test routine",
     version="0.1.0",
-    album_api_version="0.1.1",
+    album_api_version="0.2.1",
     args=[{
         "name": "file",
         "description": "",

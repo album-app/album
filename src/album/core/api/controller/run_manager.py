@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 from queue import Queue
 
 from album.core.api.model.catalog import ICatalog
-from album.runner.core.api.concept.script_creator import IScriptCreator
+from album.runner.core.api.model.script_creator import IScriptCreator
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
 

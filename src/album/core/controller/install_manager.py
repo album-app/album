@@ -14,7 +14,7 @@ from album.core.utils.operations.solution_operations import remove_disc_content_
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
-from album.runner.core.concept.script_creator import ScriptCreatorInstall, ScriptCreatorUnInstall
+from album.runner.core.model.script_creator import ScriptCreatorInstall, ScriptCreatorUnInstall
 
 module_logger = album_logging.get_active_logger
 

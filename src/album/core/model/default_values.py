@@ -8,8 +8,11 @@ from appdirs import user_data_dir, user_cache_dir, user_config_dir
 class DefaultValues(Enum):
     """Add an entry here to initialize default attributes for a album framework installation instance."""
 
-    # deployment
-    runner_url = 'https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip'  # default runner url
+    # runner
+    runner_api_packet_version = '0.2.1'      # set to None to use with url
+    runner_api_packet_name = 'album-runner'  # can also point to zip/url like: https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip
+
+    # templates
     catalog_template_url = 'https://gitlab.com/album-app/catalogs/templates'  # base URL of available catalog templates
 
     # catalog

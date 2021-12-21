@@ -8,7 +8,7 @@ from album.core.utils.operations.view_operations import get_solution_as_string, 
     get_updates_as_string, get_index_as_string, get_search_result_as_string
 from album.runner.album_logging import get_active_logger
 from album.runner.core.api.model.solution import ISolution
-from album.runner.core.concept.script_creator import ScriptCreatorRun
+from album.runner.core.model.script_creator import ScriptCreatorRun
 
 module_logger = get_active_logger
 
