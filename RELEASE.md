@@ -21,7 +21,7 @@ increase version in:
 - `./album.yml` to get dockerfiles to run, provide easy album installation
 
 Reason for the `album.yml`: in the latest pypi version there should be the correct `album.yml` file to create an environment 
-with `album` installed. This is necessary for docker templates to work correctly, as well as conda brings
+with `album` installed. This is necessary for docker templates to work correctly. Additionally conda ships
 necessary program dependencies - e.g. a `git` installation (not the python library, the program)
 
 if you increased the `album-runner` version additionally change:
