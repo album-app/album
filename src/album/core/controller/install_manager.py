@@ -195,14 +195,18 @@ class InstallManager(IInstallManager):
         if argv is None:
             argv = [""]
 
-        # get the environment
-        environment = self.album.environment_manager().set_environment(resolve_result)
-
-        self._run_solution_uninstall_routine(resolve_result.loaded_solution(), environment, argv)
-
         parent = resolve_result.database_entry().internal()["parent"]
-        if not parent:
-            self.album.environment_manager().remove_environment(environment)
+        # get the environment
+        environment = None
+        try:
+            environment = self.album.environment_manager().set_environment(resolve_result)
+            self._run_solution_uninstall_routine(resolve_result.loaded_solution(), environment, argv)
+
+            if not parent:
+                self.album.environment_manager().remove_environment(environment)
+        except LookupError:
+            # environment might have been deleted manually
+            pass
 
         if resolve_result.database_entry().internal()["children"]:
             children = []
@@ -226,7 +230,8 @@ class InstallManager(IInstallManager):
                 )
 
         remove_disc_content_from_solution(resolve_result.loaded_solution())
-        EnvironmentManager.remove_disc_content_from_environment(environment)
+        if environment:
+            EnvironmentManager.remove_disc_content_from_environment(environment)
         self.album.solutions().set_uninstalled(
             resolve_result.catalog(),
             resolve_result.loaded_solution().coordinates()
