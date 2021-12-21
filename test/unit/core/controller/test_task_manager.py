@@ -7,10 +7,10 @@ from album.core.model.task import Task
 from album.core.utils import subcommand
 from album.runner import album_logging
 from album.runner.album_logging import LogLevel
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestTaskManager(TestUnitCommon):
+class TestTaskManager(TestUnitCoreCommon):
 
     def test_handle_task(self):
         album_logging.set_loglevel(LogLevel.INFO)

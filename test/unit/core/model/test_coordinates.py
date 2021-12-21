@@ -1,9 +1,9 @@
 from album.runner.core.model.coordinates import Coordinates
 
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestCoordinates(TestUnitCommon):
+class TestCoordinates(TestUnitCoreCommon):
 
     def setUp(self):
         super().setUp()

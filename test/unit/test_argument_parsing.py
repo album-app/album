@@ -4,10 +4,9 @@ import tempfile
 import unittest.mock
 from unittest.mock import patch
 
-from album.core.commandline import search, remove_catalog, add_catalog, uninstall, install, repl, deploy, run, \
-    start_server, test
-
 from album import argument_parsing
+from album.commandline import search, remove_catalog, add_catalog, uninstall, install, repl, deploy, run, \
+    start_server, test
 
 
 class TestArgumentParsing(unittest.TestCase):

@@ -3,7 +3,7 @@ import pkgutil
 
 from jsonschema import validate
 
-from album.core.api.album import IAlbum
+from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.migration_manager import IMigrationManager
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
@@ -16,9 +16,9 @@ module_logger = album_logging.get_active_logger
 
 class MigrationManager(IMigrationManager):
 
-    def __init__(self, album: IAlbum):
+    def __init__(self, album: IAlbumController):
         self.schema_solution = None
-        self.collection_manager = album.collection_manager()
+        self.album = album
 
     def migrate_collection_index(self, collection_index: ICollectionIndex, initial_version):
         self.migrate_catalog_collection_db(
@@ -55,7 +55,7 @@ class MigrationManager(IMigrationManager):
         catalog.update_index_cache()
 
         self._create_catalog_index(catalog, CatalogIndex.version)
-        self.collection_manager.catalogs().set_version(catalog)
+        self.album.catalogs().set_version(catalog)
 
     def refresh_index(self, catalog: ICatalog) -> bool:
         """Routine to refresh the catalog index. Downloads or copies the index_file."""

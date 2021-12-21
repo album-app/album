@@ -7,7 +7,7 @@ from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
 
 
-class IResolveResult:
+class ICollectionSolution:
 
     @abstractmethod
     def catalog(self) -> ICatalog:
@@ -18,7 +18,7 @@ class IResolveResult:
         raise NotImplementedError
 
     @abstractmethod
-    def collection_entry(self) -> ICollectionIndex.ICollectionSolution:
+    def database_entry(self) -> ICollectionIndex.ICollectionSolution:
         raise NotImplementedError
 
     @abstractmethod
@@ -35,4 +35,8 @@ class IResolveResult:
 
     @abstractmethod
     def set_coordinates(self, coordinates):
+        raise NotImplementedError
+
+    @abstractmethod
+    def set_database_entry(self, database_entry: ICollectionIndex.ICollectionSolution):
         raise NotImplementedError

@@ -1,9 +1,9 @@
 import unittest
 
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestCiArgumentParsing(TestUnitCommon):
+class TestCiArgumentParsing(TestUnitCoreCommon):
 
     @unittest.skip("Needs to be implemented!")
     def test_main(self):
@@ -14,7 +14,7 @@ class TestCiArgumentParsing(TestUnitCommon):
         pass
 
 
-class TestAlbumCIParser(TestUnitCommon):
+class TestAlbumCIParser(TestUnitCoreCommon):
 
     @unittest.skip("Needs to be implemented!")
     def test__init__(self):

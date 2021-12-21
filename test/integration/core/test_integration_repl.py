@@ -5,10 +5,10 @@ import unittest
 
 import pexpect
 
-from test.integration.test_integration_common import TestIntegrationCommon
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
-class TestIntegrationRepl(TestIntegrationCommon):
+class TestIntegrationRepl(TestIntegrationCoreCommon):
 
     def test_repl(self):
         self.fake_install(self.get_test_solution_path())

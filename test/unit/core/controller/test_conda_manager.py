@@ -7,10 +7,10 @@ from album.core.model.environment import Environment
 
 from album.core.controller.conda_manager import CondaManager
 from album.core.utils.operations.file_operations import force_remove
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestCondaManager(TestUnitCommon):
+class TestCondaManager(TestUnitCoreCommon):
     test_environment_name = "unittest"
 
     def setUp(self):

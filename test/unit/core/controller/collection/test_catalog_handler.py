@@ -11,7 +11,7 @@ from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.runner.core.model.coordinates import Coordinates
 from test.unit.core.controller.collection.test_collection_manager import TestCatalogCollectionCommon
-from test.unit.test_unit_common import EmptyTestClass
+from test.unit.test_unit_core_common import EmptyTestClass
 
 
 class TestCatalogHandler(TestCatalogCollectionCommon):

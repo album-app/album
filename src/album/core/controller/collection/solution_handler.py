@@ -1,8 +1,8 @@
 from datetime import datetime
 from pathlib import Path
 
-from album.core.api.album import IAlbum
 from album.core.api.controller.collection.solution_handler import ISolutionHandler
+from album.core.api.controller.controller import IAlbumController
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.catalog_updates import ISolutionChange, ChangeType
 from album.core.model.catalog import get_solution_src
@@ -25,12 +25,12 @@ class SolutionHandler(ISolutionHandler):
     Is NOT responsible for resolving paths as this is part of a catalog.
     """
 
-    def __init__(self, album: IAlbum):
+    def __init__(self, album: IAlbumController):
         self.album = album
 
     def add_or_replace(self, catalog: ICatalog, active_solution: ISolution, path):
         deploy_dict = get_deploy_dict(active_solution)
-        self.album.collection_manager().get_collection_index().add_or_replace_solution(
+        self._get_collection_index().add_or_replace_solution(
             catalog.catalog_id(),
             active_solution.coordinates(),
             deploy_dict
@@ -40,19 +40,22 @@ class SolutionHandler(ISolutionHandler):
 
         copy_folder(path, install_location, copy_root_folder=False)
 
+    def add_to_local_catalog(self, active_solution: ISolution, path):
+        self.add_or_replace(self.album.catalogs().get_local_catalog(), active_solution, path)
+
     def set_parent(self, catalog_parent: ICatalog, catalog_child: ICatalog, coordinates_parent: ICoordinates,
                    coordinates_child: ICoordinates):
 
         # retrieve parent entry
-        parent_entry = self.album.collection_manager().get_collection_index().get_solution_by_catalog_grp_name_version(
+        parent_entry = self._get_collection_index().get_solution_by_catalog_grp_name_version(
             catalog_parent.catalog_id(), coordinates_parent, close=False
         )
         # retrieve child entry
-        child_entry = self.album.collection_manager().get_collection_index().get_solution_by_catalog_grp_name_version(
+        child_entry = self._get_collection_index().get_solution_by_catalog_grp_name_version(
             catalog_child.catalog_id(), coordinates_child, close=False
         )
 
-        self.album.collection_manager().get_collection_index().insert_collection_collection(
+        self._get_collection_index().insert_collection_collection(
             parent_entry.internal()["collection_id"],
             child_entry.internal()["collection_id"],
             catalog_parent.catalog_id(),
@@ -60,18 +63,18 @@ class SolutionHandler(ISolutionHandler):
         )
 
     def remove_parent(self, catalog: ICatalog, coordinates: ICoordinates):
-        entry = self.album.collection_manager().get_collection_index().get_solution_by_catalog_grp_name_version(
+        entry = self._get_collection_index().get_solution_by_catalog_grp_name_version(
             catalog.catalog_id(), coordinates, close=False
         )
-        self.album.collection_manager().get_collection_index().remove_parent(
+        self._get_collection_index().remove_parent(
             entry.internal()["collection_id"]
         )
 
     def remove_solution(self, catalog: ICatalog, coordinates: ICoordinates):
-        self.album.collection_manager().get_collection_index().remove_solution(catalog.catalog_id(), coordinates)
+        self._get_collection_index().remove_solution(catalog.catalog_id(), coordinates)
 
     def update_solution(self, catalog: ICatalog, coordinates: ICoordinates, attrs: dict):
-        self.album.collection_manager().get_collection_index().update_solution(
+        self._get_collection_index().update_solution(
             catalog.catalog_id(),
             coordinates,
             attrs,
@@ -81,7 +84,7 @@ class SolutionHandler(ISolutionHandler):
     def apply_change(self, catalog: ICatalog, change: ISolutionChange):
         # FIXME handle other tables (tags etc)
         if change.change_type() is ChangeType.ADDED:
-            self.album.collection_manager().get_collection_index().add_or_replace_solution(
+            self._get_collection_index().add_or_replace_solution(
                 catalog.catalog_id(),
                 change.coordinates(),
                 catalog.index().get_solution_by_coordinates(change.coordinates())
@@ -92,7 +95,7 @@ class SolutionHandler(ISolutionHandler):
 
         elif change.change_type is ChangeType.CHANGED:
             self.remove_solution(catalog, change.coordinates())
-            self.album.collection_manager().get_collection_index().add_or_replace_solution(
+            self._get_collection_index().add_or_replace_solution(
                 catalog.catalog_id(),
                 change.coordinates(),
                 catalog.index().get_solution_by_coordinates(change.coordinates())
@@ -112,7 +115,7 @@ class SolutionHandler(ISolutionHandler):
         self.update_solution(catalog, coordinates, {"installed": 0, "installation_unfinished": 1})
 
     def is_installed(self, catalog: ICatalog, coordinates: ICoordinates) -> bool:
-        return self.album.collection_manager().get_collection_index().is_installed(catalog.catalog_id(), coordinates)
+        return self._get_collection_index().is_installed(catalog.catalog_id(), coordinates)
 
     def get_solution_path(self, catalog: ICatalog, coordinates: ICoordinates):
         return catalog.path().joinpath(self.album.configuration().get_solution_path_suffix(coordinates))
@@ -166,3 +169,6 @@ class SolutionHandler(ISolutionHandler):
             self.album.configuration().cache_path_tmp_internal().joinpath(str(catalog_name), path_suffix))
         solution.installation().set_user_cache_path(
             self.album.configuration().cache_path_tmp_user().joinpath(str(catalog_name), path_suffix))
+
+    def _get_collection_index(self):
+        return self.album.collection_manager().get_collection_index()

@@ -8,10 +8,10 @@ from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.resolve_operations import get_doi_from_input, get_cgnv_from_input, get_gnv_from_input, \
     get_attributes_from_string, check_file_or_url, dict_to_coordinates, get_zip_name_prefix, get_zip_name, \
     check_doi, parse_doi_service_url, _parse_zenodo_url
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestResolveOperations(TestUnitCommon):
+class TestResolveOperations(TestUnitCoreCommon):
 
     def setUp(self):
         super().setUp()

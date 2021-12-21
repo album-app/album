@@ -9,10 +9,10 @@ from album.core.model.catalog import Catalog
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.default_values import DefaultValues
 from album.runner.core.model.solution import Solution
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestCatalog(TestUnitCommon):
+class TestCatalog(TestUnitCoreCommon):
 
     def populate_index(self, r=10):
         for i in range(0, r):

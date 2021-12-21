@@ -1,8 +1,8 @@
 from album.core.utils.operations.dict_operations import get_dict_entries_from_attribute_path
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestDictOperations(TestUnitCommon):
+class TestDictOperations(TestUnitCoreCommon):
     
     def test_get_dict_entries_from_path(self):
         input = {

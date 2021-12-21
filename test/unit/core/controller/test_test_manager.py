@@ -1,30 +1,15 @@
 import unittest.mock
 
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestTestManager(TestUnitCommon):
+class TestTestManager(TestUnitCoreCommon):
 
     def setUp(self):
         super().setUp()
 
     @unittest.skip("Needs to be implemented!")
     def test_test(self):
-        # ToDo: implement
-        pass
-
-    @unittest.skip("Needs to be implemented!")
-    def test_test_from_catalog_coordinates(self):
-        # TODO implement
-        pass
-
-    @unittest.skip("Needs to be implemented!")
-    def test_test_from_coordinates(self):
-        # TODO implement
-        pass
-
-    @unittest.skip("Needs to be implemented!")
-    def test__test(self):
         # ToDo: implement
         pass
 

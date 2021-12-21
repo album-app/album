@@ -2,10 +2,10 @@ import unittest
 from pathlib import Path
 
 from album.core.utils.operations.url_operations import is_downloadable, download_resource, _request_get, is_url
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestUrlOperations(TestUnitCommon):
+class TestUrlOperations(TestUnitCoreCommon):
 
     def setUp(self) -> None:
         super().setUp()

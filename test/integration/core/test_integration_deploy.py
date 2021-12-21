@@ -3,13 +3,12 @@ import unittest
 from pathlib import Path
 from shutil import copy
 
-from album.argument_parsing import main
 from album.core.utils.operations.file_operations import force_remove
 from album.runner.core.model.coordinates import Coordinates
-from test.integration.test_integration_common import TestIntegrationCommon
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
-class TestIntegrationDeploy(TestIntegrationCommon):
+class TestIntegrationDeploy(TestIntegrationCoreCommon):
 
     def tearDown(self) -> None:
         # try to avoid git-removal windows errors
@@ -23,17 +22,9 @@ class TestIntegrationDeploy(TestIntegrationCommon):
 
     def test_deploy_dry_run(self):
         catalog = self.add_test_catalog()
-        # gather arguments
-        sys.argv = ['',
-                    'deploy',
-                    str(self.get_test_solution_path()),
-                    '--catalog=test_catalog',
-                    '--dry-run',
-                    '--git-name=MyName',
-                    '--git-email=MyEmail',
-                    ]
 
-        self.assertIsNone(main())
+        self.album_instance.deploy_manager().deploy(str(self.get_test_solution_path()), catalog_name=catalog.name(),
+                                changelog='something changed', dry_run=True, git_name='MyName', git_email='MyEmail')
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertIn('Pretending to deploy', self.captured_output.getvalue())
         self.collection_manager.catalogs().update_any('test_catalog')
@@ -43,17 +34,8 @@ class TestIntegrationDeploy(TestIntegrationCommon):
 
     def test_deploy_file(self):
         catalog = self.add_test_catalog()
-        # gather arguments
-        sys.argv = ['',
-                    'deploy',
-                    str(self.get_test_solution_path()),
-                    '--catalog',
-                    'test_catalog',
-                    '--changelog',
-                    'something changed'
-                    ]
-
-        self.assertIsNone(main())
+        self.album_instance.deploy_manager().deploy(str(self.get_test_solution_path()), catalog_name=catalog.name(),
+                                                    changelog='something changed', dry_run=False)
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.collection_manager.catalogs().update_any('test_catalog')
         updates = self.collection_manager.catalogs().update_collection('test_catalog')
@@ -76,7 +58,7 @@ class TestIntegrationDeploy(TestIntegrationCommon):
 
         # run deploy without changelog
         sys.argv = ['', 'deploy', path, '--catalog', 'test_catalog']
-        self.assertIsNone(main())
+        self.album_instance.deploy_manager().deploy(path, catalog_name=catalog.name(), dry_run=False)
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertIn('We recommend documenting changes', self.captured_output.getvalue())
 
@@ -97,8 +79,8 @@ class TestIntegrationDeploy(TestIntegrationCommon):
         coordinates = Coordinates('group', 'name', '0.1.0')
 
         # run deploy with changelog parameter
-        sys.argv = ['', 'deploy', path, '--catalog', catalog.name(), '--changelog', 'something changed']
-        self.assertIsNone(main())
+        self.album_instance.deploy_manager().deploy(path, catalog_name=catalog.name(), dry_run=False,
+                                                    changelog='something changed')
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertNotIn('We recommend documenting changes', self.captured_output.getvalue())
 
@@ -130,8 +112,7 @@ class TestIntegrationDeploy(TestIntegrationCommon):
             file.write('my documentation')
 
         # run deploy while providing changelog via file
-        sys.argv = ['', 'deploy', str(source), '--catalog', 'test_catalog']
-        self.assertIsNone(main())
+        self.album_instance.deploy_manager().deploy(str(source), catalog_name=catalog.name(), dry_run=False)
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertNotIn('We recommend documenting changes', self.captured_output.getvalue())
 

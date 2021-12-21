@@ -1,9 +1,7 @@
 from abc import ABCMeta, abstractmethod
 
-from album.core.api.model.catalog import ICatalog
-from album.core.api.model.collection_index import ICollectionIndex
+from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.api.model.environment import IEnvironment
-from album.runner.core.api.model.solution import ISolution
 
 
 class IEnvironmentManager:
@@ -12,11 +10,11 @@ class IEnvironmentManager:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def install_environment(self, active_solution: ISolution, catalog: ICatalog) -> IEnvironment:
+    def install_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
         raise NotImplementedError
 
     @abstractmethod
-    def set_environment(self, active_solution: ISolution, catalog: ICatalog) -> IEnvironment:
+    def set_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
         """Resolves the environment the active solution runs in.
 
         Returns the resolve result of the parent of the active solution.

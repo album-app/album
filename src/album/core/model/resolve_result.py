@@ -2,12 +2,12 @@ from pathlib import Path
 
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
-from album.core.api.model.resolve_result import IResolveResult
+from album.core.api.model.collection_solution import ICollectionSolution
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
 
 
-class ResolveResult(IResolveResult):
+class ResolveResult(ICollectionSolution):
     def __init__(self, path, catalog: ICatalog, collection_entry: ICollectionIndex.ICollectionSolution,
                  coordinates: ICoordinates, loaded_solution=None):
         self._catalog: ICatalog = catalog
@@ -17,7 +17,7 @@ class ResolveResult(IResolveResult):
         self._loaded_solution: ISolution = loaded_solution
 
     def __eq__(self, other):
-        return isinstance(other, IResolveResult) and \
+        return isinstance(other, ICollectionSolution) and \
                other.catalog() == self._catalog and \
                other.path() == self._path and \
                other.loaded_solution() == self._loaded_solution and \
@@ -44,3 +44,6 @@ class ResolveResult(IResolveResult):
 
     def set_coordinates(self, coordinates):
         self._coordinates = coordinates
+
+    def set_database_entry(self, database_entry: ICollectionIndex.ICollectionSolution):
+        self._collection_entry = database_entry

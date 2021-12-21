@@ -1,13 +1,11 @@
-import sys
 import unittest
 from pathlib import Path
 
-from album.argument_parsing import main
 from album.core.model.default_values import DefaultValues
-from test.integration.test_integration_common import TestIntegrationCommon
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
-class TestIntegrationClone(TestIntegrationCommon):
+class TestIntegrationClone(TestIntegrationCoreCommon):
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -17,10 +15,8 @@ class TestIntegrationClone(TestIntegrationCommon):
         self.fake_install(input_path)
         target_dir = Path(self.tmp_dir.name).joinpath("my_catalog")
 
-        sys.argv = ["", "clone", input_path, str(target_dir), "my_solution"]
-
         # run
-        self.assertIsNone(main())
+        self.album_instance.clone_manager().clone(input_path, target_dir=str(target_dir), name="my_solution")
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
@@ -31,10 +27,8 @@ class TestIntegrationClone(TestIntegrationCommon):
     def test_clone_solution_template(self):
         target_dir = Path(self.tmp_dir.name).joinpath("my_catalog")
 
-        sys.argv = ["", "clone", "album:template-r:0.1.0-SNAPSHOT", str(target_dir), "my_solution"]
-
         # run
-        self.assertIsNone(main())
+        self.album_instance.clone_manager().clone("album:template-r:0.1.0-SNAPSHOT", target_dir=str(target_dir), name="my_solution")
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
@@ -43,10 +37,8 @@ class TestIntegrationClone(TestIntegrationCommon):
     def test_clone_catalog_template(self):
         target_dir = Path(self.tmp_dir.name).joinpath("my_catalogs")
 
-        sys.argv = ["", "clone", "template:catalog", str(target_dir), "my_catalog"]
-
         # run
-        self.assertIsNone(main())
+        self.album_instance.clone_manager().clone("template:catalog", target_dir=str(target_dir), name="my_catalog")
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
@@ -58,15 +50,11 @@ class TestIntegrationClone(TestIntegrationCommon):
         self.assertTrue(target_path.joinpath("album_solution_list.json").exists())
 
     def test_clone_non_existing_solution(self):
-        sys.argv = ["", "clone", "weirdPath", str(Path(self.tmp_dir.name)), "my_solution"]
-
         # run
-        with self.assertRaises(SystemExit) as e:
-            main()
-        self.assertTrue(isinstance(e.exception.code, ValueError))
+        with self.assertRaises(ValueError) as e:
+            self.album_instance.clone_manager().clone("weirdPath", target_dir=str(Path(self.tmp_dir.name)), name="my_solution")
 
-        self.assertIn("ERROR", self.captured_output.getvalue())
-        self.assertIn("Invalid input format!", e.exception.code.args[0])
+        self.assertIn("Invalid input format!", e.exception.args[0])
 
 
 if __name__ == '__main__':

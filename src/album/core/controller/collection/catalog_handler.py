@@ -4,8 +4,8 @@ from typing import List, Optional, Dict
 
 import validators
 
-from album.core.api.album import IAlbum
 from album.core.api.controller.collection.catalog_handler import ICatalogHandler
+from album.core.api.controller.controller import IAlbumController
 from album.core.api.model.catalog import ICatalog
 from album.core.model.catalog import Catalog, get_index_url, get_index_dir
 from album.core.model.catalog_index import CatalogIndex
@@ -23,7 +23,7 @@ module_logger = album_logging.get_active_logger
 class CatalogHandler(ICatalogHandler):
     """Helper class responsible for catalog handling."""
 
-    def __init__(self, album: IAlbum):
+    def __init__(self, album: IAlbumController):
         self.album = album
 
     def create_local_catalog(self):
@@ -41,7 +41,7 @@ class CatalogHandler(ICatalogHandler):
 
     def add_by_src(self, identifier, branch_name="main") -> Catalog:
         identifier = str(identifier)
-        catalog_dict = self.album.collection_manager().get_collection_index().get_catalog_by_src(identifier)
+        catalog_dict = self._get_collection_index().get_catalog_by_src(identifier)
         if catalog_dict:
             module_logger().warning("Cannot add catalog twice! Doing nothing...")
             return self._as_catalog(catalog_dict)
@@ -67,7 +67,7 @@ class CatalogHandler(ICatalogHandler):
             return catalog
 
     def _add_to_index(self, catalog: ICatalog) -> int:
-        catalog_id = self.album.collection_manager().get_collection_index().insert_catalog(
+        catalog_id = self._get_collection_index().insert_catalog(
             catalog.name(),
             str(catalog.src()),
             str(catalog.path()),
@@ -78,14 +78,17 @@ class CatalogHandler(ICatalogHandler):
         return catalog.catalog_id()
 
     def get_by_id(self, catalog_id) -> Catalog:
-        catalog = self.album.collection_manager().get_collection_index().get_catalog(catalog_id)
+        catalog = self._get_collection_index().get_catalog(catalog_id)
         if not catalog:
             raise LookupError("Catalog with id \"%s\" not configured!" % catalog_id)
         return self._as_catalog(catalog)
 
+    def _get_collection_index(self):
+        return self.album.collection_manager().get_collection_index()
+
     def get_by_src(self, src) -> Catalog:
         src = str(src)
-        catalog_dict = self.album.collection_manager().get_collection_index().get_catalog_by_src(src)
+        catalog_dict = self._get_collection_index().get_catalog_by_src(src)
         if not catalog_dict:
             raise LookupError("Catalog with src \"%s\" not configured!" % src)
         return self._as_catalog(catalog_dict)
@@ -93,21 +96,21 @@ class CatalogHandler(ICatalogHandler):
     def get_by_name(self, name) -> Catalog:
         """Looks up a catalog by its id and returns it."""
         name = str(name)
-        catalog_dict = self.album.collection_manager().get_collection_index().get_catalog_by_name(name)
+        catalog_dict = self._get_collection_index().get_catalog_by_name(name)
         if not catalog_dict:
             raise LookupError("Catalog with name \"%s\" not configured!" % name)
         return self._as_catalog(catalog_dict)
 
     def get_by_path(self, path) -> Catalog:
         path = str(path)
-        catalog_dict = self.album.collection_manager().get_collection_index().get_catalog_by_path(path)
+        catalog_dict = self._get_collection_index().get_catalog_by_path(path)
         if not catalog_dict:
             raise LookupError("Catalog with path \"%s\" not configured!" % path)
         return self._as_catalog(catalog_dict)
 
     def get_all(self) -> List[Catalog]:
         catalogs = []
-        catalog_list = self.album.collection_manager().get_collection_index().get_all_catalogs()
+        catalog_list = self._get_collection_index().get_all_catalogs()
 
         for catalog_entry in catalog_list:
             catalogs.append(self._as_catalog(catalog_entry))
@@ -196,7 +199,7 @@ class CatalogHandler(ICatalogHandler):
                 "Has the following solutions installed: %s" % installed_solutions_string
             )
 
-        self.album.collection_manager().get_collection_index().remove_catalog(catalog_to_remove.catalog_id())
+        self._get_collection_index().remove_catalog(catalog_to_remove.catalog_id())
 
         force_remove(catalog_to_remove.path())
 
@@ -205,7 +208,7 @@ class CatalogHandler(ICatalogHandler):
         return catalog_to_remove
 
     def remove_from_collection_by_path(self, path) -> Optional[Catalog]:
-        catalog_dict = self.album.collection_manager().get_collection_index().get_catalog_by_path(path)
+        catalog_dict = self._get_collection_index().get_catalog_by_path(path)
 
         if not catalog_dict:
             module_logger().warning("Cannot remove catalog, catalog with path %s not found!" % str(path))
@@ -218,7 +221,7 @@ class CatalogHandler(ICatalogHandler):
         return catalog_to_remove
 
     def remove_from_collection_by_name(self, name) -> Optional[Catalog]:
-        catalog_dict = self.album.collection_manager().get_collection_index().get_catalog_by_name(name)
+        catalog_dict = self._get_collection_index().get_catalog_by_name(name)
 
         if not catalog_dict:
             module_logger().warning("Cannot remove catalog, catalog with name \"%s\", not found!" % str(name))
@@ -238,7 +241,7 @@ class CatalogHandler(ICatalogHandler):
                 module_logger().warning("Cannot remove catalog with source \"%s\"! Not configured!" % str(src))
                 return None
 
-        catalog_dict = self.album.collection_manager().get_collection_index().get_catalog_by_src(src)
+        catalog_dict = self._get_collection_index().get_catalog_by_src(src)
 
         if not catalog_dict:
             module_logger().warning("Cannot remove catalog with source \"%s\"! Not configured!" % str(src))
@@ -251,14 +254,14 @@ class CatalogHandler(ICatalogHandler):
         return catalog_to_remove
 
     def get_installed_solutions(self, catalog: ICatalog):
-        installed_solutions = self.album.collection_manager().get_collection_index().get_all_installed_solutions_by_catalog(
+        installed_solutions = self._get_collection_index().get_all_installed_solutions_by_catalog(
             catalog.catalog_id()
         )
         return installed_solutions
 
     def get_all_as_dict(self) -> dict:
         return {
-            "catalogs": self.album.collection_manager().get_collection_index().get_all_catalogs()
+            "catalogs": self._get_collection_index().get_all_catalogs()
         }
 
     def set_version(self, catalog: ICatalog):
@@ -335,7 +338,7 @@ class CatalogHandler(ICatalogHandler):
             # cache catalog is always up to date since src and path are the same
             return CatalogUpdates(catalog)
 
-        solutions_in_collection = self.album.collection_manager().get_collection_index().get_solutions_by_catalog(
+        solutions_in_collection = self._get_collection_index().get_solutions_by_catalog(
             catalog.catalog_id())
         self.album.migration_manager().load_index(catalog)
         solutions_in_catalog = catalog.index().get_all_solutions()
@@ -352,7 +355,7 @@ class CatalogHandler(ICatalogHandler):
         divergence = self._get_divergence_between_catalog_and_collection(catalog_name)
         # TODO apply changes to catalog attributes
         for change in divergence.solution_changes():
-            self.album.collection_manager().solutions().apply_change(divergence.catalog(), change)
+            self.album.solutions().apply_change(divergence.catalog(), change)
         return divergence
 
     @staticmethod
