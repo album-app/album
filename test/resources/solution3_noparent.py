@@ -23,7 +23,7 @@ setup(
     name="solution3_noparent",
     title="solution three, no parent",
     version="0.1.0",
-    album_api_version="0.1.1",
+    album_api_version="0.2.1",
     args=[{
         "name": "file",
         "description": "",
