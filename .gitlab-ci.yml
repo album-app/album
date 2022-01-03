@@ -217,28 +217,6 @@ pypi deploy:
         when: never
       - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-gitlab docker deploy:
-  stage: deploy
-  tags:
-    - DeployRunner
-    - DeployShell
-  needs:
-    - job: gitlab release
-    - job: prepare release
-      artifacts: true
-    - job: pypi deploy
-  before_script:
-    - docker info
-  script:
-    - echo "deploying gitlab docker version $VERSION"
-    - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
-    - docker build -t $CI_REGISTRY/group/project/image:$VERSION .
-    - docker push $CI_REGISTRY/group/project/image:$VERSION
-  rules:
-      - if: $CI_COMMIT_TAG
-        when: never
-      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-
 docker deploy:
   stage: deploy
   tags:
