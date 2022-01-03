@@ -4,6 +4,7 @@ from unittest.mock import patch, MagicMock
 
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
+from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.runner.core.model.coordinates import Coordinates
 from album.runner.core.model.solution import Solution
 from test.unit.core.controller.collection.test_collection_manager import TestCatalogCollectionCommon
@@ -15,12 +16,12 @@ class TestSolutionHandler(TestCatalogCollectionCommon):
         super().setUp()
         self.fill_catalog_collection()
         catalog_src = Path(self.tmp_dir.name).joinpath("testRepo")
-        self.album.collection_manager().catalogs().create_new(catalog_src, "test")
+        self.album.catalogs().create_new(catalog_src, "test")
         catalog_path = Path(self.tmp_dir.name).joinpath("testPath")
         catalog_path.mkdir(parents=True)
 
         self.catalog = Catalog(0, "test", src=catalog_src, path=catalog_path)
-        self.solution_handler = self.collection_manager.solutions()
+        self.solution_handler = self.collection_manager.solution_handler
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -154,3 +155,21 @@ class TestSolutionHandler(TestCatalogCollectionCommon):
             ),
             active_solution.installation().user_cache_path()
         )
+
+    @patch('album.core.controller.collection.solution_handler.copy_folder', return_value=None)
+    def test_add_to_local_catalog(self, copy_folder_mock):
+        # run
+        self.create_test_solution_no_env()
+        self.active_solution.script = ""  # the script gets read during load()
+        self.solution_handler.add_to_local_catalog(self.active_solution, "aPathToInstall")
+
+        # assert
+        path = self.solution_handler.get_solution_path(
+            self.collection_manager.catalogs().get_local_catalog(),
+            dict_to_coordinates(self.solution_default_dict))
+        copy_folder_mock.assert_called_once_with("aPathToInstall", path, copy_root_folder=False)
+
+    @unittest.skip("Needs to be implemented!")
+    def test_write_version_to_yml(self):
+        # todo: implement
+        pass

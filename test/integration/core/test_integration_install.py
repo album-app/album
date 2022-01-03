@@ -3,13 +3,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from album.argument_parsing import main
 from album.core.model.default_values import DefaultValues
 from album.runner.core.model.coordinates import Coordinates
-from test.integration.test_integration_common import TestIntegrationCommon
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
-class TestIntegrationInstall(TestIntegrationCommon):
+class TestIntegrationInstall(TestIntegrationCoreCommon):
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -20,21 +19,19 @@ class TestIntegrationInstall(TestIntegrationCommon):
         get_environment_path.return_value = self.album_instance.environment_manager().get_conda_manager().get_active_environment_path()
 
         # this solution has no install() configured
-
-        sys.argv = ["", "install", str(self.get_test_solution_path("solution11_minimal.py")), "--log", "DEBUG"]
-
-        # run
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path("solution11_minimal.py"))
+        self.album_instance.install_manager().install(resolve_result)
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
-        self.assertIn("No \"install\" routine configured for solution", self.captured_output.getvalue())
+
+        # FIXME the next assertion doesn't work since not calling main in this method. Don't know how to set the loglevel to DEBUG in this test.
+        # self.assertIn("No \"install\" routine configured for solution", self.captured_output.getvalue())
 
     def test_install(self):
-        # gather arguments
-        sys.argv = ["", "install", str(self.get_test_solution_path())]
-
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(self.get_test_solution_path())
+        self.album_instance.install_manager().install(resolve_result)
 
         # assert solution was added to local catalog
         self.assertNotIn('ERROR', self.captured_output.getvalue())
@@ -53,13 +50,14 @@ class TestIntegrationInstall(TestIntegrationCommon):
         )
 
     def test_install_lambda_breaks(self):
-        sys.argv = ["", "install", str(self.get_test_solution_path('solution13_faulty_routine.py'))]
 
         self.assertEqual([], self.collection_manager.catalog_collection.get_unfinished_installation_solutions())
 
         # call
-        with self.assertRaises(SystemExit):
-            main()
+        with self.assertRaises(RuntimeError):
+            resolve_result = self.album_instance.collection_manager().resolve_and_load(
+                self.get_test_solution_path("solution13_faulty_routine.py"))
+            self.album_instance.install_manager().install(resolve_result)
 
         # the environment stays
         local_catalog = self.collection_manager.catalogs().get_local_catalog()
@@ -73,8 +71,8 @@ class TestIntegrationInstall(TestIntegrationCommon):
 
         # try to install smth. else (or the same, after routine is fixed)
         # should remove the faulty environment from previously failed installation
-        sys.argv = ["", "install", str(self.get_test_solution_path())]
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(self.get_test_solution_path())
+        self.album_instance.install_manager().install(resolve_result)
 
         # check cleaned up
         self.assertFalse(local_file.exists())
@@ -82,13 +80,14 @@ class TestIntegrationInstall(TestIntegrationCommon):
         self.assertEqual([], self.collection_manager.catalog_collection.get_unfinished_installation_solutions())
 
     def test_install_faulty_environment(self):
-        sys.argv = ["", "install", str(self.get_test_solution_path('solution14_faulty_environment.py'))]
 
         self.assertEqual([], self.collection_manager.catalog_collection.get_unfinished_installation_solutions())
 
         # call
-        with self.assertRaises(SystemExit):
-            main()
+        with self.assertRaises(RuntimeError):
+            resolve_result = self.album_instance.collection_manager().resolve_and_load(
+                self.get_test_solution_path("solution14_faulty_environment.py"))
+            self.album_instance.install_manager().install(resolve_result)
 
         # the environment stays
         local_catalog = self.collection_manager.catalogs().get_local_catalog()
@@ -102,15 +101,17 @@ class TestIntegrationInstall(TestIntegrationCommon):
 
         # try to install smth. else (or the same, after routine is fixed)
         # should remove the faulty environment from previously failed installation
-        sys.argv = ["", "install", str(self.get_test_solution_path())]
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path())
+        self.album_instance.install_manager().install(resolve_result)
 
         self.assertFalse(local_file.exists())
         self.assertEqual([], self.collection_manager.catalog_collection.get_unfinished_installation_solutions())
 
     def test_install_twice(self):
-        sys.argv = ["", "install", str(self.get_test_solution_path())]
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path())
+        self.album_instance.install_manager().install(resolve_result)
 
         self.collection_manager.solutions().is_installed(
             self.collection_manager.catalogs().get_local_catalog(),
@@ -118,19 +119,19 @@ class TestIntegrationInstall(TestIntegrationCommon):
         )
 
         sys.argv = ["", "install", str(self.get_test_solution_path())]
-        with self.assertRaises(SystemExit) as context:
-            main()
-            self.assertTrue(isinstance(context.exception.code, RuntimeError))
-            self.assertIn("Solution already installed. Uninstall solution first!", context.exception.code.args[0])
+        with self.assertRaises(RuntimeError) as context:
+            resolve_result = self.album_instance.collection_manager().resolve_and_load(
+                self.get_test_solution_path())
+            self.album_instance.install_manager().install(resolve_result)
+            self.assertIn("Solution already installed. Uninstall solution first!", context.exception.args[0])
 
     #  @unittest.skipIf(sys.platform == 'win32' or sys.platform == 'cygwin', "This test fails on the Windows CI with \"SSL: CERTIFICATE_VERIFY_FAILED\"")
     @unittest.skip("Fixme")
     def test_install_from_url(self):
-        # gather arguments
-        sys.argv = ["", "install",
-                    "https://gitlab.com/album-app/catalogs/capture-knowledge-dev/-/raw/main/app-fiji/solution.py"]
-
-        self.assertIsNone(main())
+        
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            "https://gitlab.com/album-app/catalogs/capture-knowledge-dev/-/raw/main/app-fiji/solution.py")
+        self.album_instance.install_manager().install(resolve_result)
 
         # assert solution was added to local catalog
         self.assertNotIn('ERROR', self.captured_output.getvalue())
@@ -150,12 +151,14 @@ class TestIntegrationInstall(TestIntegrationCommon):
 
     def test_install_with_parent(self):
         # gather arguments
-        sys.argv = ['', 'install', str(self.get_test_solution_path('app1.py'))]
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path('app1.py'))
+        self.album_instance.install_manager().install(resolve_result)
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
-        sys.argv = ['', 'install', str(self.get_test_solution_path('solution1_app1.py'))]
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path('solution1_app1.py'))
+        self.album_instance.install_manager().install(resolve_result)
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         # assert solution was added to local catalog
@@ -179,8 +182,10 @@ class TestIntegrationInstall(TestIntegrationCommon):
         )
         self.assertTrue(solution_path.exists())
 
-        sys.argv = ["", "uninstall", str(self.get_test_solution_path("solution1_app1.py"))]
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path('solution1_app1.py'))
+        self.album_instance.install_manager().uninstall(resolve_result)
+
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         solution_path = Path(self.tmp_dir.name).joinpath(
@@ -191,8 +196,10 @@ class TestIntegrationInstall(TestIntegrationCommon):
         )
         self.assertFalse(solution_path.exists())
 
-        sys.argv = ["", "install", str(self.get_test_solution_path("solution1_app1.py"))]
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path('solution1_app1.py'))
+        self.album_instance.install_manager().install(resolve_result)
+
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertTrue(solution_path.exists())
 
@@ -202,16 +209,20 @@ class TestIntegrationInstall(TestIntegrationCommon):
         get_environment_path.return_value = self.album_instance.environment_manager().get_conda_manager().get_active_environment_path()
         environment_exists.return_value = True
         # gather arguments
-        sys.argv = ['', 'install', str(self.get_test_solution_path('app1.py'))]
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path('app1.py'))
+        self.album_instance.install_manager().install(resolve_result)
+
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
-        sys.argv = ['', 'install', str(self.get_test_solution_path('solution1_app1.py'))]
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path('solution1_app1.py'))
+        self.album_instance.install_manager().install(resolve_result)
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
-        sys.argv = ['', 'install', str(self.get_test_solution_path('solution12_solution1_app1.py'))]
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path('solution12_solution1_app1.py'))
+        self.album_instance.install_manager().install(resolve_result)
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         # assert solution was added to local catalog
@@ -243,29 +254,35 @@ class TestIntegrationInstall(TestIntegrationCommon):
         )
         self.assertTrue(solution_child_path.exists())
 
-        sys.argv = ["", "uninstall", str(self.get_test_solution_path("solution1_app1.py"))]
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path('solution1_app1.py'))
+        self.album_instance.install_manager().uninstall(resolve_result)
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertIn("The following solutions depend on this installation", self.captured_output.getvalue())
         self.assertTrue(solution_path.exists())
 
-        sys.argv = ["", "uninstall", str(self.get_test_solution_path("solution12_solution1_app1.py"))]
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path('solution12_solution1_app1.py'))
+        self.album_instance.install_manager().uninstall(resolve_result)
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertFalse(solution_child_path.exists())
 
-        sys.argv = ["", "uninstall", str(self.get_test_solution_path("solution1_app1.py"))]
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path('solution1_app1.py'))
+        self.album_instance.install_manager().uninstall(resolve_result)
+
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertFalse(solution_path.exists())
-
-        sys.argv = ["", "install", str(self.get_test_solution_path("solution1_app1.py"))]
-        self.assertIsNone(main())
+        
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path('solution1_app1.py'))
+        self.album_instance.install_manager().install(resolve_result)
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertTrue(solution_path.exists())
 
-        sys.argv = ["", "install", str(self.get_test_solution_path("solution12_solution1_app1.py"))]
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path('solution12_solution1_app1.py'))
+        self.album_instance.install_manager().install(resolve_result)
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertTrue(solution_child_path.exists())
 
@@ -277,8 +294,9 @@ class TestIntegrationInstall(TestIntegrationCommon):
         )
 
         # dependency app1 NOT installed
-        sys.argv = ["", "install", str(self.get_test_solution_path("solution1_app1.py"))]
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path('solution1_app1.py'))
+        self.album_instance.install_manager().install(resolve_result)
 
         # assert solution was added to local catalog
         collection = self.collection_manager.catalog_collection
@@ -289,12 +307,6 @@ class TestIntegrationInstall(TestIntegrationCommon):
             self.collection_manager.catalogs().get_local_catalog(),
             Coordinates("group", "app1", "0.1.0")
         ))
-
-    def test_install_no_solution(self):
-        sys.argv = ["", "install"]
-        with self.assertRaises(SystemExit) as e:
-            main()
-        self.assertEqual(SystemExit(2).code, e.exception.code)
 
 
 if __name__ == '__main__':

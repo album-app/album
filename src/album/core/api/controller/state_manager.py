@@ -10,15 +10,3 @@ class IStateManager:
     @abstractmethod
     def load(self, path) -> Optional[ISolution]:
         raise NotImplementedError
-
-    @abstractmethod
-    def pop_active_solution(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_active_solution(self) -> Optional[ISolution]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_parent_solution(self) -> Optional[ISolution]:
-        raise NotImplementedError

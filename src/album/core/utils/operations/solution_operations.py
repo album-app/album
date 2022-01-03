@@ -32,7 +32,7 @@ def get_deploy_dict(solution: ISolution) -> dict:
 
     for k in solution.setup().keys():
         value = solution.setup()[k]
-        if not callable(value) and k is not 'dependencies':
+        if not callable(value) and k != 'dependencies':
             # deepcopy necessary. Else original album object will loose "action" attributes in its arguments
             d[k] = copy.deepcopy(value)
 

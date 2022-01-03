@@ -22,9 +22,9 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
     def fake_deploy(self):
         self._catalog = Catalog(None, name=self.name, path=self.path, src=self.src)
 
-        self.album_instance.collection_manager().catalogs()._add_to_index(self._catalog)
+        self.album_instance._controller.catalogs()._add_to_index(self._catalog)
 
-        deploy_manager = self.album_instance.deploy_manager()
+        deploy_manager = self.album_instance._controller.deploy_manager()
         deploy_manager.deploy(
             deploy_path=self.get_test_solution_path(),
             catalog_name=self.name,
@@ -96,6 +96,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
         self.assertIsNone(main())
 
     def test_update_index(self):
+        self.init_collection()
         # fake deploy to test catalog
         branch_name = self.fake_deploy()
 
@@ -106,6 +107,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
         self.assertIsNone(main())
 
     def test_push_changes(self):
+        self.init_collection()
         # fake deploy to test catalog
         branch_name = self.fake_deploy()
 

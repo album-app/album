@@ -2,10 +2,11 @@ import os
 import sys
 from argparse import ArgumentParser
 
-from album.album import Album
+from album.api import Album
 from album.argument_parsing import ArgumentParser as AlbumAP
 from album.ci.commandline import configure_repo, configure_ssh, zenodo_publish, zenodo_upload, update_index, \
     push_changes, merge
+from album.ci.controller.release_manager import ReleaseManager
 from album.runner import album_logging
 from album.runner.album_logging import get_active_logger, debug_settings
 
@@ -29,13 +30,14 @@ def main():
 
     # Makes sure album is initialized.
     album_instance = create_album_instance()
-    album_instance.collection_manager().load_or_create_collection()
+    album_instance.load_or_create_collection()
+    release_manager = ReleaseManager(album_instance, args.name, args.path, args.src, args.force_retrieve)
 
     module_logger().debug("Running %s command..." % album_ci_command)
-    args.func(album_instance, args)  # execute entry point function
+    args.func(release_manager, args)  # execute entry point function
 
 
-def create_album_instance():
+def create_album_instance() -> Album:
     album = Album()
     return album
 

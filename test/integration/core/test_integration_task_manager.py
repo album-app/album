@@ -3,10 +3,10 @@ from time import time, sleep
 from unittest.mock import patch
 
 from album.core.model.task import Task
-from test.integration.test_integration_common import TestIntegrationCommon
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
-class TestIntegrationTaskManager(TestIntegrationCommon):
+class TestIntegrationTaskManager(TestIntegrationCoreCommon):
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_happy_solution(self, get_environment_path):
@@ -14,7 +14,7 @@ class TestIntegrationTaskManager(TestIntegrationCommon):
         solution_path = self.get_test_solution_path()
         self.fake_install(solution_path, create_environment=False)
         task = Task()
-        task._method = self.album_instance.run_manager().run
+        task._method = self.album_instance.run
         task._args = [solution_path]
         task_manager = self.album_instance.task_manager()
         task_id = task_manager.register_task(task)
@@ -32,7 +32,7 @@ class TestIntegrationTaskManager(TestIntegrationCommon):
         solution_path = self.get_test_solution_path("solution9_throws_exception.py")
         self.fake_install(solution_path, create_environment=False)
         task = Task()
-        task.method = self.album_instance.run_manager().run
+        task.method = self.album_instance.run
         task.args = [solution_path]
         task_manager = self.album_instance.task_manager()
         task_manager.register_task(task)

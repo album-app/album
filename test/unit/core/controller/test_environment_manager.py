@@ -1,9 +1,9 @@
 import unittest.mock
 
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestEnvironmentManager(TestUnitCommon):
+class TestEnvironmentManager(TestUnitCoreCommon):
 
     def setUp(self):
         super().setUp()

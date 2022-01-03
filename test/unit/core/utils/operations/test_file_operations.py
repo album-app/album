@@ -9,10 +9,10 @@ from album.core.utils.operations.file_operations import get_dict_from_yml, write
     create_empty_file_recursively, \
     create_path_recursively, write_dict_to_json, force_remove, zip_folder, unzip_archive, copy, \
     copy_folder, zip_paths, rand_folder_name, folder_empty
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestFileOperations(TestUnitCommon):
+class TestFileOperations(TestUnitCoreCommon):
 
     def setUp(self):
         super().setUp()

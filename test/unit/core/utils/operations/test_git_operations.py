@@ -8,7 +8,7 @@ import album.core.utils.operations.git_operations as git_op
 from album.core.model.default_values import DefaultValues
 from album.runner.core.model.solution import Solution
 from album.core.utils.operations.file_operations import copy
-from test.unit.test_unit_common import TestGitCommon
+from test.unit.test_unit_core_common import TestGitCommon
 
 
 class TestGitOperations(TestGitCommon):

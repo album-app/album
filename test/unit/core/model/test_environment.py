@@ -5,10 +5,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 from album.core.model.environment import Environment
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestEnvironment(TestUnitCommon):
+class TestEnvironment(TestUnitCoreCommon):
     test_environment_name = "unittest"
 
     def setUp(self):

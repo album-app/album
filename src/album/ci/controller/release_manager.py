@@ -2,9 +2,9 @@ from pathlib import Path
 
 from git import Repo
 
+from album.api import Album
 from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.ci_utils import get_ssh_url
-from album.core.api.album import IAlbum
 from album.core.model.catalog import Catalog
 from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_dict_entry
 from album.core.utils.operations.git_operations import checkout_branch, add_files_commit_and_push, \
@@ -21,7 +21,7 @@ class ReleaseManager:
 
     configuration = None
 
-    def __init__(self, album_instance: IAlbum, catalog_name, catalog_path, catalog_src, force_retrieve):
+    def __init__(self, album_instance: Album, catalog_name, catalog_path, catalog_src, force_retrieve):
         self.catalog_name = catalog_name
         self.catalog_path = catalog_path
         self.catalog_src = catalog_src
@@ -32,7 +32,7 @@ class ReleaseManager:
 
         self.catalog = Catalog(None, name=self.catalog_name, path=catalog_path, src=self.catalog_src)
         self.catalog_repo: Repo = self.catalog.retrieve_catalog(force_retrieve=force_retrieve, update=False)
-        album_instance.migration_manager().load_index(self.catalog)
+        album_instance.load_catalog_index(self.catalog)
 
     def __del__(self):
         if self.catalog:

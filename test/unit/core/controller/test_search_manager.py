@@ -1,9 +1,9 @@
 import unittest.mock
 
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestSearchManager(TestUnitCommon):
+class TestSearchManager(TestUnitCoreCommon):
 
     def setUp(self):
         super().setUp()

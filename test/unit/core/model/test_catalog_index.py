@@ -7,10 +7,10 @@ from unittest.mock import MagicMock, patch
 from album.core.model.catalog_index import CatalogIndex
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.runner.core.model.coordinates import Coordinates
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestCatalogIndex(TestUnitCommon):
+class TestCatalogIndex(TestUnitCoreCommon):
 
     def setUp(self):
         super().setUp()

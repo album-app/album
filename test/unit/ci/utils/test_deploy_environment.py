@@ -1,9 +1,9 @@
 import unittest
 
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestDeployEnvironment(TestUnitCommon):
+class TestDeployEnvironment(TestUnitCoreCommon):
 
     def setUp(self) -> None:
         pass

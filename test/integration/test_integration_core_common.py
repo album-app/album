@@ -6,10 +6,10 @@ import unittest.mock
 from io import StringIO
 from pathlib import Path
 from typing import Optional
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-from album.api import Album
 from album.core.api.model.catalog import ICatalog
+from album.core.controller.album_controller import AlbumController
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
@@ -20,7 +20,7 @@ from album.runner.core.model.solution import Solution
 from test.global_exception_watcher import GlobalExceptionWatcher
 
 
-class TestIntegrationCommon(unittest.TestCase):
+class TestIntegrationCoreCommon(unittest.TestCase):
 
     def setUp(self):
         # tempfile/dirs
@@ -32,36 +32,17 @@ class TestIntegrationCommon(unittest.TestCase):
         # logging
         self.captured_output = StringIO()
         self.configure_silent_test_logging(self.captured_output)
-        self.album_instance = Album(base_cache_path=self.tmp_dir.name)
-        self.collection_manager = self.album_instance._controller.collection_manager()
-        self.create_album_instance_patch = patch('album.argument_parsing.create_album_instance',
-                                                 return_value=self.album_instance)
+
+        # load gateway with test configuration
+        self.album_instance = AlbumController(base_cache_path=self.tmp_dir.name)
+        self.collection_manager = self.album_instance.collection_manager()
+        self.collection_manager.load_or_create()
+        self.test_collection = self.collection_manager.get_collection_index()
+        self.assertFalse(self.test_collection.is_empty())
+        self.create_album_instance_patch = patch('album.argument_parsing.create_album_instance', return_value = self.album_instance)
         self.create_album_instance_patch.start()
 
-        self.collection_initialized = False
-
-    def init_collection(self, init_catalogs=True):
-        self.collection_initialized = True
-
-        if init_catalogs:
-            catalogs_dict = {
-                DefaultValues.local_catalog_name.value:
-                    Path(self.tmp_dir.name).joinpath("album", DefaultValues.catalog_folder_prefix.value,
-                                                     DefaultValues.local_catalog_name.value)
-            }
-            get_initial_catalogs_mock = MagicMock(
-                return_value=catalogs_dict
-            )
-            self.album_instance.configuration().get_initial_catalogs = get_initial_catalogs_mock
-            # create collection
-            self.collection_manager.load_or_create()
-        else:
-            # mock retrieve_catalog_meta_information as it involves a http request
-            with patch("album.core.controller.collection.catalog_handler.CatalogHandler.add_initial_catalogs"):
-                self.collection_manager.load_or_create()
-
-
-    def get_album(self) -> Album:
+    def get_album(self):
         return self.album_instance
 
     def add_test_catalog(self) -> ICatalog:
@@ -72,29 +53,28 @@ class TestIntegrationCommon(unittest.TestCase):
     def tearDown(self) -> None:
         # clean all environments specified in test-resources
         self.create_album_instance_patch.stop()
-        if self.collection_initialized:
-            local_catalog_name = str(self.collection_manager.catalogs().get_local_catalog().name())
-            env_names = [
-                local_catalog_name + "_group_name_0.1.0",
-                local_catalog_name + "_group_app1_0.1.0",
-                local_catalog_name + "_group_app2_0.1.0",
-                local_catalog_name + "_group_solution1_app1_0.1.0",
-                local_catalog_name + "_group_solution2_app1_0.1.0",
-                local_catalog_name + "_group_solution3_noparent_0.1.0",
-                local_catalog_name + "_group_solution4_app2_0.1.0",
-                local_catalog_name + "_group_solution5_app2_0.1.0",
-                local_catalog_name + "_group_solution6_noparent_test_0.1.0",
-                local_catalog_name + "_group_solution7_long_routines_0.1.0",
-                local_catalog_name + "_group_solution8_arguments_0.1.0",
-                local_catalog_name + "_group_solution9_throws_exception_0.1.0",
-                local_catalog_name + "_group_solution10_uninstall_0.1.0",
-                local_catalog_name + "_group_solution13_faultySolution_0.1.0",
-                local_catalog_name + "_group_solution_with_steps_0.1.0",
-                local_catalog_name + "_solution_with_steps_grouped_0.1.0"
-            ]
-            for e in env_names:
-                if self.album_instance._controller.environment_manager().get_conda_manager().environment_exists(e):
-                    self.album_instance._controller.environment_manager().get_conda_manager().remove_environment(e)
+        local_catalog_name = str(self.collection_manager.catalogs().get_local_catalog().name())
+        env_names = [
+            local_catalog_name + "_group_name_0.1.0",
+            local_catalog_name + "_group_app1_0.1.0",
+            local_catalog_name + "_group_app2_0.1.0",
+            local_catalog_name + "_group_solution1_app1_0.1.0",
+            local_catalog_name + "_group_solution2_app1_0.1.0",
+            local_catalog_name + "_group_solution3_noparent_0.1.0",
+            local_catalog_name + "_group_solution4_app2_0.1.0",
+            local_catalog_name + "_group_solution5_app2_0.1.0",
+            local_catalog_name + "_group_solution6_noparent_test_0.1.0",
+            local_catalog_name + "_group_solution7_long_routines_0.1.0",
+            local_catalog_name + "_group_solution8_arguments_0.1.0",
+            local_catalog_name + "_group_solution9_throws_exception_0.1.0",
+            local_catalog_name + "_group_solution10_uninstall_0.1.0",
+            local_catalog_name + "_group_solution13_faultySolution_0.1.0",
+            local_catalog_name + "_group_solution_with_steps_0.1.0",
+            local_catalog_name + "_solution_with_steps_grouped_0.1.0"
+        ]
+        for e in env_names:
+            if self.album_instance.environment_manager().get_conda_manager().environment_exists(e):
+                self.album_instance.environment_manager().get_conda_manager().remove_environment(e)
 
         self.album_instance.close()
         album_logging._active_logger = {}
@@ -115,7 +95,7 @@ class TestIntegrationCommon(unittest.TestCase):
     def run(self, result=None):
         # add watcher to catch any exceptions thrown in threads
         with GlobalExceptionWatcher():
-            super(TestIntegrationCommon, self).run(result)
+            super(TestIntegrationCoreCommon, self).run(result)
 
     @staticmethod
     def configure_silent_test_logging(captured_output, logger_name="integration-test"):
@@ -135,18 +115,18 @@ class TestIntegrationCommon(unittest.TestCase):
 
     def fake_install(self, path, create_environment=True) -> Optional[Solution]:
         # add to local catalog
-        a = self.album_instance.load(path)
+        a = self.album_instance.state_manager().load(path)
 
         local_catalog = self.collection_manager.catalogs().get_local_catalog()
         if create_environment:
             env_name = "_".join([local_catalog.name(), a.get_identifier()])
-            self.album_instance._controller.environment_manager().get_conda_manager().install(Environment(None, env_name, "unusedCachePath"))
+            self.album_instance.environment_manager().get_conda_manager().install(Environment(None, env_name, "unusedCachePath"))
 
         # add to collection, assign to local catalog
-        len_catalog_before = len(self.album_instance.get_collection_index().get_solutions_by_catalog(local_catalog.catalog_id()))
+        len_catalog_before = len(self.test_collection.get_solutions_by_catalog(local_catalog.catalog_id()))
         self.collection_manager.solutions().add_to_local_catalog(a, path)
         self.collection_manager.solutions().set_installed(local_catalog, a.coordinates())
-        self.assertEqual(len_catalog_before + 1, len(self.album_instance.get_collection_index().get_solutions_by_catalog(local_catalog.catalog_id())))
+        self.assertEqual(len_catalog_before + 1, len(self.test_collection.get_solutions_by_catalog(local_catalog.catalog_id())))
 
         # copy to correct folder
         copy(

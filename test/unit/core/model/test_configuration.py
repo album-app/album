@@ -6,10 +6,10 @@ from unittest.mock import patch
 
 from album.core.model.configuration import Configuration, DefaultValues
 from album.core.utils.operations.file_operations import create_path_recursively
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestConfiguration(TestUnitCommon):
+class TestConfiguration(TestUnitCoreCommon):
 
     def setUp(self) -> None:
         super().setUp()

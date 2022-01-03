@@ -2,9 +2,9 @@ import argparse
 import sys
 import traceback
 
-import album
-from album.album import Album
-from album.core.commandline import add_catalog, remove_catalog, deploy, \
+from album import core
+from album.api import Album
+from album.commandline import add_catalog, remove_catalog, deploy, \
     install, repl, run, search, start_server, test, update, clone, upgrade, index, uninstall, info
 from album.runner.album_logging import debug_settings, get_active_logger, set_loglevel, LogLevel, to_loglevel
 
@@ -29,7 +29,7 @@ def __handle_args(args, parser):
     print_json = getattr(args[0], "json", False)
     if print_json:
         _capture_output()
-    module_logger().info("album version %s | contact via %s " % (album.core.__version__, album.core.__email__))
+    module_logger().info("album version %s | contact via %s " % (core.__version__, core.__email__))
     __run_subcommand(args, parser)
 
 
@@ -56,7 +56,7 @@ def __run_subcommand(args, parser):
 
     # Makes sure album is initialized.
     album_instance = create_album_instance()
-    album_instance.collection_manager().load_or_create_collection()
+    album_instance.load_or_create_collection()
 
     try:
         args[0].func(album_instance, args[0])  # execute entry point function
@@ -64,7 +64,7 @@ def __run_subcommand(args, parser):
         _handle_exception(e)
 
 
-def create_album_instance():
+def create_album_instance() -> Album:
     return Album()
 
 

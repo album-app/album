@@ -7,7 +7,7 @@ from album.ci.utils.zenodo_api import ZenodoAPI
 from album.core.controller.deploy_manager import DeployManager
 from album.core.model.default_values import DefaultValues
 from album.runner.core.model.coordinates import Coordinates
-from test.unit.test_unit_common import TestGitCommon, EmptyTestClass
+from test.unit.test_unit_core_common import TestGitCommon, EmptyTestClass
 
 
 class TestDeployManager(TestGitCommon):
@@ -26,8 +26,7 @@ class TestDeployManager(TestGitCommon):
             meta.writelines("{\"name\":\"local_catalog\", \"version\": \"0.1.0\"}")
         self.local_catalog = self.collection_manager.catalogs().add_by_src(catalog_path)
 
-        self.album.deploy_manager()
-        self.deploy_manager: DeployManager = self.album._deploy_manager
+        self.deploy_manager: DeployManager = self.album.deploy_manager()
 
     def tearDown(self) -> None:
         self.remote_catalog.dispose()

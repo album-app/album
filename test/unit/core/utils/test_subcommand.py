@@ -4,10 +4,10 @@ from unittest.mock import MagicMock
 
 from album.core.utils import subcommand
 from album.runner import album_logging
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestSubcommand(TestUnitCommon):
+class TestSubcommand(TestUnitCoreCommon):
 
     def test_run(self):
 

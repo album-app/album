@@ -1,14 +1,12 @@
-import sys
 import unittest
 from unittest.mock import patch
 
-from album.argument_parsing import main
 from album.core.utils.operations.file_operations import create_path_recursively
 from album.runner.core.model.coordinates import Coordinates
-from test.integration.test_integration_common import TestIntegrationCommon
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
-class TestIntegrationUninstall(TestIntegrationCommon):
+class TestIntegrationUninstall(TestIntegrationCoreCommon):
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -43,10 +41,9 @@ class TestIntegrationUninstall(TestIntegrationCommon):
         )
         create_path_recursively(p.parent)
         p.touch()
-
-        sys.argv = ["", "uninstall", self.get_test_solution_path()]
-
-        self.assertIsNone(main())
+        
+        resolve_result = self.album_instance.collection_manager().resolve_installed_and_load(self.get_test_solution_path())
+        self.album_instance.install_manager().uninstall(resolve_result)
 
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
@@ -88,11 +85,9 @@ class TestIntegrationUninstall(TestIntegrationCommon):
             Coordinates("group", "solution10_uninstall", "0.1.0"))
         )
 
-        # gather arguments
-        sys.argv = ["", "uninstall", p]
-
         # run
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_installed_and_load(p)
+        self.album_instance.install_manager().uninstall(resolve_result)
 
         log = self.captured_output.getvalue()
 
@@ -106,16 +101,6 @@ class TestIntegrationUninstall(TestIntegrationCommon):
             self.collection_manager.catalogs().get_local_catalog().catalog_id(),
             Coordinates("group", "solution10_uninstall", "0.1.0"))
         )
-
-    def test_remove_solution_not_installed(self):
-        sys.argv = ["", "uninstall", self.get_test_solution_path()]
-
-        with self.assertRaises(SystemExit) as e:
-            main()
-        self.assertTrue(isinstance(e.exception.code, LookupError))
-
-        self.assertIn("ERROR", self.captured_output.getvalue())
-        self.assertIn("Solution not found", e.exception.code.args[0])
 
 
 if __name__ == '__main__':

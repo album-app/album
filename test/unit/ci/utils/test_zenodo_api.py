@@ -7,7 +7,7 @@ from requests import Response
 
 from album.ci.utils.zenodo_api import ZenodoEntry, ZenodoMetadata, ZenodoFile, ZenodoDeposit, UploadType, IterableList, \
     InvalidResponseStatusError, ZenodoAPI, ResponseStatus
-from test.unit.test_unit_common import TestZenodoCommon
+from test.unit.test_unit_core_common import TestZenodoCommon
 
 
 class TestZenodoEntry(unittest.TestCase):

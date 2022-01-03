@@ -4,7 +4,7 @@ from pathlib import Path
 
 from git import Repo
 
-from album.core.api.album import IAlbum
+from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.deploy_manager import IDeployManager
 from album.core.api.model.catalog import ICatalog
 from album.core.model.default_values import DefaultValues
@@ -25,12 +25,12 @@ module_logger = album_logging.get_active_logger
 
 class DeployManager(IDeployManager):
 
-    def __init__(self, album: IAlbum):
+    def __init__(self, album: IAlbumController):
         self.album = album
 
     def deploy(self, deploy_path, catalog_name: str, dry_run: bool, push_option=None, git_email: str = None,
                git_name: str = None,
-               force_deploy: bool = False, changelog: str = ""):
+               force_deploy: bool = False, changelog: str = None):
 
         if dry_run:
             module_logger().info('Pretending to deploy %s to %s...' % (deploy_path, catalog_name))
@@ -49,12 +49,12 @@ class DeployManager(IDeployManager):
 
         # case catalog given
         if catalog_name:
-            catalog = self.album.collection_manager().catalogs().get_by_name(catalog_name)
+            catalog = self.album.catalogs().get_by_name(catalog_name)
 
         # case catalog in solution file specified
         # TODO: discuss this
         elif active_solution.setup().deploy and active_solution.setup().deploy["catalog"]:
-            catalog = self.album.collection_manager().catalogs().get_by_src(
+            catalog = self.album.catalogs().get_by_src(
                 active_solution.setup().deploy["catalog"]["src"]
             )
 
@@ -222,12 +222,12 @@ class DeployManager(IDeployManager):
     def _get_absolute_zip_path(self, catalog_local_src: str, active_solution: ISolution):
         """ Gets the absolute path to the zip."""
         return Path(catalog_local_src).joinpath(
-            self.album.collection_manager().solutions().get_solution_zip_suffix(active_solution.coordinates())
+            self.album.solutions().get_solution_zip_suffix(active_solution.coordinates())
         )
 
     def _get_absolute_prefix_path(self, catalog: ICatalog, catalog_local_src: str, active_solution: ISolution):
         return Path(catalog_local_src).joinpath(
-            self.album.collection_manager().solutions().get_solution_path(catalog, active_solution.coordinates())
+            self.album.solutions().get_solution_path(catalog, active_solution.coordinates())
         )
 
     @staticmethod

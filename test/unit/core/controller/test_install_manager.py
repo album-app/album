@@ -4,34 +4,27 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from album.core.controller.install_manager import InstallManager
-
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.resolve_result import ResolveResult
 from album.runner.core.model.coordinates import Coordinates
 from album.runner.core.model.solution import Solution
-from test.unit.test_unit_common import TestUnitCommon, EmptyTestClass
+from test.unit.test_unit_core_common import TestUnitCoreCommon, EmptyTestClass
 
 
-class TestInstallManager(TestUnitCommon):
+class TestInstallManager(TestUnitCoreCommon):
 
     def setUp(self):
         super().setUp()
         album = self.create_album_test_instance()
         self.create_test_solution_no_env()
-        album.install_manager()
-        self.install_manager: InstallManager = album._install_manager
+        self.install_manager: InstallManager = album.install_manager()
         self.environment_manager = album.environment_manager()
         self.assertEqual(self.album, self.install_manager.album)
 
     def tearDown(self) -> None:
         super().tearDown()
 
-    @unittest.skip("Needs to be implemented!")
     def test_install(self):
-        # TODO implement
-        pass
-
-    def test__install(self):
         # create mocks
         resolve_result = ResolveResult(
             path=Path("aPath"),
@@ -41,40 +34,14 @@ class TestInstallManager(TestUnitCommon):
             coordinates=self.active_solution.coordinates()
         )
 
-        resolve_and_load = MagicMock(
-            return_value=resolve_result
-        )
-        self.collection_manager.resolve_download_and_load = resolve_and_load
-
         _install_resolve_result = MagicMock(return_value=None)
         self.install_manager._install_resolve_result = _install_resolve_result
 
         # call
-        self.install_manager._install("aPath", [])
+        self.install_manager.install(resolve_result, [])
 
         # assert
-        resolve_and_load.assert_called_once()
-        _install_resolve_result.assert_called_once_with(resolve_result, [], False)
-
-    @unittest.skip("Needs to be implemented!")
-    def test_install_from_catalog_coordinates(self):
-        # TODO implement
-        pass
-
-    @unittest.skip("Needs to be implemented!")
-    def test__install_from_catalog_coordinates(self):
-        # TODO implement
-        pass
-
-    @unittest.skip("Needs to be implemented!")
-    def test_install_from_coordinates(self):
-        # TODO implement
-        pass
-
-    @unittest.skip("Needs to be implemented!")
-    def test__install_from_coordinates(self):
-        # TODO implement
-        pass
+        _install_resolve_result.assert_called_once_with(resolve_result, [], parent=False)
 
     @unittest.skip("Needs to be implemented!")
     def test__resolve_result_is_installed(self):
@@ -116,7 +83,8 @@ class TestInstallManager(TestUnitCommon):
 
         # call
         self.install_manager._install_active_solution(
-            self.active_solution, self.collection_manager.catalogs().get_local_catalog(), ["myargs"]
+            ResolveResult("", self.collection_manager.catalogs().get_local_catalog(), None,
+                          self.active_solution.coordinates(), self.active_solution), ["myargs"]
         )
 
         # assert
@@ -142,13 +110,16 @@ class TestInstallManager(TestUnitCommon):
         parent_resolve_result = ResolveResult(None, None, None, None, loaded_solution=self.parent_solution)
         _install_parent = MagicMock(return_value=parent_resolve_result)
         self.install_manager._install_parent = _install_parent
+        _set_parent = MagicMock()
+        self.install_manager._set_parent = _set_parent
 
         run_solution_install_routine = MagicMock()
         self.install_manager._run_solution_install_routine = run_solution_install_routine
 
         # call
         self.install_manager._install_active_solution(
-            self.active_solution, self.collection_manager.catalogs().get_local_catalog(), ["myargs"]
+            ResolveResult("", self.collection_manager.catalogs().get_local_catalog(), None,
+                          self.active_solution.coordinates(), self.active_solution), ["myargs"]
         )
 
         # assert
@@ -167,13 +138,16 @@ class TestInstallManager(TestUnitCommon):
     def test__install_parent(self, build_resolve_string_mock):
         # mocks
         _install = MagicMock(return_value=None)
-        self.install_manager._install = _install
+        self.install_manager._install_resolve_result = _install
+        resolve = MagicMock(return_value="resolve")
+        self.collection_manager.resolve_and_load = resolve
 
         # call
         self.install_manager._install_parent({"myDictKey": "myDeps"})
 
         # asert
-        _install.assert_called_once_with("myResolveString", parent=True)
+        _install.assert_called_once_with("resolve", parent=True)
+        resolve.assert_called_once()
         build_resolve_string_mock.assert_called_once_with({"myDictKey": "myDeps"})
 
     @unittest.skip("Needs to be implemented!")
@@ -247,7 +221,7 @@ class TestInstallManager(TestUnitCommon):
                 {'catalog_id': 1}  # internal
             )]
         )
-        self.collection_manager.catalog_collection.get_unfinished_installation_solutions = get_unfinished_installation_solutions
+        self.collection_manager.get_collection_index().get_unfinished_installation_solutions = get_unfinished_installation_solutions
 
         get_by_id_mock = MagicMock(return_value=self.collection_manager.catalogs().get_local_catalog())
         self.collection_manager.catalogs().get_by_id = get_by_id_mock

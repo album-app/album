@@ -1,9 +1,9 @@
 import unittest
 
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestCiCommandline(TestUnitCommon):
+class TestCiCommandline(TestUnitCoreCommon):
 
     def setUp(self):
         pass

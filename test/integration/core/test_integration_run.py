@@ -1,29 +1,21 @@
-import sys
 import unittest
 from unittest.mock import patch
 
-from album.argument_parsing import main
-from test.integration.test_integration_common import TestIntegrationCommon
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
-class TestIntegrationRun(TestIntegrationCommon):
-
-    def tearDown(self) -> None:
-        super().tearDown()
+class TestIntegrationRun(TestIntegrationCoreCommon):
 
     def test_run(self):
         # create test environment
         self.fake_install(self.get_test_solution_path())
 
-        # gather arguments
-        sys.argv = ["", "run", self.get_test_solution_path()]
-
         # run
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(self.get_test_solution_path())
+        self.album_instance.run_manager().run(resolve_result)
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
-        self.assertIsNone(self.album_instance.state_manager().get_active_solution())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_arguments(self, get_environment_path):
@@ -31,15 +23,13 @@ class TestIntegrationRun(TestIntegrationCommon):
         p = self.get_test_solution_path("solution8_arguments.py")
         self.fake_install(p, create_environment=False)
 
-        sys.argv = ["", "run", p]  # required arguments not given
-
         # run
-        with self.assertRaises(SystemExit) as e:
-            main()
-        self.assertTrue(isinstance(e.exception.code, RuntimeError))
+        with self.assertRaises(RuntimeError) as e:
+            resolve_result = self.album_instance.collection_manager().resolve_and_load(p)
+            self.album_instance.run_manager().run(resolve_result)
 
-        self.assertIn("ERROR", self.captured_output.getvalue())
-        self.assertIn("the following arguments are required: --lambda_arg1", e.exception.code.args[0])
+        # self.assertIn("ERROR", self.captured_output.getvalue())
+        self.assertIn("the following arguments are required: --lambda_arg1", e.exception.args[0])
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_arguments_given(self, get_environment_path):
@@ -49,14 +39,14 @@ class TestIntegrationRun(TestIntegrationCommon):
         self.fake_install(p, create_environment=False)
 
         # gather arguments
-        sys.argv = ["", "run", p,
-                    "--integer_arg1=5",
+        argv = ["", "--integer_arg1=5",
                     "--integer_arg2=5000",
                     "--string_arg1=MyChosenString",
                     "--lambda_arg1=myFile"]
 
         # run
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(p)
+        self.album_instance.run_manager().run(resolve_result, argv=argv)
 
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
@@ -79,16 +69,14 @@ class TestIntegrationRun(TestIntegrationCommon):
         # create test environment
         solution = self.fake_install(self.get_test_solution_path(), create_environment=False)
 
-        # gather arguments
-        sys.argv = ["", "run", ":".join([solution.coordinates().group(), solution.coordinates().name(), solution.coordinates().version()])]
-
         # run
-        self.assertIsNone(main())
-
-        self.assertNotIn('ERROR', self.captured_output.getvalue())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            ":".join([solution.coordinates().group(), solution.coordinates().name(), solution.coordinates().version()])
+        )
+        self.album_instance.run_manager().run(resolve_result)
 
         # assert
-        self.assertIsNone(self.album_instance.state_manager().get_active_solution())
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_minimal_solution(self, get_environment_path):
@@ -97,10 +85,13 @@ class TestIntegrationRun(TestIntegrationCommon):
 
         # this solution has no install() configured
 
-        sys.argv = ["", "run", str(self.get_test_solution_path("solution11_minimal.py")), "--log", "DEBUG"]
+        argv = ["", "run", "", "--log", "DEBUG"]
 
         # run
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            str(self.get_test_solution_path("solution11_minimal.py"))
+        )
+        self.album_instance.run_manager().run(resolve_result, argv=argv)
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
@@ -114,11 +105,14 @@ class TestIntegrationRun(TestIntegrationCommon):
         self.fake_install(self.get_test_solution_path("solution1_app1.py"), create_environment=False)
 
         # gather arguments
-        sys.argv = ["", "run", self.get_test_solution_path("solution1_app1.py"), "--file", self.closed_tmp_file.name,
+        argv = ["", "--file", self.closed_tmp_file.name,
                     "--file_solution1_app1", self.closed_tmp_file.name, "--app1_param", "value1"]
 
         # run
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path("solution1_app1.py")
+        )
+        self.album_instance.run_manager().run(resolve_result, argv=argv)
 
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
@@ -131,7 +125,6 @@ class TestIntegrationRun(TestIntegrationCommon):
             self.assertEqual("solution1_app1_run", log[2])
             self.assertEqual("solution1_app1_close", log[3])
             self.assertEqual("app1_close", log[4])
-            self.assertIsNone(self.album_instance.state_manager().get_active_solution())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_with_steps(self, get_environment_path):
@@ -144,12 +137,14 @@ class TestIntegrationRun(TestIntegrationCommon):
         self.fake_install(self.get_test_solution_path("solution_with_steps.py"), create_environment=False)
 
         # gather arguments
-        sys.argv = ["", "run", self.get_test_solution_path("solution_with_steps.py"),
-                    "--run-immediately",
+        argv = ["", "--run-immediately",
                     "--file", self.closed_tmp_file.name, "--file_solution1_app1", self.closed_tmp_file.name]
 
         # run
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path("solution_with_steps.py")
+        )
+        self.album_instance.run_manager().run(resolve_result, argv=argv)
 
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
@@ -169,7 +164,6 @@ class TestIntegrationRun(TestIntegrationCommon):
             self.assertEqual("app1_close", log[9])
             self.assertEqual("solution3_noparent_run", log[10])
             self.assertEqual("solution3_noparent_close", log[11])
-            self.assertIsNone(self.album_instance.state_manager().get_active_solution())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_with_grouped_steps(self, get_environment_path):
@@ -184,11 +178,14 @@ class TestIntegrationRun(TestIntegrationCommon):
         self.fake_install(self.get_test_solution_path("solution_with_steps_grouped.py"), create_environment=False)
 
         # gather arguments
-        sys.argv = ["", "run", self.get_test_solution_path("solution_with_steps_grouped.py"), "--file",
+        argv = ["", "--file",
                     self.closed_tmp_file.name, "--file_solution1_app1", self.closed_tmp_file.name]
 
         # run
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path("solution_with_steps_grouped.py")
+        )
+        self.album_instance.run_manager().run(resolve_result, argv=argv)
 
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         # assert file logs
@@ -213,7 +210,6 @@ class TestIntegrationRun(TestIntegrationCommon):
             self.assertEqual("app2_close", log[15])
             self.assertEqual("solution3_noparent_run", log[16])
             self.assertEqual("solution3_noparent_close", log[17])
-            self.assertIsNone(self.album_instance.state_manager().get_active_solution())
 
 
 if __name__ == '__main__':

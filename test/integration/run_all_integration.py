@@ -1,7 +1,8 @@
 import unittest
 
+from test.integration import test_integration_api, test_integration_server, test_integration_commandline
 from test.integration.ci import test_integration_ci
-from test.integration.core import test_integration_uninstall, test_integration_server, test_integration_run, \
+from test.integration.core import test_integration_uninstall, test_integration_run, \
     test_integration_search, test_integration_test, test_integration_repl, \
     test_integration_install, test_integration_catalog_features, test_integration_deploy, test_integration_clone
 
@@ -10,7 +11,13 @@ def main():
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
 
-    # ### integration
+    ### integration
+
+    # album
+    suite.addTests(loader.loadTestsFromModule(test_integration_server))
+    suite.addTests(loader.loadTestsFromModule(test_integration_api))
+    suite.addTests(loader.loadTestsFromModule(test_integration_commandline))
+
     # Core
     suite.addTests(loader.loadTestsFromModule(test_integration_catalog_features))
     suite.addTests(loader.loadTestsFromModule(test_integration_deploy))
@@ -21,7 +28,6 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_integration_search))
     suite.addTests(loader.loadTestsFromModule(test_integration_test))
     suite.addTests(loader.loadTestsFromModule(test_integration_clone))
-    suite.addTests(loader.loadTestsFromModule(test_integration_server))
 
     # CI
     suite.addTests(loader.loadTestsFromModule(test_integration_ci))

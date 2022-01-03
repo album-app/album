@@ -1,11 +1,12 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import flask_unittest
 from flask.testing import FlaskClient
 
 from album.core.model.catalog import Catalog
-from album.core.server import AlbumServer
+from album.server import AlbumServer
+from test.unit.test_unit_core_common import EmptyTestClass
 from test.unit.test_unit_common import TestUnitCommon
 
 
@@ -71,21 +72,21 @@ class TestServer(flask_unittest.ClientTestCase, TestUnitCommon):
     def test_clone_catalog(self, client, route, _):
         json = self.getJSONResponse(client, f"/clone/catalog?target_dir={self.tmp_dir.name}&name=my-name")
         self.assertIsNotNone(json)
-        self.server.album_instance.task_manager().finish_tasks()
+        self.server.task_manager().finish_tasks()
         route.assert_called_once_with("catalog", self.tmp_dir.name, "my-name")
 
     @patch("album.core.controller.clone_manager.CloneManager.clone", return_value=None)
     def test_clone_solution(self, client, route, _):
         json = self.getJSONResponse(client, f"/clone/group/name/version?target_dir={self.tmp_dir.name}&name=my-name")
         self.assertIsNotNone(json)
-        self.server.album_instance.task_manager().finish_tasks()
+        self.server.task_manager().finish_tasks()
         route.assert_called_once_with("group:name:version", self.tmp_dir.name, "my-name")
 
     @patch("album.core.controller.clone_manager.CloneManager.clone", return_value=None)
     def test_clone_solution_by_path(self, client, route, _):
         json = self.getJSONResponse(client, f"/clone?path=my-path&target_dir={self.tmp_dir.name}&name=my-name")
         self.assertIsNotNone(json)
-        self.server.album_instance.task_manager().finish_tasks()
+        self.server.task_manager().finish_tasks()
         route.assert_called_once_with("my-path", self.tmp_dir.name, "my-name")
 
     @patch("album.core.controller.search_manager.SearchManager.search", return_value={})
@@ -95,13 +96,15 @@ class TestServer(flask_unittest.ClientTestCase, TestUnitCommon):
         self.assertEqual(1, route.call_count)
 
     def __test_solution_route(self, client, route, route_mock):
-        json = self.getJSONResponse(client, "/%s/catalog/group/name/version" % route)
+        resolve_mock = MagicMock(return_value = EmptyTestClass())
+        self.server.album_instance.resolve = resolve_mock
+        json = self.getJSONResponse(client, "/%s/catalog_local/group/name/version" % route)
         self.assertIsNotNone(json)
-        self.server.album_instance.task_manager().finish_tasks()
+        self.server.task_manager().finish_tasks()
         self.assertEqual(1, route_mock.call_count)
         json = self.getJSONResponse(client, "/%s/group/name/version" % route)
         self.assertIsNotNone(json)
-        self.server.album_instance.task_manager().finish_tasks()
+        self.server.task_manager().finish_tasks()
         self.assertEqual(2, route_mock.call_count)
 
 
