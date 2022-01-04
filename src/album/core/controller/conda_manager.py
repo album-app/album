@@ -84,18 +84,12 @@ class CondaManager:
         conda_list = self.get_info()
         return conda_list["active_prefix"]
 
-    def remove_environment(self, environment_name, timeout1=60, timeout2=120) -> bool:
+    def remove_environment(self, environment_name) -> bool:
         """Removes an environment given its name. Does nothing when environment does not exist.
 
         Args:
             environment_name:
                 The name of the environment to remove
-            timeout1:
-                Timeout in seconds, after which a rescue operation (linebreak input) is send to the
-                process running the operation. Timeout is resets each time a feedback is passed to the main process.
-            timeout2:
-                Timeout in seconds after timeout1 passed, after which the process behind the
-                operation is declared dead. Timeout is resets each time a feedback is passed to the main process.
 
         Returns:
             True, when removal succeeded, else False
@@ -112,10 +106,10 @@ class CondaManager:
         path = self.get_environment_path(environment_name)
 
         subprocess_args = [
-            self._conda_executable, 'env', 'remove', '-y', '--json', '-p', path
+            self._conda_executable, 'env', 'remove', '-y', '-q', '-p', path
         ]
 
-        subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
+        subcommand.run(subprocess_args, log_output=False)
 
         # try to remove file content if any but don't fail:
         force_remove(path)
@@ -150,7 +144,7 @@ class CondaManager:
         output = subcommand.check_output(subprocess_args)
         return json.loads(output)
 
-    def create_environment_from_file(self, yaml_path, environment_name, timeout1=60, timeout2=120):
+    def create_environment_from_file(self, yaml_path, environment_name):
         """Creates a conda environment given a path to a yaml file and its name.
 
         Args:
@@ -158,12 +152,6 @@ class CondaManager:
                 The path to the file.
             environment_name:
                 The name of the environment. Must be the same as specified in the yml file.
-            timeout1:
-                Timeout in seconds, after which a rescue operation (linebreak input) is send to the
-                process running the operation. Timeout is resets each time a feedback is passed to the main process.
-            timeout2:
-                Timeout in seconds after timeout1 passed, after which the process behind the
-                operation is declared dead. Timeout is resets each time a feedback is passed to the main process.
 
         Raises:
             NameError:
@@ -192,27 +180,21 @@ class CondaManager:
             str(yaml_path), '-p', env_prefix
         ]
 
-        try:
-            subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
-        except RuntimeError as e:
-            # cleanup after failed installation
-            if self.environment_exists(environment_name):
-                module_logger().debug('Cleanup failed installation...')
-                self.remove_environment(environment_name)
-            raise RuntimeError("Command failed due to reasons above!") from e
+        # try:
+        subcommand.run(subprocess_args, log_output=True)
+        # except SubProcessError as e:
+        #     # cleanup after failed installation
+        #     if self.environment_exists(environment_name):
+        #         module_logger().debug('Cleanup failed installation...')
+        #         self.remove_environment(environment_name)
+        #     raise RuntimeError("Command failed due to reasons above!") from e
 
-    def create_environment(self, environment_name, timeout1=60, timeout2=120, force=False):
+    def create_environment(self, environment_name, force=False):
         """Creates a conda environment with python (latest version) installed.
 
         Args:
             environment_name:
                 The desired environment name.
-            timeout1:
-                Timeout in seconds, after which a rescue operation (linebreak input) is send to the
-                process running the operation. Timeout is resets each time a feedback is passed to the main process.
-            timeout2:
-                Timeout in seconds after timeout1 passed, after which the process behind the
-                operation is declared dead. Timeout is resets each time a feedback is passed to the main process.
             force:
                 If True, force creates the environment by deleting the old one.
         Raises:
@@ -229,12 +211,10 @@ class CondaManager:
 
         env_prefix = str(self._configuration.cache_path_envs().joinpath(environment_name))
 
-        subprocess_args = [
-            self._conda_executable, 'create', '--force', '--json', '-y', '-p', env_prefix, 'python=3.6', 'pip'
-        ]
+        subprocess_args = [self._conda_executable, 'create', '--force', '-q', '-y', '-p', env_prefix, 'python=3.6', 'pip']
 
         try:
-            subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
+            subcommand.run(subprocess_args, log_output=True)
         except RuntimeError as e:
             # cleanup after failed installation
             if self.environment_exists(environment_name):
@@ -242,7 +222,7 @@ class CondaManager:
                 self.remove_environment(environment_name)
             raise RuntimeError("Command failed due to reasons above!") from e
 
-    def pip_install(self, environment_path, module, use_cache=True, timeout1=60, timeout2=120):
+    def pip_install(self, environment_path, module, use_cache=True):
         """Installs a package in the given environment via pip.
 
         Args:
@@ -252,12 +232,6 @@ class CondaManager:
                 The module or package name.
             use_cache:
                 If True, pip uses the cache option, else not.
-            timeout1:
-                Timeout in seconds, after which a rescue operation (linebreak input) is send to the
-                process running the operation. Timeout is resets each time a feedback is passed to the main process.
-            timeout2:
-                Timeout in seconds after timeout1 passed, after which the process behind the
-                operation is declared dead. Timeout is resets each time a feedback is passed to the main process.
         """
         subprocess_args_base = [
             self._conda_executable, 'run', '--no-capture-output', '--prefix', environment_path
@@ -281,9 +255,9 @@ class CondaManager:
 
         subprocess_call = subprocess_args_base + subprocess_args
 
-        subcommand.run(subprocess_call, log_output=False, timeout1=timeout1, timeout2=timeout2)
+        subcommand.run(subprocess_call, log_output=True)
 
-    def conda_install(self, environment_path, module, timeout1=60, timeout2=120):
+    def conda_install(self, environment_path, module):
         """Installs a package in the given environment via conda.
 
         Args:
@@ -291,21 +265,15 @@ class CondaManager:
                 The environment path to install the package into.
             module:
                 The module or package name.
-            timeout1:
-                Timeout in seconds, after which a rescue operation (linebreak input) is send to the
-                process running the operation. Timeout is resets each time a feedback is passed to the main process.
-            timeout2:
-                Timeout in seconds after timeout1 passed, after which the process behind the
-                operation is declared dead. Timeout is resets each time a feedback is passed to the main process.
 
         """
         subprocess_args = [
             self._conda_executable, 'install', '--prefix', environment_path, '-y', module
         ]
 
-        subcommand.run(subprocess_args, log_output=False, timeout1=timeout1, timeout2=timeout2)
+        subcommand.run(subprocess_args, log_output=True)
 
-    def run_script(self, environment_path, script_full_path, timeout1=60, timeout2=120, pipe_output=True):
+    def run_script(self, environment_path, script_full_path, pipe_output=True):
         """Runs a script in the given environment.
 
         Args:
@@ -313,12 +281,6 @@ class CondaManager:
                 The prefix path of the environment to install the package to.
             script_full_path:
                 The full path to the script to run.
-            timeout1:
-                Timeout in seconds, after which a rescue operation (linebreak input) is send to the
-                process running the operation. Timeout is resets each time a feedback is passed to the main process.
-            timeout2:
-                Timeout in seconds after timeout1 passed, after which the process behind the
-                operation is declared dead. Timeout is resets each time a feedback is passed to the main process.
             pipe_output:
                 Indicates whether to pipe the output of the subprocess or just return it as is.
 
@@ -337,7 +299,7 @@ class CondaManager:
                 self._conda_executable, 'run', '--no-capture-output', '--prefix',
                 environment_path, 'python', script_full_path
             ]
-        subcommand.run(subprocess_args, timeout1=timeout1, timeout2=timeout2, pipe_output=pipe_output)
+        subcommand.run(subprocess_args, pipe_output=pipe_output)
 
     def cmd_available(self, environment_path, cmd):
         """Checks whether a command is available when running the command in the given environment.
@@ -357,7 +319,7 @@ class CondaManager:
                               environment_path
                           ] + cmd
         try:
-            subcommand.run(subprocess_args, log_output=False, timeout1=10, timeout2=10)
+            subcommand.run(subprocess_args, log_output=True)
         except RuntimeError:
             return False
 
@@ -479,6 +441,8 @@ class CondaManager:
 
         if not album_api_version:
             album_api_version = DefaultValues.runner_api_packet_version.value
+        if not DefaultValues.runner_api_packet_version.value:
+            album_api_version = None
 
         if not self.is_installed(environment_path, "album-runner", album_api_version):
             self.pip_install_into_environment(

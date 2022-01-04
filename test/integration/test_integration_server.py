@@ -246,7 +246,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
     @staticmethod
     def includes_msg(records, msg):
         for record in records:
-            print(record.msg)
+            # print(record.msg)
             if msg in record.msg:
                 return True
         return False

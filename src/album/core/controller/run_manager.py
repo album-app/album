@@ -49,11 +49,11 @@ class RunManager(IRunManager):
     def run(self, resolve_result: ICollectionSolution, run_immediately=False, argv=None):
         """Run an already loaded solution."""
         if not resolve_result.catalog:
-            module_logger().debug('album loaded locally: %s...' % str(resolve_result.loaded_solution))
+            module_logger().debug('solution loaded locally: %s...' % str(resolve_result.loaded_solution().coordinates()))
         else:
-            module_logger().debug('album loaded from catalog: \"%s\"...' % str(resolve_result.loaded_solution))
+            module_logger().debug('solution loaded from catalog: \"%s\"...' % str(resolve_result.loaded_solution().coordinates()))
         module_logger().debug(
-            "Initializing script to run \"%s\"" % resolve_result.loaded_solution().coordinates().name())
+            "Initializing script to run \"%s\"" % resolve_result.loaded_solution().coordinates())
 
         if argv is None:
             argv = [""]

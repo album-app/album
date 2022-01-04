@@ -71,7 +71,7 @@ class CatalogIndex(ICatalogIndex, Database):
             self.close_current_connection()
 
     def get_name(self, close=True):
-        module_logger().debug("Get catalog name")
+        module_logger().debug("Get catalog name...")
 
         cursor = self.get_cursor()
         r = cursor.execute(
@@ -101,7 +101,7 @@ class CatalogIndex(ICatalogIndex, Database):
         return cur_version
 
     def get_all_solutions(self, close=True):
-        module_logger().debug("Retrieve all solutions")
+        module_logger().debug("Retrieve all solutions...")
 
         cursor = self.get_cursor()
         r = cursor.execute(

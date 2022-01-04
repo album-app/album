@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from album.core.model.default_values import DefaultValues
+from album.core.utils.subcommand import SubProcessError
 from album.runner.core.model.coordinates import Coordinates
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
@@ -103,6 +104,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         # should remove the faulty environment from previously failed installation
         resolve_result = self.album_instance.collection_manager().resolve_and_load(
             self.get_test_solution_path())
+
         self.album_instance.install_manager().install(resolve_result)
 
         self.assertFalse(local_file.exists())

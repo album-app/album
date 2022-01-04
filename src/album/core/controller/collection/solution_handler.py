@@ -115,7 +115,10 @@ class SolutionHandler(ISolutionHandler):
         self.update_solution(catalog, coordinates, {"installed": 0, "installation_unfinished": 1})
 
     def is_installed(self, catalog: ICatalog, coordinates: ICoordinates) -> bool:
-        return self._get_collection_index().is_installed(catalog.catalog_id(), coordinates)
+        try:
+            return self._get_collection_index().is_installed(catalog.catalog_id(), coordinates)
+        except LookupError:
+            return False
 
     def get_solution_path(self, catalog: ICatalog, coordinates: ICoordinates):
         return catalog.path().joinpath(self.album.configuration().get_solution_path_suffix(coordinates))

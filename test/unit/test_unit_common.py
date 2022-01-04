@@ -11,7 +11,7 @@ from album.api import Album
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove
 from album.runner import album_logging
-from album.runner.album_logging import pop_active_logger, LogLevel, configure_logging
+from album.runner.album_logging import pop_active_logger, LogLevel, configure_logging, get_active_logger
 from test.global_exception_watcher import GlobalExceptionWatcher
 
 
@@ -68,7 +68,9 @@ class TestUnitCommon(unittest.TestCase):
         return logs.split("\n")
 
     def create_album_test_instance(self, init_collection=True, init_catalogs=True) -> Album:
-        self.album = Album(base_cache_path=Path(self.tmp_dir.name).joinpath("album"))
+        self.album = Album.Builder().base_cache_path(Path(self.tmp_dir.name).joinpath("album")).build()
+        logger = get_active_logger()
+        logger.handlers.clear()
 
         if init_catalogs:
             catalogs_dict = {
@@ -92,5 +94,6 @@ class TestUnitCommon(unittest.TestCase):
             # mock retrieve_catalog_meta_information as it involves a http request
             with patch("album.core.controller.collection.catalog_handler.CatalogHandler.add_initial_catalogs"):
                 self.album._controller.collection_manager().load_or_create()
+
 
         return self.album

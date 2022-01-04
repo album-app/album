@@ -84,7 +84,7 @@ class TestScriptManager(TestUnitCoreCommon):
     def test_run_queue_empty(self):
         # mocks
         _run_in_environment_with_own_logger = MagicMock(return_value=None)
-        self.script_manager._run_in_environment_with_own_logger = _run_in_environment_with_own_logger
+        self.script_manager._run_in_environment = _run_in_environment_with_own_logger
 
         # call
         que = Queue()
@@ -96,7 +96,7 @@ class TestScriptManager(TestUnitCoreCommon):
     def test_run_queue(self):
         # mocks
         _run_in_environment_with_own_logger = MagicMock(return_value=None)
-        self.script_manager._run_in_environment_with_own_logger = _run_in_environment_with_own_logger
+        self.script_manager._run_in_environment = _run_in_environment_with_own_logger
 
         # call
         que = Queue()
@@ -502,19 +502,20 @@ class TestScriptManager(TestUnitCoreCommon):
         self.assertEqual([['', '--s1_arg1=s1_arg1_value'], ['', '--s2_arg1=s2_arg1_value']], parsed_steps_args_list)
 
     @patch('album.runner.album_logging.configure_logging', return_value=None)
+    @patch('album.runner.album_logging.push_active_logger', return_value=None)
     @patch('album.runner.album_logging.pop_active_logger', return_value=None)
-    def test__run_in_environment_with_own_logger(self, pop_mock, conf_mock):
+    def test__run_in_environment(self, pop_mock, push_mock, conf_mock):
         run_scripts_mock = MagicMock()
         self.album.environment_manager().run_scripts = run_scripts_mock
 
         environment = EmptyTestClass()
         environment.name = lambda: ""
 
-        self.script_manager._run_in_environment_with_own_logger(ScriptQueueEntry(self.active_solution.coordinates(), [""], environment))
+        self.script_manager._run_in_environment(ScriptQueueEntry(self.active_solution.coordinates(), [""], environment))
 
-        conf_mock.assert_called_once_with(self.active_solution.coordinates().name())
         run_scripts_mock.assert_called_once_with(environment, [""])
-        pop_mock.assert_called_once()
+        push_mock.assert_not_called()
+        pop_mock.assert_not_called()
 
     def test__get_args(self):
         step = {

@@ -193,5 +193,34 @@ class TestIntegrationCommandline(TestIntegrationCommon):
         self.assertIsNotNone(index_dict['catalogs'])
         self.assertEqual(1, len(index_dict['catalogs']))
 
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    def test_run_sad_solution(self, get_environment_path):
+        self.init_collection()
+        get_environment_path.return_value = self.album_instance._controller.environment_manager().get_conda_manager().get_active_environment_path()
+        solution_path = self.get_test_solution_path("solution9_throws_exception.py")
+        self.fake_install(solution_path, create_environment=False)
+        sys.argv = ["", "run", solution_path]
+
+        # run
+        with self.assertRaises(SystemExit) as e:
+            main()
+        self.assertEquals(1, e.exception.code.exit_status)
+
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    def test_run_album_throwing_error_solution(self, get_environment_path):
+        self.init_collection()
+        get_environment_path.return_value = self.album_instance._controller.environment_manager().get_conda_manager().get_active_environment_path()
+        solution_path = str(self.get_test_solution_path("solution15_album_running_faulty_solution.py"))
+        self.fake_install(solution_path, create_environment=False)
+
+        sys.argv = ["", "run", solution_path, "--log", "DEBUG"]
+
+        # run
+        with self.assertRaises(SystemExit) as e:
+            main()
+        self.assertEquals(1, e.exception.code.exit_status)
+        self.assertIn('ERROR', self.captured_output.getvalue())
+
+
 if __name__ == '__main__':
     unittest.main()

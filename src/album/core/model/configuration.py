@@ -1,4 +1,6 @@
 import os
+import platform
+import shutil
 import sys
 from pathlib import Path
 
@@ -63,6 +65,9 @@ class Configuration(IConfiguration):
             self._conda_executable = self._build_conda_executable(conda_path)
         else:
             self._conda_executable = conda_path
+            operation_system = platform.system().lower()
+            if 'windows' in operation_system:
+                self._conda_executable = shutil.which(self._conda_executable)
 
         self._cache_path_tmp_internal = self._base_cache_path.joinpath(DefaultValues.cache_path_solution_prefix.value)
         self._cache_path_app = self._base_cache_path.joinpath(DefaultValues.cache_path_app_prefix.value)

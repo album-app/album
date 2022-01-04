@@ -1,7 +1,11 @@
 import json
+import logging
+import sys
 import unittest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
+
+from album.runner.album_logging import set_loglevel, LogLevel, get_active_logger
 
 from album.core.model.environment import Environment
 
@@ -22,9 +26,6 @@ class TestCondaManager(TestUnitCoreCommon):
         if self.conda.environment_exists(self.test_environment_name):
             self.conda.remove_environment(self.test_environment_name)
             self.assertFalse(self.conda.environment_exists(self.test_environment_name))
-            # try to delete rest of disc content
-            p = str(self.album.configuration().cache_path_envs().joinpath(self.test_environment_name))
-            force_remove(p)
         super().tearDown()
 
     @patch('album.core.controller.conda_manager.CondaManager.get_info')

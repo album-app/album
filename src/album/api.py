@@ -1,19 +1,49 @@
-from pathlib import Path
-from typing import Optional
+import pathlib
+from typing import Optional, Union
 
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.api.model.configuration import IConfiguration
 from album.core.controller.album_controller import AlbumController
+from album.core.utils.core_logging import configure_root_logger
+from album.runner.album_logging import pop_active_logger, LogLevel
 from album.runner.core.api.model.script_creator import IScriptCreator
 from album.runner.core.api.model.solution import ISolution
 
 
 class Album:
+    class Builder:
+        _base_cache_path: Optional[Union[str, pathlib.Path]] = None
+        _log_format: str = None
+        _log_format_time: str = None
+        _log_level: LogLevel = None
 
-    def __init__(self, base_cache_path: Optional[Path] = None) -> None:
-        self._controller = AlbumController(base_cache_path)
+        def base_cache_path(self, base_cache_path: Union[str, pathlib.Path]) -> 'Album.Builder':
+            self._base_cache_path = base_cache_path
+            return self
+
+        def log_format(self, log_format: str) -> 'Album.Builder':
+            self._log_format = log_format
+            return self
+
+        def log_format_time(self, log_format_time: str) -> 'Album.Builder':
+            self._log_format_time = log_format_time
+            return self
+
+        def log_level(self, log_level: LogLevel) -> 'Album.Builder':
+            self._log_level = log_level
+            return self
+
+        def build(self) -> 'Album':
+            return Album(self)
+
+    def __init__(self, builder: 'Album.Builder') -> None:
+        self._options = builder
+        self._controller = AlbumController(self._options._base_cache_path)
+        self.logger_pushed = True
+        configure_root_logger(log_format=self._options._log_format, log_format_time=self._options._log_format_time,
+                              log_level=self._options._log_level)
 
     def resolve(self, resolve_solution: str) -> ICollectionSolution:
         return self._controller.collection_manager().resolve_and_load(resolve_solution)
@@ -117,6 +147,8 @@ class Album:
         return self._controller.clone_manager().clone(path, target_dir, name)
 
     def close(self):
+        if self.logger_pushed:
+            pop_active_logger()
         self._controller.close()
 
     def run_solution_script(self, resolve_result: ICollectionSolution, script: IScriptCreator):

@@ -14,8 +14,9 @@ from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
 from album.core.utils.operations.file_operations import copy, force_remove
+from album.core.utils.operations.view_operations import get_logging_formatter, get_logging_filter
 from album.runner import album_logging
-from album.runner.album_logging import configure_logging, LogLevel
+from album.runner.album_logging import configure_logging, LogLevel, get_active_logger
 from album.runner.core.model.solution import Solution
 from test.global_exception_watcher import GlobalExceptionWatcher
 
@@ -31,8 +32,8 @@ class TestIntegrationCommon(unittest.TestCase):
 
         # logging
         self.captured_output = StringIO()
+        self.album_instance = Album.Builder().base_cache_path(self.tmp_dir.name).build()
         self.configure_silent_test_logging(self.captured_output)
-        self.album_instance = Album(base_cache_path=self.tmp_dir.name)
         self.collection_manager = self.album_instance._controller.collection_manager()
         self.create_album_instance_patch = patch('album.argument_parsing.create_album_instance',
                                                  return_value=self.album_instance)
@@ -118,12 +119,15 @@ class TestIntegrationCommon(unittest.TestCase):
             super(TestIntegrationCommon, self).run(result)
 
     @staticmethod
-    def configure_silent_test_logging(captured_output, logger_name="integration-test"):
-        logger = configure_logging(logger_name, loglevel=LogLevel.INFO)
+    def configure_silent_test_logging(captured_output, logger_name="album"):
+        logger = get_active_logger()
+        logger.handlers.clear()
+        logger.name = logger_name
+        logger.setLevel('INFO')
         ch = logging.StreamHandler(captured_output)
         ch.setLevel('INFO')
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        ch.setFormatter(formatter)
+        ch.setFormatter(get_logging_formatter())
+        ch.addFilter(get_logging_filter())
         logger.addHandler(ch)
         return logger
 

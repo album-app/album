@@ -5,7 +5,6 @@ from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.solution_operations import serialize_json
 from album.runner import album_logging
 from album.runner.album_logging import LogLevel
-from album.runner.core.model.coordinates import Coordinates
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -68,7 +67,6 @@ class TestIntegrationAPI(TestIntegrationCommon):
             solution_target_name,
             DefaultValues.solution_default_name.value
         )
-        solution_coordinates = Coordinates(group, name, version)
 
         # assert that it's not installed
         album.clone(str(clone_src), str(solution_target_dir), solution_target_name)

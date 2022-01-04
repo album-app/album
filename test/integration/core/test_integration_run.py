@@ -29,7 +29,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
             self.album_instance.run_manager().run(resolve_result)
 
         # self.assertIn("ERROR", self.captured_output.getvalue())
-        self.assertIn("the following arguments are required: --lambda_arg1", e.exception.args[0])
+        self.assertIn("the following arguments are required: --lambda_arg1", self.captured_output.getvalue())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_arguments_given(self, get_environment_path):
@@ -85,7 +85,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
 
         # this solution has no install() configured
 
-        argv = ["", "run", "", "--log", "DEBUG"]
+        argv = ["", "--log", "DEBUG"]
 
         # run
         resolve_result = self.album_instance.collection_manager().resolve_and_load(

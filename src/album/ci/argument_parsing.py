@@ -38,8 +38,7 @@ def main():
 
 
 def create_album_instance() -> Album:
-    album = Album()
-    return album
+    return Album.Builder().build()
 
 
 def create_parser():

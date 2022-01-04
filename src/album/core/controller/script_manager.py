@@ -37,7 +37,7 @@ class ScriptManager(IScriptManager):
             while True:
                 script_queue_entry = queue.get(block=False)
                 module_logger().debug("Running task \"%s\"..." % script_queue_entry.coordinates.name())
-                self._run_in_environment_with_own_logger(script_queue_entry)
+                self._run_in_environment(script_queue_entry)
                 module_logger().debug("Finished running task \"%s\"!" % script_queue_entry.coordinates.name())
                 queue.task_done()
         except Empty:
@@ -395,15 +395,13 @@ class ScriptManager(IScriptManager):
 
         return parsed_parent_args, parsed_steps_args_list
 
-    def _run_in_environment_with_own_logger(self, script_queue_entry: ScriptQueueEntry):
+    def _run_in_environment(self, script_queue_entry: ScriptQueueEntry):
         """Pushes a new logger to the stack before running the solution and pops it afterwards."""
-        album_logging.configure_logging(script_queue_entry.coordinates.name())
         module_logger().debug(
             "Running script in environment of solution \"%s\"..." % script_queue_entry.coordinates.name())
         self.album.environment_manager().run_scripts(script_queue_entry.environment, script_queue_entry.scripts)
         module_logger().debug(
             "Done running script in environment of solution \"%s\"..." % script_queue_entry.coordinates.name())
-        album_logging.pop_active_logger()
 
     @staticmethod
     def _get_args(step, args):

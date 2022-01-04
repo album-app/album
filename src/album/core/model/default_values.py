@@ -9,7 +9,7 @@ class DefaultValues(Enum):
     """Add an entry here to initialize default attributes for a album framework installation instance."""
 
     # runner
-    runner_api_packet_version = '0.2.1'      # set to None to use with url
+    runner_api_packet_version = '0.3.0'      # set to None to use with url
     runner_api_packet_name = 'album-runner'  # can also point to zip/url like: https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip
 
     # templates
