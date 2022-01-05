@@ -30,13 +30,12 @@ class TestCondaManager(TestUnitCoreCommon):
 
     @patch('album.core.controller.conda_manager.CondaManager.get_info')
     def test_get_environment_list(self, ginfo_mock):
-        ginfo_mock.return_value = {
-            "envs": [Path("aPath").joinpath("envName1"), Path("anotherPath").joinpath("envName2")]
-        }
-
+        base_dir = Path(self.album.configuration().cache_path_envs())
         expected = list()
-        expected.append(Path("aPath").joinpath("envName1"))
-        expected.append(Path("anotherPath").joinpath("envName2"))
+        expected.append(str(base_dir.joinpath("envName1")))
+        expected.append(str(base_dir.joinpath("envName2")))
+        Path(expected[0]).mkdir(parents=True)
+        Path(expected[1]).joinpath('envName2').mkdir(parents=True)
 
         res = self.conda.get_environment_list()
 

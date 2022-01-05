@@ -31,16 +31,19 @@ class CondaManager:
         self._conda_executable = self._configuration.conda_executable()
 
     def get_environment_list(self):
-        """Returns the conda environments available for the conda installation."""
-        conda_info = self.get_info()
+        """Returns the available album conda environments."""
+        if Path(self.get_base_environment_path()).exists():
+            return sorted(self._get_immediate_subdirectories(self.get_base_environment_path()))
+        else:
+            return []
 
-        return conda_info["envs"]
+    def _get_immediate_subdirectories(self, a_dir: Path):
+        return [str(a_dir.joinpath(name)) for name in os.listdir(a_dir)
+                if os.path.isdir(os.path.join(a_dir, name))]
 
     def get_base_environment_path(self):
         """Gets the first of the paths the conda installation uses to manage its environments."""
-        conda_info = self.get_info()
-
-        return conda_info["envs_dirs"][0]
+        return self._configuration.cache_path_envs()
 
     def environment_exists(self, environment_name):
         """Checks whether an environment already exists or not.
@@ -175,10 +178,8 @@ class CondaManager:
 
         env_prefix = str(self._configuration.cache_path_envs().joinpath(environment_name))
 
-        subprocess_args = [
-            self._conda_executable, 'env', 'create', '--json', '-f',
-            str(yaml_path), '-p', env_prefix
-        ]
+        # TODO in debug mode, use -v to display the installation process
+        subprocess_args = [self._conda_executable, 'env', 'create', '-q', '--force', '-f', str(yaml_path), '-p', env_prefix]
 
         # try:
         subcommand.run(subprocess_args, log_output=True)
