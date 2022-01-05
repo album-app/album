@@ -1,5 +1,6 @@
 import album
 from album.ci.argument_parsing import main
+from album.core.utils.core_logging import configure_root_logger
 from album.runner import album_logging
 from album.runner.album_logging import get_active_logger, debug_settings
 
@@ -16,7 +17,7 @@ def startup():
 
 def __retrieve_logger():
     """Retrieves the default album ci logger."""
-    album_logging.configure_root_logger(album_logging.LogLevel(debug_settings()))
+    configure_root_logger(album_logging.LogLevel(debug_settings()))
 
 
 if __name__ == '__main__':
