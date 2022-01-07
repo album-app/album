@@ -34,7 +34,7 @@ class ReleaseManager:
         self.catalog_repo: Repo = self.catalog.retrieve_catalog(force_retrieve=force_retrieve, update=False)
         album_instance.load_catalog_index(self.catalog)
 
-    def __del__(self):
+    def close(self):
         if self.catalog:
             self.catalog.dispose()
         if self.catalog_repo:
