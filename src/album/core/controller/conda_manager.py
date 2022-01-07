@@ -30,6 +30,9 @@ class CondaManager:
         self._configuration = configuration
         self._conda_executable = self._configuration.conda_executable()
 
+    def _get_install_environment_executable(self):
+        return self._conda_executable
+
     def get_environment_list(self):
         """Returns the available album conda environments."""
         if Path(self.get_base_environment_path()).exists():
@@ -109,7 +112,7 @@ class CondaManager:
         path = self.get_environment_path(environment_name)
 
         subprocess_args = [
-            self._conda_executable, 'env', 'remove', '-y', '-q', '-p', path
+            self._get_install_environment_executable(), 'env', 'remove', '-y', '-q', '-p', path
         ]
 
         subcommand.run(subprocess_args, log_output=False)
@@ -126,7 +129,7 @@ class CondaManager:
             dictionary corresponding to conda info.
         """
         subprocess_args = [
-            self._conda_executable, 'info', '--json'
+            self._get_install_environment_executable(), 'info', '--json'
         ]
         output = subcommand.check_output(subprocess_args)
         return json.loads(output)
@@ -142,7 +145,7 @@ class CondaManager:
             dictionary containing the available packages in the given conda environment.
         """
         subprocess_args = [
-            self._conda_executable, 'list', '--json', '--prefix', environment_path,
+            self._get_install_environment_executable(), 'list', '--json', '--prefix', environment_path,
         ]
         output = subcommand.check_output(subprocess_args)
         return json.loads(output)
@@ -179,7 +182,7 @@ class CondaManager:
         env_prefix = str(self._configuration.cache_path_envs().joinpath(environment_name))
 
         # TODO in debug mode, use -v to display the installation process
-        subprocess_args = [self._conda_executable, 'env', 'create', '-q', '--force', '-f', str(yaml_path), '-p', env_prefix]
+        subprocess_args = [self._get_install_environment_executable(), 'env', 'create', '-q', '--force', '-f', str(yaml_path), '-p', env_prefix]
 
         # try:
         subcommand.run(subprocess_args, log_output=True)
@@ -212,7 +215,7 @@ class CondaManager:
 
         env_prefix = str(self._configuration.cache_path_envs().joinpath(environment_name))
 
-        subprocess_args = [self._conda_executable, 'create', '--force', '-q', '-y', '-p', env_prefix, 'python=3.6', 'pip']
+        subprocess_args = [self._get_install_environment_executable(), 'create', '--force', '-q', '-y', '-p', env_prefix, 'python=3.6', 'pip']
 
         try:
             subcommand.run(subprocess_args, log_output=True)
@@ -269,7 +272,7 @@ class CondaManager:
 
         """
         subprocess_args = [
-            self._conda_executable, 'install', '--prefix', environment_path, '-y', module
+            self._get_install_environment_executable(), 'install', '--prefix', environment_path, '-y', module
         ]
 
         subcommand.run(subprocess_args, log_output=True)

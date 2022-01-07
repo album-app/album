@@ -192,6 +192,7 @@ class TestGitCommon(TestUnitCoreCommon):
         basepath = Path(self.tmp_dir.name).joinpath("testGitRepo")
 
         repo = git.Repo.init(path=basepath)
+        self.repo = repo
 
         # necessary for CI
         repo.config_writer().set_value("user", "name", "myusername").release()
@@ -236,8 +237,6 @@ class TestGitCommon(TestUnitCoreCommon):
 
             # checkout master again
             repo.heads["master"].checkout()
-
-        self.repo = repo
 
         return tmp_file.name
 

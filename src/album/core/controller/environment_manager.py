@@ -6,6 +6,7 @@ from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.api.model.environment import IEnvironment
 from album.core.controller.conda_manager import CondaManager
+from album.core.controller.mamba_manager import MambaManager
 from album.core.model.environment import Environment
 from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
@@ -20,6 +21,7 @@ class EnvironmentManager(IEnvironmentManager):
 
     def __init__(self, album: IAlbumController):
         self.conda_manager = CondaManager(album.configuration())
+        self.mamba_manager = MambaManager(album.configuration())
         self.album = album
 
     def install_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
@@ -28,7 +30,7 @@ class EnvironmentManager(IEnvironmentManager):
             self.get_environment_name(collection_solution.coordinates(), collection_solution.catalog()),
             collection_solution.loaded_solution().installation().package_path()
         )
-        self.conda_manager.install(environment, collection_solution.loaded_solution().setup().album_api_version)
+        self.mamba_manager.install(environment, collection_solution.loaded_solution().setup().album_api_version)
         set_environment_paths(collection_solution.loaded_solution(), environment)
         return environment
 
@@ -66,9 +68,9 @@ class EnvironmentManager(IEnvironmentManager):
     def get_environment_base_folder(self) -> Path:
         return Path(self.conda_manager.get_base_environment_path())
 
-    def run_scripts(self, environment: IEnvironment, scripts):
+    def run_scripts(self, environment: IEnvironment, scripts, pipe_output=True):
         if environment:
-            self.conda_manager.run_scripts(environment, scripts)
+            self.conda_manager.run_scripts(environment, scripts, pipe_output=pipe_output)
         else:
             raise EnvironmentError("Environment not set! Cannot run scripts!")
 

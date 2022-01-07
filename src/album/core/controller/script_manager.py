@@ -27,9 +27,8 @@ class ScriptManager(IScriptManager):
         queue = Queue()
         self.build_queue(resolve_result, queue, script_creator, False, [""])
         script_queue_entry = queue.get(block=False)
-        self.album.environment_manager().get_conda_manager().run_scripts(script_queue_entry.environment,
-                                                                             script_queue_entry.scripts,
-                                                                             pipe_output=False)
+        self.album.environment_manager().run_scripts(script_queue_entry.environment, script_queue_entry.scripts,
+                                                     pipe_output=False)
 
     def run_queue(self, queue: Queue):
         module_logger().debug("Running queue...")

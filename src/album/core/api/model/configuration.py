@@ -23,6 +23,11 @@ class IConfiguration:
         raise NotImplementedError
 
     @abstractmethod
+    def mamba_executable(self):
+        """The mamba executable. Either a full path to a mamba executable/binary or a command"""
+        raise NotImplementedError
+
+    @abstractmethod
     def cache_path_app(self):
         """Path for app solutions."""
         raise NotImplementedError
