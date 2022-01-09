@@ -1,4 +1,6 @@
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Generator
 
 from git import Repo
 
@@ -31,25 +33,28 @@ class ReleaseManager:
             self.configuration.setup()
 
         self.catalog = Catalog(None, name=self.catalog_name, path=catalog_path, src=self.catalog_src)
-        self.catalog_repo: Repo = self.catalog.retrieve_catalog(force_retrieve=force_retrieve, update=False)
-        album_instance.load_catalog_index(self.catalog)
+        self.force_retrieve = force_retrieve
+        with self._open_repo():
+            album_instance.load_catalog_index(self.catalog)
+
+    def _open_repo(self) -> Generator[Repo, None, None]:
+        return self.catalog.retrieve_catalog(force_retrieve=self.force_retrieve, update=False)
 
     def close(self):
         if self.catalog:
             self.catalog.dispose()
-        if self.catalog_repo:
-            self.catalog_repo.close()
 
     def configure_repo(self, user_name, user_email):
         module_logger().info("Configuring repository using:\n\tusername:\t%s\n\temail:\t%s" % (user_name, user_email))
-        configure_git(self.catalog_repo, user_email, user_name)
+        with self._open_repo() as repo:
+            configure_git(repo, user_email, user_name)
 
     def configure_ssh(self, project_path):
         if not project_path:
             raise KeyError("Project path not given!")
-
-        if not self.catalog_repo.remote().url.startswith("git"):
-            self.catalog_repo.remote().set_url(get_ssh_url(project_path, self.catalog_src))
+        with self._open_repo() as repo:
+            if not repo.remote().url.startswith("git"):
+                repo.remote().set_url(get_ssh_url(project_path, self.catalog_src))
 
     def _get_zip_path(self, coordinates: ICoordinates):
         zip_name = get_zip_name(coordinates)
@@ -71,10 +76,11 @@ class ReleaseManager:
 
         zenodo_manager = self._get_zenodo_manager(zenodo_access_token, zenodo_base_url)
 
-        head = checkout_branch(self.catalog_repo, branch_name)
+        with self._open_repo() as repo:
+            head = checkout_branch(repo, branch_name)
 
-        # get the yml file to release from current branch
-        yml_dict, yml_file_path = self._get_yml_dict(head)
+            # get the yml file to release from current branch
+            yml_dict, yml_file_path = self._get_yml_dict(head)
 
         # checkout files
         zip_name = self._get_zip_path(dict_to_coordinates(yml_dict)).name
@@ -94,11 +100,11 @@ class ReleaseManager:
         zenodo_base_url, zenodo_access_token = self.__prepare_zenodo_arguments(zenodo_base_url, zenodo_access_token)
 
         zenodo_manager = self._get_zenodo_manager(zenodo_access_token, zenodo_base_url)
+        with self._open_repo() as repo:
+            head = checkout_branch(repo, branch_name)
 
-        head = checkout_branch(self.catalog_repo, branch_name)
-
-        # get the yml file to release
-        yml_dict, yml_file_path = self._get_yml_dict(head)
+            # get the yml file to release
+            yml_dict, yml_file_path = self._get_yml_dict(head)
 
         # get metadata from yml_file
         try:
@@ -146,65 +152,68 @@ class ReleaseManager:
         return zenodo_base_url, zenodo_access_token
 
     def update_index(self, branch_name):
-        head = checkout_branch(self.catalog_repo, branch_name)
+        with self._open_repo() as repo:
+            head = checkout_branch(repo, branch_name)
 
-        yml_dict, _ = self._get_yml_dict(head)
+            yml_dict, _ = self._get_yml_dict(head)
 
         self.catalog.index().update(dict_to_coordinates(yml_dict), yml_dict)
         self.catalog.index().save()
         self.catalog.index().export(self.catalog.solution_list_path())
 
     def push_changes(self, branch_name, dry_run, push_option, ci_user_name, ci_user_email):
-        head = checkout_branch(self.catalog_repo, branch_name)
 
-        yml_dict, yml_file = self._get_yml_dict(head)
+        with self._open_repo() as repo:
+            head = checkout_branch(repo, branch_name)
 
-        zip_path = self._get_zip_path(dict_to_coordinates(yml_dict))
-        solution_zip = retrieve_single_file_from_head(head, str(zip_path), option="startswith")
+            yml_dict, yml_file = self._get_yml_dict(head)
 
-        docker_path = self._get_docker_path(dict_to_coordinates(yml_dict))
-        docker_file = retrieve_single_file_from_head(head, str(docker_path), option="startswith")
+            zip_path = self._get_zip_path(dict_to_coordinates(yml_dict))
+            solution_zip = retrieve_single_file_from_head(head, str(zip_path), option="startswith")
 
-        commit_files = [
-            yml_file, solution_zip, docker_file
-        ]
-        if not all([Path(f).is_file() for f in commit_files]):
-            raise FileNotFoundError("Invalid deploy request or broken catalog repository!")
+            docker_path = self._get_docker_path(dict_to_coordinates(yml_dict))
+            docker_file = retrieve_single_file_from_head(head, str(docker_path), option="startswith")
 
-        commit_msg = "Prepared branch \"%s\" for merging." % branch_name
+            commit_files = [yml_file, solution_zip, docker_file]
+            if not all([Path(f).is_file() for f in commit_files]):
+                raise FileNotFoundError("Invalid deploy request or broken catalog repository!")
 
-        add_files_commit_and_push(
-            head,
-            commit_files,
-            commit_msg,
-            push=not dry_run,
-            push_options=push_option,
-            username=ci_user_name,
-            email=ci_user_email
-        )
+            commit_msg = "Prepared branch \"%s\" for merging." % branch_name
+
+            add_files_commit_and_push(
+                head,
+                commit_files,
+                commit_msg,
+                push=not dry_run,
+                push_options=push_option,
+                username=ci_user_name,
+                email=ci_user_email
+            )
 
         return True
 
     def merge(self, branch_name, dry_run, push_option, ci_user_name, ci_user_email):
-        head = checkout_branch(self.catalog_repo, branch_name)
 
-        commit_files = [
-            self.catalog.solution_list_path(), self.catalog.index_path()
-        ]
-        if not all([Path(f).is_file() for f in commit_files]):
-            raise FileNotFoundError("Invalid deploy request or broken catalog repository!")
+        with self._open_repo() as repo:
+            head = checkout_branch(repo, branch_name)
 
-        commit_msg = "Updated index."
+            commit_files = [
+                self.catalog.solution_list_path(), self.catalog.index_path()
+            ]
+            if not all([Path(f).is_file() for f in commit_files]):
+                raise FileNotFoundError("Invalid deploy request or broken catalog repository!")
 
-        add_files_commit_and_push(
-            head,
-            commit_files,
-            commit_msg,
-            push=not dry_run,
-            push_options=push_option,
-            username=ci_user_name,
-            email=ci_user_email
-        )
+            commit_msg = "Updated index."
+
+            add_files_commit_and_push(
+                head,
+                commit_files,
+                commit_msg,
+                push=not dry_run,
+                push_options=push_option,
+                username=ci_user_name,
+                email=ci_user_email
+            )
 
     def _get_zenodo_manager(self, zenodo_access_token, zenodo_base_url):
         # TODO in case one wants to reuse the zenodo manager, this needs to be smarter, but be aware that another call

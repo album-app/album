@@ -3,9 +3,10 @@ import logging
 import os
 import tempfile
 import unittest
+from contextlib import contextmanager
 from io import StringIO
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Generator
 from unittest.mock import patch, MagicMock
 
 import git
@@ -179,66 +180,65 @@ class TestZenodoCommon(TestUnitCoreCommon):
 class TestGitCommon(TestUnitCoreCommon):
     """Base class for all Unittest using a album object"""
 
-    repo = None
-
-    def tearDown(self) -> None:
-        if self.repo:
-            p = self.repo.working_tree_dir
-            self.repo.close()
-            force_remove(p)
-        super().tearDown()
-
-    def create_tmp_repo(self, commit_solution_file=True, create_test_branch=False):
+    @contextmanager
+    def create_tmp_repo(self, commit_solution_file=True, create_test_branch=False) -> Generator[git.Repo, None, None]:
         basepath = Path(self.tmp_dir.name).joinpath("testGitRepo")
 
         repo = git.Repo.init(path=basepath)
-        self.repo = repo
 
-        # necessary for CI
-        repo.config_writer().set_value("user", "name", "myusername").release()
-        repo.config_writer().set_value("user", "email", "myemail").release()
+        try:
+            # necessary for CI
+            repo.config_writer().set_value("user", "name", "myusername").release()
+            repo.config_writer().set_value("user", "email", "myemail").release()
 
-        # initial commit
-        init_file = tempfile.NamedTemporaryFile(
-            dir=os.path.join(str(repo.working_tree_dir)),
-            delete=False
-        )
-        init_file.close()
-        repo.index.add([os.path.basename(init_file.name)])
-        repo.git.commit('-m', "init", '--no-verify')
-
-        if commit_solution_file:
-            os.makedirs(os.path.join(str(repo.working_tree_dir), "solutions"), exist_ok=True)
-            tmp_file = tempfile.NamedTemporaryFile(
-                dir=os.path.join(str(repo.working_tree_dir), "solutions"),
+            # initial commit
+            init_file = tempfile.NamedTemporaryFile(
+                dir=os.path.join(str(repo.working_tree_dir)),
                 delete=False
             )
-            tmp_file.close()
-            repo.index.add([os.path.join("solutions", os.path.basename(tmp_file.name))])
-        else:
-            tmp_file = tempfile.NamedTemporaryFile(dir=str(repo.working_tree_dir), delete=False)
-            tmp_file.close()
-            repo.index.add([os.path.basename(tmp_file.name)])
+            init_file.close()
+            repo.index.add([os.path.basename(init_file.name)])
+            repo.git.commit('-m', "init", '--no-verify')
 
-        repo.git.commit('-m', "added %s " % tmp_file.name, '--no-verify')
+            if commit_solution_file:
+                os.makedirs(os.path.join(str(repo.working_tree_dir), "solutions"), exist_ok=True)
+                tmp_file = tempfile.NamedTemporaryFile(
+                    dir=os.path.join(str(repo.working_tree_dir), "solutions"),
+                    delete=False
+                )
+                tmp_file.close()
+                repo.index.add([os.path.join("solutions", os.path.basename(tmp_file.name))])
+            else:
+                tmp_file = tempfile.NamedTemporaryFile(dir=str(repo.working_tree_dir), delete=False)
+                tmp_file.close()
+                repo.index.add([os.path.basename(tmp_file.name)])
 
-        if create_test_branch:
-            new_head = repo.create_head("test_branch")
-            new_head.ref = repo.heads["master"]  # manually point to master
-            new_head.checkout()
+            repo.git.commit('-m', "added %s " % tmp_file.name, '--no-verify')
+            self.commit_file = tmp_file
 
-            # add file to new head
-            tmp_file = tempfile.NamedTemporaryFile(
-                dir=os.path.join(str(repo.working_tree_dir), "solutions"), delete=False
-            )
-            tmp_file.close()
-            repo.index.add([tmp_file.name])
-            repo.git.commit('-m', "branch added %s " % tmp_file.name, '--no-verify')
+            if create_test_branch:
+                new_head = repo.create_head("test_branch")
+                new_head.ref = repo.heads["master"]  # manually point to master
+                new_head.checkout()
 
-            # checkout master again
-            repo.heads["master"].checkout()
+                # add file to new head
+                tmp_file = tempfile.NamedTemporaryFile(
+                    dir=os.path.join(str(repo.working_tree_dir), "solutions"), delete=False
+                )
+                tmp_file.close()
+                repo.index.add([tmp_file.name])
+                repo.git.commit('-m', "branch added %s " % tmp_file.name, '--no-verify')
 
-        return tmp_file.name
+                # checkout master again
+                repo.heads["master"].checkout()
+
+            yield repo
+
+        finally:
+            p = repo.working_tree_dir
+            repo.close()
+            force_remove(p)
+
 
 
 class EmptyTestClass:

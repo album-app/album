@@ -84,24 +84,22 @@ class DeployManager(IDeployManager):
         """Routine to deploy to a remote catalog."""
         dl_path = self.get_download_path(catalog)
 
-        repo = catalog.retrieve_catalog(dl_path, force_retrieve=True)
-        catalog_local_src = repo.working_tree_dir
+        with catalog.retrieve_catalog(dl_path, force_retrieve=True) as repo:
+            catalog_local_src = repo.working_tree_dir
 
-        if not repo:
-            raise FileNotFoundError("Catalog repository not found. Did the download of the catalog fail?")
+            if not repo:
+                raise FileNotFoundError("Catalog repository not found. Did the download of the catalog fail?")
 
-        # include files/folders in catalog
-        solution_zip, exports = self._deploy_routine_in_local_src(
-            catalog, catalog_local_src, active_solution, deploy_path
-        )
+            # include files/folders in catalog
+            solution_zip, exports = self._deploy_routine_in_local_src(
+                catalog, catalog_local_src, active_solution, deploy_path
+            )
 
-        # merge request files:
-        mr_files = [solution_zip] + exports
+            # merge request files:
+            mr_files = [solution_zip] + exports
 
-        # create merge request
-        self._create_merge_request(active_solution, repo, mr_files, dry_run, push_option, git_email, git_name)
-
-        repo.close()
+            # create merge request
+            self._create_merge_request(active_solution, repo, mr_files, dry_run, push_option, git_email, git_name)
 
     def get_download_path(self, catalog: ICatalog):
         return Path(self.album.configuration().cache_path_download()).joinpath(catalog.name())
