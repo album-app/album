@@ -277,23 +277,6 @@ cmdline linux:
     # album catalog admin
     - album-catalog-admin -h
 
-cmdline macos:
-  extends: .macos_base_template
-  stage: build
-  script:
-    # album commands
-    - album -h
-    - album run -h
-    - album install -h
-    - album deploy -h
-    - album uninstall -h
-    - album repl -h
-    - album server -h
-    - album add-catalog -h
-    - album remove-catalog -h
-    # album catalog admin
-    - album-catalog-admin -h
-
 unit tests linux:
   extends: .linux_base_template
   stage: test
