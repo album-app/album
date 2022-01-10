@@ -1,16 +1,10 @@
 import json
-import logging
-import sys
 import unittest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from album.runner.album_logging import set_loglevel, LogLevel, get_active_logger
-
-from album.core.model.environment import Environment
-
 from album.core.controller.conda_manager import CondaManager
-from album.core.utils.operations.file_operations import force_remove
+from album.core.model.environment import Environment
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 

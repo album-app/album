@@ -17,14 +17,14 @@ class TestDeployManager(TestGitCommon):
         self.zenodoAPI = ZenodoAPI('url', 'access_token')
         self.create_test_solution_no_env()
 
-        self.remote_catalog = self.collection_manager.catalogs().add_by_src(DefaultValues.default_catalog_src.value)
+        self.remote_catalog = self.collection_manager().catalogs().add_by_src(DefaultValues.default_catalog_src.value)
 
         # add a third local catalog
         catalog_path = Path(self.tmp_dir.name).joinpath("local_catalog")
         catalog_path.mkdir(parents=True)
         with open(catalog_path.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as meta:
             meta.writelines("{\"name\":\"local_catalog\", \"version\": \"0.1.0\"}")
-        self.local_catalog = self.collection_manager.catalogs().add_by_src(catalog_path)
+        self.local_catalog = self.collection_manager().catalogs().add_by_src(catalog_path)
 
         self.deploy_manager: DeployManager = self.album.deploy_manager()
 
@@ -45,10 +45,10 @@ class TestDeployManager(TestGitCommon):
         self.deploy_manager._deploy_to_remote_catalog = _deploy_to_remote_catalog
 
         get_by_name = MagicMock(return_value=self.local_catalog)
-        self.collection_manager.catalogs().get_by_name = get_by_name
+        self.collection_manager().catalogs().get_by_name = get_by_name
 
         get_by_src = MagicMock(return_value=None)
-        self.collection_manager.catalogs().get_by_src = get_by_src
+        self.collection_manager().catalogs().get_by_src = get_by_src
 
         with patch('album.core.controller.migration_manager.MigrationManager.load_index'):
             # call
@@ -77,10 +77,10 @@ class TestDeployManager(TestGitCommon):
         self.deploy_manager._deploy_to_remote_catalog = _deploy_to_remote_catalog
 
         get_by_name = MagicMock(return_value=self.remote_catalog)
-        self.collection_manager.catalogs().get_by_name = get_by_name
+        self.collection_manager().catalogs().get_by_name = get_by_name
 
         get_by_src = MagicMock(return_value=None)
-        self.collection_manager.catalogs().get_by_src = get_by_src
+        self.collection_manager().catalogs().get_by_src = get_by_src
 
         # call
         self.deploy_manager.deploy(deploy_path="None",
@@ -320,11 +320,11 @@ class TestDeployManager(TestGitCommon):
         load_mock = MagicMock(return_value=self.active_solution)
         self.album.state_manager().load = load_mock
 
-        get_catalog_by_src = MagicMock(return_value=self.collection_manager.catalogs().get_local_catalog())
-        self.collection_manager.catalogs().get_by_src = get_catalog_by_src
+        get_catalog_by_src = MagicMock(return_value=self.collection_manager().catalogs().get_local_catalog())
+        self.collection_manager().catalogs().get_by_src = get_catalog_by_src
 
         get_catalog_by_id = MagicMock(None)
-        self.collection_manager.catalogs().get_by_name = get_catalog_by_id
+        self.collection_manager().catalogs().get_by_name = get_catalog_by_id
 
         # call
         with self.assertRaises(RuntimeError):
@@ -402,7 +402,7 @@ class TestDeployManager(TestGitCommon):
 
             # result
             r = Path(repo.working_tree_dir).joinpath(
-                self.collection_manager.solutions().get_solution_zip_suffix(Coordinates('tsg', 'tsn', 'tsv'))
+                self.collection_manager().solutions().get_solution_zip_suffix(Coordinates('tsg', 'tsn', 'tsv'))
             )
 
         # copy and zip a folder

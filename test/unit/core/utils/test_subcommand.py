@@ -248,18 +248,6 @@ class TestLogfileBuffer(TestUnitCoreCommon):
         for i in range(0, 100):
             log_buffer.write(name + "_" + str(i) + "\n")  # print, logger.info() should all end with a newline
 
-    def configure_test_logging(self, stream_handler):
-        self.logger = logging.getLogger("unitTest")
-
-        if len(self.logger.handlers) == 0:
-            self.logger.setLevel('INFO')
-            ch = logging.StreamHandler(stream_handler)
-            ch.setLevel('INFO')
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            ch.setFormatter(formatter)
-            self.logger.addHandler(ch)
-            push_active_logger(self.logger)
-
     def get_logs(self):
         return self.as_list(self.captured_output.getvalue())
 

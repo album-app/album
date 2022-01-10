@@ -42,7 +42,7 @@ class TestCatalog(TestUnitCoreCommon):
         self.catalog = Catalog(0, "test", src=catalog_src, path=catalog_path)
         self.catalog.update_index_cache()
         self.catalog.load_index()
-        self.collection_manager.catalogs().set_version(self.catalog)
+        self.collection_manager().catalogs().set_version(self.catalog)
 
     def tearDown(self) -> None:
         self.catalog.dispose()

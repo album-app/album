@@ -17,8 +17,8 @@ class TestIntegrationUninstall(TestIntegrationCoreCommon):
 
         self.assertEqual(
             0,
-            len(self.collection_manager.catalog_collection.get_solutions_by_catalog(
-                self.collection_manager.catalogs().get_local_catalog().catalog_id()))
+            len(self.collection_manager().catalog_collection.get_solutions_by_catalog(
+                self.collection_manager().catalogs().get_local_catalog().catalog_id()))
         )
 
         self.fake_install(self.get_test_solution_path(), create_environment=False)
@@ -49,8 +49,8 @@ class TestIntegrationUninstall(TestIntegrationCoreCommon):
 
         # assert that solution is removed from the catalog
         self.assertIn("Uninstalled \"name\"", self.captured_output.getvalue())
-        solutions = self.collection_manager.get_collection_index().get_solutions_by_catalog(
-            self.collection_manager.catalogs().get_local_catalog().catalog_id())
+        solutions = self.collection_manager().get_collection_index().get_solutions_by_catalog(
+            self.collection_manager().catalogs().get_local_catalog().catalog_id())
         self.assertEqual(1, len(solutions))
         self.assertEqual(0, solutions[0].internal()["installed"])
 
@@ -79,9 +79,9 @@ class TestIntegrationUninstall(TestIntegrationCoreCommon):
         p = self.get_test_solution_path("solution10_uninstall.py")
         self.fake_install(p, create_environment=False)
 
-        collection = self.collection_manager.catalog_collection
+        collection = self.collection_manager().catalog_collection
         self.assertTrue(collection.is_installed(
-            self.collection_manager.catalogs().get_local_catalog().catalog_id(),
+            self.collection_manager().catalogs().get_local_catalog().catalog_id(),
             Coordinates("group", "solution10_uninstall", "0.1.0"))
         )
 
@@ -96,9 +96,9 @@ class TestIntegrationUninstall(TestIntegrationCoreCommon):
 
         # assert solution was set to uninstalled in the collection
         self.assertEqual(1, len(collection.get_solutions_by_catalog(
-            self.collection_manager.catalogs().get_local_catalog().catalog_id())))
+            self.collection_manager().catalogs().get_local_catalog().catalog_id())))
         self.assertFalse(collection.is_installed(
-            self.collection_manager.catalogs().get_local_catalog().catalog_id(),
+            self.collection_manager().catalogs().get_local_catalog().catalog_id(),
             Coordinates("group", "solution10_uninstall", "0.1.0"))
         )
 

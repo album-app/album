@@ -16,7 +16,7 @@ class TestIntegrationAPI(TestIntegrationCommon):
         logger = album_logging.get_active_logger()
         self.init_collection()
 
-        album = self.get_album()
+        album = self.album()
 
         # list index
         catalogs_as_dict = album.get_index_as_dict()
@@ -45,7 +45,7 @@ class TestIntegrationAPI(TestIntegrationCommon):
 
         album.clone("template:catalog", local_catalogs, local_catalog_name)
 
-        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), local_catalog_path, False)
+        self.assertCatalogPresence(self.collection_manager().catalogs().get_all(), local_catalog_path, False)
         self.assertTrue(local_catalogs_path.exists())
         self.assertTrue(local_catalog_path.exists())
         self.assertTrue(local_catalog_path.joinpath(DefaultValues.catalog_index_metafile_json.value).exists())
@@ -53,7 +53,7 @@ class TestIntegrationAPI(TestIntegrationCommon):
         # add catalog
         catalog = album.add_catalog(local_catalog_path)
 
-        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), str(local_catalog_path), True)
+        self.assertCatalogPresence(self.collection_manager().catalogs().get_all(), str(local_catalog_path), True)
 
         # clone solution
 
@@ -107,7 +107,7 @@ class TestIntegrationAPI(TestIntegrationCommon):
 
         # remove catalog
         album.remove_catalog_by_src(local_catalog_path)
-        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), local_catalog_path, False)
+        self.assertCatalogPresence(self.collection_manager().catalogs().get_all(), local_catalog_path, False)
 
         # check that solution is not accessible any more
         # TODO

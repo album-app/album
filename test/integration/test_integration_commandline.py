@@ -56,10 +56,10 @@ class TestIntegrationCommandline(TestIntegrationCommon):
         # populate tmp_index!
         h = self.album_instance.load(self.get_test_solution_path())
         h.setup().description = "keyword1"
-        local_catalog = self.collection_manager.catalogs().get_local_catalog()
-        self.collection_manager.solutions().add_to_local_catalog(h, self.get_test_solution_path())
+        local_catalog = self.collection_manager().catalogs().get_local_catalog()
+        self.collection_manager().solutions().add_to_local_catalog(h, self.get_test_solution_path())
 
-        self.assertEqual(1, len(self.collection_manager.catalog_collection.get_solutions_by_catalog(local_catalog.catalog_id())))
+        self.assertEqual(1, len(self.collection_manager().get_collection_index().get_solutions_by_catalog(local_catalog.catalog_id())))
 
         # define and run search
         sys.argv = ["", "search", "keyword"]
@@ -78,10 +78,10 @@ class TestIntegrationCommandline(TestIntegrationCommon):
         # populate tmp_index!
         h = self.album_instance.load(self.get_test_solution_path())
         h.setup().description = "keyword1"
-        local_catalog = self.collection_manager.catalogs().get_local_catalog()
-        self.collection_manager.solutions().add_to_local_catalog(h, self.get_test_solution_path())
+        local_catalog = self.collection_manager().catalogs().get_local_catalog()
+        self.collection_manager().solutions().add_to_local_catalog(h, self.get_test_solution_path())
 
-        self.assertEqual(1, len(self.collection_manager.catalog_collection.get_solutions_by_catalog(local_catalog.catalog_id())))
+        self.assertEqual(1, len(self.collection_manager().get_collection_index().get_solutions_by_catalog(local_catalog.catalog_id())))
 
         # capture stdout
         f = io.StringIO()

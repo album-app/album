@@ -21,7 +21,6 @@ class TestScriptManager(TestUnitCoreCommon):
         self.create_test_solution_no_env()
         album.script_manager()
         self.script_manager: ScriptManager = album._script_manager
-        self.collection_manager = album.collection_manager()
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -231,7 +230,7 @@ class TestScriptManager(TestUnitCoreCommon):
 
     def test_build_steps_queue_run_immediately(self):
         # mock
-        catalog = self.collection_manager.catalogs().get_local_catalog()
+        catalog = self.collection_manager().catalogs().get_local_catalog()
 
         resolve_require_installation_and_load = MagicMock(
             return_value=ResolveResult(
@@ -308,7 +307,7 @@ class TestScriptManager(TestUnitCoreCommon):
         self.active_solution._setup.dependencies = {"parent": {"name": "aParent", "group": "grp", "version": "v1"}}
 
         # mock
-        catalog = self.collection_manager.catalogs().get_local_catalog()
+        catalog = self.collection_manager().catalogs().get_local_catalog()
 
         create_solution_run_with_parent_script = MagicMock(return_value="aScript")
         self.script_manager._create_solution_run_with_parent_script = create_solution_run_with_parent_script

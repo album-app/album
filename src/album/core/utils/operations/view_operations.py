@@ -156,5 +156,6 @@ def get_message_filter():
         def _apply_mamba_menuinst_filter(self, record):
             if record.msg and isinstance(record.msg, str) and 'menuinst called from non-root env' in record.msg:
                 record.levelname = 'WARNING'
+                record.levelno = logging.getLevelName('WARNING')
 
     return MessageFilter()

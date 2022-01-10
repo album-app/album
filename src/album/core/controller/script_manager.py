@@ -9,7 +9,6 @@ from album.core.controller.run_manager import SolutionGroup
 from album.core.model.script_queue_entry import ScriptQueueEntry
 from album.core.utils.operations.resolve_operations import build_resolve_string
 from album.core.utils.operations.solution_operations import get_steps_dict, get_parent_dict
-from album.runner import album_logging
 from album.runner.album_logging import get_active_logger
 from album.runner.core.api.model.script_creator import IScriptCreator
 from album.runner.core.api.model.solution import ISolution
