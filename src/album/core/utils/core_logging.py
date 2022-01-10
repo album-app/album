@@ -1,6 +1,7 @@
 import logging
 
-from album.core.utils.operations.view_operations import get_logging_filter, get_logging_formatter
+from album.core.utils.operations.view_operations import get_logger_name_minimizer_filter, get_logging_formatter, \
+    get_message_filter
 from album.runner.album_logging import set_loglevel, debug_settings, LogLevel, push_active_logger
 
 
@@ -16,7 +17,8 @@ def configure_root_logger(log_format:str = None, log_format_time: str = None, lo
 
     # add formatter to ch
     ch.setFormatter(get_logging_formatter(fmt=log_format, time=log_format_time))
-    ch.addFilter(get_logging_filter())
+    ch.addFilter(get_logger_name_minimizer_filter())
+    ch.addFilter(get_message_filter())
 
     # add ch to logger
     logger.addHandler(ch)

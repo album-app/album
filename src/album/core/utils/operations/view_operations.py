@@ -134,7 +134,7 @@ def get_logging_formatter(fmt=None, time=None):
     })
 
 
-def get_logging_filter():
+def get_logger_name_minimizer_filter():
     class NameDotFilter(logging.Filter):
         def filter(self, record):
             count = record.name.count('.')
@@ -145,3 +145,16 @@ def get_logging_filter():
             return True
 
     return NameDotFilter()
+
+
+def get_message_filter():
+    class MessageFilter(logging.Filter):
+        def filter(self, record):
+            self._apply_mamba_menuinst_filter(record)
+            return True
+
+        def _apply_mamba_menuinst_filter(self, record):
+            if record.msg and isinstance(record.msg, str) and 'menuinst called from non-root env' in record.msg:
+                record.levelname = 'WARNING'
+
+    return MessageFilter()

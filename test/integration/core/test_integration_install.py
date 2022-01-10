@@ -4,7 +4,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from album.core.model.default_values import DefaultValues
-from album.core.utils.subcommand import SubProcessError
 from album.runner.core.model.coordinates import Coordinates
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 

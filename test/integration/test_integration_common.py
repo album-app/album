@@ -14,7 +14,8 @@ from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
 from album.core.utils.operations.file_operations import copy, force_remove
-from album.core.utils.operations.view_operations import get_logging_formatter, get_logging_filter
+from album.core.utils.operations.view_operations import get_logging_formatter, get_logger_name_minimizer_filter, \
+    get_message_filter
 from album.runner import album_logging
 from album.runner.album_logging import configure_logging, LogLevel, get_active_logger
 from album.runner.core.model.solution import Solution
@@ -127,7 +128,8 @@ class TestIntegrationCommon(unittest.TestCase):
         ch = logging.StreamHandler(captured_output)
         ch.setLevel('INFO')
         ch.setFormatter(get_logging_formatter())
-        ch.addFilter(get_logging_filter())
+        ch.addFilter(get_logger_name_minimizer_filter())
+        ch.addFilter(get_message_filter())
         logger.addHandler(ch)
         return logger
 

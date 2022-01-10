@@ -16,6 +16,7 @@ from album.core.controller.album_controller import AlbumController
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove
+from album.core.utils.operations.view_operations import get_message_filter
 from album.runner import album_logging
 from album.runner.album_logging import pop_active_logger, LogLevel, configure_logging
 from album.runner.core.model.solution import Solution
@@ -92,6 +93,7 @@ class TestUnitCoreCommon(unittest.TestCase):
         self.logger = configure_logging("unitTest", loglevel=LogLevel.INFO)
         ch = logging.StreamHandler(stream_handler)
         ch.setLevel('INFO')
+        ch.addFilter(get_message_filter())
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         ch.setFormatter(formatter)
         self.logger.addHandler(ch)
