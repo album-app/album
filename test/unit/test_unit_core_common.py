@@ -180,6 +180,10 @@ class TestZenodoCommon(TestUnitCoreCommon):
 class TestGitCommon(TestUnitCoreCommon):
     """Base class for all Unittest using a album object"""
 
+    def setUp(self):
+        super().setUp()
+        self.commit_file = None
+
     @contextmanager
     def create_tmp_repo(self, commit_solution_file=True, create_test_branch=False) -> Generator[git.Repo, None, None]:
         basepath = Path(self.tmp_dir.name).joinpath("testGitRepo")
@@ -214,7 +218,6 @@ class TestGitCommon(TestUnitCoreCommon):
                 repo.index.add([os.path.basename(tmp_file.name)])
 
             repo.git.commit('-m', "added %s " % tmp_file.name, '--no-verify')
-            self.commit_file = tmp_file
 
             if create_test_branch:
                 new_head = repo.create_head("test_branch")
@@ -232,6 +235,7 @@ class TestGitCommon(TestUnitCoreCommon):
                 # checkout master again
                 repo.heads["master"].checkout()
 
+            self.commit_file = tmp_file.name
             yield repo
 
         finally:

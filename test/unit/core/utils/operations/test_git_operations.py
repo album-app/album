@@ -13,9 +13,6 @@ from test.unit.test_unit_core_common import TestGitCommon
 
 class TestGitOperations(TestGitCommon):
 
-    def tearDown(self) -> None:
-        super().tearDown()
-
     def test_checkout_branch(self):
         with self.create_tmp_repo(create_test_branch=True) as repo:
 
@@ -58,8 +55,8 @@ class TestGitOperations(TestGitCommon):
             tmp_file_1.close()
             tmp_file_2.close()
     
-            self.index.add([tmp_file_1.name, tmp_file_2.name])
-            self.git.commit('-m', 'message', '--no-verify')
+            repo.index.add([tmp_file_1.name, tmp_file_2.name])
+            repo.git.commit('-m', 'message', '--no-verify')
     
             with self.assertRaises(RuntimeError) as context:
                 git_op.retrieve_single_file_from_head(repo.heads["master"],

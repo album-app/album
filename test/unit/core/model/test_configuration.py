@@ -34,7 +34,7 @@ class TestConfiguration(TestUnitCoreCommon):
 
         # assert
         self.assertFalse(leftover_file.exists())
-        self.assertTrue(str(conf.conda_executable()).endswith(DefaultValues.conda_path.value))
+        self.assertTrue(DefaultValues.conda_path.value in str(conf.conda_executable()))
         self.assertEqual(base_path, conf.base_cache_path())
 
     def test_base_cache_path(self):

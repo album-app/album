@@ -374,7 +374,6 @@ class TestDeployManager(TestGitCommon):
         # prepare
         with self.create_tmp_repo() as repo:
             catalog_local_src = repo.working_tree_dir
-            catalog = self.collection_manager.catalogs().get_local_catalog()
 
             result = Path(repo.working_tree_dir).joinpath(
                 DefaultValues.cache_path_solution_prefix.value,
@@ -384,7 +383,7 @@ class TestDeployManager(TestGitCommon):
                 "_".join(["tsg", "tsn", "tsv"]) + ".zip"
             )
 
-        self.assertEqual(result, self.deploy_manager._get_absolute_zip_path(catalog_local_src, self.active_solution))
+            self.assertEqual(result, self.deploy_manager._get_absolute_zip_path(catalog_local_src, self.active_solution))
 
     @unittest.skip("Needs to be implemented!")
     def test_get_download_path(self):
@@ -396,7 +395,6 @@ class TestDeployManager(TestGitCommon):
     def test__copy_and_zip(self, zip_path_mock, zip_folder):
         with self.create_tmp_repo() as repo:
             catalog_local_src = repo.working_tree_dir
-            catalog = self.collection_manager.catalogs().get_local_catalog()
 
             solution_folder_to_deploy_locally = Path(self.tmp_dir.name)
             solution_file_to_deploy_locally = Path(self.tmp_dir.name).joinpath("nice_file.py")

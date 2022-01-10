@@ -259,15 +259,16 @@ class DeployManager(IDeployManager):
             zip_file = Path(zip_folder(folder_path, zip_path))
             return zip_file
         if folder_path.is_file():
-            tmp_dir = tempfile.TemporaryDirectory()
-            tmp_solution_file = Path(tmp_dir.name).joinpath(DefaultValues.solution_default_name.value)
+            with tempfile.TemporaryDirectory(dir=self._get_tmp_dir()) as tmp_dir:
+                tmp_solution_file = Path(tmp_dir).joinpath(DefaultValues.solution_default_name.value)
 
-            copy(folder_path, tmp_solution_file)
-            zip_path = zip_paths([tmp_solution_file], zip_path)
-
-            tmp_dir.cleanup()
+                copy(folder_path, tmp_solution_file)
+                zip_path = zip_paths([tmp_solution_file], zip_path, tmp_dir=self._get_tmp_dir())
 
             return Path(zip_path)
+
+    def _get_tmp_dir(self):
+        return self.album.configuration().cache_path_tmp_internal()
 
     @staticmethod
     def _copy_files_from_solution(
