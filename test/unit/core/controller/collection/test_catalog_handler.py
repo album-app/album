@@ -285,9 +285,9 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         # assert
         self.assertEqual(3, len(res))
         self.assertEqual(3, _update_collection_from_catalog.call_count)
-        self.assertEqual(
-            [call(catalog_name=catalog.name()), call(catalog_name='default'), call(catalog_name='test_catalog2')],
-            _update_collection_from_catalog.call_args_list)
+        self.assertEqual(catalog, _update_collection_from_catalog.call_args_list[0][1]['catalog'])
+        self.assertEqual('default', _update_collection_from_catalog.call_args_list[1][1]['catalog'].name())
+        self.assertEqual('test_catalog2', _update_collection_from_catalog.call_args_list[2][1]['catalog'].name())
 
     def test_update_collection_dry_run(self):
         # mocks
@@ -304,9 +304,9 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         # assert
         self.assertEqual(3, len(res))
         self.assertEqual(3, _get_divergence_between_catalog_and_collection.call_count)
-        self.assertEqual(
-            [call(catalog_name=catalog.name()), call(catalog_name='default'), call(catalog_name='test_catalog2')],
-            _get_divergence_between_catalog_and_collection.call_args_list)
+        self.assertEqual(catalog, _get_divergence_between_catalog_and_collection.call_args_list[0][1]['catalog'])
+        self.assertEqual('default', _get_divergence_between_catalog_and_collection.call_args_list[1][1]['catalog'].name())
+        self.assertEqual('test_catalog2', _get_divergence_between_catalog_and_collection.call_args_list[2][1]['catalog'].name())
         _update_collection_from_catalog.assert_not_called()
 
     def test_update_collection_specific_catalog(self):
@@ -320,7 +320,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
 
         # assert
         self.assertEqual(1, len(res))
-        _update_collection_from_catalog.assert_called_once_with(catalog.name())
+        _update_collection_from_catalog.assert_called_once_with(catalog)
 
     def test_update_collection_specific_catalog_dry_run(self):
         # mocks
@@ -336,7 +336,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
 
         # assert
         self.assertEqual(1, len(res))
-        _get_divergence_between_catalog_and_collection.assert_called_once_with(catalog.name())
+        _get_divergence_between_catalog_and_collection.assert_called_once_with(catalog)
         _update_collection_from_catalog.assert_not_called()
 
     @patch('album.core.controller.collection.catalog_handler.force_remove')
@@ -683,10 +683,9 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             load_index_mock.return_value = c1
 
             # call
-            self.catalog_handler._get_divergence_between_catalog_and_collection("n")
+            self.catalog_handler._get_divergence_between_catalog_and_collection(c1)
 
             # assert
-            get_by_name_mock.assert_called_once_with("n")
             get_solutions_by_catalog_mock.assert_called_once_with(None)
             load_index_mock.assert_called_once_with(c1)
             get_all_solutions_mock.assert_called_once()
