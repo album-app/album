@@ -13,7 +13,6 @@ class TestRunManager(TestUnitCoreCommon):
         album = self.create_album_test_instance()
         self.create_test_solution_no_env()
         self.run_manager: RunManager = album.run_manager()
-        self.collection_manager = album.collection_manager()
 
     def tearDown(self) -> None:
         super().tearDown()

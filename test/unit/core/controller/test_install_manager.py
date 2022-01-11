@@ -28,7 +28,7 @@ class TestInstallManager(TestUnitCoreCommon):
         # create mocks
         resolve_result = ResolveResult(
             path=Path("aPath"),
-            catalog=self.collection_manager.catalogs().get_local_catalog(),
+            catalog=self.collection_manager().catalogs().get_local_catalog(),
             loaded_solution=self.active_solution,
             collection_entry=None,
             coordinates=self.active_solution.coordinates()
@@ -83,7 +83,7 @@ class TestInstallManager(TestUnitCoreCommon):
 
         # call
         self.install_manager._install_active_solution(
-            ResolveResult("", self.collection_manager.catalogs().get_local_catalog(), None,
+            ResolveResult("", self.collection_manager().catalogs().get_local_catalog(), None,
                           self.active_solution.coordinates(), self.active_solution), ["myargs"]
         )
 
@@ -118,7 +118,7 @@ class TestInstallManager(TestUnitCoreCommon):
 
         # call
         self.install_manager._install_active_solution(
-            ResolveResult("", self.collection_manager.catalogs().get_local_catalog(), None,
+            ResolveResult("", self.collection_manager().catalogs().get_local_catalog(), None,
                           self.active_solution.coordinates(), self.active_solution), ["myargs"]
         )
 
@@ -140,7 +140,7 @@ class TestInstallManager(TestUnitCoreCommon):
         _install = MagicMock(return_value=None)
         self.install_manager._install_resolve_result = _install
         resolve = MagicMock(return_value="resolve")
-        self.collection_manager.resolve_and_load = resolve
+        self.collection_manager().resolve_and_load = resolve
 
         # call
         self.install_manager._install_parent({"myDictKey": "myDeps"})
@@ -176,26 +176,26 @@ class TestInstallManager(TestUnitCoreCommon):
     def test_clean_unfinished_installations_env_exists(self, remove_dc, _, __):
         # mocks
         set_cache_paths = MagicMock()
-        self.collection_manager.solutions().set_cache_paths = set_cache_paths
+        self.collection_manager().solutions().set_cache_paths = set_cache_paths
         get_unfinished_installation_solutions = MagicMock(
             return_value=[CollectionIndex.CollectionSolution(
                 {'group': 'g1', 'name': 'n1', 'version': 'v1'},  # setup
                 {'catalog_id': 1}  # internal
             )]
         )
-        self.collection_manager.get_collection_index().get_unfinished_installation_solutions = get_unfinished_installation_solutions
+        self.collection_manager().get_collection_index().get_unfinished_installation_solutions = get_unfinished_installation_solutions
 
-        get_by_id_mock = MagicMock(return_value=self.collection_manager.catalogs().get_local_catalog())
-        self.collection_manager.catalogs().get_by_id = get_by_id_mock
+        get_by_id_mock = MagicMock(return_value=self.collection_manager().catalogs().get_local_catalog())
+        self.collection_manager().catalogs().get_by_id = get_by_id_mock
 
         retrieve_and_load_resolve_result = MagicMock()
-        self.collection_manager.retrieve_and_load_resolve_result = retrieve_and_load_resolve_result
+        self.collection_manager().retrieve_and_load_resolve_result = retrieve_and_load_resolve_result
 
         _clean_unfinished_installations_environment = MagicMock()
         self.install_manager._clean_unfinished_installations_environment = _clean_unfinished_installations_environment
 
         set_uninstalled = MagicMock()
-        self.collection_manager.solutions().set_uninstalled = set_uninstalled
+        self.collection_manager().solutions().set_uninstalled = set_uninstalled
 
         # call
         self.install_manager.clean_unfinished_installations()
@@ -214,26 +214,26 @@ class TestInstallManager(TestUnitCoreCommon):
     def test_clean_unfinished_installations_parent(self, remove_dc, _, __):
         # mocks
         set_cache_paths = MagicMock()
-        self.collection_manager.solutions().set_cache_paths = set_cache_paths
+        self.collection_manager().solutions().set_cache_paths = set_cache_paths
         get_unfinished_installation_solutions = MagicMock(
             return_value=[CollectionIndex.CollectionSolution(
                 {'group': 'g1', 'name': 'n1', 'version': 'v1'},  # setup
                 {'catalog_id': 1}  # internal
             )]
         )
-        self.collection_manager.get_collection_index().get_unfinished_installation_solutions = get_unfinished_installation_solutions
+        self.collection_manager().get_collection_index().get_unfinished_installation_solutions = get_unfinished_installation_solutions
 
-        get_by_id_mock = MagicMock(return_value=self.collection_manager.catalogs().get_local_catalog())
-        self.collection_manager.catalogs().get_by_id = get_by_id_mock
+        get_by_id_mock = MagicMock(return_value=self.collection_manager().catalogs().get_local_catalog())
+        self.collection_manager().catalogs().get_by_id = get_by_id_mock
 
         retrieve_and_load_resolve_result = MagicMock()
-        self.collection_manager.retrieve_and_load_resolve_result = retrieve_and_load_resolve_result
+        self.collection_manager().retrieve_and_load_resolve_result = retrieve_and_load_resolve_result
 
         _clean_unfinished_installations_environment = MagicMock()
         self.install_manager._clean_unfinished_installations_environment = _clean_unfinished_installations_environment
 
         set_uninstalled = MagicMock()
-        self.collection_manager.solutions().set_uninstalled = set_uninstalled
+        self.collection_manager().solutions().set_uninstalled = set_uninstalled
 
         # call
         self.install_manager.clean_unfinished_installations()
@@ -251,18 +251,18 @@ class TestInstallManager(TestUnitCoreCommon):
 
         # mocks
         set_cache_paths = MagicMock()
-        self.collection_manager.solutions().set_cache_paths = set_cache_paths
-        get_by_id_mock = MagicMock(return_value=self.collection_manager.catalogs().get_local_catalog())
-        self.collection_manager.catalogs().get_by_id = get_by_id_mock
+        self.collection_manager().solutions().set_cache_paths = set_cache_paths
+        get_by_id_mock = MagicMock(return_value=self.collection_manager().catalogs().get_local_catalog())
+        self.collection_manager().catalogs().get_by_id = get_by_id_mock
 
         retrieve_and_load_resolve_result = MagicMock()
-        self.collection_manager.retrieve_and_load_resolve_result = retrieve_and_load_resolve_result
+        self.collection_manager().retrieve_and_load_resolve_result = retrieve_and_load_resolve_result
 
         _clean_unfinished_installations_environment = MagicMock()
         self.install_manager._clean_unfinished_installations_environment = _clean_unfinished_installations_environment
 
         set_uninstalled = MagicMock()
-        self.collection_manager.solutions().set_uninstalled = set_uninstalled
+        self.collection_manager().solutions().set_uninstalled = set_uninstalled
 
         # call
         self.install_manager.clean_unfinished_installations()

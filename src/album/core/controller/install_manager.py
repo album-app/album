@@ -49,7 +49,7 @@ class InstallManager(IInstallManager):
         else:
             module_logger().debug(
                 'solution loaded from catalog \"%s\": %s...' % (
-                    resolve_result.catalog().catalog_id(), str(resolve_result.loaded_solution())
+                    resolve_result.catalog().name(), str(resolve_result.loaded_solution().coordinates())
                 )
             )
         module_logger().info('Installing \"%s\"...' % resolve_result.loaded_solution().coordinates().name())
@@ -170,9 +170,7 @@ class InstallManager(IInstallManager):
             module_logger().debug('Creating install script...')
             script = script_creator_install.create_script(active_solution, argv)
             module_logger().debug('Calling install routine specified in solution...')
-            album_logging.configure_logging(active_solution.coordinates().name())
             self.album.environment_manager().run_scripts(environment, [script])
-            album_logging.pop_active_logger()
         else:
             module_logger().debug(
                 'No \"install\" routine configured for solution \"%s\". Skipping...' %
@@ -250,7 +248,7 @@ class InstallManager(IInstallManager):
             module_logger().debug('Creating uninstall script...')
             script = script_creator_un_install.create_script(active_solution, argv)
             module_logger().debug('Calling uninstall routine specified in solution...')
-            album_logging.configure_logging(active_solution.coordinates().name())
+            album_logging.configure_logging('uninstall')
             self.album.environment_manager().run_scripts(environment, [script])
             album_logging.pop_active_logger()
         else:

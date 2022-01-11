@@ -25,7 +25,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
     def setUp(self, client) -> None:
         TestIntegrationCommon.setUp(self)
         self.init_collection()
-        self.server.setup(self.get_album())
+        self.server.setup(self.album())
         flask_unittest.ClientTestCase.setUp(self, client)
 
     def tearDown(self, client) -> None:
@@ -50,22 +50,22 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
 
         # add remote catalog
         remote_catalog = "https://gitlab.com/album-app/catalogs/templates/catalog"
-        self.assertCatalogPresence(self.get_album()._controller.catalogs().get_all(), remote_catalog, False)
+        self.assertCatalogPresence(self.album_controller().catalogs().get_all(), remote_catalog, False)
         res_add_catalog = client.get("/add-catalog?src=" + urllib.parse.quote(remote_catalog))
         self.assertEqual(200, res_add_catalog.status_code)
-        self.assertCatalogPresence(self.get_album()._controller.catalogs().get_all(), remote_catalog, True)
+        self.assertCatalogPresence(self.album_controller().catalogs().get_all(), remote_catalog, True)
 
         # remove remote catalog
         res_remove_catalog = client.get("/remove-catalog?src=" + urllib.parse.quote(remote_catalog))
         self.assertEqual(200, res_remove_catalog.status_code)
-        self.assertCatalogPresence(self.get_album()._controller.catalogs().get_all(), remote_catalog, False)
+        self.assertCatalogPresence(self.album_controller().catalogs().get_all(), remote_catalog, False)
 
         # clone catalog template
         local_catalog_name = "mycatalog"
         local_catalogs_path = Path(self.tmp_dir.name).joinpath("my-catalogs")
         local_catalogs = str(local_catalogs_path)
         local_catalog_path = local_catalogs_path.joinpath(local_catalog_name)
-        self.assertCatalogPresence(self.get_album()._controller.catalogs().get_all(), local_catalogs, False)
+        self.assertCatalogPresence(self.album_controller().catalogs().get_all(), local_catalogs, False)
 
         res_clone_catalog = client.get(
             f"/clone/template:catalog?target_dir={urllib.parse.quote(local_catalogs)}&name={local_catalog_name}"
@@ -73,7 +73,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         self.assertEqual(200, res_clone_catalog.status_code)
         self._finish_taskmanager_with_timeout(self.server._task_manager, 30)
         self.assertCatalogPresence(
-            self.get_album()._controller.catalogs().get_all(), local_catalog_path, False
+            self.album_controller().catalogs().get_all(), local_catalog_path, False
         )
         self.assertTrue(local_catalogs_path.exists())
         self.assertTrue(local_catalog_path.exists())
@@ -84,7 +84,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         self.assertEqual(200, res_add_catalog.status_code)
         catalog_id = res_add_catalog.json["catalog_id"]
         self.assertCatalogPresence(
-            self.get_album()._controller.catalogs().get_all(), str(local_catalog_path), True
+            self.album_controller().catalogs().get_all(), str(local_catalog_path), True
         )
 
         # clone solution
@@ -146,10 +146,8 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         self._finish_taskmanager_with_timeout(self.server._task_manager, 600)
 
         # check that solution is installed
-        self.assertTrue(
-            self.get_album()._controller.collection_manager().get_collection_index().is_installed(catalog_id,
-                                                                              Coordinates(group, name, version))
-        )
+        self.assertTrue(self.album_controller().collection_manager().get_collection_index().is_installed(
+            catalog_id, Coordinates(group, name, version)))
         res_status = client.get(f'/status/{local_catalog_name}/{group}/{name}/{version}')
         self.assertEqual(200, res_status.status_code)
         self.assertIsNotNone(res_status.json)
@@ -206,7 +204,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         # remove catalog
         res_status = client.get("/remove-catalog?src=" + urllib.parse.quote((str(local_catalog_path))))
         self.assertEqual(200, res_status.status_code)
-        self.assertCatalogPresence(self.get_album()._controller.catalogs().get_all(), local_catalog_path,
+        self.assertCatalogPresence(self.album_controller().catalogs().get_all(), local_catalog_path,
                                    False)
 
         # check that solution is not accessible any more
@@ -246,7 +244,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
     @staticmethod
     def includes_msg(records, msg):
         for record in records:
-            print(record.msg)
+            # print(record.msg)
             if msg in record.msg:
                 return True
         return False

@@ -1,5 +1,6 @@
 import os
 import sys
+import traceback
 from argparse import ArgumentParser
 
 from album.api import Album
@@ -31,15 +32,26 @@ def main():
     # Makes sure album is initialized.
     album_instance = create_album_instance()
     album_instance.load_or_create_collection()
-    release_manager = ReleaseManager(album_instance, args.name, args.path, args.src, args.force_retrieve)
 
+    release_manager = ReleaseManager(album_instance, args.name, args.path, args.src, args.force_retrieve)
     module_logger().debug("Running %s command..." % album_ci_command)
-    args.func(release_manager, args)  # execute entry point function
+
+    try:
+        args.func(release_manager, args)  # execute entry point function
+    except Exception as e:
+        _handle_exception(e)
+    finally:
+        release_manager.close()
+
+
+def _handle_exception(e):
+    get_active_logger().error('album-ci command failed: %s' % str(e))
+    get_active_logger().debug(traceback.format_exc())
+    sys.exit(e)
 
 
 def create_album_instance() -> Album:
-    album = Album()
-    return album
+    return Album.Builder().build()
 
 
 def create_parser():

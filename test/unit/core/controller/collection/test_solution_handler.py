@@ -21,7 +21,7 @@ class TestSolutionHandler(TestCatalogCollectionCommon):
         catalog_path.mkdir(parents=True)
 
         self.catalog = Catalog(0, "test", src=catalog_src, path=catalog_path)
-        self.solution_handler = self.collection_manager.solution_handler
+        self.solution_handler = self.collection_manager().solution_handler
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -165,7 +165,7 @@ class TestSolutionHandler(TestCatalogCollectionCommon):
 
         # assert
         path = self.solution_handler.get_solution_path(
-            self.collection_manager.catalogs().get_local_catalog(),
+            self.collection_manager().catalogs().get_local_catalog(),
             dict_to_coordinates(self.solution_default_dict))
         copy_folder_mock.assert_called_once_with("aPathToInstall", path, copy_root_folder=False)
 

@@ -19,8 +19,8 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
     def setUp(self):
         super().setUp()
         self.fill_catalog_collection()
-        self.solution_handler = self.collection_manager.solution_handler
-        self.catalog_handler = self.collection_manager.catalog_handler
+        self.solution_handler = self.collection_manager().solution_handler
+        self.catalog_handler = self.collection_manager().catalog_handler
 
     def test_create_local_catalog(self):
         # mocks
@@ -68,7 +68,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             'branch_name': "main",
             "src": str(catalog_src),
         })
-        self.assertEqual(expected_list, self.collection_manager.get_collection_index().get_all_catalogs())
+        self.assertEqual(expected_list, self.collection_manager().get_collection_index().get_all_catalogs())
 
     # Info: this is rather a small integration test.
     def test_add_by_src_already_present(self):
@@ -104,7 +104,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
 
         # mocks
         insert_catalog_mock = MagicMock(return_value=1)
-        self.collection_manager.get_collection_index().insert_catalog = insert_catalog_mock
+        self.collection_manager().get_collection_index().insert_catalog = insert_catalog_mock
 
         # call
         self.catalog_handler._add_to_index(catalog_to_add)
@@ -115,7 +115,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
     def test_get_by_id(self):
         # mocks
         get_catalog_mock = MagicMock(return_value="mycatalog")
-        self.collection_manager.get_collection_index().get_catalog = get_catalog_mock
+        self.collection_manager().get_collection_index().get_catalog = get_catalog_mock
 
         _as_catalog_mock = MagicMock()
         self.catalog_handler._as_catalog = _as_catalog_mock
@@ -130,7 +130,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
     def test_get_by_id_not_found(self):
         # mocks
         get_catalog_mock = MagicMock(return_value=None)
-        self.collection_manager.get_collection_index().get_catalog = get_catalog_mock
+        self.collection_manager().get_collection_index().get_catalog = get_catalog_mock
 
         _as_catalog_mock = MagicMock()
         self.catalog_handler._as_catalog = _as_catalog_mock
@@ -285,9 +285,9 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         # assert
         self.assertEqual(3, len(res))
         self.assertEqual(3, _update_collection_from_catalog.call_count)
-        self.assertEqual(
-            [call(catalog_name=catalog.name()), call(catalog_name='default'), call(catalog_name='test_catalog2')],
-            _update_collection_from_catalog.call_args_list)
+        self.assertEqual(catalog, _update_collection_from_catalog.call_args_list[0][1]['catalog'])
+        self.assertEqual('default', _update_collection_from_catalog.call_args_list[1][1]['catalog'].name())
+        self.assertEqual('test_catalog2', _update_collection_from_catalog.call_args_list[2][1]['catalog'].name())
 
     def test_update_collection_dry_run(self):
         # mocks
@@ -304,9 +304,9 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         # assert
         self.assertEqual(3, len(res))
         self.assertEqual(3, _get_divergence_between_catalog_and_collection.call_count)
-        self.assertEqual(
-            [call(catalog_name=catalog.name()), call(catalog_name='default'), call(catalog_name='test_catalog2')],
-            _get_divergence_between_catalog_and_collection.call_args_list)
+        self.assertEqual(catalog, _get_divergence_between_catalog_and_collection.call_args_list[0][1]['catalog'])
+        self.assertEqual('default', _get_divergence_between_catalog_and_collection.call_args_list[1][1]['catalog'].name())
+        self.assertEqual('test_catalog2', _get_divergence_between_catalog_and_collection.call_args_list[2][1]['catalog'].name())
         _update_collection_from_catalog.assert_not_called()
 
     def test_update_collection_specific_catalog(self):
@@ -320,7 +320,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
 
         # assert
         self.assertEqual(1, len(res))
-        _update_collection_from_catalog.assert_called_once_with(catalog.name())
+        _update_collection_from_catalog.assert_called_once_with(catalog)
 
     def test_update_collection_specific_catalog_dry_run(self):
         # mocks
@@ -336,7 +336,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
 
         # assert
         self.assertEqual(1, len(res))
-        _get_divergence_between_catalog_and_collection.assert_called_once_with(catalog.name())
+        _get_divergence_between_catalog_and_collection.assert_called_once_with(catalog)
         _update_collection_from_catalog.assert_not_called()
 
     @patch('album.core.controller.collection.catalog_handler.force_remove')
@@ -360,7 +360,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.catalog_handler.get_by_id = get_by_id_mock
 
         remove_catalog_mock = MagicMock()
-        self.collection_manager.get_collection_index().remove_catalog = remove_catalog_mock
+        self.collection_manager().get_collection_index().remove_catalog = remove_catalog_mock
 
         # call
         c = self.catalog_handler._remove_from_collection(catalog_dict)
@@ -397,7 +397,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.catalog_handler.get_by_id = get_by_id_mock
 
         remove_catalog_mock = MagicMock()
-        self.collection_manager.get_collection_index().remove_catalog = remove_catalog_mock
+        self.collection_manager().get_collection_index().remove_catalog = remove_catalog_mock
 
         # call
         with self.assertRaises(RuntimeError):
@@ -428,7 +428,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.catalog_handler.get_by_id = get_by_id_mock
 
         remove_catalog_mock = MagicMock()
-        self.collection_manager.get_collection_index().remove_catalog = remove_catalog_mock
+        self.collection_manager().get_collection_index().remove_catalog = remove_catalog_mock
 
         # call
         with self.assertRaises(LookupError):
@@ -460,7 +460,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.catalog_handler.get_by_id = get_by_id_mock
 
         remove_catalog_mock = MagicMock()
-        self.collection_manager.get_collection_index().remove_catalog = remove_catalog_mock
+        self.collection_manager().get_collection_index().remove_catalog = remove_catalog_mock
 
         # call
         with self.assertRaises(AttributeError):
@@ -474,7 +474,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
     def test_remove_from_collection_by_path(self):
         # mock
         get_catalog_by_path_mock = MagicMock(return_value={"a": 1})
-        self.collection_manager.get_collection_index().get_catalog_by_path = get_catalog_by_path_mock
+        self.collection_manager().get_collection_index().get_catalog_by_path = get_catalog_by_path_mock
 
         _remove_from_collection_mock = MagicMock(return_value="myCatalogObject")
         self.catalog_handler._remove_from_collection = _remove_from_collection_mock
@@ -490,7 +490,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
     def test_remove_from_collection_by_path_no_catalog(self):
         # mock
         get_catalog_by_path_mock = MagicMock(return_value=None)
-        self.collection_manager.get_collection_index().get_catalog_by_path = get_catalog_by_path_mock
+        self.collection_manager().get_collection_index().get_catalog_by_path = get_catalog_by_path_mock
 
         _remove_from_collection_mock = MagicMock(return_value="myCatalogObject")
         self.catalog_handler._remove_from_collection = _remove_from_collection_mock
@@ -506,7 +506,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
     def test_remove_from_collection_by_name(self):
         # mock
         get_catalog_by_name_mock = MagicMock(return_value={"a": 1})
-        self.collection_manager.get_collection_index().get_catalog_by_name = get_catalog_by_name_mock
+        self.collection_manager().get_collection_index().get_catalog_by_name = get_catalog_by_name_mock
 
         _remove_from_collection_mock = MagicMock(return_value="myCatalogObject")
         self.catalog_handler._remove_from_collection = _remove_from_collection_mock
@@ -522,7 +522,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
     def test_remove_from_collection_by_name_no_catalog(self):
         # mock
         get_catalog_by_name_mock = MagicMock(return_value=None)
-        self.collection_manager.get_collection_index().get_catalog_by_name = get_catalog_by_name_mock
+        self.collection_manager().get_collection_index().get_catalog_by_name = get_catalog_by_name_mock
 
         _remove_from_collection_mock = MagicMock(return_value="myCatalogObject")
         self.catalog_handler._remove_from_collection = _remove_from_collection_mock
@@ -537,13 +537,13 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
 
     def test_remove_from_collection_by_name_undeletable(self):
         # call
-        catalogs = self.collection_manager.get_collection_index().get_all_catalogs()
+        catalogs = self.collection_manager().get_collection_index().get_all_catalogs()
         with self.assertRaises(AttributeError):
             self.catalog_handler.remove_from_collection_by_name(catalogs[0]['name'])
 
         # assert
         self.assertEqual(self.catalog_list,
-                         self.collection_manager.get_collection_index().get_all_catalogs())  # nothing changed
+                         self.collection_manager().get_collection_index().get_all_catalogs())  # nothing changed
 
     def test_remove_from_collection_by_name_invalid_name(self):
         # call
@@ -552,12 +552,12 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         # assert
         self.assertIsNone(x)
         self.assertEqual(self.catalog_list,
-                         self.collection_manager.get_collection_index().get_all_catalogs())  # nothing changed
+                         self.collection_manager().get_collection_index().get_all_catalogs())  # nothing changed
 
     def test_remove_from_collection_by_src(self):
         # mock
         get_catalog_by_src_mock = MagicMock(return_value={"a": 1})
-        self.collection_manager.get_collection_index().get_catalog_by_src = get_catalog_by_src_mock
+        self.collection_manager().get_collection_index().get_catalog_by_src = get_catalog_by_src_mock
 
         _remove_from_collection_mock = MagicMock(return_value="myCatalogObject")
         self.catalog_handler._remove_from_collection = _remove_from_collection_mock
@@ -573,7 +573,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
     def test_remove_from_collection_by_src_no_catalog(self):
         # mock
         get_catalog_by_src_mock = MagicMock(return_value=None)
-        self.collection_manager.get_collection_index().get_catalog_by_src = get_catalog_by_src_mock
+        self.collection_manager().get_collection_index().get_catalog_by_src = get_catalog_by_src_mock
 
         _remove_from_collection_mock = MagicMock(return_value="myCatalogObject")
         self.catalog_handler._remove_from_collection = _remove_from_collection_mock
@@ -589,7 +589,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
     def test_get_installed_solutions(self):
         # mocks
         get_all_installed_solutions_by_catalog = MagicMock(return_value=["myInstalledSolution"])
-        self.collection_manager.get_collection_index().get_all_installed_solutions_by_catalog = get_all_installed_solutions_by_catalog
+        self.collection_manager().get_collection_index().get_all_installed_solutions_by_catalog = get_all_installed_solutions_by_catalog
 
         # prepare
         p = Path(self.tmp_dir.name).joinpath("n")
@@ -604,7 +604,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
     def test_get_all_as_dict(self):
         # mocks
         get_all_catalogs_mock = MagicMock(return_value="abc")
-        self.collection_manager.get_collection_index().get_all_catalogs = get_all_catalogs_mock
+        self.collection_manager().get_collection_index().get_all_catalogs = get_all_catalogs_mock
 
         # call
         x = self.catalog_handler.get_all_as_dict()
@@ -666,7 +666,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.catalog_handler.get_by_name = get_by_name_mock
 
         get_solutions_by_catalog_mock = MagicMock(return_value=[])
-        self.collection_manager.get_collection_index().get_solutions_by_catalog = get_solutions_by_catalog_mock
+        self.collection_manager().get_collection_index().get_solutions_by_catalog = get_solutions_by_catalog_mock
 
         _compare_solutions_mock = MagicMock(return_value=None)
         self.catalog_handler._compare_solutions = _compare_solutions_mock
@@ -683,10 +683,9 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             load_index_mock.return_value = c1
 
             # call
-            self.catalog_handler._get_divergence_between_catalog_and_collection("n")
+            self.catalog_handler._get_divergence_between_catalog_and_collection(c1)
 
             # assert
-            get_by_name_mock.assert_called_once_with("n")
             get_solutions_by_catalog_mock.assert_called_once_with(None)
             load_index_mock.assert_called_once_with(c1)
             get_all_solutions_mock.assert_called_once()

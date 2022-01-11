@@ -21,7 +21,6 @@ class TestScriptManager(TestUnitCoreCommon):
         self.create_test_solution_no_env()
         album.script_manager()
         self.script_manager: ScriptManager = album._script_manager
-        self.collection_manager = album.collection_manager()
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -84,7 +83,7 @@ class TestScriptManager(TestUnitCoreCommon):
     def test_run_queue_empty(self):
         # mocks
         _run_in_environment_with_own_logger = MagicMock(return_value=None)
-        self.script_manager._run_in_environment_with_own_logger = _run_in_environment_with_own_logger
+        self.script_manager._run_in_environment = _run_in_environment_with_own_logger
 
         # call
         que = Queue()
@@ -96,7 +95,7 @@ class TestScriptManager(TestUnitCoreCommon):
     def test_run_queue(self):
         # mocks
         _run_in_environment_with_own_logger = MagicMock(return_value=None)
-        self.script_manager._run_in_environment_with_own_logger = _run_in_environment_with_own_logger
+        self.script_manager._run_in_environment = _run_in_environment_with_own_logger
 
         # call
         que = Queue()
@@ -231,7 +230,7 @@ class TestScriptManager(TestUnitCoreCommon):
 
     def test_build_steps_queue_run_immediately(self):
         # mock
-        catalog = self.collection_manager.catalogs().get_local_catalog()
+        catalog = self.collection_manager().catalogs().get_local_catalog()
 
         resolve_require_installation_and_load = MagicMock(
             return_value=ResolveResult(
@@ -308,7 +307,7 @@ class TestScriptManager(TestUnitCoreCommon):
         self.active_solution._setup.dependencies = {"parent": {"name": "aParent", "group": "grp", "version": "v1"}}
 
         # mock
-        catalog = self.collection_manager.catalogs().get_local_catalog()
+        catalog = self.collection_manager().catalogs().get_local_catalog()
 
         create_solution_run_with_parent_script = MagicMock(return_value="aScript")
         self.script_manager._create_solution_run_with_parent_script = create_solution_run_with_parent_script
@@ -502,19 +501,20 @@ class TestScriptManager(TestUnitCoreCommon):
         self.assertEqual([['', '--s1_arg1=s1_arg1_value'], ['', '--s2_arg1=s2_arg1_value']], parsed_steps_args_list)
 
     @patch('album.runner.album_logging.configure_logging', return_value=None)
+    @patch('album.runner.album_logging.push_active_logger', return_value=None)
     @patch('album.runner.album_logging.pop_active_logger', return_value=None)
-    def test__run_in_environment_with_own_logger(self, pop_mock, conf_mock):
+    def test__run_in_environment(self, pop_mock, push_mock, conf_mock):
         run_scripts_mock = MagicMock()
         self.album.environment_manager().run_scripts = run_scripts_mock
 
         environment = EmptyTestClass()
         environment.name = lambda: ""
 
-        self.script_manager._run_in_environment_with_own_logger(ScriptQueueEntry(self.active_solution.coordinates(), [""], environment))
+        self.script_manager._run_in_environment(ScriptQueueEntry(self.active_solution.coordinates(), [""], environment))
 
-        conf_mock.assert_called_once_with(self.active_solution.coordinates().name())
         run_scripts_mock.assert_called_once_with(environment, [""])
-        pop_mock.assert_called_once()
+        push_mock.assert_not_called()
+        pop_mock.assert_not_called()
 
     def test__get_args(self):
         step = {

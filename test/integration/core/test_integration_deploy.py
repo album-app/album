@@ -27,8 +27,8 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
                                 changelog='something changed', dry_run=True, git_name='MyName', git_email='MyEmail')
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertIn('Pretending to deploy', self.captured_output.getvalue())
-        self.collection_manager.catalogs().update_any('test_catalog')
-        updates = self.collection_manager.catalogs().update_collection('test_catalog')
+        self.collection_manager().catalogs().update_any('test_catalog')
+        updates = self.collection_manager().catalogs().update_collection('test_catalog')
         self.assertIn('test_catalog', updates)
         self.assertEqual(0, len(updates['test_catalog'].solution_changes()))
 
@@ -37,12 +37,12 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         self.album_instance.deploy_manager().deploy(str(self.get_test_solution_path()), catalog_name=catalog.name(),
                                                     changelog='something changed', dry_run=False)
         self.assertNotIn('ERROR', self.captured_output.getvalue())
-        self.collection_manager.catalogs().update_any('test_catalog')
-        updates = self.collection_manager.catalogs().update_collection('test_catalog')
+        self.collection_manager().catalogs().update_any('test_catalog')
+        updates = self.collection_manager().catalogs().update_collection('test_catalog')
         self.assertIn('test_catalog', updates)
         self.assertEqual(1, len(updates['test_catalog'].solution_changes()))
-        solution = self.collection_manager.catalog_collection.get_solution_by_catalog_grp_name_version(
-            self.collection_manager.catalogs().get_by_name('test_catalog').catalog_id(),
+        solution = self.collection_manager().catalog_collection.get_solution_by_catalog_grp_name_version(
+            self.collection_manager().catalogs().get_by_name('test_catalog').catalog_id(),
             Coordinates('group', 'name', '0.1.0')
         )
         self.assertIsNotNone(solution)
@@ -63,11 +63,11 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         self.assertIn('We recommend documenting changes', self.captured_output.getvalue())
 
         # check if update exists, solution is present and has updated changelog
-        self.collection_manager.catalogs().update_any(catalog.name())
-        updates = self.collection_manager.catalogs().update_collection(catalog.name())
+        self.collection_manager().catalogs().update_any(catalog.name())
+        updates = self.collection_manager().catalogs().update_collection(catalog.name())
         self.assertIn(catalog.name(), updates)
         self.assertEqual(1, len(updates[catalog.name()].solution_changes()))
-        solution = self.collection_manager.catalog_collection.get_solution_by_catalog_grp_name_version(catalog.catalog_id(), coordinates)
+        solution = self.collection_manager().catalog_collection.get_solution_by_catalog_grp_name_version(catalog.catalog_id(), coordinates)
         self.assertIsNotNone(solution)
         self.assertEqual(None, solution.setup()['changelog'])
 
@@ -85,9 +85,9 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         self.assertNotIn('We recommend documenting changes', self.captured_output.getvalue())
 
         # check if solution has provided changelog
-        self.collection_manager.catalogs().update_any(catalog.name())
-        self.collection_manager.catalogs().update_collection(catalog.name())
-        solution = self.collection_manager.catalog_collection.get_solution_by_catalog_grp_name_version(catalog.catalog_id(), coordinates)
+        self.collection_manager().catalogs().update_any(catalog.name())
+        self.collection_manager().catalogs().update_collection(catalog.name())
+        solution = self.collection_manager().catalog_collection.get_solution_by_catalog_grp_name_version(catalog.catalog_id(), coordinates)
         self.assertIsNotNone(solution)
         self.assertIsNotNone(solution.setup()['timestamp'])
         self.assertEqual('something changed', solution.setup()['changelog'])
@@ -117,9 +117,9 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         self.assertNotIn('We recommend documenting changes', self.captured_output.getvalue())
 
         # check if solution is present and has updated changelog
-        self.collection_manager.catalogs().update_any(catalog.name())
-        self.collection_manager.catalogs().update_collection(catalog.name())
-        solution = self.collection_manager.catalog_collection.get_solution_by_catalog_grp_name_version(catalog.catalog_id(), coordinates)
+        self.collection_manager().catalogs().update_any(catalog.name())
+        self.collection_manager().catalogs().update_collection(catalog.name())
+        solution = self.collection_manager().catalog_collection.get_solution_by_catalog_grp_name_version(catalog.catalog_id(), coordinates)
         self.assertIsNotNone(solution)
         self.assertEqual('- my changes', str(solution.setup()['changelog'].strip()))
 

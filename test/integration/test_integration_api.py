@@ -5,7 +5,6 @@ from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.solution_operations import serialize_json
 from album.runner import album_logging
 from album.runner.album_logging import LogLevel
-from album.runner.core.model.coordinates import Coordinates
 from test.integration.test_integration_common import TestIntegrationCommon
 
 
@@ -17,7 +16,7 @@ class TestIntegrationAPI(TestIntegrationCommon):
         logger = album_logging.get_active_logger()
         self.init_collection()
 
-        album = self.get_album()
+        album = self.album()
 
         # list index
         catalogs_as_dict = album.get_index_as_dict()
@@ -46,7 +45,7 @@ class TestIntegrationAPI(TestIntegrationCommon):
 
         album.clone("template:catalog", local_catalogs, local_catalog_name)
 
-        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), local_catalog_path, False)
+        self.assertCatalogPresence(self.collection_manager().catalogs().get_all(), local_catalog_path, False)
         self.assertTrue(local_catalogs_path.exists())
         self.assertTrue(local_catalog_path.exists())
         self.assertTrue(local_catalog_path.joinpath(DefaultValues.catalog_index_metafile_json.value).exists())
@@ -54,7 +53,7 @@ class TestIntegrationAPI(TestIntegrationCommon):
         # add catalog
         catalog = album.add_catalog(local_catalog_path)
 
-        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), str(local_catalog_path), True)
+        self.assertCatalogPresence(self.collection_manager().catalogs().get_all(), str(local_catalog_path), True)
 
         # clone solution
 
@@ -68,7 +67,6 @@ class TestIntegrationAPI(TestIntegrationCommon):
             solution_target_name,
             DefaultValues.solution_default_name.value
         )
-        solution_coordinates = Coordinates(group, name, version)
 
         # assert that it's not installed
         album.clone(str(clone_src), str(solution_target_dir), solution_target_name)
@@ -109,7 +107,7 @@ class TestIntegrationAPI(TestIntegrationCommon):
 
         # remove catalog
         album.remove_catalog_by_src(local_catalog_path)
-        self.assertCatalogPresence(self.collection_manager.catalogs().get_all(), local_catalog_path, False)
+        self.assertCatalogPresence(self.collection_manager().catalogs().get_all(), local_catalog_path, False)
 
         # check that solution is not accessible any more
         # TODO

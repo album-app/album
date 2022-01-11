@@ -1,4 +1,6 @@
 import os
+import platform
+import shutil
 import sys
 from pathlib import Path
 
@@ -17,6 +19,7 @@ class Configuration(IConfiguration):
         self._is_setup = False
         self._base_cache_path = None
         self._conda_executable = None
+        self._mamba_executable = None
         self._cache_path_app = None
         self._cache_path_download = None
         self._cache_path_tmp_internal = None
@@ -29,6 +32,9 @@ class Configuration(IConfiguration):
 
     def conda_executable(self):
         return self._conda_executable
+
+    def mamba_executable(self):
+        return self._mamba_executable
 
     def cache_path_app(self):
         return self._cache_path_app
@@ -59,11 +65,17 @@ class Configuration(IConfiguration):
 
         # conda executable
         conda_path = DefaultValues.conda_path.value
+        operation_system = platform.system().lower()
         if conda_path is not DefaultValues.conda_default_executable.value:
             self._conda_executable = self._build_conda_executable(conda_path)
         else:
             self._conda_executable = conda_path
+            if 'windows' in operation_system:
+                self._conda_executable = shutil.which(self._conda_executable)
 
+        self._mamba_executable = 'mamba'
+        if 'windows' in operation_system:
+            self._mamba_executable = shutil.which(self._mamba_executable)
         self._cache_path_tmp_internal = self._base_cache_path.joinpath(DefaultValues.cache_path_solution_prefix.value)
         self._cache_path_app = self._base_cache_path.joinpath(DefaultValues.cache_path_app_prefix.value)
         self._cache_path_download = self._base_cache_path.joinpath(DefaultValues.cache_path_download_prefix.value)

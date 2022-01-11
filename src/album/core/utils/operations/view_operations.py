@@ -1,4 +1,7 @@
+import logging
 from typing import Dict
+
+import colorlog
 
 from album.core.api.model.catalog_updates import ICatalogUpdates
 from album.runner.core.api.model.solution import ISolution
@@ -116,3 +119,43 @@ def get_search_result_as_string(args, search_result):
     else:
         res += 'No search results for "%s".' % ' '.join(args.keywords)
     return res
+
+
+def get_logging_formatter(fmt=None, time=None):
+    if not fmt:
+        fmt = '%(log_color)s%(asctime)s %(levelname)-7s %(shortened_name)s%(message)s'
+    if not time:
+        time = '%H:%M:%S'
+    return colorlog.ColoredFormatter(fmt, time, log_colors={
+        'DEBUG': 'cyan',
+        'WARNING': 'yellow',
+        'ERROR': 'red',
+        'CRITICAL': 'red,bold',
+    })
+
+
+def get_logger_name_minimizer_filter():
+    class NameDotFilter(logging.Filter):
+        def filter(self, record):
+            count = record.name.count('.')
+            if count > 0:
+                record.shortened_name = '-' * count + ' '
+            else:
+                record.shortened_name = ''
+            return True
+
+    return NameDotFilter()
+
+
+def get_message_filter():
+    class MessageFilter(logging.Filter):
+        def filter(self, record):
+            self._apply_mamba_menuinst_filter(record)
+            return True
+
+        def _apply_mamba_menuinst_filter(self, record):
+            if record.msg and isinstance(record.msg, str) and 'menuinst called from non-root env' in record.msg:
+                record.levelname = 'WARNING'
+                record.levelno = logging.getLevelName('WARNING')
+
+    return MessageFilter()

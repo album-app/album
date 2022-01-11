@@ -3,20 +3,21 @@ import logging
 import os
 import tempfile
 import unittest
+from contextlib import contextmanager
 from io import StringIO
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Generator
 from unittest.mock import patch, MagicMock
 
 import git
 
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
+from album.core.api.controller.collection.collection_manager import ICollectionManager
 from album.core.controller.album_controller import AlbumController
-from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove
 from album.runner import album_logging
-from album.runner.album_logging import pop_active_logger, LogLevel, configure_logging
+from album.runner.album_logging import pop_active_logger, LogLevel, configure_logging, get_active_logger
 from album.runner.core.model.solution import Solution
 from test.global_exception_watcher import GlobalExceptionWatcher
 
@@ -28,13 +29,14 @@ class TestUnitCoreCommon(unittest.TestCase):
         """Could initialize default values for each test class. use `_<name>` to skip property setting."""
 
         self.solution_default_dict = self.get_solution_dict()
-        self.captured_output = StringIO()
-        self.configure_test_logging(self.captured_output)
+        self.configure_test_logging()
+        self._setup_tmp_resources()
+        self.album: Optional[AlbumController] = None
+
+    def _setup_tmp_resources(self):
         self.tmp_dir = tempfile.TemporaryDirectory()
         self.closed_tmp_file = tempfile.NamedTemporaryFile(delete=False)
         self.closed_tmp_file.close()
-        self.collection_manager: Optional[CollectionManager] = None
-        self.album: Optional[AlbumController] = None
 
     @staticmethod
     def get_solution_dict():
@@ -58,9 +60,14 @@ class TestUnitCoreCommon(unittest.TestCase):
             'timestamp': '',
         }
 
+    def collection_manager(self) -> Optional[ICollectionManager]:
+        if self.album:
+            return self.album.collection_manager()
+        return None
+
     def tearDown(self) -> None:
-        if self.collection_manager is not None and self.collection_manager.get_collection_index() is not None:
-            self.collection_manager.get_collection_index().close()
+        if self.collection_manager() is not None and self.collection_manager().get_collection_index() is not None:
+            self.collection_manager().get_collection_index().close()
             self.collection_manager = None
         self.captured_output.close()
 
@@ -87,31 +94,38 @@ class TestUnitCoreCommon(unittest.TestCase):
         with GlobalExceptionWatcher():
             super(TestUnitCoreCommon, self).run(result)
 
-    def configure_test_logging(self, stream_handler):
+    def configure_test_logging(self):
+        logger = get_active_logger()
+        logger.handlers.clear()
+        self.captured_output = StringIO()
         self.logger = configure_logging("unitTest", loglevel=LogLevel.INFO)
-        ch = logging.StreamHandler(stream_handler)
+        ch = logging.StreamHandler(self.captured_output)
         ch.setLevel('INFO')
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         ch.setFormatter(formatter)
+        # ch.addFilter(get_message_filter())
         self.logger.addHandler(ch)
 
     def get_logs(self):
-        logs = self.logger.handlers[0].stream.getvalue()
+        logs = self.captured_output.getvalue()
         logs = logs.strip()
         return logs.split("\n")
 
     def create_album_test_instance(self, init_collection=True, init_catalogs=True) -> AlbumController:
         self.album = AlbumController(base_cache_path=Path(self.tmp_dir.name).joinpath("album"))
-        self.collection_manager = self.album.collection_manager()
+        self._setup_collection(init_catalogs, init_collection)
+        return self.album
 
+    def _setup_collection(self, init_catalogs, init_collection):
         if init_catalogs:
             catalogs_dict = {
-                    DefaultValues.local_catalog_name.value:
-                        Path(self.tmp_dir.name).joinpath("album", DefaultValues.catalog_folder_prefix.value,
-                                                         DefaultValues.local_catalog_name.value)
-                }
+                DefaultValues.local_catalog_name.value:
+                    Path(self.tmp_dir.name).joinpath("album", DefaultValues.catalog_folder_prefix.value,
+                                                     DefaultValues.local_catalog_name.value)
+            }
             # mock retrieve_catalog_meta_information as it involves a http request
-            with patch("album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information") as retrieve_c_m_i_mock:
+            with patch(
+                    "album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information") as retrieve_c_m_i_mock:
                 get_initial_catalogs_mock = MagicMock(
                     return_value=catalogs_dict
                 )
@@ -121,13 +135,11 @@ class TestUnitCoreCommon(unittest.TestCase):
                     {"name": "catalog_local", "version": "0.1.0"},  # local catalog load_index call
                 ]
                 # create collection
-                self.collection_manager.load_or_create()
+                self.collection_manager().load_or_create()
         elif init_collection:
             # mock retrieve_catalog_meta_information as it involves a http request
             with patch("album.core.controller.collection.catalog_handler.CatalogHandler.add_initial_catalogs"):
-                self.collection_manager.load_or_create()
-
-        return self.album
+                self.collection_manager().load_or_create()
 
     @patch('album.core.utils.operations.solution_operations.get_deploy_dict')
     def create_test_solution_no_env(self, deploy_dict_mock):
@@ -179,67 +191,69 @@ class TestZenodoCommon(TestUnitCoreCommon):
 class TestGitCommon(TestUnitCoreCommon):
     """Base class for all Unittest using a album object"""
 
-    repo = None
+    def setUp(self):
+        super().setUp()
+        self.commit_file = None
 
-    def tearDown(self) -> None:
-        if self.repo:
-            p = self.repo.working_tree_dir
-            self.repo.close()
-            force_remove(p)
-        super().tearDown()
-
-    def create_tmp_repo(self, commit_solution_file=True, create_test_branch=False):
+    @contextmanager
+    def create_tmp_repo(self, commit_solution_file=True, create_test_branch=False) -> Generator[git.Repo, None, None]:
         basepath = Path(self.tmp_dir.name).joinpath("testGitRepo")
 
         repo = git.Repo.init(path=basepath)
 
-        # necessary for CI
-        repo.config_writer().set_value("user", "name", "myusername").release()
-        repo.config_writer().set_value("user", "email", "myemail").release()
+        try:
+            # necessary for CI
+            repo.config_writer().set_value("user", "name", "myusername").release()
+            repo.config_writer().set_value("user", "email", "myemail").release()
 
-        # initial commit
-        init_file = tempfile.NamedTemporaryFile(
-            dir=os.path.join(str(repo.working_tree_dir)),
-            delete=False
-        )
-        init_file.close()
-        repo.index.add([os.path.basename(init_file.name)])
-        repo.git.commit('-m', "init", '--no-verify')
-
-        if commit_solution_file:
-            os.makedirs(os.path.join(str(repo.working_tree_dir), "solutions"), exist_ok=True)
-            tmp_file = tempfile.NamedTemporaryFile(
-                dir=os.path.join(str(repo.working_tree_dir), "solutions"),
+            # initial commit
+            init_file = tempfile.NamedTemporaryFile(
+                dir=os.path.join(str(repo.working_tree_dir)),
                 delete=False
             )
-            tmp_file.close()
-            repo.index.add([os.path.join("solutions", os.path.basename(tmp_file.name))])
-        else:
-            tmp_file = tempfile.NamedTemporaryFile(dir=str(repo.working_tree_dir), delete=False)
-            tmp_file.close()
-            repo.index.add([os.path.basename(tmp_file.name)])
+            init_file.close()
+            repo.index.add([os.path.basename(init_file.name)])
+            repo.git.commit('-m', "init", '--no-verify')
 
-        repo.git.commit('-m', "added %s " % tmp_file.name, '--no-verify')
+            if commit_solution_file:
+                os.makedirs(os.path.join(str(repo.working_tree_dir), "solutions"), exist_ok=True)
+                tmp_file = tempfile.NamedTemporaryFile(
+                    dir=os.path.join(str(repo.working_tree_dir), "solutions"),
+                    delete=False
+                )
+                tmp_file.close()
+                repo.index.add([os.path.join("solutions", os.path.basename(tmp_file.name))])
+            else:
+                tmp_file = tempfile.NamedTemporaryFile(dir=str(repo.working_tree_dir), delete=False)
+                tmp_file.close()
+                repo.index.add([os.path.basename(tmp_file.name)])
 
-        if create_test_branch:
-            new_head = repo.create_head("test_branch")
-            new_head.ref = repo.heads["master"]  # manually point to master
-            new_head.checkout()
+            repo.git.commit('-m', "added %s " % tmp_file.name, '--no-verify')
 
-            # add file to new head
-            tmp_file = tempfile.NamedTemporaryFile(
-                dir=os.path.join(str(repo.working_tree_dir), "solutions"), delete=False
-            )
-            tmp_file.close()
-            repo.index.add([tmp_file.name])
-            repo.git.commit('-m', "branch added %s " % tmp_file.name, '--no-verify')
+            if create_test_branch:
+                new_head = repo.create_head("test_branch")
+                new_head.ref = repo.heads["master"]  # manually point to master
+                new_head.checkout()
 
-            # checkout master again
-            repo.heads["master"].checkout()
+                # add file to new head
+                tmp_file = tempfile.NamedTemporaryFile(
+                    dir=os.path.join(str(repo.working_tree_dir), "solutions"), delete=False
+                )
+                tmp_file.close()
+                repo.index.add([tmp_file.name])
+                repo.git.commit('-m', "branch added %s " % tmp_file.name, '--no-verify')
 
-        self.repo = repo
+                # checkout master again
+                repo.heads["master"].checkout()
 
-        return tmp_file.name
+            self.commit_file = tmp_file.name
+            yield repo
+
+        finally:
+            p = repo.working_tree_dir
+            repo.close()
+            force_remove(p)
+
 
 
 class EmptyTestClass:

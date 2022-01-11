@@ -9,7 +9,6 @@ from album.core.controller.run_manager import SolutionGroup
 from album.core.model.script_queue_entry import ScriptQueueEntry
 from album.core.utils.operations.resolve_operations import build_resolve_string
 from album.core.utils.operations.solution_operations import get_steps_dict, get_parent_dict
-from album.runner import album_logging
 from album.runner.album_logging import get_active_logger
 from album.runner.core.api.model.script_creator import IScriptCreator
 from album.runner.core.api.model.solution import ISolution
@@ -27,9 +26,8 @@ class ScriptManager(IScriptManager):
         queue = Queue()
         self.build_queue(resolve_result, queue, script_creator, False, [""])
         script_queue_entry = queue.get(block=False)
-        self.album.environment_manager().get_conda_manager().run_scripts(script_queue_entry.environment,
-                                                                             script_queue_entry.scripts,
-                                                                             pipe_output=False)
+        self.album.environment_manager().run_scripts(script_queue_entry.environment, script_queue_entry.scripts,
+                                                     pipe_output=False)
 
     def run_queue(self, queue: Queue):
         module_logger().debug("Running queue...")
@@ -37,7 +35,7 @@ class ScriptManager(IScriptManager):
             while True:
                 script_queue_entry = queue.get(block=False)
                 module_logger().debug("Running task \"%s\"..." % script_queue_entry.coordinates.name())
-                self._run_in_environment_with_own_logger(script_queue_entry)
+                self._run_in_environment(script_queue_entry)
                 module_logger().debug("Finished running task \"%s\"!" % script_queue_entry.coordinates.name())
                 queue.task_done()
         except Empty:
@@ -395,15 +393,13 @@ class ScriptManager(IScriptManager):
 
         return parsed_parent_args, parsed_steps_args_list
 
-    def _run_in_environment_with_own_logger(self, script_queue_entry: ScriptQueueEntry):
+    def _run_in_environment(self, script_queue_entry: ScriptQueueEntry):
         """Pushes a new logger to the stack before running the solution and pops it afterwards."""
-        album_logging.configure_logging(script_queue_entry.coordinates.name())
         module_logger().debug(
             "Running script in environment of solution \"%s\"..." % script_queue_entry.coordinates.name())
         self.album.environment_manager().run_scripts(script_queue_entry.environment, script_queue_entry.scripts)
         module_logger().debug(
             "Done running script in environment of solution \"%s\"..." % script_queue_entry.coordinates.name())
-        album_logging.pop_active_logger()
 
     @staticmethod
     def _get_args(step, args):

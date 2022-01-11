@@ -17,14 +17,14 @@ class TestDeployManager(TestGitCommon):
         self.zenodoAPI = ZenodoAPI('url', 'access_token')
         self.create_test_solution_no_env()
 
-        self.remote_catalog = self.collection_manager.catalogs().add_by_src(DefaultValues.default_catalog_src.value)
+        self.remote_catalog = self.collection_manager().catalogs().add_by_src(DefaultValues.default_catalog_src.value)
 
         # add a third local catalog
         catalog_path = Path(self.tmp_dir.name).joinpath("local_catalog")
         catalog_path.mkdir(parents=True)
         with open(catalog_path.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as meta:
             meta.writelines("{\"name\":\"local_catalog\", \"version\": \"0.1.0\"}")
-        self.local_catalog = self.collection_manager.catalogs().add_by_src(catalog_path)
+        self.local_catalog = self.collection_manager().catalogs().add_by_src(catalog_path)
 
         self.deploy_manager: DeployManager = self.album.deploy_manager()
 
@@ -45,10 +45,10 @@ class TestDeployManager(TestGitCommon):
         self.deploy_manager._deploy_to_remote_catalog = _deploy_to_remote_catalog
 
         get_by_name = MagicMock(return_value=self.local_catalog)
-        self.collection_manager.catalogs().get_by_name = get_by_name
+        self.collection_manager().catalogs().get_by_name = get_by_name
 
         get_by_src = MagicMock(return_value=None)
-        self.collection_manager.catalogs().get_by_src = get_by_src
+        self.collection_manager().catalogs().get_by_src = get_by_src
 
         with patch('album.core.controller.migration_manager.MigrationManager.load_index'):
             # call
@@ -77,10 +77,10 @@ class TestDeployManager(TestGitCommon):
         self.deploy_manager._deploy_to_remote_catalog = _deploy_to_remote_catalog
 
         get_by_name = MagicMock(return_value=self.remote_catalog)
-        self.collection_manager.catalogs().get_by_name = get_by_name
+        self.collection_manager().catalogs().get_by_name = get_by_name
 
         get_by_src = MagicMock(return_value=None)
-        self.collection_manager.catalogs().get_by_src = get_by_src
+        self.collection_manager().catalogs().get_by_src = get_by_src
 
         # call
         self.deploy_manager.deploy(deploy_path="None",
@@ -280,7 +280,8 @@ class TestDeployManager(TestGitCommon):
         repo = EmptyTestClass()
         repo.working_tree_dir = "myLocalPathOfTheRemoteCatalog"
         repo.close = lambda: ()
-        retrieve_catalog = MagicMock(return_value=repo)
+        retrieve_catalog = MagicMock()
+        retrieve_catalog.return_value.__enter__.return_value = repo
         self.remote_catalog.retrieve_catalog = retrieve_catalog
 
         # call
@@ -319,11 +320,11 @@ class TestDeployManager(TestGitCommon):
         load_mock = MagicMock(return_value=self.active_solution)
         self.album.state_manager().load = load_mock
 
-        get_catalog_by_src = MagicMock(return_value=self.collection_manager.catalogs().get_local_catalog())
-        self.collection_manager.catalogs().get_by_src = get_catalog_by_src
+        get_catalog_by_src = MagicMock(return_value=self.collection_manager().catalogs().get_local_catalog())
+        self.collection_manager().catalogs().get_by_src = get_catalog_by_src
 
         get_catalog_by_id = MagicMock(None)
-        self.collection_manager.catalogs().get_by_name = get_catalog_by_id
+        self.collection_manager().catalogs().get_by_name = get_catalog_by_id
 
         # call
         with self.assertRaises(RuntimeError):
@@ -337,18 +338,18 @@ class TestDeployManager(TestGitCommon):
 
     @patch('album.core.controller.deploy_manager.add_files_commit_and_push', return_value=True)
     def test__create_merge_request(self, add_files_commit_and_push_mock):
-        self.create_tmp_repo()
 
-        # call
-        DeployManager._create_merge_request(self.active_solution, self.repo, [self.closed_tmp_file.name], dry_run=True)
+        with self.create_tmp_repo() as repo:
 
-        add_files_commit_and_push_mock.assert_called_once_with(
-            self.repo.heads[1], [self.closed_tmp_file.name],
-            "Adding new/updated tsg_tsn_tsv",
-            email=None, push=False, push_options=[], username=None
-        )
+            # call
+            DeployManager._create_merge_request(self.active_solution, repo, [self.closed_tmp_file.name], dry_run=True)
 
-        self.repo.close()
+            add_files_commit_and_push_mock.assert_called_once_with(
+                repo.heads[1], [self.closed_tmp_file.name],
+                "Adding new/updated tsg_tsn_tsv",
+                email=None, push=False, push_options=[], username=None
+            )
+
 
     @patch('album.core.controller.deploy_manager.get_deploy_dict')
     def test__create_yaml_file_in_local_src(self, deploy_dict_mock):
@@ -371,20 +372,18 @@ class TestDeployManager(TestGitCommon):
         deploy_dict_mock.return_value = {"name": "tsn", "group": "tsg", "version": "tsv"}
 
         # prepare
-        self.create_tmp_repo()
-        catalog_local_src = self.repo.working_tree_dir
-        catalog = self.collection_manager.catalogs().get_local_catalog()
+        with self.create_tmp_repo() as repo:
+            catalog_local_src = repo.working_tree_dir
 
-        result = Path(self.repo.working_tree_dir).joinpath(
-            DefaultValues.cache_path_solution_prefix.value,
-            "tsg",
-            "tsn",
-            "tsv",
-            "_".join(["tsg", "tsn", "tsv"]) + ".zip"
-        )
+            result = Path(repo.working_tree_dir).joinpath(
+                DefaultValues.cache_path_solution_prefix.value,
+                "tsg",
+                "tsn",
+                "tsv",
+                "_".join(["tsg", "tsn", "tsv"]) + ".zip"
+            )
 
-        self.assertEqual(result, self.deploy_manager._get_absolute_zip_path(catalog_local_src, self.active_solution))
-        self.repo.close()
+            self.assertEqual(result, self.deploy_manager._get_absolute_zip_path(catalog_local_src, self.active_solution))
 
     @unittest.skip("Needs to be implemented!")
     def test_get_download_path(self):
@@ -394,18 +393,17 @@ class TestDeployManager(TestGitCommon):
     @patch('album.core.controller.deploy_manager.zip_folder', return_value="absPathZipFile")
     @patch('album.core.controller.deploy_manager.zip_paths', return_value="absPathZipFile")
     def test__copy_and_zip(self, zip_path_mock, zip_folder):
-        self.create_tmp_repo()
-        catalog_local_src = self.repo.working_tree_dir
-        catalog = self.collection_manager.catalogs().get_local_catalog()
+        with self.create_tmp_repo() as repo:
+            catalog_local_src = repo.working_tree_dir
 
-        solution_folder_to_deploy_locally = Path(self.tmp_dir.name)
-        solution_file_to_deploy_locally = Path(self.tmp_dir.name).joinpath("nice_file.py")
-        solution_file_to_deploy_locally.touch()
+            solution_folder_to_deploy_locally = Path(self.tmp_dir.name)
+            solution_file_to_deploy_locally = Path(self.tmp_dir.name).joinpath("nice_file.py")
+            solution_file_to_deploy_locally.touch()
 
-        # result
-        r = Path(self.repo.working_tree_dir).joinpath(
-            self.collection_manager.solutions().get_solution_zip_suffix(Coordinates('tsg', 'tsn', 'tsv'))
-        )
+            # result
+            r = Path(repo.working_tree_dir).joinpath(
+                self.collection_manager().solutions().get_solution_zip_suffix(Coordinates('tsg', 'tsn', 'tsv'))
+            )
 
         # copy and zip a folder
         self.deploy_manager._copy_and_zip(catalog_local_src, self.active_solution, solution_folder_to_deploy_locally)
@@ -420,7 +418,6 @@ class TestDeployManager(TestGitCommon):
         self.deploy_manager._copy_and_zip(catalog_local_src, self.active_solution, solution_file_to_deploy_locally)
         zip_path_mock.assert_called_once()
         zip_folder.assert_not_called()
-        self.repo.close()
 
 
 if __name__ == '__main__':

@@ -42,7 +42,7 @@ class TestCatalog(TestUnitCoreCommon):
         self.catalog = Catalog(0, "test", src=catalog_src, path=catalog_path)
         self.catalog.update_index_cache()
         self.catalog.load_index()
-        self.collection_manager.catalogs().set_version(self.catalog)
+        self.collection_manager().catalogs().set_version(self.catalog)
 
     def tearDown(self) -> None:
         self.catalog.dispose()
@@ -325,11 +325,10 @@ class TestCatalog(TestUnitCoreCommon):
         blocking_file.touch()
 
         # call
-        repo = self.catalog.retrieve_catalog(dl_path, force_retrieve=True)
+        with self.catalog.retrieve_catalog(dl_path, force_retrieve=True) as repo:
 
-        # assert
-        self.assertIsNotNone(repo)
-        repo.close()
+            # assert
+            self.assertIsNotNone(repo)
 
         self.assertFalse(blocking_file.exists())
         self.assertTrue(dl_path.stat().st_size > 0)

@@ -220,10 +220,10 @@ def zip_folder(folder_path, zip_archive_file):
     return shutil.make_archive(str(zip_archive_file), 'zip', folder_path)
 
 
-def zip_paths(paths_to_include, zip_archive_file):
+def zip_paths(paths_to_include, zip_archive_file, tmp_dir=None):
     """Creates a zip archive including all given files. Copies the data into a tmp directory first."""
 
-    with tempfile.TemporaryDirectory() as tmp_folder:
+    with tempfile.TemporaryDirectory(dir=tmp_dir) as tmp_folder:
         for file in paths_to_include:
             file = Path(file)
             if file.is_file():

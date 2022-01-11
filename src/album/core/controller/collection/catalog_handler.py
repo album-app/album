@@ -63,6 +63,9 @@ class CatalogHandler(ICatalogHandler):
             self._create_catalog_cache_if_missing(catalog)
             self.album.migration_manager().load_index(catalog)
 
+            module_logger().info('Catching catalog content..')
+            self._update(catalog)
+            self._update_collection_from_catalog(catalog)
             module_logger().info('Added catalog %s!' % identifier)
             return catalog
 
@@ -172,12 +175,14 @@ class CatalogHandler(ICatalogHandler):
     def update_collection(self, catalog_name=None, dry_run: bool = False) -> Dict[str, CatalogUpdates]:
         if dry_run:
             if catalog_name:
-                return {catalog_name: self._get_divergence_between_catalog_and_collection(catalog_name)}
+                catalog = self.get_by_name(catalog_name)
+                return {catalog_name: self._get_divergence_between_catalog_and_collection(catalog)}
             else:
                 return self._get_divergence_between_catalogs_and_collection()
         else:
             if catalog_name:
-                return {catalog_name: self._update_collection_from_catalog(catalog_name)}
+                catalog = self.get_by_name(catalog_name)
+                return {catalog_name: self._update_collection_from_catalog(catalog)}
             else:
                 return self._update_collection_from_catalogs()
 
@@ -327,12 +332,11 @@ class CatalogHandler(ICatalogHandler):
         """Gets the divergence list between all catalogs and the catalog_collection."""
         res = {}
         for catalog in self.get_all():
-            res[catalog.name()] = self._get_divergence_between_catalog_and_collection(catalog_name=catalog.name())
+            res[catalog.name()] = self._get_divergence_between_catalog_and_collection(catalog=catalog)
         return res
 
-    def _get_divergence_between_catalog_and_collection(self, catalog_name) -> CatalogUpdates:
+    def _get_divergence_between_catalog_and_collection(self, catalog: Catalog) -> CatalogUpdates:
         """Gets the divergence between a given catalog and the catalog_collection"""
-        catalog = self.get_by_name(catalog_name)
 
         if catalog.is_cache():
             # cache catalog is always up to date since src and path are the same
@@ -348,11 +352,11 @@ class CatalogHandler(ICatalogHandler):
     def _update_collection_from_catalogs(self) -> Dict[str, CatalogUpdates]:
         res = {}
         for catalog in self.get_all():
-            res[catalog.name()] = self._update_collection_from_catalog(catalog_name=catalog.name())
+            res[catalog.name()] = self._update_collection_from_catalog(catalog=catalog)
         return res
 
-    def _update_collection_from_catalog(self, catalog_name) -> CatalogUpdates:
-        divergence = self._get_divergence_between_catalog_and_collection(catalog_name)
+    def _update_collection_from_catalog(self, catalog: Catalog) -> CatalogUpdates:
+        divergence = self._get_divergence_between_catalog_and_collection(catalog)
         # TODO apply changes to catalog attributes
         for change in divergence.solution_changes():
             self.album.solutions().apply_change(divergence.catalog(), change)
