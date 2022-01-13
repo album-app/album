@@ -22,6 +22,10 @@ class LogfileBuffer(io.StringIO):
         self.last_log = None
         self.is_error_logger = error_logger
         self.logger = module_logger
+        self.logger_name = self.logger.name
+        self.logger_name_script = self.logger_name + '.script'
+        self.logger_name_current = self.logger_name_script
+        self.logger_name_unnamed = self.logger_name_script + '.log'
 
     def write(self, input) -> int:
         if not isinstance(input, str):
@@ -29,34 +33,35 @@ class LogfileBuffer(io.StringIO):
         m = input.rstrip()
 
         log_entry = self.parse_log(m)
-        old_name = self.logger.name
 
         if log_entry:
 
             if log_entry.name:
-                if log_entry.name == 'root':
-                    log_entry.name = self.logger.name
+                log_entry.name = log_entry.name.strip()
+                if log_entry.name.startswith('root.script'):
+                    log_entry.name = log_entry.name.lstrip('root.script')
+                    log_entry.name = log_entry.name.lstrip('.')
+                if len(log_entry.name) > 0:
+                    log_entry.name = self.logger_name_script + "." + log_entry.name
                 else:
-                    if log_entry.name.startswith('root.'):
-                        log_entry.name = log_entry.name.replace('root.', '')
-                    log_entry.name = self.logger.name + "." + log_entry.name
+                    log_entry.name = self.logger_name_script
+            else:
+                log_entry.name = self.logger_name_unnamed
 
             if self.message_formatter and callable(self.message_formatter):
                 message = self.message_formatter(log_entry.message)
             else:
                 message = log_entry.message
-
-            if log_entry.name:
-                self.logger.name = log_entry.name
-
+            self.logger_name_current = log_entry.name
+            self.logger.name = log_entry.name
             self._log(log_entry.level, message)
         else:  # unknown message not using or logging.
-            self.logger.name = old_name + '.script'
+            self.logger.name = self.logger_name_current
             if self.is_error_logger:
                 self._log('ERROR', m)
             else:
                 self._log('INFO', m)
-        self.logger.name = old_name
+        self.logger.name = self.logger_name
         #
         return 1
 
@@ -74,45 +79,57 @@ class LogfileBuffer(io.StringIO):
 
     @staticmethod
     def parse_log(text) -> Optional[LogEntry]:
-        # regex for log level
-        regex_log_level = "DEBUG|INFO|WARNING|ERROR"
-        # regex for log message.
-        # search
-        r = re.search(ISolutionScript.get_script_logging_formatter_regex(), text)
-        message = None
-        name = None
-        level = None
-        if r:
-            name = r.group(3)
-            level = r.group(2)
-            message = r.group(4)
-        else:
-            regex_text = '(%s): ([\s\S]+)?' % regex_log_level
-            r = re.search(regex_text, text)
-            if r:
-                name = None
-                level = r.group(1)
-                message = r.group(2)
-            else:
-                regex_text = '\[(%s)\] ([\s\S]+)?' % regex_log_level
-                r = re.search(regex_text, text)
-                if r:
-                    name = None
-                    level = r.group(1)
-                    message = r.group(2)
-                else:
-                    regex_text = '(%s)\s+([\s\S]+) - ([\s\S]+)?' % regex_log_level
-                    r = re.search(regex_text, text)
-                    if r:
-                        name = r.group(2)
-                        level = r.group(1)
-                        message = r.group(3)
-        if message:
-            message = message.rstrip(" ")
-            return LogEntry(name, level, message)
+        res = LogfileBuffer._parse_album_runner_log(text)
+        if not res:
+            res = LogfileBuffer._parse_album_log(text)
+            if not res:
+                res = LogfileBuffer._parse_level_colon_log(text)
+                if not res:
+                    res = LogfileBuffer._parse_level_brackets_log(text)
+        if res:
+            if res.message:
+                res.message = res.message.rstrip(" ")
+            return res
         else:
             return None
 
+    @staticmethod
+    def _parse_album_runner_log(text):
+        r = re.search(ISolutionScript.get_script_logging_formatter_regex(), text)
+        if r:
+            return LogEntry(name=r.group(2), level=r.group(1), message=r.group(3))
+        return None
+
+    @staticmethod
+    def _parse_album_log(text):
+        r = re.search(r'\d\d:\d\d:\d\d (%s)(?:[\s]+(~*))? ([\s\S]+)?' % LogfileBuffer._regex_log_level(), text)
+        if r:
+            if len(r.groups()) == 3:
+                name = r.group(2)
+                if name != None and len(name) == 0:
+                    name = None
+                return LogEntry(name=name, level=r.group(1), message=r.group(3))
+            else:
+                return LogEntry(name=None, level=r.group(1), message=r.group(2))
+        return None
+
+    @staticmethod
+    def _parse_level_colon_log(text):
+        r = re.search(r'(%s): ([\s\S]+)?' % LogfileBuffer._regex_log_level(), text)
+        if r:
+            return LogEntry(name=None, level=r.group(1), message=r.group(2))
+        return None
+
+    @staticmethod
+    def _parse_level_brackets_log(text):
+        r = re.search(r'\[(%s)\] ([\s\S]+)?' % LogfileBuffer._regex_log_level(), text)
+        if r:
+            return LogEntry(name=None, level=r.group(1), message=r.group(2))
+        return None
+
+    @staticmethod
+    def _regex_log_level():
+        return "DEBUG|INFO|WARNING|ERROR"
 
 class LogProcessing:
     def __init__(self, logger, log_output, message_formatter):

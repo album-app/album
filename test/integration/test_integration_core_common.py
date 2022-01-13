@@ -107,7 +107,7 @@ class TestIntegrationCoreCommon(unittest.TestCase):
         logger.setLevel('INFO')
         ch = logging.StreamHandler(self.captured_output)
         ch.setLevel('INFO')
-        ch.setFormatter(get_logging_formatter(fmt='%(log_color)s%(asctime)s %(levelname)s - %(shortened_name)s%(message)s'))
+        ch.setFormatter(get_logging_formatter(fmt='%(log_color)s%(asctime)s %(levelname)s %(shortened_name)s%(message)s'))
         ch.addFilter(get_logger_name_minimizer_filter())
         ch.addFilter(get_message_filter())
         logger.addHandler(ch)

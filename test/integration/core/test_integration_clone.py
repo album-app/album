@@ -44,7 +44,7 @@ class TestIntegrationClone(TestIntegrationCoreCommon):
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         target_path = Path(self.tmp_dir.name).joinpath("my_catalogs", "my_catalog")
         self.assertIn(
-            f"INFO - Downloaded template from https://gitlab.com/album-app/catalogs/templates/catalog/-/archive/main/catalog-main.zip to {str(target_path)}",
+            f"INFO Downloaded template from https://gitlab.com/album-app/catalogs/templates/catalog/-/archive/main/catalog-main.zip to {str(target_path)}",
             self.captured_output.getvalue())
         self.assertTrue(target_path.joinpath("album_catalog_index.json").exists())
         self.assertTrue(target_path.joinpath("album_solution_list.json").exists())

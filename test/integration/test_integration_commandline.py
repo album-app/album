@@ -156,7 +156,7 @@ class TestIntegrationCommandline(TestIntegrationCommon):
             'tags': ['tag1', 'tag2'],
             'license': 'license',
             'covers': [],
-            'album_api_version': '0.2.1',
+            'album_api_version': '0.3.1',
             'args': [
                 {
                     'name': 'testArg1',
@@ -218,7 +218,16 @@ class TestIntegrationCommandline(TestIntegrationCommon):
         with self.assertRaises(SystemExit) as e:
             main()
         self.assertEquals(1, e.exception.code.exit_status)
-        self.assertIn('ERROR', self.captured_output.getvalue())
+        # print(self.captured_output.getvalue())
+        self.assertIn('INFO ~ print something', self.captured_output.getvalue())
+        self.assertIn('INFO ~ logging info', self.captured_output.getvalue())
+        self.assertIn('WARNING ~ logging warning', self.captured_output.getvalue())
+        self.assertIn('ERROR ~ logging error', self.captured_output.getvalue())
+        self.assertIn('INFO ~~~ album in album: print something', self.captured_output.getvalue())
+        self.assertIn('INFO ~~~ album in album: logging info', self.captured_output.getvalue())
+        self.assertIn('WARNING ~~~ album in album: logging warning', self.captured_output.getvalue())
+        self.assertIn('ERROR ~~~ album in album: logging error', self.captured_output.getvalue())
+        self.assertIn('ERROR ~~~ RuntimeError: Error in run method', self.captured_output.getvalue())
 
 
 if __name__ == '__main__':

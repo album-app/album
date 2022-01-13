@@ -137,9 +137,9 @@ def get_logging_formatter(fmt=None, time=None):
 def get_logger_name_minimizer_filter():
     class NameDotFilter(logging.Filter):
         def filter(self, record):
-            count = record.name.count('.')
+            count = record.name.count('.') + record.name.count('~')
             if count > 0:
-                record.shortened_name = '-' * count + ' '
+                record.shortened_name = '~' * count + ' '
             else:
                 record.shortened_name = ''
             return True
