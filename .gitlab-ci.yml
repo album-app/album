@@ -323,4 +323,3 @@ release tests linux:
     - album run album:template-r:0.1.0-SNAPSHOT
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-
