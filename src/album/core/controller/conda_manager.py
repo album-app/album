@@ -215,7 +215,7 @@ class CondaManager:
 
         env_prefix = str(self._configuration.cache_path_envs().joinpath(environment_name))
 
-        subprocess_args = [self._get_install_environment_executable(), 'create', '--force', '-q', '-y', '-p', env_prefix, 'python=3.7', 'pip']
+        subprocess_args = [self._get_install_environment_executable(), 'create', '--force', '-q', '-y', '-p', env_prefix, 'python=3.8', 'pip']
 
         try:
             subcommand.run(subprocess_args, log_output=True)

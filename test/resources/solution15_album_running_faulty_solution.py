@@ -1,17 +1,4 @@
-from io import StringIO
-
 from album.runner.api import setup, get_cache_path
-
-env_file = StringIO("""name: template-album
-channels:
-  - conda-forge
-  - defaults
-dependencies:
-  - python=3.7
-  - pip:
-    - https://gitlab.com/album-app/album/-/archive/release-0.3.0/album-release-0.3.0.zip
-    - album-runner==0.3.1
-""")
 
 def album_run():
     from album.api import Album
@@ -76,6 +63,5 @@ setup(
             "default": "Useless callable",
         }
     ],
-    run=album_run,
-    dependencies={'environment_file': env_file}
+    run=album_run
 )
