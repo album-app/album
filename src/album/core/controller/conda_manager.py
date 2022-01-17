@@ -9,6 +9,7 @@ from album.core.api.model.environment import IEnvironment
 from album.core.model.default_values import DefaultValues
 from album.core.utils import subcommand
 from album.core.utils.operations.file_operations import force_remove
+from album.core.utils.subcommand import SubProcessError
 from album.runner import album_logging
 from album.runner.album_logging import debug_settings
 
@@ -184,14 +185,14 @@ class CondaManager:
         # TODO in debug mode, use -v to display the installation process
         subprocess_args = [self._get_install_environment_executable(), 'env', 'create', '-q', '--force', '-f', str(yaml_path), '-p', env_prefix]
 
-        # try:
-        subcommand.run(subprocess_args, log_output=True)
-        # except SubProcessError as e:
-        #     # cleanup after failed installation
-        #     if self.environment_exists(environment_name):
-        #         module_logger().debug('Cleanup failed installation...')
-        #         self.remove_environment(environment_name)
-        #     raise RuntimeError("Command failed due to reasons above!") from e
+        try:
+            subcommand.run(subprocess_args, log_output=True)
+        except SubProcessError as e:
+            # cleanup after failed installation
+            if self.environment_exists(environment_name):
+                module_logger().debug('Cleanup failed installation...')
+                self.remove_environment(environment_name)
+            raise RuntimeError("Command failed due to reasons above!") from e
 
     def create_environment(self, environment_name, force=False):
         """Creates a conda environment with python (latest version) installed.
@@ -215,7 +216,7 @@ class CondaManager:
 
         env_prefix = str(self._configuration.cache_path_envs().joinpath(environment_name))
 
-        subprocess_args = [self._get_install_environment_executable(), 'create', '--force', '-q', '-y', '-p', env_prefix, 'python=3.8', 'pip']
+        subprocess_args = [self._get_install_environment_executable(), 'create', '--force', '-q', '-y', '-p', env_prefix, 'pip', 'python=3.8']
 
         try:
             subcommand.run(subprocess_args, log_output=True)
