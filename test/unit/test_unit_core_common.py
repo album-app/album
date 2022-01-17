@@ -68,7 +68,6 @@ class TestUnitCoreCommon(unittest.TestCase):
     def tearDown(self) -> None:
         if self.collection_manager() is not None and self.collection_manager().get_collection_index() is not None:
             self.collection_manager().get_collection_index().close()
-            self.collection_manager = None
         self.captured_output.close()
 
         while True:

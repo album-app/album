@@ -248,6 +248,19 @@ def unzip_archive(zip_archive_file, target_folder=None):
     return target_folder
 
 
+def path_to_windows_compatible_string(path):
+    if path is None:
+        return None
+    path = Path(path)
+    long_path = os.path.abspath(path)
+    if os.sep == '\\':
+        if '\\\\?\\' not in long_path:
+            long_path = '\\\\?\\' + long_path
+        if path.is_dir() and not long_path.endswith('\\'):
+            long_path += '\\'
+    return long_path
+
+
 def force_remove(path, warning=True):
     path = Path(path)
     if path.exists():
@@ -258,7 +271,7 @@ def force_remove(path, warning=True):
                 except PermissionError:
                     handle_remove_readonly(os.unlink, path, sys.exc_info())
             else:
-                shutil.rmtree(path, ignore_errors=False, onerror=handle_remove_readonly)
+                shutil.rmtree(path_to_windows_compatible_string(path), ignore_errors=False, onerror=handle_remove_readonly)
         except PermissionError as e:
             module_logger().warn("Cannot delete %s." % str(path))
             if not warning:

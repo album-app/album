@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch
 
+from album.core.utils.subcommand import SubProcessError
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
@@ -210,6 +211,26 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
             self.assertEqual("app2_close", log[15])
             self.assertEqual("solution3_noparent_run", log[16])
             self.assertEqual("solution3_noparent_close", log[17])
+
+    def test_run_throwing_error_solution(self):
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path("solution15_album_running_faulty_solution.py")
+        )
+        self.album_instance.install_manager().install(resolve_result)
+
+        # run
+        with self.assertRaises(SubProcessError) as e:
+            self.album_instance.run_manager().run(resolve_result)
+        print(self.captured_output.getvalue())
+        self.assertIn('INFO ~ print something', self.captured_output.getvalue())
+        self.assertIn('INFO ~ logging info', self.captured_output.getvalue())
+        self.assertIn('WARNING ~ logging warning', self.captured_output.getvalue())
+        self.assertIn('ERROR ~ logging error', self.captured_output.getvalue())
+        self.assertIn('INFO ~~~ album in album: print something', self.captured_output.getvalue())
+        self.assertIn('INFO ~~~ album in album: logging info', self.captured_output.getvalue())
+        self.assertIn('WARNING ~~~ album in album: logging warning', self.captured_output.getvalue())
+        self.assertIn('ERROR ~~~ album in album: logging error', self.captured_output.getvalue())
+        self.assertIn('ERROR ~~~ RuntimeError: Error in run method', self.captured_output.getvalue())
 
 
 if __name__ == '__main__':

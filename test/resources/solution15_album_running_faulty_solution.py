@@ -1,4 +1,18 @@
 from album.runner.api import setup, get_cache_path
+from io import StringIO
+
+env_file = StringIO("""name: template-python
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.7
+  - pip
+  - mamba
+  - git
+  - pip:
+    - https://gitlab.com/album-app/album/-/archive/release-0.3.0/album-release-0.3.0.zip
+""")
 
 def album_run():
     from album.api import Album
@@ -29,8 +43,16 @@ def album_run():
 
 
 def get_solution_content():
-    return """from album.runner.api import setup
+    return '''from album.runner.api import setup
+from io import StringIO
 
+env_file = StringIO("""name: template-python
+channels:
+  - defaults
+dependencies:
+  - python=3.7
+  - pip
+""")
 
 def run():
     from album.runner.album_logging import get_active_logger
@@ -45,9 +67,12 @@ setup(
     name="solution9_throws_exception",
     version="0.1.0",
     album_api_version="0.3.1",
-    run=run
+    run=run,
+    dependencies={
+        'environment_file': env_file
+    }
 )
-"""
+'''
 
 
 setup(
@@ -55,13 +80,8 @@ setup(
     name="solution15_run_album_throw_error",
     version="0.1.0",
     album_api_version="0.3.1",
-    args=[
-        {
-            "name": "testArg1",
-            "description": "testArg1Description",
-            "type": "string",
-            "default": "Useless callable",
-        }
-    ],
-    run=album_run
+    run=album_run,
+    dependencies={
+        'environment_file': env_file
+    }
 )

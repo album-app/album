@@ -8,7 +8,7 @@ from album.core.api.model.configuration import IConfiguration
 from album.core.api.model.environment import IEnvironment
 from album.core.model.default_values import DefaultValues
 from album.core.utils import subcommand
-from album.core.utils.operations.file_operations import force_remove
+from album.core.utils.operations.file_operations import force_remove, path_to_windows_compatible_string
 from album.core.utils.subcommand import SubProcessError
 from album.runner import album_logging
 from album.runner.album_logging import debug_settings
@@ -41,8 +41,9 @@ class CondaManager:
         else:
             return []
 
-    def _get_immediate_subdirectories(self, a_dir: Path):
-        return [str(a_dir.joinpath(name)) for name in os.listdir(a_dir)
+    @staticmethod
+    def _get_immediate_subdirectories(a_dir: Path):
+        return [os.path.normpath(a_dir.joinpath(name)) for name in os.listdir(a_dir)
                 if os.path.isdir(os.path.join(a_dir, name))]
 
     def get_base_environment_path(self):
@@ -75,7 +76,7 @@ class CondaManager:
             None or the path
         """
         environment_list = self.get_environment_list()
-        path_expected = str(self._configuration.cache_path_envs().joinpath(environment_name))
+        path_expected = os.path.normpath(self._configuration.cache_path_envs().joinpath(environment_name))
 
         if path_expected in environment_list:
             return path_expected
@@ -112,12 +113,15 @@ class CondaManager:
 
         path = self.get_environment_path(environment_name)
 
-        subprocess_args = [
-            self._get_install_environment_executable(), 'env', 'remove', '-y', '-q', '-p', path
-        ]
+        try:
+            subprocess_args = [
+                self._get_install_environment_executable(), 'env', 'remove', '-y', '-q', '-p',
+                path_to_windows_compatible_string(path)
+            ]
 
-        subcommand.run(subprocess_args, log_output=False)
-
+            subcommand.run(subprocess_args, log_output=False)
+        except SubProcessError:
+            module_logger().debug("Can't delete environment via command line call, deleting the folder next...")
         # try to remove file content if any but don't fail:
         force_remove(path)
 
@@ -146,7 +150,8 @@ class CondaManager:
             dictionary containing the available packages in the given conda environment.
         """
         subprocess_args = [
-            self._get_install_environment_executable(), 'list', '--json', '--prefix', environment_path,
+            self._get_install_environment_executable(), 'list', '--json', '--prefix',
+            path_to_windows_compatible_string(environment_path),
         ]
         output = subcommand.check_output(subprocess_args)
         return json.loads(output)
@@ -180,10 +185,11 @@ class CondaManager:
         if not (yaml_path.is_file() and yaml_path.stat().st_size > 0):
             raise ValueError("File not a valid yml file!")
 
-        env_prefix = str(self._configuration.cache_path_envs().joinpath(environment_name))
+        env_prefix = path_to_windows_compatible_string(self._configuration.cache_path_envs().joinpath(environment_name))
 
         # TODO in debug mode, use -v to display the installation process
-        subprocess_args = [self._get_install_environment_executable(), 'env', 'create', '-q', '--force', '-f', str(yaml_path), '-p', env_prefix]
+        subprocess_args = [self._get_install_environment_executable(), 'env', 'create', '-q', '--force', '-f',
+                           path_to_windows_compatible_string(yaml_path), '-p', env_prefix]
 
         try:
             subcommand.run(subprocess_args, log_output=True)
@@ -214,9 +220,10 @@ class CondaManager:
             if env_exists:
                 raise EnvironmentError("Environment with name %s already exists!" % environment_name)
 
-        env_prefix = str(self._configuration.cache_path_envs().joinpath(environment_name))
+        env_prefix = path_to_windows_compatible_string(self._configuration.cache_path_envs().joinpath(environment_name))
 
-        subprocess_args = [self._get_install_environment_executable(), 'create', '--force', '-q', '-y', '-p', env_prefix, 'pip', 'python=3.8']
+        subprocess_args = [self._get_install_environment_executable(), 'create', '--force', '-q', '-y', '-p',
+                           env_prefix, 'pip', 'python=3.8']
 
         try:
             subcommand.run(subprocess_args, log_output=True)
@@ -239,7 +246,8 @@ class CondaManager:
                 If True, pip uses the cache option, else not.
         """
         subprocess_args_base = [
-            self._conda_executable, 'run', '--no-capture-output', '--prefix', environment_path
+            self._conda_executable, 'run', '--no-capture-output', '--prefix',
+            path_to_windows_compatible_string(environment_path)
         ]
 
         if sys.platform == 'win32' or sys.platform == 'cygwin':
@@ -247,18 +255,18 @@ class CondaManager:
             # BUT THE PATH POINTS TO THE WRONG PIP (conda base folder + Scripts + pip) BECAUSE THE CONDA BASE PATH
             # COMES FIRST IN ENVIRONMENT VARIABLE "%PATH%". THUS, FULL PATH IS NECESSARY TO CALL
             # THE CORRECT PYTHON OR PIP! ToDo: keep track of this!
-            subprocess_args = [str(Path(environment_path).joinpath('python'))]
+            subprocess_args = [path_to_windows_compatible_string(Path(environment_path).joinpath('python'))]
         else:
             subprocess_args = ['python']
 
-        subprocess_args += ['-m', 'pip', 'install', '--no-warn-conflicts']
+        subprocess_args = [*subprocess_args, '-m', 'pip', 'install', '--no-warn-conflicts']
 
         if not use_cache:
-            subprocess_args += ['--no-cache-dir']
+            subprocess_args = [*subprocess_args, '--no-cache-dir']
 
-        subprocess_args += [module]
+        subprocess_args = [*subprocess_args, module]
 
-        subprocess_call = subprocess_args_base + subprocess_args
+        subprocess_call = [*subprocess_args_base, *subprocess_args]
 
         subcommand.run(subprocess_call, log_output=True)
 
@@ -273,7 +281,8 @@ class CondaManager:
 
         """
         subprocess_args = [
-            self._get_install_environment_executable(), 'install', '--prefix', environment_path, '-y', module
+            self._get_install_environment_executable(), 'install', '--prefix',
+            path_to_windows_compatible_string(environment_path), '-y', module
         ]
 
         subcommand.run(subprocess_args, log_output=True)
@@ -297,12 +306,15 @@ class CondaManager:
             # THE CORRECT PYTHON OR PIP! ToDo: keep track of this!
             subprocess_args = [
                 self._conda_executable, 'run', '--no-capture-output', '--prefix',
-                environment_path, str(Path(environment_path).joinpath('python')), script_full_path
+                path_to_windows_compatible_string(environment_path),
+                path_to_windows_compatible_string(Path(environment_path).joinpath('python')),
+                path_to_windows_compatible_string(script_full_path)
             ]
         else:
             subprocess_args = [
                 self._conda_executable, 'run', '--no-capture-output', '--prefix',
-                environment_path, 'python', script_full_path
+                path_to_windows_compatible_string(environment_path), 'python',
+                path_to_windows_compatible_string(script_full_path)
             ]
         subcommand.run(subprocess_args, pipe_output=pipe_output)
 
@@ -321,7 +333,7 @@ class CondaManager:
         """
         subprocess_args = [
                               self._conda_executable, 'run', '--no-capture-output', '--prefix',
-                              environment_path
+                              path_to_windows_compatible_string(environment_path)
                           ] + cmd
         try:
             subcommand.run(subprocess_args, log_output=True)
@@ -337,7 +349,7 @@ class CondaManager:
 
     def is_installed(self, environment_path: str, package_name, min_package_version=None):
         """Checks if package is installed in a certain version."""
-        conda_list = self.list_environment(str(environment_path))
+        conda_list = self.list_environment(environment_path)
 
         for package in conda_list:
             if package["name"] == package_name:
@@ -412,7 +424,7 @@ class CondaManager:
         fp.flush()
         os.fsync(fp)
         fp.close()
-        self.run_script(str(environment.path()), fp.name, pipe_output=pipe_output)
+        self.run_script(environment.path(), fp.name, pipe_output=pipe_output)
         Path(fp.name).unlink()
 
     def create_or_update_env(self, environment: IEnvironment):
@@ -476,4 +488,4 @@ class CondaManager:
 
         module_logger().debug("Installing %s in environment %s..." % (module, str(environment_path)))
 
-        self.pip_install(str(environment_path), module, use_cache)
+        self.pip_install(environment_path, module, use_cache)
