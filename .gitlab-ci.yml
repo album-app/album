@@ -16,6 +16,7 @@
   before_script:
     - 'echo "We are in path: $pwd "'
     - 'echo "conda URL:  $env:MINICONDA_URL "'
+    - '$oldProgressPreference = $progressPreference; $progressPreference = "SilentlyContinue";'
     - 'if(-Not (Test-Path .\download)) {echo "Cache download not found! Creating..."; New-Item -ItemType Directory -Force -Path .\download} else { echo ".\download cache found! with content:"; Get-ChildItem -Path .\download}'                                                                                                                                                # create cache dir
     - '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12'                                                                                                                                                                                                                                                                                          # set Security download protocol to avoid https errors
     - 'if(Test-Path .\download\miniconda_url.txt) {echo "found previous miniconda url information. Extracting information..."; $miniconda_cache_url = try {Get-Content -Path .\download\miniconda_url.txt -errorAction Stop} catch {echo "None"}; echo "Cached minconda executable: $miniconda_cache_url"} else { echo ".\download\miniconda_url.txt does not exist!"}'          # read url from cache
@@ -30,6 +31,7 @@
     - 'echo "Environment path: $env:PATH"'
     - 'conda init'
     - 'conda config --set notify_outdated_conda false'
+    - '$progressPreference = $oldProgressPreference'
   tags:
     - windows
   variables:
