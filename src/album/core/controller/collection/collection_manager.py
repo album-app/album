@@ -77,8 +77,6 @@ class CollectionManager(ICollectionManager):
         )
         if newly_created:
             self.catalog_handler.add_initial_catalogs()
-            self.catalog_handler.update_any()
-            self.catalog_handler.update_collection()
 
     def catalogs(self) -> ICatalogHandler:
         return self.catalog_handler
