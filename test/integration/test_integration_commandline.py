@@ -155,7 +155,6 @@ class TestIntegrationCommandline(TestIntegrationCommon):
             'acknowledgement': 'Hi mom',
             'tags': ['tag1', 'tag2'],
             'license': 'license',
-            'documentation': ['file.md'],
             'covers': [],
             'album_api_version': '0.2.1',
             'args': [

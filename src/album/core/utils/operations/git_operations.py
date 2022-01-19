@@ -49,10 +49,12 @@ def checkout_branch(git_repo, branch_name):
         raise IndexError("Branch \"%s\" not in repository!" % branch_name) from e
 
 
-def retrieve_single_file_from_head(head, pattern, option=""):
+def retrieve_files_from_head(head, pattern, option="", number_of_files=1):
     """Extracts a file with a "startswith" pattern given a branch (or head) of a repository.
 
     Args:
+        number_of_files:
+            The number of files to expect to be found when using the given pattern. Use -1 for arbitrary many.
         option:
             Specify "startswith" to do a prefix comparison instead of a regular expression matching
         head:
@@ -98,10 +100,15 @@ def retrieve_single_file_from_head(head, pattern, option=""):
 
     if not abs_path_solution_file:
         raise RuntimeError("Head \"%s\" does not hold pattern \"%s\"! Aborting..." % (head.name, pattern))
-    if len(abs_path_solution_file) > 1:
-        raise RuntimeError("Head \"%s\" holds pattern \"%s\" too many times! Aborting..." % (head.name, pattern))
 
-    return abs_path_solution_file[0]
+    if number_of_files > 0:
+        if len(abs_path_solution_file) != number_of_files:
+            raise RuntimeError(
+                "Head \"%s\" holds pattern \"%s\" %s times, but expected %s. Aborting..." %
+                (head.name, pattern, len(abs_path_solution_file), number_of_files)
+            )
+
+    return abs_path_solution_file
 
 
 def add_files_commit_and_push(head, file_paths, commit_message, push=False, email=None, username=None,

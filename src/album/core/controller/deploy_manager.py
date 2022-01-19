@@ -289,7 +289,7 @@ class DeployManager(IDeployManager):
             if file_source_path.exists():
                 files.append(copy(file_source_path, target_path.joinpath(file_name)))
             else:
-                module_logger().warn(
+                module_logger().error(  # must be an error, otherwise yml of solutions not in sync with folder content
                     'Cannot find %s %s, proceeding without copying...' % (name, file_source_path.absolute()))
         return files
 

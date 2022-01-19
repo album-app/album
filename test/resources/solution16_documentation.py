@@ -22,6 +22,7 @@ setup(
     tags=["tag1", "tag2"],
     license="license",
     covers=[],
+    documentation=["file.md"],
     album_api_version="0.2.1",
     args=[
         {

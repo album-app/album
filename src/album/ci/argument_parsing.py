@@ -9,7 +9,7 @@ from album.ci.commandline import configure_repo, configure_ssh, zenodo_publish, 
     push_changes, merge
 from album.ci.controller.release_manager import ReleaseManager
 from album.runner import album_logging
-from album.runner.album_logging import get_active_logger, debug_settings
+from album.runner.album_logging import get_active_logger, debug_settings, pop_active_logger
 
 module_logger = get_active_logger
 
@@ -28,6 +28,8 @@ def main():
         album_ci_command = sys.argv[1]  # album command always expected at second position
     except IndexError:
         ci_parser.error("Please provide a valid action!")
+
+    pop_active_logger()  # there will be a new one with the album instance
 
     # Makes sure album is initialized.
     album_instance = create_album_instance()

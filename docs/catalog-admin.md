@@ -178,7 +178,7 @@ upload:
     - album-catalog-admin configure-repo $CI_PROJECT_NAME /opt/catalog $CI_PROJECT_URL --ci-user-name=gitlab-ci --ci-user-email=gitlab-ci@catal.og --force-retrieve=True
     - album-catalog-admin configure-ssh $CI_PROJECT_NAME /opt/catalog  $CI_PROJECT_URL
     - album-catalog-admin upload $CI_PROJECT_NAME /opt/catalog $CI_PROJECT_URL --branch-name=$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME
-    - album-catalog-admin push $CI_PROJECT_NAME /opt/catalog $CI_PROJECT_URL --branch-name=$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME --trigger-pipeline=False --log=DEBUG
+    - album-catalog-admin push $CI_PROJECT_NAME /opt/catalog $CI_PROJECT_URL --branch-name=$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       changes:

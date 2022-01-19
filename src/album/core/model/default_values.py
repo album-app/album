@@ -36,7 +36,10 @@ class DefaultValues(Enum):
     cache_path_download_prefix = "downloads"                               # base folder prefix where downloads live
     cache_path_tmp_prefix = "tmp"                                          # base folder prefix where temporary files live
     cache_path_envs_prefix = "envs"                                        # base folder prefix where environments live in
+
+    # solutions
     solution_default_name = "solution.py"                                  # default name how solution.py files are called
+    changelog_default_name = "CHANGELOG.md"                                # default name of the changelog file
 
     # environment
     default_environment = "album"            # default environment name the album framework operates from
