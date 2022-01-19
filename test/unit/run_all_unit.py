@@ -3,7 +3,7 @@ import unittest
 from test.unit import test_argument_parsing, test_server
 from test.unit.ci import test_ci_argument_parsing, test_ci_commandline
 from test.unit.ci.controller import test_release_manager, test_zenodo_manager
-from test.unit.ci.utils import test_ci_utils, test_deploy_environment
+from test.unit.ci.utils import test_ci_utils
 from test.unit.core.controller import test_script_manager
 from test.unit.core.controller import test_search_manager, test_install_manager, test_run_manager, test_deploy_manager, \
     test_conda_manager, test_test_manager, test_task_manager, test_clone_manager, test_migration_manager, \
@@ -82,7 +82,6 @@ def main():
 
     # album.ci.utils
     suite.addTests(loader.loadTestsFromModule(test_ci_utils))
-    suite.addTests(loader.loadTestsFromModule(test_deploy_environment))
     #suite.addTests(loader.loadTestsFromModule(test_zenodo_api))
 
     runner = unittest.TextTestRunner(verbosity=3)

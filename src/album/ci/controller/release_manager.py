@@ -120,10 +120,12 @@ class ReleaseManager:
 
         # get the docker file
         docker_path = self._get_docker_path(dict_to_coordinates(yml_dict))
-        docker_file = retrieve_single_file_from_head(head, docker_path, option="startswith")
+        docker_file = retrieve_single_file_from_head(head, str(docker_path), option="startswith")
 
         # get the release deposit. Either a new one or an existing one to perform an update on
-        deposit = zenodo_manager.zenodo_get_deposit(deposit_name, deposit_id, expected_files=[solution_zip])
+        deposit = zenodo_manager.zenodo_get_deposit(
+            deposit_name, deposit_id, expected_files=[solution_zip, docker_file]
+        )
 
         # include doi and ID in yml
         yml_dict["doi"] = deposit.metadata.prereserve_doi["doi"]
