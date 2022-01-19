@@ -34,5 +34,6 @@ class TestUnitCommon(TestUnitCoreCommon):
 
     def create_album_test_instance(self, init_collection=True, init_catalogs=True) -> Album:
         self.album = Album.Builder().base_cache_path(Path(self.tmp_dir.name).joinpath("album")).build()
+        self.configure_test_logging()
         self._setup_collection(init_catalogs, init_collection)
         return self.album
