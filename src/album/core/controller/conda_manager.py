@@ -270,23 +270,6 @@ class CondaManager:
 
         subcommand.run(subprocess_call, log_output=True)
 
-    def conda_install(self, environment_path, module):
-        """Installs a package in the given environment via conda.
-
-        Args:
-            environment_path:
-                The environment path to install the package into.
-            module:
-                The module or package name.
-
-        """
-        subprocess_args = [
-            self._get_install_environment_executable(), 'install', '--prefix',
-            path_to_windows_compatible_string(environment_path), '-y', module
-        ]
-
-        subcommand.run(subprocess_args, log_output=True)
-
     def run_script(self, environment_path, script_full_path, pipe_output=True):
         """Runs a script in the given environment.
 
@@ -317,30 +300,6 @@ class CondaManager:
                 path_to_windows_compatible_string(script_full_path)
             ]
         subcommand.run(subprocess_args, pipe_output=pipe_output)
-
-    def cmd_available(self, environment_path, cmd):
-        """Checks whether a command is available when running the command in the given environment.
-
-        Args:
-            environment_path:
-                The prefix path of the environment.
-            cmd:
-                The command to check for.
-
-        Returns:
-            True when exit status of the command is 0, else False.
-
-        """
-        subprocess_args = [
-                              self._conda_executable, 'run', '--no-capture-output', '--prefix',
-                              path_to_windows_compatible_string(environment_path)
-                          ] + cmd
-        try:
-            subcommand.run(subprocess_args, log_output=True)
-        except RuntimeError:
-            return False
-
-        return True
 
     def set_environment_path(self, environment: IEnvironment):
         path = self.get_environment_path(environment.name())

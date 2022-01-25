@@ -189,28 +189,6 @@ class TestCondaManager(TestUnitCoreCommon):
         self.conda.remove_environment("iDoNotExist")
         run_mock.assert_called_once()
 
-    def test_cmd_available(self):
-        if not self.conda.environment_exists(self.test_environment_name):
-            self.conda.create_environment(self.test_environment_name)
-        p = self.conda.get_environment_path(self.test_environment_name)
-
-        self.assertFalse(self.conda.cmd_available(p, ["album"]))
-        self.assertTrue(self.conda.cmd_available(p, ["conda"]))
-
-    def test_conda_install(self):
-        cache_path = Path(self.tmp_dir.name, "env")
-        name = self.test_environment_name
-        if not self.conda.environment_exists(name):
-            self.conda.create_environment(name)
-        environment = Environment(None, name, cache_path)
-        self.conda.set_environment_path(environment)
-
-        self.assertFalse(self.conda.is_installed(environment.path(), "perl"))
-
-        self.conda.conda_install(environment.path(), "perl")
-
-        self.assertTrue(self.conda.is_installed(environment.path(), "perl"))
-
     def test_set_environment_path_None(self):
         name = "NotExistingEnv"
         self.assertFalse(self.conda.environment_exists(name))
