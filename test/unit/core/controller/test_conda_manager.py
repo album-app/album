@@ -1,4 +1,6 @@
 import json
+import os
+import platform
 import unittest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
@@ -22,44 +24,45 @@ class TestCondaManager(TestUnitCoreCommon):
             self.assertFalse(self.conda.environment_exists(self.test_environment_name))
         super().tearDown()
 
-    @patch('album.core.controller.conda_manager.CondaManager.get_info')
-    def test_get_environment_list(self, ginfo_mock):
-        base_dir = Path(self.album.configuration().cache_path_envs())
+    def test_get_environment_list(self):
+        base_dir = Path(self.album.configuration().lnk_path()).joinpath('env')
         expected = list()
-        expected.append(str(base_dir.joinpath("envName1")))
-        expected.append(str(base_dir.joinpath("envName2")))
-        Path(expected[0]).mkdir(parents=True)
-        Path(expected[1]).joinpath('envName2').mkdir(parents=True)
+        expected.append(base_dir.joinpath("envName1").resolve())
+        expected.append(base_dir.joinpath("envName2").resolve())
+        Path(expected[0]).joinpath('somefile').mkdir(parents=True)
+        Path(expected[1]).joinpath('somefile').mkdir(parents=True)
 
         res = self.conda.get_environment_list()
 
         self.assertListEqual(expected, res)
 
-    def test_get_base_environment_path(self):
-        r = self.conda.get_base_environment_path()
-        self.assertIsNotNone(r)
-        self.assertTrue(Path(r).is_dir())
-
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_list')
     def test_environment_exists(self, ged_mock):
         p = str(self.conda._configuration.cache_path_envs().joinpath("envName1"))
+        target = self.conda._configuration.lnk_path().joinpath('0').resolve()
+        Path(target).joinpath('whatever').mkdir(parents=True)
+        operation_system = platform.system().lower()
+        if 'windows' in operation_system:
+            from pylnk3 import for_file
+            for_file(
+                target_file=str(target),
+                lnk_name=p+'.lnk'
+            )
+        else:
+            os.symlink(target, p)
 
-        ged_mock.return_value = [
-            p,
-            Path("anotherPath").joinpath("envName2")
-        ]
+        ged_mock.return_value = [target]
 
         self.assertTrue(self.conda.environment_exists("envName1"))
         self.assertFalse(self.conda.environment_exists("notExitendEnvs"))
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_list')
     def test_get_environment_path(self, ged_mock):
-        p = str(self.conda._configuration.cache_path_envs().joinpath("envName1"))
+        link1 = self.conda._configuration.lnk_path().joinpath('env', '%s' % 0).resolve()
         ged_mock.return_value = [
-            p,
-            Path("anotherPath").joinpath("envName2")
+            link1
         ]
-        self.assertEqual(p, self.conda.get_environment_path("envName1"))
+        self.assertEqual(link1, self.conda.get_environment_path("envName1").resolve())
 
     def test_get_environment_path_invalid_env(self):
         self.assertFalse(self.conda.environment_exists("NotExistingEnv"))
@@ -79,7 +82,7 @@ class TestCondaManager(TestUnitCoreCommon):
         ginfo_mock.return_value = {
             "active_prefix": "aEnvPath"
         }
-        self.assertEqual("aEnvPath", self.conda.get_active_environment_path())
+        self.assertEqual("aEnvPath", str(self.conda.get_active_environment_path()))
 
     def test_get_info(self):
         r = self.conda.get_info()
@@ -196,13 +199,10 @@ class TestCondaManager(TestUnitCoreCommon):
         with self.assertRaises(LookupError):
             self.conda.set_environment_path(environment)
 
-    @patch('album.core.controller.conda_manager.CondaManager.get_environment_list')
-    def test_set_environment_path(self, ged_mock):
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    def test_set_environment_path(self, gep_mock):
         p = str(self.conda._configuration.cache_path_envs().joinpath(self.test_environment_name))
-        ged_mock.return_value = [
-            p,
-            Path("anotherPath").joinpath("envName2")
-        ]
+        gep_mock.return_value = p
         environment = Environment(None, self.test_environment_name, "aPath")
         self.assertIsNone(self.conda.set_environment_path(environment))
 

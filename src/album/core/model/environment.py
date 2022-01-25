@@ -14,7 +14,7 @@ module_logger = album_logging.get_active_logger
 
 class Environment(IEnvironment):
 
-    def __init__(self, dependencies_dict, environment_name, cache_path):
+    def __init__(self, dependencies_dict, environment_name, cache_path: Path):
         """Init routine
 
         Args:
@@ -27,7 +27,7 @@ class Environment(IEnvironment):
                 cache path where to store downloads (yaml file, etc.)
         """
         self._name = environment_name
-        self._cache_path = Path(cache_path)
+        self._cache_path = cache_path
         self._yaml_file = self._prepare_env_file(dependencies_dict)
         self._path = None
 

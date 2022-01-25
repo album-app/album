@@ -6,6 +6,7 @@ from unittest.mock import patch, MagicMock
 from album.core.controller.install_manager import InstallManager
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.resolve_result import ResolveResult
+from album.core.utils.operations.file_operations import get_link_target
 from album.runner.core.model.coordinates import Coordinates
 from album.runner.core.model.solution import Solution
 from test.unit.test_unit_core_common import TestUnitCoreCommon, EmptyTestClass
@@ -284,8 +285,8 @@ class TestInstallManager(TestUnitCoreCommon):
         remove_environment = MagicMock(return_value=True)
         self.environment_manager.remove_environment = remove_environment
 
-        get_environment_base_folder = MagicMock()
-        self.environment_manager.get_environment_base_folder = get_environment_base_folder
+        _remove_environment_link = MagicMock()
+        self.install_manager._remove_environment_link = _remove_environment_link
 
         # prepare
         r = ResolveResult("mypath", None, None, None)
@@ -295,11 +296,9 @@ class TestInstallManager(TestUnitCoreCommon):
         # assert
         set_environment.assert_called_once()
         remove_environment.assert_called_once_with("myEnv")
-        get_environment_base_folder.assert_not_called()
         force_remove.assert_not_called()
 
-    @patch('album.core.controller.install_manager.force_remove')
-    def test__clean_unfinished_installations_environment_env_not_deleted(self, force_remove):
+    def test__clean_unfinished_installations_environment_env_not_deleted(self):
         c = EmptyTestClass()
         c.name = lambda: "myName"
 
@@ -310,20 +309,14 @@ class TestInstallManager(TestUnitCoreCommon):
         remove_environment = MagicMock(return_value=False)
         self.environment_manager.remove_environment = remove_environment
 
-        get_environment_base_folder = MagicMock(return_value=Path("myEnvPath"))
-        self.environment_manager.get_environment_base_folder = get_environment_base_folder
-
         # prepare
         r = ResolveResult("mypath", c, None, Coordinates("a", "b", "c"))
-
         # call
         self.install_manager._clean_unfinished_installations_environment(r)
 
         # assert
         set_environment.assert_called_once()
         remove_environment.assert_called_once_with("myEnv")
-        get_environment_base_folder.assert_called_once()
-        force_remove.assert_called_once_with(Path("myEnvPath").joinpath("myName_a_b_c"))
 
 
 if __name__ == '__main__':

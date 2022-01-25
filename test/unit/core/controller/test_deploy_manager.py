@@ -21,7 +21,7 @@ class TestDeployManager(TestGitCommon):
 
         # add a third local catalog
         catalog_path = Path(self.tmp_dir.name).joinpath("local_catalog")
-        catalog_path.mkdir(parents=True)
+        catalog_path.mkdir(parents=True, exist_ok=True)
         with open(catalog_path.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as meta:
             meta.writelines("{\"name\":\"local_catalog\", \"version\": \"0.1.0\"}")
         self.local_catalog = self.collection_manager().catalogs().add_by_src(catalog_path)
@@ -142,7 +142,7 @@ class TestDeployManager(TestGitCommon):
         p = self.deploy_manager._get_absolute_prefix_path(
             self.local_catalog, self.local_catalog.src(), self.active_solution
         )
-        p.mkdir(parents=True)
+        p.mkdir(parents=True, exist_ok=True)
         p.joinpath("myPreviousDeployStuff.thx").touch()
 
         # call
@@ -177,7 +177,7 @@ class TestDeployManager(TestGitCommon):
         p = self.deploy_manager._get_absolute_prefix_path(
             self.local_catalog, self.local_catalog.src(), self.active_solution
         )
-        p.mkdir(parents=True)
+        p.mkdir(parents=True, exist_ok=True)
         p = p.joinpath("myPreviousDeployStuff.thx")
         p.touch()
 
@@ -204,7 +204,7 @@ class TestDeployManager(TestGitCommon):
         catalog_local_src_solution_path = self.deploy_manager._get_absolute_prefix_path(
             self.local_catalog, self.local_catalog.src(), self.active_solution
         )
-        catalog_local_src_solution_path.mkdir(parents=True)
+        catalog_local_src_solution_path.mkdir(parents=True, exist_ok=True)
 
         # create so they definitely exist before deploying
         p1 = catalog_local_src_solution_path.joinpath("mySol.zip")

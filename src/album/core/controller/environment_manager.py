@@ -8,7 +8,7 @@ from album.core.api.model.environment import IEnvironment
 from album.core.controller.conda_manager import CondaManager
 from album.core.controller.mamba_manager import MambaManager
 from album.core.model.environment import Environment
-from album.core.utils.operations.file_operations import force_remove
+from album.core.utils.operations.file_operations import force_remove, remove_link
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.core.utils.operations.solution_operations import set_environment_paths
 from album.runner import album_logging
@@ -28,7 +28,7 @@ class EnvironmentManager(IEnvironmentManager):
         environment = Environment(
             collection_solution.loaded_solution().setup().dependencies,
             self.get_environment_name(collection_solution.coordinates(), collection_solution.catalog()),
-            collection_solution.loaded_solution().installation().package_path()
+            collection_solution.loaded_solution().installation().internal_cache_path()
         )
         self.mamba_manager.install(environment, collection_solution.loaded_solution().setup().album_api_version)
         set_environment_paths(collection_solution.loaded_solution(), environment)
@@ -40,9 +40,9 @@ class EnvironmentManager(IEnvironmentManager):
         if not parent:
 
             environment = Environment(
-                None,
-                self.get_environment_name(collection_solution.coordinates(), collection_solution.catalog()),
-                collection_solution.loaded_solution().installation().package_path()
+                dependencies_dict=None,
+                environment_name=self.get_environment_name(collection_solution.coordinates(), collection_solution.catalog()),
+                cache_path=collection_solution.loaded_solution().installation().internal_cache_path()
             )
             self.conda_manager.set_environment_path(environment)
 
@@ -54,7 +54,7 @@ class EnvironmentManager(IEnvironmentManager):
             environment = Environment(
                 None,
                 self.get_environment_name(coordinates, catalog),
-                collection_solution.loaded_solution().installation().package_path()
+                collection_solution.loaded_solution().installation().internal_cache_path()
             )
             self.conda_manager.set_environment_path(environment)
 
@@ -63,10 +63,9 @@ class EnvironmentManager(IEnvironmentManager):
 
     def remove_environment(self, environment: IEnvironment) -> bool:
         """Removes an environment."""
-        return self.conda_manager.remove_environment(environment.name())
-
-    def get_environment_base_folder(self) -> Path:
-        return Path(self.conda_manager.get_base_environment_path())
+        res = self.conda_manager.remove_environment(environment.name())
+        self.remove_disc_content_from_environment(environment)
+        return res
 
     def run_scripts(self, environment: IEnvironment, scripts, pipe_output=True):
         if environment:
@@ -83,4 +82,5 @@ class EnvironmentManager(IEnvironmentManager):
 
     @staticmethod
     def remove_disc_content_from_environment(environment: IEnvironment):
-        force_remove(environment.cache_path())
+        remove_link(environment.path())
+        remove_link(environment.cache_path())

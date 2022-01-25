@@ -16,11 +16,11 @@ class TestEnvironment(TestUnitCoreCommon):
         self.create_album_test_instance()
 
         """Setup things necessary for all tests of this class"""
-        self.environment = Environment(None, self.test_environment_name, "aPath")
+        self.environment = Environment(None, self.test_environment_name, Path("aPath"))
 
     @patch('album.core.model.environment.Environment._prepare_env_file', return_value=None)
     def test_init_(self, prepare_env_file_mock):
-        e = Environment(None, self.test_environment_name, "aPath")
+        e = Environment(None, self.test_environment_name, Path("aPath"))
 
         prepare_env_file_mock.assert_called_once()
 
