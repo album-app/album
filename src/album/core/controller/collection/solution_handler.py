@@ -38,7 +38,10 @@ class SolutionHandler(ISolutionHandler):
         # get the install location
         install_location = self.get_solution_path(catalog, dict_to_coordinates(deploy_dict))
 
-        copy_folder(path, install_location, copy_root_folder=False)
+        if Path(path).is_dir():
+            copy_folder(path, install_location, copy_root_folder=False)
+        else:
+            copy(path, install_location.joinpath(DefaultValues.solution_default_name.value))
 
     def add_to_local_catalog(self, active_solution: ISolution, path):
         self.add_or_replace(self.album.catalogs().get_local_catalog(), active_solution, path)
