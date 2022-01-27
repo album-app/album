@@ -174,12 +174,11 @@ def run(command, log_output=True, message_formatter=None, pipe_output=True):
     """
 
     module_logger().debug('Running command: %s...' % " ".join(command))
-    exit_status = 1
 
     logger = album_logging.get_active_logger()
     log_processing = LogProcessing(logger, log_output, message_formatter)
 
-    exit_status = _run_process(command, exit_status, log_processing, pipe_output)
+    exit_status = _run_process(command, log_processing, pipe_output)
 
     return exit_status
 
@@ -225,7 +224,7 @@ class LogPipe(threading.Thread):
         os.close(self.fdWrite)
 
 
-def _run_process(command, exit_status, log: LogProcessing, pipe_output):
+def _run_process(command, log: LogProcessing, pipe_output):
     if pipe_output:
         stdout = log.info_logger
         stderr = log.error_logger
@@ -243,8 +242,8 @@ def _run_process(command, exit_status, log: LogProcessing, pipe_output):
         error_pipe.close()
         log.close()
         if p.returncode != 0:
-            raise SubProcessError(exit_status, p.returncode)
-        return exit_status
+            raise SubProcessError(1, p.returncode)
+        return 0
     else:
         return subprocess.run(command)
 
