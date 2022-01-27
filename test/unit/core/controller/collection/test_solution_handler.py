@@ -162,7 +162,9 @@ class TestSolutionHandler(TestCatalogCollectionCommon):
         path = self.solution_handler.get_solution_path(
             self.collection_manager().catalogs().get_local_catalog(),
             dict_to_coordinates(self.solution_default_dict))
-        copy_mock.assert_called_once_with("aPathToInstall", path.joinpath('solution.py'))
+        copy_mock.assert_called_once()
+        self.assertEqual("aPathToInstall", copy_mock.call_args[0][0])
+        self.assertEqual(path.joinpath('solution.py').resolve(), copy_mock.call_args[0][1].resolve())
 
     @unittest.skip("Needs to be implemented!")
     def test_write_version_to_yml(self):

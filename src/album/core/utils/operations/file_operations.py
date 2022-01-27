@@ -331,7 +331,7 @@ def construct_cache_link_target(lnk_path: Path, link, target, create=True) -> Op
             Path(link).parent.mkdir(parents=True, exist_ok=True)
 
             os.symlink(target, link, target_is_directory=True)
-            return target.absolute()
+            return target.resolve()
     return None
 
 def get_link_target(link):
