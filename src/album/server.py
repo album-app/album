@@ -102,7 +102,7 @@ class AlbumServer:
             args = self._get_arguments(request.args)
             task = self._run_solution_method_async(catalog, Coordinates(group, name, version),
                                                    self.album_instance.run,
-                                                   [True, args])
+                                                   [args, False])
             return {"id": task.id(), "msg": "process started"}
 
         @self.app.route('/install/<group>/<name>/<version>', defaults={'catalog': None})
