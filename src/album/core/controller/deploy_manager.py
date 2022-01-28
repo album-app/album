@@ -14,7 +14,8 @@ from album.core.utils.export.docker import create_docker_file
 from album.core.utils.operations.dict_operations import get_dict_entries_from_attribute_path
 from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, zip_paths, force_remove, \
     folder_empty
-from album.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push
+from album.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push, \
+    retrieve_mr_push_options
 from album.core.utils.operations.solution_operations import get_deploy_dict
 from album.runner import album_logging
 from album.runner.core.api.model.solution import ISolution
@@ -95,10 +96,12 @@ class DeployManager(IDeployManager):
                 catalog, catalog_local_src, active_solution, deploy_path
             )
 
-            # merge request files:
+            # build merge request files
             mr_files = [solution_zip] + exports
 
-            # create merge request
+            if not push_option:
+                push_option = retrieve_mr_push_options(catalog.src())
+
             self._create_merge_request(active_solution, repo, mr_files, dry_run, push_option, git_email, git_name)
 
     def get_download_path(self, catalog: ICatalog):

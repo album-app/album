@@ -5,7 +5,7 @@ from git import Repo
 
 from album.api import Album
 from album.ci.controller.zenodo_manager import ZenodoManager
-from album.ci.utils.ci_utils import get_ssh_url
+from album.ci.utils.continuous_integration import get_ssh_url
 from album.core.model.catalog import Catalog
 from album.core.utils.export.changelog import get_changelog_file_name
 from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_dict_entry

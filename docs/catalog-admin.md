@@ -99,6 +99,8 @@ ZENODO_BASE_URL         | The zenodo base URL to use. Either `https://sandbox.ze
 *Note that you cannot use the same access token for both, sandbox and non-sandbox base url!*
  
 To set these variables please follow the description form [here](https://docs.gitlab.com/ee/ci/variables/#add-a-cicd-variable-to-an-instance).
+Please make sure that the ssh key provided for the ci also has **write permission** to the catalog repository!
+Follow the instruction [here](https://docs.gitlab.com/ee/user/project/deploy_keys/).
 
 ### Define your .gitlab-ci.yml
 Copy paste the part below in your `.gitlab-ci.yml` of your catalog git repository.

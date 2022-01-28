@@ -1,11 +1,13 @@
 import os
 import re
 from pathlib import Path
+from urllib.parse import urlparse
 
 import git
 from git import Repo
 
 from album.core.utils.operations.file_operations import force_remove
+from album.core.utils.operations.url_operations import is_url
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
@@ -268,3 +270,15 @@ def init_repository(path):
     repo.remote().refs.HEAD.checkout()
 
     return repo
+
+
+def retrieve_mr_push_options(repo_url) -> str:
+    if is_url(repo_url):
+        parsed_url = urlparse(repo_url)
+
+        if parsed_url.netloc.startswith("gitlab"):
+            return "merge_request.create"
+        else:
+            return ""
+    else:
+        return ""
