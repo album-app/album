@@ -1,12 +1,13 @@
 from pathlib import Path
 from typing import Generator
 
+from album.core.utils.operations.url_operations import download_resource
 from git import Repo
 
 from album.api import Album
 from album.ci.controller.zenodo_manager import ZenodoManager
-from album.ci.utils.continuous_integration import get_ssh_url
-from album.core.model.catalog import Catalog
+from album.ci.utils.continuous_integration import get_ssh_url, create_report
+from album.core.model.catalog import Catalog, get_index_url
 from album.core.utils.export.changelog import get_changelog_file_name
 from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_dict_entry
 from album.core.utils.operations.git_operations import checkout_branch, add_files_commit_and_push, \
@@ -38,7 +39,13 @@ class ReleaseManager:
             album_instance.load_catalog_index(self.catalog)
 
     def _open_repo(self) -> Generator[Repo, None, None]:
-        return self.catalog.retrieve_catalog(force_retrieve=self.force_retrieve, update=False)
+        repo = self.catalog.retrieve_catalog(force_retrieve=self.force_retrieve, update=False)
+
+        # get current main branch-index file
+        index_url = get_index_url(self.catalog_src)
+        download_resource(index_url, self.catalog.index_path())
+
+        return repo
 
     def close(self):
         if self.catalog:
@@ -50,8 +57,7 @@ class ReleaseManager:
             configure_git(repo, user_email, user_name)
 
     def configure_ssh(self, project_path):
-        if not project_path:
-            raise KeyError("Project path not given!")
+        module_logger().info("Configure ssh protocol for repository %s" % project_path)
         with self._open_repo() as repo:
             if not repo.remote().url.startswith("git"):
                 repo.remote().set_url(get_ssh_url(project_path, self.catalog_src))
@@ -112,7 +118,7 @@ class ReleaseManager:
         # publish to zenodo
         deposit.publish()
 
-    def zenodo_upload(self, branch_name, zenodo_base_url, zenodo_access_token):
+    def zenodo_upload(self, branch_name, zenodo_base_url, zenodo_access_token, report_file):
         zenodo_base_url, zenodo_access_token = self.__prepare_zenodo_arguments(zenodo_base_url, zenodo_access_token)
 
         zenodo_manager = self._get_zenodo_manager(zenodo_access_token, zenodo_base_url)
@@ -167,6 +173,10 @@ class ReleaseManager:
         for documentation_file in documentation_files:
             zenodo_manager.zenodo_upload(deposit, documentation_file)
 
+        if report_file:
+            report_file = create_report(report_file, {"DOI": yml_dict["doi"], "DEPOSIT_ID": yml_dict["deposit_id"]})
+            module_logger().info("Created report file under %s" % str(report_file))
+
     @staticmethod
     def __prepare_zenodo_arguments(zenodo_base_url: str, zenodo_access_token: str):
         if zenodo_base_url is None or zenodo_access_token is None:
@@ -183,17 +193,23 @@ class ReleaseManager:
 
         return zenodo_base_url, zenodo_access_token
 
-    def update_index(self, branch_name):
+    def update_index(self, branch_name, doi, deposit_id):
         with self._open_repo() as repo:
             head = checkout_branch(repo, branch_name)
 
-            yml_dict, _ = self._get_yml_dict(head)
+            yml_dict, yml_file_path = self._get_yml_dict(head)
+
+            # update doi and deposit_id if given
+            if doi & deposit_id:
+                yml_dict["doi"] = doi
+                yml_dict["deposit_id"] = deposit_id
+                write_dict_to_yml(yml_file_path, yml_dict)
 
         self.catalog.index().update(dict_to_coordinates(yml_dict), yml_dict)
         self.catalog.index().save()
         self.catalog.index().export(self.catalog.solution_list_path())
 
-    def push_changes(self, branch_name, dry_run, push_option, ci_user_name, ci_user_email):
+    def commit_changes(self, branch_name, push_option, ci_user_name, ci_user_email):
 
         with self._open_repo() as repo:
             head = checkout_branch(repo, branch_name)
@@ -229,7 +245,7 @@ class ReleaseManager:
                 head,
                 commit_files,
                 commit_msg,
-                push=not dry_run,
+                push=False,
                 push_options=push_option,
                 username=ci_user_name,
                 email=ci_user_email

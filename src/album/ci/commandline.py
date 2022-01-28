@@ -14,16 +14,16 @@ def zenodo_publish(release_manager: ReleaseManager, args):
 
 
 def zenodo_upload(release_manager: ReleaseManager, args):
-    release_manager.zenodo_upload(args.branch_name, args.zenodo_base_url, args.zenodo_access_token)
+    release_manager.zenodo_upload(args.branch_name, args.zenodo_base_url, args.zenodo_access_token, args.report_file)
 
 
 def update_index(release_manager: ReleaseManager, args):
-    release_manager.update_index(args.branch_name)
+    release_manager.update_index(args.branch_name, args.doi, args.deposit_id)
 
 
-def push_changes(release_manager: ReleaseManager, args):
-    release_manager.push_changes(
-        args.branch_name, args.dry_run, args.push_option, args.ci_user_name, args.ci_user_email
+def commit_changes(release_manager: ReleaseManager, args):
+    release_manager.commit_changes(
+        args.branch_name, args.push_option, args.ci_user_name, args.ci_user_email
     )
 
 
