@@ -23,7 +23,7 @@ def update_index(release_manager: ReleaseManager, args):
 
 def commit_changes(release_manager: ReleaseManager, args):
     release_manager.commit_changes(
-        args.branch_name, args.push_option, args.ci_user_name, args.ci_user_email
+        args.branch_name, args.ci_user_name, args.ci_user_email
     )
 
 

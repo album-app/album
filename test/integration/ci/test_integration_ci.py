@@ -118,12 +118,11 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
         # gather arguments
         sys.argv = [
             "",
-            "push",
+            "commit",
             self.name,
             str(self.path),
             self.src,
             "--branch-name=%s" % branch_name,
-            "--dry-run",
             "--ci-user-name=myCiUserName",
             "--ci-user-email=myCiUserEmail"
         ]

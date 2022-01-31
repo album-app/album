@@ -116,7 +116,8 @@ class TestDeployManager(TestGitCommon):
         )
 
         # assert
-        _deploy_routine_in_local_src.assert_called_once_with(self.local_catalog, self.local_catalog.src(), self.active_solution, "None")
+        _deploy_routine_in_local_src.assert_called_once_with(self.local_catalog, self.local_catalog.src(),
+                                                             self.active_solution, "None")
         add.assert_called_once_with(self.active_solution, force_overwrite=False)  # index updated
         copy_index_from_cache_to_src.assert_called_once()
         refresh_index.assert_called_once_with(self.local_catalog)
@@ -186,7 +187,8 @@ class TestDeployManager(TestGitCommon):
         )
 
         # assert
-        _deploy_routine_in_local_src.assert_called_once_with(self.local_catalog, self.local_catalog.src(), self.active_solution, "None")
+        _deploy_routine_in_local_src.assert_called_once_with(self.local_catalog, self.local_catalog.src(),
+                                                             self.active_solution, "None")
         add.assert_called_once_with(self.active_solution, force_overwrite=True)  # index updated
         copy_index_from_cache_to_src.assert_called_once()
         refresh_index.assert_called_once_with(self.local_catalog)
@@ -234,7 +236,8 @@ class TestDeployManager(TestGitCommon):
             )
 
         # assert
-        _deploy_routine_in_local_src.assert_called_once_with(self.local_catalog, self.local_catalog.src(), self.active_solution, "None")
+        _deploy_routine_in_local_src.assert_called_once_with(self.local_catalog, self.local_catalog.src(),
+                                                             self.active_solution, "None")
         add.assert_called_once_with(self.active_solution, force_overwrite=True)  # index updated
         copy_index_from_cache_to_src.assert_called_once()
         refresh_index.assert_not_called()
@@ -262,17 +265,19 @@ class TestDeployManager(TestGitCommon):
         )
 
         # assert
-        _deploy_routine_in_local_src.assert_called_once_with(self.local_catalog, self.local_catalog.src(), self.active_solution, "None")
+        _deploy_routine_in_local_src.assert_called_once_with(self.local_catalog, self.local_catalog.src(),
+                                                             self.active_solution, "None")
         add.assert_not_called()  # index NOT updated
         copy_index_from_cache_to_src.assert_not_called()  # NOT copied to src
         refresh_index.assert_not_called()  # NOT refreshed from src.
 
         _create_merge_request.assert_not_called()  # local -> no merge request
 
+    @patch('album.core.controller.deploy_manager.retrieve_mr_push_options', return_value="myMergeOptions")
     @patch('album.core.controller.deploy_manager.DeployManager._deploy_routine_in_local_src',
            return_value=["solution_zip", ["dockerfile", "copiedYmlFilePath", "cover1", "cover2"]])
     @patch('album.core.controller.deploy_manager.DeployManager._create_merge_request', return_value=None)
-    def test__deploy_to_remote_catalog(self, _create_merge_request, _deploy_routine_in_local_src):
+    def test__deploy_to_remote_catalog(self, _create_merge_request, _deploy_routine_in_local_src, _):
         # catalog_mocks
         add = MagicMock(return_value=None)
         self.remote_catalog.add = add
@@ -291,10 +296,14 @@ class TestDeployManager(TestGitCommon):
         retrieve_catalog.assert_called_once()
         _deploy_routine_in_local_src.assert_called_once_with(self.remote_catalog, "myLocalPathOfTheRemoteCatalog",
                                                              self.active_solution, "None")
-        _create_merge_request.assert_called_once_with(self.active_solution, repo,
-                                                      ["solution_zip", "dockerfile", "copiedYmlFilePath", "cover1",
-                                                       "cover2"], False, False, None, None
-                                                      )
+        _create_merge_request.assert_called_once_with(
+            self.active_solution, repo,
+            ["solution_zip", "dockerfile", "copiedYmlFilePath", "cover1", "cover2"],
+            False,
+            "myMergeOptions",
+            None,
+            None
+        )
 
     @patch('album.core.controller.deploy_manager.DeployManager._copy_and_zip', return_value="solution_zip")
     @patch('album.core.controller.deploy_manager.DeployManager._copy_files_from_solution',
@@ -338,9 +347,7 @@ class TestDeployManager(TestGitCommon):
 
     @patch('album.core.controller.deploy_manager.add_files_commit_and_push', return_value=True)
     def test__create_merge_request(self, add_files_commit_and_push_mock):
-
         with self.create_tmp_repo() as repo:
-
             # call
             DeployManager._create_merge_request(self.active_solution, repo, [self.closed_tmp_file.name], dry_run=True)
 
@@ -349,7 +356,6 @@ class TestDeployManager(TestGitCommon):
                 "Adding new/updated tsg_tsn_tsv",
                 email=None, push=False, push_options=[], username=None
             )
-
 
     @patch('album.core.controller.deploy_manager.get_deploy_dict')
     def test__create_yaml_file_in_local_src(self, deploy_dict_mock):
@@ -383,7 +389,8 @@ class TestDeployManager(TestGitCommon):
                 "_".join(["tsg", "tsn", "tsv"]) + ".zip"
             )
 
-            self.assertEqual(result, self.deploy_manager._get_absolute_zip_path(catalog_local_src, self.active_solution))
+            self.assertEqual(result,
+                             self.deploy_manager._get_absolute_zip_path(catalog_local_src, self.active_solution))
 
     @unittest.skip("Needs to be implemented!")
     def test_get_download_path(self):

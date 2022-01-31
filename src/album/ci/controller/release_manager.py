@@ -1,7 +1,6 @@
 from pathlib import Path
 from typing import Generator
 
-from album.core.utils.operations.url_operations import download_resource
 from git import Repo
 
 from album.api import Album
@@ -13,6 +12,7 @@ from album.core.utils.operations.file_operations import get_dict_from_yml, write
 from album.core.utils.operations.git_operations import checkout_branch, add_files_commit_and_push, \
     retrieve_files_from_head, configure_git
 from album.core.utils.operations.resolve_operations import get_zip_name, get_zip_name_prefix, dict_to_coordinates
+from album.core.utils.operations.url_operations import download_resource, is_downloadable
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 
@@ -35,15 +35,10 @@ class ReleaseManager:
 
         self.catalog = Catalog(None, name=self.catalog_name, path=catalog_path, src=self.catalog_src)
         self.force_retrieve = force_retrieve
-        with self._open_repo():
-            album_instance.load_catalog_index(self.catalog)
+        self.album_instance = album_instance
 
     def _open_repo(self) -> Generator[Repo, None, None]:
         repo = self.catalog.retrieve_catalog(force_retrieve=self.force_retrieve, update=False)
-
-        # get current main branch-index file
-        index_url = get_index_url(self.catalog_src)
-        download_resource(index_url, self.catalog.index_path())
 
         return repo
 
@@ -133,9 +128,15 @@ class ReleaseManager:
             deposit_id = yml_dict["deposit_id"]
         except KeyError:
             deposit_id = None
+        coordinates = dict_to_coordinates(yml_dict)
+
+        # do not upload SNAPSHOT versions
+        if coordinates.version().endswith("SNAPSHOT"):
+            module_logger().info("Will not upload SNAPSHOT version to zenodo! Skipping...")
+            return
 
         # extract deposit name
-        deposit_name = get_zip_name_prefix(dict_to_coordinates(yml_dict))
+        deposit_name = get_zip_name_prefix(coordinates)
 
         # get the solution zip to release
         zip_path = self._get_zip_path(dict_to_coordinates(yml_dict))
@@ -197,20 +198,33 @@ class ReleaseManager:
         with self._open_repo() as repo:
             head = checkout_branch(repo, branch_name)
 
+            # always use remote index
+            index_url, index_meta = get_index_url(self.catalog_src)
+
+            if is_downloadable(index_url):
+                download_resource(index_url, self.catalog.index_path())
+            else:
+                module_logger().warning("Index not downloadable! Using Index in merge request branch!")
+
+            self.album_instance.load_catalog_index(self.catalog)
+
             yml_dict, yml_file_path = self._get_yml_dict(head)
 
             # update doi and deposit_id if given
-            if doi & deposit_id:
+            if doi:
                 yml_dict["doi"] = doi
+
+            if deposit_id:
                 yml_dict["deposit_id"] = deposit_id
+
+            if doi or deposit_id:
                 write_dict_to_yml(yml_file_path, yml_dict)
 
         self.catalog.index().update(dict_to_coordinates(yml_dict), yml_dict)
         self.catalog.index().save()
         self.catalog.index().export(self.catalog.solution_list_path())
 
-    def commit_changes(self, branch_name, push_option, ci_user_name, ci_user_email):
-
+    def commit_changes(self, branch_name, ci_user_name, ci_user_email):
         with self._open_repo() as repo:
             head = checkout_branch(repo, branch_name)
 
@@ -246,7 +260,6 @@ class ReleaseManager:
                 commit_files,
                 commit_msg,
                 push=False,
-                push_options=push_option,
                 username=ci_user_name,
                 email=ci_user_email
             )
@@ -254,7 +267,6 @@ class ReleaseManager:
         return True
 
     def merge(self, branch_name, dry_run, push_option, ci_user_name, ci_user_email):
-
         with self._open_repo() as repo:
             head = checkout_branch(repo, branch_name)
 

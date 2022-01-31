@@ -225,7 +225,6 @@ class Catalog(ICatalog):
         except AssertionError:
             # catalogs don't necessary have an index file. There simply might not be one yet or it got deleted.
             return False
-
         return True
 
     @contextmanager
