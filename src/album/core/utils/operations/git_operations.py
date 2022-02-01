@@ -148,7 +148,7 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, emai
         configure_git(repo, email, username)
 
     if repo.index.diff(None) or repo.untracked_files:
-        module_logger().info('Preparing pushing...')
+        module_logger().info('Preparing committing...')
         for file_path in file_paths:
             module_logger().debug('Adding file %s...' % file_path)
             # todo: nice catching here?
@@ -165,6 +165,7 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, emai
 
         try:
             if push:
+                module_logger().info('Preparing pushing...')
                 repo.git.push(cmd)
 
         except git.GitCommandError:

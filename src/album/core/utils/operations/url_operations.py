@@ -3,6 +3,8 @@ import tempfile
 from pathlib import Path
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 from album.ci.utils.zenodo_api import ResponseStatus
 from album.core.utils.operations.file_operations import create_path_recursively
@@ -13,7 +15,9 @@ module_logger = album_logging.get_active_logger
 
 def is_downloadable(url):
     """Shows if url is a downloadable resource."""
-    h = requests.head(url, allow_redirects=True)
+    s = _get_session()
+
+    h = s.head(url, allow_redirects=True)
     header = h.headers
     content_type = header.get('content-type')
     if 'html' in content_type.lower():
@@ -40,9 +44,22 @@ def download_resource(url, path):
     return path
 
 
+def _get_session():
+    s = requests.Session()
+    retry = Retry(connect=3, backoff_factor=0.5)
+
+    adapter = HTTPAdapter(max_retries=retry)
+
+    s.mount('http://', adapter)
+    s.mount('https://', adapter)
+
+    return s
+
+
 def _request_get(url):
     """Get a response from a request to a resource url."""
-    r = requests.get(url, allow_redirects=True, stream=True)
+    s = _get_session()
+    r = s.get(url, allow_redirects=True, stream=True)
 
     if r.status_code != ResponseStatus.OK.value:
         raise ConnectionError("Could not connect to resource %s!" % url)
@@ -51,7 +68,8 @@ def _request_get(url):
 
 
 def retrieve_redirect_url(url):
-    r = requests.get(url, allow_redirects=True, stream=False)
+    s = _get_session()
+    r = s.get(url, allow_redirects=True, stream=False)
 
     if r.status_code != ResponseStatus.OK.value:
         raise ConnectionError("Could not connect to resource %s!" % url)
@@ -74,7 +92,10 @@ def is_url(str_input: str):
 def download(str_input, base):
     """Downloads a solution file into a temporary file."""
     Path(base).mkdir(exist_ok=True, parents=True)
-    r = requests.get(str_input, allow_redirects=True)
+
+    s = _get_session()
+    r = s.get(str_input, allow_redirects=True)
+
     content_type = r.headers.get('content-type').lower()
     if content_type == 'application/zip':
         suffix = '.zip'

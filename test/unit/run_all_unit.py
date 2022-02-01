@@ -1,3 +1,4 @@
+import time
 import unittest
 
 from test.unit import test_argument_parsing, test_server
@@ -82,11 +83,12 @@ def main():
 
     # album.ci.utils
     suite.addTests(loader.loadTestsFromModule(test_continuous_integration))
-    #suite.addTests(loader.loadTestsFromModule(test_zenodo_api))
+    # suite.addTests(loader.loadTestsFromModule(test_zenodo_api))
 
     runner = unittest.TextTestRunner(verbosity=3)
     result = runner.run(suite)
     if result.wasSuccessful():
+        time.sleep(5)
         print("Success")
         exit(0)
     else:

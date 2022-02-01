@@ -106,6 +106,8 @@ class ReleaseManager:
         # query deposit
         deposit_name = get_zip_name_prefix(dict_to_coordinates(yml_dict))
         deposit_id = get_dict_entry(yml_dict, "deposit_id", allow_none=False)
+
+        module_logger().info("Get unpublished deposit with deposit id %s..." % deposit_id)
         deposit = zenodo_manager.zenodo_get_unpublished_deposit_by_id(
             deposit_id, deposit_name, expected_files=[zip_name, docker_name]
         )
@@ -161,6 +163,7 @@ class ReleaseManager:
         deposit = zenodo_manager.zenodo_get_deposit(
             deposit_name, deposit_id, expected_files=[solution_zip, docker_file, changelog_file]
         )
+        module_logger().info("Deposit %s successfully retrieved..." % deposit_id)
 
         # include doi and ID in yml
         yml_dict["doi"] = deposit.metadata.prereserve_doi["doi"]
@@ -173,6 +176,7 @@ class ReleaseManager:
         zenodo_manager.zenodo_upload(deposit, changelog_file)
         for documentation_file in documentation_files:
             zenodo_manager.zenodo_upload(deposit, documentation_file)
+        module_logger().info("Deposit %s successfully retrieved..." % deposit_id)
 
         if report_file:
             report_file = create_report(report_file, {"DOI": yml_dict["doi"], "DEPOSIT_ID": yml_dict["deposit_id"]})
@@ -211,14 +215,23 @@ class ReleaseManager:
             yml_dict, yml_file_path = self._get_yml_dict(head)
 
             # update doi and deposit_id if given
+            log_message_doi = "without a doi"
             if doi:
                 yml_dict["doi"] = doi
+                log_message_doi = "with doi %s" % doi
 
+            log_message_deposit = "without deposit"
             if deposit_id:
                 yml_dict["deposit_id"] = deposit_id
+                log_message_deposit = "in zenodo deposit %s" % deposit_id
 
             if doi or deposit_id:
                 write_dict_to_yml(yml_file_path, yml_dict)
+
+        module_logger().info(
+            "Update index to include solution from branch %s %s %s!" %
+            (branch_name, log_message_doi, log_message_deposit)
+        )
 
         self.catalog.index().update(dict_to_coordinates(yml_dict), yml_dict)
         self.catalog.index().save()
@@ -277,6 +290,8 @@ class ReleaseManager:
                 raise FileNotFoundError("Invalid deploy request or broken catalog repository!")
 
             commit_msg = "Updated index."
+
+            module_logger().info("Prepare merging...")
 
             add_files_commit_and_push(
                 head,
