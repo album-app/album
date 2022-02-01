@@ -107,7 +107,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
 
         # gather arguments
         argv = ["", "--file", self.closed_tmp_file.name,
-                    "--file_solution1_app1", self.closed_tmp_file.name, "--app1_param", "value1"]
+                    "--file_solution1_app1", self.closed_tmp_file.name]
 
         # run
         resolve_result = self.album_instance.collection_manager().resolve_and_load(
@@ -115,17 +115,16 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         )
         self.album_instance.run_manager().run(resolve_result, argv=argv)
 
+        print(self.captured_output.getvalue())
+
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         # assert file logs
         with open(self.closed_tmp_file.name, "r") as f:
             log = f.read().strip().split("\n")
-            self.assertEqual(5, len(log))
-            self.assertEqual("app1_run", log[0])
-            self.assertEqual("app1_param=value1", log[1])
-            self.assertEqual("solution1_app1_run", log[2])
-            self.assertEqual("solution1_app1_close", log[3])
-            self.assertEqual("app1_close", log[4])
+            self.assertEqual(2, len(log))
+            self.assertEqual("solution1_app1_run", log[0])
+            self.assertEqual("solution1_app1_close", log[1])
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_with_steps(self, get_environment_path):
@@ -224,10 +223,12 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         print(self.captured_output.getvalue())
         self.assertIn('INFO ~ print something', self.captured_output.getvalue())
         self.assertIn('INFO ~ logging info', self.captured_output.getvalue())
+        self.assertEqual(1, self.captured_output.getvalue().count('INFO ~ logging info'))
         self.assertIn('WARNING ~ logging warning', self.captured_output.getvalue())
         self.assertIn('ERROR ~ logging error', self.captured_output.getvalue())
         self.assertIn('INFO ~~~ album in album: print something', self.captured_output.getvalue())
         self.assertIn('INFO ~~~ album in album: logging info', self.captured_output.getvalue())
+        self.assertEqual(1, self.captured_output.getvalue().count('INFO ~~~ album in album: logging info'))
         self.assertIn('WARNING ~~~ album in album: logging warning', self.captured_output.getvalue())
         self.assertIn('ERROR ~~~ album in album: logging error', self.captured_output.getvalue())
         self.assertIn('ERROR ~~~ RuntimeError: Error in run method', self.captured_output.getvalue())

@@ -309,9 +309,6 @@ class TestScriptManager(TestUnitCoreCommon):
         # mock
         catalog = self.collection_manager().catalogs().get_local_catalog()
 
-        create_solution_run_with_parent_script = MagicMock(return_value="aScript")
-        self.script_manager._create_solution_run_with_parent_script = create_solution_run_with_parent_script
-
         resolve_args = MagicMock(return_value=["parent_args", "active_solution_args"])
         self.script_manager._resolve_args = resolve_args
 
@@ -322,6 +319,9 @@ class TestScriptManager(TestUnitCoreCommon):
         self.album.environment_manager().set_environment = set_environment
 
         scr = ScriptCreatorRun()
+
+        create_script = MagicMock(return_value="aScript")
+        scr.create_script = create_script
 
         # call
         r = self.script_manager._create_solution_run_with_parent_script_standalone(
@@ -334,22 +334,12 @@ class TestScriptManager(TestUnitCoreCommon):
             ), [], scr
         )
 
-        # assert
-        resolve_args.assert_called_once_with(
-            parent_solution=self.active_solution,
-            steps_solution=[self.active_solution],
-            steps=[None],
-            step_solution_parsed_args=[None],
-            args=[]
-        )
-        create_solution_run_with_parent_script.assert_called_once_with(
-            self.active_solution, "parent_args", [self.active_solution], "active_solution_args", scr
-        )
+        # assertipt.assert_called_once_with(self.active_solution, "active_solution_args")
         set_environment.assert_called_once()
 
         # result
         self.assertEqual(self.active_solution.coordinates(), r.coordinates)
-        self.assertEqual("aScript", r.scripts)
+        self.assertEqual(["aScript"], r.scripts)
 
     @patch('album.core.controller.state_manager.StateManager.load')
     @patch('album.core.controller.collection.solution_handler.SolutionHandler.set_cache_paths')

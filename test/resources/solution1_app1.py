@@ -43,13 +43,7 @@ setup(
         'parent': {
             'name': 'app1',
             'group': 'group',
-            'version': '0.1.0',
-            'args': [
-                {
-                    "name": "app1_param",
-                    "value": "app1_param_value"
-                }
-            ]
+            'version': '0.1.0'
         }
     }
     )
