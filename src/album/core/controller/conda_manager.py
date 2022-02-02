@@ -442,4 +442,3 @@ class CondaManager:
         """Creates or updates an an environment and installs album in the target environment."""
         self.create_or_update_env(environment, album_api_version)
         self.set_environment_path(environment)
-        # self.install_framework(environment.path(), album_api_version)

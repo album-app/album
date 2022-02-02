@@ -157,6 +157,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         resolve_result = self.album_instance.collection_manager().resolve_and_load(
             self.get_test_solution_path('app1.py'))
         self.album_instance.install_manager().install(resolve_result)
+        print(self.captured_output.getvalue())
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         # install child solution
@@ -207,6 +208,22 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
 
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertTrue(get_link_target(solution_path).exists())
+
+        # uninstall child solution
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path('solution1_app1.py'))
+        self.album_instance.install_manager().uninstall(resolve_result)
+
+        # uninstall parent solution
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path('app1.py'))
+        self.album_instance.install_manager().uninstall(resolve_result)
+
+        # install child solution again - this should now fail
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path('solution1_app1.py'))
+        with self.assertRaises(LookupError):
+            self.album_instance.install_manager().install(resolve_result)
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     @patch('album.core.controller.conda_manager.CondaManager.environment_exists')

@@ -194,7 +194,7 @@ class InstallManager(IInstallManager):
 
     def uninstall(self, resolve_result: ICollectionSolution, rm_dep=False, argv=None):
         """Internal installation entry point for `uninstall` subcommand of `album`."""
-        module_logger().info("Uninstalling \"%s\"..." % resolve_result.loaded_solution().coordinates().name())
+        module_logger().info("Uninstalling \"%s\"..." % resolve_result.coordinates().name())
 
         if argv is None:
             argv = [""]
@@ -239,15 +239,15 @@ class InstallManager(IInstallManager):
 
         remove_disc_content_from_solution(resolve_result)
 
-        self.album.solutions().set_uninstalled(
-            resolve_result.catalog(),
-            resolve_result.loaded_solution().coordinates()
-        )
+        if resolve_result.catalog().is_cache():
+            self.album.solutions().remove_solution(resolve_result.catalog(), resolve_result.coordinates())
+        else:
+            self.album.solutions().set_uninstalled(resolve_result.catalog(), resolve_result.coordinates())
 
         if rm_dep:  # remove dependencies (parent of the solution) last
             self._remove_dependencies(resolve_result.loaded_solution(), rm_dep)
 
-        module_logger().info("Uninstalled \"%s\"!" % resolve_result.loaded_solution().coordinates().name())
+        module_logger().info("Uninstalled \"%s\"!" % resolve_result.coordinates().name())
 
     def _run_solution_uninstall_routine(self, active_solution: ISolution, environment: IEnvironment, argv):
         """Run uninstall routine of album if specified. Expects environment to be set!"""

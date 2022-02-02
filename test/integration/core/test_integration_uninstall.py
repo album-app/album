@@ -49,8 +49,7 @@ class TestIntegrationUninstall(TestIntegrationCoreCommon):
         self.assertIn("Uninstalled \"name\"", self.captured_output.getvalue())
         solutions = self.collection_manager().get_collection_index().get_solutions_by_catalog(
             self.collection_manager().catalogs().get_local_catalog().catalog_id())
-        self.assertEqual(1, len(solutions))
-        self.assertEqual(0, solutions[0].internal()["installed"])
+        self.assertEqual(0, len(solutions))
 
         # assert that the correct paths are deleted
         self.assertFalse(
@@ -85,12 +84,8 @@ class TestIntegrationUninstall(TestIntegrationCoreCommon):
         self.assertIn("solution10_uninstall_album_uninstall_end", log)
 
         # assert solution was set to uninstalled in the collection
-        self.assertEqual(1, len(collection.get_solutions_by_catalog(
+        self.assertEqual(0, len(collection.get_solutions_by_catalog(
             self.collection_manager().catalogs().get_local_catalog().catalog_id())))
-        self.assertFalse(collection.is_installed(
-            self.collection_manager().catalogs().get_local_catalog().catalog_id(),
-            Coordinates("group", "solution10_uninstall", "0.1.0"))
-        )
 
 
 if __name__ == '__main__':
