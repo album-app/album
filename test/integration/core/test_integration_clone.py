@@ -54,7 +54,7 @@ class TestIntegrationClone(TestIntegrationCoreCommon):
         with self.assertRaises(ValueError) as e:
             self.album_instance.clone_manager().clone("weirdPath", target_dir=str(Path(self.tmp_dir.name)), name="my_solution")
 
-        self.assertIn("Invalid input format!", e.exception.args[0])
+        self.assertIn("Invalid input format", e.exception.args[0])
 
 
 if __name__ == '__main__':

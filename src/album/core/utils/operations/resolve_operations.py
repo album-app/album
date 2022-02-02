@@ -47,9 +47,9 @@ def get_attributes_from_string(str_input: str) -> dict:
             attrs_dict = get_cgnv_from_input(str_input)
             if not attrs_dict:
                 raise ValueError(
-                    "Invalid input format! Try <doi>:<prefix>/<suffix> or <prefix>/<suffix> "
+                    "Invalid input format: %s! Try <doi>:<prefix>/<suffix> or <prefix>/<suffix> "
                     "or <group>:<name>:<version> or <catalog>:<group>:<name>:<version> "
-                    "or point to a valid file! Aborting...")
+                    "or point to a valid file! Aborting..." % str_input)
     module_logger().debug("Parsed %s from the input... " % attrs_dict)
     return attrs_dict
 

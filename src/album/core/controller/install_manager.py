@@ -143,7 +143,11 @@ class InstallManager(IInstallManager):
         parent = get_parent_dict(collection_solution.loaded_solution())
         if parent:
             # install dependencies first. Recursive call to install with dependencies
-            parent_resolve_result = self._install_parent(parent)
+            try:
+                parent_resolve_result = self._install_parent(parent)
+            except Exception as e:
+                module_logger().error("Exception when installing parent:")
+                raise e
 
             if parent_resolve_result:
                 self._set_parent(parent_resolve_result, collection_solution)
