@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import get_link_target
 from album.runner.core.model.coordinates import Coordinates
@@ -224,6 +225,22 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
             self.get_test_solution_path('solution1_app1.py'))
         with self.assertRaises(LookupError):
             self.album_instance.install_manager().install(resolve_result)
+
+    def test_install_with_parent_from_catalog(self):
+        # prepare
+        tmp_file = Path(self.tmp_dir.name).joinpath("somefile.txt")
+        tmp_file.touch()
+        catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", "my-catalog")
+        CatalogHandler.create_new_catalog(catalog_src, "my-catalog")
+        catalog = self.collection_manager().catalogs().add_by_src(catalog_src)
+        self.album_instance.deploy_manager().deploy(self.get_test_solution_path('app1.py'), catalog_name=catalog.name(), dry_run=False)
+        self.album_instance.collection_manager().catalogs().update_collection(catalog.name())
+
+        # install child app solution
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(self.get_test_solution_path('solution1_app1.py'))
+        self.album_instance.install_manager().install(resolve_result)
+        resolve_result = self.album_instance.collection_manager().resolve_and_load('group:solution1_app1:0.1.0')
+        self.album_instance.run_manager().run(resolve_result, argv=['', '--file_solution1_app1', str(tmp_file)])
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     @patch('album.core.controller.conda_manager.CondaManager.environment_exists')
