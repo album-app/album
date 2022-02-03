@@ -55,7 +55,7 @@ class TestDeployManager(TestGitCommon):
             self.deploy_manager.deploy(deploy_path="None",
                                        catalog_name=os.path.basename(self.tmp_dir.name),
                                        dry_run=False,
-                                       push_option=None)
+                                       push_options=None)
 
         # assert
         get_by_name.assert_called_once_with(os.path.basename(self.tmp_dir.name))  # correct id requested
@@ -86,7 +86,7 @@ class TestDeployManager(TestGitCommon):
         self.deploy_manager.deploy(deploy_path="None",
                                    catalog_name=os.path.basename(self.tmp_dir.name),
                                    dry_run=False,
-                                   push_option=False)
+                                   push_options=False)
 
         # assert
         get_by_name.assert_called_once_with(os.path.basename(self.tmp_dir.name))  # correct id requested
@@ -340,7 +340,7 @@ class TestDeployManager(TestGitCommon):
             self.deploy_manager.deploy(deploy_path="myPath",
                                        catalog_name='',
                                        dry_run=False,
-                                       push_option=False)
+                                       push_options=False)
 
     def test_retrieve_head_name(self):
         self.assertEqual("tsg_tsn_tsv", DeployManager.retrieve_head_name(self.active_solution))

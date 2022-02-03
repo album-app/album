@@ -114,6 +114,7 @@ class ReleaseManager:
 
         # publish to zenodo
         deposit.publish()
+        module_logger().info("Published unpublished deposit with deposit id %s..." % deposit_id)
 
     def zenodo_upload(self, branch_name, zenodo_base_url, zenodo_access_token, report_file):
         zenodo_base_url, zenodo_access_token = self.__prepare_zenodo_arguments(zenodo_base_url, zenodo_access_token)
@@ -163,7 +164,7 @@ class ReleaseManager:
         deposit = zenodo_manager.zenodo_get_deposit(
             deposit_name, deposit_id, expected_files=[solution_zip, docker_file, changelog_file]
         )
-        module_logger().info("Deposit %s successfully retrieved..." % deposit_id)
+        module_logger().info("Deposit %s successfully retrieved..." % deposit.id)
 
         # include doi and ID in yml
         yml_dict["doi"] = deposit.metadata.prereserve_doi["doi"]
@@ -298,7 +299,7 @@ class ReleaseManager:
                 commit_files,
                 commit_msg,
                 push=not dry_run,
-                push_options=push_option,
+                push_option_list=push_option,
                 username=ci_user_name,
                 email=ci_user_email
             )

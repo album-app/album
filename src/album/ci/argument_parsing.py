@@ -21,8 +21,6 @@ def main():
     module_logger().info("Starting CI release cycle...")
     args = ci_parser.parse_args()
 
-    album_logging.set_loglevel(args.log)
-
     album_ci_command = ""
     try:
         album_ci_command = sys.argv[1]  # album command always expected at second position
@@ -34,6 +32,8 @@ def main():
     # Makes sure album is initialized.
     album_instance = create_album_instance()
     album_instance.load_or_create_collection()
+
+    album_logging.set_loglevel(args.log)
 
     release_manager = ReleaseManager(album_instance, args.name, args.path, args.src, args.force_retrieve)
     module_logger().debug("Running %s command..." % album_ci_command)
@@ -253,5 +253,6 @@ class AlbumCIParser(AlbumAP):
             required=False,
             help='Push options for the catalog repository.',
             default=None,
+            nargs="+"
         )
         return parser

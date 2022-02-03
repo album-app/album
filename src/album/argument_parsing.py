@@ -102,6 +102,7 @@ def create_parser():
         required=False,
         help='Push options for the catalog repository.',
         default=None,
+        nargs="+"
     )
     p.add_argument(
         '--git-email',

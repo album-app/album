@@ -135,16 +135,16 @@ class TestGitOperations(TestGitCommon):
         # check
         self.assertIn("album_catalog_index.db", os.listdir(p), "Download failed!")
 
-    def test_retrieve_mr_push_options(self):
+    def test_retrieve_defaul_mr_push_options(self):
         urls = ["https://docs.gitlab.com/ee/user/project/push_options.html",
                 "https://gitlab.com/album-app/album/-/merge_requests",
                 "https://github.com/",
                 "asdasd"]
 
-        exp = ["", "merge_request.create", "", ""]
+        exp = [[], ["merge_request.create"], [], []]
 
         # run
-        res = [git_op.retrieve_mr_push_options(url) for url in urls]
+        res = [git_op.retrieve_default_mr_push_options(url) for url in urls]
 
         # check
         self.assertListEqual(exp, res)

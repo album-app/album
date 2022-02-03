@@ -29,7 +29,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
             deploy_path=self.get_test_solution_path(),
             catalog_name=self.name,
             dry_run=True,
-            push_option=None,
+            push_options=None,
             git_email="myCiUserEmail",
             git_name="myCiUserName",
         )

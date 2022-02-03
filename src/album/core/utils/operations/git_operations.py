@@ -114,11 +114,11 @@ def retrieve_files_from_head(head, pattern, option="", number_of_files=1):
 
 
 def add_files_commit_and_push(head, file_paths, commit_message, push=False, email=None, username=None,
-                              push_options=None):
+                              push_option_list=None):
     """Adds files in a given path to a git head and commits.
 
     Args:
-        push_options:
+        push_option_list:
             options used for pushing. See https://docs.gitlab.com/ee/user/project/push_options.html. Expects a string.
         head:
             The head of the repository
@@ -137,10 +137,10 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, emai
         RuntimeError when no files are in the index
 
     """
-    if push_options is None or push_options == []:
+    if push_option_list is None or push_option_list == []:
         push_options = []
     else:
-        push_options = push_options.split()
+        push_options = ["-o %s" % o for o in push_option_list]
 
     repo = head.repo
 
@@ -255,7 +255,19 @@ def download_repository(repo_url, git_folder_path, force_download=True, update=T
 
 
 def init_repository(path):
-    module_logger().info("Freshly initialize the repository...")
+    """Initializes a repository to the origin reference. Thereby discarding all changes made to the repository.
+
+    Usually this means checking out the origin "main" branch, but this depends on the repository configuration.
+
+    Args:
+        path:
+            The path to the repository to init/reset.
+
+    Returns:
+        the repository object.
+
+    """
+    module_logger().info("Initialize repository...")
     path = Path(path)
 
     repo = git.Repo(path)
@@ -273,13 +285,23 @@ def init_repository(path):
     return repo
 
 
-def retrieve_mr_push_options(repo_url) -> str:
+def retrieve_default_mr_push_options(repo_url) -> list:
+    """Returns the default push option for the given repository host if available (e.g. gitlab, github)
+
+    Args:
+        repo_url:
+            The source url of the catalog. Netloc determines default push option.
+
+    Returns:
+        The default push option to directly create a merge request when pushed to origin.
+
+    """
     if is_url(repo_url):
         parsed_url = urlparse(repo_url)
 
         if parsed_url.netloc.startswith("gitlab"):
-            return "merge_request.create"
+            return ["merge_request.create"]
         else:
-            return ""
+            return []
     else:
-        return ""
+        return []
