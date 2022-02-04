@@ -130,8 +130,8 @@ class Album:
 
         """
         return self._controller.deploy_manager().deploy(deploy_path=deploy_path, catalog_name=catalog_name, dry_run=dry_run,
-                                                 push_option=push_option, git_email=git_email, git_name=git_name,
-                                                 force_deploy=force_deploy, changelog=changelog)
+                                                        push_options=push_option, git_email=git_email, git_name=git_name,
+                                                        force_deploy=force_deploy, changelog=changelog)
 
     def clone(self, path: str, target_dir: str, name: str) -> None:
         """

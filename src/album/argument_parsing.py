@@ -32,7 +32,7 @@ def _capture_output():
     logger.handlers.clear()
 
 
-def _handle_exception(e, silent: bool = False, exit_status = None):
+def _handle_exception(e, silent: bool = False, exit_status=None):
     # if not silent:
     get_active_logger().error('album command failed: %s' % str(e))
     get_active_logger().debug(traceback.format_exc())
@@ -61,7 +61,7 @@ def __run_subcommand(args, parser, level: LogLevel, print_json):
     try:
         args[0].func(album_instance, args[0])  # execute entry point function
     except SubProcessError as e:
-        _handle_exception(e, silent=True, exit_status = e.exit_status)
+        _handle_exception(e, silent=True, exit_status=e.exit_status)
     except Exception as e:
         _handle_exception(e)
 
@@ -102,6 +102,7 @@ def create_parser():
         required=False,
         help='Push options for the catalog repository.',
         default=None,
+        nargs="+"
     )
     p.add_argument(
         '--git-email',

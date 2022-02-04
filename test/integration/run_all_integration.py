@@ -1,3 +1,4 @@
+import time
 import unittest
 
 from test.integration import test_integration_api, test_integration_server, test_integration_commandline
@@ -35,6 +36,7 @@ def main():
     runner = unittest.TextTestRunner(verbosity=3)
     result = runner.run(suite)
     if result.wasSuccessful():
+        time.sleep(5)
         print("Success")
         exit(0)
     else:

@@ -6,10 +6,10 @@ from argparse import ArgumentParser
 from album.api import Album
 from album.argument_parsing import ArgumentParser as AlbumAP
 from album.ci.commandline import configure_repo, configure_ssh, zenodo_publish, zenodo_upload, update_index, \
-    push_changes, merge
+    commit_changes, merge
 from album.ci.controller.release_manager import ReleaseManager
 from album.runner import album_logging
-from album.runner.album_logging import get_active_logger, debug_settings
+from album.runner.album_logging import get_active_logger, debug_settings, pop_active_logger
 
 module_logger = get_active_logger
 
@@ -21,17 +21,19 @@ def main():
     module_logger().info("Starting CI release cycle...")
     args = ci_parser.parse_args()
 
-    album_logging.set_loglevel(args.log)
-
     album_ci_command = ""
     try:
         album_ci_command = sys.argv[1]  # album command always expected at second position
     except IndexError:
         ci_parser.error("Please provide a valid action!")
 
+    pop_active_logger()  # there will be a new one with the album instance
+
     # Makes sure album is initialized.
     album_instance = create_album_instance()
     album_instance.load_or_create_collection()
+
+    album_logging.set_loglevel(args.log)
 
     release_manager = ReleaseManager(album_instance, args.name, args.path, args.src, args.force_retrieve)
     module_logger().debug("Running %s command..." % album_ci_command)
@@ -86,22 +88,43 @@ def create_parser():
         zenodo_publish,
         'Publishes the corresponding zenodo deposit of a catalog repository deployment branch.'
     )
-    parser.create_zenodo_command_parser(
+    p = parser.create_zenodo_command_parser(
         'upload',
         zenodo_upload,
         'Uploads solution of a catalog repository deployment branch to zenodo.'
         'Thereby only allowing a single solution per branch.'
     )
+    p.add_argument(
+        '--report-file',
+        required=False,
+        help='Path to a report file. If given, a report of the upload will be created.',
+        default="",
+        type=str,
+    )
 
-    parser.create_branch_command_parser(
+    p = parser.create_branch_command_parser(
         'update',
         update_index,
         'Updates the index of the catalog repository to include the solution of a catalog repository deployment branch.'
     )
+    p.add_argument(
+        '--doi',
+        required=False,
+        help='Sets the DOI of the solution. Overwrites DOI if already specified in the solution.',
+        default="",
+        type=str,
+    )
+    p.add_argument(
+        '--deposit-id',
+        required=False,
+        help='Sets the zenodo deposit_id of the solution.',
+        default="",
+        type=str,
+    )
 
-    parser.create_pipeline_command_parser(
-        'push',
-        push_changes,
+    parser.create_branch_command_parser(
+        'commit',
+        commit_changes,
         'Pushes all changes to catalog repository deployment branch to the branch origin.'
     )
 
@@ -222,7 +245,7 @@ class AlbumCIParser(AlbumAP):
             '--dry-run',
             required=False,
             help='Dry-run option.'
-                 ' If this argument is added, no merge request will be created, only information is shown.',
+                 ' If this argument is added, commits will not be pushed, only information is shown.',
             action='store_true'
         )
         parser.add_argument(
@@ -230,5 +253,6 @@ class AlbumCIParser(AlbumAP):
             required=False,
             help='Push options for the catalog repository.',
             default=None,
+            nargs="+"
         )
         return parser

@@ -101,7 +101,7 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         # copy solution and changelog file into new folder
         source = Path(self.tmp_dir.name).joinpath('mysolution')
         source.mkdir(parents=True)
-        copy(self.get_test_solution_path(), source.joinpath('solution.py'))
+        copy(self.get_test_solution_path("solution16_documentation.py"), source.joinpath('solution.py'))
         changelog_content = '# Changelog\nAll notable changes to this project will be documented in this file.\n\n' \
                             'The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), ' \
                             'and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).' \

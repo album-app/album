@@ -1,11 +1,13 @@
 import os
 import re
 from pathlib import Path
+from urllib.parse import urlparse
 
 import git
 from git import Repo
 
 from album.core.utils.operations.file_operations import force_remove
+from album.core.utils.operations.url_operations import is_url
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
@@ -49,10 +51,12 @@ def checkout_branch(git_repo, branch_name):
         raise IndexError("Branch \"%s\" not in repository!" % branch_name) from e
 
 
-def retrieve_single_file_from_head(head, pattern, option=""):
+def retrieve_files_from_head(head, pattern, option="", number_of_files=1):
     """Extracts a file with a "startswith" pattern given a branch (or head) of a repository.
 
     Args:
+        number_of_files:
+            The number of files to expect to be found when using the given pattern. Use -1 for arbitrary many.
         option:
             Specify "startswith" to do a prefix comparison instead of a regular expression matching
         head:
@@ -98,18 +102,23 @@ def retrieve_single_file_from_head(head, pattern, option=""):
 
     if not abs_path_solution_file:
         raise RuntimeError("Head \"%s\" does not hold pattern \"%s\"! Aborting..." % (head.name, pattern))
-    if len(abs_path_solution_file) > 1:
-        raise RuntimeError("Head \"%s\" holds pattern \"%s\" too many times! Aborting..." % (head.name, pattern))
 
-    return abs_path_solution_file[0]
+    if number_of_files > 0:
+        if len(abs_path_solution_file) != number_of_files:
+            raise RuntimeError(
+                "Head \"%s\" holds pattern \"%s\" %s times, but expected %s. Aborting..." %
+                (head.name, pattern, len(abs_path_solution_file), number_of_files)
+            )
+
+    return abs_path_solution_file
 
 
 def add_files_commit_and_push(head, file_paths, commit_message, push=False, email=None, username=None,
-                              push_options=None):
+                              push_option_list=None):
     """Adds files in a given path to a git head and commits.
 
     Args:
-        push_options:
+        push_option_list:
             options used for pushing. See https://docs.gitlab.com/ee/user/project/push_options.html. Expects a string.
         head:
             The head of the repository
@@ -128,10 +137,10 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, emai
         RuntimeError when no files are in the index
 
     """
-    if push_options is None or push_options == []:
+    if push_option_list is None or push_option_list == []:
         push_options = []
     else:
-        push_options = push_options.split()
+        push_options = ["-o %s" % o for o in push_option_list]
 
     repo = head.repo
 
@@ -139,7 +148,7 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, emai
         configure_git(repo, email, username)
 
     if repo.index.diff(None) or repo.untracked_files:
-        module_logger().info('Preparing pushing...')
+        module_logger().info('Preparing committing...')
         for file_path in file_paths:
             module_logger().debug('Adding file %s...' % file_path)
             # todo: nice catching here?
@@ -156,6 +165,7 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, emai
 
         try:
             if push:
+                module_logger().info('Preparing pushing...')
                 repo.git.push(cmd)
 
         except git.GitCommandError:
@@ -245,7 +255,19 @@ def download_repository(repo_url, git_folder_path, force_download=True, update=T
 
 
 def init_repository(path):
-    module_logger().info("Freshly initialize the repository...")
+    """Initializes a repository to the origin reference. Thereby discarding all changes made to the repository.
+
+    Usually this means checking out the origin "main" branch, but this depends on the repository configuration.
+
+    Args:
+        path:
+            The path to the repository to init/reset.
+
+    Returns:
+        the repository object.
+
+    """
+    module_logger().info("Initialize repository...")
     path = Path(path)
 
     repo = git.Repo(path)
@@ -261,3 +283,25 @@ def init_repository(path):
     repo.remote().refs.HEAD.checkout()
 
     return repo
+
+
+def retrieve_default_mr_push_options(repo_url) -> list:
+    """Returns the default push option for the given repository host if available (e.g. gitlab, github)
+
+    Args:
+        repo_url:
+            The source url of the catalog. Netloc determines default push option.
+
+    Returns:
+        The default push option to directly create a merge request when pushed to origin.
+
+    """
+    if is_url(repo_url):
+        parsed_url = urlparse(repo_url)
+
+        if parsed_url.netloc.startswith("gitlab"):
+            return ["merge_request.create"]
+        else:
+            return []
+    else:
+        return []

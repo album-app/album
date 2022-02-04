@@ -29,7 +29,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
             deploy_path=self.get_test_solution_path(),
             catalog_name=self.name,
             dry_run=True,
-            push_option=None,
+            push_options=None,
             git_email="myCiUserEmail",
             git_name="myCiUserName",
         )
@@ -118,12 +118,11 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
         # gather arguments
         sys.argv = [
             "",
-            "push",
+            "commit",
             self.name,
             str(self.path),
             self.src,
             "--branch-name=%s" % branch_name,
-            "--dry-run",
             "--ci-user-name=myCiUserName",
             "--ci-user-email=myCiUserEmail"
         ]

@@ -47,6 +47,6 @@ class TestReleaseManager(TestUnitCoreCommon):
         pass
 
     @unittest.skip("Needs to be implemented!")
-    def test_push_changes(self):
+    def test_commit_changes(self):
         # todo: implement!
         pass

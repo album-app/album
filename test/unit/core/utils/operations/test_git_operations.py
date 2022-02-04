@@ -15,7 +15,6 @@ class TestGitOperations(TestGitCommon):
 
     def test_checkout_branch(self):
         with self.create_tmp_repo(create_test_branch=True) as repo:
-
             head = git_op.checkout_branch(repo, "test_branch")
 
             self.assertTrue(head == repo.heads["test_branch"])
@@ -23,54 +22,46 @@ class TestGitOperations(TestGitCommon):
 
     def test_checkout_branch_no_branch(self):
         with self.create_tmp_repo(commit_solution_file=False) as repo:
-
             with self.assertRaises(IndexError) as context:
                 git_op.checkout_branch(repo, "NoValidBranch")
 
             self.assertTrue("Branch \"NoValidBranch\" not in repository!" in str(context.exception))
 
-    def test__retrieve_single_file(self):
+    def test__retrieve_files_from_head(self):
         with self.create_tmp_repo() as repo:
-
-            file_of_commit = git_op.retrieve_single_file_from_head(
-                repo.heads["master"], "solutions")
-
+            file_of_commit = git_op.retrieve_files_from_head(repo.heads["master"], "solutions")[0]
             self.assertEqual(self.commit_file, file_of_commit)
 
-    def test_retrieve_single_file_from_head_branch(self):
+    def test_retrieve_files_from_head_branch(self):
         with self.create_tmp_repo(create_test_branch=True) as repo:
-
-            file_of_commit = git_op.retrieve_single_file_from_head(
-                repo.heads["test_branch"], "solutions")
+            file_of_commit = git_op.retrieve_files_from_head(repo.heads["test_branch"], "solutions")[0]
 
             self.assertEqual(self.commit_file, file_of_commit)
 
-    def test_retrieve_single_file_from_head_too_many_files(self):
+    def test_retrieve_files_from_head_too_many_files(self):
         with self.create_tmp_repo() as repo:
-
-            tmp_file_1 = tempfile.NamedTemporaryFile(dir=os.path.join(str(repo.working_tree_dir), "solutions"),
-                                                     delete=False)
-            tmp_file_2 = tempfile.NamedTemporaryFile(dir=os.path.join(str(repo.working_tree_dir), "solutions"),
-                                                     delete=False)
+            tmp_file_1 = tempfile.NamedTemporaryFile(
+                dir=os.path.join(str(repo.working_tree_dir), "solutions"), delete=False
+            )
+            tmp_file_2 = tempfile.NamedTemporaryFile(
+                dir=os.path.join(str(repo.working_tree_dir), "solutions"), delete=False
+            )
             tmp_file_1.close()
             tmp_file_2.close()
-    
+
             repo.index.add([tmp_file_1.name, tmp_file_2.name])
             repo.git.commit('-m', 'message', '--no-verify')
-    
+
             with self.assertRaises(RuntimeError) as context:
-                git_op.retrieve_single_file_from_head(repo.heads["master"],
-                                                      "solutions")
+                git_op.retrieve_files_from_head(repo.heads["master"], "solutions")
 
-            self.assertTrue("too many times" in str(context.exception))
+            self.assertTrue("times, but expected" in str(context.exception))
 
-    def test_retrieve_single_file_from_head_no_files(self):
+    def test_retrieve_files_from_head_no_files(self):
         with self.create_tmp_repo(commit_solution_file=False) as repo:
-
             with self.assertRaises(RuntimeError) as context:
-                git_op.retrieve_single_file_from_head(repo.heads["master"],
-                                                      "solutions")
-    
+                git_op.retrieve_files_from_head(repo.heads["master"], "solutions")
+
             self.assertTrue("does not hold pattern" in str(context.exception))
 
     @patch('album.core.utils.operations.solution_operations.get_deploy_dict', return_value={})
@@ -85,7 +76,7 @@ class TestGitOperations(TestGitCommon):
             new_head = repo.create_head("test_solution_name")
             new_head.ref = repo.heads["master"]
             new_head.checkout()
-    
+
             tmp_file_in_repo = Path(repo.working_tree_dir).joinpath(
                 "solutions",
                 active_solution.coordinates().group(),
@@ -94,19 +85,19 @@ class TestGitOperations(TestGitCommon):
                 "%s%s" % (active_solution.coordinates().name(), ".py")
             )
             copy(tmp_file.name, tmp_file_in_repo)
-    
+
             commit_msg = "Adding new/updated %s" % active_solution.coordinates().name()
-    
+
             git_op.add_files_commit_and_push(new_head, [tmp_file_in_repo], commit_msg, push=False)
-    
+
             # new branch created
             self.assertTrue("test_solution_name" in repo.branches)
-    
+
             # commit message included
             for f in repo.iter_commits():
                 self.assertEqual("Adding new/updated test_solution_name\n", f.message)
                 break
-    
+
             # correct branch checked out
             self.assertEqual(repo.active_branch.name, "test_solution_name")
 
@@ -120,7 +111,6 @@ class TestGitOperations(TestGitCommon):
         Solution(attrs_dict)
 
         with self.create_tmp_repo(commit_solution_file=False) as repo:
-
             new_head = repo.create_head("test_solution_name")
             new_head.checkout()
 
@@ -129,7 +119,6 @@ class TestGitOperations(TestGitCommon):
 
     def test_configure_git(self):
         with self.create_tmp_repo(commit_solution_file=False) as repo:
-
             git_op.configure_git(repo, "MyEmail", "MyName")
 
             self.assertEqual("MyName", repo.config_reader().get_value("user", "name"))
@@ -145,6 +134,20 @@ class TestGitOperations(TestGitCommon):
 
         # check
         self.assertIn("album_catalog_index.db", os.listdir(p), "Download failed!")
+
+    def test_retrieve_defaul_mr_push_options(self):
+        urls = ["https://docs.gitlab.com/ee/user/project/push_options.html",
+                "https://gitlab.com/album-app/album/-/merge_requests",
+                "https://github.com/",
+                "asdasd"]
+
+        exp = [[], ["merge_request.create"], [], []]
+
+        # run
+        res = [git_op.retrieve_default_mr_push_options(url) for url in urls]
+
+        # check
+        self.assertListEqual(exp, res)
 
 
 if __name__ == '__main__':
