@@ -11,7 +11,7 @@ dependencies:
   - mamba
   - git
   - pip:
-    - https://gitlab.com/album-app/album/-/archive/release-0.3.0/album-release-0.3.0.zip
+    - https://gitlab.com/album-app/album/-/archive/dev/album-dev.zip
 """)
 
 def album_run():
