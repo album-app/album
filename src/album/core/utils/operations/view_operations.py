@@ -1,4 +1,7 @@
+import logging
 from typing import Dict
+
+import colorlog
 
 from album.core.api.model.catalog_updates import ICatalogUpdates
 from album.runner.core.api.model.solution import ISolution
@@ -92,14 +95,17 @@ def get_index_as_string(index_dict: dict):
             res += '├─ catalog_id: %s\n' % catalog['catalog_id']
             if len(catalog['solutions']) > 0:
                 res += '├─ deletable: %s\n' % catalog['deletable']
-                res += '└─ solutions:\n'
+                res += '└─ [installed] solutions:\n'
                 for i, solution in enumerate(catalog['solutions']):
+                    installed = ' '
+                    if solution['internal']['installed']:
+                        installed = 'x'
                     if i is len(catalog['solutions']) - 1:
-                        res += '   └─ %s:%s:%s\n' % (
-                            solution['setup']['group'], solution['setup']['name'], solution['setup']['version'])
+                        res += '   └─ [%s] %s:%s:%s\n' % (
+                            installed, solution['setup']['group'], solution['setup']['name'], solution['setup']['version'])
                     else:
-                        res += '   ├─ %s:%s:%s\n' % (
-                            solution['setup']['group'], solution['setup']['name'], solution['setup']['version'])
+                        res += '   ├─ [%s] %s:%s:%s\n' % (
+                            installed, solution['setup']['group'], solution['setup']['name'], solution['setup']['version'])
             else:
                 res += '└─ deletable: %s\n' % catalog['deletable']
     return res
@@ -116,3 +122,43 @@ def get_search_result_as_string(args, search_result):
     else:
         res += 'No search results for "%s".' % ' '.join(args.keywords)
     return res
+
+
+def get_logging_formatter(fmt=None, time=None):
+    if not fmt:
+        fmt = '%(log_color)s%(asctime)s %(levelname)-7s %(shortened_name)s%(message)s'
+    if not time:
+        time = '%H:%M:%S'
+    return colorlog.ColoredFormatter(fmt, time, log_colors={
+        'DEBUG': 'cyan',
+        'WARNING': 'yellow',
+        'ERROR': 'red',
+        'CRITICAL': 'red,bold',
+    })
+
+
+def get_logger_name_minimizer_filter():
+    class NameDotFilter(logging.Filter):
+        def filter(self, record):
+            count = record.name.count('.') + record.name.count('~')
+            if count > 0:
+                record.shortened_name = '~' * count + ' '
+            else:
+                record.shortened_name = ''
+            return True
+
+    return NameDotFilter()
+
+
+def get_message_filter():
+    class MessageFilter(logging.Filter):
+        def filter(self, record):
+            self._apply_mamba_menuinst_filter(record)
+            return True
+
+        def _apply_mamba_menuinst_filter(self, record):
+            if record.msg and isinstance(record.msg, str) and 'menuinst called from non-root env' in record.msg:
+                record.levelname = 'WARNING'
+                record.levelno = logging.getLevelName('WARNING')
+
+    return MessageFilter()

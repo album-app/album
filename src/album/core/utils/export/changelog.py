@@ -2,6 +2,7 @@ from datetime import datetime
 from pathlib import Path
 
 import keepachangelog
+from album.core.model.default_values import DefaultValues
 
 from album.core.api.model.catalog import ICatalog
 from album.core.utils.operations.file_operations import create_path_recursively
@@ -10,7 +11,7 @@ from album.runner.core.api.model.solution import ISolution
 
 
 def get_changelog_file_name():
-    return 'CHANGELOG.md'
+    return DefaultValues.changelog_default_name.value
 
 
 def get_changelog_content(active_solution: ISolution, catalog: ICatalog, dummy_content: str = None):

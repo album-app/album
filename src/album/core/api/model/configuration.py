@@ -23,13 +23,23 @@ class IConfiguration:
         raise NotImplementedError
 
     @abstractmethod
+    def mamba_executable(self):
+        """The mamba executable. Either a full path to a mamba executable/binary or a command"""
+        raise NotImplementedError
+
+    @abstractmethod
     def cache_path_app(self):
-        """Path for app solutions."""
+        """Path for solution specific application files."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def cache_path_data(self):
+        """Path for solution specific data files."""
         raise NotImplementedError
 
     @abstractmethod
     def cache_path_download(self):
-        """Path for downloads a solution makes."""
+        """Path for solution unspecific downloads."""
         raise NotImplementedError
 
     @abstractmethod
@@ -44,7 +54,12 @@ class IConfiguration:
 
     @abstractmethod
     def cache_path_envs(self):
-        """Path for solution specific environment files of album."""
+        """Path for solution environments."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def lnk_path(self):
+        """Path for targets of internal links, used to shorten paths (thank you Windows)."""
         raise NotImplementedError
 
     @abstractmethod

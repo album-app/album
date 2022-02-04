@@ -2,27 +2,30 @@ import unittest
 from time import time, sleep
 from unittest.mock import patch
 
+from album.core.controller.task_manager import TaskManager
 from album.core.model.task import Task
-from test.integration.test_integration_common import TestIntegrationCommon
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
-class TestIntegrationTaskManager(TestIntegrationCommon):
+class TestIntegrationTaskManager(TestIntegrationCoreCommon):
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_happy_solution(self, get_environment_path):
         get_environment_path.return_value = self.album_instance.environment_manager().get_conda_manager().get_active_environment_path()
         solution_path = self.get_test_solution_path()
         self.fake_install(solution_path, create_environment=False)
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(solution_path)
         task = Task()
         task._method = self.album_instance.run_manager().run
-        task._args = [solution_path]
-        task_manager = self.album_instance.task_manager()
+        task._args = [resolve_result]
+        task_manager = TaskManager()
         task_id = task_manager.register_task(task)
         self.assertEqual("0", task_id)
         self.assertEqual(task, task_manager.get_task(task_id))
         self._finish_taskmanager_with_timeout(task_manager, 30)
         self.assertFalse(task_manager.server_queue.unfinished_tasks)
         status = task_manager.get_status(task)
+        # print(self.captured_output.getvalue())
         self.assertEqual("FINISHED", status.get("status"))
         self.assertEqual(Task.Status.FINISHED, task.status())
 
@@ -31,10 +34,11 @@ class TestIntegrationTaskManager(TestIntegrationCommon):
         get_environment_path.return_value = self.album_instance.environment_manager().get_conda_manager().get_active_environment_path()
         solution_path = self.get_test_solution_path("solution9_throws_exception.py")
         self.fake_install(solution_path, create_environment=False)
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(solution_path)
         task = Task()
         task.method = self.album_instance.run_manager().run
-        task.args = [solution_path]
-        task_manager = self.album_instance.task_manager()
+        task.args = [resolve_result]
+        task_manager = TaskManager()
         task_manager.register_task(task)
         self._finish_taskmanager_with_timeout(task_manager, 30)
         self.assertFalse(task_manager.server_queue.unfinished_tasks)

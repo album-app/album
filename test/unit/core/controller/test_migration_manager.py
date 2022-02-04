@@ -6,10 +6,10 @@ from unittest.mock import MagicMock
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestMigrationManager(TestUnitCommon):
+class TestMigrationManager(TestUnitCoreCommon):
 
     def setUp(self):
         super().setUp()

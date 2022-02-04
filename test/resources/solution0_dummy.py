@@ -21,9 +21,8 @@ setup(
     acknowledgement="Hi mom",
     tags=["tag1", "tag2"],
     license="license",
-    documentation=["file.md"],
     covers=[],
-    album_api_version="0.2.1",
+    album_api_version="0.3.1",
     args=[
         {
             "name": "testArg1",

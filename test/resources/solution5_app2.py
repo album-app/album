@@ -23,7 +23,7 @@ setup(
     name="solution5_app2",
     title="solution five on app two",
     version="0.1.0",
-    album_api_version="0.2.1",
+    album_api_version="0.3.1",
     args=[{
         "name": "file_solution5_app2",
         "description": "",

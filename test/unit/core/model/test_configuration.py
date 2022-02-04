@@ -6,10 +6,10 @@ from unittest.mock import patch
 
 from album.core.model.configuration import Configuration, DefaultValues
 from album.core.utils.operations.file_operations import create_path_recursively
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestConfiguration(TestUnitCommon):
+class TestConfiguration(TestUnitCoreCommon):
 
     def setUp(self) -> None:
         super().setUp()
@@ -34,7 +34,7 @@ class TestConfiguration(TestUnitCommon):
 
         # assert
         self.assertFalse(leftover_file.exists())
-        self.assertEqual(DefaultValues.conda_path.value, conf.conda_executable())
+        self.assertTrue(DefaultValues.conda_path.value in str(conf.conda_executable()))
         self.assertEqual(base_path, conf.base_cache_path())
 
     def test_base_cache_path(self):

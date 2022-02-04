@@ -10,7 +10,8 @@ class ISolutionHandler:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def add_or_replace(self, catalog: ICatalog, active_solution: ISolution, path):
+    def add_to_local_catalog(self, active_solution: ISolution, path):
+        """Force adds the installation to the local catalog to be cached for running"""
         raise NotImplementedError
 
     @abstractmethod

@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Generator
 
 from git import Repo
 
@@ -110,8 +111,9 @@ class ICatalog:
     def download_index(self) -> bool:
         raise NotImplementedError
 
-    @abstractmethod
-    def retrieve_catalog(self, path=None, force_retrieve=False, update=True) -> Optional[Repo]:
+    @contextmanager
+    def retrieve_catalog(self, path=None, force_retrieve=False, update=True) -> Generator[Repo, None, None]:
+        yield
         raise NotImplementedError
 
     @abstractmethod

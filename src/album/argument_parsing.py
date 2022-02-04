@@ -2,13 +2,12 @@ import argparse
 import sys
 import traceback
 
-import album
-from album.album import Album
-from album.core.commandline import add_catalog, remove_catalog, deploy, \
+from album import core
+from album.api import Album
+from album.commandline import add_catalog, remove_catalog, deploy, \
     install, repl, run, search, start_server, test, update, clone, upgrade, index, uninstall, info
-from album.runner.album_logging import debug_settings, get_active_logger, set_loglevel, LogLevel, to_loglevel
-
-module_logger = get_active_logger
+from album.core.utils.subcommand import SubProcessError
+from album.runner.album_logging import debug_settings, get_active_logger, LogLevel, to_loglevel
 
 
 def main():
@@ -16,21 +15,16 @@ def main():
 
     parser = create_parser()
 
-    # ToDo: clean all album environments
-
-    module_logger().debug('Parsing base album call arguments...')
+    get_active_logger().debug('Parsing base album call arguments...')
     args = parser.parse_known_args()
     __handle_args(args, parser)
 
 
 def __handle_args(args, parser):
     """Handles all arguments provided after the album command."""
-    set_loglevel(args[0].log)
+    level = args[0].log
     print_json = getattr(args[0], "json", False)
-    if print_json:
-        _capture_output()
-    module_logger().info("album version %s | contact via %s " % (album.core.__version__, album.core.__email__))
-    __run_subcommand(args, parser)
+    __run_subcommand(args, parser, level, print_json)
 
 
 def _capture_output():
@@ -38,34 +32,42 @@ def _capture_output():
     logger.handlers.clear()
 
 
-def _handle_exception(e):
+def _handle_exception(e, silent: bool = False, exit_status=None):
+    # if not silent:
     get_active_logger().error('album command failed: %s' % str(e))
     get_active_logger().debug(traceback.format_exc())
     sys.exit(e)
+    # else:
+    #     sys.exit(exit_status)
 
 
-def __run_subcommand(args, parser):
+def __run_subcommand(args, parser, level: LogLevel, print_json):
     """Calls a specific album subcommand."""
     album_command = ""
     try:
         album_command = sys.argv[1]  # album command always expected at second position
     except IndexError:
         parser.error("Please provide a valid action!")
-    module_logger().debug("Running %s subcommand..." % album_command)
+    get_active_logger().debug("Running %s subcommand..." % album_command)
     sys.argv = [sys.argv[0]] + args[1]
 
     # Makes sure album is initialized.
-    album_instance = create_album_instance()
-    album_instance.collection_manager().load_or_create_collection()
+    album_instance = create_album_instance(level)
+    if print_json:
+        _capture_output()
+    get_active_logger().info("album version %s | contact via %s " % (core.__version__, core.__email__))
+    album_instance.load_or_create_collection()
 
     try:
         args[0].func(album_instance, args[0])  # execute entry point function
+    except SubProcessError as e:
+        _handle_exception(e, silent=True, exit_status=e.exit_status)
     except Exception as e:
         _handle_exception(e)
 
 
-def create_album_instance():
-    return Album()
+def create_album_instance(level: LogLevel) -> Album:
+    return Album.Builder().log_level(level).build()
 
 
 def create_parser():
@@ -100,6 +102,7 @@ def create_parser():
         required=False,
         help='Push options for the catalog repository.',
         default=None,
+        nargs="+"
     )
     p.add_argument(
         '--git-email',

@@ -1,34 +1,37 @@
-# Quick start
+# Command line overview
 
-### Album basics
-* `album help` - Print help message and exit.
-* `album index` - Print all catalogs and associated solutions in your local collection.
+`solution-identifier` can be `group:name:version`, `catalog-name:group:name:version`, a path, a URL, or a DOI.
 
-### Manage catalogs
-* `album add-catalog [catalog-directory-or-url]` - Add a catalog to your local collection.
-* `album remove-catalog [catalog-directory-or-url]` - Remove a catalog from your local collection. This will remove all solutions associated with the catalog!
-* `album update` - Reload all indices of all catalogs added to your local collection.
-* `album update --src [catalog-directory-or-url]` - Like `update`, but only for one specific catalog.
-* `album upgrade` - Synchronize the latest state of all your catalogs with the state of your local solution collection.
-* `album upgrade --dry-run` - Same as `upgrade`, but only prints changes and does not apply them to the collection.
-* `album upgrade --src [catalog-directory-or-url]` - Like `upgrade`, but only for one specific catalog.
+| Album basics  |   |
+|---|---|
+|`album help`| Print help message and exit.  |
+|`album index`| Print all catalogs and associated solutions in your local collection. |
 
-### Use solutions
-* `album install [solution-file-or-url]` - Install a solution.
-* `album install [group:name:version]` - Lookup and install a solution identified via group, name and version.
-* `album uninstall [solution-file-or-url]` - Uninstall a solution.
-* `album uninstall [group:name:version]` - Lookup and uninstall a solution identified via group, name and version.
-* `album run [solution-file-or-url]` - Run a solution.
-* `album run [group:name:version]` - Lookup and run a solution identified via group, name and version.
-* `album test [solution-file-or-url]` - Test if a solution behaves on your system as expected.
-* `album test [group:name:version]` - Lookup and test a solution identified via group, name and version.
+| Manage catalogs  | See [usage instructions](/usage-instructions) for more details. |
+|---|---|
+|`album add-catalog [catalog-directory-or-url]`| Add a catalog to your local collection. |
+|`album remove-catalog [catalog-directory-or-url]`| Remove a catalog from your local collection. This will remove all solutions associated with the catalog!|
+|`album update`| Reload all indices of all catalogs added to your local collection.|
+|`album update --src [catalog-directory-or-url]`| Like `update`, but only for one specific catalog.|
+|`album upgrade`| Synchronize the latest state of all your catalogs with the state of your local solution collection.|
+|`album upgrade --dry-run`| Same as `upgrade`, but only prints changes and does not apply them to the collection.|
+|`album upgrade --src [catalog-directory-or-url]`| Like `upgrade`, but only for one specific catalog.|
 
-### Write your own solutions
-* `album clone [catalog-template-name] [parent-dir-of-new-catalog] [name-of-new-catalog]` - Creates a new catalog based on any template from [here](https://gitlab.com/album-app/catalogs/templates) into the provided directory with the provided new name.
-* `album clone [solution-file-or-url] [parent-dir-of-new-solution] [name-of-new-solution]` - Copies a solution  into the provided directory with the provided new name.
-* `album clone [group:name:version] [parent-dir-of-new-solution] [name-of-new-solution]` - Looks up and copies a solution into the provided directory with the provided new name.
-* `album deploy [solution-file] --catalog [catalog-name]` - Deploy a solution into a catalog.
-* `album deploy [solution-file] --dry-run` - Simulate deploying a solution into a catalog.
+| Use solutions | See [usage instructions](/usage-instructions) for more details.|
+|---|---|
+|`album install [solution-identifier]`| Install a solution.|
+|`album uninstall [solution-identifier]`| Uninstall a solution.|
+|`album info [solution-identifier]`| Print the metadata and usage instructions of a solution.|
+|`album run [solution-identifier]`| Run a solution.|
+|`album test [solution-identifier]`| Test if a solution behaves on your system as expected.|
 
-### Server
-* `album server --port 1234` - Launch the album REST service - more information [here](server).
+| Write your own solutions |See [solution development guide](/solution-development) for more details.|
+|---|---|
+|`album clone [catalog-template-name] [parent-dir-of-new-catalog] [name-of-new-catalog]`| Creates a new catalog based on any template from [here](https://gitlab.com/album-app/catalogs/templates) into the provided directory with the provided new name.|
+|`album clone [solution-identifier] [parent-dir-of-new-solution] [name-of-new-solution]`| Copies a solution  into the provided directory with the provided new name.|
+|`album deploy [solution-file] --catalog [catalog-name]`| Deploy a solution into a catalog.|
+|`album deploy [solution-file] --dry-run`| Simulate deploying a solution into a catalog.|
+
+| Server | See [server instructions](/server) for more details.|
+|---|---|
+|`album server --port 1234`| Launch the album REST service - more information [here](/server).|

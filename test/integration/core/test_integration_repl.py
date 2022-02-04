@@ -5,10 +5,10 @@ import unittest
 
 import pexpect
 
-from test.integration.test_integration_common import TestIntegrationCommon
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
-class TestIntegrationRepl(TestIntegrationCommon):
+class TestIntegrationRepl(TestIntegrationCoreCommon):
 
     def test_repl(self):
         self.fake_install(self.get_test_solution_path())
@@ -19,9 +19,9 @@ class TestIntegrationRepl(TestIntegrationCommon):
             child = pexpect.spawn(sys.executable, cmd, env=env)
             child.sendline('import album')
             self.assertEqual(0, child.expect(r'>>>'))
-            child.sendline('from album.runner.api import get_environment_path')
+            child.sendline('from album.runner.api import get_environment_name')
             self.assertEqual(0, child.expect(r'>>>'))
-            child.sendline('print(get_environment_path())')
+            child.sendline('print(get_environment_name())')
             self.assertEqual(0, child.expect(r'catalog_local_group_name_0.1.0'))
             child.sendline('exit()')
             child.close()

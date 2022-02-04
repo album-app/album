@@ -1,9 +1,9 @@
 import unittest
 
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestZenodoManager(TestUnitCommon):
+class TestZenodoManager(TestUnitCoreCommon):
 
     def setUp(self) -> None:
         pass

@@ -6,10 +6,10 @@ from unittest.mock import MagicMock
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.collection_index import CollectionIndex
 from album.runner.core.model.coordinates import Coordinates
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestCollectionIndex(TestUnitCommon):
+class TestCollectionIndex(TestUnitCoreCommon):
     def setUp(self):
         super().setUp()
 

@@ -2,11 +2,10 @@ import sys
 import unittest
 from unittest.mock import patch
 
-from album.argument_parsing import main
-from test.integration.test_integration_common import TestIntegrationCommon
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
-class TestIntegrationTest(TestIntegrationCommon):
+class TestIntegrationTest(TestIntegrationCoreCommon):
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -15,25 +14,13 @@ class TestIntegrationTest(TestIntegrationCommon):
         self.fake_install(self.get_test_solution_path("solution0_dummy_no_routines.py"), create_environment=True)
 
         # this solution has the no test() configured
-        sys.argv = ["", "test", self.get_test_solution_path("solution0_dummy_no_routines.py")]
-
-        # run
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path("solution0_dummy_no_routines.py"))
+        self.album_instance.test_manager().test(resolve_result)
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
-        self.assertIn("WARNING - No \"test\" routine configured for solution", self.captured_output.getvalue())
-
-    def test_test_not_installed(self):
-        sys.argv = ["", "test", self.get_test_solution_path("solution0_dummy_no_routines.py")]
-
-        # run
-        with self.assertRaises(SystemExit) as e:
-            main()
-        self.assertTrue(isinstance(e.exception.code, LookupError))
-
-        self.assertIn("ERROR", self.captured_output.getvalue())
-        self.assertIn("Solution not found", e.exception.code.args[0])
+        self.assertIn("WARNING No \"test\" routine configured for solution", self.captured_output.getvalue())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_test(self, get_environment_path):
@@ -41,11 +28,9 @@ class TestIntegrationTest(TestIntegrationCommon):
 
         self.fake_install(self.get_test_solution_path("solution6_noparent_test.py"), create_environment=False)
 
-        # set up arguments
-        sys.argv = ["", "test", self.get_test_solution_path("solution6_noparent_test.py")]
-
-        # run
-        self.assertIsNone(main())
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path("solution6_noparent_test.py"))
+        self.album_instance.test_manager().test(resolve_result)
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
@@ -58,8 +43,6 @@ class TestIntegrationTest(TestIntegrationCommon):
             self.assertIn("solution6_noparent_test_run", log)
             self.assertIn("solution6_noparent_test_close", log)
             self.assertIn("solution6_noparent_test_test", log)
-
-        self.assertIsNone(self.album_instance.state_manager().get_active_solution())
 
 
 if __name__ == '__main__':

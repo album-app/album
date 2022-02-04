@@ -9,10 +9,10 @@ from album.core.model.catalog import Catalog
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.default_values import DefaultValues
 from album.runner.core.model.solution import Solution
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestCatalog(TestUnitCommon):
+class TestCatalog(TestUnitCoreCommon):
 
     def populate_index(self, r=10):
         for i in range(0, r):
@@ -42,7 +42,7 @@ class TestCatalog(TestUnitCommon):
         self.catalog = Catalog(0, "test", src=catalog_src, path=catalog_path)
         self.catalog.update_index_cache()
         self.catalog.load_index()
-        self.collection_manager.catalogs().set_version(self.catalog)
+        self.collection_manager().catalogs().set_version(self.catalog)
 
     def tearDown(self) -> None:
         self.catalog.dispose()
@@ -325,11 +325,10 @@ class TestCatalog(TestUnitCommon):
         blocking_file.touch()
 
         # call
-        repo = self.catalog.retrieve_catalog(dl_path, force_retrieve=True)
+        with self.catalog.retrieve_catalog(dl_path, force_retrieve=True) as repo:
 
-        # assert
-        self.assertIsNotNone(repo)
-        repo.close()
+            # assert
+            self.assertIsNotNone(repo)
 
         self.assertFalse(blocking_file.exists())
         self.assertTrue(dl_path.stat().st_size > 0)

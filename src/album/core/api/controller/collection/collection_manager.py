@@ -1,12 +1,10 @@
 from abc import ABCMeta, abstractmethod
 
-from album.runner.core.api.model.solution import ISolution
-
 from album.core.api.controller.collection.catalog_handler import ICatalogHandler
 from album.core.api.controller.collection.solution_handler import ISolutionHandler
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
-from album.core.api.model.resolve_result import IResolveResult
+from album.core.api.model.collection_solution import ICollectionSolution
 from album.runner.core.api.model.coordinates import ICoordinates
 
 
@@ -23,7 +21,7 @@ class ICollectionManager:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def load_or_create_collection(self):
+    def load_or_create(self):
         raise NotImplementedError
 
     @abstractmethod
@@ -35,16 +33,11 @@ class ICollectionManager:
         raise NotImplementedError
 
     @abstractmethod
-    def add_solution_to_local_catalog(self, active_solution: ISolution, path):
-        """Force adds the installation to the local catalog to be cached for running"""
-        raise NotImplementedError
-
-    @abstractmethod
     def get_index_as_dict(self):
         raise NotImplementedError
 
     @abstractmethod
-    def resolve_require_installation(self, resolve_solution) -> IResolveResult:
+    def resolve_installed(self, resolve_solution) -> ICollectionSolution:
         """Resolves an input. Expects solution to be installed.
 
         Args:
@@ -58,7 +51,7 @@ class ICollectionManager:
         raise NotImplementedError
 
     @abstractmethod
-    def resolve_require_installation_and_load(self, resolve_solution) -> IResolveResult:
+    def resolve_installed_and_load(self, resolve_solution) -> ICollectionSolution:
         """Resolves an input. Expects solution to be installed.
 
         Args:
@@ -72,7 +65,7 @@ class ICollectionManager:
         raise NotImplementedError
 
     @abstractmethod
-    def resolve_download_and_load(self, resolve_solution) -> IResolveResult:
+    def resolve_and_load(self, resolve_solution) -> ICollectionSolution:
         """Resolves a string input and loads its content.
 
         Downloads a catalog if not already cached.
@@ -88,8 +81,8 @@ class ICollectionManager:
         raise NotImplementedError
 
     @abstractmethod
-    def resolve_download_and_load_catalog_coordinates(self, catalog: ICatalog,
-                                                      coordinates: ICoordinates) -> IResolveResult:
+    def resolve_and_load_catalog_coordinates(self, catalog: ICatalog,
+                                                      coordinates: ICoordinates) -> ICollectionSolution:
         """Resolves a string input and loads its content.
 
         Downloads a catalog if not already cached.
@@ -107,7 +100,7 @@ class ICollectionManager:
         raise NotImplementedError
 
     @abstractmethod
-    def resolve_download_and_load_coordinates(self, coordinates: ICoordinates) -> IResolveResult:
+    def resolve_and_load_coordinates(self, coordinates: ICoordinates) -> ICollectionSolution:
         """Resolves a string input and loads its content.
 
         Downloads a catalog if not already cached.
@@ -123,7 +116,7 @@ class ICollectionManager:
         raise NotImplementedError
 
     @abstractmethod
-    def resolve_download(self, resolve_solution) -> IResolveResult:
+    def resolve(self, resolve_solution) -> ICollectionSolution:
         """Resolves a string input and loads its content.
 
         Downloads a catalog if not already cached.
@@ -139,12 +132,12 @@ class ICollectionManager:
         raise NotImplementedError
 
     @abstractmethod
-    def resolve_parent(self, parent_dict: dict) -> IResolveResult:
+    def resolve_parent(self, parent_dict: dict) -> ICollectionSolution:
         raise NotImplementedError
 
     def get_collection_index(self) -> ICollectionIndex:
         raise NotImplementedError
 
     @abstractmethod
-    def retrieve_and_load_resolve_result(self, resolve_result: IResolveResult):
+    def retrieve_and_load_resolve_result(self, resolve_result: ICollectionSolution):
         raise NotImplementedError

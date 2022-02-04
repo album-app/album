@@ -1,95 +1,157 @@
 import io
-import signal
+import os
+import re
 import subprocess
-import sys
 import threading
-
-import pexpect
+from typing import Optional
 
 from album.runner import album_logging
-from album.runner.album_logging import LogfileBuffer
+from album.runner.album_logging import LogEntry, LogLevel
+from album.runner.core.api.model.solution_script import ISolutionScript
 
 module_logger = album_logging.get_active_logger
 
 
-class SaveThreadWithReturn:
-    """Class running an action in a python thread. If action runs in timeout, action2 is executed. After timeout 2, the
-    action is terminated.
+class LogfileBuffer(io.StringIO):
+    """Class for logging in a subprocess. Logs to the current active logger."""
 
-    Attributes:
-        name:
-            the name of the action
-        action:
-            the action to call
-        action2:
-            action2 to call when action runs in first timeout
-        timeout:
-            time, after which action2 is executed.
-        timeout2:
-            time, after which action is terminated with error
-        parent_thread_name:
-            name of thread from which this thread is started
+    def __init__(self, module_logger, message_formatter='%(message)s', error_logger = False):
+        super().__init__()
+        self.message_formatter = message_formatter
+        self.leftover_message = None
+        self.last_log = None
+        self.is_error_logger = error_logger
+        self.logger = module_logger
+        self.logger_name = self.logger.name
+        self.logger_name_script = self.logger_name + '.script'
+        self.logger_name_current = self.logger_name_script
+        self.logger_name_unnamed = self.logger_name_script + '.log'
 
-    """
+    def write(self, input) -> int:
+        if not isinstance(input, str):
+            input = str(input, "utf-8")
+        m = input.rstrip()
 
-    def __init__(self, name, action, action2=None, timeout=1, timeout2=5, parent_thread_name=None):
-        if not callable(action):
-            raise ValueError("Action needs to be callable!")
+        log_entry = self.parse_log(m)
 
-        if action2:
-            if not callable(action2):
-                raise ValueError("Action2 needs to be callable if set!")
+        if log_entry:
+
+            if log_entry.name:
+                log_entry.name = log_entry.name.strip()
+                if log_entry.name.startswith('root.script'):
+                    log_entry.name = log_entry.name.lstrip('root.script')
+                    log_entry.name = log_entry.name.lstrip('.')
+                if len(log_entry.name) > 0:
+                    log_entry.name = self.logger_name_script + "." + log_entry.name
+                else:
+                    log_entry.name = self.logger_name_script
+            else:
+                log_entry.name = self.logger_name_unnamed
+
+            if self.message_formatter and callable(self.message_formatter):
+                message = self.message_formatter(log_entry.message)
+            else:
+                message = log_entry.message
+            self.logger_name_current = log_entry.name
+            self.logger.name = log_entry.name
+            self._log(log_entry.level, message)
+        else:  # unknown message not using or logging.
+            self.logger.name = self.logger_name_current
+            if self.is_error_logger:
+                self._log('ERROR', m)
+            else:
+                self._log('INFO', m)
+        self.logger.name = self.logger_name
+        #
+        return 1
+
+    def _log(self, current_level, message):
+        if LogLevel.INFO.name == current_level:
+            self.logger.info(message)
+        elif LogLevel.DEBUG.name == current_level:
+            self.logger.debug(message)
+        elif LogLevel.WARNING.name == current_level:
+            self.logger.warning(message)
+        elif LogLevel.ERROR.name == current_level:
+            self.logger.error(message)
         else:
-            action2 = self.stop
+            self.logger.info(message)
 
-        self.name = name
-        self.action = action
-        self.action2 = action2
-        self.timeout = timeout
-        self.timeout2 = timeout2
-        self.errors = False
-        self.thread = None
-        self.thread_id = -1
-        self.parent_thread_name = parent_thread_name
-        self.return_value = None
+    @staticmethod
+    def parse_log(text) -> Optional[LogEntry]:
+        res = LogfileBuffer._parse_album_runner_log(text)
+        if not res:
+            res = LogfileBuffer._parse_album_log(text)
+            if not res:
+                res = LogfileBuffer._parse_level_colon_log(text)
+                if not res:
+                    res = LogfileBuffer._parse_level_brackets_log(text)
+        if res:
+            if res.message:
+                res.message = res.message.rstrip(" ")
+            return res
+        else:
+            return None
 
-    def run(self):
-        """run the thread. Starting the action"""
-
-        self.thread = threading.Thread(target=self.run_action)
-        self.thread.daemon = True  # important for the main python to be able to finish
-        self.thread.start()
-        self.thread.join(self.timeout)
-
-        if self.thread.is_alive():
-            self.action2()
-            self.thread.join(self.timeout2)
-            if self.thread.is_alive():
-                self._stop_routine()
-
-        return self.return_value
-
-    def run_action(self):
-        album_logging.configure_logging(self.name, parent_name=self.parent_thread_name)
-        self.return_value = self.action()
-        album_logging.pop_active_logger()
-
-    def _stop_routine(self):
-        self.thread_id = self.thread.ident
-        self.errors = True
-        self.stop()
+    @staticmethod
+    def _parse_album_runner_log(text):
+        r = re.search(ISolutionScript.get_script_logging_formatter_regex(), text)
+        if r:
+            return LogEntry(name=r.group(2), level=r.group(1), message=r.group(3))
         return None
 
-    def stop(self):
-        """Stops the thread."""
-        if sys.platform == 'win32' or sys.platform == 'cygwin':
-            # there is no easy way to send a signal from one thread to another...
-            pass
+    @staticmethod
+    def _parse_album_log(text):
+        r = re.search(r'\d\d:\d\d:\d\d (%s)(?:[\s]+(~*))? ([\s\S]+)?' % LogfileBuffer._regex_log_level(), text)
+        if r:
+            if len(r.groups()) == 3:
+                name = r.group(2)
+                if name != None and len(name) == 0:
+                    name = None
+                return LogEntry(name=name, level=r.group(1), message=r.group(3))
+            else:
+                return LogEntry(name=None, level=r.group(1), message=r.group(2))
+        return None
+
+    @staticmethod
+    def _parse_level_colon_log(text):
+        r = re.search(r'(%s): ([\s\S]+)?' % LogfileBuffer._regex_log_level(), text)
+        if r:
+            return LogEntry(name=None, level=r.group(1), message=r.group(2))
+        return None
+
+    @staticmethod
+    def _parse_level_brackets_log(text):
+        r = re.search(r'\[(%s)\] ([\s\S]+)?' % LogfileBuffer._regex_log_level(), text)
+        if r:
+            return LogEntry(name=None, level=r.group(1), message=r.group(2))
+        return None
+
+    @staticmethod
+    def _regex_log_level():
+        return "DEBUG|INFO|WARNING|ERROR"
+
+class LogProcessing:
+    def __init__(self, logger, log_output, message_formatter):
+        if log_output:
+            self.info_logger = LogfileBuffer(logger, message_formatter)
+            self.error_logger = LogfileBuffer(logger, message_formatter, error_logger=True)
         else:
-            signal.pthread_kill(self.thread_id, signal.SIGKILL)
+            self.info_logger = io.StringIO()
+            self.error_logger = io.StringIO()
+
+    def log_info(self, s):
+        self.info_logger.write(s)
+
+    def log_error(self, s):
+        self.error_logger.write(s)
+
+    def close(self):
+        self.info_logger.close()
+        self.error_logger.close()
 
 
-def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=120, pipe_output=True):
+def run(command, log_output=True, message_formatter=None, pipe_output=True):
     """Runs a command in a subprocess thereby logging its output.
 
     Args:
@@ -99,14 +161,6 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
             Possibility to parse a lambda to format the message in a certain way.
         command:
             The command to run.
-        timeout1:
-            The timeout in seconds after which a rescue operation (enter) is send to the process.
-            Timeout resets when subprocess gives feedback to the main process.
-            WindowsOS option only. Default: 60s
-        timeout2:
-            The timeout in seconds after timeout 1 has unsuccessfully passed, after which the process is declared dead.
-            Timeout resets when subprocess gives feedback to the main process.
-            WindowsOS option only. Default: 120s
         pipe_output:
             Indicates whether to pipe the output of the subprocess or just return it as is.
 
@@ -120,118 +174,80 @@ def run(command, log_output=True, message_formatter=None, timeout1=60, timeout2=
     """
 
     module_logger().debug('Running command: %s...' % " ".join(command))
-    exit_status = 1
 
-    logger = album_logging.configure_logging("subcommand")
-    log = LogfileBuffer(message_formatter)
-    log.module_logger = lambda: logger
-    if not log_output:
-        log = io.StringIO()
+    logger = album_logging.get_active_logger()
+    log_processing = LogProcessing(logger, log_output, message_formatter)
 
-    operation_system = sys.platform
-    if operation_system == 'linux' or operation_system == 'darwin':
-        exit_status = _run_process_linux_macos(command, exit_status, log, pipe_output)
-    else:
-        exit_status = _run_process_windows(command, exit_status, log, timeout1, timeout2, pipe_output)
+    exit_status = _run_process(command, log_processing, pipe_output)
 
-    album_logging.pop_active_logger()
     return exit_status
 
 
-def _run_process_linux_macos(command, exit_status, log, pipe_output):
+class SubProcessError(RuntimeError):
+
+    def __init__(self, exit_status, message) -> None:
+        self.exit_status = exit_status
+        super().__init__(message)
+
+
+class LogPipe(threading.Thread):
+    """derived from https://gist.github.com/alfredodeza/dcea71d5c0234c54d9b1"""
+
+    def __init__(self, logger):
+        """Setup the object with a logger and a loglevel
+        and start the thread
+        """
+        threading.Thread.__init__(self)
+        self.daemon = False
+        self.logger = logger
+        self.fdRead, self.fdWrite = os.pipe()
+        self.pipeReader = os.fdopen(self.fdRead)
+        self.process = None
+        self.start()
+
+    def fileno(self):
+        """Return the write file descriptor of the pipe
+        """
+        return self.fdWrite
+
+    def run(self):
+        """Run the thread, logging everything.
+        """
+        for line in iter(self.pipeReader.readline, ''):
+            self.logger.write(line.strip('\n'))
+
+        self.pipeReader.close()
+
+    def close(self):
+        """Close the write end of the pipe.
+        """
+        os.close(self.fdWrite)
+
+
+def _run_process(command, log: LogProcessing, pipe_output):
     if pipe_output:
-        (command_output, exit_status) = pexpect.run(
-            " ".join(command), logfile=log, withexitstatus=1, timeout=None, encoding=sys.getfilesystemencoding()
+        stdout = log.info_logger
+        stderr = log.error_logger
+        info_pipe = LogPipe(stdout)
+        error_pipe = LogPipe(stderr)
+        p = subprocess.Popen(
+            command,
+            stdout=info_pipe,
+            stderr=error_pipe,
+            bufsize=1,
+            universal_newlines=True
         )
-        if exit_status != 0:
-            module_logger().error(command_output)
-            album_logging.pop_active_logger()
-            raise RuntimeError("Command " + " ".join(command) + " failed: " + command_output)
-        return exit_status
+        p.wait()
+        info_pipe.close()
+        error_pipe.close()
+        log.close()
+        if p.returncode != 0:
+            raise SubProcessError(1, p.returncode)
+        return 0
     else:
         return subprocess.run(command)
 
 
-def _run_process_windows(command, exit_status, log, timeout1, timeout2, pipe_output):
-    if pipe_output:
-        process = subprocess.Popen(
-            command,
-            stdin=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            universal_newlines=True,
-            bufsize=1,  # line buffered
-            shell=True
-        )
-        save_communicate = True
-        current_logger_name = album_logging.get_active_logger().name
-        poll = SaveThreadWithReturn("poll", process.poll, parent_thread_name=current_logger_name)
-        read_message = SaveThreadWithReturn(
-            "reader",
-            process.stdout.readline,
-            lambda: process.stdin.write("\r\n"),  # after 60 seconds of no feedback try to send a linebreak
-            timeout=timeout1,
-            timeout2=timeout2,
-            parent_thread_name=current_logger_name
-        )
-        while True:
-            # runs poll in a thread catching timeout errors
-            r = poll.run()
-            if poll.errors:
-                save_communicate = False
-                break
-            if r or isinstance(process.returncode, int):
-                break
-
-            # read message in a thread to catch timeout errors
-            output = read_message.run()
-            if read_message.errors:
-                save_communicate = False
-                break
-
-            # log message
-            if output:
-                log.write(output)
-        # cmd not frozen and it is save to communicate
-        if save_communicate:
-            _, err = process.communicate()
-        else:  # cmd frozen
-            process.terminate()
-            album_logging.pop_active_logger()
-            raise TimeoutError(
-                "Process timed out. Process shut down. Last messages from the process: %s"
-                % log.getvalue()
-            )
-        # cmd failed
-        if process.returncode:
-            err_msg = err if err else log.getvalue()
-            album_logging.pop_active_logger()
-            raise RuntimeError(
-                "{\"ret_code\": %(ret_code)s, \"err_msg\": %(err_msg)s}"
-                % {"ret_code": process.returncode, "err_msg": err_msg}
-            )
-        # cmd passed but with errors
-        if err:
-            module_logger().warning(
-                "Process terminated but reported the following error or warning: \n\t %s" % err)
-
-            exit_status = process.returncode
-        return exit_status
-    else:
-        process = subprocess.run(
-            command,
-            universal_newlines=True,
-            bufsize=1,  # line buffered
-            shell=True
-        )
-
-
 def check_output(command):
     """Runs a command thereby checking its output."""
-    operation_system = sys.platform
-
-    shell = False
-    if operation_system == 'win32' or operation_system == 'cygwin':
-        shell = True
-
-    return subprocess.check_output(command, shell=shell).decode("utf-8")
+    return subprocess.check_output(command).decode("utf-8")

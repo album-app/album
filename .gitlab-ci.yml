@@ -16,6 +16,7 @@
   before_script:
     - 'echo "We are in path: $pwd "'
     - 'echo "conda URL:  $env:MINICONDA_URL "'
+    - '$oldProgressPreference = $progressPreference; $progressPreference = "SilentlyContinue";'
     - 'if(-Not (Test-Path .\download)) {echo "Cache download not found! Creating..."; New-Item -ItemType Directory -Force -Path .\download} else { echo ".\download cache found! with content:"; Get-ChildItem -Path .\download}'                                                                                                                                                # create cache dir
     - '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12'                                                                                                                                                                                                                                                                                          # set Security download protocol to avoid https errors
     - 'if(Test-Path .\download\miniconda_url.txt) {echo "found previous miniconda url information. Extracting information..."; $miniconda_cache_url = try {Get-Content -Path .\download\miniconda_url.txt -errorAction Stop} catch {echo "None"}; echo "Cached minconda executable: $miniconda_cache_url"} else { echo ".\download\miniconda_url.txt does not exist!"}'          # read url from cache
@@ -30,6 +31,7 @@
     - 'echo "Environment path: $env:PATH"'
     - 'conda init'
     - 'conda config --set notify_outdated_conda false'
+    - '$progressPreference = $oldProgressPreference'
   tags:
     - windows
   variables:
@@ -55,7 +57,7 @@
     - python -V  # Print out python version for debugging
     - pwd
     - which python
-    - conda create -y -n album python=3.6 pip git
+    - conda create -y --channel=conda-forge -n album python=3.7 pip git mamba
     - conda init bash
     - source ~/.bashrc
     - conda activate album
@@ -98,7 +100,7 @@
     - bash $tmpdir/miniconda.sh -b -p $tmpdir/miniconda
     - export PATH=$PATH:$tmpdir/miniconda/bin/
     - echo $PATH
-    - conda create -y -n album python=3.6 pip git
+    - conda create -y --channel=conda-forge -n album python=3.7 pip git mamba
     - source $tmpdir/miniconda/bin/activate
     - conda activate album
     - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
@@ -146,6 +148,8 @@ prepare release:
     - if: $CI_COMMIT_TAG
       when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - setup.cfg
 
 gitlab release:
   stage: release
@@ -162,6 +166,8 @@ gitlab release:
       - if: $CI_COMMIT_TAG
         when: never
       - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+        changes:
+          - setup.cfg
   release:
     name: 'Release $TAG'
     description: 'Created using the release-cli'
@@ -211,28 +217,6 @@ pypi deploy:
         when: never
       - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-gitlab docker deploy:
-  stage: deploy
-  tags:
-    - DeployRunner
-    - DeployShell
-  needs:
-    - job: gitlab release
-    - job: prepare release
-      artifacts: true
-    - job: pypi deploy
-  before_script:
-    - docker info
-  script:
-    - echo "deploying gitlab docker version $VERSION"
-    - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
-    - docker build -t $CI_REGISTRY/group/project/image:$VERSION .
-    - docker push $CI_REGISTRY/group/project/image:$VERSION
-  rules:
-      - if: $CI_COMMIT_TAG
-        when: never
-      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-
 docker deploy:
   stage: deploy
   tags:
@@ -260,23 +244,6 @@ docker deploy:
 
 cmdline linux:
   extends: .linux_base_template
-  stage: build
-  script:
-    # album commands
-    - album -h
-    - album run -h
-    - album install -h
-    - album deploy -h
-    - album uninstall -h
-    - album repl -h
-    - album server -h
-    - album add-catalog -h
-    - album remove-catalog -h
-    # album catalog admin
-    - album-catalog-admin -h
-
-cmdline macos:
-  extends: .macos_base_template
   stage: build
   script:
     # album commands
@@ -322,14 +289,14 @@ unit tests windows:
   extends: .windows_base_template
   stage: test
   script:
-    - $cmnd = powershell.exe -command {conda create -y -n album python=3.6 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit.py 2>&1 | Write-Host; exit(0)}
+    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.7 pip git mamba 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit.py 2>&1 | Write-Host; exit(0)}
     - if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}
 
 integration tests windows:
   extends: .windows_base_template
   stage: test
   script:
-    - $cmnd = powershell.exe -command {conda create -y -n album python=3.6 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration.py 2>&1 | Write-Host; exit(0)}
+    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.7 pip git mamba 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration.py 2>&1 | Write-Host; exit(0)}
     - if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}
 
 release tests linux:
@@ -356,4 +323,3 @@ release tests linux:
     - album run album:template-r:0.1.0-SNAPSHOT
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-

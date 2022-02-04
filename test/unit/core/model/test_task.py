@@ -4,10 +4,10 @@ from logging import getLogger
 from album.core.model.task import LogHandler
 from album.runner import album_logging
 from album.runner.album_logging import LogLevel
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestLogHandler(TestUnitCommon):
+class TestLogHandler(TestUnitCoreCommon):
 
     def test_handler(self):
         self.logger.setLevel(20)
@@ -59,7 +59,7 @@ class TestLogHandler(TestUnitCommon):
         self.assertEqual("test2", handler._records[1].msg)
 
 
-class TestTask(TestUnitCommon):
+class TestTask(TestUnitCoreCommon):
 
     def setUp(self):
         pass

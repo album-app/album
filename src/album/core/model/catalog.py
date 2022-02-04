@@ -1,7 +1,8 @@
 import os
 import re
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Generator
 
 import validators
 from git import Repo
@@ -224,26 +225,24 @@ class Catalog(ICatalog):
         except AssertionError:
             # catalogs don't necessary have an index file. There simply might not be one yet or it got deleted.
             return False
-
         return True
 
-    def retrieve_catalog(self, path=None, force_retrieve=False, update=True) -> Optional[Repo]:
+    @contextmanager
+    def retrieve_catalog(self, path=None, force_retrieve=False, update=True) -> Generator[Repo, None, None]:
         if self.is_cache():
-            module_logger().warning("Cannot retrieve a cache catalog as no source exists!")
-            return None
+            raise RuntimeError("Cannot retrieve a cache catalog as no source exists!")
 
         path = Path(path) if path else self._path
 
         if self.is_local():  # case src is not downloadable
             copy_folder(self._src, path, copy_root_folder=False, force_copy=True)
             repo = init_repository(path)
-
-            return repo
         else:  # case src is downloadable
             module_logger().debug("Trying to retrieve catalog %s to the path %s..." % (self._name, str(path)))
             repo = download_repository(self._src, str(path), force_download=force_retrieve, update=update)
 
-            return repo
+        yield repo
+        repo.close()
 
     def write_catalog_meta_information(self):
         d = self.get_meta_information()

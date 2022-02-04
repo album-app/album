@@ -1,15 +1,17 @@
+import time
 import unittest
 
+from test.unit import test_argument_parsing, test_server
 from test.unit.ci import test_ci_argument_parsing, test_ci_commandline
 from test.unit.ci.controller import test_release_manager, test_zenodo_manager
-from test.unit.ci.utils import test_ci_utils, test_deploy_environment
-from test.unit.core import test__init__, test_argument_parsing, test_server
+from test.unit.ci.utils import test_continuous_integration
+from test.unit.core.controller import test_script_manager
 from test.unit.core.controller import test_search_manager, test_install_manager, test_run_manager, test_deploy_manager, \
     test_conda_manager, test_test_manager, test_task_manager, test_clone_manager, test_migration_manager, \
     test_environment_manager
 from test.unit.core.controller.collection import test_collection_manager, test_catalog_handler, test_solution_handler
 from test.unit.core.model import test_catalog, test_configuration, test_environment, \
-    test_catalog_index, test_collection_index, test_coordinates, test_task, test_database
+    test_catalog_index, test_collection_index, test_task, test_database
 from test.unit.core.utils import test_subcommand
 from test.unit.core.utils.export import test_changelog, test_docker
 from test.unit.core.utils.operations import test_dict_operations
@@ -22,8 +24,7 @@ def main():
     suite = unittest.TestSuite()
     ### unittests
 
-    # album.core
-    suite.addTests(loader.loadTestsFromModule(test__init__))
+    # album
     suite.addTests(loader.loadTestsFromModule(test_argument_parsing))
     suite.addTests(loader.loadTestsFromModule(test_server))
 
@@ -43,6 +44,7 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_search_manager))
     suite.addTests(loader.loadTestsFromModule(test_task_manager))
     suite.addTests(loader.loadTestsFromModule(test_test_manager))
+    suite.addTests(loader.loadTestsFromModule(test_script_manager))
 
     # album.core.model
     suite.addTests(loader.loadTestsFromModule(test_catalog))
@@ -50,7 +52,6 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_collection_index))
     suite.addTests(loader.loadTestsFromModule(test_configuration))
     suite.addTests(loader.loadTestsFromModule(test_environment))
-    suite.addTests(loader.loadTestsFromModule(test_coordinates))
     suite.addTests(loader.loadTestsFromModule(test_task))
 
     # album.core.concept
@@ -80,13 +81,13 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_zenodo_manager))
 
     # album.ci.utils
-    suite.addTests(loader.loadTestsFromModule(test_ci_utils))
-    suite.addTests(loader.loadTestsFromModule(test_deploy_environment))
-    #suite.addTests(loader.loadTestsFromModule(test_zenodo_api))
+    suite.addTests(loader.loadTestsFromModule(test_continuous_integration))
+    # suite.addTests(loader.loadTestsFromModule(test_zenodo_api))
 
     runner = unittest.TextTestRunner(verbosity=3)
     result = runner.run(suite)
     if result.wasSuccessful():
+        time.sleep(5)
         print("Success")
         exit(0)
     else:

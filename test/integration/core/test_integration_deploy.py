@@ -3,13 +3,12 @@ import unittest
 from pathlib import Path
 from shutil import copy
 
-from album.argument_parsing import main
 from album.core.utils.operations.file_operations import force_remove
 from album.runner.core.model.coordinates import Coordinates
-from test.integration.test_integration_common import TestIntegrationCommon
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
-class TestIntegrationDeploy(TestIntegrationCommon):
+class TestIntegrationDeploy(TestIntegrationCoreCommon):
 
     def tearDown(self) -> None:
         # try to avoid git-removal windows errors
@@ -23,44 +22,27 @@ class TestIntegrationDeploy(TestIntegrationCommon):
 
     def test_deploy_dry_run(self):
         catalog = self.add_test_catalog()
-        # gather arguments
-        sys.argv = ['',
-                    'deploy',
-                    str(self.get_test_solution_path()),
-                    '--catalog=test_catalog',
-                    '--dry-run',
-                    '--git-name=MyName',
-                    '--git-email=MyEmail',
-                    ]
 
-        self.assertIsNone(main())
+        self.album_instance.deploy_manager().deploy(str(self.get_test_solution_path()), catalog_name=catalog.name(),
+                                changelog='something changed', dry_run=True, git_name='MyName', git_email='MyEmail')
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertIn('Pretending to deploy', self.captured_output.getvalue())
-        self.collection_manager.catalogs().update_any('test_catalog')
-        updates = self.collection_manager.catalogs().update_collection('test_catalog')
+        self.collection_manager().catalogs().update_any('test_catalog')
+        updates = self.collection_manager().catalogs().update_collection('test_catalog')
         self.assertIn('test_catalog', updates)
         self.assertEqual(0, len(updates['test_catalog'].solution_changes()))
 
     def test_deploy_file(self):
         catalog = self.add_test_catalog()
-        # gather arguments
-        sys.argv = ['',
-                    'deploy',
-                    str(self.get_test_solution_path()),
-                    '--catalog',
-                    'test_catalog',
-                    '--changelog',
-                    'something changed'
-                    ]
-
-        self.assertIsNone(main())
+        self.album_instance.deploy_manager().deploy(str(self.get_test_solution_path()), catalog_name=catalog.name(),
+                                                    changelog='something changed', dry_run=False)
         self.assertNotIn('ERROR', self.captured_output.getvalue())
-        self.collection_manager.catalogs().update_any('test_catalog')
-        updates = self.collection_manager.catalogs().update_collection('test_catalog')
+        self.collection_manager().catalogs().update_any('test_catalog')
+        updates = self.collection_manager().catalogs().update_collection('test_catalog')
         self.assertIn('test_catalog', updates)
         self.assertEqual(1, len(updates['test_catalog'].solution_changes()))
-        solution = self.collection_manager.catalog_collection.get_solution_by_catalog_grp_name_version(
-            self.collection_manager.catalogs().get_by_name('test_catalog').catalog_id(),
+        solution = self.collection_manager().catalog_collection.get_solution_by_catalog_grp_name_version(
+            self.collection_manager().catalogs().get_by_name('test_catalog').catalog_id(),
             Coordinates('group', 'name', '0.1.0')
         )
         self.assertIsNotNone(solution)
@@ -76,16 +58,16 @@ class TestIntegrationDeploy(TestIntegrationCommon):
 
         # run deploy without changelog
         sys.argv = ['', 'deploy', path, '--catalog', 'test_catalog']
-        self.assertIsNone(main())
+        self.album_instance.deploy_manager().deploy(path, catalog_name=catalog.name(), dry_run=False)
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertIn('We recommend documenting changes', self.captured_output.getvalue())
 
         # check if update exists, solution is present and has updated changelog
-        self.collection_manager.catalogs().update_any(catalog.name())
-        updates = self.collection_manager.catalogs().update_collection(catalog.name())
+        self.collection_manager().catalogs().update_any(catalog.name())
+        updates = self.collection_manager().catalogs().update_collection(catalog.name())
         self.assertIn(catalog.name(), updates)
         self.assertEqual(1, len(updates[catalog.name()].solution_changes()))
-        solution = self.collection_manager.catalog_collection.get_solution_by_catalog_grp_name_version(catalog.catalog_id(), coordinates)
+        solution = self.collection_manager().catalog_collection.get_solution_by_catalog_grp_name_version(catalog.catalog_id(), coordinates)
         self.assertIsNotNone(solution)
         self.assertEqual(None, solution.setup()['changelog'])
 
@@ -97,15 +79,15 @@ class TestIntegrationDeploy(TestIntegrationCommon):
         coordinates = Coordinates('group', 'name', '0.1.0')
 
         # run deploy with changelog parameter
-        sys.argv = ['', 'deploy', path, '--catalog', catalog.name(), '--changelog', 'something changed']
-        self.assertIsNone(main())
+        self.album_instance.deploy_manager().deploy(path, catalog_name=catalog.name(), dry_run=False,
+                                                    changelog='something changed')
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertNotIn('We recommend documenting changes', self.captured_output.getvalue())
 
         # check if solution has provided changelog
-        self.collection_manager.catalogs().update_any(catalog.name())
-        self.collection_manager.catalogs().update_collection(catalog.name())
-        solution = self.collection_manager.catalog_collection.get_solution_by_catalog_grp_name_version(catalog.catalog_id(), coordinates)
+        self.collection_manager().catalogs().update_any(catalog.name())
+        self.collection_manager().catalogs().update_collection(catalog.name())
+        solution = self.collection_manager().catalog_collection.get_solution_by_catalog_grp_name_version(catalog.catalog_id(), coordinates)
         self.assertIsNotNone(solution)
         self.assertIsNotNone(solution.setup()['timestamp'])
         self.assertEqual('something changed', solution.setup()['changelog'])
@@ -119,7 +101,7 @@ class TestIntegrationDeploy(TestIntegrationCommon):
         # copy solution and changelog file into new folder
         source = Path(self.tmp_dir.name).joinpath('mysolution')
         source.mkdir(parents=True)
-        copy(self.get_test_solution_path(), source.joinpath('solution.py'))
+        copy(self.get_test_solution_path("solution16_documentation.py"), source.joinpath('solution.py'))
         changelog_content = '# Changelog\nAll notable changes to this project will be documented in this file.\n\n' \
                             'The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), ' \
                             'and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).' \
@@ -130,15 +112,14 @@ class TestIntegrationDeploy(TestIntegrationCommon):
             file.write('my documentation')
 
         # run deploy while providing changelog via file
-        sys.argv = ['', 'deploy', str(source), '--catalog', 'test_catalog']
-        self.assertIsNone(main())
+        self.album_instance.deploy_manager().deploy(str(source), catalog_name=catalog.name(), dry_run=False)
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         self.assertNotIn('We recommend documenting changes', self.captured_output.getvalue())
 
         # check if solution is present and has updated changelog
-        self.collection_manager.catalogs().update_any(catalog.name())
-        self.collection_manager.catalogs().update_collection(catalog.name())
-        solution = self.collection_manager.catalog_collection.get_solution_by_catalog_grp_name_version(catalog.catalog_id(), coordinates)
+        self.collection_manager().catalogs().update_any(catalog.name())
+        self.collection_manager().catalogs().update_collection(catalog.name())
+        solution = self.collection_manager().catalog_collection.get_solution_by_catalog_grp_name_version(catalog.catalog_id(), coordinates)
         self.assertIsNotNone(solution)
         self.assertEqual('- my changes', str(solution.setup()['changelog'].strip()))
 

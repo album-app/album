@@ -9,10 +9,10 @@ from album.core.utils.operations.file_operations import get_dict_from_yml, write
     create_empty_file_recursively, \
     create_path_recursively, write_dict_to_json, force_remove, zip_folder, unzip_archive, copy, \
     copy_folder, zip_paths, rand_folder_name, folder_empty
-from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestFileOperations(TestUnitCommon):
+class TestFileOperations(TestUnitCoreCommon):
 
     def setUp(self):
         super().setUp()
@@ -205,7 +205,7 @@ class TestFileOperations(TestUnitCommon):
         create_path_recursively(target_unzip)
 
         # archive
-        r = zip_paths([source_dir, tmp_file], target_zip)
+        r = zip_paths([source_dir, tmp_file], target_zip, tmp_dir=tmp_dir)
         self.assertEqual(str(target_zip), r)
 
         # unzip
