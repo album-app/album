@@ -69,7 +69,7 @@ def info(album_instance: Album, args):
 
 
 def run(album_instance: Album, args):
-    album_instance.run(_resolve_installed(album_instance, args.path), args.run_immediately, sys.argv)
+    album_instance.run(_resolve_installed(album_instance, args.path), argv=sys.argv, run_immediately=args.run_immediately)
 
 
 def search(album_instance: Album, args):

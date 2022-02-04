@@ -3,7 +3,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.default_values import DefaultValues
+from album.core.utils.operations.file_operations import get_link_target
 from album.runner.core.model.coordinates import Coordinates
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
@@ -41,12 +43,12 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
 
         # assert solution is in the right place and has the right name
         self.assertTrue(
-            Path(self.tmp_dir.name).joinpath(
+            get_link_target(Path(self.tmp_dir.name).joinpath(
                 DefaultValues.catalog_folder_prefix.value,
                 str(self.collection_manager().catalogs().get_local_catalog().name()),
                 DefaultValues.cache_path_solution_prefix.value,
-                "group", "name", "0.1.0", "solution.py"
-            ).exists()
+                "group", "name", "0.1.0"
+            )).joinpath("solution.py").exists()
         )
         print(self.captured_output.getvalue())
 
@@ -152,58 +154,93 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         )
 
     def test_install_with_parent(self):
-        # gather arguments
+        # install parent app solution
         resolve_result = self.album_instance.collection_manager().resolve_and_load(
             self.get_test_solution_path('app1.py'))
         self.album_instance.install_manager().install(resolve_result)
+        print(self.captured_output.getvalue())
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
+        # install child solution
         resolve_result = self.album_instance.collection_manager().resolve_and_load(
             self.get_test_solution_path('solution1_app1.py'))
         self.album_instance.install_manager().install(resolve_result)
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
-        # assert solution was added to local catalog
+        # assert both solutions added to local catalog
         collection = self.collection_manager().catalog_collection
         self.assertEqual(2, len(collection.get_solutions_by_catalog(
             self.collection_manager().catalogs().get_local_catalog().catalog_id())))
 
-        # assert solution is in the right place and has the right name
-        parent_solution_path = Path(self.tmp_dir.name).joinpath(
+        # assert both solution are in the right place and have the right name
+        parent_solution_path = get_link_target(Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
             str(self.collection_manager().catalogs().get_local_catalog().name()),
             DefaultValues.cache_path_solution_prefix.value, 'group',
-            'app1', '0.1.0', 'solution.py'
-        )
+            'app1', '0.1.0')).joinpath('solution.py')
         self.assertTrue(parent_solution_path.exists())
-        solution_path = Path(self.tmp_dir.name).joinpath(
+        solution_path = get_link_target(Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
             str(self.collection_manager().catalogs().get_local_catalog().name()),
             DefaultValues.cache_path_solution_prefix.value, 'group',
-            'solution1_app1', '0.1.0', 'solution.py'
-        )
+            'solution1_app1', '0.1.0')).joinpath('solution.py')
         self.assertTrue(solution_path.exists())
 
+        # uninstall child solution
         resolve_result = self.album_instance.collection_manager().resolve_and_load(
             self.get_test_solution_path('solution1_app1.py'))
         self.album_instance.install_manager().uninstall(resolve_result)
 
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
+        # assert that child solution path doesn't exist any more
         solution_path = Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
             str(self.collection_manager().catalogs().get_local_catalog().name()),
             DefaultValues.cache_path_solution_prefix.value, 'group',
-            'solution1_app1', '0.1.0', 'solution.py'
+            'solution1_app1', '0.1.0'
         )
         self.assertFalse(solution_path.exists())
 
+        # install child solution again
         resolve_result = self.album_instance.collection_manager().resolve_and_load(
             self.get_test_solution_path('solution1_app1.py'))
         self.album_instance.install_manager().install(resolve_result)
 
         self.assertNotIn('ERROR', self.captured_output.getvalue())
-        self.assertTrue(solution_path.exists())
+        self.assertTrue(get_link_target(solution_path).exists())
+
+        # uninstall child solution
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path('solution1_app1.py'))
+        self.album_instance.install_manager().uninstall(resolve_result)
+
+        # uninstall parent solution
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path('app1.py'))
+        self.album_instance.install_manager().uninstall(resolve_result)
+
+        # install child solution again - this should now fail
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+            self.get_test_solution_path('solution1_app1.py'))
+        with self.assertRaises(LookupError):
+            self.album_instance.install_manager().install(resolve_result)
+
+    def test_install_with_parent_from_catalog(self):
+        # prepare
+        tmp_file = Path(self.tmp_dir.name).joinpath("somefile.txt")
+        tmp_file.touch()
+        catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", "my-catalog")
+        CatalogHandler.create_new_catalog(catalog_src, "my-catalog")
+        catalog = self.collection_manager().catalogs().add_by_src(catalog_src)
+        self.album_instance.deploy_manager().deploy(self.get_test_solution_path('app1.py'), catalog_name=catalog.name(), dry_run=False)
+        self.album_instance.collection_manager().catalogs().update_collection(catalog.name())
+
+        # install child app solution
+        resolve_result = self.album_instance.collection_manager().resolve_and_load(self.get_test_solution_path('solution1_app1.py'))
+        self.album_instance.install_manager().install(resolve_result)
+        resolve_result = self.album_instance.collection_manager().resolve_and_load('group:solution1_app1:0.1.0')
+        self.album_instance.run_manager().run(resolve_result, argv=['', '--file_solution1_app1', str(tmp_file)])
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     @patch('album.core.controller.conda_manager.CondaManager.environment_exists')
@@ -233,27 +270,24 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
             self.collection_manager().catalogs().get_local_catalog().catalog_id())))
 
         # assert solution is in the right place and has the right name
-        parent_solution_path = Path(self.tmp_dir.name).joinpath(
+        parent_solution_path = get_link_target(Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
             str(self.collection_manager().catalogs().get_local_catalog().name()),
             DefaultValues.cache_path_solution_prefix.value, 'group',
-            'app1', '0.1.0', 'solution.py'
-        )
+            'app1', '0.1.0')).joinpath('solution.py')
         self.assertTrue(parent_solution_path.exists())
-        solution_path = Path(self.tmp_dir.name).joinpath(
+        solution_path = get_link_target(Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
             str(self.collection_manager().catalogs().get_local_catalog().name()),
             DefaultValues.cache_path_solution_prefix.value, 'group',
-            'solution1_app1', '0.1.0', 'solution.py'
-        )
+            'solution1_app1', '0.1.0')).joinpath('solution.py')
         self.assertTrue(solution_path.exists())
         self.assertTrue(parent_solution_path.exists())
-        solution_child_path = Path(self.tmp_dir.name).joinpath(
+        solution_child_path = get_link_target(Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
             str(self.collection_manager().catalogs().get_local_catalog().name()),
             DefaultValues.cache_path_solution_prefix.value, 'group',
-            'solution12_solution1_app1', '0.1.0', 'solution.py'
-        )
+            'solution12_solution1_app1', '0.1.0')).joinpath('solution.py')
         self.assertTrue(solution_child_path.exists())
 
         resolve_result = self.album_instance.collection_manager().resolve_and_load(

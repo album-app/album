@@ -95,14 +95,17 @@ def get_index_as_string(index_dict: dict):
             res += '├─ catalog_id: %s\n' % catalog['catalog_id']
             if len(catalog['solutions']) > 0:
                 res += '├─ deletable: %s\n' % catalog['deletable']
-                res += '└─ solutions:\n'
+                res += '└─ [installed] solutions:\n'
                 for i, solution in enumerate(catalog['solutions']):
+                    installed = ' '
+                    if solution['internal']['installed']:
+                        installed = 'x'
                     if i is len(catalog['solutions']) - 1:
-                        res += '   └─ %s:%s:%s\n' % (
-                            solution['setup']['group'], solution['setup']['name'], solution['setup']['version'])
+                        res += '   └─ [%s] %s:%s:%s\n' % (
+                            installed, solution['setup']['group'], solution['setup']['name'], solution['setup']['version'])
                     else:
-                        res += '   ├─ %s:%s:%s\n' % (
-                            solution['setup']['group'], solution['setup']['name'], solution['setup']['version'])
+                        res += '   ├─ [%s] %s:%s:%s\n' % (
+                            installed, solution['setup']['group'], solution['setup']['name'], solution['setup']['version'])
             else:
                 res += '└─ deletable: %s\n' % catalog['deletable']
     return res
@@ -137,9 +140,9 @@ def get_logging_formatter(fmt=None, time=None):
 def get_logger_name_minimizer_filter():
     class NameDotFilter(logging.Filter):
         def filter(self, record):
-            count = record.name.count('.')
+            count = record.name.count('.') + record.name.count('~')
             if count > 0:
-                record.shortened_name = '-' * count + ' '
+                record.shortened_name = '~' * count + ' '
             else:
                 record.shortened_name = ''
             return True

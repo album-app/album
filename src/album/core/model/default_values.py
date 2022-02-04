@@ -9,8 +9,9 @@ class DefaultValues(Enum):
     """Add an entry here to initialize default attributes for a album framework installation instance."""
 
     # runner
-    runner_api_packet_version = '0.3.0'      # set to None to use with url
+    runner_api_packet_version = '0.3.1'      # set to None to use with url
     runner_api_packet_name = 'album-runner'  # can also point to zip/url like: https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip
+    runner_pip_version = 'pip=21.0'
 
     # templates
     catalog_template_url = 'https://gitlab.com/album-app/catalogs/templates'  # base URL of available catalog templates
@@ -31,8 +32,10 @@ class DefaultValues(Enum):
     catalog_index_metafile_json = 'album_catalog_index.json'               # the default meta file name of the catalog_index
     catalog_solution_list_file_name = 'album_solution_list.json'           # the default file name for exporting the list of solutions of a catalog
     catalog_folder_prefix = 'catalogs'                                     # base folder prefix where all not local catalogs live
+    link_folder_prefix = 'lnk'                                             # base folder prefix where all internal link destinations live
     cache_path_solution_prefix = "solutions"                               # base folder prefix where solutions live
     cache_path_app_prefix = "apps"                                         # base folder prefix where app solutions live
+    cache_path_data_prefix = "data"                                        # base folder prefix where data lives
     cache_path_download_prefix = "downloads"                               # base folder prefix where downloads live
     cache_path_tmp_prefix = "tmp"                                          # base folder prefix where temporary files live
     cache_path_envs_prefix = "envs"                                        # base folder prefix where environments live in
@@ -40,6 +43,14 @@ class DefaultValues(Enum):
     # solutions
     solution_default_name = "solution.py"                                  # default name how solution.py files are called
     changelog_default_name = "CHANGELOG.md"                                # default name of the changelog file
+
+    # lnk folder prefixes
+    lnk_data_prefix = 'data'
+    lnk_app_prefix = 'app'
+    lnk_package_prefix = 'pck'
+    lnk_internal_cache_prefix = 'icache'
+    lnk_user_cache_prefix = 'ucache'
+    lnk_env_prefix = 'env'
 
     # environment
     default_environment = "album"            # default environment name the album framework operates from

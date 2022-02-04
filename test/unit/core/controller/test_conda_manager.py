@@ -1,7 +1,11 @@
 import json
+import os
+import platform
 import unittest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
+
+import yaml
 
 from album.core.controller.conda_manager import CondaManager
 from album.core.model.environment import Environment
@@ -22,44 +26,45 @@ class TestCondaManager(TestUnitCoreCommon):
             self.assertFalse(self.conda.environment_exists(self.test_environment_name))
         super().tearDown()
 
-    @patch('album.core.controller.conda_manager.CondaManager.get_info')
-    def test_get_environment_list(self, ginfo_mock):
-        base_dir = Path(self.album.configuration().cache_path_envs())
+    def test_get_environment_list(self):
+        base_dir = Path(self.album.configuration().lnk_path()).joinpath('env')
         expected = list()
-        expected.append(str(base_dir.joinpath("envName1")))
-        expected.append(str(base_dir.joinpath("envName2")))
-        Path(expected[0]).mkdir(parents=True)
-        Path(expected[1]).joinpath('envName2').mkdir(parents=True)
+        expected.append(base_dir.joinpath("envName1").resolve())
+        expected.append(base_dir.joinpath("envName2").resolve())
+        Path(expected[0]).joinpath('somefile').mkdir(parents=True)
+        Path(expected[1]).joinpath('somefile').mkdir(parents=True)
 
         res = self.conda.get_environment_list()
 
         self.assertListEqual(expected, res)
 
-    def test_get_base_environment_path(self):
-        r = self.conda.get_base_environment_path()
-        self.assertIsNotNone(r)
-        self.assertTrue(Path(r).is_dir())
-
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_list')
     def test_environment_exists(self, ged_mock):
         p = str(self.conda._configuration.cache_path_envs().joinpath("envName1"))
+        target = self.conda._configuration.lnk_path().joinpath('0').resolve()
+        Path(target).joinpath('whatever').mkdir(parents=True)
+        operation_system = platform.system().lower()
+        if 'windows' in operation_system:
+            from pylnk3 import for_file
+            for_file(
+                target_file=str(target),
+                lnk_name=p+'.lnk'
+            )
+        else:
+            os.symlink(target, p)
 
-        ged_mock.return_value = [
-            p,
-            Path("anotherPath").joinpath("envName2")
-        ]
+        ged_mock.return_value = [target]
 
         self.assertTrue(self.conda.environment_exists("envName1"))
         self.assertFalse(self.conda.environment_exists("notExitendEnvs"))
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_list')
     def test_get_environment_path(self, ged_mock):
-        p = str(self.conda._configuration.cache_path_envs().joinpath("envName1"))
+        link1 = self.conda._configuration.lnk_path().joinpath('env', '%s' % 0).resolve()
         ged_mock.return_value = [
-            p,
-            Path("anotherPath").joinpath("envName2")
+            link1
         ]
-        self.assertEqual(p, self.conda.get_environment_path("envName1"))
+        self.assertEqual(link1, self.conda.get_environment_path("envName1").resolve())
 
     def test_get_environment_path_invalid_env(self):
         self.assertFalse(self.conda.environment_exists("NotExistingEnv"))
@@ -79,7 +84,7 @@ class TestCondaManager(TestUnitCoreCommon):
         ginfo_mock.return_value = {
             "active_prefix": "aEnvPath"
         }
-        self.assertEqual("aEnvPath", self.conda.get_active_environment_path())
+        self.assertEqual("aEnvPath", str(self.conda.get_active_environment_path()))
 
     def test_get_info(self):
         r = self.conda.get_info()
@@ -96,7 +101,7 @@ class TestCondaManager(TestUnitCoreCommon):
 
     def test_create_environment_from_file_valid_file(self):
         self.assertFalse(self.conda.environment_exists(self.test_environment_name))
-        env_file = """name: %s""" % self.test_environment_name
+        env_file = """dependencies:"""
 
         with open(Path(self.tmp_dir.name).joinpath("env_file.yml"), "w") as f:
             f.writelines(env_file)
@@ -104,8 +109,20 @@ class TestCondaManager(TestUnitCoreCommon):
         self.conda.create_environment_from_file(
             Path(self.tmp_dir.name).joinpath("env_file.yml"), self.test_environment_name
         )
-
+        print(self.captured_output.getvalue())
         self.assertTrue(self.conda.environment_exists(self.test_environment_name))
+
+    def test__append_framework_to_yml(self):
+        output = CondaManager._append_framework_to_yml(yaml.safe_load("""
+dependencies:
+    - pip
+    - pip:
+         - bla
+         - blub
+"""), '0.3.0')
+        self.assertEqual({'dependencies': ['pip', {'pip': ['bla', 'blub', 'album-runner==0.3.0']}]}, output)
+        output = CondaManager._append_framework_to_yml(yaml.safe_load("""name: test"""), '0.3.0')
+        self.assertEqual({'name': 'test', 'dependencies': ['pip=21.0', {'pip': ['album-runner==0.3.0']}]}, output)
 
     def test_create_environment_from_file_invalid(self):
         # wrong file ending
@@ -144,29 +161,12 @@ class TestCondaManager(TestUnitCoreCommon):
             self.assertTrue(
                 self.conda.is_installed(self.conda.get_environment_path(self.test_environment_name), "pip")
             )
+            # check if album-runner installed
+            self.assertTrue(
+                self.conda.is_installed(self.conda.get_environment_path(self.test_environment_name), "album-runner")
+            )
         else:
             unittest.skip("WARNING - CONDA ERROR!")
-
-    def test_pip_install(self):
-        if not self.conda.environment_exists(self.test_environment_name):
-            self.conda.create_environment(self.test_environment_name)
-
-        p = self.conda.get_environment_path(self.test_environment_name)
-        self.assertIsNotNone(p)
-
-        # check if package NOT installed
-        self.assertFalse(self.conda.is_installed(p, "anytree"))
-
-        self.conda.pip_install(p, "anytree")
-
-    def test_pip_install_no_cache(self):
-        with patch('album.core.controller.conda_manager.subcommand.run') as run_mock:
-            self.conda.pip_install("myEnvironmentPath", "anytree", use_cache=False)
-
-            # expected
-            name1, args1, kwargs1 = run_mock.mock_calls[0]
-
-            self.assertIn('--no-cache-dir', args1[0])
 
     def test_run_script(self):
         with open(self.closed_tmp_file.name, "w") as f:
@@ -189,28 +189,6 @@ class TestCondaManager(TestUnitCoreCommon):
         self.conda.remove_environment("iDoNotExist")
         run_mock.assert_called_once()
 
-    def test_cmd_available(self):
-        if not self.conda.environment_exists(self.test_environment_name):
-            self.conda.create_environment(self.test_environment_name)
-        p = self.conda.get_environment_path(self.test_environment_name)
-
-        self.assertFalse(self.conda.cmd_available(p, ["album"]))
-        self.assertTrue(self.conda.cmd_available(p, ["conda"]))
-
-    def test_conda_install(self):
-        cache_path = Path(self.tmp_dir.name, "env")
-        name = self.test_environment_name
-        if not self.conda.environment_exists(name):
-            self.conda.create_environment(name)
-        environment = Environment(None, name, cache_path)
-        self.conda.set_environment_path(environment)
-
-        self.assertFalse(self.conda.is_installed(environment.path(), "perl"))
-
-        self.conda.conda_install(environment.path(), "perl")
-
-        self.assertTrue(self.conda.is_installed(environment.path(), "perl"))
-
     def test_set_environment_path_None(self):
         name = "NotExistingEnv"
         self.assertFalse(self.conda.environment_exists(name))
@@ -218,13 +196,10 @@ class TestCondaManager(TestUnitCoreCommon):
         with self.assertRaises(LookupError):
             self.conda.set_environment_path(environment)
 
-    @patch('album.core.controller.conda_manager.CondaManager.get_environment_list')
-    def test_set_environment_path(self, ged_mock):
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    def test_set_environment_path(self, gep_mock):
         p = str(self.conda._configuration.cache_path_envs().joinpath(self.test_environment_name))
-        ged_mock.return_value = [
-            p,
-            Path("anotherPath").joinpath("envName2")
-        ]
+        gep_mock.return_value = p
         environment = Environment(None, self.test_environment_name, "aPath")
         self.assertIsNone(self.conda.set_environment_path(environment))
 
@@ -278,7 +253,7 @@ class TestCondaManager(TestUnitCoreCommon):
 
         self.conda.create_or_update_env(environment)
 
-        create_mock.assert_called_once_with(environment)
+        create_mock.assert_called_once_with(environment, None)
         update_mock.assert_not_called()
 
     @patch('album.core.controller.conda_manager.CondaManager.create')
@@ -307,7 +282,7 @@ class TestCondaManager(TestUnitCoreCommon):
 
         self.conda.create(environment)
 
-        create_environment_from_file_mock.assert_called_once_with(Path("aPath"), "aName")
+        create_environment_from_file_mock.assert_called_once_with(Path("aPath"), "aName", None)
         create_environment_mock.assert_not_called()
 
     @patch('album.core.controller.conda_manager.CondaManager.create_environment')
@@ -316,37 +291,18 @@ class TestCondaManager(TestUnitCoreCommon):
         environment = Environment(None, "aName", "aPath")
         self.conda.create(environment)
 
-        create_environment_mock.assert_called_once_with("aName")
+        create_environment_mock.assert_called_once_with("aName", None)
         create_environment_from_file_mock.assert_not_called()
 
     @patch('album.core.controller.conda_manager.CondaManager.create_or_update_env', return_value="Called")
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path', return_value="Called")
-    @patch('album.core.controller.conda_manager.CondaManager.install_framework', return_value="Called")
-    def test_install(self, is_inst_mock, get_env_path_mock, create_mock):
+    def test_install(self, get_env_path_mock, create_mock):
         environment = Environment(None, "aName", "aPath")
 
         self.conda.install(environment, "TestVersion")
 
-        create_mock.assert_called_once()
+        create_mock.assert_called_once_with(environment, "TestVersion")
         get_env_path_mock.assert_called_once()
-        is_inst_mock.assert_called_once_with("Called", "TestVersion")
-
-    @patch('album.core.controller.conda_manager.CondaManager.pip_install')
-    @patch('album.core.controller.conda_manager.CondaManager.is_installed', return_value=False)
-    def test_install_framework(self, is_installed_mock, pip_install_mock):
-        environment = Environment(None, "aName", "aPath")
-        environment._path = "NotNone"
-        self.conda.install_framework(environment.path(), "version")
-        is_installed_mock.assert_called_once_with("NotNone", "album-runner", "version")
-        pip_install_mock.assert_called_once()
-
-    @patch('album.core.controller.conda_manager.CondaManager.pip_install')
-    def test_pip_install_into_environment(self, conda_install_mock):
-        environment = Environment(None, "aName", "aPath")
-        environment._path = "aPath"
-        self.conda.pip_install_into_environment(environment.path(), "test", "testVersion")
-
-        conda_install_mock.assert_called_once_with("aPath", "test==testVersion", True)
 
 
 if __name__ == '__main__':

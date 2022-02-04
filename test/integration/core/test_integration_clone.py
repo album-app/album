@@ -44,7 +44,7 @@ class TestIntegrationClone(TestIntegrationCoreCommon):
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         target_path = Path(self.tmp_dir.name).joinpath("my_catalogs", "my_catalog")
         self.assertIn(
-            f"INFO - Downloaded template from https://gitlab.com/album-app/catalogs/templates/catalog/-/archive/main/catalog-main.zip to {str(target_path)}",
+            f"INFO Downloaded template from https://gitlab.com/album-app/catalogs/templates/catalog/-/archive/main/catalog-main.zip to {str(target_path)}",
             self.captured_output.getvalue())
         self.assertTrue(target_path.joinpath("album_catalog_index.json").exists())
         self.assertTrue(target_path.joinpath("album_solution_list.json").exists())
@@ -54,7 +54,7 @@ class TestIntegrationClone(TestIntegrationCoreCommon):
         with self.assertRaises(ValueError) as e:
             self.album_instance.clone_manager().clone("weirdPath", target_dir=str(Path(self.tmp_dir.name)), name="my_solution")
 
-        self.assertIn("Invalid input format!", e.exception.args[0])
+        self.assertIn("Invalid input format", e.exception.args[0])
 
 
 if __name__ == '__main__':

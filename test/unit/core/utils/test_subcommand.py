@@ -204,22 +204,42 @@ class TestLogfileBuffer(TestUnitCoreCommon):
         all(self.assertTrue(elem.startswith("thread1")) for elem in logs1)
         all(self.assertTrue(elem.startswith("thread2")) for elem in logs2)
 
-    @unittest.skip("Needs to be implemented!")
-    def test_split_messages(self):
-        # ToDo: implement
-        pass
-
-    @unittest.skip("Needs to be implemented!")
-    def test_tabulate_multi_lines(self):
-        # ToDo: implement
-        pass
-
     def test_parse_log(self):
         log_buffer = LogfileBuffer(get_active_logger())
 
         res = log_buffer.parse_log("14:15:12 WARNING name - message")
         self.assertEqual("name", res.name)
         self.assertEqual("WARNING", res.level)
+        self.assertEqual("message", res.message)
+
+        res = log_buffer.parse_log("14:15:12 WARNING   message")
+        self.assertEqual(None, res.name)
+        self.assertEqual("WARNING", res.level)
+        self.assertEqual("message", res.message)
+
+        res = log_buffer.parse_log("14:15:12 WARNING message")
+        self.assertEqual(None, res.name)
+        self.assertEqual("WARNING", res.level)
+        self.assertEqual("message", res.message)
+
+        res = log_buffer.parse_log("14:15:12 WARNING  ~ message")
+        self.assertEqual("~", res.name)
+        self.assertEqual("WARNING", res.level)
+        self.assertEqual("message", res.message)
+
+        res = log_buffer.parse_log("14:15:12 WARNING  ~~ message")
+        self.assertEqual("~~", res.name)
+        self.assertEqual("WARNING", res.level)
+        self.assertEqual("message", res.message)
+
+        res = log_buffer.parse_log("WARNING name - message")
+        self.assertEqual("name", res.name)
+        self.assertEqual("WARNING", res.level)
+        self.assertEqual("message", res.message)
+
+        res = log_buffer.parse_log("INFO    root.script - message")
+        self.assertEqual("root.script", res.name)
+        self.assertEqual("INFO", res.level)
         self.assertEqual("message", res.message)
 
         res = log_buffer.parse_log("15:22:24.487 [SciJava-7e75bf2d-Thread-0] DEBUG message")

@@ -24,7 +24,7 @@ setup(
     name="app1",
     title="app one",
     version="0.1.0",
-    album_api_version="0.2.1",
+    album_api_version="0.3.1",
     args=[{
         "name": "file",
         "description": "",

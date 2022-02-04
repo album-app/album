@@ -44,8 +44,3 @@ class IEnvironmentManager:
     @abstractmethod
     def get_conda_manager(self):
         raise NotImplementedError
-
-    @abstractmethod
-    def get_environment_base_folder(self):
-        """Returns the location all album-created environments live in."""
-        raise NotImplementedError

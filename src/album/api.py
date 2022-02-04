@@ -80,7 +80,7 @@ class Album:
         """
         return self._controller.search_manager().search(keywords)
 
-    def run(self, collection_solution: ICollectionSolution, run_immediately=False, argv=None):
+    def run(self, collection_solution: ICollectionSolution, argv=None, run_immediately=False):
         return self._controller.run_manager().run(collection_solution, run_immediately, argv)
 
     def install(self, collection_solution: ICollectionSolution, argv=None):

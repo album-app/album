@@ -107,7 +107,7 @@ class TestIntegrationCoreCommon(unittest.TestCase):
         logger.setLevel('INFO')
         ch = logging.StreamHandler(self.captured_output)
         ch.setLevel('INFO')
-        ch.setFormatter(get_logging_formatter(fmt='%(log_color)s%(asctime)s %(levelname)s - %(shortened_name)s%(message)s'))
+        ch.setFormatter(get_logging_formatter(fmt='%(log_color)s%(asctime)s %(levelname)s %(shortened_name)s%(message)s'))
         ch.addFilter(get_logger_name_minimizer_filter())
         ch.addFilter(get_message_filter())
         logger.addHandler(ch)
@@ -126,7 +126,7 @@ class TestIntegrationCoreCommon(unittest.TestCase):
         local_catalog = self.collection_manager().catalogs().get_local_catalog()
         if create_environment:
             env_name = "_".join([local_catalog.name(), a.get_identifier()])
-            self.album_controller().environment_manager().get_conda_manager().install(Environment(None, env_name, "unusedCachePath"))
+            self.album_controller().environment_manager().get_conda_manager().install(Environment(None, env_name, Path("unusedCachePath")))
 
         # add to collection, assign to local catalog
         len_catalog_before = len(self.collection_manager().catalog_collection.get_solutions_by_catalog(local_catalog.catalog_id()))

@@ -77,8 +77,6 @@ class CollectionManager(ICollectionManager):
         )
         if newly_created:
             self.catalog_handler.add_initial_catalogs()
-            self.catalog_handler.update_any()
-            self.catalog_handler.update_collection()
 
     def catalogs(self) -> ICatalogHandler:
         return self.catalog_handler
@@ -201,7 +199,7 @@ class CollectionManager(ICollectionManager):
 
     def _resolve(self, str_input) -> ICollectionSolution:
         # always first resolve outside any catalog, excluding a DOI which should be first resolved inside a catalog
-        path = check_file_or_url(str_input, self.album.configuration().cache_path_tmp_user())
+        path = check_file_or_url(str_input, self.album.configuration().cache_path_download())
 
         doi = get_doi_from_input(str_input)
         if path:

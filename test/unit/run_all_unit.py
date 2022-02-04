@@ -11,7 +11,7 @@ from test.unit.core.controller import test_search_manager, test_install_manager,
     test_environment_manager
 from test.unit.core.controller.collection import test_collection_manager, test_catalog_handler, test_solution_handler
 from test.unit.core.model import test_catalog, test_configuration, test_environment, \
-    test_catalog_index, test_collection_index, test_coordinates, test_task, test_database
+    test_catalog_index, test_collection_index, test_task, test_database
 from test.unit.core.utils import test_subcommand
 from test.unit.core.utils.export import test_changelog, test_docker
 from test.unit.core.utils.operations import test_dict_operations
@@ -52,7 +52,6 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_collection_index))
     suite.addTests(loader.loadTestsFromModule(test_configuration))
     suite.addTests(loader.loadTestsFromModule(test_environment))
-    suite.addTests(loader.loadTestsFromModule(test_coordinates))
     suite.addTests(loader.loadTestsFromModule(test_task))
 
     # album.core.concept

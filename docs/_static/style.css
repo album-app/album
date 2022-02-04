@@ -1,0 +1,38 @@
+.document table {
+    width: 100%;
+    table-layout: fixed;
+    border: none;
+}
+
+.document table td, .document table th {
+    word-wrap: break-word;         /* All browsers since IE 5.5+ */
+    overflow-wrap: break-word;     /* Renamed property in CSS3 draft spec */
+    white-space: normal;
+    background: none;
+    border: none;
+}
+
+.document table td:first-child, .document table th:first-child {
+    padding: 0;
+}
+
+.document table td:first-child code {
+    display: block;
+    font-size: 90%;
+}
+
+html.writer-html5 .rst-content table.docutils th {
+	border: none;
+}
+
+.rst-content table.docutils {
+	border: none;
+}
+
+.rst-content table.docutils:not(.field-list) tr:nth-child(2n-1) td, .wy-table-backed, .wy-table-odd td, .wy-table-striped tr:nth-child(2n-1) td {
+	background-color: transparent;
+}
+
+.rst-content table.docutils:not(.field-list) td, .wy-table-backed {
+	border: none;
+}

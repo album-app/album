@@ -1,4 +1,5 @@
 import logging
+import sys
 
 from album.core.utils.operations.view_operations import get_logger_name_minimizer_filter, get_logging_formatter, \
     get_message_filter
@@ -12,7 +13,7 @@ def configure_root_logger(log_format:str = None, log_format_time: str = None, lo
     logger.setLevel(log_level.name)
     # create console handler and set level to debug
     # ToDo: different handlers necessary? e.g. logging additional into a file?
-    ch = logging.StreamHandler()
+    ch = logging.StreamHandler(stream=sys.stdout)
     ch.setLevel(log_level.name)
 
     # add formatter to ch

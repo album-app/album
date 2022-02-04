@@ -1,5 +1,4 @@
-catalog administration
-================================
+# WIP - catalog administration
 
 Catalogs hold the solutions to a specific problem.
 Before solutions are usable from the catalog they need to be registered to it. That process is called `deployed`.

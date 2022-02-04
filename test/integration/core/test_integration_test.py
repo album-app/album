@@ -20,7 +20,7 @@ class TestIntegrationTest(TestIntegrationCoreCommon):
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
-        self.assertIn("WARNING - No \"test\" routine configured for solution", self.captured_output.getvalue())
+        self.assertIn("WARNING No \"test\" routine configured for solution", self.captured_output.getvalue())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_test(self, get_environment_path):

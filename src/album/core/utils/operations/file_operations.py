@@ -1,6 +1,7 @@
 import errno
 import json
 import os
+import platform
 import random
 import re
 import shutil
@@ -8,6 +9,7 @@ import stat
 import sys
 import tempfile
 from pathlib import Path
+from typing import Optional
 from zipfile import ZipFile
 
 import yaml
@@ -247,7 +249,6 @@ def unzip_archive(zip_archive_file, target_folder=None):
 
     return target_folder
 
-
 def force_remove(path, warning=True):
     path = Path(path)
     if path.exists():
@@ -258,11 +259,21 @@ def force_remove(path, warning=True):
                 except PermissionError:
                     handle_remove_readonly(os.unlink, path, sys.exc_info())
             else:
-                shutil.rmtree(path, ignore_errors=False, onerror=handle_remove_readonly)
+                shutil.rmtree(str(path), ignore_errors=False, onerror=handle_remove_readonly)
         except PermissionError as e:
             module_logger().warn("Cannot delete %s." % str(path))
             if not warning:
                 raise e
+
+
+def remove_link(link_target):
+    if link_target:
+        dispose_op = getattr(link_target, 'dispose', None)
+        if callable(dispose_op):
+            dispose_op()
+        else:
+            raise RuntimeError("Path doesn't seem to be a link")
+        force_remove(link_target)
 
 
 def handle_remove_readonly(func, path, exc):
@@ -284,3 +295,54 @@ def rand_folder_name(f_len=8):
 
 def check_zip(path):
     return not ZipFile(path).testzip()
+
+
+def construct_cache_link_target(lnk_path: Path, link, target, create=True) -> Optional[Path]:
+    operation_system = platform.system().lower()
+    root = lnk_path.joinpath(target)
+    if 'windows' in operation_system:
+        from pylnk3 import Lnk, for_file
+        link = str(link) + '.lnk'
+        if Path(link).exists():
+            resolve = Path(Lnk(link).path).absolute()
+            return resolve
+        if create:
+            i = 0
+            while root.joinpath("%s" % i).exists():
+                i += 1
+            target = root.joinpath('%s' % i)
+            target.mkdir(exist_ok=True, parents=True)
+            Path(link).parent.mkdir(parents=True, exist_ok=True)
+            for_file(
+                target_file=os.path.normpath(target),
+                lnk_name=link
+            )
+            resolve = target.absolute()
+            return resolve
+    else:
+        if os.path.islink(link):
+            return Path(link).resolve()
+        if create:
+            i = 0
+            while root.joinpath("%s" % i).exists():
+                i += 1
+            target = root.joinpath('%s' % i)
+            target.mkdir(exist_ok=True, parents=True)
+            Path(link).parent.mkdir(parents=True, exist_ok=True)
+
+            os.symlink(target, link, target_is_directory=True)
+            return target.resolve()
+    return None
+
+def get_link_target(link):
+    operation_system = platform.system().lower()
+    if 'windows' in operation_system:
+        from pylnk3 import Lnk, for_file
+        link = str(link) + '.lnk'
+        if Path(link).exists():
+            resolve = Path(Lnk(link).path).absolute()
+            return resolve
+    else:
+        if Path(link).exists():
+            return Path(link).resolve()
+    return None

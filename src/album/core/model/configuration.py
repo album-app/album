@@ -21,11 +21,13 @@ class Configuration(IConfiguration):
         self._conda_executable = None
         self._mamba_executable = None
         self._cache_path_app = None
+        self._cache_path_data = None
         self._cache_path_download = None
         self._cache_path_tmp_internal = None
         self._cache_path_tmp_user = None
         self._cache_path_envs = None
         self._catalog_collection_path = None
+        self._lnk_path = None
 
     def base_cache_path(self):
         return self._base_cache_path
@@ -39,6 +41,9 @@ class Configuration(IConfiguration):
     def cache_path_app(self):
         return self._cache_path_app
 
+    def cache_path_data(self):
+        return self._cache_path_data
+
     def cache_path_download(self):
         return self._cache_path_download
 
@@ -50,6 +55,9 @@ class Configuration(IConfiguration):
 
     def cache_path_envs(self):
         return self._cache_path_envs
+
+    def lnk_path(self):
+        return self._lnk_path
 
     def is_setup(self):
         return self._is_setup
@@ -78,14 +86,17 @@ class Configuration(IConfiguration):
             self._mamba_executable = shutil.which(self._mamba_executable)
         self._cache_path_tmp_internal = self._base_cache_path.joinpath(DefaultValues.cache_path_solution_prefix.value)
         self._cache_path_app = self._base_cache_path.joinpath(DefaultValues.cache_path_app_prefix.value)
+        self._cache_path_data = self._base_cache_path.joinpath(DefaultValues.cache_path_data_prefix.value)
         self._cache_path_download = self._base_cache_path.joinpath(DefaultValues.cache_path_download_prefix.value)
         self._cache_path_tmp_user = self._base_cache_path.joinpath(DefaultValues.cache_path_tmp_prefix.value)
         self._cache_path_envs = self._base_cache_path.joinpath(DefaultValues.cache_path_envs_prefix.value)
         self._catalog_collection_path = self._base_cache_path.joinpath(DefaultValues.catalog_folder_prefix.value)
+        self._lnk_path = self._base_cache_path.joinpath(DefaultValues.link_folder_prefix.value)
         create_paths_recursively(
             [
                 self._cache_path_tmp_internal,
                 self._cache_path_app,
+                self._cache_path_data,
                 self._cache_path_download,
                 self._cache_path_tmp_user,
                 self._cache_path_envs,

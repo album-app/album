@@ -1,4 +1,6 @@
 import json
+import os
+import platform
 import unittest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
@@ -22,44 +24,45 @@ class TestMambaManager(TestUnitCoreCommon):
             self.assertFalse(self.mamba.environment_exists(self.test_environment_name))
         super().tearDown()
 
-    @patch('album.core.controller.conda_manager.CondaManager.get_info')
-    def test_get_environment_list(self, ginfo_mock):
-        base_dir = Path(self.album.configuration().cache_path_envs())
+    def test_get_environment_list(self):
+        base_dir = Path(self.album.configuration().lnk_path()).joinpath('env')
         expected = list()
-        expected.append(str(base_dir.joinpath("envName1")))
-        expected.append(str(base_dir.joinpath("envName2")))
-        Path(expected[0]).mkdir(parents=True)
-        Path(expected[1]).joinpath('envName2').mkdir(parents=True)
+        expected.append(base_dir.joinpath("envName1").resolve())
+        expected.append(base_dir.joinpath("envName2").resolve())
+        expected[0].joinpath('somefile').mkdir(parents=True)
+        expected[1].joinpath('somefile').mkdir(parents=True)
 
         res = self.mamba.get_environment_list()
 
         self.assertListEqual(expected, res)
 
-    def test_get_base_environment_path(self):
-        r = self.mamba.get_base_environment_path()
-        self.assertIsNotNone(r)
-        self.assertTrue(Path(r).is_dir())
-
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_list')
     def test_environment_exists(self, ged_mock):
         p = str(self.mamba._configuration.cache_path_envs().joinpath("envName1"))
+        target = self.mamba._configuration.lnk_path().joinpath('env', '0')
+        target.joinpath('whatever').mkdir(parents=True)
+        operation_system = platform.system().lower()
+        if 'windows' in operation_system:
+            from pylnk3 import for_file
+            for_file(
+                target_file=target,
+                lnk_name=p + '.lnk'
+            )
+        else:
+            os.symlink(target, p)
 
-        ged_mock.return_value = [
-            p,
-            Path("anotherPath").joinpath("envName2")
-        ]
+        ged_mock.return_value = [target.resolve()]
 
         self.assertTrue(self.mamba.environment_exists("envName1"))
         self.assertFalse(self.mamba.environment_exists("notExitendEnvs"))
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_list')
     def test_get_environment_path(self, ged_mock):
-        p = str(self.mamba._configuration.cache_path_envs().joinpath("envName1"))
+        link = self.mamba._configuration.lnk_path().joinpath('env', '%s' % 0)
         ged_mock.return_value = [
-            p,
-            Path("anotherPath").joinpath("envName2")
+            link.resolve()
         ]
-        self.assertEqual(p, self.mamba.get_environment_path("envName1"))
+        self.assertEqual(link, self.mamba.get_environment_path("envName1").resolve())
 
     def test_get_environment_path_invalid_env(self):
         self.assertFalse(self.mamba.environment_exists("NotExistingEnv"))
@@ -160,20 +163,6 @@ class TestMambaManager(TestUnitCoreCommon):
         self.mamba.remove_environment("iDoNotExist")
         run_mock.assert_called_once()
 
-    def test_conda_install(self):
-        cache_path = Path(self.tmp_dir.name, "env")
-        name = self.test_environment_name
-        if not self.mamba.environment_exists(name):
-            self.mamba.create_environment(name)
-        environment = Environment(None, name, cache_path)
-        self.mamba.set_environment_path(environment)
-
-        self.assertFalse(self.mamba.is_installed(environment.path(), "perl"))
-
-        self.mamba.conda_install(environment.path(), "perl")
-
-        self.assertTrue(self.mamba.is_installed(environment.path(), "perl"))
-
     def test_set_environment_path_None(self):
         name = "NotExistingEnv"
         self.assertFalse(self.mamba.environment_exists(name))
@@ -181,13 +170,10 @@ class TestMambaManager(TestUnitCoreCommon):
         with self.assertRaises(LookupError):
             self.mamba.set_environment_path(environment)
 
-    @patch('album.core.controller.conda_manager.CondaManager.get_environment_list')
-    def test_set_environment_path(self, ged_mock):
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    def test_set_environment_path(self, gep_mock):
         p = str(self.mamba._configuration.cache_path_envs().joinpath(self.test_environment_name))
-        ged_mock.return_value = [
-            p,
-            Path("anotherPath").joinpath("envName2")
-        ]
+        gep_mock.return_value = p
         environment = Environment(None, self.test_environment_name, "aPath")
         self.assertIsNone(self.mamba.set_environment_path(environment))
 

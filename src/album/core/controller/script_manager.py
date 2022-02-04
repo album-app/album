@@ -214,30 +214,13 @@ class ScriptManager(IScriptManager):
         environment = self.album.environment_manager().set_environment(collection_solution)
         active_solution = collection_solution.loaded_solution()
 
-        parent_solution_resolve = self.album.collection_manager().resolve_parent(get_parent_dict(active_solution))
-
-        # handle arguments
-        parent_args, active_solution_args = self._resolve_args(
-            parent_solution=parent_solution_resolve.loaded_solution(),
-            steps_solution=[active_solution],
-            steps=[None],
-            step_solution_parsed_args=[None],
-            args=args
-        )
-
         # create script
-        scripts = self._create_solution_run_with_parent_script(
-            parent_solution_resolve.loaded_solution(),
-            parent_args,
-            [active_solution],
-            active_solution_args,
-            script_creator
-        )
+        script = script_creator.create_script(collection_solution.loaded_solution(), args)
 
         # TODO this should probably move into the runner
-        self._print_credit([parent_solution_resolve.loaded_solution(), active_solution])
+        self._print_credit([active_solution])
 
-        return ScriptQueueEntry(parent_solution_resolve.loaded_solution().coordinates(), scripts, environment)
+        return ScriptQueueEntry(collection_solution.loaded_solution().coordinates(), [script], environment)
 
     def _create_solution_run_collection_script(
             self, solution_collection: SolutionGroup, script_creator: ScriptCreatorRun

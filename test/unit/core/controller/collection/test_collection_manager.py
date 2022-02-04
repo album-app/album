@@ -143,7 +143,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         self.collection_manager().resolve_installed_and_load("grp:name:version")
 
         # assert
-        check_file_or_url_mock.assert_called_once_with("grp:name:version", self.album.configuration().cache_path_tmp_user())
+        check_file_or_url_mock.assert_called_once_with("grp:name:version", self.album.configuration().cache_path_download())
 
     @unittest.skip("Needs to be implemented!")
     def test_resolve_require_installation_and_load_valid_path(self):

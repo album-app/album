@@ -74,6 +74,7 @@ def retrieve_files_from_head(head, pattern, option="", number_of_files=1):
             c) There are more than a single solution file committed in the latest commit.
 
     """
+    pattern = str(pattern)
     parent = head.commit.parents[0] if head.commit.parents else None
     module_logger().debug("Found head commit: %s..." % parent)
     module_logger().debug("Summary message: %s..." % parent.summary)
