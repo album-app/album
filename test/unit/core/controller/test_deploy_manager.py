@@ -273,7 +273,7 @@ class TestDeployManager(TestGitCommon):
 
         _create_merge_request.assert_not_called()  # local -> no merge request
 
-    @patch('album.core.controller.deploy_manager.retrieve_mr_push_options', return_value="myMergeOptions")
+    @patch('album.core.controller.deploy_manager.retrieve_default_mr_push_options', return_value="myMergeOptions")
     @patch('album.core.controller.deploy_manager.DeployManager._deploy_routine_in_local_src',
            return_value=["solution_zip", ["dockerfile", "copiedYmlFilePath", "cover1", "cover2"]])
     @patch('album.core.controller.deploy_manager.DeployManager._create_merge_request', return_value=None)
@@ -354,7 +354,7 @@ class TestDeployManager(TestGitCommon):
             add_files_commit_and_push_mock.assert_called_once_with(
                 repo.heads[1], [self.closed_tmp_file.name],
                 "Adding new/updated tsg_tsn_tsv",
-                email=None, push=False, push_options=[], username=None
+                email=None, push=False, push_option_list=[], username=None
             )
 
     @patch('album.core.controller.deploy_manager.get_deploy_dict')
