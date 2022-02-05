@@ -241,6 +241,22 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         self.album_instance.install_manager().install(resolve_result)
         resolve_result = self.album_instance.collection_manager().resolve_and_load('group:solution1_app1:0.1.0')
         self.album_instance.run_manager().run(resolve_result, argv=['', '--file_solution1_app1', str(tmp_file)])
+        resolve_result = self.album_instance.collection_manager().resolve_and_load('group:solution1_app1:0.1.0')
+        self.album_instance.install_manager().uninstall(resolve_result)
+
+        # do the same thing again, but this time the child solution is in the catalog and addressed via coordinates
+        # deploy child solution to catalog
+        self.album_instance.deploy_manager().deploy(self.get_test_solution_path('solution1_app1.py'), catalog_name=catalog.name(), dry_run=False)
+        self.album_instance.collection_manager().catalogs().update_collection(catalog.name())
+        # install child solution
+        resolve_result = self.album_instance.collection_manager().resolve_and_load('group:solution1_app1:0.1.0')
+        self.album_instance.install_manager().install(resolve_result)
+        # uninstall child solution
+        resolve_result = self.album_instance.collection_manager().resolve_and_load('group:solution1_app1:0.1.0')
+        self.album_instance.install_manager().uninstall(resolve_result)
+        # install child solution
+        resolve_result = self.album_instance.collection_manager().resolve_and_load('group:solution1_app1:0.1.0')
+        self.album_instance.install_manager().install(resolve_result)
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     @patch('album.core.controller.conda_manager.CondaManager.environment_exists')
