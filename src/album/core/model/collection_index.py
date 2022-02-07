@@ -651,24 +651,46 @@ class CollectionIndex(ICollectionIndex, Database):
 
     def insert_collection_collection(self, collection_id_parent, collection_id_child, catalog_id_parent,
                                      catalog_id_child, close=True):
-        solution_solution_id = self.next_id("collection_collection")
 
-        cursor = self.get_cursor()
-        cursor.execute(
-            "INSERT INTO collection_collection values (?, ?, ?, ?, ?)",
-            (
-                solution_solution_id,
-                collection_id_parent,
-                collection_id_child,
-                catalog_id_parent,
-                catalog_id_child
+
+        if not self._exists_collection_collection(collection_id_parent, collection_id_child, catalog_id_parent,
+                                                  catalog_id_child, close=False):
+
+            solution_solution_id = self.next_id("collection_collection")
+
+            cursor = self.get_cursor()
+            cursor.execute(
+                "INSERT INTO collection_collection values (?, ?, ?, ?, ?)",
+                (
+                    solution_solution_id,
+                    collection_id_parent,
+                    collection_id_child,
+                    catalog_id_parent,
+                    catalog_id_child
+                )
             )
-        )
+        if close:
+            self.close_current_connection()
+
+    def _exists_collection_collection(self, collection_id_parent, collection_id_child, catalog_id_parent,
+                                                  catalog_id_child, close=True):
+        cursor = self.get_cursor()
+        r = cursor.execute(
+            "SELECT * FROM collection_collection WHERE collection_id_parent=:collection_id_parent "
+            "AND collection_id_child=:collection_id_child AND catalog_id_parent=:catalog_id_parent "
+            "AND catalog_id_child=:catalog_id_child",
+            {
+                "collection_id_parent": collection_id_parent,
+                "collection_id_child": collection_id_child,
+                "catalog_id_parent": catalog_id_parent,
+                "catalog_id_child": catalog_id_child
+            }
+        ).fetchone()
 
         if close:
             self.close_current_connection()
 
-        return solution_solution_id
+        return r["collection_collection_id"] if r else None
 
     def remove_parent(self, collection_id, close=True):
         cursor = self.get_cursor()

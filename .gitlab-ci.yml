@@ -194,6 +194,8 @@ gitlab pypi deploy:
       - if: $CI_COMMIT_TAG
         when: never
       - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+        changes:
+          - setup.cfg
 
 pypi deploy:
   image: python:latest
@@ -216,6 +218,9 @@ pypi deploy:
       - if: $CI_COMMIT_TAG
         when: never
       - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+        changes:
+          - setup.cfg
+
 
 docker deploy:
   stage: deploy
@@ -241,6 +246,8 @@ docker deploy:
       - if: $CI_COMMIT_TAG
         when: never
       - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+        changes:
+          - setup.cfg
 
 cmdline linux:
   extends: .linux_base_template
@@ -323,3 +330,6 @@ release tests linux:
     - album run album:template-r:0.1.0-SNAPSHOT
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - setup.cfg
+
