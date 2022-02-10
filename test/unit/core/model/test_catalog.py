@@ -36,7 +36,7 @@ class TestCatalog(TestUnitCoreCommon):
         super().setUp()
         self.create_album_test_instance(init_catalogs=False, init_collection=True)
         catalog_src = Path(self.tmp_dir.name).joinpath("testRepo")
-        CatalogHandler.create_new_catalog(catalog_src, "test")
+        CatalogHandler.create_new_catalog(catalog_src, "test", "direct")
         catalog_path = Path(self.tmp_dir.name).joinpath("testPath")
         catalog_path.mkdir(parents=True)
 
@@ -55,7 +55,7 @@ class TestCatalog(TestUnitCoreCommon):
         self.assertIsNotNone(new_catalog._src)
         self.assertTrue(new_catalog.is_local())
         self.assertEqual(new_catalog._name, 'test')
-        self.assertEqual('{\'name\': \'test\', \'version\': \'0.1.0\'}', str(new_catalog.get_meta_information()))
+        self.assertDictEqual(self.get_catalog_meta_dict("test"), new_catalog.get_meta_information())
 
     @unittest.skip("Needs to be implemented!")
     def test_update_index_cache_if_possible(self):
@@ -313,7 +313,6 @@ class TestCatalog(TestUnitCoreCommon):
 
         # call
         with self.catalog.retrieve_catalog(dl_path, force_retrieve=True) as repo:
-
             # assert
             self.assertIsNotNone(repo)
 
@@ -326,13 +325,13 @@ class TestCatalog(TestUnitCoreCommon):
 
         write_dict_to_json_mock.assert_called_once_with(
             self.catalog._path.joinpath("album_catalog_index.json"),
-            {"name": self.catalog._name, "version": self.catalog._version}
+            self.get_catalog_meta_dict(self.catalog._name, self.catalog._version, self.catalog._type)
         )
 
     def test_get_meta_information(self):
         self.assertEqual(
             self.catalog.get_meta_information(),
-            {"name": self.catalog._name, "version": self.catalog._version}
+            self.get_catalog_meta_dict(self.catalog._name, self.catalog._version, self.catalog._type)
         )
 
 

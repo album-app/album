@@ -75,7 +75,7 @@ class ICatalogHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def create_new(self, local_path, name):
+    def create_new(self, local_path, name, catalog_type):
         raise NotImplementedError
 
     @abstractmethod

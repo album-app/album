@@ -18,7 +18,7 @@ class TestSolutionHandler(TestCatalogCollectionCommon):
         super().setUp()
         self.fill_catalog_collection()
         catalog_src = Path(self.tmp_dir.name).joinpath("testRepo")
-        self.album.catalogs().create_new(catalog_src, "test")
+        self.album.catalogs().create_new(catalog_src, "test", "direct")
         catalog_path = Path(self.tmp_dir.name).joinpath("testPath")
         catalog_path.mkdir(parents=True)
 

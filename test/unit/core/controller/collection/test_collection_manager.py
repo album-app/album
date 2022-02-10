@@ -13,7 +13,7 @@ from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestCatalogCollectionCommon(TestUnitCoreCommon):
-
+    """Test Helper class for TestCollectionManager"""
     def setUp(self):
         super().setUp()
         test_catalog1_name = "test_catalog"
@@ -29,6 +29,7 @@ class TestCatalogCollectionCommon(TestUnitCoreCommon):
                 'path': str(
                     Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, test_catalog1_name)),
                 'src': str(test_catalog1_src),
+                'type': "direct",
                 'branch_name': "main"
             },
             {
@@ -37,6 +38,7 @@ class TestCatalogCollectionCommon(TestUnitCoreCommon):
                 'name': "default",
                 'path': str(Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, "default")),
                 'src': str(DefaultValues.default_catalog_src.value),
+                'type': "direct",
                 'branch_name': "main"
             },
             {
@@ -46,6 +48,7 @@ class TestCatalogCollectionCommon(TestUnitCoreCommon):
                 'path': str(
                     Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, "test_catalog2")),
                 'src': str(test_catalog2_src),
+                'type': "direct",
                 'branch_name': "main"
             }
         ]
@@ -57,7 +60,7 @@ class TestCatalogCollectionCommon(TestUnitCoreCommon):
         catalog_path = Path(self.tmp_dir.name).joinpath("my-catalogs", name)
         catalog_path.mkdir(parents=True)
         with open(catalog_path.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as file:
-            file.writelines("{\"name\": \"" + name + "\", \"version\": \"0.1.0\"}")
+            file.writelines(str(self.get_catalog_meta_dict(name)))
 
         return catalog_path
 
@@ -70,6 +73,7 @@ class TestCatalogCollectionCommon(TestUnitCoreCommon):
                 catalog["path"],
                 catalog["deletable"],
                 catalog["branch_name"],
+                catalog["type"]
             )
         self.assertEqual(self.catalog_list, self.album.collection_manager().get_collection_index().get_all_catalogs())
 
@@ -100,6 +104,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
                 'path': str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog")),
                 'deletable': 0,
                 'branch_name': "main",
+                'type': "direct",
                 'solutions': []
             }, {
                 'catalog_id': 2,
@@ -108,6 +113,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
                 'path': str(Path(self.tmp_dir.name).joinpath("catalogs", "default")),
                 'deletable': 1,
                 'branch_name': "main",
+                'type': "direct",
                 'solutions': []
             },
             {
@@ -117,6 +123,7 @@ class TestCollectionManager(TestCatalogCollectionCommon):
                 'path': str(Path(self.tmp_dir.name).joinpath("catalogs", "test_catalog2")),
                 'deletable': 1,
                 'branch_name': "main",
+                'type': "direct",
                 'solutions': []
             }
         ]}

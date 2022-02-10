@@ -30,7 +30,7 @@ class CatalogHandler(ICatalogHandler):
         initial_catalogs = self.album.configuration().get_initial_catalogs()
         name = DefaultValues.local_catalog_name.value
         local_path = initial_catalogs[name]
-        self.create_new_catalog(local_path, name)
+        self.create_new_catalog(local_path, name, "direct")  # local catalog always of type direct
 
     def add_initial_catalogs(self):
         self.create_local_catalog()
@@ -52,7 +52,6 @@ class CatalogHandler(ICatalogHandler):
 
             # always keep the local copy up to date
             if not catalog.is_cache():
-                catalog_meta_information = catalog_meta_information
                 self.album.migration_manager().migrate_catalog_index_db(
                     catalog.index_path(),  # the path to the catalog
                     catalog_meta_information["version"],  # eventually outdated remote version
@@ -75,7 +74,8 @@ class CatalogHandler(ICatalogHandler):
             str(catalog.src()),
             str(catalog.path()),
             int(catalog.is_deletable()),
-            str(catalog.branch_name())
+            str(catalog.branch_name()),
+            str(catalog.type())
         )
         catalog.set_catalog_id(catalog_id)
         return catalog.catalog_id()
@@ -132,16 +132,21 @@ class CatalogHandler(ICatalogHandler):
 
         return local_catalog
 
-    def create_new(self, local_path, name):
-        CatalogHandler.create_new_catalog(local_path, name)
+    def create_new(self, local_path, name, catalog_type):
+        CatalogHandler.create_new_catalog(local_path, name, catalog_type)
 
     @staticmethod
-    def create_new_catalog(local_path, name):
+    def create_new_catalog(local_path, name, catalog_type):
         """Creates the meta-file for a new catalog on the disk."""
         if not local_path.exists():
             local_path.mkdir(parents=True)
         with open(local_path.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as meta:
-            meta.writelines("{\"name\": \"" + name + "\", \"version\": \"" + CatalogIndex.version + "\"}")
+            meta.writelines(
+                "{\"name\": \"" + name
+                + "\", \"version\": \"" + CatalogIndex.version
+                + "\", \"type\": \"" + catalog_type
+                + "\"}"
+            )
 
     def _update(self, catalog: Catalog) -> bool:
         r = self.album.migration_manager().refresh_index(catalog)
@@ -319,7 +324,12 @@ class CatalogHandler(ICatalogHandler):
         # the path where the catalog lives based on its metadata
         catalog_path = self.album.configuration().get_cache_path_catalog(catalog_meta_information["name"])
 
-        catalog = Catalog(None, catalog_meta_information["name"], catalog_path, src=src, branch_name=branch_name)
+        catalog = Catalog(
+            None, catalog_meta_information["name"],
+            catalog_path, src=src,
+            branch_name=branch_name,
+            catalog_type=catalog_meta_information["type"]
+        )
 
         catalog.dispose()
 
@@ -417,5 +427,6 @@ class CatalogHandler(ICatalogHandler):
             catalog_dict['path'],
             catalog_dict['src'],
             bool(catalog_dict['deletable']),
-            catalog_dict['branch_name']
+            catalog_dict['branch_name'],
+            catalog_dict['type']
         )

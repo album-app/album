@@ -17,7 +17,7 @@ class TestMigrationManager(TestUnitCoreCommon):
 
         # creates remote catalog file content
         catalog_src = Path(self.tmp_dir.name).joinpath("testRepo")
-        CatalogHandler.create_new_catalog(catalog_src, "test")
+        CatalogHandler.create_new_catalog(catalog_src, "test", "direct")
 
         catalog_path = Path(self.tmp_dir.name).joinpath("testPath")
         catalog_path.mkdir(parents=True)

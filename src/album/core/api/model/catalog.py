@@ -80,6 +80,11 @@ class ICatalog:
         raise NotImplementedError
 
     @abstractmethod
+    def type(self) -> str:
+        """The type of the catalog."""
+        raise NotImplementedError
+
+    @abstractmethod
     def dispose(self):
         raise NotImplementedError
 

@@ -50,7 +50,8 @@ class TestCollectionIndex(TestUnitCoreCommon):
             "src": "mySrc" + str(catalog_id),
             "path": "myPath" + str(catalog_id),
             "branch_name": None,
-            "deletable": True
+            "deletable": True,
+            "type": "direct"
         }
 
     def test__init___has_empty(self):
@@ -91,7 +92,7 @@ class TestCollectionIndex(TestUnitCoreCommon):
         self.assertTrue(self.test_catalog_collection_index.is_table_empty("catalog"))
 
         self.test_catalog_collection_index.insert_catalog(
-            "myName1", "mySrc1", "myPath1", True, None
+            "myName1", "mySrc1", "myPath1", deletable=True, branch_name=None, catalog_type="direct"
         )
 
         r = self.get_test_catalog_dict(1)
@@ -100,7 +101,7 @@ class TestCollectionIndex(TestUnitCoreCommon):
 
     def test_get_catalog(self):
         self.test_catalog_collection_index.insert_catalog(
-            "myName1", "mySrc1", "myPath1", True, None
+            "myName1", "mySrc1", "myPath1", deletable=True, branch_name=None, catalog_type="direct"
         )
 
         r = self.get_test_catalog_dict(1)
@@ -109,7 +110,7 @@ class TestCollectionIndex(TestUnitCoreCommon):
 
     def test_get_catalog_by_name(self):
         self.test_catalog_collection_index.insert_catalog(
-            "myName1", "mySrc1", "myPath1", True, None
+            "myName1", "mySrc1", "myPath1", deletable=True, branch_name=None, catalog_type="direct"
         )
 
         r = self.get_test_catalog_dict(1)
@@ -118,7 +119,7 @@ class TestCollectionIndex(TestUnitCoreCommon):
 
     def test_get_catalog_by_path(self):
         self.test_catalog_collection_index.insert_catalog(
-            "myName1", "mySrc1", "myPath1", True, None
+            "myName1", "mySrc1", "myPath1", deletable=True, branch_name=None, catalog_type="direct"
         )
 
         r = self.get_test_catalog_dict(1)
@@ -127,7 +128,7 @@ class TestCollectionIndex(TestUnitCoreCommon):
 
     def test_get_catalog_by_src(self):
         self.test_catalog_collection_index.insert_catalog(
-            "myName1", "mySrc1", "myPath1", True, None
+            "myName1", "mySrc1", "myPath1", deletable=True, branch_name=None, catalog_type="direct"
         )
 
         r = self.get_test_catalog_dict(1)
@@ -136,10 +137,10 @@ class TestCollectionIndex(TestUnitCoreCommon):
 
     def test_get_all_catalogs(self):
         self.test_catalog_collection_index.insert_catalog(
-            "myName1", "mySrc1", "myPath1", True, None
+            "myName1", "mySrc1", "myPath1", deletable=True, branch_name=None, catalog_type="direct"
         )
         self.test_catalog_collection_index.insert_catalog(
-            "myName2", "mySrc2", "myPath2", True, None
+            "myName2", "mySrc2", "myPath2", deletable=True, branch_name=None, catalog_type="direct"
         )
 
         r = self.get_test_catalog_dict(1)
@@ -353,7 +354,7 @@ class TestCollectionIndex(TestUnitCoreCommon):
 
     def test__get_children_of_solution(self):
         self.test_catalog_collection_index.insert_catalog(
-            "myName1", "mySrc1", "myPath1", True, None
+            "myName1", "mySrc1", "myPath1", True, None, "direct"
         )
         self.test_catalog_collection_index.insert_solution(1, self._get_solution_attrs(1, "grp", "name", "version"))
         self.test_catalog_collection_index.insert_solution(1, self._get_solution_attrs(2, "grp2", "name2", "version2"))
@@ -373,7 +374,7 @@ class TestCollectionIndex(TestUnitCoreCommon):
 
     def test_get_parent_of_solution(self):
         self.test_catalog_collection_index.insert_catalog(
-            "myName1", "mySrc1", "myPath1", True, None
+            "myName1", "mySrc1", "myPath1", True, None, "direct"
         )
         attrs1 = self._get_solution_attrs(1, "grp", "name", "version")
         self.test_catalog_collection_index.insert_solution(1, attrs1)
@@ -412,10 +413,11 @@ class TestCollectionIndex(TestUnitCoreCommon):
 
     def test__get_authors_by_solution(self):
         self.test_catalog_collection_index.insert_catalog(
-            "myName1", "mySrc1", "myPath1", True, None
+            "myName1", "mySrc1", "myPath1", True, None, "direct"
         )
-        self.test_catalog_collection_index.insert_solution(1, self._get_solution_attrs(1, "grp1", "name1", "version1",
-                                                                                       None, {'authors': []}))
+        self.test_catalog_collection_index.insert_solution(
+            1, self._get_solution_attrs(1, "grp1", "name1", "version1", None, {'authors': []})
+        )
         self.test_catalog_collection_index._insert_author("authorName", 1, close=False)
         self.test_catalog_collection_index._insert_author("authorName2", 1, close=False)
 
@@ -430,7 +432,7 @@ class TestCollectionIndex(TestUnitCoreCommon):
 
     def test__get_arguments_by_solution(self):
         self.test_catalog_collection_index.insert_catalog(
-            "myName1", "mySrc1", "myPath1", True, None
+            "myName1", "mySrc1", "myPath1", True, None, "direct"
         )
         self.test_catalog_collection_index.insert_solution(
             1, self._get_solution_attrs(1, "grp1", "name1", "version1", None, {"args": []})
@@ -463,10 +465,11 @@ class TestCollectionIndex(TestUnitCoreCommon):
 
     def test__get_tags_by_solution(self):
         self.test_catalog_collection_index.insert_catalog(
-            "myName1", "mySrc1", "myPath1", True, None
+            "myName1", "mySrc1", "myPath1", True, None, "direct"
         )
-        self.test_catalog_collection_index.insert_solution(1, self._get_solution_attrs(1, "grp1", "name1", "version1",
-                                                                                       None, {"tags": []}))
+        self.test_catalog_collection_index.insert_solution(
+            1, self._get_solution_attrs(1, "grp1", "name1", "version1", None, {"tags": []})
+        )
         self.test_catalog_collection_index._insert_tag("myTag1", 1, close=False)
         self.test_catalog_collection_index._insert_tag("myTag2", 1, close=False)
 
@@ -481,10 +484,11 @@ class TestCollectionIndex(TestUnitCoreCommon):
 
     def test__get_citations_by_solution(self):
         self.test_catalog_collection_index.insert_catalog(
-            "myName1", "mySrc1", "myPath1", True, None
+            "myName1", "mySrc1", "myPath1", True, None, "direct"
         )
-        self.test_catalog_collection_index.insert_solution(1, self._get_solution_attrs(1, "grp1", "name1", "version1",
-                                                                                       None, {"cite": []}))
+        self.test_catalog_collection_index.insert_solution(
+            1, self._get_solution_attrs(1, "grp1", "name1", "version1", None, {"cite": []})
+        )
 
         citation1 = {
             "text": "myText",
@@ -508,10 +512,11 @@ class TestCollectionIndex(TestUnitCoreCommon):
 
     def test__get_covers_by_solution(self):
         self.test_catalog_collection_index.insert_catalog(
-            "myName1", "mySrc1", "myPath1", True, None
+            "myName1", "mySrc1", "myPath1", True, None, "direct"
         )
-        self.test_catalog_collection_index.insert_solution(1, self._get_solution_attrs(1, "grp1", "name1", "version1",
-                                                                                       None, {"covers": []}))
+        self.test_catalog_collection_index.insert_solution(
+            1, self._get_solution_attrs(1, "grp1", "name1", "version1", None, {"covers": []})
+        )
 
         cover1 = {
             "source": "mySrc",
@@ -531,12 +536,15 @@ class TestCollectionIndex(TestUnitCoreCommon):
         self.assertEqual([cover1, cover2], r)
 
     def test_get_all_solutions(self):
-        self.test_catalog_collection_index.insert_solution("cat1",
-                                                           self._get_solution_attrs(1, "grp1", "name1", "version1"))
-        self.test_catalog_collection_index.insert_solution("cat2",
-                                                           self._get_solution_attrs(2, "grp2", "name2", "version2"))
-        self.test_catalog_collection_index.insert_solution("cat3",
-                                                           self._get_solution_attrs(3, "grp3", "name3", "version3"))
+        self.test_catalog_collection_index.insert_solution(
+            "cat1", self._get_solution_attrs(1, "grp1", "name1", "version1")
+        )
+        self.test_catalog_collection_index.insert_solution(
+            "cat2", self._get_solution_attrs(2, "grp2", "name2", "version2")
+        )
+        self.test_catalog_collection_index.insert_solution(
+            "cat3", self._get_solution_attrs(3, "grp3", "name3", "version3")
+        )
 
         r = self.test_catalog_collection_index.get_all_solutions()
 
@@ -593,12 +601,15 @@ class TestCollectionIndex(TestUnitCoreCommon):
         pass
 
     def test_get_solution(self):
-        self.test_catalog_collection_index.insert_solution("cat1",
-                                                           self._get_solution_attrs(1, "grp1", "name1", "version1"))
-        self.test_catalog_collection_index.insert_solution("cat2",
-                                                           self._get_solution_attrs(2, "grp2", "name2", "version2"))
-        self.test_catalog_collection_index.insert_solution("cat3",
-                                                           self._get_solution_attrs(3, "grp3", "name3", "version3"))
+        self.test_catalog_collection_index.insert_solution(
+            "cat1", self._get_solution_attrs(1, "grp1", "name1", "version1")
+        )
+        self.test_catalog_collection_index.insert_solution(
+            "cat2", self._get_solution_attrs(2, "grp2", "name2", "version2")
+        )
+        self.test_catalog_collection_index.insert_solution(
+            "cat3", self._get_solution_attrs(3, "grp3", "name3", "version3")
+        )
 
         r = self.test_catalog_collection_index.get_solution_by_collection_id(3)
 
@@ -636,14 +647,18 @@ class TestCollectionIndex(TestUnitCoreCommon):
 
     def test_get_solutions_by_grp_name_version(self):
         # same grp, name, version but different catalogs
-        self.test_catalog_collection_index.insert_solution("cat1",
-                                                           self._get_solution_attrs(1, "grp", "name", "version"))
-        self.test_catalog_collection_index.insert_solution("cat2",
-                                                           self._get_solution_attrs(2, "grp", "name", "version"))
-        self.test_catalog_collection_index.insert_solution("cat3",
-                                                           self._get_solution_attrs(3, "grp", "name", "version"))
-        self.test_catalog_collection_index.insert_solution("cat1",
-                                                           self._get_solution_attrs(4, "grp_d", "name_d", "version_d"))
+        self.test_catalog_collection_index.insert_solution(
+            "cat1", self._get_solution_attrs(1, "grp", "name", "version")
+        )
+        self.test_catalog_collection_index.insert_solution(
+            "cat2", self._get_solution_attrs(2, "grp", "name", "version")
+        )
+        self.test_catalog_collection_index.insert_solution(
+            "cat3", self._get_solution_attrs(3, "grp", "name", "version")
+        )
+        self.test_catalog_collection_index.insert_solution(
+            "cat1", self._get_solution_attrs(4, "grp_d", "name_d", "version_d")
+        )
 
         r = self.test_catalog_collection_index.get_solutions_by_grp_name_version(Coordinates("grp", "name", "version"))
 
@@ -835,7 +850,7 @@ class TestCollectionIndex(TestUnitCoreCommon):
 
     def test_add_or_replace_solution(self):
         self.test_catalog_collection_index.insert_catalog(
-            "myName1", "mySrc1", "myPath1", True, None
+            "myName1", "mySrc1", "myPath1", True, None, "direct"
         )
         self.test_catalog_collection_index.insert_solution(1, self._get_solution_attrs(1, "grp1", "name1", "version1"))
 
@@ -921,7 +936,8 @@ class TestCollectionIndex(TestUnitCoreCommon):
 
         return d
 
-    def _get_expected_attrs_internal(self, attrs):
+    @staticmethod
+    def _get_expected_attrs_internal(attrs):
         d = dict()
         d["collection_id"] = attrs["collection_id"]
         d["solution_id"] = attrs["solution_id"]

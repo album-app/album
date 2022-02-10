@@ -17,16 +17,24 @@ class TestDeployManager(TestGitCommon):
         self.zenodoAPI = ZenodoAPI('url', 'access_token')
         self.create_test_solution_no_env()
 
-        self.remote_catalog = self.collection_manager().catalogs().add_by_src(DefaultValues.default_catalog_src.value)
+        self.meta_file_content = self.get_catalog_meta_dict()
+        self.remote_catalog = self.create_remote_test_catalog()
 
         # add a third local catalog
         catalog_path = Path(self.tmp_dir.name).joinpath("local_catalog")
         catalog_path.mkdir(parents=True, exist_ok=True)
         with open(catalog_path.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as meta:
-            meta.writelines("{\"name\":\"local_catalog\", \"version\": \"0.1.0\"}")
+            meta.writelines("{\"name\":\"local_catalog\", \"version\": \"0.1.0\", \"type\": \"direct\"}")
         self.local_catalog = self.collection_manager().catalogs().add_by_src(catalog_path)
 
         self.deploy_manager: DeployManager = self.album.deploy_manager()
+
+    @patch('album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information')
+    def create_remote_test_catalog(self, retrieve_catalog_meta_information_mock):
+        # mocked because unittest should not depend on any form
+        # of connection to the outside world if not 100% necessary!
+        retrieve_catalog_meta_information_mock.return_value = self.meta_file_content
+        return self.collection_manager().catalogs().add_by_src(DefaultValues.default_catalog_src.value)
 
     def tearDown(self) -> None:
         self.remote_catalog.dispose()

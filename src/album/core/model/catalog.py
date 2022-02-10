@@ -45,7 +45,7 @@ def get_index_dir(src) -> Tuple[Path, Path]:
 
 class Catalog(ICatalog):
 
-    def __init__(self, catalog_id, name, path, src=None, deletable=True, branch_name="main"):
+    def __init__(self, catalog_id, name, path, src=None, deletable=True, branch_name="main", catalog_type="direct"):
         """Init routine.
 
         Args:
@@ -62,6 +62,9 @@ class Catalog(ICatalog):
                 Boolean to indicate whether the catalog is deletable or not. Relevant for a collection of catalogs.
             branch_name:
                 When a git based catalog this attribute can be set to use other branches than the main branch (default)
+            catalog_type:
+                The type of the catalog. Either "direct" or "request". Important during deployment.
+
         """
         self._catalog_id = catalog_id
         self._name = name
@@ -76,6 +79,7 @@ class Catalog(ICatalog):
         self._solution_list_path = self._path.joinpath(DefaultValues.catalog_solution_list_file_name.value)
         self._meta_path = self._path.joinpath(DefaultValues.catalog_index_metafile_json.value)
         self._index_path = self._path.joinpath(DefaultValues.catalog_index_file_name.value)
+        self._type = catalog_type
 
         if self.is_local() and self._src:
             self._src = Path(self._src).absolute()
@@ -249,7 +253,8 @@ class Catalog(ICatalog):
     def get_meta_information(self):
         return {
             "name": self._name,
-            "version": self._version
+            "version": self._version,
+            "type": self._type
         }
 
     def get_all_solution_versions(self, group: str, name: str) -> List[Solution]:
@@ -291,6 +296,9 @@ class Catalog(ICatalog):
 
     def index_path(self) -> Path:
         return self._index_path
+
+    def type(self) -> str:
+        return self._type
 
     def set_catalog_id(self, catalog_id):
         self._catalog_id = catalog_id

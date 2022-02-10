@@ -60,6 +60,10 @@ class TestUnitCoreCommon(unittest.TestCase):
             'timestamp': '',
         }
 
+    @staticmethod
+    def get_catalog_meta_dict(name="catalog_local", version="0.1.0", catalog_type="direct"):
+        return {"name": name, "version": version, "type": catalog_type}
+
     def collection_manager(self) -> Optional[ICollectionManager]:
         if self.album:
             return self.album.collection_manager()
@@ -130,8 +134,8 @@ class TestUnitCoreCommon(unittest.TestCase):
                 )
                 self.album.configuration().get_initial_catalogs = get_initial_catalogs_mock
                 retrieve_c_m_i_mock.side_effect = [
-                    {"name": "catalog_local", "version": "0.1.0"},  # local catalog creation call
-                    {"name": "catalog_local", "version": "0.1.0"},  # local catalog load_index call
+                    self.get_catalog_meta_dict(),  # local catalog creation call
+                    self.get_catalog_meta_dict(),  # local catalog load_index call
                 ]
                 # create collection
                 self.collection_manager().load_or_create()
@@ -252,7 +256,6 @@ class TestGitCommon(TestUnitCoreCommon):
             p = repo.working_tree_dir
             repo.close()
             force_remove(p)
-
 
 
 class EmptyTestClass:

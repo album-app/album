@@ -23,6 +23,18 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.solution_handler = self.collection_manager().solution_handler
         self.catalog_handler = self.collection_manager().catalog_handler
 
+    @staticmethod
+    def get_default_catalog_dict():
+        return {
+            'catalog_id': 1,
+            'name': "myCatalog",
+            'path': "myPath",
+            'src': "mySrc",
+            'branch_name': "main",
+            'type': "direct",
+            'deletable': True
+        }
+
     def test_create_local_catalog(self):
         # mocks
         create_new_catalog_mock = MagicMock()
@@ -33,7 +45,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
 
         # assert
         create_new_catalog_mock.assert_called_once_with(
-            self.album.configuration().get_cache_path_catalog("catalog_local"), "catalog_local"
+            self.album.configuration().get_cache_path_catalog("catalog_local"), "catalog_local", "direct"
         )
 
     def test_add_initial_catalogs(self):
@@ -53,7 +65,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", catalog_name)
         catalog_src.mkdir(parents=True)
         with open(catalog_src.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as config:
-            config.writelines("{\"name\": \"" + catalog_name + "\", \"version\": \"0.1.0\"}")
+            config.writelines("{\"name\": \"" + catalog_name + "\", \"version\": \"0.1.0\", \"type\": \"direct\"}")
 
         # call
         catalog = self.catalog_handler.add_by_src(str(catalog_src))
@@ -67,6 +79,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             "path": str(
                 Path(self.tmp_dir.name).joinpath("album", DefaultValues.catalog_folder_prefix.value, catalog_name)),
             'branch_name': "main",
+            "type": "direct",
             "src": str(catalog_src),
         })
         self.assertEqual(expected_list, self.collection_manager().get_collection_index().get_all_catalogs())
@@ -77,7 +90,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", catalog_name)
         catalog_src.mkdir(parents=True)
         catalog_index_metafile_json_path = catalog_src.joinpath(DefaultValues.catalog_index_metafile_json.value)
-        index_meta_string = "{\"name\": \"" + catalog_name + "\", \"version\": \"0.1.0\"}"
+        index_meta_string = "{\"name\": \"" + catalog_name + "\", \"version\": \"0.1.0\", \"type\": \"direct\"}"
 
         with open(catalog_index_metafile_json_path, 'w') as config:
             config.writelines(index_meta_string)
@@ -111,7 +124,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.catalog_handler._add_to_index(catalog_to_add)
 
         # assert
-        insert_catalog_mock.assert_called_once_with("mycatalog", 'None', str(catalog_path), 1, "main")
+        insert_catalog_mock.assert_called_once_with("mycatalog", 'None', str(catalog_path), 1, "main", "direct")
 
     def test_get_by_id(self):
         # mocks
@@ -188,14 +201,16 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         name = "myNewCatalogName"
 
         # call
-        self.catalog_handler.create_new(local_path, name)
+        self.catalog_handler.create_new(local_path, name, "direct")
 
         # assert
         self.assertTrue(local_path.exists())
         self.assertTrue(local_path.joinpath("album_catalog_index.json").exists())
         with open(local_path.joinpath("album_catalog_index.json"), "r") as f:
             metafile = f.readlines()
-            self.assertEqual("{\"name\": \"myNewCatalogName\", \"version\": \"0.1.0\"}", metafile[0])
+            self.assertEqual(
+                "{\"name\": \"myNewCatalogName\", \"version\": \"0.1.0\", \"type\": \"direct\"}", metafile[0]
+            )
 
     def test__update(self):
         # mocks
@@ -306,8 +321,10 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.assertEqual(3, len(res))
         self.assertEqual(3, _get_divergence_between_catalog_and_collection.call_count)
         self.assertEqual(catalog, _get_divergence_between_catalog_and_collection.call_args_list[0][1]['catalog'])
-        self.assertEqual('default', _get_divergence_between_catalog_and_collection.call_args_list[1][1]['catalog'].name())
-        self.assertEqual('test_catalog2', _get_divergence_between_catalog_and_collection.call_args_list[2][1]['catalog'].name())
+        self.assertEqual('default',
+                         _get_divergence_between_catalog_and_collection.call_args_list[1][1]['catalog'].name())
+        self.assertEqual('test_catalog2',
+                         _get_divergence_between_catalog_and_collection.call_args_list[2][1]['catalog'].name())
         _update_collection_from_catalog.assert_not_called()
 
     def test_update_collection_specific_catalog(self):
@@ -343,14 +360,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
     @patch('album.core.controller.collection.catalog_handler.force_remove')
     def test__remove_from_collection(self, force_remove_mock):
         # prepare
-        catalog_dict = {
-            'catalog_id': 1,
-            'name': "myCatalog",
-            'path': "myPath",
-            'src': "mySrc",
-            'branch_name': "main",
-            'deletable': True
-        }
+        catalog_dict = self.get_default_catalog_dict()
         catalog = self.catalog_handler._as_catalog(catalog_dict)
 
         # mocks
@@ -375,14 +385,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
     @patch('album.core.controller.collection.catalog_handler.force_remove')
     def test__remove_from_collection_installed_solutions(self, force_remove_mock):
         # prepare
-        catalog_dict = {
-            'catalog_id': 1,
-            'name': "myCatalog",
-            'path': "myPath",
-            'src': "mySrc",
-            'branch_name': "main",
-            'deletable': True
-        }
+        catalog_dict = self.get_default_catalog_dict()
         catalog = self.catalog_handler._as_catalog(catalog_dict)
 
         # mocks
@@ -412,14 +415,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
     @patch('album.core.controller.collection.catalog_handler.force_remove')
     def test__remove_from_collection_not_configured(self, force_remove_mock):
         # prepare
-        catalog_dict = {
-            'catalog_id': 1,
-            'name': "myCatalog",
-            'path': "myPath",
-            'src': "mySrc",
-            'branch_name': "main",
-            'deletable': True
-        }
+        catalog_dict = self.get_default_catalog_dict()
 
         # mocks
         get_installed_solutions = MagicMock(return_value=[])
@@ -443,14 +439,8 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
     @patch('album.core.controller.collection.catalog_handler.force_remove')
     def test__remove_from_collection_not_deletable(self, force_remove_mock):
         # prepare
-        catalog_dict = {
-            'catalog_id': 1,
-            'name': "myCatalog",
-            'path': "myPath",
-            'src': "mySrc",
-            'branch_name': "main",
-            'deletable': False
-        }
+        catalog_dict = self.get_default_catalog_dict()
+        catalog_dict['deletable'] = False
         catalog = self.catalog_handler._as_catalog(catalog_dict)
 
         # mocks
@@ -616,7 +606,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
     def test__create_catalog_from_src(self):
         with patch(
                 "album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information") as retrieve_c_m_i_mock:
-            retrieve_c_m_i_mock.side_effect = [{"name": "mynewcatalog", "version": "0.1.0"}]
+            retrieve_c_m_i_mock.side_effect = [self.get_catalog_meta_dict("mynewcatalog")]
 
             # call
             catalog = self.catalog_handler._create_catalog_from_src(self.tmp_dir.name)
@@ -768,14 +758,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.assertCountEqual(expected_result, r)
 
     def test__as_catalog(self):
-        catalog_dict = {
-            'catalog_id': 1,
-            'name': "myCatalog",
-            'path': "myPath",
-            'src': "mySrc",
-            'branch_name': 'main',
-            'deletable': True
-        }
+        catalog_dict = self.get_default_catalog_dict()
 
         c = self.catalog_handler._as_catalog(catalog_dict)
 
@@ -804,7 +787,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
 
     def create_test_catalog(self):
         catalog_src = Path(self.tmp_dir.name).joinpath("testRepo")
-        CatalogHandler.create_new_catalog(catalog_src, "test")
+        CatalogHandler.create_new_catalog(catalog_src, "test", "direct")
         catalog_path = Path(self.tmp_dir.name).joinpath("testPath")
         catalog_path.mkdir(parents=True)
         catalog = Catalog(0, 'test', catalog_path, src=catalog_src)
@@ -816,7 +799,8 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
 
         # mocks
         with patch(
-                'album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information') as retrieve_c_m_i_mock:
+                'album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information'
+        ) as retrieve_c_m_i_mock:
             retrieve_c_m_i_mock.return_value = {"version": "0.1.1"}  # version the meta file claims
 
             # call
@@ -831,7 +815,8 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
 
         # mocks
         with patch(
-                'album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information') as retrieve_c_m_i_mock:
+                'album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information'
+        ) as retrieve_c_m_i_mock:
             retrieve_c_m_i_mock.return_value = None  # no meta info available
 
             # call
