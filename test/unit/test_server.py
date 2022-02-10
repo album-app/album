@@ -6,8 +6,8 @@ from flask.testing import FlaskClient
 
 from album.core.model.catalog import Catalog
 from album.server import AlbumServer
-from test.unit.test_unit_core_common import EmptyTestClass
 from test.unit.test_unit_common import TestUnitCommon
+from test.unit.test_unit_core_common import EmptyTestClass
 
 
 @patch("album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information",
@@ -38,6 +38,10 @@ class TestServer(flask_unittest.ClientTestCase, TestUnitCommon):
         self.assertIsNotNone(json["version"])
         self.assertIsNotNone(json["author"])
         self.assertIsNotNone(json["email"])
+
+    def test_index(self, client, _):
+        json = self.getJSONResponse(client, "/index")
+        self.assertIsNotNone(json["catalogs"])
 
     @patch("album.core.controller.run_manager.RunManager.run", return_value=None)
     def test_run(self, client, route, _):
