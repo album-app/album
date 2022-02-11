@@ -37,14 +37,14 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
 
     def test_create_local_catalog(self):
         # mocks
-        create_new_catalog_mock = MagicMock()
-        self.catalog_handler.create_new_catalog = create_new_catalog_mock
+        create_new_mock = MagicMock()
+        self.catalog_handler.create_new = create_new_mock
 
         # call
         self.catalog_handler.create_local_catalog()
 
         # assert
-        create_new_catalog_mock.assert_called_once_with(
+        create_new_mock.assert_called_once_with(
             self.album.configuration().get_cache_path_catalog("catalog_local"), "catalog_local", "direct"
         )
 
@@ -787,7 +787,7 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
 
     def create_test_catalog(self):
         catalog_src = Path(self.tmp_dir.name).joinpath("testRepo")
-        CatalogHandler.create_new_catalog(catalog_src, "test", "direct")
+        CatalogHandler.create_new(catalog_src, "test", "direct")
         catalog_path = Path(self.tmp_dir.name).joinpath("testPath")
         catalog_path.mkdir(parents=True)
         catalog = Catalog(0, 'test', catalog_path, src=catalog_src)

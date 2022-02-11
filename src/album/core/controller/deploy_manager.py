@@ -15,7 +15,7 @@ from album.core.utils.operations.dict_operations import get_dict_entries_from_at
 from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, zip_paths, force_remove, \
     folder_empty
 from album.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push, \
-    retrieve_default_mr_push_options
+    retrieve_default_mr_push_options, checkout_main, clean_repository
 from album.core.utils.operations.solution_operations import get_deploy_dict
 from album.runner import album_logging
 from album.runner.core.api.model.solution import ISolution
@@ -48,79 +48,60 @@ class DeployManager(IDeployManager):
         active_solution = self.album.state_manager().load(path_to_solution)
         active_solution.setup().changelog = changelog
 
-        # case catalog given
         if catalog_name:
             catalog = self.album.catalogs().get_by_name(catalog_name)
-
-        # case catalog in solution file specified
-        # TODO: discuss this
-        elif active_solution.setup().deploy and active_solution.setup().deploy["catalog"]:
-            catalog = self.album.catalogs().get_by_src(
-                active_solution.setup().deploy["catalog"]["src"]
-            )
-
-        # case no catalog given
         else:
             raise RuntimeError("No catalog specified for deployment!")
 
-        self.album.migration_manager().load_index(catalog)
-
         process_changelog_file(catalog, active_solution, deploy_path)
 
-        if catalog.is_local():
-            self._deploy_to_local_catalog(catalog, active_solution, deploy_path, dry_run, force_deploy)
-        else:
-            self._deploy_to_remote_catalog(
-                catalog, active_solution, deploy_path, dry_run, push_options, git_email, git_name
-            )
+        self._deploy(catalog, active_solution, deploy_path, dry_run, force_deploy, push_options, git_email, git_name)
 
         if dry_run:
             module_logger().info('Successfully pretended to deploy %s to %s.' % (deploy_path, catalog_name))
         else:
             module_logger().info('Successfully deployed %s to %s.' % (deploy_path, catalog_name))
 
-    def _deploy_to_remote_catalog(self, catalog: ICatalog, active_solution: ISolution, deploy_path, dry_run,
-                                  push_options,
-                                  git_email=None, git_name=None):
-        """Routine to deploy to a remote catalog."""
-        dl_path = self.get_download_path(catalog)
-
-        with catalog.retrieve_catalog(dl_path, force_retrieve=True) as repo:
-            catalog_local_src = repo.working_tree_dir
-
-            if not repo:
-                raise FileNotFoundError("Catalog repository not found. Did the download of the catalog fail?")
-
-            # include files/folders in catalog
-            solution_zip, exports = self._deploy_routine_in_local_src(
-                catalog, catalog_local_src, active_solution, deploy_path
-            )
-
-            # build merge request files
-            mr_files = [solution_zip] + exports
-
-            if not push_options:
-                push_options = retrieve_default_mr_push_options(catalog.src())
-
-            self._create_merge_request(active_solution, repo, mr_files, dry_run, push_options, git_email, git_name)
-
-    def get_download_path(self, catalog: ICatalog):
-        return Path(self.album.configuration().cache_path_download()).joinpath(catalog.name())
-
-    def _deploy_to_local_catalog(self, catalog: ICatalog, active_solution: ISolution, deploy_path, dry_run: bool,
-                                 force_deploy: bool):
-        """Routine to deploy to a local catalog."""
+    def _deploy(self, catalog: ICatalog, active_solution: ISolution, deploy_path, dry_run, force_deploy,
+                push_options,
+                git_email=None, git_name=None):
         # check for cache catalog only
         if catalog.is_cache():
             raise RuntimeError("Cannot deploy to catalog only used for caching! Aborting...")
 
-        # set src to catalog.src, as we know this is a (network) path, not a remote link
-        catalog_local_src = catalog.src()
+        dl_path = self.get_download_path(catalog)
+
+        # a catalog is always a repository
+        with catalog.retrieve_catalog(dl_path, force_retrieve=True) as repo:
+            if catalog.type() == "direct":
+                self._deploy_to_direct_catalog(
+                    repo, catalog, active_solution, deploy_path, dry_run, force_deploy, push_options, git_email,
+                    git_name
+                )
+            elif catalog.type() == "request":
+                self._deploy_to_request_catalog(
+                    repo, catalog, active_solution, deploy_path, dry_run, push_options, git_email, git_name
+                )
+            else:
+                raise NotImplementedError("type %s not supported!" % catalog.type())
+
+    def _deploy_to_direct_catalog(
+            self,
+            repo,
+            catalog: ICatalog,
+            active_solution: ISolution,
+            deploy_path,
+            dry_run,
+            force_deploy,
+            push_options,
+            git_email=None, git_name=None
+    ):
+        """Routine to deploy to a direct catalog"""
+        # adding solutions in the SQL databse for catalog type "direct" done on user side, hence the timestamp
         active_solution.setup()["timestamp"] = datetime.strftime(datetime.now(), '%Y-%m-%dT%H:%M:%S.%f')
 
-        # check if catalog_local_src is empty
         catalog_local_src_solution_path = self._get_absolute_prefix_path(
-            catalog, catalog_local_src, active_solution
+            catalog, repo.working_tree_dir, active_solution
         )
         if catalog_local_src_solution_path.exists() and not folder_empty(catalog_local_src_solution_path):
             if force_deploy:
@@ -128,46 +109,82 @@ class DeployManager(IDeployManager):
             else:
                 raise RuntimeError("The deploy target folder is not empty! Enable --force-deploy to continue!")
 
-        # update the index
+        # update the index in the downloaded repository
         if not dry_run:
+            catalog.set_index_path(Path(repo.working_tree_dir).joinpath(DefaultValues.catalog_index_file_name.value))
+            self.album.migration_manager().load_index(catalog)
             catalog.add(active_solution, force_overwrite=force_deploy)
         else:
             module_logger().info("Would add the solution %s to index..." % active_solution.coordinates().name())
 
         # include files/folders in catalog
-        zip_path, export = self._deploy_routine_in_local_src(catalog, catalog_local_src, active_solution,
-                                                             deploy_path)
+        solution_zip, exports = self._deploy_routine_in_local_src(
+            catalog, repo, active_solution, deploy_path
+        )
 
-        # copy to source
+        commit_files = [solution_zip] + exports + [catalog.index_path()]
+
+        # merge and push
         if not dry_run:
             try:
-                catalog.copy_index_from_cache_to_src()
+                self._push_directly(active_solution, repo, commit_files, dry_run, push_options, git_email, git_name)
             except Exception:
-                module_logger().error("Copying index to src failed! Rolling back deployment...")
-                zip_path.unlink()
-                for e in export:
-                    e.unlink()
-                raise OSError("Deploy failed!")
+                module_logger().error("Pushing to catalog failed! Rolling back deployment...")
+                clean_repository(repo)
+                for export in exports:
+                    export.unlink()
+                raise RuntimeError("Deploy failed!")
 
             # refresh the local index of the catalog
-            self.album.migration_manager().refresh_index(catalog)
+            # fixme: enable once feature implemented
+            # self.album.migration_manager().refresh_index(catalog)
         else:
             module_logger().info(
-                "Would copy the index to src %s to %s..." % (catalog.index_path(), catalog.src())
+                "Would commit the changes and push to %s..." % catalog.src()
             )
             module_logger().info(
                 "Would refresh the index from src"
             )
 
-    def _deploy_routine_in_local_src(self, catalog: ICatalog, catalog_local_src, active_solution, deploy_path):
+    def _deploy_to_request_catalog(
+            self,
+            repo,
+            catalog: ICatalog,
+            active_solution: ISolution,
+            deploy_path,
+            dry_run,
+            push_options,
+            git_email=None, git_name=None
+    ):
+        """Routine to deploy to a request catalog."""
+
+        catalog_local_src = repo.working_tree_dir
+
+        # include files/folders in catalog
+        solution_zip, exports = self._deploy_routine_in_local_src(
+            catalog, catalog_local_src, active_solution, deploy_path
+        )
+
+        # build merge request files
+        mr_files = [solution_zip] + exports
+
+        if not push_options:
+            push_options = retrieve_default_mr_push_options(catalog.src())
+
+        self._create_merge_request(active_solution, repo, mr_files, dry_run, push_options, git_email, git_name)
+
+    def get_download_path(self, catalog: ICatalog):
+        return Path(self.album.configuration().cache_path_download()).joinpath(catalog.name())
+
+    def _deploy_routine_in_local_src(self, catalog: ICatalog, repo, active_solution, deploy_path):
         """Performs all routines a deploy process needs to do locally.
 
         Returns:
             solution zip file and additional attachments.
 
         """
-        solution_zip = self._copy_and_zip(catalog_local_src, active_solution, deploy_path)
-        exports = self._attach_exports(catalog, catalog_local_src, active_solution, deploy_path)
+        solution_zip = self._copy_and_zip(repo.working_tree_dir, active_solution, deploy_path)
+        exports = self._attach_exports(catalog, repo.working_tree_dir, active_solution, deploy_path)
 
         return solution_zip, exports
 
@@ -201,10 +218,10 @@ class DeployManager(IDeployManager):
             RuntimeError when no differences to the previous commit can be found.
 
         """
-        # make a new branch and checkout
         if push_option is None:
             push_option = []
 
+        # make a new branch and checkout
         new_head = create_new_head(repo, DeployManager.retrieve_head_name(active_solution))
         new_head.checkout()
 
@@ -217,7 +234,30 @@ class DeployManager(IDeployManager):
             push=not dry_run,
             push_option_list=push_option,
             email=email,
-            username=username
+            username=username,
+            force=True
+        )
+
+    @staticmethod
+    def _push_directly(active_solution: ISolution, repo: Repo, file_paths, dry_run=False, push_option=None,
+                       email=None, username=None):
+        if push_option is None:
+            push_option = []
+
+        # don't create a new branch. use reference branch from origin
+        head = checkout_main(repo)
+
+        commit_msg = "Adding new/updated %s" % DeployManager.retrieve_head_name(active_solution)
+
+        add_files_commit_and_push(
+            head,
+            file_paths,
+            commit_msg,
+            push=not dry_run,
+            push_option_list=push_option,
+            email=email,
+            username=username,
+            force=False
         )
 
     def _get_absolute_zip_path(self, catalog_local_src: str, active_solution: ISolution):

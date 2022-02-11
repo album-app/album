@@ -236,12 +236,8 @@ class Catalog(ICatalog):
 
         path = Path(path) if path else self._path
 
-        if self.is_local():  # case src is not downloadable
-            copy_folder(self._src, path, copy_root_folder=False, force_copy=True)
-            repo = init_repository(path)
-        else:  # case src is downloadable
-            module_logger().debug("Trying to retrieve catalog %s to the path %s..." % (self._name, str(path)))
-            repo = download_repository(self._src, str(path), force_download=force_retrieve, update=update)
+        module_logger().debug("Trying to retrieve catalog %s to the path %s..." % (self._name, str(path)))
+        repo = download_repository(self._src, str(path), force_download=force_retrieve, update=update)
 
         yield repo
         repo.close()
@@ -296,6 +292,9 @@ class Catalog(ICatalog):
 
     def index_path(self) -> Path:
         return self._index_path
+
+    def set_index_path(self, path):
+        self._index_path = Path(path)
 
     def type(self) -> str:
         return self._type

@@ -76,6 +76,7 @@ class ICatalogHandler:
 
     @abstractmethod
     def create_new(self, local_path, name, catalog_type):
+        """Creates a new catalog on the disk."""
         raise NotImplementedError
 
     @abstractmethod

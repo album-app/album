@@ -80,6 +80,11 @@ class ICatalog:
         raise NotImplementedError
 
     @abstractmethod
+    def set_index_path(self, path) -> Path:
+        """The path to the catalog index cache."""
+        raise NotImplementedError
+
+    @abstractmethod
     def type(self) -> str:
         """The type of the catalog."""
         raise NotImplementedError

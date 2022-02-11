@@ -64,6 +64,32 @@ class TestGitOperations(TestGitCommon):
 
             self.assertTrue("does not hold pattern" in str(context.exception))
 
+    def test__add_files(self):
+        tmp_file = tempfile.NamedTemporaryFile(delete=False)
+        tmp_file.close()
+
+        tmp_file2 = tempfile.NamedTemporaryFile(delete=False)
+        tmp_file2.close()
+
+        tmp_file3 = tempfile.NamedTemporaryFile(delete=False)
+        tmp_file3.close()
+
+        with self.create_tmp_repo() as repo:
+            # check no untracked files
+            self.assertListEqual([], repo.untracked_files)
+
+            copy(tmp_file.name, Path(repo.working_tree_dir).joinpath("myFile1"))
+            copy(tmp_file2.name, Path(repo.working_tree_dir).joinpath("myFile2"))
+            copy(tmp_file2.name, Path(repo.working_tree_dir).joinpath("myFile3"))
+
+            # all files untracked
+            self.assertListEqual(["myFile1", "myFile2", "myFile3"], repo.untracked_files)
+
+            git_op._add_files(repo, ["myFile1", "myFile2"])
+
+            # all but one file added
+            self.assertListEqual(["myFile3"], repo.untracked_files)
+
     @patch('album.core.utils.operations.solution_operations.get_deploy_dict', return_value={})
     def test_add_files_commit_and_push(self, _):
         attrs_dict = {"name": "test_solution_name", "group": "test_solution_group", "version": "test_solution_version"}
@@ -73,6 +99,10 @@ class TestGitOperations(TestGitCommon):
         tmp_file.close()
 
         with self.create_tmp_repo() as repo:
+            # fake origin & HEAD
+            repo.git.remote(['add', 'origin', repo.working_tree_dir])
+            repo.git.symbolic_ref(['refs/remotes/origin/HEAD', 'refs/remotes/origin/master'])
+
             new_head = repo.create_head("test_solution_name")
             new_head.ref = repo.heads["master"]
             new_head.checkout()
@@ -116,6 +146,44 @@ class TestGitOperations(TestGitCommon):
 
             with self.assertRaises(RuntimeError):
                 git_op.add_files_commit_and_push(new_head, [self.commit_file], "a_wonderful_cmt_msg", push=False)
+
+    def test_init_repository_clean_repository(self):
+        tmp_file = tempfile.NamedTemporaryFile(delete=False)
+        tmp_file.close()
+
+        with self.create_tmp_repo(create_test_branch=True) as repo:
+            # fake origin & HEAD
+            repo.git.remote(['add', 'origin', repo.working_tree_dir])
+            repo.git.symbolic_ref(['refs/remotes/origin/HEAD', 'refs/remotes/origin/master'])
+
+            repo.heads["test_branch"].checkout()
+
+            # create untracked file
+            copy(tmp_file.name, Path(repo.working_tree_dir).joinpath("myFile1"))
+            self.assertListEqual(["myFile1"], repo.untracked_files)
+
+            # init repository again
+            git_op.init_repository(repo.working_tree_dir)
+
+            # check no untracked files left!
+            self.assertListEqual([], repo.untracked_files)
+
+    def test_checkout_main(self):
+        with self.create_tmp_repo(create_test_branch=True) as repo:
+            # fake origin & HEAD
+            repo.git.remote(['add', 'origin', repo.working_tree_dir])
+            repo.git.symbolic_ref(['refs/remotes/origin/HEAD', 'refs/remotes/origin/master'])
+
+            test_head = repo.heads["test_branch"]
+            test_head.checkout()
+
+            self.assertEqual(test_head, repo.active_branch)
+
+            # call
+            head = git_op.checkout_main(repo)
+
+            # check
+            self.assertEqual(head, repo.active_branch)
 
     def test_configure_git(self):
         with self.create_tmp_repo(commit_solution_file=False) as repo:

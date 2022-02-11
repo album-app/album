@@ -30,7 +30,7 @@ class CatalogHandler(ICatalogHandler):
         initial_catalogs = self.album.configuration().get_initial_catalogs()
         name = DefaultValues.local_catalog_name.value
         local_path = initial_catalogs[name]
-        self.create_new_catalog(local_path, name, "direct")  # local catalog always of type direct
+        self.create_new(local_path, name, "direct")  # local catalog always of type direct
 
     def add_initial_catalogs(self):
         self.create_local_catalog()
@@ -133,11 +133,6 @@ class CatalogHandler(ICatalogHandler):
         return local_catalog
 
     def create_new(self, local_path, name, catalog_type):
-        CatalogHandler.create_new_catalog(local_path, name, catalog_type)
-
-    @staticmethod
-    def create_new_catalog(local_path, name, catalog_type):
-        """Creates the meta-file for a new catalog on the disk."""
         if not local_path.exists():
             local_path.mkdir(parents=True)
         with open(local_path.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as meta:

@@ -47,7 +47,7 @@ class TestIntegrationCoreCommon(unittest.TestCase):
 
     def add_test_catalog(self) -> ICatalog:
         path = Path(self.tmp_dir.name).joinpath("my-catalogs", "test_catalog")
-        CatalogHandler.create_new_catalog(path, "test_catalog")
+        CatalogHandler.create_new(path, "test_catalog")
         return self.collection_manager().catalogs().add_by_src(path)
 
     def tearDown(self) -> None:

@@ -116,13 +116,25 @@ def retrieve_files_from_head(head, pattern, option="", number_of_files=1):
     return abs_path_solution_file
 
 
+def _add_files(repo, file_paths) -> bool:
+    """Add files to the repo in the branch currently checked out."""
+    if repo.index.diff(None) or repo.untracked_files:
+        module_logger().info('Preparing committing...')
+        for file_path in file_paths:
+            module_logger().debug('Adding file %s...' % file_path)
+            # todo: nice catching here?
+            repo.git.add(file_path)
+        return True
+    return False
+
+
 def add_files_commit_and_push(head, file_paths, commit_message, push=False, email=None, username=None,
-                              push_option_list=None):
+                              push_option_list=None, force=False):
     """Adds files in a given path to a git head and commits.
 
     Args:
         push_option_list:
-            options used for pushing. See https://docs.gitlab.com/ee/user/project/push_options.html. Expects a string.
+            options used for pushing. See https://docs.gitlab.com/ee/user/project/push_options.html. Expects a list.
         head:
             The head of the repository
         file_paths:
@@ -135,6 +147,8 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, emai
             The git user to use. (Default: systems git configuration)
         email:
             The git email to use. (Default: systems git configuration)
+        force:
+            whether to use force push or not
 
     Raises:
         RuntimeError when no files are in the index
@@ -150,16 +164,14 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, emai
     if email or username:
         configure_git(repo, email, username)
 
-    if repo.index.diff(None) or repo.untracked_files:
-        module_logger().info('Preparing committing...')
-        for file_path in file_paths:
-            module_logger().debug('Adding file %s...' % file_path)
-            # todo: nice catching here?
-            repo.git.add(file_path)
+    if _add_files(repo, file_paths):
 
+        # build command
         cmd_option = ['--set-upstream']
-
-        cmd = cmd_option + push_options + ['-f', 'origin', head]
+        cmd = cmd_option + push_options
+        if force:
+            cmd = cmd + ['-f']
+        cmd = cmd + [repo.remote().refs.HEAD.remote_name, head]
 
         module_logger().debug("Running command: repo.git.push(%s)..." % (", ".join(str(x) for x in cmd)))
 
@@ -293,17 +305,34 @@ def init_repository(path):
 
     repo = git.Repo(path)
 
-    # remove all eventual changes made local
-    repo.git.add('*')
-    repo.git.reset('--hard')
-
-    # update the remote
+    # update the remote to get latest changes on all remotes (pushes, HEAD pointer change, reverts, etc.)
     repo.remote().update()
+
+    # remove all eventual changes made local
+    clean_repository(repo)
 
     # checkout remote HEAD for a clean start for new branches
     repo.remote().refs.HEAD.checkout()
 
     return repo
+
+
+def clean_repository(repo):
+    """Resets all changes made in the current repository"""
+    # reset to current remote HEAD reference name
+    repo.git.reset(['--hard', repo.remote().refs.HEAD.ref.name])
+    # remove all leftover-untracked files (if any)
+    repo.git.clean('-fd')
+
+
+def checkout_main(repo):
+    """Checks out the main branch of the repository locally. Note: must not be called "main"!"""
+    remote_main_name = repo.remote().refs.HEAD.ref.remote_head
+    # checkout main or whatever its called the origin currently points to
+    head = repo.heads[remote_main_name]
+    head.checkout()
+
+    return head
 
 
 def retrieve_default_mr_push_options(repo_url) -> list:

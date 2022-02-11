@@ -36,7 +36,7 @@ class TestCatalog(TestUnitCoreCommon):
         super().setUp()
         self.create_album_test_instance(init_catalogs=False, init_collection=True)
         catalog_src = Path(self.tmp_dir.name).joinpath("testRepo")
-        CatalogHandler.create_new_catalog(catalog_src, "test", "direct")
+        CatalogHandler.create_new(catalog_src, "test", "direct")
         catalog_path = Path(self.tmp_dir.name).joinpath("testPath")
         catalog_path.mkdir(parents=True)
 

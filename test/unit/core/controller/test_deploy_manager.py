@@ -9,7 +9,7 @@ from album.core.model.default_values import DefaultValues
 from album.runner.core.model.coordinates import Coordinates
 from test.unit.test_unit_core_common import TestGitCommon, EmptyTestClass
 
-
+# fixme: update me
 class TestDeployManager(TestGitCommon):
     def setUp(self) -> None:
         super().setUp()
@@ -50,7 +50,7 @@ class TestDeployManager(TestGitCommon):
         self.deploy_manager._deploy_to_local_catalog = _deploy_to_local_catalog
 
         _deploy_to_remote_catalog = MagicMock(return_value=None)
-        self.deploy_manager._deploy_to_remote_catalog = _deploy_to_remote_catalog
+        self.deploy_manager._deploy_to_request_catalog = _deploy_to_remote_catalog
 
         get_by_name = MagicMock(return_value=self.local_catalog)
         self.collection_manager().catalogs().get_by_name = get_by_name
@@ -82,7 +82,7 @@ class TestDeployManager(TestGitCommon):
         self.deploy_manager._deploy_to_local_catalog = _deploy_to_local_catalog
 
         _deploy_to_remote_catalog = MagicMock(return_value=None)
-        self.deploy_manager._deploy_to_remote_catalog = _deploy_to_remote_catalog
+        self.deploy_manager._deploy_to_request_catalog = _deploy_to_remote_catalog
 
         get_by_name = MagicMock(return_value=self.remote_catalog)
         self.collection_manager().catalogs().get_by_name = get_by_name
@@ -298,7 +298,7 @@ class TestDeployManager(TestGitCommon):
         self.remote_catalog.retrieve_catalog = retrieve_catalog
 
         # call
-        self.deploy_manager._deploy_to_remote_catalog(self.remote_catalog, self.active_solution, "None", False, False)
+        self.deploy_manager._deploy_to_request_catalog(self.remote_catalog, self.active_solution, "None", False, False)
 
         # assert
         retrieve_catalog.assert_called_once()
