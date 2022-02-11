@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import List, Optional, Dict
 
 import validators
@@ -7,14 +8,13 @@ import validators
 from album.core.api.controller.collection.catalog_handler import ICatalogHandler
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.model.catalog import ICatalog
-from album.core.model.catalog import Catalog, get_index_url, get_index_dir
+from album.core.model.catalog import Catalog, download_index_files, get_index_dir
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.catalog_updates import CatalogUpdates, SolutionChange, ChangeType
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove, copy, get_dict_from_json
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
-from album.core.utils.operations.url_operations import download_resource
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
@@ -286,11 +286,14 @@ class CatalogHandler(ICatalogHandler):
 
     def _retrieve_catalog_meta_information(self, identifier, branch_name="main"):
         if validators.url(str(identifier)):
-            _, meta_src = get_index_url(identifier, branch_name)
-            meta_file = download_resource(
-                meta_src, self.album.configuration().cache_path_download().joinpath(
-                    DefaultValues.catalog_index_metafile_json.value)
-            )
+            with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
+                repo = Path(tmp_dir).joinpath('repo')
+                try:
+                    _, meta_src = download_index_files(identifier, branch_name=branch_name, tmp_dir=repo)
+                    meta_file = copy(meta_src, self.album.configuration().cache_path_download().joinpath(
+                            DefaultValues.catalog_index_metafile_json.value))
+                finally:
+                    force_remove(repo)
         elif Path(identifier).exists():
             _, meta_src = get_index_dir(identifier)
             if meta_src.exists():

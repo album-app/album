@@ -1,7 +1,8 @@
 import json
 from copy import deepcopy
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest import mock
+from unittest.mock import MagicMock, patch
 
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.catalog import Catalog
@@ -843,12 +844,10 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         catalog.dispose()
 
     @patch('album.core.controller.collection.catalog_handler.get_dict_from_json')
-    @patch('album.core.controller.collection.catalog_handler.copy', return_value={"mymeta": "value"})
-    @patch('album.core.controller.collection.catalog_handler.get_index_url')
+    @patch('album.core.controller.collection.catalog_handler.copy', return_value='meta_file_path')
     @patch('album.core.controller.collection.catalog_handler.get_index_dir')
-    @patch('album.core.controller.collection.catalog_handler.download_resource')
     def test__retrieve_catalog_meta_information_case_dir(
-            self, download_resource_mock, get_index_dir_mock, get_index_url_mock, copy_mock, get_dict_mock
+            self, get_index_dir_mock, copy_mock, get_dict_mock
     ):
         # prepare
         link = self.tmp_dir.name
@@ -862,43 +861,36 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.catalog_handler._retrieve_catalog_meta_information(link)
 
         # assert
-        get_index_url_mock.assert_not_called()
-        download_resource_mock.assert_not_called()
         get_index_dir_mock.assert_called_once_with(link)
         copy_mock.assert_called_once_with(
             file, Path(self.tmp_dir.name).joinpath("album", "downloads", 'album_catalog_index.json')
         )
-        get_dict_mock.assert_called_once_with({"mymeta": "value"})
+        get_dict_mock.assert_called_once_with(copy_mock.return_value)
 
     @patch('album.core.controller.collection.catalog_handler.get_dict_from_json')
     @patch('album.core.controller.collection.catalog_handler.copy')
-    @patch('album.core.controller.collection.catalog_handler.get_index_url', return_value=("_", "aNewUrl"))
     @patch('album.core.controller.collection.catalog_handler.get_index_dir')
-    @patch('album.core.controller.collection.catalog_handler.download_resource', return_value={"mymeta": "value"})
+    @patch('album.core.controller.collection.catalog_handler.download_index_files', return_value=('db_file', 'meta_file'))
     def test__retrieve_catalog_meta_information_case_url(
-            self, download_resource_mock, get_index_dir_mock, get_index_url_mock, copy_mock, get_dict_mock
+            self, download_resource_mock, get_index_dir_mock, copy_mock, get_dict_mock
     ):
         # prepare
         link = "https://mylink.com"
+        copy_mock.return_value = Path(self.tmp_dir.name).joinpath("album", "downloads", 'album_catalog_index.json')
         # call
         self.catalog_handler._retrieve_catalog_meta_information(link)
 
         # assert
-        get_index_url_mock.assert_called_once_with(link, "main")
-        download_resource_mock.assert_called_once_with(
-            "aNewUrl", Path(self.tmp_dir.name).joinpath("album", "downloads", 'album_catalog_index.json')
-        )
+        download_resource_mock.assert_called_once_with('https://mylink.com', branch_name='main', tmp_dir=mock.ANY)
         get_index_dir_mock.assert_not_called()
-        copy_mock.assert_not_called()
-        get_dict_mock.assert_called_once_with({"mymeta": "value"})
+        copy_mock.assert_called_once()
+        get_dict_mock.assert_called_once_with(copy_mock.return_value)
 
     @patch('album.core.controller.collection.catalog_handler.get_dict_from_json')
     @patch('album.core.controller.collection.catalog_handler.copy')
-    @patch('album.core.controller.collection.catalog_handler.get_index_url')
     @patch('album.core.controller.collection.catalog_handler.get_index_dir')
-    @patch('album.core.controller.collection.catalog_handler.download_resource')
     def test__retrieve_catalog_meta_information_case_file_not_found(
-            self, download_resource_mock, get_index_dir_mock, get_index_url_mock, copy_mock, get_dict_mock
+            self, get_index_dir_mock, copy_mock, get_dict_mock
     ):
         # prepare
         link = self.tmp_dir.name
@@ -911,19 +903,15 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             self.catalog_handler._retrieve_catalog_meta_information(link)
 
         # assert
-        get_index_url_mock.assert_not_called()
-        download_resource_mock.assert_not_called()
         get_index_dir_mock.assert_called_once_with(link)
         copy_mock.assert_not_called()
         get_dict_mock.assert_not_called()
 
     @patch('album.core.controller.collection.catalog_handler.get_dict_from_json')
     @patch('album.core.controller.collection.catalog_handler.copy')
-    @patch('album.core.controller.collection.catalog_handler.get_index_url')
     @patch('album.core.controller.collection.catalog_handler.get_index_dir')
-    @patch('album.core.controller.collection.catalog_handler.download_resource')
     def test__retrieve_catalog_meta_information_case_path_invalid(
-            self, download_resource_mock, get_index_dir_mock, get_index_url_mock, copy_mock, get_dict_mock
+            self, get_index_dir_mock, copy_mock, get_dict_mock
     ):
         # prepare
         link = "mywrongpath"
@@ -932,8 +920,6 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
             self.catalog_handler._retrieve_catalog_meta_information(link)
 
         # assert
-        get_index_url_mock.assert_not_called()
-        download_resource_mock.assert_not_called()
         get_index_dir_mock.assert_not_called()
         copy_mock.assert_not_called()
         get_dict_mock.assert_not_called()

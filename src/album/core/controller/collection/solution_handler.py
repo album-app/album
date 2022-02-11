@@ -1,18 +1,20 @@
+import os
 from datetime import datetime
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from album.core.api.controller.collection.solution_handler import ISolutionHandler
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.catalog_updates import ISolutionChange, ChangeType
 from album.core.api.model.link import Link
-from album.core.model.catalog import get_solution_src
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import copy_folder, copy, unzip_archive, construct_cache_link_target
+from album.core.utils.operations.file_operations import copy_folder, copy, unzip_archive, construct_cache_link_target, \
+    force_remove
+from album.core.utils.operations.git_operations import clone_repository, checkout_files
 from album.core.utils.operations.resolve_operations import dict_to_coordinates, get_zip_name
 from album.core.utils.operations.solution_operations import get_deploy_dict
-from album.core.utils.operations.url_operations import download_resource
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
@@ -124,7 +126,7 @@ class SolutionHandler(ISolutionHandler):
         except LookupError:
             return False
 
-    def get_solution_path(self, catalog: ICatalog, coordinates: ICoordinates):
+    def get_solution_path(self, catalog: ICatalog, coordinates: ICoordinates) -> Link:
         base_link = catalog.path().joinpath(self.album.configuration().get_solution_path_suffix(coordinates))
         link_target = construct_cache_link_target(self.album.configuration().lnk_path(), base_link,
                                                   DefaultValues.lnk_package_prefix.value)
@@ -152,14 +154,28 @@ class SolutionHandler(ISolutionHandler):
             copy(src_path, solution_zip_file)
 
         else:  # src to download from
-            url = get_solution_src(catalog.src(), coordinates, catalog.branch_name())
             solution_zip_file = self.get_solution_zip(catalog, coordinates)
-            download_resource(url, solution_zip_file)
+            self._download_solution_zip(catalog.src(), coordinates, solution_zip_file, catalog.branch_name())
 
         solution_zip_path = unzip_archive(solution_zip_file)
         solution_path = solution_zip_path.joinpath(DefaultValues.solution_default_name.value)
 
         return solution_path
+
+    def _download_solution_zip(self, src, coordinates: ICoordinates, target, branch_name="main"):
+
+        file_name = str(self.get_solution_zip_suffix(coordinates))
+        with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
+            repo_dir = Path(tmp_dir).joinpath('repo')
+            try:
+                with clone_repository(src, branch_name, repo_dir) as repo:
+                    checkout_files(repo, [file_name])
+                tmp_solution_zip = repo_dir.joinpath(file_name)
+                if target.exists():
+                    os.remove(target)
+                copy(tmp_solution_zip, target)
+            finally:
+                force_remove(repo_dir)
 
     def set_cache_paths(self, solution: ISolution, catalog: ICatalog):
         # Note: cache paths need the catalog the solution lives in - otherwise there might be problems with solutions

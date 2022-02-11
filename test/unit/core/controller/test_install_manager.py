@@ -6,7 +6,6 @@ from unittest.mock import patch, MagicMock
 from album.core.controller.install_manager import InstallManager
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.resolve_result import ResolveResult
-from album.core.utils.operations.file_operations import get_link_target
 from album.runner.core.model.coordinates import Coordinates
 from album.runner.core.model.solution import Solution
 from test.unit.test_unit_core_common import TestUnitCoreCommon, EmptyTestClass
@@ -276,8 +275,7 @@ class TestInstallManager(TestUnitCoreCommon):
         _clean_unfinished_installations_environment.assert_not_called()
         set_uninstalled.assert_not_called()
 
-    @patch('album.core.controller.install_manager.force_remove')
-    def test__clean_unfinished_installations_environment_env_deleted(self, force_remove):
+    def test__clean_unfinished_installations_environment_env_deleted(self):
         # mocks
         set_environment = MagicMock(return_value="myEnv")
         self.environment_manager.set_environment = set_environment
@@ -296,7 +294,6 @@ class TestInstallManager(TestUnitCoreCommon):
         # assert
         set_environment.assert_called_once()
         remove_environment.assert_called_once_with("myEnv")
-        force_remove.assert_not_called()
 
     def test__clean_unfinished_installations_environment_env_not_deleted(self):
         c = EmptyTestClass()

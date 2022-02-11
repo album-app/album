@@ -1,6 +1,8 @@
 import os
 import re
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Generator
 from urllib.parse import urlparse
 
 import git
@@ -253,6 +255,24 @@ def download_repository(repo_url, git_folder_path, force_download=True, update=T
         repo = git.Repo.clone_from(repo_url, git_folder_path)
 
     return repo
+
+
+def checkout_files(repo, files_to_download):
+    for file in files_to_download:
+        repo.git.restore(file, staged=True)
+        repo.git.checkout(file)
+
+
+@contextmanager
+def clone_repository(repo_url, branch_name, target_repo_path) -> Generator[Repo, None, None]:
+    git_folder_path = Path(target_repo_path)
+    force_remove(git_folder_path)
+    Path.mkdir(git_folder_path, parents=True, exist_ok=True)
+    module_logger().debug("Cloning repository without history from %s into %s..." % (repo_url, git_folder_path))
+    repo = git.Repo.clone_from(repo_url, git_folder_path, branch=branch_name, no_checkout=True, depth=1, no_tags=True,
+                               single_branch=True)
+    yield repo
+    repo.close()
 
 
 def init_repository(path):
