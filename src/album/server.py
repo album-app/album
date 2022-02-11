@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional
 
 from flask import Flask, request
+from flask.json import JSONEncoder
 from werkzeug.exceptions import abort
 
 import album
@@ -11,6 +12,7 @@ from album.core.api.controller.task_manager import ITaskManager
 from album.core.controller.task_manager import TaskManager
 from album.core.model.default_values import DefaultValues
 from album.core.model.task import Task
+from album.core.utils.operations.solution_operations import serialize
 from album.runner import album_logging
 from album.runner.core.model.coordinates import Coordinates
 
@@ -40,6 +42,7 @@ class AlbumServer:
 
     def init_server(self, test_config=None):
         self.app = Flask(__name__, instance_relative_config=True)
+        self.app.json_encoder = AlbumServer._JSONEncoder
         if test_config is not None:
             self.app.config.update(test_config)
         self._set_routes()
@@ -309,3 +312,8 @@ class AlbumServer:
                 command_args.append(f"--{key}")
                 command_args.append(str(args_json[key]))
         return command_args
+
+
+    class _JSONEncoder(JSONEncoder):
+        def default(self, obj):
+            serialize(obj)

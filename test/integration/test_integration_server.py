@@ -196,6 +196,10 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         res_recently_launched = client.get("/recently-launched")
         self.assertEqual(200, res_recently_launched.status_code)
 
+        # check index route again
+        res_index = client.get("/index")
+        self.assertEqual(200, res_index.status_code)
+
         # remove solution
         res_uninstall = client.get(f'/uninstall/{local_catalog_name}/{group}/{name}/{version}')
         self.assertEqual(200, res_uninstall.status_code)
