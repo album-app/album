@@ -172,8 +172,16 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
 
         self.assertTrue(self.server._task_manager.server_queue.unfinished_tasks)
 
+        res_status = client.get(f'/status/{task_run_id}')
+        self.assertEqual(200, res_status.status_code)
+        self.assertIsNotNone(res_status.json)
+
         # wait for completion of tasks
         self._finish_taskmanager_with_timeout(self.server._task_manager, 30)
+
+        res_status = client.get(f'/status/{task_run_id}')
+        self.assertEqual(200, res_status.status_code)
+        self.assertIsNotNone(res_status.json)
 
         self.assertEqual(Task.Status.FINISHED, self.server._task_manager.get_task(task_run_id).status())
         self.assertEqual(Task.Status.FINISHED, self.server._task_manager.get_task(task_test_id).status())

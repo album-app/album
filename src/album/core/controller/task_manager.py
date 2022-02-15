@@ -48,10 +48,10 @@ class TaskManager(ITaskManager):
         res = []
         for record in records:
             res.append({
-                "asctime": str(record.asctime),
-                "name": str(record.name),
-                "levelname": str(record.levelname),
-                "msg": str(record.msg),
+                "asctime": None if not hasattr(record, 'asctime') else str(record.asctime),
+                "name": None if not hasattr(record, 'name') else str(record.name),
+                "levelname": None if not hasattr(record, 'levelname') else str(record.levelname),
+                "msg": None if not hasattr(record, 'msg') else str(record.msg),
             })
         return res
 
