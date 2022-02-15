@@ -99,7 +99,7 @@ class TestSolutionHandler(TestCatalogCollectionCommon):
         # call
         self.assertEqual(res, self.solution_handler.get_solution_zip_suffix(Coordinates("g", "n", "v")))
 
-    @patch("album.core.controller.collection.solution_handler.download_resource", return_value=None)
+    @patch("album.core.controller.collection.solution_handler.SolutionHandler._download_solution_zip")
     @patch("album.core.controller.collection.solution_handler.unzip_archive", return_value=Path("a/Path"))
     def test_retrieve_solution(self, unzip_mock, dl_mock):
         # prepare
@@ -109,17 +109,17 @@ class TestSolutionHandler(TestCatalogCollectionCommon):
 
 
         # call & assert
-        solution_path = self.solution_handler.retrieve_solution(self.catalog, Coordinates("g", "n", "v"))
+        coordinates = Coordinates("g", "n", "v")
+        solution_path = self.solution_handler.retrieve_solution(self.catalog, coordinates)
 
         # assert
-        dl_url = "http://NonsenseUrl" + "/-/raw/main/solutions/g/n/v/g_n_v.zip"
         dl_path = get_link_target(self.catalog.path().joinpath(
             DefaultValues.cache_path_solution_prefix.value, "g", "n", "v"
         )).joinpath("g_n_v.zip")
         res = Path("a/Path").joinpath(DefaultValues.solution_default_name.value)
         self.assertEqual(res, solution_path)
 
-        dl_mock.assert_called_once_with(dl_url, dl_path)
+        dl_mock.assert_called_once_with("http://NonsenseUrl.git", coordinates, dl_path, "main")
         unzip_mock.assert_called_once_with(dl_path)
 
     def test_set_cache_paths(self):

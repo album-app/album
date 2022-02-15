@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.environment_manager import IEnvironmentManager
 from album.core.api.model.catalog import ICatalog
@@ -8,7 +6,7 @@ from album.core.api.model.environment import IEnvironment
 from album.core.controller.conda_manager import CondaManager
 from album.core.controller.mamba_manager import MambaManager
 from album.core.model.environment import Environment
-from album.core.utils.operations.file_operations import force_remove, remove_link
+from album.core.utils.operations.file_operations import remove_link
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.core.utils.operations.solution_operations import set_environment_paths
 from album.runner import album_logging

@@ -84,11 +84,11 @@ class ICatalog:
         raise NotImplementedError
 
     @abstractmethod
-    def update_index_cache_if_possible(self):
+    def update_index_cache_if_possible(self, tmp_dir):
         raise NotImplementedError
 
     @abstractmethod
-    def update_index_cache(self):
+    def update_index_cache(self, tmp_dir):
         raise NotImplementedError
 
     @abstractmethod
@@ -100,15 +100,7 @@ class ICatalog:
         raise NotImplementedError
 
     @abstractmethod
-    def copy_index_from_src_to_cache(self) -> bool:
-        raise NotImplementedError
-
-    @abstractmethod
     def copy_index_from_cache_to_src(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def download_index(self) -> bool:
         raise NotImplementedError
 
     @contextmanager

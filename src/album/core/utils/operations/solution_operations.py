@@ -6,7 +6,7 @@ from typing import Optional
 
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.api.model.environment import IEnvironment
-from album.core.utils.operations.file_operations import force_remove, remove_link
+from album.core.utils.operations.file_operations import remove_link
 from album.runner import album_logging
 from album.runner.core.api.model.solution import ISolution
 

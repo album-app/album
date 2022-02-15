@@ -5,9 +5,10 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from album.core.controller.collection.catalog_handler import CatalogHandler
-from album.core.model.catalog import Catalog
+from album.core.model.catalog import Catalog, download_index_files
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.default_values import DefaultValues
+from album.core.utils.operations.file_operations import force_remove
 from album.runner.core.model.solution import Solution
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 
@@ -40,7 +41,7 @@ class TestCatalog(TestUnitCoreCommon):
         catalog_path.mkdir(parents=True)
 
         self.catalog = Catalog(0, "test", src=catalog_src, path=catalog_path)
-        self.catalog.update_index_cache()
+        self.catalog._copy_index_from_src_to_cache()
         self.catalog.load_index()
         self.collection_manager().catalogs().set_version(self.catalog)
 
@@ -61,52 +62,52 @@ class TestCatalog(TestUnitCoreCommon):
         pass
 
     @patch('album.core.model.catalog.force_remove')
-    def test_update_index_cache_remote_catalog_src_deleted(self, force_remove_mock):
+    @patch('album.core.model.catalog.download_index_files')
+    def test_update_index_cache_remote_catalog_src_deleted(self, download_index_files, force_remove_mock):
         self.catalog._src = "https://mycatalog.org"
         # mock
+        meta_path = Path(self.tmp_dir.name).joinpath('meta.yml')
+        meta_path.touch()
+        download_index_files.return_value=(Path('non-existing-file'), meta_path)
         copy_index_from_src_to_cache = MagicMock(return_value=True)
         self.catalog.copy_index_from_src_to_cache = copy_index_from_src_to_cache
 
-        download_index = MagicMock(return_value=False)
-        self.catalog.download_index = download_index
-
         # call
-        self.assertTrue(self.catalog.update_index_cache())
+        self.assertTrue(self.catalog.update_index_cache(self.tmp_dir.name))
 
         # assert
-        force_remove_mock.assert_called_once()
+        force_remove_mock.assert_called()
+        download_index_files.assert_called_once()
         copy_index_from_src_to_cache.assert_not_called()
-        download_index.assert_called_once()
 
     @patch('album.core.model.catalog.force_remove')
     def test_update_index_cache_remote_catalog(self, force_remove_mock):
         self.catalog._src = "https://mycatalog.org"
         # mock
         copy_index_from_src_to_cache = MagicMock(return_value=True)
-        self.catalog.copy_index_from_src_to_cache = copy_index_from_src_to_cache
-
-        download_index = MagicMock(return_value=True)
-        self.catalog.download_index = download_index
+        self.catalog._copy_index_from_src_to_cache = copy_index_from_src_to_cache
+        _download_index = MagicMock(return_value=True)
+        self.catalog._update_remote_index = _download_index
 
         # call
-        self.assertTrue(self.catalog.update_index_cache())
+        self.assertTrue(self.catalog.update_index_cache(self.tmp_dir.name))
 
         # assert
         force_remove_mock.assert_not_called()
         copy_index_from_src_to_cache.assert_not_called()
-        download_index.assert_called_once()
+        _download_index.assert_called_once()
 
     @patch('album.core.model.catalog.force_remove')
     def test_update_index_cache_local_catalog(self, force_remove_mock):
         # mock
         copy_index_from_src_to_cache = MagicMock(return_value=True)
-        self.catalog.copy_index_from_src_to_cache = copy_index_from_src_to_cache
+        self.catalog._copy_index_from_src_to_cache = copy_index_from_src_to_cache
 
         download_index = MagicMock(return_value=True)
-        self.catalog.download_index = download_index
+        self.catalog._update_remote_index = download_index
 
         # call
-        self.assertTrue(self.catalog.update_index_cache())
+        self.assertTrue(self.catalog.update_index_cache(self.tmp_dir.name))
 
         # assert
         force_remove_mock.assert_not_called()
@@ -117,7 +118,7 @@ class TestCatalog(TestUnitCoreCommon):
         self.catalog._src = None  # set to cache only catalog
 
         # call
-        self.assertFalse(self.catalog.update_index_cache())
+        self.assertFalse(self.catalog.update_index_cache(self.tmp_dir.name))
 
     def test_add_and_len(self):
         self.populate_index()
@@ -236,7 +237,7 @@ class TestCatalog(TestUnitCoreCommon):
         self.assertFalse(Path(self.catalog._path).joinpath("album_catalog_index.json").exists())
 
         # deliberately not mocking copy call
-        self.assertTrue(self.catalog.copy_index_from_src_to_cache())
+        self.assertTrue(self.catalog._copy_index_from_src_to_cache())
 
         # assert
         self.assertTrue(Path(self.catalog._path).joinpath("album_catalog_index.db").exists())
@@ -253,7 +254,7 @@ class TestCatalog(TestUnitCoreCommon):
         self.assertFalse(Path(self.catalog._path).joinpath("album_catalog_index.json").exists())
 
         # deliberately not mocking copy call
-        self.assertTrue(self.catalog.copy_index_from_src_to_cache())
+        self.assertTrue(self.catalog._copy_index_from_src_to_cache())
 
         # assert
         self.assertFalse(Path(self.catalog._path).joinpath("album_catalog_index.db").exists())
@@ -270,10 +271,10 @@ class TestCatalog(TestUnitCoreCommon):
         self.assertTrue(Path(self.catalog._path).joinpath("album_catalog_index.json").exists())
 
         # deliberately not mocking copy call
-        self.assertFalse(self.catalog.copy_index_from_src_to_cache())
+        self.assertFalse(self.catalog._copy_index_from_src_to_cache())
 
         # assert
-        self.assertTrue(Path(self.catalog._path).joinpath("album_catalog_index.db").exists())
+        self.assertFalse(Path(self.catalog._path).joinpath("album_catalog_index.db").exists())
         self.assertTrue(Path(self.catalog._path).joinpath("album_catalog_index.json").exists())
 
     def test_copy_index_from_cache_to_src(self):
@@ -291,26 +292,12 @@ class TestCatalog(TestUnitCoreCommon):
         self.assertTrue(Path(self.catalog._src).joinpath("album_catalog_index.db").exists())
         self.assertTrue(Path(self.catalog._src).joinpath("album_solution_list.json").exists())
 
-    @unittest.skip("Needs to be implemented!")
-    def test_download_index(self):
-        # ToDo: implement
-        pass
-
-    def test_download_index_not_downloadable(self):
-        self.catalog = Catalog(self.catalog._catalog_id, self.catalog._name, self.catalog._path,
-                               "http://google.com/doesNotExist.ico")
-
-        # call
-        with self.assertRaises(AssertionError):
-            self.catalog.download_index()
-
-    def test_download_index_wrong_format(self):
-        self.catalog = Catalog(self.catalog._catalog_id, self.catalog._name, self.catalog._path,
-                               "https://www.google.com/favicon.ico")
-
-        # call
-        with self.assertRaises(AssertionError):
-            self.catalog.download_index()
+    def test_download_index_files(self):
+        dir = Path(self.tmp_dir.name).joinpath('bla')
+        db, meta = download_index_files(DefaultValues.default_catalog_src.value, dir)
+        self.assertTrue(db.exists())
+        self.assertTrue(meta.exists())
+        force_remove(dir)
 
     def test_retrieve_catalog(self):
         # prepare

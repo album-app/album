@@ -124,7 +124,7 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         self.assertEqual('- my changes', str(solution.setup()['changelog'].strip()))
 
         # check of documentation file was deployed into the catalog and copied into the collection cache
-        self.assertTrue(catalog.src().joinpath(self.album_instance.configuration().get_solution_path_suffix(coordinates), 'file.md').exists())
+        self.assertTrue(Path(catalog.src()).joinpath(self.album_instance.configuration().get_solution_path_suffix(coordinates), 'file.md').exists())
 
 
 if __name__ == '__main__':

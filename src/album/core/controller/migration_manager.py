@@ -1,5 +1,7 @@
 import json
 import pkgutil
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from jsonschema import validate
 
@@ -52,16 +54,17 @@ class MigrationManager(IMigrationManager):
         return catalog_index_path
 
     def load_index(self, catalog: ICatalog):
-        catalog.update_index_cache()
-
+        with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
+            catalog.update_index_cache(Path(tmp_dir))
         self._create_catalog_index(catalog, CatalogIndex.version)
         self.album.catalogs().set_version(catalog)
 
     def refresh_index(self, catalog: ICatalog) -> bool:
         """Routine to refresh the catalog index. Downloads or copies the index_file."""
-        if catalog.update_index_cache_if_possible():
-            self._create_catalog_index(catalog, CatalogIndex.version)
-            return True
+        with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
+            if catalog.update_index_cache_if_possible(tmp_dir):
+                self._create_catalog_index(catalog, CatalogIndex.version)
+                return True
         return False
 
     def validate_solution_attrs(self, attrs):

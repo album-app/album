@@ -1,4 +1,5 @@
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Generator
 
 from git import Repo
@@ -6,13 +7,13 @@ from git import Repo
 from album.api import Album
 from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.continuous_integration import get_ssh_url, create_report
-from album.core.model.catalog import Catalog, get_index_url
+from album.core.model.catalog import Catalog, download_index_files
 from album.core.utils.export.changelog import get_changelog_file_name
-from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_dict_entry
+from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_dict_entry, \
+    copy, force_remove
 from album.core.utils.operations.git_operations import checkout_branch, add_files_commit_and_push, \
     retrieve_files_from_head, configure_git
 from album.core.utils.operations.resolve_operations import get_zip_name, get_zip_name_prefix, dict_to_coordinates
-from album.core.utils.operations.url_operations import download_resource, is_downloadable
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 
@@ -204,12 +205,16 @@ class ReleaseManager:
             head = checkout_branch(repo, branch_name)
 
             # always use remote index
-            index_url, index_meta = get_index_url(self.catalog_src)
-
-            if is_downloadable(index_url):
-                download_resource(index_url, self.catalog.index_path())
-            else:
-                module_logger().warning("Index not downloadable! Using Index in merge request branch!")
+            with TemporaryDirectory(dir=self.configuration.cache_path_tmp_internal()) as tmp_dir:
+                repo = Path(tmp_dir).joinpath('repo')
+                try:
+                    index_db, index_meta = download_index_files(self.catalog_src, branch_name=self.catalog.branch_name(), tmp_dir=repo)
+                    if index_db.exists():
+                        copy(index_db, self.catalog.index_path())
+                    else:
+                        module_logger().warning("Index not downloadable! Using Index in merge request branch!")
+                finally:
+                    force_remove(repo)
 
             self.album_instance.load_catalog_index(self.catalog)
 

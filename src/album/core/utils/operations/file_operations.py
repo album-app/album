@@ -334,7 +334,7 @@ def construct_cache_link_target(lnk_path: Path, link, target, create=True) -> Op
             return target.resolve()
     return None
 
-def get_link_target(link):
+def get_link_target(link: Path):
     operation_system = platform.system().lower()
     if 'windows' in operation_system:
         from pylnk3 import Lnk, for_file
