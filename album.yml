@@ -5,7 +5,7 @@ channels:
 dependencies:
   - python=3.7
   - pip
-  - git
+  - git>=2.23
   - mamba=0.19.1
   - pip:
       - album==0.3.1  # point to latest pypi version here.

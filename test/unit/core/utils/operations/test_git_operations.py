@@ -217,6 +217,20 @@ class TestGitOperations(TestGitCommon):
         # check
         self.assertListEqual(exp, res)
 
+    @unittest.skip("Needs to be implemented!")
+    def test_clone_repository_sparse(self):
+        # ToDo: implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_clone_repository(self):
+        # ToDo: implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_create_bare_repository(self):
+        # ToDo: implement
+        pass
 
 if __name__ == '__main__':
     unittest.main()

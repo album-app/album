@@ -87,7 +87,7 @@ class TestCatalog(TestUnitCoreCommon):
         copy_index_from_src_to_cache = MagicMock(return_value=True)
         self.catalog._copy_index_from_src_to_cache = copy_index_from_src_to_cache
         _download_index = MagicMock(return_value=True)
-        self.catalog._update_remote_index = _download_index
+        self.catalog._update_index = _download_index
 
         # call
         self.assertTrue(self.catalog.update_index_cache(self.tmp_dir.name))
@@ -104,7 +104,7 @@ class TestCatalog(TestUnitCoreCommon):
         self.catalog._copy_index_from_src_to_cache = copy_index_from_src_to_cache
 
         download_index = MagicMock(return_value=True)
-        self.catalog._update_remote_index = download_index
+        self.catalog._update_index = download_index
 
         # call
         self.assertTrue(self.catalog.update_index_cache(self.tmp_dir.name))

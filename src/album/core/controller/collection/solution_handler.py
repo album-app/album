@@ -7,12 +7,12 @@ from album.core.api.controller.collection.solution_handler import ISolutionHandl
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.catalog_updates import ISolutionChange, ChangeType
-from album.core.api.model.link import Link
+from album.core.model.link import Link
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import copy_folder, copy, unzip_archive, construct_cache_link_target, \
     force_remove
-from album.core.utils.operations.git_operations import clone_repository, checkout_files
+from album.core.utils.operations.git_operations import clone_repository_sparse, checkout_files
 from album.core.utils.operations.resolve_operations import dict_to_coordinates, get_zip_name
 from album.core.utils.operations.solution_operations import get_deploy_dict
 from album.runner import album_logging
@@ -147,12 +147,6 @@ class SolutionHandler(ISolutionHandler):
     def retrieve_solution(self, catalog: ICatalog, coordinates: ICoordinates):
         if catalog.is_cache():  # no src to download form or src to copy from
             raise RuntimeError("Cannot download from a cache catalog!")
-
-        elif catalog.is_local():  # src to copy from
-            src_path = Path(catalog.src()).joinpath(self.get_solution_zip_suffix(coordinates))
-            solution_zip_file = self.get_solution_zip(catalog, coordinates)
-            copy(src_path, solution_zip_file)
-
         else:  # src to download from
             solution_zip_file = self.get_solution_zip(catalog, coordinates)
             self._download_solution_zip(catalog.src(), coordinates, solution_zip_file, catalog.branch_name())
@@ -163,12 +157,11 @@ class SolutionHandler(ISolutionHandler):
         return solution_path
 
     def _download_solution_zip(self, src, coordinates: ICoordinates, target, branch_name="main"):
-
         file_name = str(self.get_solution_zip_suffix(coordinates))
         with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
             repo_dir = Path(tmp_dir).joinpath('repo')
             try:
-                with clone_repository(src, branch_name, repo_dir) as repo:
+                with clone_repository_sparse(src, branch_name, repo_dir) as repo:
                     checkout_files(repo, [file_name])
                 tmp_solution_zip = repo_dir.joinpath(file_name)
                 if target.exists():

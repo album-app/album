@@ -11,6 +11,9 @@ class Link(type(Path())):
         self._link = link
         return self
 
+    def get_link(self):
+        return self._link
+
     def dispose(self):
         if self._link:
             operation_system = platform.system().lower()

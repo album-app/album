@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 import git
 from git import Repo
 
-from album.core.utils.operations.file_operations import force_remove
+from album.core.utils.operations.file_operations import force_remove, create_path_recursively, folder_empty
 from album.core.utils.operations.url_operations import is_url
 from album.runner import album_logging
 
@@ -276,13 +276,52 @@ def checkout_files(repo, files_to_download):
 
 
 @contextmanager
-def clone_repository(repo_url, branch_name, target_repo_path) -> Generator[Repo, None, None]:
+def clone_repository_sparse(repo_url, branch_name, target_repo_path) -> Generator[Repo, None, None]:
+    """Clones a repository branch to a given path.
+
+    Args:
+        repo_url:
+            The url to the repository.
+        branch_name:
+            The branch name.
+        target_repo_path:
+            The target path on the disk.
+
+    """
     git_folder_path = Path(target_repo_path)
     force_remove(git_folder_path)
-    Path.mkdir(git_folder_path, parents=True, exist_ok=True)
+    create_path_recursively(git_folder_path)
+
     module_logger().debug("Cloning repository without history from %s into %s..." % (repo_url, git_folder_path))
     repo = git.Repo.clone_from(repo_url, git_folder_path, branch=branch_name, no_checkout=True, depth=1, no_tags=True,
                                single_branch=True)
+    yield repo
+    repo.close()
+
+
+@contextmanager
+def clone_repository(src, target_repo_path, force=False) -> Generator[Repo, None, None]:
+    """Clones the full repository
+
+    Args:
+        src:
+            The url to the repository.
+        target_repo_path:
+            The target path on the disk.
+        force:
+            boolean value. If true deletes target folder first
+
+
+    """
+    if not folder_empty(target_repo_path):
+        if force:
+            force_remove(target_repo_path)
+        else:
+            raise RuntimeError("Target folder \"%s\" not empty!" % str(target_repo_path))
+
+    create_path_recursively(target_repo_path)
+    repo = git.Repo.clone_from(src, target_repo_path)
+
     yield repo
     repo.close()
 
@@ -313,6 +352,14 @@ def init_repository(path):
 
     # checkout remote HEAD for a clean start for new branches
     repo.remote().refs.HEAD.checkout()
+
+    return repo
+
+
+def create_bare_repository(target):
+    create_path_recursively(target)
+
+    repo = git.Repo.init(target, bare=True)
 
     return repo
 

@@ -11,7 +11,7 @@ from album.core.api.model.catalog_index import ICatalogIndex
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import copy, copy_folder, write_dict_to_json, force_remove
-from album.core.utils.operations.git_operations import download_repository, init_repository, clone_repository, \
+from album.core.utils.operations.git_operations import download_repository, init_repository, clone_repository_sparse, \
     checkout_files
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.core.utils.operations.solution_operations import get_deploy_dict
@@ -24,7 +24,7 @@ module_logger = album_logging.get_active_logger
 
 def download_index_files(src, tmp_dir: Path, branch_name="main") -> Tuple[Path, Path]:
     tmp_dir = Path(tmp_dir)
-    with clone_repository(src, branch_name, tmp_dir) as repo:
+    with clone_repository_sparse(src, branch_name, tmp_dir) as repo:
         checkout_files(repo, [DefaultValues.catalog_index_metafile_json.value])
         try:
             checkout_files(repo, [DefaultValues.catalog_index_file_name.value])
@@ -132,13 +132,11 @@ class Catalog(ICatalog):
         if self.is_cache():
             return False
 
-        if self.is_local():
-            index_available = self._copy_index_from_src_to_cache()
-        else:
-            index_available = self._update_remote_index(tmp_dir)
+        index_available = self._update_index(tmp_dir)
 
         if not index_available:
             self.dispose()
+
         return True
 
     def add(self, active_solution: ISolution, force_overwrite=False):
@@ -167,6 +165,7 @@ class Catalog(ICatalog):
         self._catalog_index.export(self._solution_list_path)
 
     def remove(self, active_solution: ISolution):
+        # todo: discuss conditions to remove solutions
         if self.is_local():
             solution_attrs = get_deploy_dict(active_solution)
             solution_entry = self._catalog_index.remove_solution_by_group_name_version(
@@ -179,13 +178,11 @@ class Catalog(ICatalog):
         else:
             module_logger().warning("Cannot remove entries from a remote catalog! Doing nothing...")
 
-    def _update_remote_index(self, tmp_dir):
+    def _update_index(self, tmp_dir):
         repo_dir = Path(tmp_dir).joinpath('repo')
         try:
             src, meta_src = download_index_files(self.src(), repo_dir, branch_name=self.branch_name())
-            self._copy_index_to_cache(src, meta_src)
-            index_available = src.exists()
-            return index_available
+            return self._copy_index_to_cache(src, meta_src)
         finally:
             force_remove(repo_dir)
 
@@ -211,6 +208,7 @@ class Catalog(ICatalog):
                 return False
             else:
                 module_logger().debug("Index file of the catalog does not exist yet...")
+                return False
         return True
 
     def copy_index_from_cache_to_src(self):

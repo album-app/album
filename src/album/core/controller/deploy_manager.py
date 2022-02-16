@@ -136,8 +136,7 @@ class DeployManager(IDeployManager):
                 raise RuntimeError("Deploy failed!")
 
             # refresh the local index of the catalog
-            # fixme: enable once feature implemented
-            # self.album.migration_manager().refresh_index(catalog)
+            self.album.migration_manager().refresh_index(catalog)
         else:
             module_logger().info(
                 "Would commit the changes and push to %s..." % catalog.src()
