@@ -36,9 +36,9 @@ class TestIntegrationCommon(TestIntegrationCoreCommon):
 
         if init_catalogs:
             catalogs_dict = {
-                DefaultValues.local_catalog_name.value:
+                DefaultValues.cache_catalog_name.value:
                     Path(self.tmp_dir.name).joinpath("album", DefaultValues.catalog_folder_prefix.value,
-                                                     DefaultValues.local_catalog_name.value)
+                                                     DefaultValues.cache_catalog_name.value)
             }
             get_initial_catalogs_mock = MagicMock(
                 return_value=catalogs_dict

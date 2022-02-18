@@ -71,13 +71,13 @@ class TestUnitCoreCommon(unittest.TestCase):
     def create_test_catalog_no_git(self):
         catalog_src = Path(self.tmp_dir.name).joinpath("testRepo")
         # create meta information in src
-        CatalogHandler(self.album).create_new(catalog_src, "test", "direct")
+        CatalogHandler(self.album).create_new_metadata(catalog_src, "test", "direct")
 
         # create cache version
         catalog_cache_path = Path(self.tmp_dir.name).joinpath("testPath")
         catalog_cache_path.mkdir(parents=True)
         # create meta information in cache
-        CatalogHandler(self.album).create_new(catalog_cache_path, "test", "direct")
+        CatalogHandler(self.album).create_new_metadata(catalog_cache_path, "test", "direct")
 
         catalog = Catalog(0, 'test', catalog_cache_path, src=catalog_src)
         catalog.load_index()
@@ -141,9 +141,9 @@ class TestUnitCoreCommon(unittest.TestCase):
     def _setup_collection(self, init_catalogs, init_collection):
         if init_catalogs:
             catalogs_dict = {
-                DefaultValues.local_catalog_name.value:
+                DefaultValues.cache_catalog_name.value:
                     Path(self.tmp_dir.name).joinpath("album", DefaultValues.catalog_folder_prefix.value,
-                                                     DefaultValues.local_catalog_name.value)
+                                                     DefaultValues.cache_catalog_name.value)
             }
             # mock retrieve_catalog_meta_information as it involves a http request
             with patch(

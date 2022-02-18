@@ -28,7 +28,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
 
         # gather arguments add
         new_catalog = Path(self.tmp_dir.name).joinpath("catalog_integration_test")
-        CatalogHandler.create_new(new_catalog, "catalog_integration_test")
+        CatalogHandler.create_new_metadata(new_catalog, "catalog_integration_test")
         somedir = str(new_catalog)
 
         # call
@@ -59,7 +59,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
     def test_update_collection(self):
         # create a catalog and its meta file and DB file in a src
         catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", "my-catalog")
-        CatalogHandler.create_new(catalog_src, "my-catalog")
+        CatalogHandler.create_new_metadata(catalog_src, "my-catalog")
 
         # add catalog
         catalog = self.collection_manager().catalogs().add_by_src(catalog_src)
@@ -115,7 +115,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
 
         # add catalog
         catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", "my-catalog")
-        CatalogHandler.create_new(catalog_src, "my-catalog")
+        CatalogHandler.create_new_metadata(catalog_src, "my-catalog")
         catalog = self.collection_manager().catalogs().add_by_src(catalog_src)  # its emtpy
         # assert it got added
         self.assertEqual(initial_len + 1, len(self.collection_manager().get_collection_index().get_all_catalogs()))

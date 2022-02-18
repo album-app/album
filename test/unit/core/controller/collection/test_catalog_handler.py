@@ -40,10 +40,10 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
     def test_create_local_catalog(self):
         # mocks
         create_new_mock = MagicMock()
-        self.catalog_handler.create_new = create_new_mock
+        self.catalog_handler.create_new_metadata = create_new_mock
 
         # call
-        self.catalog_handler.create_local_catalog()
+        self.catalog_handler.create_cache_catalog()
 
         # assert
         create_new_mock.assert_called_once_with(
@@ -194,7 +194,7 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
         name = "myNewCatalogName"
 
         # call
-        self.catalog_handler.create_new(local_path, name, "direct")
+        self.catalog_handler.create_new_metadata(local_path, name, "direct")
 
         # assert
         self.assertTrue(local_path.exists())

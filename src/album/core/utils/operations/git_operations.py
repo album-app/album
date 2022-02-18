@@ -374,6 +374,17 @@ def create_bare_repository(target):
     return repo
 
 
+def create_repository(target):
+    create_path_recursively(target)
+
+    repo = git.Repo.init(target)
+
+    # ref HEAD to main
+    repo.git.symbolic_ref('HEAD', 'refs/heads/main')
+
+    return repo
+
+
 def clean_repository(repo):
     """Resets all changes made in the current repository"""
     # reset to current remote HEAD reference name

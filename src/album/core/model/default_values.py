@@ -17,7 +17,7 @@ class DefaultValues(Enum):
     catalog_template_url = 'https://gitlab.com/album-app/catalogs/templates'  # base URL of available catalog templates
 
     # catalog
-    local_catalog_name = 'catalog_local'                                   # the default name of the local catalog (always configured)
+    cache_catalog_name = 'cache_catalog'                                   # the default name of the cache catalog (always configured)
     _catalog_url = 'https://gitlab.com/album-app/catalogs/default'
     _catalog_branch = "main"
     default_catalog_src = os.getenv('ALBUM_DEFAULT_CATALOG', _catalog_url) # default catalog, either catalog_url or env. variable

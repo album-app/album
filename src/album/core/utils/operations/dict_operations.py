@@ -1,3 +1,4 @@
+import json
 from typing import List
 
 
@@ -5,6 +6,10 @@ def get_dict_entries_from_attribute_path(obj, attribute_path: str) -> List:
     """"""
     parts = attribute_path.split('.')
     return _get_entries(obj, parts)
+
+
+def str_to_dict(s):
+    return json.loads(s)
 
 
 def _get_entries(obj, attribute_paths: List) -> List:

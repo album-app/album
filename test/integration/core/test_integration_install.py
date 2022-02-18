@@ -231,7 +231,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         tmp_file = Path(self.tmp_dir.name).joinpath("somefile.txt")
         tmp_file.touch()
         catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", "my-catalog")
-        CatalogHandler.create_new(catalog_src, "my-catalog")
+        CatalogHandler.create_new_metadata(catalog_src, "my-catalog")
         catalog = self.collection_manager().catalogs().add_by_src(catalog_src)
         self.album_instance.deploy_manager().deploy(self.get_test_solution_path('app1.py'), catalog_name=catalog.name(), dry_run=False)
         self.album_instance.deploy_manager().deploy(self.get_test_solution_path('app2.py'), catalog_name=catalog.name(), dry_run=False)

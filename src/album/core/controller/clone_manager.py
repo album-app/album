@@ -74,7 +74,7 @@ class CloneManager(ICloneManager):
 
                 # create the metadata
                 catalog_type = self._get_catalog_type_from_template(template_folder)
-                self.album.catalogs().create_new(target_path, catalog_name, catalog_type)
+                self.album.catalogs().create_new_metadata(target_path, catalog_name, catalog_type)
 
                 head = checkout_main(repo)
 

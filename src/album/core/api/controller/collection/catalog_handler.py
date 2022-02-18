@@ -9,7 +9,7 @@ class ICatalogHandler:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def create_local_catalog(self):
+    def create_cache_catalog(self):
         """Creates the local catalog on the disk from the available initial catalogs.
 
          Does not contain a DB file. Used only when album starts the first time.
@@ -75,7 +75,7 @@ class ICatalogHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def create_new(self, local_path, name, catalog_type):
+    def create_new_metadata(self, local_path, name, catalog_type):
         """Creates a new catalog on the disk."""
         raise NotImplementedError
 
