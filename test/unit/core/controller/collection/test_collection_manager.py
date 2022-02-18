@@ -5,83 +5,17 @@ from unittest.mock import patch
 
 from album.core.model.catalog import Catalog
 from album.core.model.collection_index import CollectionIndex
-from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.runner.core.model.coordinates import Coordinates
 from album.runner.core.model.solution import Solution
-from test.unit.test_unit_core_common import TestUnitCoreCommon
+from test.unit.test_unit_core_common import TestCatalogAndCollectionCommon
 
 
-class TestCatalogCollectionCommon(TestUnitCoreCommon):
-    """Test Helper class for TestCollectionManager"""
-    def setUp(self):
-        super().setUp()
-        test_catalog1_name = "test_catalog"
-        test_catalog2_name = "test_catalog2"
-
-        test_catalog1_src = self.create_empty_catalog(test_catalog1_name)
-        test_catalog2_src = self.create_empty_catalog(test_catalog2_name)
-        self.catalog_list = [
-            {
-                'catalog_id': 1,
-                'deletable': 0,
-                'name': test_catalog1_name,
-                'path': str(
-                    Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, test_catalog1_name)),
-                'src': str(test_catalog1_src),
-                'type': "direct",
-                'branch_name': "main"
-            },
-            {
-                'catalog_id': 2,
-                'deletable': 1,
-                'name': "default",
-                'path': str(Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, "default")),
-                'src': str(DefaultValues.default_catalog_src.value),
-                'type': "direct",
-                'branch_name': "main"
-            },
-            {
-                'catalog_id': 3,
-                'deletable': 1,
-                'name': test_catalog2_name,
-                'path': str(
-                    Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, "test_catalog2")),
-                'src': str(test_catalog2_src),
-                'type': "direct",
-                'branch_name': "main"
-            }
-        ]
-        self.create_album_test_instance(init_catalogs=False, init_collection=True)
-        self.catalog_handler = self.album.collection_manager().catalogs()
-        self.solution_handler = self.album.collection_manager().solutions()
-
-    def create_empty_catalog(self, name):
-        catalog_path = Path(self.tmp_dir.name).joinpath("my-catalogs", name)
-        catalog_path.mkdir(parents=True)
-        with open(catalog_path.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as file:
-            file.writelines(str(self.get_catalog_meta_dict(name)))
-
-        return catalog_path
-
-    def fill_catalog_collection(self):
-        # insert catalogs in DB from helper list
-        for catalog in self.catalog_list:
-            self.album.collection_manager().get_collection_index().insert_catalog(
-                catalog["name"],
-                catalog["src"],
-                catalog["path"],
-                catalog["deletable"],
-                catalog["branch_name"],
-                catalog["type"]
-            )
-        self.assertEqual(self.catalog_list, self.album.collection_manager().get_collection_index().get_all_catalogs())
-
-
-class TestCollectionManager(TestCatalogCollectionCommon):
+class TestCollectionManager(TestCatalogAndCollectionCommon):
 
     def setUp(self):
         super().setUp()
+        self.set_up_test_catalogs()
         self.fill_catalog_collection()
         self.create_test_solution_no_env()
 
@@ -150,7 +84,8 @@ class TestCollectionManager(TestCatalogCollectionCommon):
         self.collection_manager().resolve_installed_and_load("grp:name:version")
 
         # assert
-        check_file_or_url_mock.assert_called_once_with("grp:name:version", self.album.configuration().cache_path_download())
+        check_file_or_url_mock.assert_called_once_with("grp:name:version",
+                                                       self.album.configuration().cache_path_download())
 
     @unittest.skip("Needs to be implemented!")
     def test_resolve_require_installation_and_load_valid_path(self):
@@ -415,6 +350,3 @@ class TestCollectionManager(TestCatalogCollectionCommon):
     def test_retrieve_and_load_resolve_result(self):
         # todo: implement
         pass
-
-if __name__ == '__main__':
-    unittest.main()

@@ -14,8 +14,12 @@ import git
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core.api.controller.collection.collection_manager import ICollectionManager
 from album.core.controller.album_controller import AlbumController
+from album.core.controller.collection.catalog_handler import CatalogHandler
+from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import force_remove
+from album.core.utils.operations.file_operations import force_remove, write_dict_to_json
+from album.core.utils.operations.git_operations import create_bare_repository, clone_repository, \
+    add_files_commit_and_push
 from album.runner import album_logging
 from album.runner.album_logging import pop_active_logger, LogLevel, configure_logging, get_active_logger
 from album.runner.core.model.solution import Solution
@@ -63,6 +67,21 @@ class TestUnitCoreCommon(unittest.TestCase):
     @staticmethod
     def get_catalog_meta_dict(name="catalog_local", version="0.1.0", catalog_type="direct"):
         return {"name": name, "version": version, "type": catalog_type}
+
+    def create_test_catalog_no_git(self):
+        catalog_src = Path(self.tmp_dir.name).joinpath("testRepo")
+        # create meta information in src
+        CatalogHandler(self.album).create_new(catalog_src, "test", "direct")
+
+        # create cache version
+        catalog_cache_path = Path(self.tmp_dir.name).joinpath("testPath")
+        catalog_cache_path.mkdir(parents=True)
+        # create meta information in cache
+        CatalogHandler(self.album).create_new(catalog_cache_path, "test", "direct")
+
+        catalog = Catalog(0, 'test', catalog_cache_path, src=catalog_src)
+        catalog.load_index()
+        return catalog
 
     def collection_manager(self) -> Optional[ICollectionManager]:
         if self.album:
@@ -157,6 +176,91 @@ class TestUnitCoreCommon(unittest.TestCase):
         path = current_path.joinpath("..", "resources", "catalogs", "unit", catalog_name,
                                      DefaultValues.catalog_index_file_name.value)
         return path
+
+
+class TestCatalogAndCollectionCommon(TestUnitCoreCommon):
+    """Test Helper class for TestCollectionManager"""
+
+    def setUp(self):
+        super().setUp()
+
+    def set_up_test_catalogs(self, create_album_instance=True):
+        test_catalog1_name = "test_catalog"
+        test_catalog2_name = "test_catalog2"
+
+        test_catalog1_src = self.create_empty_catalog(test_catalog1_name)
+        test_catalog2_src = self.create_empty_catalog(test_catalog2_name)
+        self.catalog_list = [
+            {
+                'catalog_id': 1,
+                'deletable': 0,
+                'name': test_catalog1_name,
+                'path': str(
+                    Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, test_catalog1_name)),
+                'src': str(test_catalog1_src),
+                'type': "direct",
+                'branch_name': "main"
+            },
+            {
+                'catalog_id': 2,
+                'deletable': 1,
+                'name': "default",
+                'path': str(Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, "default")),
+                'src': str(DefaultValues.default_catalog_src.value),
+                'type': "direct",
+                'branch_name': "main"
+            },
+            {
+                'catalog_id': 3,
+                'deletable': 1,
+                'name': test_catalog2_name,
+                'path': str(
+                    Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, "test_catalog2")),
+                'src': str(test_catalog2_src),
+                'type': "direct",
+                'branch_name': "main"
+            }
+        ]
+        if create_album_instance:
+            self.create_album_test_instance(init_catalogs=False, init_collection=True)
+        self.catalog_handler = self.album.collection_manager().catalogs()
+        self.solution_handler = self.album.collection_manager().solutions()
+
+    def create_empty_catalog(self, name):
+        catalog_src_path = Path(self.tmp_dir.name).joinpath("my-catalogs", name)
+        create_bare_repository(catalog_src_path)
+
+        catalog_clone_path = Path(self.tmp_dir.name).joinpath("my-catalogs-clone", name)
+
+        with clone_repository(catalog_src_path, catalog_clone_path) as repo:
+            head = repo.active_branch
+
+            write_dict_to_json(
+                catalog_clone_path.joinpath(DefaultValues.catalog_index_metafile_json.value),
+                self.get_catalog_meta_dict(name)
+            )
+
+            add_files_commit_and_push(
+                head,
+                [catalog_clone_path.joinpath(DefaultValues.catalog_index_metafile_json.value)],
+                "init",
+                push=True
+            )
+
+        return catalog_src_path
+
+    def fill_catalog_collection(self):
+        # insert catalogs in DB from helper list
+        for catalog in self.catalog_list:
+            self.album.collection_manager().get_collection_index().insert_catalog(
+                catalog["name"],
+                catalog["src"],
+                catalog["path"],
+                catalog["deletable"],
+                catalog["branch_name"],
+                catalog["type"]
+            )
+        self.assertEqual(self.catalog_list, self.album.collection_manager().get_collection_index().get_all_catalogs())
 
 
 class TestZenodoCommon(TestUnitCoreCommon):

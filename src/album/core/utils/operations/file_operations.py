@@ -115,7 +115,7 @@ def list_files_recursively(path, root=None, relative=False) -> list:
         cur_root = Path(cur_root)
 
         for d in dirs:
-            files_list += list_files_recursively(cur_root.joinpath(d), root)
+            files_list += list_files_recursively(cur_root.joinpath(d), root, relative)
         for fi in files:
             if relative:
                 files_list.append(cur_root.joinpath(fi).relative_to(root))

@@ -27,7 +27,7 @@ class ICatalogHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def add_by_src(self, identifier, branch_name="main") -> ICatalog:
+    def add_by_src(self, source, branch_name="main") -> ICatalog:
         """ Adds a catalog. Creates them from their src. (Git, network-drive, folder outside cache, etc.)"""
         raise NotImplementedError
 

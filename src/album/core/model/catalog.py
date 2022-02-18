@@ -10,8 +10,8 @@ from album.core.api.model.catalog import ICatalog
 from album.core.api.model.catalog_index import ICatalogIndex
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import copy, copy_folder, write_dict_to_json, force_remove
-from album.core.utils.operations.git_operations import download_repository, init_repository, clone_repository_sparse, \
+from album.core.utils.operations.file_operations import copy, force_remove
+from album.core.utils.operations.git_operations import download_repository, clone_repository_sparse, \
     checkout_files
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.core.utils.operations.solution_operations import get_deploy_dict
@@ -22,11 +22,14 @@ from album.runner.core.model.solution import Solution
 module_logger = album_logging.get_active_logger
 
 
-def download_index_files(src, tmp_dir: Path, branch_name="main") -> Tuple[Path, Path]:
+def retrieve_index_files_from_src(src, tmp_dir: Path, branch_name="main") -> Tuple[Path, Path]:
+    """Takes a src (path, or url) and retrieves the index files. Expects a git repository behind the src!"""
     tmp_dir = Path(tmp_dir)
     with clone_repository_sparse(src, branch_name, tmp_dir) as repo:
+        # meta file - must be available
         checkout_files(repo, [DefaultValues.catalog_index_metafile_json.value])
         try:
+            # db file - optional
             checkout_files(repo, [DefaultValues.catalog_index_file_name.value])
         except GitCommandError as e:
             # catalog index file does not have to be present for empty catalogs
@@ -34,12 +37,7 @@ def download_index_files(src, tmp_dir: Path, branch_name="main") -> Tuple[Path, 
                 raise e
     index_src = tmp_dir.joinpath(DefaultValues.catalog_index_file_name.value)
     index_meta_src = tmp_dir.joinpath(DefaultValues.catalog_index_metafile_json.value)
-    return index_src, index_meta_src
 
-
-def get_index_dir(src) -> Tuple[Path, Path]:
-    index_src = Path(src).joinpath(DefaultValues.catalog_index_file_name.value)
-    index_meta_src = Path(src).joinpath(DefaultValues.catalog_index_metafile_json.value)
     return index_src, index_meta_src
 
 
@@ -77,8 +75,8 @@ class Catalog(ICatalog):
         self._is_deletable = deletable
 
         self._solution_list_path = self._path.joinpath(DefaultValues.catalog_solution_list_file_name.value)
-        self._meta_path = self._path.joinpath(DefaultValues.catalog_index_metafile_json.value)
-        self._index_path = self._path.joinpath(DefaultValues.catalog_index_file_name.value)
+        self._meta_file_path = self._path.joinpath(DefaultValues.catalog_index_metafile_json.value)
+        self._index_file_path = self._path.joinpath(DefaultValues.catalog_index_file_name.value)
         self._type = catalog_type
 
         if self.is_local() and self._src:
@@ -108,15 +106,6 @@ class Catalog(ICatalog):
     def update_index_cache_if_possible(self, tmp_dir):
         try:
             self.update_index_cache(tmp_dir)
-        except AssertionError:
-            module_logger().warning("Could not refresh index. Source invalid!")
-            return False
-        except ConnectionError:
-            module_logger().warning("Could not refresh index. Connection error!")
-            return False
-        except FileNotFoundError:
-            module_logger().warning("Could not refresh index. Source not found!")
-            return False
         except GitCommandError as e:
             module_logger().warning("Could not refresh index. Git command failed:")
             module_logger().warning(e)
@@ -132,7 +121,7 @@ class Catalog(ICatalog):
         if self.is_cache():
             return False
 
-        index_available = self._update_index(tmp_dir)
+        index_available = self._update_index_cache(tmp_dir)
 
         if not index_available:
             self.dispose()
@@ -178,54 +167,33 @@ class Catalog(ICatalog):
         else:
             module_logger().warning("Cannot remove entries from a remote catalog! Doing nothing...")
 
-    def _update_index(self, tmp_dir):
+    def _update_index_cache(self, tmp_dir):
         repo_dir = Path(tmp_dir).joinpath('repo')
         try:
-            src, meta_src = download_index_files(self.src(), repo_dir, branch_name=self.branch_name())
+            src, meta_src = retrieve_index_files_from_src(self.src(), repo_dir, branch_name=self.branch_name())
             return self._copy_index_to_cache(src, meta_src)
         finally:
             force_remove(repo_dir)
-
-    def _copy_index_from_src_to_cache(self) -> bool:
-        src_path_index = Path(self._src).joinpath(DefaultValues.catalog_index_file_name.value)
-        src_path_meta = Path(self._src).joinpath(DefaultValues.catalog_index_metafile_json.value)
-        return self._copy_index_to_cache(src_path_index, src_path_meta)
 
     def _copy_index_to_cache(self, db_file, meta_file):
         # check if meta information valid, only then continue
         if not meta_file.exists():
             raise FileNotFoundError("Could not find file %s..." % meta_file)
 
-        module_logger().debug("Copying meta information from %s to %s..." % (meta_file, self._meta_path))
-        copy(meta_file, self._meta_path)
+        module_logger().debug("Copying meta information from %s to %s..." % (meta_file, self._meta_file_path))
+        copy(meta_file, self._meta_file_path)
 
         if db_file.exists():
-            module_logger().debug("Copying index from %s to %s..." % (db_file, self._index_path))
-            copy(db_file, self._index_path)
+            module_logger().debug("Copying index from %s to %s..." % (db_file, self._index_file_path))
+            copy(db_file, self._index_file_path)
         else:
-            if self._index_path.exists():
-                force_remove(self._index_path)
+            if self._index_file_path.exists():
+                force_remove(self._index_file_path)
                 return False
             else:
                 module_logger().debug("Index file of the catalog does not exist yet...")
                 return False
         return True
-
-    def copy_index_from_cache_to_src(self):
-        src_path_index = Path(self._src).joinpath(DefaultValues.catalog_index_file_name.value)
-
-        if not src_path_index.exists():
-            if not self._index_path.parent.exists():
-                self._index_path.parent.mkdir(parents=True)
-
-        module_logger().debug("Copying index from %s to %s..." % (self._index_path, src_path_index))
-        copy(self._index_path, src_path_index)
-        src_path_solution_list = Path(self._src).joinpath(DefaultValues.catalog_solution_list_file_name.value)
-
-        module_logger().debug(
-            "Copying exported index from %s to %s..." % (self._solution_list_path, src_path_solution_list)
-        )
-        copy(self._solution_list_path, src_path_solution_list)
 
     @contextmanager
     def retrieve_catalog(self, path=None, force_retrieve=False, update=True) -> Generator[Repo, None, None]:
@@ -239,10 +207,6 @@ class Catalog(ICatalog):
 
         yield repo
         repo.close()
-
-    def write_catalog_meta_information(self):
-        d = self.get_meta_information()
-        write_dict_to_json(self._meta_path, d)
 
     def get_meta_information(self):
         return {
@@ -259,7 +223,7 @@ class Catalog(ICatalog):
         return res
 
     def load_index(self):
-        self._catalog_index = CatalogIndex(self._name, self._index_path)
+        self._catalog_index = CatalogIndex(self._name, self._index_file_path)
 
     def catalog_id(self) -> int:
         return self._catalog_id
@@ -288,11 +252,11 @@ class Catalog(ICatalog):
     def solution_list_path(self) -> Path:
         return self._solution_list_path
 
-    def index_path(self) -> Path:
-        return self._index_path
+    def index_file_path(self) -> Path:
+        return self._index_file_path
 
     def set_index_path(self, path):
-        self._index_path = Path(path)
+        self._index_file_path = Path(path)
 
     def type(self) -> str:
         return self._type
@@ -302,3 +266,9 @@ class Catalog(ICatalog):
 
     def set_version(self, version):
         self._version = version
+
+    def get_version(self):
+        return self._version
+
+    def get_meta_file_path(self):
+        return self._meta_file_path

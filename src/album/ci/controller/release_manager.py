@@ -7,7 +7,7 @@ from git import Repo
 from album.api import Album
 from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.continuous_integration import get_ssh_url, create_report
-from album.core.model.catalog import Catalog, download_index_files
+from album.core.model.catalog import Catalog, retrieve_index_files_from_src
 from album.core.utils.export.changelog import get_changelog_file_name
 from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_dict_entry, \
     copy, force_remove
@@ -208,9 +208,9 @@ class ReleaseManager:
             with TemporaryDirectory(dir=self.configuration.cache_path_tmp_internal()) as tmp_dir:
                 repo = Path(tmp_dir).joinpath('repo')
                 try:
-                    index_db, index_meta = download_index_files(self.catalog_src, branch_name=self.catalog.branch_name(), tmp_dir=repo)
+                    index_db, index_meta = retrieve_index_files_from_src(self.catalog_src, branch_name=self.catalog.branch_name(), tmp_dir=repo)
                     if index_db.exists():
-                        copy(index_db, self.catalog.index_path())
+                        copy(index_db, self.catalog.index_file_path())
                     else:
                         module_logger().warning("Index not downloadable! Using Index in merge request branch!")
                 finally:
@@ -290,7 +290,7 @@ class ReleaseManager:
             head = checkout_branch(repo, branch_name)
 
             commit_files = [
-                self.catalog.solution_list_path(), self.catalog.index_path()
+                self.catalog.solution_list_path(), self.catalog.index_file_path()
             ]
             if not all([Path(f).is_file() for f in commit_files]):
                 raise FileNotFoundError("Invalid deploy request or broken catalog repository!")

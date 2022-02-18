@@ -55,7 +55,8 @@ def create_changelog_file(active_solution: ISolution, catalog: ICatalog, target_
     return changelog_path
 
 
-def process_changelog_file(catalog: ICatalog, active_solution: ISolution, deploy_path: Path):
+def process_changelog_file(catalog: ICatalog, active_solution: ISolution, deploy_path):
+    deploy_path = Path(deploy_path)
     changelog_name = get_changelog_file_name()
     changelog_file = Path(deploy_path).joinpath(changelog_name)
     if changelog_file.exists():

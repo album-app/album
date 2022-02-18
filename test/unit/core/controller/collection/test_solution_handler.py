@@ -9,13 +9,14 @@ from album.core.utils.operations.file_operations import get_link_target
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.runner.core.model.coordinates import Coordinates
 from album.runner.core.model.solution import Solution
-from test.unit.core.controller.collection.test_collection_manager import TestCatalogCollectionCommon
+from test.unit.core.controller.collection.test_collection_manager import TestCatalogAndCollectionCommon
 
 
-class TestSolutionHandler(TestCatalogCollectionCommon):
+class TestSolutionHandler(TestCatalogAndCollectionCommon):
 
     def setUp(self):
         super().setUp()
+        self.set_up_test_catalogs()
         self.fill_catalog_collection()
         catalog_src = Path(self.tmp_dir.name).joinpath("testRepo")
         self.album.catalogs().create_new(catalog_src, "test", "direct")

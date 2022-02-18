@@ -10,15 +10,17 @@ from album.core.model.catalog_index import CatalogIndex
 from album.core.model.catalog_updates import CatalogUpdates, SolutionChange, ChangeType
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
+from album.core.utils.operations.file_operations import folder_empty, write_dict_to_json
 from album.runner.core.model.coordinates import Coordinates
-from test.unit.core.controller.collection.test_collection_manager import TestCatalogCollectionCommon
+from test.unit.core.controller.collection.test_collection_manager import TestCatalogAndCollectionCommon
 from test.unit.test_unit_core_common import EmptyTestClass
 
 
-class TestCatalogHandler(TestCatalogCollectionCommon):
+class TestCatalogHandler(TestCatalogAndCollectionCommon):
 
     def setUp(self):
         super().setUp()
+        self.set_up_test_catalogs()
         self.fill_catalog_collection()
         self.solution_handler = self.collection_manager().solution_handler
         self.catalog_handler = self.collection_manager().catalog_handler
@@ -61,23 +63,20 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
 
     # Info: this is rather a small integration test.
     def test_add_by_src(self):
-        catalog_name = "aNiceCatalog"
-        catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", catalog_name)
-        catalog_src.mkdir(parents=True)
-        with open(catalog_src.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as config:
-            config.writelines("{\"name\": \"" + catalog_name + "\", \"version\": \"0.1.0\", \"type\": \"direct\"}")
+        # prepare
+        catalog_src = self.create_empty_catalog("aNiceCatalog")
 
         # call
-        catalog = self.catalog_handler.add_by_src(str(catalog_src))
+        self.catalog_handler.add_by_src(str(catalog_src))
 
         # assert
         expected_list = deepcopy(self.catalog_list)
         expected_list.append({
             "catalog_id": 4,
             "deletable": 1,
-            "name": catalog_name,
+            "name": "aNiceCatalog",
             "path": str(
-                Path(self.tmp_dir.name).joinpath("album", DefaultValues.catalog_folder_prefix.value, catalog_name)),
+                Path(self.tmp_dir.name).joinpath("album", DefaultValues.catalog_folder_prefix.value, "aNiceCatalog")),
             'branch_name': "main",
             "type": "direct",
             "src": str(catalog_src),
@@ -86,15 +85,9 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
 
     # Info: this is rather a small integration test.
     def test_add_by_src_already_present(self):
-        catalog_name = "aNiceCatalog"
-        catalog_src = Path(self.tmp_dir.name).joinpath("my-catalogs", catalog_name)
-        catalog_src.mkdir(parents=True)
-        catalog_index_metafile_json_path = catalog_src.joinpath(DefaultValues.catalog_index_metafile_json.value)
-        index_meta_string = "{\"name\": \"" + catalog_name + "\", \"version\": \"0.1.0\", \"type\": \"direct\"}"
-
-        with open(catalog_index_metafile_json_path, 'w') as config:
-            config.writelines(index_meta_string)
-
+        # prepare
+        catalog_src = self.create_empty_catalog("aNiceCatalog")
+        index_meta_string = "{\"name\": \"aNiceCatalog\", \"version\": \"0.1.0\", \"type\": \"direct\"}"
         catalog_index_metafile_json_dict = json.loads(index_meta_string)
 
         _retrieve_catalog_meta_information = MagicMock(return_value=catalog_index_metafile_json_dict)
@@ -603,19 +596,65 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         # assert
         self.assertEqual({"catalogs": "abc"}, x)
 
+    def test_set_version(self):
+        catalog = self.create_test_catalog_no_git()
+
+        # call
+        self.catalog_handler.set_version(catalog)
+
+        # assert
+        self.assertEqual("0.1.0", catalog.version())
+
+    def test_set_version_wrong_meta(self):
+        catalog = self.create_test_catalog_no_git()
+
+        # overwrite version
+        d = self.get_catalog_meta_dict()
+        d["version"] = "0.0.1"
+        write_dict_to_json(catalog.get_meta_file_path(), d)
+
+        # call
+        with self.assertRaises(ValueError) as ve:
+            self.catalog_handler.set_version(catalog)
+            self.assertIn("unequal to actual version", str(ve.exception))
+
+    def test_set_version_no_meta(self):
+        catalog = self.create_test_catalog_no_git()
+
+        catalog.get_meta_file_path().unlink()
+
+        with self.assertRaises(FileNotFoundError):
+            self.catalog_handler.set_version(catalog)
+
+    @patch('album.core.controller.collection.catalog_handler.get_dict_from_json', return_value={"mydict": "1"})
+    @patch('album.core.controller.collection.catalog_handler.copy')
+    @patch('album.core.controller.collection.catalog_handler.retrieve_index_files_from_src',
+           return_value=('db_file', 'meta_file'))
+    def test__retrieve_catalog_meta_information(
+            self, download_resource_mock, copy_mock, get_dict_mock
+    ):
+        # prepare
+        link = "https://mylink.com"
+        copy_mock.return_value = Path(self.tmp_dir.name).joinpath("album", "downloads", 'album_catalog_index.json')
+        # call
+        r = self.catalog_handler._retrieve_catalog_meta_information(link)
+
+        # assert
+        self.assertDictEqual({"mydict": "1"}, r)
+        download_resource_mock.assert_called_once_with('https://mylink.com', branch_name='main', tmp_dir=mock.ANY)
+        copy_mock.assert_called_once()
+        get_dict_mock.assert_called_once_with(copy_mock.return_value)
+        self.assertTrue(folder_empty(self.album.configuration().cache_path_tmp_internal()))
+
     def test__create_catalog_from_src(self):
-        with patch(
-                "album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information") as retrieve_c_m_i_mock:
-            retrieve_c_m_i_mock.side_effect = [self.get_catalog_meta_dict("mynewcatalog")]
+        # call
+        catalog = self.catalog_handler._create_catalog_from_src(self.tmp_dir.name, self.get_catalog_meta_dict("mynewcatalog"))
 
-            # call
-            catalog = self.catalog_handler._create_catalog_from_src(self.tmp_dir.name)
-
-            # assert
-            self.assertEqual("mynewcatalog", catalog.name())
-            self.assertEqual(Path(self.tmp_dir.name), catalog.src())
-            self.assertEqual(self.album.configuration().get_cache_path_catalog("mynewcatalog"), catalog.path())
-            self.assertIsNone(catalog.catalog_id())
+        # assert
+        self.assertEqual("mynewcatalog", catalog.name())
+        self.assertEqual(Path(self.tmp_dir.name), catalog.src())
+        self.assertEqual(self.album.configuration().get_cache_path_catalog("mynewcatalog"), catalog.path())
+        self.assertIsNone(catalog.catalog_id())
 
     def test__create_catalog_cache_if_missing(self):
         # prepare
@@ -768,143 +807,3 @@ class TestCatalogHandler(TestCatalogCollectionCommon):
         self.assertEqual(1, c.catalog_id())
         self.assertEqual(1, c.is_deletable())
 
-    def test_set_version(self):
-        catalog = self.create_test_catalog()
-
-        # mocks
-        with patch(
-                'album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information') as retrieve_c_m_i_mock:
-            retrieve_c_m_i_mock.return_value = {'version': '0.1.0'}
-
-            # call
-            self.catalog_handler.set_version(catalog)
-
-            # assert
-            self.assertEqual("0.1.0", catalog.version())
-            retrieve_c_m_i_mock.assert_called_once_with(catalog.path(), 'main')
-
-            catalog.dispose()
-
-    def create_test_catalog(self):
-        catalog_src = Path(self.tmp_dir.name).joinpath("testRepo")
-        CatalogHandler.create_new(catalog_src, "test", "direct")
-        catalog_path = Path(self.tmp_dir.name).joinpath("testPath")
-        catalog_path.mkdir(parents=True)
-        catalog = Catalog(0, 'test', catalog_path, src=catalog_src)
-        catalog.load_index()
-        return catalog
-
-    def test_set_version_wrong_meta(self):
-        catalog = self.create_test_catalog()
-
-        # mocks
-        with patch(
-                'album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information'
-        ) as retrieve_c_m_i_mock:
-            retrieve_c_m_i_mock.return_value = {"version": "0.1.1"}  # version the meta file claims
-
-            # call
-            with self.assertRaises(ValueError):
-                self.catalog_handler.set_version(catalog)
-
-            # assert
-            retrieve_c_m_i_mock.assert_called_once_with(catalog.path(), 'main')
-
-    def test_set_version_no_meta(self):
-        catalog = self.create_test_catalog()
-
-        # mocks
-        with patch(
-                'album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information'
-        ) as retrieve_c_m_i_mock:
-            retrieve_c_m_i_mock.return_value = None  # no meta info available
-
-            # call
-            with self.assertRaises(ValueError):
-                self.catalog_handler.set_version(catalog)
-
-            # assert
-            retrieve_c_m_i_mock.assert_called_once_with(catalog.path(), "main")
-
-        catalog.dispose()
-
-    @patch('album.core.controller.collection.catalog_handler.get_dict_from_json')
-    @patch('album.core.controller.collection.catalog_handler.copy', return_value='meta_file_path')
-    @patch('album.core.controller.collection.catalog_handler.get_index_dir')
-    def test__retrieve_catalog_meta_information_case_dir(
-            self, get_index_dir_mock, copy_mock, get_dict_mock
-    ):
-        # prepare
-        link = self.tmp_dir.name
-
-        file = Path(link).joinpath("album_catalog_index.json")
-        file.touch()
-
-        get_index_dir_mock.return_value = ("_", file)
-
-        # call
-        self.catalog_handler._retrieve_catalog_meta_information(link)
-
-        # assert
-        get_index_dir_mock.assert_called_once_with(link)
-        copy_mock.assert_called_once_with(
-            file, Path(self.tmp_dir.name).joinpath("album", "downloads", 'album_catalog_index.json')
-        )
-        get_dict_mock.assert_called_once_with(copy_mock.return_value)
-
-    @patch('album.core.controller.collection.catalog_handler.get_dict_from_json')
-    @patch('album.core.controller.collection.catalog_handler.copy')
-    @patch('album.core.controller.collection.catalog_handler.get_index_dir')
-    @patch('album.core.controller.collection.catalog_handler.download_index_files', return_value=('db_file', 'meta_file'))
-    def test__retrieve_catalog_meta_information_case_url(
-            self, download_resource_mock, get_index_dir_mock, copy_mock, get_dict_mock
-    ):
-        # prepare
-        link = "https://mylink.com"
-        copy_mock.return_value = Path(self.tmp_dir.name).joinpath("album", "downloads", 'album_catalog_index.json')
-        # call
-        self.catalog_handler._retrieve_catalog_meta_information(link)
-
-        # assert
-        download_resource_mock.assert_called_once_with('https://mylink.com', branch_name='main', tmp_dir=mock.ANY)
-        get_index_dir_mock.assert_not_called()
-        copy_mock.assert_called_once()
-        get_dict_mock.assert_called_once_with(copy_mock.return_value)
-
-    @patch('album.core.controller.collection.catalog_handler.get_dict_from_json')
-    @patch('album.core.controller.collection.catalog_handler.copy')
-    @patch('album.core.controller.collection.catalog_handler.get_index_dir')
-    def test__retrieve_catalog_meta_information_case_file_not_found(
-            self, get_index_dir_mock, copy_mock, get_dict_mock
-    ):
-        # prepare
-        link = self.tmp_dir.name
-        file = Path(link).joinpath("album_catalog_index.json")  # file does not exist
-
-        get_index_dir_mock.return_value = ("_", file)
-
-        # call
-        with self.assertRaises(FileNotFoundError):
-            self.catalog_handler._retrieve_catalog_meta_information(link)
-
-        # assert
-        get_index_dir_mock.assert_called_once_with(link)
-        copy_mock.assert_not_called()
-        get_dict_mock.assert_not_called()
-
-    @patch('album.core.controller.collection.catalog_handler.get_dict_from_json')
-    @patch('album.core.controller.collection.catalog_handler.copy')
-    @patch('album.core.controller.collection.catalog_handler.get_index_dir')
-    def test__retrieve_catalog_meta_information_case_path_invalid(
-            self, get_index_dir_mock, copy_mock, get_dict_mock
-    ):
-        # prepare
-        link = "mywrongpath"
-        # call
-        with self.assertRaises(RuntimeError):
-            self.catalog_handler._retrieve_catalog_meta_information(link)
-
-        # assert
-        get_index_dir_mock.assert_not_called()
-        copy_mock.assert_not_called()
-        get_dict_mock.assert_not_called()

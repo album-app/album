@@ -171,7 +171,13 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, emai
         cmd = cmd_option + push_options
         if force:
             cmd = cmd + ['-f']
-        cmd = cmd + [repo.remote().refs.HEAD.remote_name, head]
+
+        try:
+            remote_name = repo.remote().refs.HEAD.remote_name
+        except AttributeError:
+            remote_name = "origin"
+
+        cmd = cmd + [remote_name, head]
 
         module_logger().debug("Running command: repo.git.push(%s)..." % (", ".join(str(x) for x in cmd)))
 
@@ -293,8 +299,9 @@ def clone_repository_sparse(repo_url, branch_name, target_repo_path) -> Generato
     create_path_recursively(git_folder_path)
 
     module_logger().debug("Cloning repository without history from %s into %s..." % (repo_url, git_folder_path))
-    repo = git.Repo.clone_from(repo_url, git_folder_path, branch=branch_name, no_checkout=True, depth=1, no_tags=True,
-                               single_branch=True)
+    repo = git.Repo.clone_from(
+        repo_url, git_folder_path, branch=branch_name, no_checkout=True, depth=1, no_tags=True, single_branch=True
+    )
     yield repo
     repo.close()
 
@@ -360,6 +367,9 @@ def create_bare_repository(target):
     create_path_recursively(target)
 
     repo = git.Repo.init(target, bare=True)
+
+    # ref HEAD to main
+    repo.git.symbolic_ref('HEAD', 'refs/heads/main')
 
     return repo
 
