@@ -8,6 +8,8 @@ from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestLogHandler(TestUnitCoreCommon):
+    def setUp(self):
+        super().setUp()
 
     def test_handler(self):
         self.logger.setLevel(20)

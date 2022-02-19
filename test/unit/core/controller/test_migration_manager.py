@@ -11,12 +11,12 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
 
     def setUp(self):
         super().setUp()
-        self.create_album_test_instance(init_catalogs=False)
+        self.setup_collection(init_catalogs=False)
 
-        catalog_src_path = self.create_empty_catalog("testCat")
+        catalog_src_path, _ = self.setup_empty_catalog("testCat")
         self.catalog = Catalog(0, "test", src=catalog_src_path, path="catalog_path")
 
-        self.migration_manager = self.album.migration_manager()
+        self.migration_manager = self.album_controller.migration_manager()
         self.migration_manager.load_index(self.catalog)
 
     def tearDown(self) -> None:
@@ -45,7 +45,7 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
         self.migration_manager._load_catalog_index = _load_catalog_index
 
         set_version = MagicMock()
-        self.album.catalogs().set_version = set_version
+        self.album_controller.catalogs().set_version = set_version
 
         update_index_cache = MagicMock()
         self.catalog.update_index_cache = update_index_cache
@@ -67,7 +67,7 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
         self.assertFalse(self.migration_manager.refresh_index(self.catalog))
 
     def test_validate_solution_attrs(self):
-        self.create_test_solution_no_env()
+        self.setup_solution_no_env()
         self.active_solution.setup().pop('timestamp')
         self.active_solution.setup().pop('album_version')
         self.migration_manager.validate_solution_attrs(self.active_solution.setup())

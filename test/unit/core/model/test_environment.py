@@ -13,7 +13,6 @@ class TestEnvironment(TestUnitCoreCommon):
 
     def setUp(self):
         super().setUp()
-        self.create_album_test_instance()
 
         """Setup things necessary for all tests of this class"""
         self.environment = Environment(None, self.test_environment_name, Path("aPath"))

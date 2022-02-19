@@ -66,7 +66,7 @@ class Environment(IEnvironment):
                                         " or point to a file on the disk!")
                 # case String stream
                 elif isinstance(env_file, StringIO):
-                    with open(yaml_path, "w+") as f:
+                    with open(str(yaml_path), "w+") as f:
                         env_file.seek(0)  # make sure we start from the beginning
                         f.writelines(env_file.readlines())
                     yaml_path = yaml_path

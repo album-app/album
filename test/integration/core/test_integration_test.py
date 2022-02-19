@@ -7,6 +7,9 @@ from test.integration.test_integration_core_common import TestIntegrationCoreCom
 
 class TestIntegrationTest(TestIntegrationCoreCommon):
 
+    def setUp(self):
+        super().setUp()
+
     def tearDown(self) -> None:
         super().tearDown()
 
@@ -14,9 +17,9 @@ class TestIntegrationTest(TestIntegrationCoreCommon):
         self.fake_install(self.get_test_solution_path("solution0_dummy_no_routines.py"), create_environment=True)
 
         # this solution has the no test() configured
-        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+        resolve_result = self.album_controller.collection_manager().resolve_and_load(
             self.get_test_solution_path("solution0_dummy_no_routines.py"))
-        self.album_instance.test_manager().test(resolve_result)
+        self.album_controller.test_manager().test(resolve_result)
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
@@ -24,13 +27,13 @@ class TestIntegrationTest(TestIntegrationCoreCommon):
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_test(self, get_environment_path):
-        get_environment_path.return_value = self.album_instance.environment_manager().conda_manager.get_active_environment_path()
+        get_environment_path.return_value = self.album_controller.environment_manager().conda_manager.get_active_environment_path()
 
         self.fake_install(self.get_test_solution_path("solution6_noparent_test.py"), create_environment=False)
 
-        resolve_result = self.album_instance.collection_manager().resolve_and_load(
+        resolve_result = self.album_controller.collection_manager().resolve_and_load(
             self.get_test_solution_path("solution6_noparent_test.py"))
-        self.album_instance.test_manager().test(resolve_result)
+        self.album_controller.test_manager().test(resolve_result)
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
@@ -44,6 +47,3 @@ class TestIntegrationTest(TestIntegrationCoreCommon):
             self.assertIn("solution6_noparent_test_close", log)
             self.assertIn("solution6_noparent_test_test", log)
 
-
-if __name__ == '__main__':
-    unittest.main()

@@ -70,8 +70,8 @@ class ICatalogHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def get_local_catalog(self) -> ICatalog:
-        """Returns the first local catalog in the configuration (Reads db table from top)."""
+    def get_cache_catalog(self) -> ICatalog:
+        """Returns the first cache catalog in the configuration (Reads db table from top)."""
         raise NotImplementedError
 
     @abstractmethod

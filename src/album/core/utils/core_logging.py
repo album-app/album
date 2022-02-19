@@ -6,7 +6,7 @@ from album.core.utils.operations.view_operations import get_logger_name_minimize
 from album.runner.album_logging import set_loglevel, debug_settings, LogLevel, push_active_logger
 
 
-def configure_root_logger(log_format:str = None, log_format_time: str = None, log_level: LogLevel = None):
+def configure_root_logger(log_format: str = None, log_format_time: str = None, log_level: LogLevel = None):
     if not log_level:
         log_level = LogLevel(debug_settings())
     logger = logging.getLogger('album')

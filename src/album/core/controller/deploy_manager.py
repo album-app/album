@@ -19,7 +19,6 @@ from album.core.utils.operations.git_operations import create_new_head, add_file
 from album.core.utils.operations.solution_operations import get_deploy_dict
 from album.runner import album_logging
 from album.runner.core.api.model.solution import ISolution
-from album.runner.core.model.solution import Solution
 
 module_logger = album_logging.get_active_logger
 
@@ -40,12 +39,12 @@ class DeployManager(IDeployManager):
             force_deploy: bool = False,
             changelog: str = None
     ):
-
         if dry_run:
             module_logger().info('Pretending to deploy %s to %s...' % (deploy_path, catalog_name))
         else:
             module_logger().info('Deploying %s to %s...' % (deploy_path, catalog_name))
 
+        deploy_path = Path(deploy_path)
         path_to_solution = self._get_path_to_solution(deploy_path)
 
         active_solution = self.album.state_manager().load(path_to_solution)
@@ -55,8 +54,6 @@ class DeployManager(IDeployManager):
             catalog = self.album.catalogs().get_by_name(catalog_name)
         else:
             raise RuntimeError("No catalog specified for deployment!")
-
-        process_changelog_file(catalog, active_solution, deploy_path)
 
         self._deploy(catalog, active_solution, deploy_path, dry_run, force_deploy, push_options, git_email, git_name)
 
@@ -69,10 +66,10 @@ class DeployManager(IDeployManager):
             self,
             catalog: ICatalog,
             active_solution: ISolution,
-            deploy_path,
-            dry_run,
-            force_deploy,
-            push_options,
+            deploy_path: Path,
+            dry_run: bool,
+            force_deploy: bool,
+            push_options: list,
             git_email=None,
             git_name=None
     ):
@@ -84,6 +81,13 @@ class DeployManager(IDeployManager):
 
         # a catalog is always a repository
         with catalog.retrieve_catalog(dl_path, force_retrieve=True) as repo:
+            # load index
+            catalog.set_index_path(Path(repo.working_tree_dir).joinpath(DefaultValues.catalog_index_file_name.value))
+            self.album.migration_manager().load_index(catalog)
+
+            # requires a loaded index
+            process_changelog_file(catalog, active_solution, deploy_path)
+
             if catalog.type() == "direct":
                 self._deploy_to_direct_catalog(
                     repo, catalog, active_solution, deploy_path, dry_run, force_deploy, push_options, git_email,
@@ -98,13 +102,13 @@ class DeployManager(IDeployManager):
 
     def _deploy_to_direct_catalog(
             self,
-            repo,
+            repo: Repo,
             catalog: ICatalog,
             active_solution: ISolution,
-            deploy_path,
-            dry_run,
-            force_deploy,
-            push_options,
+            deploy_path: Path,
+            dry_run: bool,
+            force_deploy: bool,
+            push_options: list,
             git_email=None, git_name=None
     ):
         """Routine to deploy to a direct catalog"""
@@ -113,7 +117,7 @@ class DeployManager(IDeployManager):
 
         catalog_local_solution_path = self._get_absolute_prefix_path(catalog, repo.working_tree_dir, active_solution)
         self._clear_deploy_target_path(catalog_local_solution_path, force_deploy)
-        self._update_downloaded_catalog(repo, catalog, active_solution, dry_run, force_deploy)
+        self._add_to_downloaded_catalog(catalog, active_solution, dry_run, force_deploy)
 
         solution_zip, exports = self._deploy_routine_in_local_src(catalog, repo, active_solution, deploy_path)
 
@@ -142,21 +146,19 @@ class DeployManager(IDeployManager):
 
     def _deploy_to_request_catalog(
             self,
-            repo,
+            repo: Repo,
             catalog: ICatalog,
             active_solution: ISolution,
-            deploy_path,
-            dry_run,
-            push_options,
+            deploy_path: Path,
+            dry_run: bool,
+            push_options: list,
             git_email=None, git_name=None
     ):
         """Routine to deploy to a request catalog."""
 
-        catalog_local_src = repo.working_tree_dir
-
         # include files/folders in catalog
         solution_zip, exports = self._deploy_routine_in_local_src(
-            catalog, catalog_local_src, active_solution, deploy_path
+            catalog, repo, active_solution, deploy_path
         )
 
         # build merge request files
@@ -167,7 +169,9 @@ class DeployManager(IDeployManager):
 
         self._create_merge_request(active_solution, repo, mr_files, dry_run, push_options, git_email, git_name)
 
-    def _deploy_routine_in_local_src(self, catalog: ICatalog, repo, active_solution, deploy_path):
+    def _deploy_routine_in_local_src(
+            self, catalog: ICatalog, repo: Repo, active_solution: ISolution, deploy_path: Path
+    ):
         """Performs all routines a deploy process needs to do locally.
 
         Returns:
@@ -178,15 +182,6 @@ class DeployManager(IDeployManager):
         exports = self._attach_exports(catalog, repo.working_tree_dir, active_solution, deploy_path)
 
         return solution_zip, exports
-
-    def _update_downloaded_catalog(self, repo, catalog, active_solution, dry_run, force_deploy):
-        """Updates the index in the downloaded repository!"""
-        if not dry_run:
-            catalog.set_index_path(Path(repo.working_tree_dir).joinpath(DefaultValues.catalog_index_file_name.value))
-            self.album.migration_manager().load_index(catalog)
-            catalog.add(active_solution, force_overwrite=force_deploy)
-        else:
-            module_logger().info("Would add the solution %s to index..." % active_solution.coordinates().name())
 
     def get_download_path(self, catalog: ICatalog):
         return Path(self.album.configuration().cache_path_download()).joinpath(catalog.name())
@@ -222,7 +217,7 @@ class DeployManager(IDeployManager):
 
         return res
 
-    def _copy_and_zip(self, catalog_local_src: str, active_solution: Solution, folder_path) -> Path:
+    def _copy_and_zip(self, catalog_local_src: str, active_solution: ISolution, folder_path: Path) -> Path:
         """Copies the deploy-file or -folder to the catalog repository.
 
         Returns:
@@ -248,7 +243,16 @@ class DeployManager(IDeployManager):
         return self.album.configuration().cache_path_tmp_internal()
 
     @staticmethod
-    def _clear_deploy_target_path(target_path, force_deploy):
+    def _add_to_downloaded_catalog(catalog: ICatalog, active_solution: ISolution, dry_run: bool,
+                                   force_deploy: bool):
+        """Updates the index in the downloaded repository!"""
+        if not dry_run:
+            catalog.add(active_solution, force_overwrite=force_deploy)
+        else:
+            module_logger().info("Would add the solution %s to index..." % active_solution.coordinates().name())
+
+    @staticmethod
+    def _clear_deploy_target_path(target_path: Path, force_deploy: bool):
         """Clears the target path (locally) where the solution is supposed to be deployed to."""
         if target_path.is_dir() and not folder_empty(target_path):
             if force_deploy:
@@ -257,9 +261,10 @@ class DeployManager(IDeployManager):
                 raise RuntimeError("The deploy target folder is not empty! Enable --force-deploy to continue!")
 
     @staticmethod
-    def _get_path_to_solution(deploy_path):
-        deploy_path = Path(deploy_path)
-
+    def _get_path_to_solution(deploy_path: Path):
+        """Gets the path to the solution behind the deploy_path. If folder is provided file called solution.py must
+        live in the deploy_path.
+        """
         if deploy_path.is_dir():
             path_to_solution = deploy_path.joinpath(DefaultValues.solution_default_name.value)
         else:
@@ -318,7 +323,7 @@ class DeployManager(IDeployManager):
         )
 
     @staticmethod
-    def _push_directly(active_solution: ISolution, repo: Repo, file_paths, dry_run=False, push_option=None,
+    def _push_directly(active_solution: ISolution, repo: Repo, file_paths: list, dry_run=False, push_option=None,
                        email=None, username=None):
         if push_option is None:
             push_option = []
@@ -358,12 +363,14 @@ class DeployManager(IDeployManager):
 
     @staticmethod
     def _copy_files_from_solution(
-            active_solution: ISolution, source_path: Path, target_path: Path, attribute_path, attribute_log_name
+            active_solution: ISolution,
+            source_path: Path,
+            target_path: Path,
+            attribute_path: str,
+            attribute_log_name: str
     ):
         """ Extracts the attribute value from the solution given, looks up the file behind the value and copies
         it to the correct deployment path."""
-        source_path = Path(source_path)
-        target_path = Path(target_path)
         module_logger().debug('Looking up %s file(s) to copy to %s...' % (attribute_log_name, str(target_path)))
 
         # get files in solution setup dictionary having the given attribute_path

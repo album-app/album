@@ -46,8 +46,8 @@ class SolutionHandler(ISolutionHandler):
         else:
             copy(path, install_location.joinpath(DefaultValues.solution_default_name.value))
 
-    def add_to_local_catalog(self, active_solution: ISolution, path):
-        self.add_or_replace(self.album.catalogs().get_local_catalog(), active_solution, path)
+    def add_to_cache_catalog(self, active_solution: ISolution, path):
+        self.add_or_replace(self.album.catalogs().get_cache_catalog(), active_solution, path)
 
     def set_parent(self, catalog_parent: ICatalog, catalog_child: ICatalog, coordinates_parent: ICoordinates,
                    coordinates_child: ICoordinates):

@@ -6,27 +6,27 @@ from flask.testing import FlaskClient
 
 from album.core.model.catalog import Catalog
 from album.server import AlbumServer
-from test.unit.test_unit_common import TestUnitCommon
+from test.test_common import TestCommon
 from test.unit.test_unit_core_common import EmptyTestClass
 
 
 @patch("album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information",
        return_value={"name": "catalog_local", "version": "0.1.0"})
-class TestServer(flask_unittest.ClientTestCase, TestUnitCommon):
+class TestServer(flask_unittest.ClientTestCase, TestCommon):
 
     port = 7896
     server = AlbumServer(port)
     app = server.init_server({'TESTING': True})
 
     def setUp(self, client: FlaskClient) -> None:
-        TestUnitCommon.setUp(self)
-        album = self.create_album_test_instance()
-        self.server.setup(album)
+        TestCommon.setUp(self)
+        self.setup_album_instance()
+        self.server.setup(self.album)
         flask_unittest.ClientTestCase.setUp(self, client)
 
     def tearDown(self, client: FlaskClient) -> None:
         flask_unittest.ClientTestCase.tearDown(self, client)
-        TestUnitCommon.tearDown(self)
+        TestCommon.tearDown(self)
 
     def getJSONResponse(self, client, path):
         response = client.get(path)
@@ -40,6 +40,7 @@ class TestServer(flask_unittest.ClientTestCase, TestUnitCommon):
         self.assertIsNotNone(json["email"])
 
     def test_index(self, client, _):
+        self.setup_collection()
         json = self.getJSONResponse(client, "/index")
         self.assertIsNotNone(json["catalogs"])
 

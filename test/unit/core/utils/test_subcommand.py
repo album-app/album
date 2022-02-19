@@ -19,6 +19,8 @@ from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestSubcommand(TestUnitCoreCommon):
+    def setUp(self):
+        super().setUp()
 
     def test_run(self):
         handler = StreamHandler()
@@ -114,7 +116,7 @@ class TestSubcommand(TestUnitCoreCommon):
 
     def test_run_logging_from_thread(self):
         self.logger.setLevel("DEBUG")
-        thread = threading.Thread(target=self._run_in_thread, args=(threading.current_thread().ident, ))
+        thread = threading.Thread(target=self._run_in_thread, args=(threading.current_thread().ident,))
         thread.start()
         thread.join()
 
@@ -150,7 +152,6 @@ class TestLogfileBuffer(TestUnitCoreCommon):
         super().tearDown()
 
     def test_write(self):
-
         self.assertIsNotNone(get_active_logger())
 
         log_buffer = LogfileBuffer(get_active_logger())

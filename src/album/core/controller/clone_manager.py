@@ -1,8 +1,6 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-import git
-
 from album.core.api.controller.clone_manager import ICloneManager
 from album.core.api.controller.controller import IAlbumController
 from album.core.model.default_values import DefaultValues
@@ -59,6 +57,9 @@ class CloneManager(ICloneManager):
 
             self.setup_repository_from_template(target_path, download_unzip_target_subdir, catalog_name)
 
+            module_logger().info("Initialized new catalog \"%s\" from template \"%s\" in %s!" % (
+                catalog_name, template_name, target_path
+            ))
             return True
         return False
 
@@ -69,18 +70,18 @@ class CloneManager(ICloneManager):
         with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
             with clone_repository(target_path, tmp_dir) as repo:
                 file_operations.copy_folder(
-                    template_folder, repo.working_dir_tree, copy_root_folder=False
+                    template_folder, repo.working_tree_dir, copy_root_folder=False
                 )
 
-                # create the metadata
+                # create the metadata in repository clone
                 catalog_type = self._get_catalog_type_from_template(template_folder)
-                self.album.catalogs().create_new_metadata(target_path, catalog_name, catalog_type)
+                self.album.catalogs().create_new_metadata(repo.working_tree_dir, catalog_name, catalog_type)
 
                 head = checkout_main(repo)
 
                 add_files_commit_and_push(
                     head,
-                    list_files_recursively(repo.working_dir_tree),
+                    list_files_recursively(repo.working_tree_dir),
                     "Setting up \"%s\" catalog!" % catalog_name,
                     push=True,
                     force=False

@@ -24,7 +24,7 @@ def checkout_branch(git_repo, branch_name):
         git_repo:
             The repository
         branch_name:
-            The name of the branch to check out
+            The name of the branch to check out.
 
     Returns:
         The head of the branch
@@ -39,6 +39,10 @@ def checkout_branch(git_repo, branch_name):
         )
         head = git_repo.heads[branch_name]
         head.checkout()
+        try:
+            head.repo.git.pull()
+        except git.GitCommandError:
+            module_logger().warning("Cannot pull from branch. Assuming up to date!")
         return head
     except IndexError as e:
         module_logger().debug("Branch name not in local repository! Checking origin...")
@@ -355,10 +359,12 @@ def init_repository(path):
     repo.remote().update()
 
     # remove all eventual changes made local
-    clean_repository(repo)
+    remote_head = get_local_remote_ref_head(repo)
+    checkout_main(repo, remote_head.name)
+    clean_repository(repo, remote_head.name)
 
     # checkout remote HEAD for a clean start for new branches
-    repo.remote().refs.HEAD.checkout()
+    remote_head.checkout()
 
     return repo
 
@@ -385,20 +391,40 @@ def create_repository(target):
     return repo
 
 
-def clean_repository(repo):
+def clean_repository(repo, target_head_name):
     """Resets all changes made in the current repository"""
+    remote_name = repo.remote().name
+    remote_ref = remote_name + "/" + target_head_name
     # reset to current remote HEAD reference name
-    repo.git.reset(['--hard', repo.remote().refs.HEAD.ref.name])
+    repo.git.reset(['--hard', remote_ref])
     # remove all leftover-untracked files (if any)
     repo.git.clean('-fd')
 
 
-def checkout_main(repo):
+def get_local_remote_ref_head(repo):
+    if repo.remote().refs:
+        try:
+            remote_head = repo.git.remote(["set-head", "origin", "-a"])
+            remote_main_name = remote_head.split(" ")[-1]
+        except git.GitCommandError:
+            remote_main_name = "main"
+        head = repo.heads[remote_main_name]
+    else:
+        head = repo.head.ref
+    return head
+
+
+def checkout_main(repo, main_name=None):
     """Checks out the main branch of the repository locally. Note: must not be called "main"!"""
-    remote_main_name = repo.remote().refs.HEAD.ref.remote_head
-    # checkout main or whatever its called the origin currently points to
-    head = repo.heads[remote_main_name]
-    head.checkout()
+    if not main_name:
+        head = get_local_remote_ref_head(repo)
+    else:
+        head = repo.heads[main_name]
+
+    try:
+        head.checkout()
+    except git.GitCommandError:
+        pass
 
     return head
 
@@ -414,7 +440,7 @@ def retrieve_default_mr_push_options(repo_url) -> list:
         The default push option to directly create a merge request when pushed to origin.
 
     """
-    if is_url(repo_url):
+    if is_url(str(repo_url)):
         parsed_url = urlparse(repo_url)
 
         if parsed_url.netloc.startswith("gitlab"):

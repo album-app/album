@@ -14,6 +14,16 @@ from test.unit.test_unit_core_common import TestCatalogAndCollectionCommon
 
 class TestCatalog(TestCatalogAndCollectionCommon):
 
+    def setUp(self):
+        super().setUp()
+        self.setup_collection(False, True)
+        self.catalog = self.setup_catalog_no_git()
+        self.album_controller.collection_manager().catalogs().set_version(self.catalog)
+
+    def tearDown(self) -> None:
+        self.catalog.dispose()
+        super().tearDown()
+
     def populate_index(self, r=10):
         for i in range(0, r):
             d = self.get_solution_dict()
@@ -30,16 +40,6 @@ class TestCatalog(TestCatalogAndCollectionCommon):
             setattr(solution, "deposit_id", "deposit_id%s" % str(i))
 
             self.catalog.add(solution)
-
-    def setUp(self):
-        super().setUp()
-        self.create_album_test_instance(init_catalogs=False, init_collection=True)
-        self.catalog = self.create_test_catalog_no_git()
-        self.collection_manager().catalogs().set_version(self.catalog)
-
-    def tearDown(self) -> None:
-        self.catalog.dispose()
-        super().tearDown()
 
     def test__init__(self):
         new_catalog = self.catalog
@@ -149,11 +149,11 @@ class TestCatalog(TestCatalogAndCollectionCommon):
         self.catalog.remove(solution)
 
         # assert
-        self.assertEqual(len(self.catalog._catalog_index), 9)
+        self.assertEqual(9, len(self.catalog._catalog_index))
 
     def test_remove_not_installed(self):
         self.populate_index()
-        self.assertEqual(len(self.catalog._catalog_index), 10)
+        self.assertEqual(10, len(self.catalog._catalog_index))
 
         d = {}
         for key in CatalogIndex.get_solution_column_keys():
@@ -165,13 +165,13 @@ class TestCatalog(TestCatalogAndCollectionCommon):
         self.catalog.remove(solution)
 
         # assert
-        self.assertIn("WARNING - Solution not installed!", self.get_logs()[-1])
-        self.assertEqual(len(self.catalog._catalog_index), 10)
+        self.assertIn("Solution not installed!", self.get_logs()[-1])
+        self.assertEqual(10, len(self.catalog._catalog_index))
 
     def test_remove_not_local(self):
         # prepare
         self.populate_index()
-        self.assertEqual(len(self.catalog._catalog_index), 10)
+        self.assertEqual(10, len(self.catalog._catalog_index))
 
         d = {}
         for key in CatalogIndex.get_solution_column_keys():
@@ -184,8 +184,8 @@ class TestCatalog(TestCatalogAndCollectionCommon):
         self.catalog.remove(solution)
 
         # assert
-        self.assertIn("WARNING - Cannot remove entries", self.get_logs()[-1])
-        self.assertEqual(len(self.catalog._catalog_index), 10)
+        self.assertIn("Cannot remove entries", self.get_logs()[-1])
+        self.assertEqual(10, len(self.catalog._catalog_index))
 
     def test_download_index_files(self):
         dir = Path(self.tmp_dir.name).joinpath('bla')

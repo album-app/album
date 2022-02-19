@@ -146,9 +146,9 @@ class AlbumServer:
             if catalog_name is None:
                 abort(404, description=f"`catalog_name` argument missing")
             dryrun = bool(util.strtobool(request.args.get("dryrun", default="false")))
-            trigger_pipeline = False
+            push_options = None
             task = Task()
-            task._args = (solution_path, catalog_name, dryrun, trigger_pipeline)
+            task._args = (solution_path, catalog_name, dryrun, push_options)
             task._method = self.album_instance.deploy
             self.task_manager().register_task(task)
             return {"id": task.id(), "msg": "process started"}

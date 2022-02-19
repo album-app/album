@@ -16,15 +16,16 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
 
     def setUp(self):
         super().setUp()
-        self.set_up_test_catalogs()
+        self.setup_test_catalogs()
+        self.setup_collection()
         self.fill_catalog_collection()
         catalog_src = Path(self.tmp_dir.name).joinpath("testRepo")
-        self.album.catalogs().create_new_metadata(catalog_src, "test", "direct")
+        self.album_controller.catalogs().create_new_metadata(catalog_src, "test", "direct")
         catalog_path = Path(self.tmp_dir.name).joinpath("testPath")
         catalog_path.mkdir(parents=True)
 
         self.catalog = Catalog(0, "test", src=catalog_src, path=catalog_path)
-        self.solution_handler = self.collection_manager().solution_handler
+        self.solution_handler = self.album_controller.collection_manager().solution_handler
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -124,10 +125,10 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         unzip_mock.assert_called_once_with(dl_path)
 
     def test_set_cache_paths(self):
-        config = self.album.configuration()
+        config = self.album_controller.configuration()
 
         active_solution = Solution(self.solution_default_dict)
-        path = self.album.configuration().get_cache_path_catalog("catalog_name_solution_lives_in")
+        path = self.album_controller.configuration().get_cache_path_catalog("catalog_name_solution_lives_in")
         catalog = Catalog(0, "catalog_name_solution_lives_in", path)
         self.solution_handler.set_cache_paths(active_solution, catalog)
 
@@ -155,13 +156,13 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
     @patch('album.core.controller.collection.solution_handler.copy', return_value=None)
     def test_add_to_local_catalog(self, copy_mock):
         # run
-        self.create_test_solution_no_env()
+        self.setup_solution_no_env()
         self.active_solution.script = ""  # the script gets read during load()
-        self.solution_handler.add_to_local_catalog(self.active_solution, "aPathToInstall")
+        self.solution_handler.add_to_cache_catalog(self.active_solution, "aPathToInstall")
 
         # assert
         path = self.solution_handler.get_solution_path(
-            self.collection_manager().catalogs().get_local_catalog(),
+            self.album_controller.collection_manager().catalogs().get_cache_catalog(),
             dict_to_coordinates(self.solution_default_dict))
         copy_mock.assert_called_once()
         self.assertEqual("aPathToInstall", copy_mock.call_args[0][0])

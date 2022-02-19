@@ -33,7 +33,7 @@ class CatalogHandler(ICatalogHandler):
 
         # cache catalog always of type direct, deployment not possible anyways
         catalog_meta_information = self.create_new_metadata(local_path, name, "direct")
-        catalog = self._create_catalog_from_src(local_path, catalog_meta_information, "main")
+        catalog = self._create_catalog_from_src(local_path, catalog_meta_information, "main", deletable=False)
         self._add_to_index(catalog)
         self.album.migration_manager().load_index(catalog)
         self._update_collection_from_catalog(catalog)
@@ -73,6 +73,7 @@ class CatalogHandler(ICatalogHandler):
         self._update(catalog)
         self._update_collection_from_catalog(catalog)
         module_logger().info('Added catalog %s!' % source)
+
         return catalog
 
     def _add_to_index(self, catalog: ICatalog) -> int:
@@ -127,7 +128,7 @@ class CatalogHandler(ICatalogHandler):
 
         return catalogs
 
-    def get_local_catalog(self) -> Catalog:
+    def get_cache_catalog(self) -> Catalog:
         local_catalog = None
         for catalog in self.get_all():
             if catalog.is_local:
@@ -140,6 +141,7 @@ class CatalogHandler(ICatalogHandler):
         return local_catalog
 
     def create_new_metadata(self, local_path, name, catalog_type):
+        local_path = Path(local_path)
         if not local_path.exists():
             local_path.mkdir(parents=True)
 
@@ -310,17 +312,19 @@ class CatalogHandler(ICatalogHandler):
 
         return meta_dict
 
-    def _create_catalog_from_src(self, src, catalog_meta_information, branch_name="main") -> Catalog:
+    def _create_catalog_from_src(self, src, catalog_meta_information, branch_name="main", deletable=True) -> Catalog:
         """Creates the local cache path for a catalog given its src. (Network drive, git-link, etc.)"""
         # the path where the catalog lives based on its metadata
         catalog_path = self.album.configuration().get_cache_path_catalog(catalog_meta_information["name"])
 
         catalog = Catalog(
-            None, catalog_meta_information["name"],
+            None,
+            catalog_meta_information["name"],
             catalog_path,
             src=src,
             branch_name=branch_name,
-            catalog_type=catalog_meta_information["type"]
+            catalog_type=catalog_meta_information["type"],
+            deletable=deletable
         )
 
         catalog.dispose()
