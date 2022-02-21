@@ -96,10 +96,10 @@ class SolutionHandler(ISolutionHandler):
                 catalog.index().get_solution_by_coordinates(change.coordinates())
             )
 
-        elif change.change_type is ChangeType.REMOVED:
+        elif change.change_type() is ChangeType.REMOVED:
             self.remove_solution(catalog, change.coordinates())
 
-        elif change.change_type is ChangeType.CHANGED:
+        elif change.change_type() is ChangeType.CHANGED:
             self.remove_solution(catalog, change.coordinates())
             self._get_collection_index().add_or_replace_solution(
                 catalog.catalog_id(),

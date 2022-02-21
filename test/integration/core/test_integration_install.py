@@ -234,6 +234,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         CatalogHandler.create_new_catalog(catalog_src, "my-catalog")
         catalog = self.collection_manager().catalogs().add_by_src(catalog_src)
         self.album_instance.deploy_manager().deploy(self.get_test_solution_path('app1.py'), catalog_name=catalog.name(), dry_run=False)
+        self.album_instance.deploy_manager().deploy(self.get_test_solution_path('app2.py'), catalog_name=catalog.name(), dry_run=False)
         self.album_instance.collection_manager().catalogs().update_collection(catalog.name())
 
         # install child app solution
@@ -254,6 +255,16 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         # uninstall child solution
         resolve_result = self.album_instance.collection_manager().resolve_and_load('group:solution1_app1:0.1.0')
         self.album_instance.install_manager().uninstall(resolve_result)
+        # install child solution
+        resolve_result = self.album_instance.collection_manager().resolve_and_load('group:solution1_app1:0.1.0')
+        self.album_instance.install_manager().install(resolve_result)
+
+        # uninstall child solution
+        resolve_result = self.album_instance.collection_manager().resolve_and_load('group:solution1_app1:0.1.0')
+        self.album_instance.install_manager().uninstall(resolve_result)
+        # now change the parent of the child solution
+        self.album_instance.deploy_manager().deploy(self.get_test_solution_path('solution1_app1_changed_parent.py'), catalog_name=catalog.name(), dry_run=False, force_deploy=True)
+        self.album_instance.collection_manager().catalogs().update_collection(catalog.name())
         # install child solution
         resolve_result = self.album_instance.collection_manager().resolve_and_load('group:solution1_app1:0.1.0')
         self.album_instance.install_manager().install(resolve_result)
