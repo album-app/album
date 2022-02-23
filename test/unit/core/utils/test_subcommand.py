@@ -164,13 +164,13 @@ class TestLogfileBuffer(TestUnitCoreCommon):
         self.assertIn("app1 - WARNING - message", logs[0])
         self.assertEqual(" over ", logs[1])
         self.assertEqual(" several ", logs[2])
-        self.assertEqual(" lines", logs[3])
+        self.assertIn(" lines", logs[3])
         self.assertIn("asfasdfsadfa", logs[4])
         self.assertEqual("g", logs[5])
         self.assertIn("app1 - INFO - i", logs[6])
         self.assertEqual("o", logs[7])
         self.assertEqual("s", logs[8])
-        self.assertEqual("l", logs[9])
+        self.assertIn("l", logs[9])
 
     @unittest.skipIf(sys.platform == 'darwin', "Multiprocessing broken for MACOS!")
     def test_multiprocessing(self):

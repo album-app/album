@@ -17,13 +17,6 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         self.meta_file_content = self.get_catalog_meta_dict()
         self.deploy_manager = self.album_controller.deploy_manager()
 
-    @patch('album.core.controller.collection.catalog_handler.CatalogHandler._retrieve_catalog_meta_information')
-    def create_remote_test_catalog(self, retrieve_catalog_meta_information_mock):
-        # mocked because unittest should not depend on any form
-        # of connection to the outside world if not 100% necessary!
-        retrieve_catalog_meta_information_mock.return_value = self.meta_file_content
-        return self.album_controller.collection_manager().catalogs().add_by_src(DefaultValues.default_catalog_src.value)
-
     def tearDown(self) -> None:
         super().tearDown()
 
@@ -55,7 +48,9 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
     @patch('album.core.controller.deploy_manager.process_changelog_file', return_value="Chanelog")
     def test__deploy_direct(self, process_changelog_file):
         catalog_src_path, _ = self.setup_empty_catalog("test_cat")
-        catalog = Catalog(0, "test_cat", src=catalog_src_path, path="catalog_path")
+        catalog = Catalog(
+            0, "test_cat", src=catalog_src_path, path=Path(self.tmp_dir.name).joinpath("catalog_cache_path")
+        )
         catalog._type = "direct"
 
         # mock
@@ -80,7 +75,9 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
     @patch('album.core.controller.deploy_manager.process_changelog_file', return_value="Chanelog")
     def test__deploy_request(self, process_changelog_file):
         catalog_src_path, _ = self.setup_empty_catalog("test_cat")
-        catalog = Catalog(0, "test_cat", src=catalog_src_path, path="catalog_path")
+        catalog = Catalog(
+            0, "test_cat", src=catalog_src_path, path=Path(self.tmp_dir.name).joinpath("catalog_cache_path")
+        )
         catalog._type = "request"
 
         # mock
@@ -104,7 +101,9 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
 
     def test__deploy_request_wrong_type(self):
         catalog_src_path, _ = self.setup_empty_catalog("test_cat")
-        catalog = Catalog(0, "test_cat", src=catalog_src_path, path="catalog_path")
+        catalog = Catalog(
+            0, "test_cat", src=catalog_src_path, path=Path(self.tmp_dir.name).joinpath("catalog_cache_path")
+        )
         catalog._type = "typeDoesNotExist"
 
         with self.assertRaises(RuntimeError):
@@ -269,7 +268,9 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
     def test__attach_exports(self, create_changelog_file, create_docker_file):
         # prepare
         catalog_src_path, _ = self.setup_empty_catalog("test_cat")
-        catalog = Catalog(0, "test_cat", src=catalog_src_path, path="catalog_path")
+        catalog = Catalog(
+            0, "test_cat", src=catalog_src_path, path=Path(self.tmp_dir.name).joinpath("catalog_cache_path")
+        )
 
         # mock
         _copy_files_from_solution = MagicMock()
@@ -298,7 +299,8 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
 
             # result
             r = Path(repo.working_tree_dir).joinpath(
-                self.album_controller.collection_manager().solutions().get_solution_zip_suffix(Coordinates('tsg', 'tsn', 'tsv'))
+                self.album_controller.collection_manager().solutions().get_solution_zip_suffix(
+                    Coordinates('tsg', 'tsn', 'tsv'))
             )
 
         # copy and zip a folder
