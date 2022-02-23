@@ -69,6 +69,8 @@ class CloneManager(ICloneManager):
         # initial push to the bare_repository
         with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
             with clone_repository(target_path, tmp_dir) as repo:
+                head = checkout_main(repo)
+
                 file_operations.copy_folder(
                     template_folder, repo.working_tree_dir, copy_root_folder=False
                 )
@@ -77,14 +79,14 @@ class CloneManager(ICloneManager):
                 catalog_type = self._get_catalog_type_from_template(template_folder)
                 self.album.catalogs().create_new_metadata(repo.working_tree_dir, catalog_name, catalog_type)
 
-                head = checkout_main(repo)
-
                 add_files_commit_and_push(
                     head,
                     list_files_recursively(repo.working_tree_dir),
                     "Setting up \"%s\" catalog!" % catalog_name,
                     push=True,
-                    force=False
+                    force=False,
+                    email=DefaultValues.clone_git_email.value,
+                    username=DefaultValues.clone_git_user.value
                 )
 
     @staticmethod
