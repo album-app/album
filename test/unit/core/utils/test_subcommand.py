@@ -24,11 +24,16 @@ class TestSubcommand(TestUnitCoreCommon):
 
     def test_run(self):
         handler = StreamHandler()
-        self.logger.addHandler(handler)
-        self.logger.setLevel("DEBUG")
         info = MagicMock(return_value=None)
         handler.handle = info
+
+        self.logger.addHandler(handler)
+        self.logger.setLevel("DEBUG")
+
+        # call
         subcommand.run(["echo", "test"])
+
+        # assert
         self.assertTrue(info.call_count > 1)
         name1, args1, kwargs1 = info.mock_calls[0]
         name2, args2, kwargs2 = info.mock_calls[1]

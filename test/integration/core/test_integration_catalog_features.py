@@ -23,6 +23,8 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
 
     def add_solutions(self, catalog, solutions):
         with catalog.retrieve_catalog(Path(self.tmp_dir.name).joinpath("tmp_repo")) as tmp_repo:
+            tmp_repo.config_writer().set_value("user", "email", "myEmail").release()
+            tmp_repo.config_writer().set_value("user", "name", "myName").release()
             catalog.set_index_path(
                 Path(tmp_repo.working_tree_dir).joinpath(DefaultValues.catalog_index_file_name.value)
             )

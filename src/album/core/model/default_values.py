@@ -15,8 +15,10 @@ class DefaultValues(Enum):
 
     # templates
     catalog_template_url = 'https://gitlab.com/album-app/catalogs/templates'  # base URL of available catalog templates
-    clone_git_user = "album"
-    clone_git_email = "album@mdc-berlin.de"
+
+    # deployment & cloning
+    catalog_git_user = "album"                      # username used for initial push to a new catalog
+    catalog_git_email = "album@mdc-berlin.de"       # email used for initial push to a new catalog
 
     # catalog
     cache_catalog_name = 'cache_catalog'                                   # the default name of the cache catalog (always configured)

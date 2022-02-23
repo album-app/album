@@ -97,8 +97,8 @@ class TestCommon(unittest.TestCase):
                 [catalog_clone_path.joinpath(DefaultValues.catalog_index_metafile_json.value)],
                 "init",
                 push=True,
-                username=DefaultValues.clone_git_user.value,
-                email=DefaultValues.clone_git_email.value
+                username=DefaultValues.catalog_git_user.value,
+                email=DefaultValues.catalog_git_email.value
             )
 
         return catalog_src_path, catalog_clone_path

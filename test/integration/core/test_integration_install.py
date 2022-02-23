@@ -247,10 +247,20 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         catalog = self.album_controller.collection_manager().catalogs().add_by_src(catalog_src)
 
         self.album_controller.deploy_manager().deploy(
-            self.get_test_solution_path('app1.py'), catalog_name=catalog.name(), dry_run=False
+            self.get_test_solution_path('app1.py'),
+            catalog_name=catalog.name(),
+            dry_run=False,
+            git_email=DefaultValues.catalog_git_email.value,
+            git_name=DefaultValues.catalog_git_user.value
+
         )
         self.album_controller.deploy_manager().deploy(
-            self.get_test_solution_path('app2.py'), catalog_name=catalog.name(), dry_run=False
+            self.get_test_solution_path('app2.py'),
+            catalog_name=catalog.name(),
+            dry_run=False,
+            git_email=DefaultValues.catalog_git_email.value,
+            git_name=DefaultValues.catalog_git_user.value
+
         )
         self.album_controller.collection_manager().catalogs().update_collection(catalog.name())
 

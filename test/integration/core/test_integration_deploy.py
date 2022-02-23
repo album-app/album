@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 from shutil import copy
 
+from album.core.model.default_values import DefaultValues
 from album.runner.core.model.coordinates import Coordinates
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
@@ -37,8 +38,14 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         catalog = self.album_controller.collection_manager().catalogs().add_by_src(path)
 
         # call
-        self.album_controller.deploy_manager().deploy(str(self.get_test_solution_path()), catalog_name=catalog.name(),
-                                                      changelog='something changed', dry_run=False)
+        self.album_controller.deploy_manager().deploy(
+            str(self.get_test_solution_path()),
+            catalog_name=catalog.name(),
+            changelog='something changed',
+            dry_run=False,
+            git_email=DefaultValues.catalog_git_email.value,
+            git_name=DefaultValues.catalog_git_user.value
+        )
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
@@ -66,7 +73,13 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         sys.argv = ['', 'deploy', path, '--catalog', 'test_catalog']
 
         # call
-        self.album_controller.deploy_manager().deploy(path, catalog_name=catalog.name(), dry_run=False)
+        self.album_controller.deploy_manager().deploy(
+            path,
+            catalog_name=catalog.name(),
+            dry_run=False,
+            git_email=DefaultValues.catalog_git_email.value,
+            git_name=DefaultValues.catalog_git_user.value
+        )
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
@@ -91,8 +104,14 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         coordinates = Coordinates('group', 'name', '0.1.0')
 
         # call with changelog parameter
-        self.album_controller.deploy_manager().deploy(path, catalog_name=catalog.name(), dry_run=False,
-                                                      changelog='something changed')
+        self.album_controller.deploy_manager().deploy(
+            path,
+            catalog_name=catalog.name(),
+            dry_run=False,
+            changelog='something changed',
+            git_email=DefaultValues.catalog_git_email.value,
+            git_name=DefaultValues.catalog_git_user.value
+        )
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
@@ -129,7 +148,13 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
             file.write('my documentation')
 
         # call providing changelog via file
-        self.album_controller.deploy_manager().deploy(str(source), catalog_name=catalog.name(), dry_run=False)
+        self.album_controller.deploy_manager().deploy(
+            str(source),
+            catalog_name=catalog.name(),
+            dry_run=False,
+            git_email=DefaultValues.catalog_git_email.value,
+            git_name=DefaultValues.catalog_git_user.value
+        )
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())

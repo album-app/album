@@ -6,7 +6,7 @@ from album.core.api.controller.controller import IAlbumController
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations import url_operations, file_operations
 from album.core.utils.operations.file_operations import create_path_recursively, get_dict_from_json, \
-    list_files_recursively
+    list_files_recursively, force_remove
 from album.core.utils.operations.git_operations import create_bare_repository, clone_repository, \
     add_files_commit_and_push, checkout_main
 from album.runner import album_logging
@@ -68,7 +68,8 @@ class CloneManager(ICloneManager):
 
         # initial push to the bare_repository
         with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
-            with clone_repository(target_path, tmp_dir) as repo:
+            tmp_clone_path = Path(tmp_dir).joinpath("clone")
+            with clone_repository(target_path, tmp_clone_path) as repo:
                 head = checkout_main(repo)
 
                 file_operations.copy_folder(
@@ -85,9 +86,11 @@ class CloneManager(ICloneManager):
                     "Setting up \"%s\" catalog!" % catalog_name,
                     push=True,
                     force=False,
-                    email=DefaultValues.clone_git_email.value,
-                    username=DefaultValues.clone_git_user.value
+                    email=DefaultValues.catalog_git_email.value,
+
+                    username=DefaultValues.catalog_git_user.value
                 )
+            force_remove(tmp_clone_path)
 
     @staticmethod
     def _get_catalog_type_from_template(template_base_path):

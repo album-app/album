@@ -3,6 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from album.core.model.default_values import DefaultValues
+from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.git_operations import clone_repository
 from album.core.utils.operations.solution_operations import serialize_json
 from album.runner import album_logging
@@ -59,10 +60,12 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
         self.assertTrue(local_catalog_path.exists())
         # meta file available in catalog clone, not in catalog src, as it is a bare repository!
         with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
-            with clone_repository(local_catalog_path, tmp_dir) as repo:
+            target_tmp = Path(tmp_dir).joinpath("clone")
+            with clone_repository(local_catalog_path, target_tmp) as repo:
                 self.assertTrue(
                     Path(repo.working_tree_dir).joinpath(DefaultValues.catalog_index_metafile_json.value).exists()
                 )
+            force_remove(target_tmp)
 
         # add catalog
         catalog = album.add_catalog(local_catalog_path)
@@ -90,7 +93,9 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
         self.assertTrue(solution_target_file.exists())
 
         # deploy solution to catalog
-        album.deploy(str(solution_target_file), local_catalog_name, dry_run=False)
+        album.deploy(
+            str(solution_target_file), local_catalog_name, dry_run=False, git_name="myname", git_email="mymail"
+        )
 
         # update catalog cache
         album.update()

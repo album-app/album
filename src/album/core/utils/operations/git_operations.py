@@ -391,8 +391,10 @@ def create_repository(target):
     return repo
 
 
-def clean_repository(repo, target_head_name):
+def clean_repository(repo, target_head_name=None):
     """Resets all changes made in the current repository"""
+    if not target_head_name:
+        target_head_name = get_local_remote_ref_head(repo).name
     remote_name = repo.remote().name
     remote_ref = remote_name + "/" + target_head_name
     # reset to current remote HEAD reference name

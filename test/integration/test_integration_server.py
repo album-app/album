@@ -10,6 +10,7 @@ import flask_unittest
 from album.core.controller.task_manager import TaskManager
 from album.core.model.default_values import DefaultValues
 from album.core.model.task import Task
+from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.git_operations import clone_repository
 from album.runner import album_logging
 from album.runner.album_logging import LogLevel
@@ -80,10 +81,12 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCoreCo
         self.assertTrue(local_catalogs_path.exists())
         self.assertTrue(local_catalog_path.exists())
         with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
-            with clone_repository(local_catalog_path, tmp_dir) as repo:
+            target_tmp = Path(tmp_dir).joinpath("clone")
+            with clone_repository(local_catalog_path, target_tmp) as repo:
                 self.assertTrue(
                     Path(repo.working_tree_dir).joinpath(DefaultValues.catalog_index_metafile_json.value).exists()
                 )
+            force_remove(target_tmp)
 
         # add catalog
         res_add_catalog = client.get("/add-catalog?src=" + urllib.parse.quote(str(local_catalog_path)))
@@ -122,7 +125,9 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCoreCo
 
         # deploy solution to catalog
         path_to_solution = urllib.parse.quote(str(solution_target_file))
-        res_deploy = client.get(f"/deploy?path={path_to_solution}&catalog_name={local_catalog_name}")
+        res_deploy = client.get(
+            f"/deploy?path={path_to_solution}&catalog_name={local_catalog_name}&git_name=myname&git_email=mymail"
+        )
         self.assertEqual(200, res_deploy.status_code)
         self.assertIsNotNone(res_deploy.json)
         self.assertIsNotNone(res_deploy.json["id"])

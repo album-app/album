@@ -302,7 +302,7 @@ class TestFileOperations(TestUnitCoreCommon):
         r = construct_cache_link_target(Path(self.tmp_dir.name), point_from, "point_to")
 
         # assert
-        self.assertEqual(Path(self.tmp_dir.name).joinpath("point_to", "0"), r)
+        self.assertEqual(Path(self.tmp_dir.name).joinpath("point_to", "0").resolve(), r.resolve())
 
     def test__next_free_pointer_number(self):
         p0 = Path(self.tmp_dir.name).joinpath("0")
@@ -326,7 +326,7 @@ class TestFileOperations(TestUnitCoreCommon):
 
         os.symlink(str(point_to), str(point_from))
 
-        self.assertEqual(point_to, get_link_target(point_from))
+        self.assertEqual(point_to.resolve(), get_link_target(point_from).resolve())
 
     if __name__ == '__main__':
         unittest.main()
