@@ -42,6 +42,7 @@ def checkout_branch(git_repo, branch_name):
         try:
             head.repo.git.pull()
         except git.GitCommandError:
+            # only for request based catalogs this is important. Not failing here should be safe.
             module_logger().warning("Cannot pull from branch. Assuming up to date!")
         return head
     except IndexError as e:
@@ -377,7 +378,7 @@ def create_bare_repository(target):
     # ref HEAD to main
     repo.git.symbolic_ref('HEAD', 'refs/heads/main')
 
-    return repo
+    repo.close()
 
 
 def create_repository(target):
