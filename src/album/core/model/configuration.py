@@ -145,13 +145,11 @@ class Configuration(IConfiguration):
 
     def get_initial_catalogs(self):
         return {
-            DefaultValues.local_catalog_name.value: self.get_cache_path_catalog(DefaultValues.local_catalog_name.value),
             DefaultValues.default_catalog_name.value: DefaultValues.default_catalog_src.value
         }
 
     def get_initial_catalogs_branch_name(self):
         return {
-            DefaultValues.local_catalog_name.value: "main",
             DefaultValues.default_catalog_name.value: DefaultValues.default_catalog_src_branch.value
         }
 

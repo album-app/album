@@ -8,11 +8,12 @@ import validators
 from album.core.api.controller.collection.catalog_handler import ICatalogHandler
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.model.catalog import ICatalog
-from album.core.model.catalog import Catalog, download_index_files, get_index_dir
+from album.core.model.catalog import Catalog, retrieve_index_files_from_src
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.catalog_updates import CatalogUpdates, SolutionChange, ChangeType
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
+from album.core.utils.operations.dict_operations import str_to_dict
 from album.core.utils.operations.file_operations import force_remove, copy, get_dict_from_json
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.runner import album_logging
@@ -26,48 +27,54 @@ class CatalogHandler(ICatalogHandler):
     def __init__(self, album: IAlbumController):
         self.album = album
 
-    def create_local_catalog(self):
-        initial_catalogs = self.album.configuration().get_initial_catalogs()
-        name = DefaultValues.local_catalog_name.value
-        local_path = initial_catalogs[name]
-        self.create_new_catalog(local_path, name)
+    def create_cache_catalog(self):
+        name = DefaultValues.cache_catalog_name.value
+        local_path = self.album.configuration().get_cache_path_catalog(name)
+
+        # cache catalog always of type direct, deployment not possible anyways
+        catalog_meta_information = self.create_new_metadata(local_path, name, "direct")
+        catalog = self._create_catalog_from_src(local_path, catalog_meta_information, "main", deletable=False)
+        self._add_to_index(catalog)
+        self.album.migration_manager().load_index(catalog)
+        self._update_collection_from_catalog(catalog)
 
     def add_initial_catalogs(self):
-        self.create_local_catalog()
+        self.create_cache_catalog()
         initial_catalogs = self.album.configuration().get_initial_catalogs()
         initial_catalogs_branch_name = self.album.configuration().get_initial_catalogs_branch_name()
         for catalog in initial_catalogs.keys():
             self.add_by_src(str(initial_catalogs[catalog]), initial_catalogs_branch_name[catalog]).dispose()
 
-    def add_by_src(self, identifier, branch_name="main") -> Catalog:
-        identifier = str(identifier)
-        catalog_dict = self._get_collection_index().get_catalog_by_src(identifier)
+    def add_by_src(self, source, branch_name="main") -> Catalog:
+        # source can be path or url
+        source = str(source)
+        catalog_dict = self._get_collection_index().get_catalog_by_src(source)
         if catalog_dict:
             module_logger().warning("Cannot add catalog twice! Doing nothing...")
             return self._as_catalog(catalog_dict)
-        else:
-            catalog_meta_information = self._retrieve_catalog_meta_information(identifier, branch_name)
 
-            catalog = self._create_catalog_from_src(identifier, catalog_meta_information, branch_name)
+        catalog_meta_information = self._retrieve_catalog_meta_information(source, branch_name)
 
-            # always keep the local copy up to date
-            if not catalog.is_cache():
-                catalog_meta_information = catalog_meta_information
-                self.album.migration_manager().migrate_catalog_index_db(
-                    catalog.index_path(),  # the path to the catalog
-                    catalog_meta_information["version"],  # eventually outdated remote version
-                    CatalogIndex.version  # current version in the library
-                )
+        catalog = self._create_catalog_from_src(source, catalog_meta_information, branch_name)
 
-            self._add_to_index(catalog)
-            self._create_catalog_cache_if_missing(catalog)
-            self.album.migration_manager().load_index(catalog)
+        # always keep the local copy up to date
+        if not catalog.is_cache():
+            self.album.migration_manager().migrate_catalog_index_db(
+                catalog.index_file_path(),  # the path to the catalog
+                catalog_meta_information["version"],  # eventually outdated remote version
+                CatalogIndex.version  # current version in the library
+            )
 
-            module_logger().info('Catching catalog content..')
-            self._update(catalog)
-            self._update_collection_from_catalog(catalog)
-            module_logger().info('Added catalog %s!' % identifier)
-            return catalog
+        self._add_to_index(catalog)
+        self._create_catalog_cache_if_missing(catalog)
+        self.album.migration_manager().load_index(catalog)
+
+        module_logger().info('Catching catalog content..')
+        self._update(catalog)
+        self._update_collection_from_catalog(catalog)
+        module_logger().info('Added catalog %s!' % source)
+
+        return catalog
 
     def _add_to_index(self, catalog: ICatalog) -> int:
         catalog_id = self._get_collection_index().insert_catalog(
@@ -75,7 +82,8 @@ class CatalogHandler(ICatalogHandler):
             str(catalog.src()),
             str(catalog.path()),
             int(catalog.is_deletable()),
-            str(catalog.branch_name())
+            str(catalog.branch_name()),
+            str(catalog.type())
         )
         catalog.set_catalog_id(catalog_id)
         return catalog.catalog_id()
@@ -120,7 +128,7 @@ class CatalogHandler(ICatalogHandler):
 
         return catalogs
 
-    def get_local_catalog(self) -> Catalog:
+    def get_cache_catalog(self) -> Catalog:
         local_catalog = None
         for catalog in self.get_all():
             if catalog.is_local:
@@ -132,16 +140,19 @@ class CatalogHandler(ICatalogHandler):
 
         return local_catalog
 
-    def create_new(self, local_path, name):
-        CatalogHandler.create_new_catalog(local_path, name)
-
-    @staticmethod
-    def create_new_catalog(local_path, name):
-        """Creates the meta-file for a new catalog on the disk."""
+    def create_new_metadata(self, local_path, name, catalog_type):
+        local_path = Path(local_path)
         if not local_path.exists():
             local_path.mkdir(parents=True)
+
+        meta_data = "{\"name\": \"" + name\
+                    + "\", \"version\": \"" + CatalogIndex.version\
+                    + "\", \"type\": \"" + catalog_type\
+                    + "\"}"
         with open(local_path.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as meta:
-            meta.writelines("{\"name\": \"" + name + "\", \"version\": \"" + CatalogIndex.version + "\"}")
+            meta.writelines(meta_data)
+
+        return str_to_dict(meta_data)
 
     def _update(self, catalog: Catalog) -> bool:
         r = self.album.migration_manager().refresh_index(catalog)
@@ -270,12 +281,12 @@ class CatalogHandler(ICatalogHandler):
         }
 
     def set_version(self, catalog: ICatalog):
+        # database version
         database_version = catalog.index().get_version()
-        meta_dict = self._retrieve_catalog_meta_information(catalog.path(), catalog.branch_name())
-        if meta_dict:
-            meta_version = meta_dict['version']
-        else:
-            raise ValueError("Catalog meta information cannot be found! Refresh the catalog!")
+
+        # cache version
+        meta_dict = get_dict_from_json(catalog.get_meta_file_path())
+        meta_version = meta_dict['version']
 
         if database_version != meta_version:
             raise ValueError(
@@ -284,42 +295,37 @@ class CatalogHandler(ICatalogHandler):
         catalog.set_version(database_version)
         return database_version
 
-    def _retrieve_catalog_meta_information(self, identifier, branch_name="main"):
-        if validators.url(str(identifier)):
-            with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
-                repo = Path(tmp_dir).joinpath('repo')
-                try:
-                    _, meta_src = download_index_files(identifier, branch_name=branch_name, tmp_dir=repo)
-                    meta_file = copy(meta_src, self.album.configuration().cache_path_download().joinpath(
-                            DefaultValues.catalog_index_metafile_json.value))
-                finally:
-                    force_remove(repo)
-        elif Path(identifier).exists():
-            _, meta_src = get_index_dir(identifier)
-            if meta_src.exists():
+    def _retrieve_catalog_meta_information(self, source, branch_name="main"):
+        with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
+            repo = Path(tmp_dir).joinpath('repo')
+            try:
+                _, meta_src = retrieve_index_files_from_src(source, branch_name=branch_name, tmp_dir=repo)
                 meta_file = copy(
-                    meta_src,
-                    self.album.configuration().cache_path_download().joinpath(
-                        DefaultValues.catalog_index_metafile_json.value)
+                    meta_src, self.album.configuration().cache_path_download().joinpath(
+                        DefaultValues.catalog_index_metafile_json.value
+                    )
                 )
-            else:
-                raise FileNotFoundError("Cannot retrieve meta information for the catalog!")
-        else:
-            raise RuntimeError("Cannot retrieve meta information for the catalog!")
+            finally:
+                force_remove(repo)
 
         meta_dict = get_dict_from_json(meta_file)
 
         return meta_dict
 
-    def _create_catalog_from_src(self, src, catalog_meta_information=None, branch_name="main") -> Catalog:
+    def _create_catalog_from_src(self, src, catalog_meta_information, branch_name="main", deletable=True) -> Catalog:
         """Creates the local cache path for a catalog given its src. (Network drive, git-link, etc.)"""
-        if not catalog_meta_information:
-            catalog_meta_information = CatalogHandler._retrieve_catalog_meta_information(src, branch_name)
-
         # the path where the catalog lives based on its metadata
         catalog_path = self.album.configuration().get_cache_path_catalog(catalog_meta_information["name"])
 
-        catalog = Catalog(None, catalog_meta_information["name"], catalog_path, src=src, branch_name=branch_name)
+        catalog = Catalog(
+            None,
+            catalog_meta_information["name"],
+            catalog_path,
+            src=src,
+            branch_name=branch_name,
+            catalog_type=catalog_meta_information["type"],
+            deletable=deletable
+        )
 
         catalog.dispose()
 
@@ -417,5 +423,6 @@ class CatalogHandler(ICatalogHandler):
             catalog_dict['path'],
             catalog_dict['src'],
             bool(catalog_dict['deletable']),
-            catalog_dict['branch_name']
+            catalog_dict['branch_name'],
+            catalog_dict['type']
         )

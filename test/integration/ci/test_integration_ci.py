@@ -2,41 +2,44 @@ import sys
 import unittest
 from pathlib import Path
 
+import git
+
 from album.ci.argument_parsing import main
 from album.core.model.catalog import Catalog
-from album.core.utils.operations.file_operations import copy_folder
-from test.integration.test_integration_common import TestIntegrationCommon
+from album.core.utils.operations.git_operations import checkout_branch
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
-class TestIntegrationCIFeatures(TestIntegrationCommon):
+class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
 
     def setUp(self):
         super().setUp()
-        self.src = "https://gitlab.com/album-app/catalogs/templates/catalog"
-        self.name = "myTestCatalog"
-        self.path = Path(self.tmp_dir.name).joinpath("test_catalog")
+        self.name = "test_catalog"
+        self.src, _ = self.setup_empty_catalog(self.name, catalog_type="request")
+        self.path = Path(self.tmp_dir.name).joinpath("test_catalog_repo_clone")
+        self.repo = None
 
     def tearDown(self) -> None:
         super().tearDown()
 
-    def fake_deploy(self):
-        self._catalog = Catalog(None, name=self.name, path=self.path, src=self.src)
+    def deploy_request(self):
+        catalog_cache_path = Path(self.tmp_dir.name).joinpath("test_catalog_cache")
+        self._catalog = Catalog(None, name=self.name, path=catalog_cache_path, src=self.src, catalog_type="request")
 
-        self.album_instance._controller.catalogs()._add_to_index(self._catalog)
+        self.album_controller.catalogs()._add_to_index(self._catalog)
 
-        deploy_manager = self.album_instance._controller.deploy_manager()
-        deploy_manager.deploy(
+        self.album_controller.deploy_manager().deploy(
             deploy_path=self.get_test_solution_path(),
             catalog_name=self.name,
-            dry_run=True,
+            dry_run=False,
             push_options=None,
             git_email="myCiUserEmail",
             git_name="myCiUserName",
         )
-        path = deploy_manager.get_download_path(self._catalog)
-        copy_folder(path, self.path, copy_root_folder=False)
 
-        self.assertTrue(self.path.is_dir() and self.path.stat().st_size > 0)
+        # get the catalog repo
+        with self._catalog.retrieve_catalog(self.path) as repo:
+            self.repo = repo
 
         branch_name = "_".join(["group", "name", "0.1.0"])  # solution0_dummy values
         return branch_name
@@ -45,23 +48,22 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
         # gather arguments
         sys.argv = [
             "",
-            "configure-repo",
-            self.name,
-            str(self.path),
-            self.src,
+            "configure-repo",  # command
+            self.name,  # catalog_name
+            str(self.path),  # catalog_repo_clone_path
+            str(self.src),  # catalog_src
             "--ci-user-name=myCiUserName",
             "--ci-user-email=myCiUserEmail"
         ]
 
         # run
         self.assertIsNone(main())
-        # FIXME these checks don't work anymore without the Singleton approach
-        # self.assertEqual(
-        #     "myCiUserName", ReleaseManager.instance.catalog_repo.config_reader().get_value("user", "name")
-        # )
-        # self.assertEqual(
-        #     "myCiUserEmail", ReleaseManager.instance.catalog_repo.config_reader().get_value("user", "email")
-        # )
+        self.assertEqual(
+            "myCiUserName", git.Repo(self.path).config_reader().get_value("user", "name")
+        )
+        self.assertEqual(
+            "myCiUserEmail", git.Repo(self.path).config_reader().get_value("user", "email")
+        )
 
     def test_configure_ssh(self):
         # gather arguments
@@ -70,15 +72,14 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
             "configure-ssh",
             self.name,
             str(self.path),
-            self.src,
+            str(self.src),
             "--ci-project-path=myGitGroup/myTestCatalog"
         ]
 
         # run
         self.assertIsNone(main())
-        # FIXME these checks don't work anymore without the Singleton approach
-        # self.assertTrue(ReleaseManager.instance.catalog_repo.remote().url.startswith("git@"))
-        # self.assertIn("myGitGroup/myTestCatalog", ReleaseManager.instance.catalog_repo.remote().url)
+        self.assertTrue(git.Repo(self.path).remote().url.startswith("git@"))
+        self.assertIn("myGitGroup/myTestCatalog", git.Repo(self.path).remote().url)
 
     @unittest.skip("Remains untested!")
     def test_zenodo_publish(self):
@@ -86,8 +87,8 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
 
     @unittest.skip("Manually activate this if you want a test!")
     def test_zenodo_upload(self):
-        # fake deploy to test catalog
-        branch_name = self.fake_deploy()
+        # deploy request to test catalog
+        branch_name = self.deploy_request()
 
         # gather arguments
         sys.argv = ["", "upload", self.name, str(self.path), self.src, "--branch-name=%s" % branch_name]
@@ -96,20 +97,30 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
         self.assertIsNone(main())
 
     def test_update_index(self):
-        self.init_collection()
-        # fake deploy to test catalog
-        branch_name = self.fake_deploy()
+        # deploy request to test catalog
+        branch_name = self.deploy_request()
 
         # gather arguments
-        sys.argv = ["", "update", self.name, str(self.path), self.src, "--branch-name=%s" % branch_name]
+        sys.argv = ["", "update", self.name, str(self.path), str(self.src), "--branch-name=%s" % branch_name]
 
         # run
         self.assertIsNone(main())
 
-    def test_push_changes(self):
-        self.init_collection()
-        # fake deploy to test catalog
-        branch_name = self.fake_deploy()
+        r_repo = git.Repo(self.path)
+
+        # assert
+        self.assertEqual(r_repo.active_branch.name, "group_name_0.1.0")
+        self.assertListEqual(["album_catalog_index.db", "album_solution_list.json"], r_repo.untracked_files)
+
+    def test_commit_changes(self):
+        # deploy request to test catalog
+        branch_name = self.deploy_request()
+
+        # checkout this branch
+        head = checkout_branch(self.repo, branch_name)
+
+        # save commit message
+        self.assertEqual("Adding new/updated group_name_0.1.0\n", head.commit.message)
 
         # change deployed files so another commit is possible
         with open(self.path.joinpath("solutions", "group", "name", "0.1.0", "name.yml"), "a") as f:
@@ -121,7 +132,7 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
             "commit",
             self.name,
             str(self.path),
-            self.src,
+            str(self.src),
             "--branch-name=%s" % branch_name,
             "--ci-user-name=myCiUserName",
             "--ci-user-email=myCiUserEmail"
@@ -130,6 +141,13 @@ class TestIntegrationCIFeatures(TestIntegrationCommon):
         # run
         self.assertIsNone(main())
 
-        # FIXME these checks don't work anymore without the Singleton approach
-        # r = ReleaseManager.instance.catalog_repo.index.diff(None)
-        # self.assertEqual([], r)
+        r_repo = git.Repo(self.path)
+
+        # check out last commit
+        self.assertEqual(r_repo.active_branch.name, "group_name_0.1.0")
+        self.assertEqual("Prepared branch \"group_name_0.1.0\" for merging.\n", r_repo.active_branch.commit.message)
+
+    @unittest.skip("Needs to be implemented!")
+    def test_merge(self):
+        # todo: implement
+        pass

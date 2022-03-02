@@ -82,7 +82,7 @@ class ICollectionManager:
 
     @abstractmethod
     def resolve_and_load_catalog_coordinates(self, catalog: ICatalog,
-                                                      coordinates: ICoordinates) -> ICollectionSolution:
+                                             coordinates: ICoordinates) -> ICollectionSolution:
         """Resolves a string input and loads its content.
 
         Downloads a catalog if not already cached.

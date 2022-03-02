@@ -139,6 +139,8 @@ class AlbumServer:
         def deploy():
             solution_path = request.args.get("path")
             catalog_name = request.args.get("catalog_name")
+            git_name = request.args.get("git_name")
+            git_email = request.args.get("git_name")
             if solution_path is None:
                 abort(404, description=f"`path` argument missing")
             if not Path(solution_path).exists():
@@ -146,9 +148,9 @@ class AlbumServer:
             if catalog_name is None:
                 abort(404, description=f"`catalog_name` argument missing")
             dryrun = bool(util.strtobool(request.args.get("dryrun", default="false")))
-            trigger_pipeline = False
+            push_options = None
             task = Task()
-            task._args = (solution_path, catalog_name, dryrun, trigger_pipeline)
+            task._args = (solution_path, catalog_name, dryrun, push_options, git_name, git_email)
             task._method = self.album_instance.deploy
             self.task_manager().register_task(task)
             return {"id": task.id(), "msg": "process started"}

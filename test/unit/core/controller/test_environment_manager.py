@@ -7,8 +7,8 @@ class TestEnvironmentManager(TestUnitCoreCommon):
 
     def setUp(self):
         super().setUp()
-        album = self.create_album_test_instance(init_catalogs=False)
-        self.environment_manager = album.environment_manager()
+        self.setup_album_controller()
+        self.environment_manager = self.album.environment_manager()
 
     def tearDown(self) -> None:
         super().tearDown()

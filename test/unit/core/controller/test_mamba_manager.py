@@ -15,8 +15,8 @@ class TestMambaManager(TestUnitCoreCommon):
 
     def setUp(self):
         super().setUp()
-        album = self.create_album_test_instance(init_catalogs=False)
-        self.mamba = MambaManager(album.configuration())
+        self.setup_collection(init_catalogs=False, init_collection=True)
+        self.mamba = MambaManager(self.album_controller.configuration())
 
     def tearDown(self) -> None:
         if self.mamba.environment_exists(self.test_environment_name):
@@ -25,7 +25,7 @@ class TestMambaManager(TestUnitCoreCommon):
         super().tearDown()
 
     def test_get_environment_list(self):
-        base_dir = Path(self.album.configuration().lnk_path()).joinpath('env')
+        base_dir = Path(self.album_controller.configuration().lnk_path()).joinpath('env')
         expected = list()
         expected.append(base_dir.joinpath("envName1").resolve())
         expected.append(base_dir.joinpath("envName2").resolve())

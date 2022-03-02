@@ -7,12 +7,13 @@ CREATE TABLE IF NOT EXISTS catalog_collection
 
 CREATE TABLE IF NOT EXISTS catalog
 (
-    catalog_id  INTEGER,
-    name        TEXT,
-    src         TEXT,
-    path        TEXT,
-    branch_name TEXT,
-    deletable   INTEGER not null
+    catalog_id   INTEGER,
+    name         TEXT,
+    src          TEXT,
+    path         TEXT,
+    branch_name  TEXT,
+    type         TEXT,
+    deletable    INTEGER not null
 );
 
 CREATE TABLE IF NOT EXISTS tag

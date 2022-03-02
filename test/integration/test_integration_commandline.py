@@ -2,14 +2,20 @@ import contextlib
 import io
 import json
 import sys
-import unittest
 from unittest.mock import patch
 
 from album.argument_parsing import main
-from test.integration.test_integration_common import TestIntegrationCommon
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
-class TestIntegrationCommandline(TestIntegrationCommon):
+class TestIntegrationCommandline(TestIntegrationCoreCommon):
+
+    def setUp(self):
+        super().setUp()
+        self.setup_album_instance()
+
+    def tearDown(self) -> None:
+        super().tearDown()
 
     @patch('album.api.Album.load_or_create_collection')
     @patch('album.commandline._resolve_installed')
@@ -52,14 +58,16 @@ class TestIntegrationCommandline(TestIntegrationCommon):
         self.assertEqual(SystemExit(2).code, e.exception.code)
 
     def test_search_filled_index(self):
-        self.init_collection()
         # populate tmp_index!
-        h = self.album_instance.load(self.get_test_solution_path())
+        h = self.album.load(self.get_test_solution_path())
         h.setup().description = "keyword1"
-        local_catalog = self.collection_manager().catalogs().get_local_catalog()
-        self.collection_manager().solutions().add_to_local_catalog(h, self.get_test_solution_path())
+        local_catalog = self.album._controller.collection_manager().catalogs().get_cache_catalog()
+        self.album._controller.collection_manager().solutions().add_to_cache_catalog(h, self.get_test_solution_path())
 
-        self.assertEqual(1, len(self.collection_manager().get_collection_index().get_solutions_by_catalog(local_catalog.catalog_id())))
+        self.assertEqual(1, len(
+            self.album._controller.collection_manager().get_collection_index().get_solutions_by_catalog(
+                local_catalog.catalog_id()))
+                         )
 
         # define and run search
         sys.argv = ["", "search", "keyword"]
@@ -69,19 +77,21 @@ class TestIntegrationCommandline(TestIntegrationCommon):
 
         # check output to have found the solution behind keyword1
         self.assertIn(
-            '%s:%s:%s:%s' % (local_catalog.name(), h.coordinates().group(), h.coordinates().name(), h.coordinates().version()),
+            '%s:%s:%s:%s' % (
+                local_catalog.name(), h.coordinates().group(), h.coordinates().name(), h.coordinates().version()),
             self.captured_output.getvalue()
         )
 
     def test_search_as_json(self):
-        self.init_collection()
         # populate tmp_index!
-        h = self.album_instance.load(self.get_test_solution_path())
+        h = self.album.load(self.get_test_solution_path())
         h.setup().description = "keyword1"
-        local_catalog = self.collection_manager().catalogs().get_local_catalog()
-        self.collection_manager().solutions().add_to_local_catalog(h, self.get_test_solution_path())
+        local_catalog = self.album._controller.collection_manager().catalogs().get_cache_catalog()
+        self.album._controller.collection_manager().solutions().add_to_cache_catalog(h, self.get_test_solution_path())
 
-        self.assertEqual(1, len(self.collection_manager().get_collection_index().get_solutions_by_catalog(local_catalog.catalog_id())))
+        self.assertEqual(1, len(
+            self.album._controller.collection_manager().get_collection_index().get_solutions_by_catalog(
+                local_catalog.catalog_id())))
 
         # capture stdout
         f = io.StringIO()
@@ -93,7 +103,7 @@ class TestIntegrationCommandline(TestIntegrationCommon):
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         # check output to have found the solution behind keyword1
         self.assertEqual(
-            [['catalog_local:group:name:0.1.0', 1]],
+            [['cache_catalog:group:name:0.1.0', 1]],
             json.loads(f.getvalue())
         )
 
@@ -119,7 +129,6 @@ class TestIntegrationCommandline(TestIntegrationCommon):
         self.assertIn("Solution not found", e.exception.code.args[0])
 
     def test_info(self):
-        self.init_collection()
         self.fake_install(self.get_test_solution_path("solution0_dummy_no_routines.py"), create_environment=False)
 
         # run
@@ -131,7 +140,6 @@ class TestIntegrationCommandline(TestIntegrationCommon):
         self.assertIn("--testArg1: testArg1Description", self.captured_output.getvalue())
 
     def test_info_json(self):
-        self.init_collection()
         self.fake_install(self.get_test_solution_path(), create_environment=False)
 
         # run
@@ -167,7 +175,6 @@ class TestIntegrationCommandline(TestIntegrationCommon):
         }, json.loads(stdout_content.getvalue()))
 
     def test_index(self):
-        self.init_collection()
         sys.argv = ["", "index"]
 
         # run
@@ -175,10 +182,9 @@ class TestIntegrationCommandline(TestIntegrationCommon):
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
-        self.assertIn('name: catalog_local', self.captured_output.getvalue())
+        self.assertIn('name: cache_catalog', self.captured_output.getvalue())
 
     def test_index_json(self):
-        self.init_collection()
         sys.argv = ["", "index", "--json"]
 
         # run
@@ -194,8 +200,7 @@ class TestIntegrationCommandline(TestIntegrationCommon):
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_sad_solution(self, get_environment_path):
-        self.init_collection()
-        get_environment_path.return_value = self.album_instance._controller.environment_manager().get_conda_manager().get_active_environment_path()
+        get_environment_path.return_value = self.album._controller.environment_manager().get_conda_manager().get_active_environment_path()
         solution_path = self.get_test_solution_path("solution9_throws_exception.py")
         self.fake_install(solution_path, create_environment=False)
         sys.argv = ["", "run", solution_path]
@@ -207,8 +212,7 @@ class TestIntegrationCommandline(TestIntegrationCommon):
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_album_throwing_error_solution(self, get_environment_path):
-        self.init_collection()
-        get_environment_path.return_value = self.album_instance._controller.environment_manager().get_conda_manager().get_active_environment_path()
+        get_environment_path.return_value = self.album._controller.environment_manager().get_conda_manager().get_active_environment_path()
         solution_path = str(self.get_test_solution_path("solution15_album_running_faulty_solution.py"))
         self.fake_install(solution_path, create_environment=False)
 
@@ -217,7 +221,7 @@ class TestIntegrationCommandline(TestIntegrationCommon):
         # run
         with self.assertRaises(SystemExit) as e:
             main()
-        self.assertEquals(1, e.exception.code.exit_status)
+        self.assertEqual(1, e.exception.code.exit_status)
         # print(self.captured_output.getvalue())
         self.assertIn('INFO ~ print something', self.captured_output.getvalue())
         self.assertIn('INFO ~ logging info', self.captured_output.getvalue())
@@ -228,7 +232,3 @@ class TestIntegrationCommandline(TestIntegrationCommon):
         self.assertIn('WARNING ~~~ album in album: logging warning', self.captured_output.getvalue())
         self.assertIn('ERROR ~~~ album in album: logging error', self.captured_output.getvalue())
         self.assertIn('ERROR ~~~ RuntimeError: Error in run method', self.captured_output.getvalue())
-
-
-if __name__ == '__main__':
-    unittest.main()

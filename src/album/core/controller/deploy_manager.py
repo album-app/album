@@ -15,11 +15,10 @@ from album.core.utils.operations.dict_operations import get_dict_entries_from_at
 from album.core.utils.operations.file_operations import copy, write_dict_to_yml, zip_folder, zip_paths, force_remove, \
     folder_empty
 from album.core.utils.operations.git_operations import create_new_head, add_files_commit_and_push, \
-    retrieve_default_mr_push_options
+    retrieve_default_mr_push_options, checkout_main, clean_repository
 from album.core.utils.operations.solution_operations import get_deploy_dict
 from album.runner import album_logging
 from album.runner.core.api.model.solution import ISolution
-from album.runner.core.model.solution import Solution
 
 module_logger = album_logging.get_active_logger
 
@@ -29,147 +28,249 @@ class DeployManager(IDeployManager):
     def __init__(self, album: IAlbumController):
         self.album = album
 
-    def deploy(self, deploy_path, catalog_name: str, dry_run: bool, push_options=None, git_email: str = None,
-               git_name: str = None,
-               force_deploy: bool = False, changelog: str = None):
-
+    def deploy(
+            self,
+            deploy_path,
+            catalog_name: str,
+            dry_run: bool,
+            push_options=None,
+            git_email: str = None,
+            git_name: str = None,
+            force_deploy: bool = False,
+            changelog: str = None
+    ):
         if dry_run:
             module_logger().info('Pretending to deploy %s to %s...' % (deploy_path, catalog_name))
         else:
             module_logger().info('Deploying %s to %s...' % (deploy_path, catalog_name))
 
         deploy_path = Path(deploy_path)
-
-        if deploy_path.is_dir():
-            path_to_solution = deploy_path.joinpath(DefaultValues.solution_default_name.value)
-        else:
-            path_to_solution = deploy_path
+        path_to_solution = self._get_path_to_solution(deploy_path)
 
         active_solution = self.album.state_manager().load(path_to_solution)
         active_solution.setup().changelog = changelog
 
-        # case catalog given
         if catalog_name:
             catalog = self.album.catalogs().get_by_name(catalog_name)
-
-        # case catalog in solution file specified
-        # TODO: discuss this
-        elif active_solution.setup().deploy and active_solution.setup().deploy["catalog"]:
-            catalog = self.album.catalogs().get_by_src(
-                active_solution.setup().deploy["catalog"]["src"]
-            )
-
-        # case no catalog given
         else:
             raise RuntimeError("No catalog specified for deployment!")
 
-        self.album.migration_manager().load_index(catalog)
-
-        process_changelog_file(catalog, active_solution, deploy_path)
-
-        if catalog.is_local():
-            self._deploy_to_local_catalog(catalog, active_solution, deploy_path, dry_run, force_deploy)
-        else:
-            self._deploy_to_remote_catalog(
-                catalog, active_solution, deploy_path, dry_run, push_options, git_email, git_name
-            )
+        self._deploy(catalog, active_solution, deploy_path, dry_run, force_deploy, push_options, git_email, git_name)
 
         if dry_run:
             module_logger().info('Successfully pretended to deploy %s to %s.' % (deploy_path, catalog_name))
         else:
             module_logger().info('Successfully deployed %s to %s.' % (deploy_path, catalog_name))
 
-    def _deploy_to_remote_catalog(self, catalog: ICatalog, active_solution: ISolution, deploy_path, dry_run,
-                                  push_options,
-                                  git_email=None, git_name=None):
-        """Routine to deploy to a remote catalog."""
-        dl_path = self.get_download_path(catalog)
-
-        with catalog.retrieve_catalog(dl_path, force_retrieve=True) as repo:
-            catalog_local_src = repo.working_tree_dir
-
-            if not repo:
-                raise FileNotFoundError("Catalog repository not found. Did the download of the catalog fail?")
-
-            # include files/folders in catalog
-            solution_zip, exports = self._deploy_routine_in_local_src(
-                catalog, catalog_local_src, active_solution, deploy_path
-            )
-
-            # build merge request files
-            mr_files = [solution_zip] + exports
-
-            if not push_options:
-                push_options = retrieve_default_mr_push_options(catalog.src())
-
-            self._create_merge_request(active_solution, repo, mr_files, dry_run, push_options, git_email, git_name)
-
-    def get_download_path(self, catalog: ICatalog):
-        return Path(self.album.configuration().cache_path_download()).joinpath(catalog.name())
-
-    def _deploy_to_local_catalog(self, catalog: ICatalog, active_solution: ISolution, deploy_path, dry_run: bool,
-                                 force_deploy: bool):
-        """Routine to deploy to a local catalog."""
+    def _deploy(
+            self,
+            catalog: ICatalog,
+            active_solution: ISolution,
+            deploy_path: Path,
+            dry_run: bool,
+            force_deploy: bool,
+            push_options: list,
+            git_email=None,
+            git_name=None
+    ):
         # check for cache catalog only
         if catalog.is_cache():
             raise RuntimeError("Cannot deploy to catalog only used for caching! Aborting...")
 
-        # set src to catalog.src, as we know this is a (network) path, not a remote link
-        catalog_local_src = catalog.src()
+        dl_path = self.get_download_path(catalog)
+
+        # a catalog is always a repository
+        with catalog.retrieve_catalog(dl_path, force_retrieve=True) as repo:
+            # load index
+            catalog.set_index_path(Path(repo.working_tree_dir).joinpath(DefaultValues.catalog_index_file_name.value))
+            self.album.migration_manager().load_index(catalog)
+
+            # requires a loaded index
+            process_changelog_file(catalog, active_solution, deploy_path)
+
+            if catalog.type() == "direct":
+                self._deploy_to_direct_catalog(
+                    repo, catalog, active_solution, deploy_path, dry_run, force_deploy, push_options, git_email,
+                    git_name
+                )
+            elif catalog.type() == "request":
+                self._deploy_to_request_catalog(
+                    repo, catalog, active_solution, deploy_path, dry_run, push_options, git_email, git_name
+                )
+            else:
+                raise NotImplementedError("type %s not supported!" % catalog.type())
+
+    def _deploy_to_direct_catalog(
+            self,
+            repo: Repo,
+            catalog: ICatalog,
+            active_solution: ISolution,
+            deploy_path: Path,
+            dry_run: bool,
+            force_deploy: bool,
+            push_options: list,
+            git_email=None, git_name=None
+    ):
+        """Routine to deploy to a direct catalog"""
+        # adding solutions in the SQL databse for catalog type "direct" done on user side, hence the timestamp
         active_solution.setup()["timestamp"] = datetime.strftime(datetime.now(), '%Y-%m-%dT%H:%M:%S.%f')
 
-        # check if catalog_local_src is empty
-        catalog_local_src_solution_path = self._get_absolute_prefix_path(
-            catalog, catalog_local_src, active_solution
-        )
-        if catalog_local_src_solution_path.exists() and not folder_empty(catalog_local_src_solution_path):
-            if force_deploy:
-                force_remove(catalog_local_src_solution_path)
-            else:
-                raise RuntimeError("The deploy target folder is not empty! Enable --force-deploy to continue!")
+        catalog_local_solution_path = self._get_absolute_prefix_path(catalog, repo.working_tree_dir, active_solution)
+        self._clear_deploy_target_path(catalog_local_solution_path, force_deploy)
+        self._add_to_downloaded_catalog(catalog, active_solution, dry_run, force_deploy)
 
-        # update the index
-        if not dry_run:
-            catalog.add(active_solution, force_overwrite=force_deploy)
-        else:
-            module_logger().info("Would add the solution %s to index..." % active_solution.coordinates().name())
+        solution_zip, exports = self._deploy_routine_in_local_src(catalog, repo, active_solution, deploy_path)
 
-        # include files/folders in catalog
-        zip_path, export = self._deploy_routine_in_local_src(catalog, catalog_local_src, active_solution,
-                                                             deploy_path)
+        commit_files = [solution_zip] + exports + [catalog.index_file_path()]
 
-        # copy to source
+        # merge and push
         if not dry_run:
             try:
-                catalog.copy_index_from_cache_to_src()
+                self._push_directly(active_solution, repo, commit_files, dry_run, push_options, git_email, git_name)
             except Exception:
-                module_logger().error("Copying index to src failed! Rolling back deployment...")
-                zip_path.unlink()
-                for e in export:
-                    e.unlink()
-                raise OSError("Deploy failed!")
+                module_logger().error("Pushing to catalog failed! Rolling back deployment...")
+                clean_repository(repo)
+                for export in exports:
+                    export.unlink()
+                raise RuntimeError("Deploy failed!")
 
             # refresh the local index of the catalog
             self.album.migration_manager().refresh_index(catalog)
         else:
             module_logger().info(
-                "Would copy the index to src %s to %s..." % (catalog.index_path(), catalog.src())
+                "Would commit the changes and push to %s..." % catalog.src()
             )
             module_logger().info(
                 "Would refresh the index from src"
             )
 
-    def _deploy_routine_in_local_src(self, catalog: ICatalog, catalog_local_src, active_solution, deploy_path):
+    def _deploy_to_request_catalog(
+            self,
+            repo: Repo,
+            catalog: ICatalog,
+            active_solution: ISolution,
+            deploy_path: Path,
+            dry_run: bool,
+            push_options: list,
+            git_email=None, git_name=None
+    ):
+        """Routine to deploy to a request catalog."""
+
+        # include files/folders in catalog
+        solution_zip, exports = self._deploy_routine_in_local_src(
+            catalog, repo, active_solution, deploy_path
+        )
+
+        # build merge request files
+        mr_files = [solution_zip] + exports
+
+        if not push_options:
+            push_options = retrieve_default_mr_push_options(catalog.src())
+
+        self._create_merge_request(active_solution, repo, mr_files, dry_run, push_options, git_email, git_name)
+
+    def _deploy_routine_in_local_src(
+            self, catalog: ICatalog, repo: Repo, active_solution: ISolution, deploy_path: Path
+    ):
         """Performs all routines a deploy process needs to do locally.
 
         Returns:
             solution zip file and additional attachments.
 
         """
-        solution_zip = self._copy_and_zip(catalog_local_src, active_solution, deploy_path)
-        exports = self._attach_exports(catalog, catalog_local_src, active_solution, deploy_path)
+        solution_zip = self._copy_and_zip(repo.working_tree_dir, active_solution, deploy_path)
+        exports = self._attach_exports(catalog, repo.working_tree_dir, active_solution, deploy_path)
 
         return solution_zip, exports
+
+    def get_download_path(self, catalog: ICatalog):
+        return Path(self.album.configuration().cache_path_download()).joinpath(catalog.name())
+
+    def _get_absolute_zip_path(self, catalog_local_src: str, active_solution: ISolution):
+        """ Gets the absolute path to the zip."""
+        return Path(catalog_local_src).joinpath(
+            self.album.solutions().get_solution_zip_suffix(active_solution.coordinates())
+        )
+
+    def _get_absolute_prefix_path(self, catalog: ICatalog, catalog_local_src: str, active_solution: ISolution):
+        return Path(catalog_local_src).joinpath(
+            self.album.solutions().get_solution_path(catalog, active_solution.coordinates())
+        )
+
+    def _attach_exports(self, catalog: ICatalog, catalog_local_src: str, active_solution: ISolution, deploy_path: Path):
+        coordinates = active_solution.coordinates()
+
+        catalog_solution_local_src_path = Path(catalog_local_src).joinpath(
+            self.album.configuration().get_solution_path_suffix(coordinates)
+        )
+
+        res = []
+        res.extend(self._copy_files_from_solution(
+            active_solution, deploy_path, catalog_solution_local_src_path, 'covers.source', 'cover')
+        )
+        res.extend(self._copy_files_from_solution(
+            active_solution, deploy_path, catalog_solution_local_src_path, 'documentation', 'documentation')
+        )
+        res.append(create_docker_file(active_solution, catalog_solution_local_src_path))
+        res.append(self._create_yaml_file_in_local_src(active_solution, catalog_solution_local_src_path))
+        res.append(create_changelog_file(active_solution, catalog, catalog_solution_local_src_path))
+
+        return res
+
+    def _copy_and_zip(self, catalog_local_src: str, active_solution: ISolution, folder_path: Path) -> Path:
+        """Copies the deploy-file or -folder to the catalog repository.
+
+        Returns:
+            The path to the zip.
+
+        """
+        zip_path = self._get_absolute_zip_path(catalog_local_src, active_solution)
+        module_logger().debug('Creating zip file in: %s...' % str(zip_path))
+
+        if folder_path.is_dir():
+            zip_file = Path(zip_folder(folder_path, zip_path))
+            return zip_file
+        if folder_path.is_file():
+            with tempfile.TemporaryDirectory(dir=self._get_tmp_dir()) as tmp_dir:
+                tmp_solution_file = Path(tmp_dir).joinpath(DefaultValues.solution_default_name.value)
+
+                copy(folder_path, tmp_solution_file)
+                zip_path = zip_paths([tmp_solution_file], zip_path, tmp_dir=self._get_tmp_dir())
+
+            return Path(zip_path)
+
+    def _get_tmp_dir(self):
+        return self.album.configuration().cache_path_tmp_internal()
+
+    @staticmethod
+    def _add_to_downloaded_catalog(catalog: ICatalog, active_solution: ISolution, dry_run: bool,
+                                   force_deploy: bool):
+        """Updates the index in the downloaded repository!"""
+        if not dry_run:
+            catalog.add(active_solution, force_overwrite=force_deploy)
+        else:
+            module_logger().info("Would add the solution %s to index..." % active_solution.coordinates().name())
+
+    @staticmethod
+    def _clear_deploy_target_path(target_path: Path, force_deploy: bool):
+        """Clears the target path (locally) where the solution is supposed to be deployed to."""
+        if target_path.is_dir() and not folder_empty(target_path):
+            if force_deploy:
+                force_remove(target_path)
+            else:
+                raise RuntimeError("The deploy target folder is not empty! Enable --force-deploy to continue!")
+
+    @staticmethod
+    def _get_path_to_solution(deploy_path: Path):
+        """Gets the path to the solution behind the deploy_path. If folder is provided file called solution.py must
+        live in the deploy_path.
+        """
+        if deploy_path.is_dir():
+            path_to_solution = deploy_path.joinpath(DefaultValues.solution_default_name.value)
+        else:
+            path_to_solution = deploy_path
+
+        return path_to_solution
 
     @staticmethod
     def retrieve_head_name(active_solution: ISolution):
@@ -201,10 +302,10 @@ class DeployManager(IDeployManager):
             RuntimeError when no differences to the previous commit can be found.
 
         """
-        # make a new branch and checkout
         if push_option is None:
             push_option = []
 
+        # make a new branch and checkout
         new_head = create_new_head(repo, DeployManager.retrieve_head_name(active_solution))
         new_head.checkout()
 
@@ -217,18 +318,30 @@ class DeployManager(IDeployManager):
             push=not dry_run,
             push_option_list=push_option,
             email=email,
-            username=username
+            username=username,
+            force=True
         )
 
-    def _get_absolute_zip_path(self, catalog_local_src: str, active_solution: ISolution):
-        """ Gets the absolute path to the zip."""
-        return Path(catalog_local_src).joinpath(
-            self.album.solutions().get_solution_zip_suffix(active_solution.coordinates())
-        )
+    @staticmethod
+    def _push_directly(active_solution: ISolution, repo: Repo, file_paths: list, dry_run=False, push_option=None,
+                       email=None, username=None):
+        if push_option is None:
+            push_option = []
 
-    def _get_absolute_prefix_path(self, catalog: ICatalog, catalog_local_src: str, active_solution: ISolution):
-        return Path(catalog_local_src).joinpath(
-            self.album.solutions().get_solution_path(catalog, active_solution.coordinates())
+        # don't create a new branch. use reference branch from origin
+        head = checkout_main(repo)
+
+        commit_msg = "Adding new/updated %s" % DeployManager.retrieve_head_name(active_solution)
+
+        add_files_commit_and_push(
+            head,
+            file_paths,
+            commit_msg,
+            push=not dry_run,
+            push_option_list=push_option,
+            email=email,
+            username=username,
+            force=False
         )
 
     @staticmethod
@@ -248,70 +361,30 @@ class DeployManager(IDeployManager):
 
         return yaml_path
 
-    def _copy_and_zip(self, catalog_local_src: str, active_solution: Solution, folder_path) -> Path:
-        """Copies the deploy-file or -folder to the catalog repository.
-
-        Returns:
-            The path to the zip.
-
-        """
-        zip_path = self._get_absolute_zip_path(catalog_local_src, active_solution)
-        module_logger().debug('Creating zip file in: %s...' % str(zip_path))
-
-        if folder_path.is_dir():
-            zip_file = Path(zip_folder(folder_path, zip_path))
-            return zip_file
-        if folder_path.is_file():
-            with tempfile.TemporaryDirectory(dir=self._get_tmp_dir()) as tmp_dir:
-                tmp_solution_file = Path(tmp_dir).joinpath(DefaultValues.solution_default_name.value)
-
-                copy(folder_path, tmp_solution_file)
-                zip_path = zip_paths([tmp_solution_file], zip_path, tmp_dir=self._get_tmp_dir())
-
-            return Path(zip_path)
-
-    def _get_tmp_dir(self):
-        return self.album.configuration().cache_path_tmp_internal()
-
     @staticmethod
     def _copy_files_from_solution(
-            active_solution: ISolution, source_path: Path, target_path: Path, name, attribute_path
+            active_solution: ISolution,
+            source_path: Path,
+            target_path: Path,
+            attribute_path: str,
+            attribute_log_name: str
     ):
-        files = []
-        source_path = Path(source_path)
-        target_path = Path(target_path)
-        module_logger().debug('Looking up %s file(s) to copy to %s...' % (name, str(target_path)))
+        """ Extracts the attribute value from the solution given, looks up the file behind the value and copies
+        it to the correct deployment path."""
+        module_logger().debug('Looking up %s file(s) to copy to %s...' % (attribute_log_name, str(target_path)))
 
         # get files in solution setup dictionary having the given attribute_path
         file_names = get_dict_entries_from_attribute_path(active_solution.setup(), attribute_path)
         module_logger().debug('Lookup result: %s' % ', '.join(file_names))
 
+        files = []
         for file_name in file_names:
-
             file_source_path = source_path.joinpath(file_name)  # relative paths only
             if file_source_path.exists():
                 files.append(copy(file_source_path, target_path.joinpath(file_name)))
             else:
                 module_logger().error(  # must be an error, otherwise yml of solutions not in sync with folder content
-                    'Cannot find %s %s, proceeding without copying...' % (name, file_source_path.absolute()))
+                    'Cannot find %s %s, proceeding without copying...' %
+                    (attribute_log_name, file_source_path.absolute())
+                )
         return files
-
-    def _attach_exports(self, catalog: ICatalog, catalog_local_src: str, active_solution: ISolution, deploy_path: Path):
-        coordinates = active_solution.coordinates()
-
-        catalog_solution_local_src_path = Path(catalog_local_src).joinpath(
-            self.album.configuration().get_solution_path_suffix(coordinates)
-        )
-
-        res = []
-        res.extend(DeployManager._copy_files_from_solution(
-            active_solution, deploy_path, catalog_solution_local_src_path, 'cover', 'covers.source')
-        )
-        res.extend(DeployManager._copy_files_from_solution(
-            active_solution, deploy_path, catalog_solution_local_src_path, 'documentation', 'documentation')
-        )
-        res.append(create_docker_file(active_solution, catalog_solution_local_src_path))
-        res.append(DeployManager._create_yaml_file_in_local_src(active_solution, catalog_solution_local_src_path))
-        res.append(create_changelog_file(active_solution, catalog, catalog_solution_local_src_path))
-
-        return res

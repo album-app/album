@@ -42,8 +42,14 @@ class Album:
         self._options = builder
         self._controller = AlbumController(self._options._base_cache_path)
         self.logger_pushed = True
-        configure_root_logger(log_format=self._options._log_format, log_format_time=self._options._log_format_time,
-                              log_level=self._options._log_level)
+        configure_root_logger(
+            log_format=self._options._log_format,
+            log_format_time=self._options._log_format_time,
+            log_level=self._options._log_level
+        )
+
+    def __del__(self):
+        self.close()
 
     def resolve(self, resolve_solution: str) -> ICollectionSolution:
         return self._controller.collection_manager().resolve_and_load(resolve_solution)
@@ -129,9 +135,16 @@ class Album:
                 The change associated with this version of a solution compared to the last version.
 
         """
-        return self._controller.deploy_manager().deploy(deploy_path=deploy_path, catalog_name=catalog_name, dry_run=dry_run,
-                                                        push_options=push_option, git_email=git_email, git_name=git_name,
-                                                        force_deploy=force_deploy, changelog=changelog)
+        return self._controller.deploy_manager().deploy(
+            deploy_path=deploy_path,
+            catalog_name=catalog_name,
+            dry_run=dry_run,
+            push_options=push_option,
+            git_email=git_email,
+            git_name=git_name,
+            force_deploy=force_deploy,
+            changelog=changelog
+        )
 
     def clone(self, path: str, target_dir: str, name: str) -> None:
         """

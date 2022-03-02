@@ -10,9 +10,8 @@ class TestRunManager(TestUnitCoreCommon):
     def setUp(self):
         super().setUp()
         """Setup things necessary for all tests of this class"""
-        album = self.create_album_test_instance()
-        self.create_test_solution_no_env()
-        self.run_manager: RunManager = album.run_manager()
+        self.setup_solution_no_env()
+        self.run_manager: RunManager = self.album_controller.run_manager()
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -20,10 +19,10 @@ class TestRunManager(TestUnitCoreCommon):
     def test_run(self):
         # mocks
         build_queue = MagicMock(return_value=None)
-        self.album.script_manager().build_queue = build_queue
+        self.album_controller.script_manager().build_queue = build_queue
 
         run_queue = MagicMock(return_value=None)
-        self.album.script_manager().run_queue = run_queue
+        self.album_controller.script_manager().run_queue = run_queue
 
         # call
         self.run_manager.run(ResolveResult("", None, None, None, self.active_solution), False)

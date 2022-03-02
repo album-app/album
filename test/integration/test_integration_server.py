@@ -1,6 +1,7 @@
 import unittest
 import urllib.parse
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from time import time, sleep
 from unittest.mock import patch
 
@@ -9,28 +10,30 @@ import flask_unittest
 from album.core.controller.task_manager import TaskManager
 from album.core.model.default_values import DefaultValues
 from album.core.model.task import Task
+from album.core.utils.operations.file_operations import force_remove
+from album.core.utils.operations.git_operations import clone_repository
 from album.runner import album_logging
 from album.runner.album_logging import LogLevel
 from album.runner.core.model.coordinates import Coordinates
 from album.server import AlbumServer
-from test.integration.test_integration_common import TestIntegrationCommon
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
-class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon):
+class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCoreCommon):
     port = 7896
 
     server = AlbumServer(port)
     app = server.init_server({'TESTING': True})
 
     def setUp(self, client) -> None:
-        TestIntegrationCommon.setUp(self)
-        self.init_collection()
-        self.server.setup(self.album())
+        TestIntegrationCoreCommon.setUp(self)
+        self.setup_album_instance()
+        self.server.setup(self.album)
         flask_unittest.ClientTestCase.setUp(self, client)
 
     def tearDown(self, client) -> None:
         flask_unittest.ClientTestCase.tearDown(self, client)
-        TestIntegrationCommon.tearDown(self)
+        TestIntegrationCoreCommon.tearDown(self)
 
     def test_server(self, client):
         # setting up test
@@ -50,22 +53,22 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
 
         # add remote catalog
         remote_catalog = "https://gitlab.com/album-app/catalogs/templates/catalog"
-        self.assertCatalogPresence(self.album_controller().catalogs().get_all(), remote_catalog, False)
+        self.assertCatalogPresence(self.album_controller.catalogs().get_all(), remote_catalog, False)
         res_add_catalog = client.get("/add-catalog?src=" + urllib.parse.quote(remote_catalog))
         self.assertEqual(200, res_add_catalog.status_code)
-        self.assertCatalogPresence(self.album_controller().catalogs().get_all(), remote_catalog, True)
+        self.assertCatalogPresence(self.album_controller.catalogs().get_all(), remote_catalog, True)
 
         # remove remote catalog
         res_remove_catalog = client.get("/remove-catalog?src=" + urllib.parse.quote(remote_catalog))
         self.assertEqual(200, res_remove_catalog.status_code)
-        self.assertCatalogPresence(self.album_controller().catalogs().get_all(), remote_catalog, False)
+        self.assertCatalogPresence(self.album_controller.catalogs().get_all(), remote_catalog, False)
 
         # clone catalog template
         local_catalog_name = "mycatalog"
         local_catalogs_path = Path(self.tmp_dir.name).joinpath("my-catalogs")
         local_catalogs = str(local_catalogs_path)
         local_catalog_path = local_catalogs_path.joinpath(local_catalog_name)
-        self.assertCatalogPresence(self.album_controller().catalogs().get_all(), local_catalogs, False)
+        self.assertCatalogPresence(self.album_controller.catalogs().get_all(), local_catalogs, False)
 
         res_clone_catalog = client.get(
             f"/clone/template:catalog?target_dir={urllib.parse.quote(local_catalogs)}&name={local_catalog_name}"
@@ -73,18 +76,24 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         self.assertEqual(200, res_clone_catalog.status_code)
         self._finish_taskmanager_with_timeout(self.server._task_manager, 30)
         self.assertCatalogPresence(
-            self.album_controller().catalogs().get_all(), local_catalog_path, False
+            self.album_controller.catalogs().get_all(), local_catalog_path, False
         )
         self.assertTrue(local_catalogs_path.exists())
         self.assertTrue(local_catalog_path.exists())
-        self.assertTrue(local_catalog_path.joinpath(DefaultValues.catalog_index_metafile_json.value).exists())
+        with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
+            target_tmp = Path(tmp_dir).joinpath("clone")
+            with clone_repository(local_catalog_path, target_tmp) as repo:
+                self.assertTrue(
+                    Path(repo.working_tree_dir).joinpath(DefaultValues.catalog_index_metafile_json.value).exists()
+                )
+            force_remove(target_tmp)
 
         # add catalog
         res_add_catalog = client.get("/add-catalog?src=" + urllib.parse.quote(str(local_catalog_path)))
         self.assertEqual(200, res_add_catalog.status_code)
         catalog_id = res_add_catalog.json["catalog_id"]
         self.assertCatalogPresence(
-            self.album_controller().catalogs().get_all(), str(local_catalog_path), True
+            self.album_controller.catalogs().get_all(), str(local_catalog_path), True
         )
 
         # clone solution
@@ -116,7 +125,9 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
 
         # deploy solution to catalog
         path_to_solution = urllib.parse.quote(str(solution_target_file))
-        res_deploy = client.get(f"/deploy?path={path_to_solution}&catalog_name={local_catalog_name}")
+        res_deploy = client.get(
+            f"/deploy?path={path_to_solution}&catalog_name={local_catalog_name}&git_name=myname&git_email=mymail"
+        )
         self.assertEqual(200, res_deploy.status_code)
         self.assertIsNotNone(res_deploy.json)
         self.assertIsNotNone(res_deploy.json["id"])
@@ -146,7 +157,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         self._finish_taskmanager_with_timeout(self.server._task_manager, 600)
 
         # check that solution is installed
-        self.assertTrue(self.album_controller().collection_manager().get_collection_index().is_installed(
+        self.assertTrue(self.album_controller.collection_manager().get_collection_index().is_installed(
             catalog_id, Coordinates(group, name, version)))
         res_status = client.get(f'/status/{local_catalog_name}/{group}/{name}/{version}')
         self.assertEqual(200, res_status.status_code)
@@ -216,7 +227,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
         # remove catalog
         res_status = client.get("/remove-catalog?src=" + urllib.parse.quote((str(local_catalog_path))))
         self.assertEqual(200, res_status.status_code)
-        self.assertCatalogPresence(self.album_controller().catalogs().get_all(), local_catalog_path,
+        self.assertCatalogPresence(self.album_controller.catalogs().get_all(), local_catalog_path,
                                    False)
 
         # check that solution is not accessible any more
@@ -225,11 +236,12 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCommon
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_server_add_solution(self, client, get_environment_path):
-        get_environment_path.return_value = self.album_instance._controller.environment_manager().get_conda_manager().get_active_environment_path()
+        get_environment_path.return_value = self.album._controller.environment_manager().get_conda_manager().get_active_environment_path()
         solution_path = self.get_test_solution_path("solution9_throws_exception.py")
         solution = self.fake_install(solution_path, create_environment=False)
 
-        res_run = client.get(f"/run/{solution.coordinates().group()}/{solution.coordinates().name()}/{solution.coordinates().version()}")
+        res_run = client.get(
+            f"/run/{solution.coordinates().group()}/{solution.coordinates().name()}/{solution.coordinates().version()}")
         self.assertEqual(200, res_run.status_code)
         self.assertIsNotNone(res_run.json)
         task_run_id = res_run.json["id"]

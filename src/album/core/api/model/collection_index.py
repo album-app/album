@@ -39,7 +39,7 @@ class ICollectionIndex(IDatabase):
         raise NotImplementedError
 
     @abstractmethod
-    def insert_catalog(self, name, src, path, deletable, branch_name, close: bool = True):
+    def insert_catalog(self, name, src, path, deletable, branch_name, catalog_type, close: bool = True):
         raise NotImplementedError
 
     @abstractmethod
@@ -100,8 +100,8 @@ class ICollectionIndex(IDatabase):
         raise NotImplementedError
 
     @abstractmethod
-    def get_solutions_by_grp_name_version(self, coordinates: ICoordinates, close: bool = True) -> List[
-        ICollectionSolution]:
+    def get_solutions_by_grp_name_version(self, coordinates: ICoordinates, close: bool = True) \
+            -> List[ICollectionSolution]:
         raise NotImplementedError
 
     @abstractmethod

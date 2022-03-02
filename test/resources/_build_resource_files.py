@@ -19,7 +19,7 @@ def build_empty_catalog(name, path):
     if path.exists():
         file_operations.force_remove(path)
     path.mkdir(parents=True)
-    CatalogHandler.create_new_catalog(path, name)
+    CatalogHandler.create_new_metadata(path, name)
     db_file = path.joinpath(DefaultValues.catalog_index_file_name.value)
     catalog_index = CatalogIndex(name, db_file)
     catalog_index.get_connection().commit()

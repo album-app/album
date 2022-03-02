@@ -3,7 +3,6 @@ import json
 import os
 import platform
 import random
-import re
 import shutil
 import stat
 import sys
@@ -18,38 +17,6 @@ from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 enc = sys.getfilesystemencoding()
-
-
-def get_line_indent(line):
-    """Returns the line indent of a line."""
-    return int(len(re.findall('^[ ]*', line)[0]) / 4)
-
-
-def indent_to_space(indent: int):
-    """Returns the right number of spaces belonging to an indent"""
-    return ''.join([' '] * 4 * indent)
-
-
-def is_comment(line):
-    """Finds out if line is a comment line."""
-    if re.match('^[ ]*[#]', line):
-        return True
-    return False
-
-
-def is_blank_line(line):
-    """Finds out if line is blank."""
-    if re.match('^\n', line):
-        return True
-    return False
-
-
-def to_executable(argument_parsing):
-    """Connects all arguments in a argument list"""
-    executable = ""
-    for arg in argument_parsing:
-        executable += arg
-    return executable
 
 
 def get_dict_from_yml(yml_file):
@@ -127,6 +94,7 @@ def get_dict_from_json(json_file):
 
 
 def folder_empty(path) -> bool:
+    """Returns true when a given folder is empty else false."""
     path = Path(path)
 
     if path.exists():
@@ -134,6 +102,28 @@ def folder_empty(path) -> bool:
             return True
         return False
     return True
+
+
+def list_files_recursively(path, root=None, relative=False) -> list:
+    """Lists all files in a repository recursively"""
+    path = Path(path)
+    if not root:
+        root = path
+    files_list = []
+
+    for cur_root, dirs, files in os.walk(path):
+        cur_root = Path(cur_root)
+
+        for d in dirs:
+            files_list += list_files_recursively(cur_root.joinpath(d), root, relative)
+        for fi in files:
+            if relative:
+                files_list.append(cur_root.joinpath(fi).relative_to(root))
+            else:
+                files_list.append(cur_root.joinpath(fi))
+        break
+
+    return files_list
 
 
 def create_empty_file_recursively(path_to_file):
@@ -160,6 +150,22 @@ def create_paths_recursively(paths):
 
 
 def copy_folder(folder_to_copy, destination, copy_root_folder=True, force_copy=False):
+    """Copies a folder to a destination.
+
+    Args:
+        folder_to_copy:
+            The folder to copy
+        destination:
+            The destination folder to copy to
+        copy_root_folder:
+            boolean value. if true copies the root folder in the target destination.
+            Else all files in the folder to copy.
+        force_copy:
+            boolean value. If true, removes the destination folder before copying.
+
+    Returns:
+
+    """
     folder_to_copy = Path(folder_to_copy)
     destination = Path(destination)
 
@@ -249,6 +255,7 @@ def unzip_archive(zip_archive_file, target_folder=None):
 
     return target_folder
 
+
 def force_remove(path, warning=True):
     path = Path(path)
     if path.exists():
@@ -267,6 +274,7 @@ def force_remove(path, warning=True):
 
 
 def remove_link(link_target):
+    """Removes a link from the file system."""
     if link_target:
         dispose_op = getattr(link_target, 'dispose', None)
         if callable(dispose_op):
@@ -277,6 +285,7 @@ def remove_link(link_target):
 
 
 def handle_remove_readonly(func, path, exc):
+    """Changes readonly flag of a given path."""
     excvalue = exc[1]
     if func in (os.rmdir, os.remove, os.unlink) and excvalue.errno == errno.EACCES:
         os.chmod(path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)  # 0777
@@ -286,6 +295,7 @@ def handle_remove_readonly(func, path, exc):
 
 
 def rand_folder_name(f_len=8):
+    """Creates random folder name of lenght given."""
     characters = "abcdefghijklmnopqrstuvwxyz0123456789_"
     s = []
     for i in range(0, f_len):
@@ -294,49 +304,76 @@ def rand_folder_name(f_len=8):
 
 
 def check_zip(path):
+    """Checks a given zip file."""
     return not ZipFile(path).testzip()
 
 
-def construct_cache_link_target(lnk_path: Path, link, target, create=True) -> Optional[Path]:
+def construct_cache_link_target(point_to_base: Path, point_from, point_to, create=True) -> Optional[Path]:
+    """Constructs a link from point_from to point_to.
+
+    Args:
+        point_to_base:
+            Base folder where to point to.
+        point_from:
+            Path where to point from.
+        point_to:
+            Folder name in point_to_base where to point to.
+        create:
+
+    Returns:
+
+    """
     operation_system = platform.system().lower()
-    root = lnk_path.joinpath(target)
+    root = point_to_base.joinpath(point_to)
+
     if 'windows' in operation_system:
+        # pylnk3 is windows only
         from pylnk3 import Lnk, for_file
-        link = str(link) + '.lnk'
-        if Path(link).exists():
-            resolve = Path(Lnk(link).path).absolute()
+        point_from = str(point_from) + '.lnk'
+        if Path(point_from).exists():
+            resolve = Path(Lnk(point_from).path).absolute()
             return resolve
         if create:
-            i = 0
-            while root.joinpath("%s" % i).exists():
-                i += 1
-            target = root.joinpath('%s' % i)
-            target.mkdir(exist_ok=True, parents=True)
-            Path(link).parent.mkdir(parents=True, exist_ok=True)
+            point_to = root.joinpath(_next_free_pointer_number(root))
+
+            create_path_recursively(point_to)
+            create_path_recursively(Path(point_from).parent)
+
             for_file(
-                target_file=os.path.normpath(target),
-                lnk_name=link
+                target_file=os.path.normpath(str(point_to)),
+                lnk_name=point_from
             )
-            resolve = target.absolute()
+            resolve = point_to.absolute()
             return resolve
     else:
-        if os.path.islink(link):
-            return Path(link).resolve()
+        if os.path.islink(point_from):
+            return Path(point_from).resolve()
         if create:
-            i = 0
-            while root.joinpath("%s" % i).exists():
-                i += 1
-            target = root.joinpath('%s' % i)
-            target.mkdir(exist_ok=True, parents=True)
-            Path(link).parent.mkdir(parents=True, exist_ok=True)
+            point_to = root.joinpath(_next_free_pointer_number(root))
 
-            os.symlink(target, link, target_is_directory=True)
-            return target.resolve()
-    return None
+            create_path_recursively(point_to)
+            create_path_recursively(Path(point_from).parent)
+
+            # point_from -> point_to
+            os.symlink(str(point_to), point_from, target_is_directory=True)
+            return point_to.resolve()
+
+
+def _next_free_pointer_number(root):
+    root = Path(root)
+
+    # determine next free point_to number
+    i = 0
+    while root.joinpath("%s" % i).exists():
+        i += 1
+
+    return str(i)
+
 
 def get_link_target(link: Path):
     operation_system = platform.system().lower()
     if 'windows' in operation_system:
+        # pylnk3 is windows only
         from pylnk3 import Lnk, for_file
         link = str(link) + '.lnk'
         if Path(link).exists():

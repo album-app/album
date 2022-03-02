@@ -90,7 +90,7 @@ class InstallManager(IInstallManager):
         # register in collection
         if resolve_result.catalog().is_cache():
             # a cache catalog is living in the collection so no need to update, we can add it directly
-            self.album.solutions().add_to_local_catalog(
+            self.album.solutions().add_to_cache_catalog(
                 resolve_result.loaded_solution(),
                 resolve_result.path().parent  # the directory holding the solution file
             )

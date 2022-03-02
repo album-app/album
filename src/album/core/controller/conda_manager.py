@@ -8,8 +8,8 @@ import yaml
 
 from album.core.api.model.configuration import IConfiguration
 from album.core.api.model.environment import IEnvironment
-from album.core.api.model.link import Link
 from album.core.model.default_values import DefaultValues
+from album.core.model.link import Link
 from album.core.utils import subcommand
 from album.core.utils.operations.file_operations import construct_cache_link_target, remove_link
 from album.core.utils.subcommand import SubProcessError
@@ -46,8 +46,8 @@ class CondaManager:
 
     @staticmethod
     def _get_immediate_subdirectories(a_dir: Path):
-        return [a_dir.joinpath(name).resolve() for name in os.listdir(a_dir)
-                if os.path.isdir(os.path.join(a_dir, name))]
+        return [a_dir.joinpath(name).resolve() for name in os.listdir(str(a_dir))
+                if os.path.isdir(os.path.join(str(a_dir), name))]
 
     def _get_base_environment_target_path(self):
         """Gets the first of the paths the conda installation uses to manage its environments."""
@@ -66,12 +66,13 @@ class CondaManager:
         environment_list = self.get_environment_list()
         path_expected = self._environment_name_to_path(environment_name, create=False)
 
-        return True if (path_expected and path_expected.resolve() in environment_list and os.listdir(path_expected)) else False
+        return True if (path_expected and path_expected.resolve() in environment_list and os.listdir(
+            path_expected)) else False
 
     def _environment_name_to_path(self, environment_name, create=True):
         path = os.path.normpath(self._configuration.cache_path_envs().joinpath(environment_name))
-        target = construct_cache_link_target(self._configuration.lnk_path(), link=path,
-                                             target=DefaultValues.lnk_env_prefix.value, create=create)
+        target = construct_cache_link_target(self._configuration.lnk_path(), point_from=path,
+                                             point_to=DefaultValues.lnk_env_prefix.value, create=create)
         if target:
             return Link(target).set_link(path)
         else:
@@ -83,6 +84,9 @@ class CondaManager:
         Args:
             environment_name:
                 The environment to get the path for.
+            create:
+
+
 
         Returns:
             None or the path
@@ -103,8 +107,8 @@ class CondaManager:
         """Returns the environment form the active album."""
         conda_list = self.get_info()
         path = conda_list["active_prefix"]
-        link = construct_cache_link_target(self._configuration.lnk_path(), link=path,
-                                             target=DefaultValues.lnk_env_prefix.value, create=False)
+        link = construct_cache_link_target(self._configuration.lnk_path(), point_from=path,
+                                           point_to=DefaultValues.lnk_env_prefix.value, create=False)
         if link:
             return link
         else:
@@ -165,7 +169,8 @@ class CondaManager:
         Returns:
             dictionary containing the available packages in the given conda environment.
         """
-        subprocess_args = [self._get_install_environment_executable(), 'list', '--json', '--prefix', str(environment_path)]
+        subprocess_args = [self._get_install_environment_executable(), 'list', '--json', '--prefix',
+                           str(environment_path)]
         output = subcommand.check_output(subprocess_args)
         return json.loads(output)
 
@@ -177,6 +182,8 @@ class CondaManager:
                 The path to the file.
             environment_name:
                 The name of the environment. Must be the same as specified in the yml file.
+            album_api_version:
+                The api version (runner version) in the environment.
 
         Raises:
             NameError:
@@ -230,6 +237,8 @@ class CondaManager:
 
     @staticmethod
     def _append_framework_to_yml(content, album_api_version):
+        # There might be environments without pip, so the the dependency content needs
+        # to be adjusted to make sure pip is available.
         framework = '%s==%s' % (DefaultValues.runner_api_packet_name.value, album_api_version)
         if not 'dependencies' in content or not content['dependencies']:
             content['dependencies'] = []
@@ -257,6 +266,9 @@ class CondaManager:
                 The desired environment name.
             force:
                 If True, force creates the environment by deleting the old one.
+            album_api_version:
+                The api version (runner version) in the environment.
+
         Raises:
             RuntimeError:
                 When the environment could not be created due to whatever reasons.
