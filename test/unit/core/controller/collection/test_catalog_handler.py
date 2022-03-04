@@ -796,7 +796,7 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
         r = CatalogHandler._compare_solutions(solutions_old, solutions_new)
 
         expected_result = [
-            SolutionChange(Coordinates('g3', 'n3', 'v1'), ChangeType.CHANGED),
+            SolutionChange(Coordinates('g3', 'n3', 'v1'), ChangeType.CHANGED, solution_status={'hash': 3}),
             SolutionChange(Coordinates('g2', 'n2', 'v1'), ChangeType.REMOVED),
             SolutionChange(Coordinates('g4', 'n4', 'v1'), ChangeType.ADDED)
         ]

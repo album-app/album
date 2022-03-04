@@ -234,7 +234,7 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
     def test_apply_change_CHANGED_no_override(self):
         # prepare
         coordinates = Coordinates("g", "n", "v")
-        change = SolutionChange(coordinates, ChangeType.CHANGED)
+        change = SolutionChange(coordinates, ChangeType.CHANGED, solution_status={"installed": False})
 
         # mocks
         empty_catalog = EmptyTestClass()
@@ -260,13 +260,13 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         # assert
         add_or_replace_solution.assert_called_once()
         remove_solution.assert_not_called()  # at least not directly
-        _set_old_db_stat.assert_called_once_with(self.catalog, change)
+        _set_old_db_stat.assert_not_called()
         retrieve_solution.assert_not_called()
 
     def test_apply_change_CHANGED_override_uninstalled(self):
         # prepare
         coordinates = Coordinates("g", "n", "v")
-        change = SolutionChange(coordinates, ChangeType.CHANGED)
+        change = SolutionChange(coordinates, ChangeType.CHANGED, solution_status={"installed": False})
 
         # mocks
         empty_catalog = EmptyTestClass()
@@ -295,13 +295,13 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         # assert
         add_or_replace_solution.assert_called_once()
         remove_solution.assert_not_called()
-        _set_old_db_stat.assert_called_once_with(self.catalog, change)
+        _set_old_db_stat.assert_not_called()
         retrieve_solution.assert_not_called()
 
     def test_apply_change_CHANGED_override_installed_but_cache(self):
         # prepare
         coordinates = Coordinates("g", "n", "v")
-        change = SolutionChange(coordinates, ChangeType.CHANGED)
+        change = SolutionChange(coordinates, ChangeType.CHANGED, solution_status={"installed": True})
 
         # mocks
         empty_catalog = EmptyTestClass()
@@ -337,7 +337,9 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
     def test_apply_change_CHANGED_override_installed_no_cache(self):
         # prepare
         coordinates = Coordinates("g", "n", "v")
-        change = SolutionChange(coordinates, ChangeType.CHANGED, solution_status={"old_status": 1, "parent": "yes"})
+        change = SolutionChange(
+            coordinates, ChangeType.CHANGED, solution_status={"old_status": 1, "parent": "yes", "installed": True}
+        )
 
         # mocks
         empty_catalog = EmptyTestClass()
@@ -357,9 +359,6 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
 
         retrieve_solution = MagicMock()
         self.solution_handler.retrieve_solution = retrieve_solution
-
-        is_installed = MagicMock(return_value=True)
-        self.solution_handler.is_installed = is_installed
 
         # call
         self.solution_handler.apply_change(self.catalog, change, override=True)

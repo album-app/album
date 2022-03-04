@@ -119,12 +119,6 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         repo.working_tree_dir = "myWorkingDir"
 
         # mock
-        _get_absolute_prefix_path = MagicMock(return_value="LocalCatalogSolutionPath")
-        self.deploy_manager._get_absolute_prefix_path = _get_absolute_prefix_path
-
-        _clear_deploy_target_path = MagicMock()
-        self.deploy_manager._clear_deploy_target_path = _clear_deploy_target_path
-
         _add_to_downloaded_catalog = MagicMock()
         self.deploy_manager._add_to_downloaded_catalog = _add_to_downloaded_catalog
 
@@ -143,8 +137,6 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         )
 
         # assert
-        _get_absolute_prefix_path.assert_called_once()
-        _clear_deploy_target_path.assert_called_once_with("LocalCatalogSolutionPath", True)
         _add_to_downloaded_catalog.assert_called_once_with(catalog, self.active_solution, False, True)
         _deploy_routine_in_local_src.assert_called_once_with(catalog, repo, self.active_solution, "deployPath")
         _push_directly.assert_called_once_with(

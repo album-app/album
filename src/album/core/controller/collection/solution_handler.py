@@ -109,15 +109,18 @@ class SolutionHandler(ISolutionHandler):
             self.remove_solution(catalog, change.coordinates())
 
         elif change.change_type() is ChangeType.CHANGED:
+            # get install status before applying change
+            installed = change.solution_status()["installed"]
             self._get_collection_index().add_or_replace_solution(
                 catalog.catalog_id(),
                 change.coordinates(),
                 catalog.index().get_solution_by_coordinates(change.coordinates())
             )
-            # set old (install) status and parents again
-            self._set_old_db_stat(catalog, change)
+            if installed:
+                # set old (install) status and parents again
+                self._set_old_db_stat(catalog, change)
 
-            if override and not catalog.is_cache() and self.is_installed(catalog, change.coordinates()):
+            if override and not catalog.is_cache() and installed:
                 self.retrieve_solution(catalog, change.coordinates())
 
     def _set_old_db_stat(self, catalog, change):
