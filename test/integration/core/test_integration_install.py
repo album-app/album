@@ -107,10 +107,10 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
             self.album_controller.environment_manager().conda_manager.environment_exists(leftover_env_name))
 
         # check file is copied
-        local_file = self.album_controller.collection_manager().solutions().get_solution_file(local_catalog,
-                                                                                              Coordinates("group",
-                                                                                                          "faultySolution",
-                                                                                                          "0.1.0"))
+        local_file = self.album_controller.collection_manager().solutions().get_solution_file(
+            local_catalog,
+            Coordinates("group", "faultySolution", "0.1.0")
+        )
         self.assertTrue(local_file.exists())
 
         # try to install smth. else (or the same, after routine is fixed)
@@ -121,8 +121,10 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         self.album_controller.install_manager().install(resolve_result)
 
         self.assertFalse(local_file.exists())
-        self.assertEqual([],
-                         self.album_controller.collection_manager().catalog_collection.get_unfinished_installation_solutions())
+        self.assertEqual(
+            [],
+            self.album_controller.collection_manager().catalog_collection.get_unfinished_installation_solutions()
+        )
 
     def test_install_twice(self):
         resolve_result = self.album_controller.collection_manager().resolve_and_load(

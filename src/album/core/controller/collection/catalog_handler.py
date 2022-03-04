@@ -145,9 +145,9 @@ class CatalogHandler(ICatalogHandler):
         if not local_path.exists():
             local_path.mkdir(parents=True)
 
-        meta_data = "{\"name\": \"" + name\
-                    + "\", \"version\": \"" + CatalogIndex.version\
-                    + "\", \"type\": \"" + catalog_type\
+        meta_data = "{\"name\": \"" + name \
+                    + "\", \"version\": \"" + CatalogIndex.version \
+                    + "\", \"type\": \"" + catalog_type \
                     + "\"}"
         with open(local_path.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as meta:
             meta.writelines(meta_data)
@@ -183,7 +183,8 @@ class CatalogHandler(ICatalogHandler):
         else:
             self.update_all()
 
-    def update_collection(self, catalog_name=None, dry_run: bool = False) -> Dict[str, CatalogUpdates]:
+    def update_collection(self, catalog_name=None, dry_run: bool = False, override: bool = False) -> \
+            Dict[str, CatalogUpdates]:
         if dry_run:
             if catalog_name:
                 catalog = self.get_by_name(catalog_name)
@@ -193,9 +194,9 @@ class CatalogHandler(ICatalogHandler):
         else:
             if catalog_name:
                 catalog = self.get_by_name(catalog_name)
-                return {catalog_name: self._update_collection_from_catalog(catalog)}
+                return {catalog_name: self._update_collection_from_catalog(catalog, override)}
             else:
-                return self._update_collection_from_catalogs()
+                return self._update_collection_from_catalogs(override)
 
     def _remove_from_collection(self, catalog_dict) -> Optional[Catalog]:
         try:
@@ -358,17 +359,17 @@ class CatalogHandler(ICatalogHandler):
         solution_changes = self._compare_solutions(solutions_in_collection, solutions_in_catalog)
         return CatalogUpdates(catalog, solution_changes=solution_changes)
 
-    def _update_collection_from_catalogs(self) -> Dict[str, CatalogUpdates]:
+    def _update_collection_from_catalogs(self, override: bool = False) -> Dict[str, CatalogUpdates]:
         res = {}
         for catalog in self.get_all():
-            res[catalog.name()] = self._update_collection_from_catalog(catalog=catalog)
+            res[catalog.name()] = self._update_collection_from_catalog(catalog, override)
         return res
 
-    def _update_collection_from_catalog(self, catalog: Catalog) -> CatalogUpdates:
+    def _update_collection_from_catalog(self, catalog: Catalog, override: bool = False) -> CatalogUpdates:
         divergence = self._get_divergence_between_catalog_and_collection(catalog)
         # TODO apply changes to catalog attributes
         for change in divergence.solution_changes():
-            self.album.solutions().apply_change(divergence.catalog(), change)
+            self.album.solutions().apply_change(divergence.catalog(), change, override)
         return divergence
 
     @staticmethod
@@ -395,7 +396,9 @@ class CatalogHandler(ICatalogHandler):
             # solution updated or added
             if hash not in list_old_hash:
                 if coordinates in dict_old_coordinates.keys():  # changed when metadata in old solution list
-                    change = SolutionChange(coordinates, ChangeType.CHANGED)
+                    change = SolutionChange(
+                        coordinates, ChangeType.CHANGED, solution_status=dict_old_coordinates[coordinates].internal()
+                    )
                     res.append(change)
 
                     # remove solution from old coordinates list

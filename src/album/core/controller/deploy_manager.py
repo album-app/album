@@ -115,8 +115,6 @@ class DeployManager(IDeployManager):
         # adding solutions in the SQL databse for catalog type "direct" done on user side, hence the timestamp
         active_solution.setup()["timestamp"] = datetime.strftime(datetime.now(), '%Y-%m-%dT%H:%M:%S.%f')
 
-        catalog_local_solution_path = self._get_absolute_prefix_path(catalog, repo.working_tree_dir, active_solution)
-        self._clear_deploy_target_path(catalog_local_solution_path, force_deploy)
         self._add_to_downloaded_catalog(catalog, active_solution, dry_run, force_deploy)
 
         solution_zip, exports = self._deploy_routine_in_local_src(catalog, repo, active_solution, deploy_path)
