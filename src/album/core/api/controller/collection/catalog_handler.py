@@ -95,7 +95,8 @@ class ICatalogHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def update_collection(self, catalog_name=None, dry_run: bool = False) -> Dict[str, ICatalogUpdates]:
+    def update_collection(self, catalog_name=None, dry_run: bool = False, override: bool = False) -> Dict[
+        str, ICatalogUpdates]:
         """Includes all new changes from a given catalog (or all catalogs) in the catalog_collection."""
         raise NotImplementedError
 

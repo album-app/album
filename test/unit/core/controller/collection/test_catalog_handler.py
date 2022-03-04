@@ -298,10 +298,10 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
         # assert
         self.assertEqual(4, len(res))
         self.assertEqual(4, _update_collection_from_catalog.call_count)
-        self.assertEqual(catalog, _update_collection_from_catalog.call_args_list[0][1]['catalog'])
-        self.assertEqual('test_catalog', _update_collection_from_catalog.call_args_list[1][1]['catalog'].name())
-        self.assertEqual('default', _update_collection_from_catalog.call_args_list[2][1]['catalog'].name())
-        self.assertEqual('test_catalog2', _update_collection_from_catalog.call_args_list[3][1]['catalog'].name())
+        self.assertEqual(catalog, _update_collection_from_catalog.call_args_list[0][0][0])
+        self.assertEqual('test_catalog', _update_collection_from_catalog.call_args_list[1][0][0].name())
+        self.assertEqual('default', _update_collection_from_catalog.call_args_list[2][0][0].name())
+        self.assertEqual('test_catalog2', _update_collection_from_catalog.call_args_list[3][0][0].name())
 
     def test_update_collection_dry_run(self):
         # mocks
@@ -338,7 +338,7 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
 
         # assert
         self.assertEqual(1, len(res))
-        _update_collection_from_catalog.assert_called_once_with(catalog)
+        _update_collection_from_catalog.assert_called_once_with(catalog, False)
 
     def test_update_collection_specific_catalog_dry_run(self):
         # mocks
@@ -796,7 +796,7 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
         r = CatalogHandler._compare_solutions(solutions_old, solutions_new)
 
         expected_result = [
-            SolutionChange(Coordinates('g3', 'n3', 'v1'), ChangeType.CHANGED),
+            SolutionChange(Coordinates('g3', 'n3', 'v1'), ChangeType.CHANGED, solution_status={'hash': 3}),
             SolutionChange(Coordinates('g2', 'n2', 'v1'), ChangeType.REMOVED),
             SolutionChange(Coordinates('g4', 'n4', 'v1'), ChangeType.ADDED)
         ]

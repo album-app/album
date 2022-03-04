@@ -167,8 +167,8 @@ class Album:
     def run_solution_script(self, resolve_result: ICollectionSolution, script: IScriptCreator):
         self._controller.script_manager().run_solution_script(resolve_result, script)
 
-    def upgrade(self, catalog_name=None, dry_run=False):
-        return self._controller.collection_manager().catalogs().update_collection(catalog_name, dry_run)
+    def upgrade(self, catalog_name=None, dry_run=False, override=False):
+        return self._controller.collection_manager().catalogs().update_collection(catalog_name, dry_run, override)
 
     def update(self, catalog_name=None):
         return self._controller.collection_manager().catalogs().update_any(catalog_name)

@@ -1,5 +1,8 @@
 import sys
+import time
 from pathlib import Path
+
+from album.runner.core.model.coordinates import Coordinates
 
 from album.core.model.default_values import DefaultValues
 
@@ -128,7 +131,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
 
     def test_update_upgrade(self):
         initial_len = len(
-            self.album_controller.collection_manager().get_collection_index().get_all_catalogs())  # has the two default catalogs
+            self.album_controller.collection_manager().get_collection_index().get_all_catalogs())  # has the default catalogs
 
         # add catalog
         catalog_src, _ = self.setup_empty_catalog("my-catalog")
@@ -137,8 +140,8 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         # assert it got added
         self.assertEqual(initial_len + 1,
                          len(self.album_controller.collection_manager().get_collection_index().get_all_catalogs()))
-
         self.assertTrue(catalog.is_local())
+
         # check its empty
         self.assertEqual(0, len(catalog.index().get_all_solutions()))
 
@@ -150,13 +153,11 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         self.add_solutions(catalog, [solution])
 
         # update collection
-        sys.argv = ["", "update"]
         dif = self.album_controller.collection_manager().catalogs().update_any()
 
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         # upgrade collection
-        sys.argv = ["", "upgrade"]
         dif = self.album_controller.collection_manager().catalogs().update_collection()
 
         self.assertNotIn('ERROR', self.captured_output.getvalue())
@@ -180,3 +181,84 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         self.assertEqual(sol, solution_in_col)
 
         catalog.dispose()
+
+    def test_update_upgrade_override(self):
+        initial_len = len(
+            self.album_controller.collection_manager().get_collection_index().get_all_catalogs())  # has the default catalogs
+
+        # add catalog
+        catalog_src, _ = self.setup_empty_catalog("my-catalog")
+        catalog = self.album_controller.collection_manager().catalogs().add_by_src(catalog_src)  # its emtpy
+
+        # assert it got added
+        self.assertEqual(initial_len + 1,
+                         len(self.album_controller.collection_manager().get_collection_index().get_all_catalogs()))
+
+        # check its empty
+        self.assertEqual(0, len(catalog.index().get_all_solutions()))
+
+        # deploy to parent to catalog
+        self.album_controller.deploy_manager().deploy(
+            str(self.get_test_solution_path("app1.py")),
+            catalog_name=catalog.name(),
+            changelog='initial deploy',
+            dry_run=False,
+            git_email=DefaultValues.catalog_git_email.value,
+            git_name=DefaultValues.catalog_git_user.value
+        )
+
+        # deploy to solution to catalog
+        self.album_controller.deploy_manager().deploy(
+            str(self.get_test_solution_path("solution1_app1.py")),
+            catalog_name=catalog.name(),
+            changelog='initial deploy',
+            dry_run=False,
+            git_email=DefaultValues.catalog_git_email.value,
+            git_name=DefaultValues.catalog_git_user.value
+        )
+
+        # update
+        self.album_controller.collection_manager().catalogs().update_any(catalog.name())
+        # upgrade
+        self.album_controller.collection_manager().catalogs().update_collection(catalog.name())
+
+        # check both are deployed
+        self.assertEqual(2, len(catalog.index().get_all_solutions()))
+
+        # install
+        resolve_result = self.album_controller.collection_manager().resolve_and_load("group:solution1_app1:0.1.0")
+        coordinates = Coordinates("group", "solution1_app1", "0.1.0")
+        self.album_controller.install_manager().install(resolve_result)
+
+        # check file is copied
+        local_file = self.album_controller.collection_manager().solutions().get_solution_file(
+            catalog,
+            coordinates
+        )
+        self.assertTrue(local_file.exists())
+        copy_date = local_file.stat().st_mtime
+
+        # make a re-deploy with changed solution code but same coordinates
+        self.album_controller.deploy_manager().deploy(
+            str(self.get_test_solution_path("solution1_app1_changed_parent.py")),
+            catalog_name=catalog.name(),
+            changelog='something changed... in the neighborhood... who you gonna call?',
+            dry_run=False,
+            force_deploy=True,
+            git_email=DefaultValues.catalog_git_email.value,
+            git_name=DefaultValues.catalog_git_user.value
+        )
+
+        # update
+        self.album_controller.collection_manager().catalogs().update_any(catalog.name())
+        # upgrade
+        self.album_controller.collection_manager().catalogs().update_collection(catalog.name(), override=True)
+
+        # assert copy_date unequal due to renewed download of solution file
+        self.assertNotEqual(copy_date, local_file.stat().st_mtime)
+
+        # assert parent did NOT CHANGE! (we are aware that this leave behind broken installations!)
+        parent = self.album_controller.collection_manager().get_collection_index().get_solution_by_catalog_grp_name_version(
+            catalog.catalog_id(), coordinates
+        ).internal()["parent"]
+        self.assertEqual("app1", parent.setup()["name"])

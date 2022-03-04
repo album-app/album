@@ -7,16 +7,19 @@ from album.runner.core.api.model.coordinates import ICoordinates
 
 class SolutionChange(ISolutionChange):
 
-    def __init__(self, coordinates: ICoordinates, change_type: ChangeType, change_log: Optional[str] = None):
+    def __init__(self, coordinates: ICoordinates, change_type: ChangeType, change_log: Optional[str] = None,
+                 solution_status: Optional[dict] = None):
         self._coordinates = coordinates
         self._change_type = change_type
         self._change_log = change_log
+        self._solution_status = solution_status
 
     def __eq__(self, other):
         return isinstance(other, ISolutionChange) \
                and other.coordinates() == self._coordinates \
                and other.change_type() == self._change_type \
-               and other.change_log() == self._change_log
+               and other.change_log() == self._change_log \
+               and other.solution_status() == self._solution_status
 
     def as_dict(self):
         return {
@@ -24,7 +27,8 @@ class SolutionChange(ISolutionChange):
             "name": self._coordinates.name(),
             "version": self._coordinates.version(),
             "change_type": self._change_type.name,
-            "change_log": self._change_log
+            "change_log": self._change_log,
+            # solution status only internal
         }
 
     def coordinates(self) -> ICoordinates:
@@ -35,6 +39,9 @@ class SolutionChange(ISolutionChange):
 
     def change_log(self) -> str:
         return self._change_log
+
+    def solution_status(self) -> dict:
+        return self._solution_status
 
 
 class CatalogAttributeChange(ICatalogAttributeChange):

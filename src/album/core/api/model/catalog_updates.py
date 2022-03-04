@@ -28,6 +28,10 @@ class ISolutionChange:
         raise NotImplementedError
 
     @abstractmethod
+    def solution_status(self) -> dict:
+        raise NotImplementedError
+
+    @abstractmethod
     def as_dict(self) -> dict:
         raise NotImplementedError
 

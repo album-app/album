@@ -25,14 +25,13 @@ def update(album_instance: Album, args):
 
 
 def upgrade(album_instance: Album, args):
-    dry_run = getattr(args, "dry_run", False)
-    updates = album_instance.upgrade(getattr(args, "catalog_name", None), dry_run=dry_run)
+    updates = album_instance.upgrade(getattr(args, "catalog_name", None), dry_run=args.dry_run, override=args.override)
     print_json = _get_print_json(args)
     if print_json:
         print(_as_json(updates))
     else:
         res = ''
-        if dry_run:
+        if args.dry_run:
             res += 'An upgrade would apply the following updates:\n'
         else:
             res += "Applied the following updates:\n"

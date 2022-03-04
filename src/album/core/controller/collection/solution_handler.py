@@ -7,9 +7,9 @@ from album.core.api.controller.collection.solution_handler import ISolutionHandl
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.catalog_updates import ISolutionChange, ChangeType
-from album.core.model.link import Link
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
+from album.core.model.link import Link
 from album.core.utils.operations.file_operations import copy_folder, copy, unzip_archive, construct_cache_link_target, \
     force_remove
 from album.core.utils.operations.git_operations import clone_repository_sparse, checkout_files
@@ -68,6 +68,15 @@ class SolutionHandler(ISolutionHandler):
             catalog_child.catalog_id()
         )
 
+    def _set_parent_from_entry(self, parent_entry, child_entry):
+        # internal representations of ICollectionSolution
+        self._get_collection_index().insert_collection_collection(
+            parent_entry.internal()["collection_id"],
+            child_entry.internal()["collection_id"],
+            parent_entry.internal()["catalog_id"],
+            child_entry.internal()["catalog_id"]
+        )
+
     def remove_parent(self, catalog: ICatalog, coordinates: ICoordinates):
         entry = self._get_collection_index().get_solution_by_catalog_grp_name_version(
             catalog.catalog_id(), coordinates, close=False
@@ -87,7 +96,7 @@ class SolutionHandler(ISolutionHandler):
             CollectionIndex.get_collection_column_keys()
         )
 
-    def apply_change(self, catalog: ICatalog, change: ISolutionChange):
+    def apply_change(self, catalog: ICatalog, change: ISolutionChange, override: bool):
         # FIXME handle other tables (tags etc)
         if change.change_type() is ChangeType.ADDED:
             self._get_collection_index().add_or_replace_solution(
@@ -100,11 +109,34 @@ class SolutionHandler(ISolutionHandler):
             self.remove_solution(catalog, change.coordinates())
 
         elif change.change_type() is ChangeType.CHANGED:
-            self.remove_solution(catalog, change.coordinates())
+            # get install status before applying change
+            installed = change.solution_status()["installed"]
             self._get_collection_index().add_or_replace_solution(
                 catalog.catalog_id(),
                 change.coordinates(),
                 catalog.index().get_solution_by_coordinates(change.coordinates())
+            )
+            if installed:
+                # set old (install) status and parents again
+                self._set_old_db_stat(catalog, change)
+
+            if override and not catalog.is_cache() and installed:
+                module_logger().warning(
+                    "CAUTION: Solution \"%s\" seems to be installed."
+                    " The performed operation can leave a broken installation behind "
+                    "if dependencies got changed! Consider reinstalling the solution!" % str(change.coordinates())
+                )
+                self.retrieve_solution(catalog, change.coordinates())
+
+    def _set_old_db_stat(self, catalog, change):
+        db_stat = self._get_db_status_dict(change.solution_status())
+        self.update_solution(catalog, change.coordinates(), db_stat)
+        if change.solution_status()['parent']:
+            self._set_parent_from_entry(
+                change.solution_status()['parent'],
+                self._get_collection_index().get_solution_by_catalog_grp_name_version(
+                    catalog.catalog_id(), change.coordinates()
+                )  # the new DB representation after the change
             )
 
     def set_installed(self, catalog: ICatalog, coordinates: ICoordinates):
@@ -208,3 +240,14 @@ class SolutionHandler(ISolutionHandler):
 
     def _get_collection_index(self):
         return self.album.collection_manager().get_collection_index()
+
+    @staticmethod
+    def _get_db_status_dict(internal_status: dict) -> dict:
+        """Everything that should NOT change internally when an UPDATE change is performed on a solution."""
+        r = {
+            'installed': internal_status['installed'],
+            'install_date': internal_status['install_date'],
+            'last_execution': internal_status['last_execution']
+        }
+
+        return r

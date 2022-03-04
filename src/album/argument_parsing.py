@@ -167,6 +167,13 @@ def create_parser():
         help='Parameter to indicate a dry run and only show what would happen.',
         action='store_true'
     )
+    p.add_argument(
+        '--override',
+        required=False,
+        help='renews all installed solutions without re-installation. '
+             'Might produce dependency problems as environments are not updated. Handle with care.',
+        action='store_true'
+    )
     p = parser.create_command_parser('clone', clone, 'clone an album solution or catalog template.')
     p.add_argument(
         'src',

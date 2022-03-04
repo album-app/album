@@ -36,7 +36,7 @@ class ISolutionHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def apply_change(self, catalog: ICatalog, change: ISolutionChange):
+    def apply_change(self, catalog: ICatalog, change: ISolutionChange, override: bool):
         raise NotImplementedError
 
     @abstractmethod
