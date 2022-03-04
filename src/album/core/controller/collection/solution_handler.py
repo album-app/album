@@ -121,6 +121,11 @@ class SolutionHandler(ISolutionHandler):
                 self._set_old_db_stat(catalog, change)
 
             if override and not catalog.is_cache() and installed:
+                module_logger().warning(
+                    "CAUTION: Solution \"%s\" seems to be installed."
+                    " The performed operation can leave a broken installation behind "
+                    "if dependencies got changed! Consider reinstalling the solution!" % str(change.coordinates())
+                )
                 self.retrieve_solution(catalog, change.coordinates())
 
     def _set_old_db_stat(self, catalog, change):
