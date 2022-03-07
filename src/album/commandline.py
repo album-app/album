@@ -6,7 +6,7 @@ from album.core.utils.operations.view_operations import get_solution_as_string, 
     get_updates_as_string, get_index_as_string, get_search_result_as_string
 from album.runner.album_logging import get_active_logger
 from album.runner.core.api.model.solution import ISolution
-from album.runner.core.model.script_creator import ScriptCreatorRun
+from album.runner.core.model.script_creator import ScriptCreator
 from album.server import AlbumServer
 
 module_logger = get_active_logger
@@ -129,7 +129,7 @@ def _as_json(data):
     return serialize_json(data)
 
 
-class ScriptRepl(ScriptCreatorRun):
+class ScriptRepl(ScriptCreator):
     def get_execution_block(self, solution_object: ISolution):
         return """
 from code import InteractiveConsole
@@ -143,3 +143,15 @@ else:
 console = InteractiveConsole(locals={**globals(), **locals()})
 console.interact()
 """
+
+    def __init__(self, pop_solution: bool = False, execution_callback=None):
+        super().__init__(append_arguments=False)
+        self.pop_solution = pop_solution
+
+        if execution_callback is not None and callable(execution_callback):
+            self.execution_callback = execution_callback
+        else:
+            self.reset_callback()
+
+    def reset_callback(self):
+        self.execution_callback = lambda: ""
