@@ -18,9 +18,12 @@ module_logger = album_logging.get_active_logger
 class EnvironmentManager(IEnvironmentManager):
 
     def __init__(self, album: IAlbumController):
-        self.conda_manager = CondaManager(album.configuration())
-        self.mamba_manager = MambaManager(album.configuration())
-        self.album = album
+        self._conda_manager = CondaManager(album.configuration())
+        if album.configuration().mamba_executable():
+            self._env_install_manager = MambaManager(album.configuration())
+        else:
+            self._env_install_manager = self._conda_manager
+        self._album = album
 
     def install_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
         environment = Environment(
@@ -28,7 +31,7 @@ class EnvironmentManager(IEnvironmentManager):
             self.get_environment_name(collection_solution.coordinates(), collection_solution.catalog()),
             collection_solution.loaded_solution().installation().internal_cache_path()
         )
-        self.mamba_manager.install(environment, collection_solution.loaded_solution().setup().album_api_version)
+        self._env_install_manager.install(environment, collection_solution.loaded_solution().setup().album_api_version)
         set_environment_paths(collection_solution.loaded_solution(), environment)
         return environment
 
@@ -42,37 +45,37 @@ class EnvironmentManager(IEnvironmentManager):
                 environment_name=self.get_environment_name(collection_solution.coordinates(), collection_solution.catalog()),
                 cache_path=collection_solution.loaded_solution().installation().internal_cache_path()
             )
-            self.conda_manager.set_environment_path(environment)
+            self._conda_manager.set_environment_path(environment)
 
         # solution runs in the parents environment - we need to resolve first to get info about parents environment
         else:
             coordinates = dict_to_coordinates(parent.setup())
-            catalog = self.album.catalogs().get_by_id(parent.internal()['catalog_id'])
+            catalog = self._album.catalogs().get_by_id(parent.internal()['catalog_id'])
 
             environment = Environment(
                 None,
                 self.get_environment_name(coordinates, catalog),
                 collection_solution.loaded_solution().installation().internal_cache_path()
             )
-            self.conda_manager.set_environment_path(environment)
+            self._conda_manager.set_environment_path(environment)
 
         set_environment_paths(collection_solution.loaded_solution(), environment)
         return environment
 
     def remove_environment(self, environment: IEnvironment) -> bool:
         """Removes an environment."""
-        res = self.conda_manager.remove_environment(environment.name())
+        res = self._conda_manager.remove_environment(environment.name())
         self.remove_disc_content_from_environment(environment)
         return res
 
     def run_scripts(self, environment: IEnvironment, scripts, pipe_output=True):
         if environment:
-            self.conda_manager.run_scripts(environment, scripts, pipe_output=pipe_output)
+            self._conda_manager.run_scripts(environment, scripts, pipe_output=pipe_output)
         else:
             raise EnvironmentError("Environment not set! Cannot run scripts!")
 
     def get_conda_manager(self):
-        return self.conda_manager
+        return self._conda_manager
 
     @staticmethod
     def get_environment_name(coordinates: ICoordinates, catalog: ICatalog) -> str:

@@ -68,7 +68,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         local_catalog = self.album_controller.collection_manager().catalogs().get_cache_catalog()
         local_catalog_name = str(local_catalog.name())
         leftover_env_name = local_catalog_name + "_group_faultySolution_0.1.0"
-        self.assertTrue(self.album_controller.environment_manager().conda_manager.environment_exists(leftover_env_name))
+        self.assertTrue(self.album_controller.environment_manager().get_conda_manager().environment_exists(leftover_env_name))
 
         # check file is copied
         local_file = self.album_controller.collection_manager().solutions().get_solution_file(local_catalog,
@@ -85,7 +85,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         # check cleaned up
         self.assertFalse(local_file.exists())
         self.assertFalse(
-            self.album_controller.environment_manager().conda_manager.environment_exists(leftover_env_name))
+            self.album_controller.environment_manager().get_conda_manager().environment_exists(leftover_env_name))
         self.assertEqual([],
                          self.album_controller.collection_manager().catalog_collection.get_unfinished_installation_solutions())
 
@@ -104,7 +104,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         local_catalog_name = str(local_catalog.name())
         leftover_env_name = local_catalog_name + "_solution14_faulty_environment_0.1.0"
         self.assertFalse(
-            self.album_controller.environment_manager().conda_manager.environment_exists(leftover_env_name))
+            self.album_controller.environment_manager().get_conda_manager().environment_exists(leftover_env_name))
 
         # check file is copied
         local_file = self.album_controller.collection_manager().solutions().get_solution_file(

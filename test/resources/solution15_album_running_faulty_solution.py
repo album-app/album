@@ -8,7 +8,6 @@ channels:
 dependencies:
   - python=3.7
   - pip
-  - mamba
   - git
   - pip:
     - https://gitlab.com/album-app/album/-/archive/dev/album-dev.zip
