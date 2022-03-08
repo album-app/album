@@ -31,6 +31,7 @@
     - 'echo "Environment path: $env:PATH"'
     - 'conda init'
     - 'conda config --set notify_outdated_conda false'
+    - 'conda install -y mamba -c conda-forge'
     - '$progressPreference = $oldProgressPreference'
   tags:
     - windows
@@ -57,9 +58,10 @@
     - python -V  # Print out python version for debugging
     - pwd
     - which python
-    - conda create -y --channel=conda-forge -n album python=3.7 pip git mamba
+    - conda create -y --channel=conda-forge -n album python=3.7 pip git
     - conda init bash
     - source ~/.bashrc
+    - conda install -y mamba -c conda-forge
     - conda activate album
     - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
     - which python
@@ -100,8 +102,9 @@
     - bash $tmpdir/miniconda.sh -b -p $tmpdir/miniconda
     - export PATH=$PATH:$tmpdir/miniconda/bin/
     - echo $PATH
-    - conda create -y --channel=conda-forge -n album python=3.7 pip git mamba
+    - conda create -y --channel=conda-forge -n album python=3.7 pip git
     - source $tmpdir/miniconda/bin/activate
+    - conda install -y mamba -c conda-forge
     - conda activate album
     - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
     - python -V
@@ -296,14 +299,14 @@ unit tests windows:
   extends: .windows_base_template
   stage: test
   script:
-    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.7 pip git mamba 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit.py 2>&1 | Write-Host; exit(0)}
+    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.7 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit.py 2>&1 | Write-Host; exit(0)}
     - if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}
 
 integration tests windows:
   extends: .windows_base_template
   stage: test
   script:
-    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.7 pip git mamba 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration.py 2>&1 | Write-Host; exit(0)}
+    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.7 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration.py 2>&1 | Write-Host; exit(0)}
     - if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}
 
 release tests linux:

@@ -81,9 +81,7 @@ class Configuration(IConfiguration):
             if 'windows' in operation_system:
                 self._conda_executable = shutil.which(self._conda_executable)
 
-        self._mamba_executable = 'mamba'
-        if 'windows' in operation_system:
-            self._mamba_executable = shutil.which(self._mamba_executable)
+        self._mamba_executable = shutil.which('mamba')
         self._cache_path_tmp_internal = self._base_cache_path.joinpath(DefaultValues.cache_path_solution_prefix.value)
         self._cache_path_app = self._base_cache_path.joinpath(DefaultValues.cache_path_app_prefix.value)
         self._cache_path_data = self._base_cache_path.joinpath(DefaultValues.cache_path_data_prefix.value)

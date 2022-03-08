@@ -27,7 +27,7 @@ class TestIntegrationTest(TestIntegrationCoreCommon):
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_test(self, get_environment_path):
-        get_environment_path.return_value = self.album_controller.environment_manager().conda_manager.get_active_environment_path()
+        get_environment_path.return_value = self.album_controller.environment_manager().get_conda_manager().get_active_environment_path()
 
         self.fake_install(self.get_test_solution_path("solution6_noparent_test.py"), create_environment=False)
 
