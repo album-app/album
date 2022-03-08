@@ -70,7 +70,7 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         coordinates = Coordinates('group', 'name', '0.1.0')
 
         # run deploy without changelog
-        sys.argv = ['', 'deploy', path, '--catalog', 'test_catalog']
+        sys.argv = ['', 'deploy', path, 'test_catalog']
 
         # call
         self.album_controller.deploy_manager().deploy(
