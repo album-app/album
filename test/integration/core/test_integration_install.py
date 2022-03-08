@@ -58,6 +58,20 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         self.assertEqual([],
                          self.album_controller.collection_manager().catalog_collection.get_unfinished_installation_solutions())
 
+        # create test catalog, deploy faulty solution to test catalog
+        catalog_src, _ = self.setup_empty_catalog("my-catalog")
+        catalog = self.album_controller.collection_manager().catalogs().add_by_src(catalog_src)
+        self.album_controller.deploy_manager().deploy(self.get_test_solution_path('solution13_faulty_routine.py'),
+                                                      catalog_name=catalog.name(), dry_run=False,
+                                                      git_email=DefaultValues.catalog_git_email.value,
+                                                      git_name=DefaultValues.catalog_git_user.value)
+        self.album_controller.collection_manager().catalogs().update_collection(catalog.name())
+
+        # first, install via path - will add the solution to the local catalog
+        with self.assertRaises(RuntimeError):
+            resolve_result = self.album_controller.collection_manager().resolve_and_load(self.get_test_solution_path('solution13_faulty_routine.py'))
+            self.album_controller.install_manager().install(resolve_result)
+
         # call
         with self.assertRaises(RuntimeError):
             resolve_result = self.album_controller.collection_manager().resolve_and_load(
@@ -75,6 +89,12 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
                                                                                               Coordinates("group",
                                                                                                           "faultySolution",
                                                                                                           "0.1.0"))
+        self.assertTrue(local_file.exists())
+
+        # try to install faulty solution again
+        resolve_result = self.album_controller.collection_manager().resolve_and_load('group:faultySolution:0.1.0')
+        with self.assertRaises(RuntimeError):
+            self.album_controller.install_manager().install(resolve_result)
         self.assertTrue(local_file.exists())
 
         # try to install smth. else (or the same, after routine is fixed)
