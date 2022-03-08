@@ -86,17 +86,15 @@ def create_parser():
     parser.create_file_command_parser('repl', repl, 'get an interactive repl for an album solution.')
     p = parser.create_file_command_parser('deploy', deploy, 'deploy an album solution.')
     p.add_argument(
+        'catalog',
+        type=str,
+        help='Specify a catalog name to deploy to. Must be configured!')
+    p.add_argument(
         '--dry-run',
         required=False,
         help='Parameter to indicate a dry run and only show what would happen.',
         action='store_true'
     )
-    p.add_argument(
-        '--catalog',
-        required=False,
-        help='Specify a catalog name to deploy to. Must be configured! '
-             '\"catalog_local\" refers to the local catalog. Default is None.',
-        default=None)
     p.add_argument(
         '--push-option',
         required=False,

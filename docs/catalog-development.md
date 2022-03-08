@@ -29,7 +29,7 @@ album add-catalog [path-to-new-catalog]
 ```
 Now deploy the solution into this catalog:
 ```
-album deploy [solution-file] --catalog [catalog-name]
+album deploy [solution-file] [catalog-name]
 ```
 Anyone who has this catalog in their collection and wants to use this new solution (including yourself) has to first..
 
