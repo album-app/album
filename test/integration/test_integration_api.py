@@ -71,7 +71,7 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
         catalog = album.add_catalog(local_catalog_path)
 
         self.assertCatalogPresence(self.album._controller.collection_manager().catalogs().get_all(),
-                                   str(local_catalog_path), True)
+                                   str(local_catalog_path.resolve()), True)
 
         # clone solution
         group = "group"

@@ -109,7 +109,6 @@ class TestCondaManager(TestUnitCoreCommon):
         self.conda.create_environment_from_file(
             Path(self.tmp_dir.name).joinpath("env_file.yml"), self.test_environment_name
         )
-        print(self.captured_output.getvalue())
         self.assertTrue(self.conda.environment_exists(self.test_environment_name))
 
     def test__append_framework_to_yml(self):

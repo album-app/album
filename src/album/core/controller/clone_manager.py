@@ -76,6 +76,7 @@ class CloneManager(ICloneManager):
                 tmp_clone_path = Path(tmp_dir).joinpath("clone")
                 with clone_repository(target_path, tmp_clone_path) as repo:
                     self._copy_template_into_repository(repo, template_folder, catalog_name, git_email, git_name)
+                force_remove(tmp_clone_path)
         except git.GitCommandError:
             create_path_recursively(target_path)
             create_bare_repository(target_path)
@@ -85,8 +86,7 @@ class CloneManager(ICloneManager):
                     self._copy_template_into_repository(repo, template_folder, catalog_name,
                                                         email=DefaultValues.catalog_git_email.value,
                                                         username=DefaultValues.catalog_git_user.value)
-
-            force_remove(tmp_clone_path)
+                force_remove(tmp_clone_path)
 
     def _copy_template_into_repository(self, repo: Repo, template_folder, catalog_name: str, email=None, username=None):
         head = checkout_main(repo)

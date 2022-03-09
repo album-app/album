@@ -119,8 +119,6 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         )
         self.album_controller.run_manager().run(resolve_result, argv=argv)
 
-        print(self.captured_output.getvalue())
-
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         # assert file logs
@@ -224,7 +222,6 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         # run
         with self.assertRaises(SubProcessError) as e:
             self.album_controller.run_manager().run(resolve_result)
-        print(self.captured_output.getvalue())
         self.assertIn('INFO ~ print something', self.captured_output.getvalue())
         self.assertIn('INFO ~ logging info', self.captured_output.getvalue())
         self.assertEqual(1, self.captured_output.getvalue().count('INFO ~ logging info'))

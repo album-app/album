@@ -52,7 +52,6 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
                 "group", "name", "0.1.0"
             )).joinpath("solution.py").exists()
         )
-        print(self.captured_output.getvalue())
 
     def test_install_lambda_breaks(self):
         self.assertEqual([],
@@ -192,7 +191,6 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         resolve_result = self.album_controller.collection_manager().resolve_and_load(
             self.get_test_solution_path('app1.py'))
         self.album_controller.install_manager().install(resolve_result)
-        print(self.captured_output.getvalue())
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         # install child solution
