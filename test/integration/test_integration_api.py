@@ -49,10 +49,10 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
         # clone catalog template
         local_catalog_name = "mycatalog"
         local_catalogs_path = Path(self.tmp_dir.name).joinpath("my-catalogs")
-        local_catalogs = str(local_catalogs_path)
         local_catalog_path = local_catalogs_path.joinpath(local_catalog_name)
+        local_catalog_path_str = str(local_catalog_path)
 
-        album.clone("template:catalog", local_catalogs, local_catalog_name)
+        album.clone("template:catalog", local_catalog_path_str, local_catalog_name)
 
         self.assertCatalogPresence(self.album._controller.collection_manager().catalogs().get_all(), local_catalog_path,
                                    False)

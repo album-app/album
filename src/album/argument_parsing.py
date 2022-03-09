@@ -181,7 +181,7 @@ def create_parser():
     p.add_argument(
         'target_dir',
         type=str,
-        help='The target directory where the solution or catalog will be added to.'
+        help='The target directory where the solution or catalog will be added to. For a catalog, this can also be an empty GIT repository URL.'
     )
     p.add_argument(
         'name',

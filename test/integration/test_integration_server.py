@@ -66,12 +66,12 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCoreCo
         # clone catalog template
         local_catalog_name = "mycatalog"
         local_catalogs_path = Path(self.tmp_dir.name).joinpath("my-catalogs")
-        local_catalogs = str(local_catalogs_path)
         local_catalog_path = local_catalogs_path.joinpath(local_catalog_name)
-        self.assertCatalogPresence(self.album_controller.catalogs().get_all(), local_catalogs, False)
+        local_catalog_path_str = str(local_catalog_path)
+        self.assertCatalogPresence(self.album_controller.catalogs().get_all(), local_catalog_path_str, False)
 
         res_clone_catalog = client.get(
-            f"/clone/template:catalog?target_dir={urllib.parse.quote(local_catalogs)}&name={local_catalog_name}"
+            f"/clone/template:catalog?target_dir={urllib.parse.quote(local_catalog_path_str)}&name={local_catalog_name}"
         )
         self.assertEqual(200, res_clone_catalog.status_code)
         self._finish_taskmanager_with_timeout(self.server._task_manager, 30)
@@ -135,11 +135,11 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCoreCo
         self._finish_taskmanager_with_timeout(self.server._task_manager, 30)
 
         # update catalog cache
-        res_update_catalog = client.get("/update?src=" + urllib.parse.quote(str(local_catalog_path)))
+        res_update_catalog = client.get("/update?name=" + local_catalog_name)
         self.assertEqual(200, res_update_catalog.status_code)
 
         # upgrade collection
-        res_update_catalog = client.get("/upgrade?src=" + urllib.parse.quote((str(local_catalog_path))))
+        res_update_catalog = client.get("/upgrade?name=" + local_catalog_name)
         self.assertEqual(200, res_update_catalog.status_code)
 
         # check that solution exists, but is not installed
