@@ -174,6 +174,16 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
             ]
         }, json.loads(stdout_content.getvalue()))
 
+    def test_update_json(self):
+        # run
+        stdout_content = io.StringIO()
+        with contextlib.redirect_stdout(stdout_content):
+            # define and run search
+            sys.argv = ["", "update", "--catalog", "non-existing-catalog"]
+            with self.assertRaises(SystemExit) as e:
+                main()
+            self.assertTrue(isinstance(e.exception.code, LookupError))
+
     def test_index(self):
         sys.argv = ["", "index"]
 

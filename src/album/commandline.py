@@ -21,11 +21,11 @@ def remove_catalog(album_instance: Album, args) -> None:
 
 
 def update(album_instance: Album, args):
-    album_instance.update(getattr(args, "catalog_name", None))
+    album_instance.update(getattr(args, "catalog", None))
 
 
 def upgrade(album_instance: Album, args):
-    updates = album_instance.upgrade(getattr(args, "catalog_name", None), dry_run=args.dry_run, override=args.override)
+    updates = album_instance.upgrade(getattr(args, "catalog", None), dry_run=args.dry_run, override=args.override)
     print_json = _get_print_json(args)
     if print_json:
         print(_as_json(updates))

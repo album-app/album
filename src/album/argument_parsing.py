@@ -152,13 +152,13 @@ def create_parser():
         update,
         'Update the catalog index files. Either all catalogs configured, or a specific one.'
     )
-    p.add_argument('src', type=str, help='src of the catalog', nargs='?')
+    p.add_argument('catalog', type=str, help='name of the catalog', nargs='?')
     p = parser.create_command_parser(
         'upgrade',
         upgrade,
         'upgrade the local collection from the catalog index files. Either all catalogs configured, or a specific one.'
     )
-    p.add_argument('src', type=str, help='src of the catalog', nargs='?')
+    p.add_argument('catalog', type=str, help='name of the catalog', nargs='?')
     p.add_argument(
         '--dry-run',
         required=False,
