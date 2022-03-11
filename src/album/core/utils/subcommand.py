@@ -2,6 +2,7 @@ import io
 import os
 import re
 import subprocess
+import sys
 import threading
 from typing import Optional
 
@@ -240,6 +241,8 @@ def _run_process(command, log: LogProcessing, pipe_output):
         p.wait()
         info_pipe.close()
         error_pipe.close()
+        sys.stdout.flush()
+        sys.stderr.flush()
         log.close()
         if p.returncode != 0:
             raise SubProcessError(1, p.returncode)

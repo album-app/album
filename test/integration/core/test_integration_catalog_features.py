@@ -1,15 +1,10 @@
 import sys
-import time
 from pathlib import Path
 
-from album.runner.core.model.coordinates import Coordinates
-
-from album.core.model.default_values import DefaultValues
-
-from album.core.model.catalog_index import CatalogIndex
-
 from album.core.model.catalog_updates import ChangeType
+from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.solution_operations import get_deploy_dict
+from album.runner.core.model.coordinates import Coordinates
 from album.runner.core.model.solution import Solution
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 from test.unit.test_unit_core_common import TestUnitCoreCommon
@@ -51,15 +46,17 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
 
         new_catalog_src, _ = self.setup_empty_catalog("catalog_integration_test")
 
+        modified_catalog_src = new_catalog_src.joinpath('..', 'catalog_integration_test')
+
         # call
-        self.album_controller.collection_manager().catalogs().add_by_src(new_catalog_src)
+        self.album_controller.collection_manager().catalogs().add_by_src(modified_catalog_src)
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         catalogs = self.album_controller.collection_manager().get_collection_index().get_all_catalogs()
         catalog_cache_path_to_be_deleted = catalogs[-1]["path"]
         self.assertEqual(initial_len + 1, len(catalogs))
-        self.assertEqual(str(new_catalog_src), catalogs[len(catalogs) - 1]["src"])
+        self.assertEqual(str(new_catalog_src.resolve()), catalogs[len(catalogs) - 1]["src"])
 
         # gather arguments remove
         sys.argv = ["", "remove-catalog", new_catalog_src]

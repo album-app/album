@@ -81,7 +81,7 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
                 Path(self.tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, "aNiceCatalog")),
             'branch_name': "main",
             "type": "direct",
-            "src": str(catalog_src),
+            "src": str(catalog_src.resolve()),
             "deletable": 1,
         })
         self.assertEqual(expected_list, self.album_controller.collection_manager().get_collection_index().get_all_catalogs())
@@ -557,7 +557,7 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
         c = self.catalog_handler.remove_from_collection_by_src(self.tmp_dir.name)
 
         # assert
-        get_catalog_by_src_mock.assert_called_once_with(self.tmp_dir.name)
+        get_catalog_by_src_mock.assert_called_once_with(str(Path(self.tmp_dir.name).resolve()))
         _remove_from_collection_mock.assert_called_once_with({"a": 1})
         self.assertEqual("myCatalogObject", c)
 
@@ -573,7 +573,7 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
         c = self.catalog_handler.remove_from_collection_by_src(self.tmp_dir.name)
 
         # assert
-        get_catalog_by_src_mock.assert_called_once_with(self.tmp_dir.name)
+        get_catalog_by_src_mock.assert_called_once_with(str(Path(self.tmp_dir.name).resolve()))
         _remove_from_collection_mock.assert_not_called()
         self.assertIsNone(c)
 

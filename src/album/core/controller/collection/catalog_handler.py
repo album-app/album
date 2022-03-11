@@ -48,6 +48,10 @@ class CatalogHandler(ICatalogHandler):
     def add_by_src(self, source, branch_name="main") -> Catalog:
         # source can be path or url
         source = str(source)
+        if not validators.url(source):
+            if Path(source).exists():
+                source = str(Path(source).resolve())
+
         catalog_dict = self._get_collection_index().get_catalog_by_src(source)
         if catalog_dict:
             module_logger().warning("Cannot add catalog twice! Doing nothing...")
@@ -253,7 +257,7 @@ class CatalogHandler(ICatalogHandler):
     def remove_from_collection_by_src(self, src) -> Optional[Catalog]:
         if not validators.url(str(src)):
             if Path(src).exists():
-                src = os.path.abspath(src)
+                src = str(Path(src).resolve())
             else:
                 module_logger().warning("Cannot remove catalog with source \"%s\"! Not configured!" % str(src))
                 return None

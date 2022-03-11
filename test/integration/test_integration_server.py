@@ -66,17 +66,18 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCoreCo
         # clone catalog template
         local_catalog_name = "mycatalog"
         local_catalogs_path = Path(self.tmp_dir.name).joinpath("my-catalogs")
-        local_catalogs = str(local_catalogs_path)
         local_catalog_path = local_catalogs_path.joinpath(local_catalog_name)
-        self.assertCatalogPresence(self.album_controller.catalogs().get_all(), local_catalogs, False)
+        local_catalog_path_str = str(local_catalog_path)
+        self.assertCatalogPresence(self.album_controller.catalogs().get_all(),
+                                   str(Path(local_catalog_path_str).resolve()), False)
 
         res_clone_catalog = client.get(
-            f"/clone/template:catalog?target_dir={urllib.parse.quote(local_catalogs)}&name={local_catalog_name}"
+            f"/clone/template:catalog?target_dir={urllib.parse.quote(local_catalog_path_str)}&name={local_catalog_name}"
         )
         self.assertEqual(200, res_clone_catalog.status_code)
         self._finish_taskmanager_with_timeout(self.server._task_manager, 30)
         self.assertCatalogPresence(
-            self.album_controller.catalogs().get_all(), local_catalog_path, False
+            self.album_controller.catalogs().get_all(), str(local_catalog_path.resolve()), False
         )
         self.assertTrue(local_catalogs_path.exists())
         self.assertTrue(local_catalog_path.exists())
@@ -93,7 +94,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCoreCo
         self.assertEqual(200, res_add_catalog.status_code)
         catalog_id = res_add_catalog.json["catalog_id"]
         self.assertCatalogPresence(
-            self.album_controller.catalogs().get_all(), str(local_catalog_path), True
+            self.album_controller.catalogs().get_all(), str(local_catalog_path.resolve()), True
         )
 
         # clone solution
@@ -135,11 +136,11 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCoreCo
         self._finish_taskmanager_with_timeout(self.server._task_manager, 30)
 
         # update catalog cache
-        res_update_catalog = client.get("/update?src=" + urllib.parse.quote(str(local_catalog_path)))
+        res_update_catalog = client.get("/update?name=" + local_catalog_name)
         self.assertEqual(200, res_update_catalog.status_code)
 
         # upgrade collection
-        res_update_catalog = client.get("/upgrade?src=" + urllib.parse.quote((str(local_catalog_path))))
+        res_update_catalog = client.get("/upgrade?name=" + local_catalog_name)
         self.assertEqual(200, res_update_catalog.status_code)
 
         # check that solution exists, but is not installed
@@ -227,7 +228,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCoreCo
         # remove catalog
         res_status = client.get("/remove-catalog?src=" + urllib.parse.quote((str(local_catalog_path))))
         self.assertEqual(200, res_status.status_code)
-        self.assertCatalogPresence(self.album_controller.catalogs().get_all(), local_catalog_path,
+        self.assertCatalogPresence(self.album_controller.catalogs().get_all(), str(local_catalog_path.resolve()),
                                    False)
 
         # check that solution is not accessible any more
@@ -276,7 +277,7 @@ class TestIntegrationServer(flask_unittest.ClientTestCase, TestIntegrationCoreCo
     def assertCatalogPresence(self, catalogs, src, should_be_present):
         present = False
         for catalog in catalogs:
-            if str(catalog.src()) == src:
+            if str(catalog.src()) == str(src):
                 present = True
         self.assertEqual(should_be_present, present)
 
