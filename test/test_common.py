@@ -51,7 +51,8 @@ class TestCommon(unittest.TestCase):
         if self.album:
             raise AttributeError("Only one instance of an Album should be used!"
                                  "Either use setup_album_instance or setup_album_controller!")
-        self.album = Album.Builder().base_cache_path(Path(self.tmp_dir.name)).build()
+        with patch('album.api.configure_root_logger'):
+            self.album = Album.Builder().base_cache_path(Path(self.tmp_dir.name)).build()
         if self.album_controller:
             self.album._controller = self.album_controller
         else:
