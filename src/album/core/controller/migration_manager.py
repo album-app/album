@@ -1,5 +1,7 @@
 import json
 import pkgutil
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from jsonschema import validate
 
@@ -27,7 +29,8 @@ class MigrationManager(IMigrationManager):
             CollectionIndex.version  # current framework target version
         )
 
-    def _create_catalog_index(self, catalog: ICatalog, initial_version) -> None:
+    def _load_catalog_index(self, catalog: ICatalog, initial_version) -> None:
+        """Loads current index on disk and migrates if necessary"""
         catalog.load_index()
         self.migrate_catalog_index_db(
             catalog.index().get_path(),
@@ -38,6 +41,7 @@ class MigrationManager(IMigrationManager):
     def migrate_catalog_collection_db(self, collection_index_path, curr_version, target_version):
         if curr_version != target_version:
             # todo: execute catalog_collection SQL migration scripts if necessary!
+            # todo: set new version in DB
             raise NotImplementedError(
                 "Cannot migrate collection from version \"%s\" to version \"%s\"!" % (curr_version, target_version)
             )
@@ -46,22 +50,23 @@ class MigrationManager(IMigrationManager):
     def migrate_catalog_index_db(self, catalog_index_path, curr_version, target_version):
         if curr_version != target_version:
             # todo: execute catalog index SQL migration scripts if necessary!
+            # todo: set new version in DB
             raise NotImplementedError(
                 "Cannot migrate collection from version %s to version %s." % (curr_version, target_version)
             )
         return catalog_index_path
 
     def load_index(self, catalog: ICatalog):
-        catalog.update_index_cache()
-
-        self._create_catalog_index(catalog, CatalogIndex.version)
+        with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
+            catalog.update_index_cache(Path(tmp_dir))
+        self._load_catalog_index(catalog, CatalogIndex.version)
         self.album.catalogs().set_version(catalog)
 
     def refresh_index(self, catalog: ICatalog) -> bool:
-        """Routine to refresh the catalog index. Downloads or copies the index_file."""
-        if catalog.update_index_cache_if_possible():
-            self._create_catalog_index(catalog, CatalogIndex.version)
-            return True
+        with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
+            if catalog.update_index_cache_if_possible(tmp_dir):
+                self._load_catalog_index(catalog, CatalogIndex.version)
+                return True
         return False
 
     def validate_solution_attrs(self, attrs):

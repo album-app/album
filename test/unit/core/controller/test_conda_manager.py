@@ -17,8 +17,8 @@ class TestCondaManager(TestUnitCoreCommon):
 
     def setUp(self):
         super().setUp()
-        album = self.create_album_test_instance(init_catalogs=False)
-        self.conda = CondaManager(album.configuration())
+        self.setup_collection(init_catalogs=False, init_collection=True)
+        self.conda = CondaManager(self.album_controller.configuration())
 
     def tearDown(self) -> None:
         if self.conda.environment_exists(self.test_environment_name):
@@ -27,7 +27,7 @@ class TestCondaManager(TestUnitCoreCommon):
         super().tearDown()
 
     def test_get_environment_list(self):
-        base_dir = Path(self.album.configuration().lnk_path()).joinpath('env')
+        base_dir = Path(self.album_controller.configuration().lnk_path()).joinpath('env')
         expected = list()
         expected.append(base_dir.joinpath("envName1").resolve())
         expected.append(base_dir.joinpath("envName2").resolve())
@@ -109,7 +109,6 @@ class TestCondaManager(TestUnitCoreCommon):
         self.conda.create_environment_from_file(
             Path(self.tmp_dir.name).joinpath("env_file.yml"), self.test_environment_name
         )
-        print(self.captured_output.getvalue())
         self.assertTrue(self.conda.environment_exists(self.test_environment_name))
 
     def test__append_framework_to_yml(self):

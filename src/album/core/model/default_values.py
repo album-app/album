@@ -4,6 +4,8 @@ from pathlib import Path
 
 from appdirs import user_data_dir, user_cache_dir, user_config_dir
 
+import album.core
+
 
 class DefaultValues(Enum):
     """Add an entry here to initialize default attributes for a album framework installation instance."""
@@ -16,8 +18,12 @@ class DefaultValues(Enum):
     # templates
     catalog_template_url = 'https://gitlab.com/album-app/catalogs/templates'  # base URL of available catalog templates
 
+    # deployment & cloning
+    catalog_git_user = "album"                      # username used for initial push to a new catalog
+    catalog_git_email = album.core.__email__        # email used for initial push to a new catalog
+
     # catalog
-    local_catalog_name = 'catalog_local'                                   # the default name of the local catalog (always configured)
+    cache_catalog_name = 'cache_catalog'                                   # the default name of the cache catalog (always configured)
     _catalog_url = 'https://gitlab.com/album-app/catalogs/default'
     _catalog_branch = "main"
     default_catalog_src = os.getenv('ALBUM_DEFAULT_CATALOG', _catalog_url) # default catalog, either catalog_url or env. variable
@@ -61,9 +67,9 @@ class DefaultValues(Enum):
     app_config_dir = Path(user_config_dir("album"))  # base configuration path
 
     # conda
-    conda_default_executable = "conda"                                   # default conda executable
+    conda_default_executable = "conda"                                    # default conda executable
     conda_path = os.getenv('ALBUM_CONDA_PATH', conda_default_executable)  # default conda path, either env. var or conda
 
     # server
-    server_port = 5476  # default port used to launch server
-    server_host = "127.0.0.1"  # default host used to launch server. Set to 0.0.0.0 when used in docker
+    server_port = 5476              # default port used to launch server
+    server_host = "127.0.0.1"       # default host used to launch server. Set to 0.0.0.0 when used in docker

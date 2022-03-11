@@ -1,12 +1,14 @@
 import os
 import re
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Generator
 from urllib.parse import urlparse
 
 import git
 from git import Repo
 
-from album.core.utils.operations.file_operations import force_remove
+from album.core.utils.operations.file_operations import force_remove, create_path_recursively, folder_empty
 from album.core.utils.operations.url_operations import is_url
 from album.runner import album_logging
 
@@ -22,7 +24,7 @@ def checkout_branch(git_repo, branch_name):
         git_repo:
             The repository
         branch_name:
-            The name of the branch to check out
+            The name of the branch to check out.
 
     Returns:
         The head of the branch
@@ -37,6 +39,11 @@ def checkout_branch(git_repo, branch_name):
         )
         head = git_repo.heads[branch_name]
         head.checkout()
+        try:
+            head.repo.git.pull()
+        except git.GitCommandError:
+            # only for request based catalogs this is important. Not failing here should be safe.
+            module_logger().warning("Cannot pull from branch. Assuming up to date!")
         return head
     except IndexError as e:
         module_logger().debug("Branch name not in local repository! Checking origin...")
@@ -114,13 +121,25 @@ def retrieve_files_from_head(head, pattern, option="", number_of_files=1):
     return abs_path_solution_file
 
 
+def _add_files(repo, file_paths) -> bool:
+    """Add files to the repo in the branch currently checked out."""
+    if repo.index.diff(None) or repo.untracked_files:
+        module_logger().info('Preparing committing...')
+        for file_path in file_paths:
+            module_logger().debug('Adding file %s...' % file_path)
+            # todo: nice catching here?
+            repo.git.add(file_path)
+        return True
+    return False
+
+
 def add_files_commit_and_push(head, file_paths, commit_message, push=False, email=None, username=None,
-                              push_option_list=None):
+                              push_option_list=None, force=False):
     """Adds files in a given path to a git head and commits.
 
     Args:
         push_option_list:
-            options used for pushing. See https://docs.gitlab.com/ee/user/project/push_options.html. Expects a string.
+            options used for pushing. See https://docs.gitlab.com/ee/user/project/push_options.html. Expects a list.
         head:
             The head of the repository
         file_paths:
@@ -133,6 +152,8 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, emai
             The git user to use. (Default: systems git configuration)
         email:
             The git email to use. (Default: systems git configuration)
+        force:
+            whether to use force push or not
 
     Raises:
         RuntimeError when no files are in the index
@@ -148,16 +169,20 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, emai
     if email or username:
         configure_git(repo, email, username)
 
-    if repo.index.diff(None) or repo.untracked_files:
-        module_logger().info('Preparing committing...')
-        for file_path in file_paths:
-            module_logger().debug('Adding file %s...' % file_path)
-            # todo: nice catching here?
-            repo.git.add(file_path)
+    if _add_files(repo, file_paths):
 
+        # build command
         cmd_option = ['--set-upstream']
+        cmd = cmd_option + push_options
+        if force:
+            cmd = cmd + ['-f']
 
-        cmd = cmd_option + push_options + ['-f', 'origin', head]
+        try:
+            remote_name = repo.remote().refs.HEAD.remote_name
+        except AttributeError:
+            remote_name = "origin"
+
+        cmd = cmd + [remote_name, head]
 
         module_logger().debug("Running command: repo.git.push(%s)..." % (", ".join(str(x) for x in cmd)))
 
@@ -255,6 +280,64 @@ def download_repository(repo_url, git_folder_path, force_download=True, update=T
     return repo
 
 
+def checkout_files(repo, files_to_download):
+    for file in files_to_download:
+        repo.git.restore(file, staged=True)
+        repo.git.checkout(file)
+
+
+@contextmanager
+def clone_repository_sparse(repo_url, branch_name, target_repo_path) -> Generator[Repo, None, None]:
+    """Clones a repository branch to a given path.
+
+    Args:
+        repo_url:
+            The url to the repository.
+        branch_name:
+            The branch name.
+        target_repo_path:
+            The target path on the disk.
+
+    """
+    git_folder_path = Path(target_repo_path)
+    force_remove(git_folder_path)
+    create_path_recursively(git_folder_path)
+
+    module_logger().debug("Cloning repository without history from %s into %s..." % (repo_url, git_folder_path))
+    repo = git.Repo.clone_from(
+        repo_url, git_folder_path, branch=branch_name, no_checkout=True, depth=1, no_tags=True, single_branch=True
+    )
+    yield repo
+    repo.close()
+
+
+@contextmanager
+def clone_repository(src, target_repo_path, force=False) -> Generator[Repo, None, None]:
+    """Clones the full repository
+
+    Args:
+        src:
+            The url to the repository.
+        target_repo_path:
+            The target path on the disk.
+        force:
+            boolean value. If true deletes target folder first
+
+
+    """
+    if not folder_empty(target_repo_path):
+        if force:
+            force_remove(target_repo_path)
+        else:
+            raise RuntimeError("Target folder \"%s\" not empty!" % str(target_repo_path))
+
+    create_path_recursively(target_repo_path)
+    repo = git.Repo.clone_from(src, target_repo_path)
+
+    yield repo
+    repo.close()
+
+
 def init_repository(path):
     """Initializes a repository to the origin reference. Thereby discarding all changes made to the repository.
 
@@ -273,17 +356,80 @@ def init_repository(path):
 
     repo = git.Repo(path)
 
-    # remove all eventual changes made local
-    repo.git.add('*')
-    repo.git.reset('--hard')
-
-    # update the remote
+    # update the remote to get latest changes on all remotes (pushes, HEAD pointer change, reverts, etc.)
     repo.remote().update()
 
+    # remove all eventual changes made local
+    remote_head = get_local_remote_ref_head(repo)
+    checkout_main(repo, remote_head.name)
+    clean_repository(repo, remote_head.name)
+
     # checkout remote HEAD for a clean start for new branches
-    repo.remote().refs.HEAD.checkout()
+    remote_head.checkout()
 
     return repo
+
+
+def create_bare_repository(target):
+    create_path_recursively(target)
+
+    repo = git.Repo.init(target, bare=True)
+
+    # ref HEAD to main
+    repo.git.symbolic_ref('HEAD', 'refs/heads/main')
+
+    repo.close()
+
+
+def create_repository(target):
+    create_path_recursively(target)
+
+    repo = git.Repo.init(target)
+
+    # ref HEAD to main
+    repo.git.symbolic_ref('HEAD', 'refs/heads/main')
+
+    return repo
+
+
+def clean_repository(repo, target_head_name=None):
+    """Resets all changes made in the current repository"""
+    if not target_head_name:
+        target_head_name = get_local_remote_ref_head(repo).name
+    remote_name = repo.remote().name
+    remote_ref = remote_name + "/" + target_head_name
+    # reset to current remote HEAD reference name
+    repo.git.reset(['--hard', remote_ref])
+    # remove all leftover-untracked files (if any)
+    repo.git.clean('-fd')
+
+
+def get_local_remote_ref_head(repo):
+    if repo.remote().refs:
+        try:
+            remote_head = repo.git.remote(["set-head", "origin", "-a"])
+            remote_main_name = remote_head.split(" ")[-1]
+        except git.GitCommandError:
+            remote_main_name = "main"
+        head = repo.heads[remote_main_name]
+    else:
+        head = repo.head.ref
+    return head
+
+
+def checkout_main(repo, main_name=None):
+    """Checks out the main branch of the repository locally. Note: must not be called "main"!"""
+    if not main_name:
+        head = get_local_remote_ref_head(repo)
+    else:
+        head = repo.heads[main_name]
+
+    try:
+        head.checkout()
+    except git.GitCommandError:
+        pass
+
+    return head
 
 
 def retrieve_default_mr_push_options(repo_url) -> list:
@@ -297,7 +443,7 @@ def retrieve_default_mr_push_options(repo_url) -> list:
         The default push option to directly create a merge request when pushed to origin.
 
     """
-    if is_url(repo_url):
+    if is_url(str(repo_url)):
         parsed_url = urlparse(repo_url)
 
         if parsed_url.netloc.startswith("gitlab"):

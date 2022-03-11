@@ -9,7 +9,7 @@ class ICatalogHandler:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def create_local_catalog(self):
+    def create_cache_catalog(self):
         """Creates the local catalog on the disk from the available initial catalogs.
 
          Does not contain a DB file. Used only when album starts the first time.
@@ -27,7 +27,7 @@ class ICatalogHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def add_by_src(self, identifier, branch_name="main") -> ICatalog:
+    def add_by_src(self, source, branch_name="main") -> ICatalog:
         """ Adds a catalog. Creates them from their src. (Git, network-drive, folder outside cache, etc.)"""
         raise NotImplementedError
 
@@ -70,12 +70,13 @@ class ICatalogHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def get_local_catalog(self) -> ICatalog:
-        """Returns the first local catalog in the configuration (Reads db table from top)."""
+    def get_cache_catalog(self) -> ICatalog:
+        """Returns the first cache catalog in the configuration (Reads db table from top)."""
         raise NotImplementedError
 
     @abstractmethod
-    def create_new(self, local_path, name):
+    def create_new_metadata(self, local_path, name, catalog_type):
+        """Creates a new catalog on the disk."""
         raise NotImplementedError
 
     @abstractmethod
@@ -94,7 +95,8 @@ class ICatalogHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def update_collection(self, catalog_name=None, dry_run: bool = False) -> Dict[str, ICatalogUpdates]:
+    def update_collection(self, catalog_name=None, dry_run: bool = False, override: bool = False) -> Dict[
+        str, ICatalogUpdates]:
         """Includes all new changes from a given catalog (or all catalogs) in the catalog_collection."""
         raise NotImplementedError
 

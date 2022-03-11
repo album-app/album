@@ -14,32 +14,31 @@ from test.unit.test_unit_core_common import TestGitCommon
 class TestGitOperations(TestGitCommon):
 
     def test_checkout_branch(self):
-        with self.create_tmp_repo(create_test_branch=True) as repo:
+        with self.setup_tmp_repo(create_test_branch=True) as repo:
             head = git_op.checkout_branch(repo, "test_branch")
 
             self.assertTrue(head == repo.heads["test_branch"])
-            # todo: assert checked out
 
     def test_checkout_branch_no_branch(self):
-        with self.create_tmp_repo(commit_solution_file=False) as repo:
+        with self.setup_tmp_repo(commit_solution_file=False) as repo:
             with self.assertRaises(IndexError) as context:
                 git_op.checkout_branch(repo, "NoValidBranch")
 
             self.assertTrue("Branch \"NoValidBranch\" not in repository!" in str(context.exception))
 
     def test__retrieve_files_from_head(self):
-        with self.create_tmp_repo() as repo:
-            file_of_commit = git_op.retrieve_files_from_head(repo.heads["master"], "solutions")[0]
+        with self.setup_tmp_repo() as repo:
+            file_of_commit = git_op.retrieve_files_from_head(repo.heads["main"], "solutions")[0]
             self.assertEqual(self.commit_file, file_of_commit)
 
     def test_retrieve_files_from_head_branch(self):
-        with self.create_tmp_repo(create_test_branch=True) as repo:
+        with self.setup_tmp_repo(create_test_branch=True) as repo:
             file_of_commit = git_op.retrieve_files_from_head(repo.heads["test_branch"], "solutions")[0]
 
             self.assertEqual(self.commit_file, file_of_commit)
 
     def test_retrieve_files_from_head_too_many_files(self):
-        with self.create_tmp_repo() as repo:
+        with self.setup_tmp_repo() as repo:
             tmp_file_1 = tempfile.NamedTemporaryFile(
                 dir=os.path.join(str(repo.working_tree_dir), "solutions"), delete=False
             )
@@ -53,16 +52,42 @@ class TestGitOperations(TestGitCommon):
             repo.git.commit('-m', 'message', '--no-verify')
 
             with self.assertRaises(RuntimeError) as context:
-                git_op.retrieve_files_from_head(repo.heads["master"], "solutions")
+                git_op.retrieve_files_from_head(repo.heads["main"], "solutions")
 
             self.assertTrue("times, but expected" in str(context.exception))
 
     def test_retrieve_files_from_head_no_files(self):
-        with self.create_tmp_repo(commit_solution_file=False) as repo:
+        with self.setup_tmp_repo(commit_solution_file=False) as repo:
             with self.assertRaises(RuntimeError) as context:
-                git_op.retrieve_files_from_head(repo.heads["master"], "solutions")
+                git_op.retrieve_files_from_head(repo.heads["main"], "solutions")
 
             self.assertTrue("does not hold pattern" in str(context.exception))
+
+    def test__add_files(self):
+        tmp_file = tempfile.NamedTemporaryFile(delete=False)
+        tmp_file.close()
+
+        tmp_file2 = tempfile.NamedTemporaryFile(delete=False)
+        tmp_file2.close()
+
+        tmp_file3 = tempfile.NamedTemporaryFile(delete=False)
+        tmp_file3.close()
+
+        with self.setup_tmp_repo() as repo:
+            # check no untracked files
+            self.assertListEqual([], repo.untracked_files)
+
+            copy(tmp_file.name, Path(repo.working_tree_dir).joinpath("myFile1"))
+            copy(tmp_file2.name, Path(repo.working_tree_dir).joinpath("myFile2"))
+            copy(tmp_file2.name, Path(repo.working_tree_dir).joinpath("myFile3"))
+
+            # all files untracked
+            self.assertListEqual(["myFile1", "myFile2", "myFile3"], repo.untracked_files)
+
+            git_op._add_files(repo, ["myFile1", "myFile2"])
+
+            # all but one file added
+            self.assertListEqual(["myFile3"], repo.untracked_files)
 
     @patch('album.core.utils.operations.solution_operations.get_deploy_dict', return_value={})
     def test_add_files_commit_and_push(self, _):
@@ -72,9 +97,9 @@ class TestGitOperations(TestGitCommon):
         tmp_file = tempfile.NamedTemporaryFile(delete=False)
         tmp_file.close()
 
-        with self.create_tmp_repo() as repo:
+        with self.setup_tmp_repo() as repo:
             new_head = repo.create_head("test_solution_name")
-            new_head.ref = repo.heads["master"]
+            new_head.ref = repo.heads["main"]
             new_head.checkout()
 
             tmp_file_in_repo = Path(repo.working_tree_dir).joinpath(
@@ -110,15 +135,46 @@ class TestGitOperations(TestGitCommon):
         }
         Solution(attrs_dict)
 
-        with self.create_tmp_repo(commit_solution_file=False) as repo:
+        with self.setup_tmp_repo(commit_solution_file=False) as repo:
             new_head = repo.create_head("test_solution_name")
             new_head.checkout()
 
             with self.assertRaises(RuntimeError):
                 git_op.add_files_commit_and_push(new_head, [self.commit_file], "a_wonderful_cmt_msg", push=False)
 
+    def test_init_repository_clean_repository(self):
+        tmp_file = tempfile.NamedTemporaryFile(delete=False)
+        tmp_file.close()
+
+        with self.setup_tmp_repo(create_test_branch=True) as repo:
+            repo.heads["test_branch"].checkout()
+
+            # create untracked file
+            copy(tmp_file.name, Path(repo.working_tree_dir).joinpath("myFile1"))
+            self.assertListEqual(["myFile1"], repo.untracked_files)
+
+            # init repository again
+            git_op.init_repository(repo.working_tree_dir)
+
+            # check no untracked files left!
+            self.assertListEqual([], repo.untracked_files)
+            self.assertEqual("main", repo.active_branch.name)
+
+    def test_checkout_main(self):
+        with self.setup_tmp_repo(create_test_branch=True) as repo:
+            test_head = repo.heads["test_branch"]
+            test_head.checkout()
+
+            self.assertEqual(test_head, repo.active_branch)
+
+            # call
+            head = git_op.checkout_main(repo)
+
+            # check
+            self.assertEqual(head, repo.active_branch)
+
     def test_configure_git(self):
-        with self.create_tmp_repo(commit_solution_file=False) as repo:
+        with self.setup_tmp_repo(commit_solution_file=False) as repo:
             git_op.configure_git(repo, "MyEmail", "MyName")
 
             self.assertEqual("MyName", repo.config_reader().get_value("user", "name"))
@@ -149,6 +205,20 @@ class TestGitOperations(TestGitCommon):
         # check
         self.assertListEqual(exp, res)
 
+    @unittest.skip("Needs to be implemented!")
+    def test_clone_repository_sparse(self):
+        # ToDo: implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_clone_repository(self):
+        # ToDo: implement
+        pass
+
+    @unittest.skip("Needs to be implemented!")
+    def test_create_bare_repository(self):
+        # ToDo: implement
+        pass
 
 if __name__ == '__main__':
     unittest.main()

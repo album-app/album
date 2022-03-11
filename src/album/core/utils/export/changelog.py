@@ -49,15 +49,19 @@ def create_changelog_file(active_solution: ISolution, catalog: ICatalog, target_
     changelog_path = target_folder.joinpath(get_changelog_file_name())
     get_active_logger().debug('Writing changelog file to: %s...' % changelog_path)
     content = get_changelog_content(active_solution, catalog)
+
     create_path_recursively(changelog_path.parent)
     with open(str(changelog_path), 'w+') as yml_f:
         yml_f.write(content)
+
     return changelog_path
 
 
 def process_changelog_file(catalog: ICatalog, active_solution: ISolution, deploy_path: Path):
+    """Sets the changelog of a given solution."""
     changelog_name = get_changelog_file_name()
     changelog_file = Path(deploy_path).joinpath(changelog_name)
+
     if changelog_file.exists():
         # process existing changelog file
         changelogs = keepachangelog.to_raw_dict(str(changelog_file))

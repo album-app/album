@@ -1,18 +1,20 @@
+import os
 from datetime import datetime
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from album.core.api.controller.collection.solution_handler import ISolutionHandler
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.catalog_updates import ISolutionChange, ChangeType
-from album.core.api.model.link import Link
-from album.core.model.catalog import get_solution_src
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import copy_folder, copy, unzip_archive, construct_cache_link_target
+from album.core.model.link import Link
+from album.core.utils.operations.file_operations import copy_folder, copy, unzip_archive, construct_cache_link_target, \
+    force_remove
+from album.core.utils.operations.git_operations import clone_repository_sparse, checkout_files
 from album.core.utils.operations.resolve_operations import dict_to_coordinates, get_zip_name
 from album.core.utils.operations.solution_operations import get_deploy_dict
-from album.core.utils.operations.url_operations import download_resource
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
@@ -44,8 +46,8 @@ class SolutionHandler(ISolutionHandler):
         else:
             copy(path, install_location.joinpath(DefaultValues.solution_default_name.value))
 
-    def add_to_local_catalog(self, active_solution: ISolution, path):
-        self.add_or_replace(self.album.catalogs().get_local_catalog(), active_solution, path)
+    def add_to_cache_catalog(self, active_solution: ISolution, path):
+        self.add_or_replace(self.album.catalogs().get_cache_catalog(), active_solution, path)
 
     def set_parent(self, catalog_parent: ICatalog, catalog_child: ICatalog, coordinates_parent: ICoordinates,
                    coordinates_child: ICoordinates):
@@ -64,6 +66,15 @@ class SolutionHandler(ISolutionHandler):
             child_entry.internal()["collection_id"],
             catalog_parent.catalog_id(),
             catalog_child.catalog_id()
+        )
+
+    def _set_parent_from_entry(self, parent_entry, child_entry):
+        # internal representations of ICollectionSolution
+        self._get_collection_index().insert_collection_collection(
+            parent_entry.internal()["collection_id"],
+            child_entry.internal()["collection_id"],
+            parent_entry.internal()["catalog_id"],
+            child_entry.internal()["catalog_id"]
         )
 
     def remove_parent(self, catalog: ICatalog, coordinates: ICoordinates):
@@ -85,7 +96,7 @@ class SolutionHandler(ISolutionHandler):
             CollectionIndex.get_collection_column_keys()
         )
 
-    def apply_change(self, catalog: ICatalog, change: ISolutionChange):
+    def apply_change(self, catalog: ICatalog, change: ISolutionChange, override: bool):
         # FIXME handle other tables (tags etc)
         if change.change_type() is ChangeType.ADDED:
             self._get_collection_index().add_or_replace_solution(
@@ -94,15 +105,38 @@ class SolutionHandler(ISolutionHandler):
                 catalog.index().get_solution_by_coordinates(change.coordinates())
             )
 
-        elif change.change_type is ChangeType.REMOVED:
+        elif change.change_type() is ChangeType.REMOVED:
             self.remove_solution(catalog, change.coordinates())
 
-        elif change.change_type is ChangeType.CHANGED:
-            self.remove_solution(catalog, change.coordinates())
+        elif change.change_type() is ChangeType.CHANGED:
+            # get install status before applying change
+            installed = change.solution_status()["installed"]
             self._get_collection_index().add_or_replace_solution(
                 catalog.catalog_id(),
                 change.coordinates(),
                 catalog.index().get_solution_by_coordinates(change.coordinates())
+            )
+            if installed:
+                # set old (install) status and parents again
+                self._set_old_db_stat(catalog, change)
+
+            if override and not catalog.is_cache() and installed:
+                module_logger().warning(
+                    "CAUTION: Solution \"%s\" seems to be installed."
+                    " The performed operation can leave a broken installation behind "
+                    "if dependencies got changed! Consider reinstalling the solution!" % str(change.coordinates())
+                )
+                self.retrieve_solution(catalog, change.coordinates())
+
+    def _set_old_db_stat(self, catalog, change):
+        db_stat = self._get_db_status_dict(change.solution_status())
+        self.update_solution(catalog, change.coordinates(), db_stat)
+        if change.solution_status()['parent']:
+            self._set_parent_from_entry(
+                change.solution_status()['parent'],
+                self._get_collection_index().get_solution_by_catalog_grp_name_version(
+                    catalog.catalog_id(), change.coordinates()
+                )  # the new DB representation after the change
             )
 
     def set_installed(self, catalog: ICatalog, coordinates: ICoordinates):
@@ -124,7 +158,7 @@ class SolutionHandler(ISolutionHandler):
         except LookupError:
             return False
 
-    def get_solution_path(self, catalog: ICatalog, coordinates: ICoordinates):
+    def get_solution_path(self, catalog: ICatalog, coordinates: ICoordinates) -> Link:
         base_link = catalog.path().joinpath(self.album.configuration().get_solution_path_suffix(coordinates))
         link_target = construct_cache_link_target(self.album.configuration().lnk_path(), base_link,
                                                   DefaultValues.lnk_package_prefix.value)
@@ -145,21 +179,28 @@ class SolutionHandler(ISolutionHandler):
     def retrieve_solution(self, catalog: ICatalog, coordinates: ICoordinates):
         if catalog.is_cache():  # no src to download form or src to copy from
             raise RuntimeError("Cannot download from a cache catalog!")
-
-        elif catalog.is_local():  # src to copy from
-            src_path = Path(catalog.src()).joinpath(self.get_solution_zip_suffix(coordinates))
-            solution_zip_file = self.get_solution_zip(catalog, coordinates)
-            copy(src_path, solution_zip_file)
-
         else:  # src to download from
-            url = get_solution_src(catalog.src(), coordinates, catalog.branch_name())
             solution_zip_file = self.get_solution_zip(catalog, coordinates)
-            download_resource(url, solution_zip_file)
+            self._download_solution_zip(catalog.src(), coordinates, solution_zip_file, catalog.branch_name())
 
         solution_zip_path = unzip_archive(solution_zip_file)
         solution_path = solution_zip_path.joinpath(DefaultValues.solution_default_name.value)
 
         return solution_path
+
+    def _download_solution_zip(self, src, coordinates: ICoordinates, target, branch_name="main"):
+        file_name = str(self.get_solution_zip_suffix(coordinates))
+        with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
+            repo_dir = Path(tmp_dir).joinpath('repo')
+            try:
+                with clone_repository_sparse(src, branch_name, repo_dir) as repo:
+                    checkout_files(repo, [file_name])
+                tmp_solution_zip = repo_dir.joinpath(file_name)
+                if target.exists():
+                    os.remove(target)
+                copy(tmp_solution_zip, target)
+            finally:
+                force_remove(repo_dir)
 
     def set_cache_paths(self, solution: ISolution, catalog: ICatalog):
         # Note: cache paths need the catalog the solution lives in - otherwise there might be problems with solutions
@@ -199,3 +240,14 @@ class SolutionHandler(ISolutionHandler):
 
     def _get_collection_index(self):
         return self.album.collection_manager().get_collection_index()
+
+    @staticmethod
+    def _get_db_status_dict(internal_status: dict) -> dict:
+        """Everything that should NOT change internally when an UPDATE change is performed on a solution."""
+        r = {
+            'installed': internal_status['installed'],
+            'install_date': internal_status['install_date'],
+            'last_execution': internal_status['last_execution']
+        }
+
+        return r

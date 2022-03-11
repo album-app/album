@@ -10,7 +10,7 @@ class ISolutionHandler:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def add_to_local_catalog(self, active_solution: ISolution, path):
+    def add_to_cache_catalog(self, active_solution: ISolution, path):
         """Force adds the installation to the local catalog to be cached for running"""
         raise NotImplementedError
 
@@ -36,7 +36,7 @@ class ISolutionHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def apply_change(self, catalog: ICatalog, change: ISolutionChange):
+    def apply_change(self, catalog: ICatalog, change: ISolutionChange, override: bool):
         raise NotImplementedError
 
     @abstractmethod

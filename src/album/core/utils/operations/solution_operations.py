@@ -6,17 +6,18 @@ from typing import Optional
 
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.api.model.environment import IEnvironment
-from album.core.utils.operations.file_operations import force_remove, remove_link
+from album.core.utils.operations.file_operations import remove_link
 from album.runner import album_logging
 from album.runner.core.api.model.solution import ISolution
 
 module_logger = album_logging.get_active_logger
 
 
-def remove_disc_content_from_solution(resolve_result: ICollectionSolution):
+def remove_disc_content_from_solution(resolve_result: ICollectionSolution, remove_package:bool = True):
     remove_link(resolve_result.loaded_solution().installation().data_path())
     remove_link(resolve_result.loaded_solution().installation().app_path())
-    remove_link(resolve_result.loaded_solution().installation().package_path())
+    if remove_package:
+        remove_link(resolve_result.loaded_solution().installation().package_path())
     remove_link(resolve_result.loaded_solution().installation().user_cache_path())
     remove_link(resolve_result.loaded_solution().installation().internal_cache_path())
 

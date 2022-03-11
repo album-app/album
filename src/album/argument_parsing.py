@@ -86,17 +86,15 @@ def create_parser():
     parser.create_file_command_parser('repl', repl, 'get an interactive repl for an album solution.')
     p = parser.create_file_command_parser('deploy', deploy, 'deploy an album solution.')
     p.add_argument(
+        'catalog',
+        type=str,
+        help='Specify a catalog name to deploy to. Must be configured!')
+    p.add_argument(
         '--dry-run',
         required=False,
         help='Parameter to indicate a dry run and only show what would happen.',
         action='store_true'
     )
-    p.add_argument(
-        '--catalog',
-        required=False,
-        help='Specify a catalog name to deploy to. Must be configured! '
-             '\"catalog_local\" refers to the local catalog. Default is None.',
-        default=None)
     p.add_argument(
         '--push-option',
         required=False,
@@ -154,17 +152,24 @@ def create_parser():
         update,
         'Update the catalog index files. Either all catalogs configured, or a specific one.'
     )
-    p.add_argument('src', type=str, help='src of the catalog', nargs='?')
+    p.add_argument('catalog', type=str, help='name of the catalog', nargs='?')
     p = parser.create_command_parser(
         'upgrade',
         upgrade,
         'upgrade the local collection from the catalog index files. Either all catalogs configured, or a specific one.'
     )
-    p.add_argument('src', type=str, help='src of the catalog', nargs='?')
+    p.add_argument('catalog', type=str, help='name of the catalog', nargs='?')
     p.add_argument(
         '--dry-run',
         required=False,
         help='Parameter to indicate a dry run and only show what would happen.',
+        action='store_true'
+    )
+    p.add_argument(
+        '--override',
+        required=False,
+        help='renews all installed solutions without re-installation. '
+             'Might produce dependency problems as environments are not updated. Handle with care.',
         action='store_true'
     )
     p = parser.create_command_parser('clone', clone, 'clone an album solution or catalog template.')
@@ -176,7 +181,7 @@ def create_parser():
     p.add_argument(
         'target_dir',
         type=str,
-        help='The target directory where the solution or catalog will be added to.'
+        help='The target directory where the solution or catalog will be added to. For a catalog, this can also be an empty GIT repository URL.'
     )
     p.add_argument(
         'name',

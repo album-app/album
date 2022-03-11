@@ -103,18 +103,19 @@ class CollectionIndex(ICollectionIndex, Database):
 
     # ### catalog ###
 
-    def insert_catalog(self, name, src, path, deletable, branch_name, close=True):
+    def insert_catalog(self, name, src, path, deletable, branch_name, catalog_type, close=True):
         next_id = self.next_id("catalog")
         cursor = self.get_cursor()
 
         cursor.execute(
-            "INSERT INTO catalog VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO catalog VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 next_id,
                 name,
                 src,
                 path,
                 branch_name,
+                catalog_type,
                 deletable
             )
         )

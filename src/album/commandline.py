@@ -6,7 +6,7 @@ from album.core.utils.operations.view_operations import get_solution_as_string, 
     get_updates_as_string, get_index_as_string, get_search_result_as_string
 from album.runner.album_logging import get_active_logger
 from album.runner.core.api.model.solution import ISolution
-from album.runner.core.model.script_creator import ScriptCreatorRun
+from album.runner.core.model.script_creator import ScriptCreator
 from album.server import AlbumServer
 
 module_logger = get_active_logger
@@ -21,18 +21,17 @@ def remove_catalog(album_instance: Album, args) -> None:
 
 
 def update(album_instance: Album, args):
-    album_instance.update(getattr(args, "catalog_name", None))
+    album_instance.update(getattr(args, "catalog", None))
 
 
 def upgrade(album_instance: Album, args):
-    dry_run = getattr(args, "dry_run", False)
-    updates = album_instance.upgrade(getattr(args, "catalog_name", None), dry_run=dry_run)
+    updates = album_instance.upgrade(getattr(args, "catalog", None), dry_run=args.dry_run, override=args.override)
     print_json = _get_print_json(args)
     if print_json:
         print(_as_json(updates))
     else:
         res = ''
-        if dry_run:
+        if args.dry_run:
             res += 'An upgrade would apply the following updates:\n'
         else:
             res += "Applied the following updates:\n"
@@ -130,7 +129,7 @@ def _as_json(data):
     return serialize_json(data)
 
 
-class ScriptRepl(ScriptCreatorRun):
+class ScriptRepl(ScriptCreator):
     def get_execution_block(self, solution_object: ISolution):
         return """
 from code import InteractiveConsole
@@ -144,3 +143,15 @@ else:
 console = InteractiveConsole(locals={**globals(), **locals()})
 console.interact()
 """
+
+    def __init__(self, pop_solution: bool = False, execution_callback=None):
+        super().__init__(append_arguments=False)
+        self.pop_solution = pop_solution
+
+        if execution_callback is not None and callable(execution_callback):
+            self.execution_callback = execution_callback
+        else:
+            self.reset_callback()
+
+    def reset_callback(self):
+        self.execution_callback = lambda: ""

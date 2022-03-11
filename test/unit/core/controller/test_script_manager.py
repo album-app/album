@@ -5,7 +5,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from album.core.controller.run_manager import SolutionGroup
-from album.core.controller.script_manager import ScriptManager
 from album.core.model.resolve_result import ResolveResult
 from album.core.model.script_queue_entry import ScriptQueueEntry
 from album.runner.core.model.script_creator import ScriptCreatorRun
@@ -17,10 +16,8 @@ class TestScriptManager(TestUnitCoreCommon):
     def setUp(self):
         super().setUp()
         """Setup things necessary for all tests of this class"""
-        album = self.create_album_test_instance()
-        self.create_test_solution_no_env()
-        album.script_manager()
-        self.script_manager: ScriptManager = album._script_manager
+        self.setup_solution_no_env()
+        self.script_manager = self.album_controller.script_manager()
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -107,8 +104,10 @@ class TestScriptManager(TestUnitCoreCommon):
         self.assertEqual(2, _run_in_environment_with_own_logger.call_count)
 
     def test_build_steps_queue_no_parent(self):
+        # prepare
+        self.setup_collection()
         # mock
-        catalog = self.album.catalogs().get_local_catalog()
+        catalog = self.album_controller.catalogs().get_cache_catalog()
         resolve_require_installation_and_load = MagicMock(
             return_value=ResolveResult(
                 path="aPath",
@@ -118,7 +117,7 @@ class TestScriptManager(TestUnitCoreCommon):
                 coordinates=self.active_solution.coordinates()
             )
         )
-        self.album.collection_manager().resolve_installed_and_load = resolve_require_installation_and_load
+        self.album_controller.collection_manager().resolve_installed_and_load = resolve_require_installation_and_load
 
         create_solution_run_collection_script = MagicMock(return_value="runScriptCollection")
         self.script_manager._create_solution_run_collection_script = create_solution_run_collection_script
@@ -173,7 +172,7 @@ class TestScriptManager(TestUnitCoreCommon):
                 collection_entry=None
             )
         )
-        self.album.collection_manager().resolve_installed_and_load = resolve_require_installation_and_load
+        self.album_controller.collection_manager().resolve_installed_and_load = resolve_require_installation_and_load
 
         resolve_require_installation = MagicMock(
             return_value=ResolveResult(
@@ -184,7 +183,7 @@ class TestScriptManager(TestUnitCoreCommon):
                 collection_entry=None
             )
         )
-        self.album.collection_manager().resolve_installed = resolve_require_installation
+        self.album_controller.collection_manager().resolve_installed = resolve_require_installation
 
         create_solution_run_collection_script = MagicMock(return_value="runScriptCollection")
         self.script_manager._create_solution_run_collection_script = create_solution_run_collection_script
@@ -229,8 +228,11 @@ class TestScriptManager(TestUnitCoreCommon):
         self.assertEqual(res_que.get(), que.get(block=False))
 
     def test_build_steps_queue_run_immediately(self):
+        # prepare
+        self.setup_collection()
+
         # mock
-        catalog = self.collection_manager().catalogs().get_local_catalog()
+        catalog = self.album_controller.collection_manager().catalogs().get_cache_catalog()
 
         resolve_require_installation_and_load = MagicMock(
             return_value=ResolveResult(
@@ -241,7 +243,7 @@ class TestScriptManager(TestUnitCoreCommon):
                 coordinates=self.active_solution.coordinates()
             )
         )
-        self.album.collection_manager().resolve_installed_and_load = resolve_require_installation_and_load
+        self.album_controller.collection_manager().resolve_installed_and_load = resolve_require_installation_and_load
 
         create_solution_run_collection_script = MagicMock(return_value="runScriptCollection")
         self.script_manager._create_solution_run_collection_script = create_solution_run_collection_script
@@ -274,7 +276,7 @@ class TestScriptManager(TestUnitCoreCommon):
         script_creator.create_script = create_script
 
         set_environment = MagicMock(return_value=None)
-        self.album.environment_manager().set_environment = set_environment
+        self.album_controller.environment_manager().set_environment = set_environment
 
         r = self.script_manager._create_solution_run_script_standalone(
             ResolveResult("", None, None, self.active_solution.coordinates(), self.active_solution),
@@ -293,7 +295,7 @@ class TestScriptManager(TestUnitCoreCommon):
         script_creator.create_script = create_script
 
         set_environment = MagicMock(return_value=None)
-        self.album.environment_manager().set_environment = set_environment
+        self.album_controller.environment_manager().set_environment = set_environment
 
         r = self.script_manager._create_solution_run_script_standalone(
             ResolveResult("", None, None, self.active_solution.coordinates(), self.active_solution),
@@ -304,19 +306,21 @@ class TestScriptManager(TestUnitCoreCommon):
         set_environment.assert_called_once()
 
     def test_create_solution_run_with_parent_script_standalone(self):
+        # prepare
+        self.setup_collection()
         self.active_solution._setup.dependencies = {"parent": {"name": "aParent", "group": "grp", "version": "v1"}}
 
         # mock
-        catalog = self.collection_manager().catalogs().get_local_catalog()
+        catalog = self.album_controller.collection_manager().catalogs().get_cache_catalog()
 
         resolve_args = MagicMock(return_value=["parent_args", "active_solution_args"])
         self.script_manager._resolve_args = resolve_args
 
         resolve_parent = MagicMock(return_value=ResolveResult("parentPath", None, None, None, self.active_solution))
-        self.album.collection_manager().resolve_parent = resolve_parent
+        self.album_controller.collection_manager().resolve_parent = resolve_parent
 
         set_environment = MagicMock(return_value=None)
-        self.album.environment_manager().set_environment = set_environment
+        self.album_controller.environment_manager().set_environment = set_environment
 
         scr = ScriptCreatorRun()
 
@@ -356,7 +360,7 @@ class TestScriptManager(TestUnitCoreCommon):
         self.script_manager._create_solution_run_with_parent_script = create_solution_run_with_parent_script
 
         set_environment = MagicMock(return_value=EmptyTestClass())
-        self.album.environment_manager().set_environment = set_environment
+        self.album_controller.environment_manager().set_environment = set_environment
 
         # prepare
         self.active_solution._setup.dependencies = {"parent": {"name": "aParent"}}
@@ -495,7 +499,7 @@ class TestScriptManager(TestUnitCoreCommon):
     @patch('album.runner.album_logging.pop_active_logger', return_value=None)
     def test__run_in_environment(self, pop_mock, push_mock, conf_mock):
         run_scripts_mock = MagicMock()
-        self.album.environment_manager().run_scripts = run_scripts_mock
+        self.album_controller.environment_manager().run_scripts = run_scripts_mock
 
         environment = EmptyTestClass()
         environment.name = lambda: ""

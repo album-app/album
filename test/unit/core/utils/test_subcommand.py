@@ -19,14 +19,21 @@ from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestSubcommand(TestUnitCoreCommon):
+    def setUp(self):
+        super().setUp()
 
     def test_run(self):
         handler = StreamHandler()
-        self.logger.addHandler(handler)
-        self.logger.setLevel("DEBUG")
         info = MagicMock(return_value=None)
         handler.handle = info
+
+        self.logger.addHandler(handler)
+        self.logger.setLevel("DEBUG")
+
+        # call
         subcommand.run(["echo", "test"])
+
+        # assert
         self.assertTrue(info.call_count > 1)
         name1, args1, kwargs1 = info.mock_calls[0]
         name2, args2, kwargs2 = info.mock_calls[1]
@@ -114,7 +121,7 @@ class TestSubcommand(TestUnitCoreCommon):
 
     def test_run_logging_from_thread(self):
         self.logger.setLevel("DEBUG")
-        thread = threading.Thread(target=self._run_in_thread, args=(threading.current_thread().ident, ))
+        thread = threading.Thread(target=self._run_in_thread, args=(threading.current_thread().ident,))
         thread.start()
         thread.join()
 
@@ -150,7 +157,6 @@ class TestLogfileBuffer(TestUnitCoreCommon):
         super().tearDown()
 
     def test_write(self):
-
         self.assertIsNotNone(get_active_logger())
 
         log_buffer = LogfileBuffer(get_active_logger())
@@ -163,13 +169,13 @@ class TestLogfileBuffer(TestUnitCoreCommon):
         self.assertIn("app1 - WARNING - message", logs[0])
         self.assertEqual(" over ", logs[1])
         self.assertEqual(" several ", logs[2])
-        self.assertEqual(" lines", logs[3])
+        self.assertIn(" lines", logs[3])
         self.assertIn("asfasdfsadfa", logs[4])
         self.assertEqual("g", logs[5])
         self.assertIn("app1 - INFO - i", logs[6])
         self.assertEqual("o", logs[7])
         self.assertEqual("s", logs[8])
-        self.assertEqual("l", logs[9])
+        self.assertIn("l", logs[9])
 
     @unittest.skipIf(sys.platform == 'darwin', "Multiprocessing broken for MACOS!")
     def test_multiprocessing(self):

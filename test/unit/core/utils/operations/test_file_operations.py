@@ -1,6 +1,7 @@
 import json
 import os
 import pathlib
+import platform
 import stat
 import unittest.mock
 from pathlib import Path
@@ -8,7 +9,8 @@ from pathlib import Path
 from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, \
     create_empty_file_recursively, \
     create_path_recursively, write_dict_to_json, force_remove, zip_folder, unzip_archive, copy, \
-    copy_folder, zip_paths, rand_folder_name, folder_empty
+    copy_folder, zip_paths, rand_folder_name, folder_empty, _next_free_pointer_number, get_link_target, \
+    construct_cache_link_target, list_files_recursively
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
@@ -266,6 +268,65 @@ class TestFileOperations(TestUnitCoreCommon):
         self.assertEqual(8, len(f1))
         self.assertEqual(10, len(f2))
 
+    def test_list_files_recursively(self):
+        p = Path(self.tmp_dir.name)
+        p.joinpath("a").mkdir()
+        p.joinpath("a", "myfileA").touch()
+        p.joinpath("a", "b").mkdir()
+        p.joinpath("a", "b", "myfileB").touch()
 
-if __name__ == '__main__':
-    unittest.main()
+        r = list_files_recursively(p, relative=False)
+
+        self.assertListEqual(
+            [p.joinpath("a", "b", "myfileB"), p.joinpath("a", "myfileA")], r
+        )
+
+    def test_list_files_recursively_relative(self):
+        p = Path(self.tmp_dir.name)
+        p.joinpath("a").mkdir()
+        p.joinpath("a", "myfileA").touch()
+        p.joinpath("a", "b").mkdir()
+        p.joinpath("a", "b", "myfileB").touch()
+
+        r = list_files_recursively(p, relative=True)
+
+        self.assertListEqual(
+            [p.joinpath("a", "b", "myfileB").relative_to(p), p.joinpath("a", "myfileA").relative_to(p)], r
+        )
+
+    @unittest.skipIf(platform.system().lower() == 'windows', "Linking in windows currently not tested!")
+    def test_construct_cache_link_target(self):
+        point_from = Path(self.tmp_dir.name).joinpath("point_from")
+
+        # call
+        r = construct_cache_link_target(Path(self.tmp_dir.name), point_from, "point_to")
+
+        # assert
+        self.assertEqual(Path(self.tmp_dir.name).joinpath("point_to", "0").resolve(), r.resolve())
+
+    def test__next_free_pointer_number(self):
+        p0 = Path(self.tmp_dir.name).joinpath("0")
+        p1 = Path(self.tmp_dir.name).joinpath("1")
+        p2isMissing = Path(self.tmp_dir.name).joinpath("3")
+
+        p0.mkdir()
+        p1.touch()
+        p2isMissing.mkdir()
+
+        r = _next_free_pointer_number(self.tmp_dir.name)
+
+        self.assertEqual("2", r)
+
+    @unittest.skipIf(platform.system().lower() == 'windows', "Linking in windows currently not tested!")
+    def test_get_link_target(self):
+        point_to = Path(self.tmp_dir.name).joinpath("point_to")
+        point_to.touch()
+
+        point_from = Path(self.tmp_dir.name).joinpath("point_from")
+
+        os.symlink(str(point_to), str(point_from))
+
+        self.assertEqual(point_to.resolve(), get_link_target(point_from).resolve())
+
+    if __name__ == '__main__':
+        unittest.main()

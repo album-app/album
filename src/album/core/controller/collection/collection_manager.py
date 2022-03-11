@@ -207,7 +207,7 @@ class CollectionManager(ICollectionManager):
             solution_entry = self._search_for_local_file(path)
 
             # a solution loaded this way will always end up in a local catalog
-            catalog = self.album.catalogs().get_local_catalog()
+            catalog = self.album.catalogs().get_cache_catalog()
         else:
             # search DOI first
             if doi:
@@ -220,7 +220,7 @@ class CollectionManager(ICollectionManager):
                     # download DOI
                     path = check_doi(doi["doi"], self.album.configuration().cache_path_tmp_user())
 
-                    catalog = self.album.catalogs().get_local_catalog()
+                    catalog = self.album.catalogs().get_cache_catalog()
             else:  # case no doi
                 solution_entry = self._search(str_input)
 
@@ -247,7 +247,7 @@ class CollectionManager(ICollectionManager):
 
         # check in collection
         solution_entry = self.catalog_collection.get_solution_by_catalog_grp_name_version(
-            self.album.catalogs().get_local_catalog().catalog_id(),
+            self.album.catalogs().get_cache_catalog().catalog_id(),
             active_solution.coordinates()
         )
 
@@ -301,7 +301,7 @@ class CollectionManager(ICollectionManager):
 
     def _search_in_local_catalog(self, coordinates: ICoordinates) -> Optional[ICollectionIndex.ICollectionSolution]:
         """Searches in the local catalog only"""
-        return self._search_in_specific_catalog(self.album.catalogs().get_local_catalog().catalog_id(), coordinates)
+        return self._search_in_specific_catalog(self.album.catalogs().get_cache_catalog().catalog_id(), coordinates)
 
     def _search_in_specific_catalog(self, catalog_id, coordinates: ICoordinates) \
             -> Optional[ICollectionIndex.ICollectionSolution]:

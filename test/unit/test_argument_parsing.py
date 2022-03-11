@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from album import argument_parsing
 from album.commandline import search, remove_catalog, add_catalog, uninstall, install, repl, deploy, run, \
-    start_server, test
+    start_server, test, clone
 
 
 class TestArgumentParsing(unittest.TestCase):
@@ -36,7 +36,8 @@ class TestArgumentParsing(unittest.TestCase):
         self.assertSubcommandParsed(parser, "search", search, "keyword")
         self.assertSubcommandParsed(parser, "server", start_server, "1234")
         self.assertSubcommandWithFileArgParsed(parser, "run", run)
-        self.assertSubcommandWithFileArgParsed(parser, "deploy", deploy)
+        self.assertSubcommandWithFileArgParsed(parser, "deploy", deploy, ['catalog-name'])
+        self.assertSubcommandWithFileArgParsed(parser, "clone", clone, ['target-dir', 'name'])
         self.assertSubcommandWithFileArgParsed(parser, "repl", repl)
         self.assertSubcommandWithFileArgParsed(parser, "install", install)
         self.assertSubcommandWithFileArgParsed(parser, "uninstall", uninstall)
@@ -56,8 +57,10 @@ class TestArgumentParsing(unittest.TestCase):
         args = parser.parse_known_args()
         self.assertEqual(method, args[0].func)
 
-    def assertSubcommandWithFileArgParsed(self, parser, name, method):
-        sys.argv = ["", name, "test/path"]
+    def assertSubcommandWithFileArgParsed(self, parser, name, method, additional_args=None):
+        if additional_args is None:
+            additional_args = []
+        sys.argv = ["", name, "test/path"] + additional_args
         args = parser.parse_known_args()
         self.assertEqual(method, args[0].func)
 

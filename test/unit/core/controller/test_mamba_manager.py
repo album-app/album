@@ -15,8 +15,8 @@ class TestMambaManager(TestUnitCoreCommon):
 
     def setUp(self):
         super().setUp()
-        album = self.create_album_test_instance(init_catalogs=False)
-        self.mamba = MambaManager(album.configuration())
+        self.setup_collection(init_catalogs=False, init_collection=True)
+        self.mamba = MambaManager(self.album_controller.configuration())
 
     def tearDown(self) -> None:
         if self.mamba.environment_exists(self.test_environment_name):
@@ -25,7 +25,7 @@ class TestMambaManager(TestUnitCoreCommon):
         super().tearDown()
 
     def test_get_environment_list(self):
-        base_dir = Path(self.album.configuration().lnk_path()).joinpath('env')
+        base_dir = Path(self.album_controller.configuration().lnk_path()).joinpath('env')
         expected = list()
         expected.append(base_dir.joinpath("envName1").resolve())
         expected.append(base_dir.joinpath("envName2").resolve())
@@ -35,40 +35,6 @@ class TestMambaManager(TestUnitCoreCommon):
         res = self.mamba.get_environment_list()
 
         self.assertListEqual(expected, res)
-
-    @patch('album.core.controller.conda_manager.CondaManager.get_environment_list')
-    def test_environment_exists(self, ged_mock):
-        p = str(self.mamba._configuration.cache_path_envs().joinpath("envName1"))
-        target = self.mamba._configuration.lnk_path().joinpath('env', '0')
-        target.joinpath('whatever').mkdir(parents=True)
-        operation_system = platform.system().lower()
-        if 'windows' in operation_system:
-            from pylnk3 import for_file
-            for_file(
-                target_file=target,
-                lnk_name=p + '.lnk'
-            )
-        else:
-            os.symlink(target, p)
-
-        ged_mock.return_value = [target.resolve()]
-
-        self.assertTrue(self.mamba.environment_exists("envName1"))
-        self.assertFalse(self.mamba.environment_exists("notExitendEnvs"))
-
-    @patch('album.core.controller.conda_manager.CondaManager.get_environment_list')
-    def test_get_environment_path(self, ged_mock):
-        link = self.mamba._configuration.lnk_path().joinpath('env', '%s' % 0)
-        ged_mock.return_value = [
-            link.resolve()
-        ]
-        self.assertEqual(link, self.mamba.get_environment_path("envName1").resolve())
-
-    def test_get_environment_path_invalid_env(self):
-        self.assertFalse(self.mamba.environment_exists("NotExistingEnv"))
-        name = "NotExistingEnv"
-        with self.assertRaises(LookupError):
-            self.mamba.get_environment_path(name)
 
     @patch('album.core.controller.conda_manager.CondaManager.get_info')
     def test_get_active_environment_name(self, ginfo_mock):
@@ -82,7 +48,7 @@ class TestMambaManager(TestUnitCoreCommon):
         ginfo_mock.return_value = {
             "active_prefix": "aEnvPath"
         }
-        self.assertEqual("aEnvPath", self.mamba.get_active_environment_path())
+        self.assertEqual("aEnvPath", str(self.mamba.get_active_environment_path()))
 
     def test_get_info(self):
         r = self.mamba.get_info()
@@ -208,7 +174,7 @@ class TestMambaManager(TestUnitCoreCommon):
 
         self.mamba.create_or_update_env(environment)
 
-        create_mock.assert_called_once_with(environment)
+        create_mock.assert_called_once_with(environment, None)
         update_mock.assert_not_called()
 
     @patch('album.core.controller.conda_manager.CondaManager.create')
@@ -237,7 +203,7 @@ class TestMambaManager(TestUnitCoreCommon):
 
         self.mamba.create(environment)
 
-        create_environment_from_file_mock.assert_called_once_with(Path("aPath"), "aName")
+        create_environment_from_file_mock.assert_called_once_with(Path("aPath"), "aName", None)
         create_environment_mock.assert_not_called()
 
     @patch('album.core.controller.conda_manager.CondaManager.create_environment')
@@ -246,29 +212,18 @@ class TestMambaManager(TestUnitCoreCommon):
         environment = Environment(None, "aName", "aPath")
         self.mamba.create(environment)
 
-        create_environment_mock.assert_called_once_with("aName")
+        create_environment_mock.assert_called_once_with("aName", None)
         create_environment_from_file_mock.assert_not_called()
 
     @patch('album.core.controller.conda_manager.CondaManager.create_or_update_env', return_value="Called")
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path', return_value="Called")
-    @patch('album.core.controller.conda_manager.CondaManager.install_framework', return_value="Called")
-    def test_install(self, is_inst_mock, get_env_path_mock, create_mock):
+    def test_install(self, get_env_path_mock, create_mock):
         environment = Environment(None, "aName", "aPath")
 
         self.mamba.install(environment, "TestVersion")
 
         create_mock.assert_called_once()
         get_env_path_mock.assert_called_once()
-        is_inst_mock.assert_called_once_with("Called", "TestVersion")
-
-    @patch('album.core.controller.conda_manager.CondaManager.pip_install')
-    @patch('album.core.controller.conda_manager.CondaManager.is_installed', return_value=False)
-    def test_install_framework(self, is_installed_mock, pip_install_mock):
-        environment = Environment(None, "aName", "aPath")
-        environment._path = "NotNone"
-        self.mamba.install_framework(environment.path(), "version")
-        is_installed_mock.assert_called_once_with("NotNone", "album-runner", "version")
-        pip_install_mock.assert_called_once()
 
 
 if __name__ == '__main__':

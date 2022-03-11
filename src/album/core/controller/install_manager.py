@@ -1,5 +1,3 @@
-import os
-from pathlib import Path
 from typing import Optional
 
 from album.core.api.controller.controller import IAlbumController
@@ -8,11 +6,11 @@ from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.api.model.environment import IEnvironment
 from album.core.controller.environment_manager import EnvironmentManager
 from album.core.model.resolve_result import ResolveResult
-from album.core.utils.operations.file_operations import force_remove, remove_link
 from album.core.utils.operations.resolve_operations import clean_resolve_tmp, build_resolve_string, dict_to_coordinates
 from album.core.utils.operations.solution_operations import get_deploy_dict, get_parent_dict
 from album.core.utils.operations.solution_operations import remove_disc_content_from_solution
 from album.runner import album_logging
+from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
 from album.runner.core.model.script_creator import ScriptCreatorInstall, ScriptCreatorUnInstall
 
@@ -25,6 +23,7 @@ class InstallManager(IInstallManager):
         self.album = album
 
     def install(self, resolve_result: ICollectionSolution, argv=None):
+        self._clean_unfinished_installations(exclude_package=resolve_result.coordinates())
         self._install_resolve_result(resolve_result, argv, parent=False)
 
     def _resolve_result_is_installed(self, resolve_result: ICollectionSolution) -> bool:
@@ -59,9 +58,6 @@ class InstallManager(IInstallManager):
             if self._resolve_result_is_installed(resolve_result):
                 raise RuntimeError("Solution already installed. Uninstall solution first!")
 
-        if not parent:
-            self.clean_unfinished_installations()
-
         self._register(resolve_result)
 
         if not parent:
@@ -93,7 +89,7 @@ class InstallManager(IInstallManager):
         # register in collection
         if resolve_result.catalog().is_cache():
             # a cache catalog is living in the collection so no need to update, we can add it directly
-            self.album.solutions().add_to_local_catalog(
+            self.album.solutions().add_to_cache_catalog(
                 resolve_result.loaded_solution(),
                 resolve_result.path().parent  # the directory holding the solution file
             )
@@ -273,7 +269,7 @@ class InstallManager(IInstallManager):
             resolve_solution = build_resolve_string(parent)
             self.uninstall(resolve_solution, rm_dep)
 
-    def clean_unfinished_installations(self):
+    def _clean_unfinished_installations(self, exclude_package: ICoordinates = None):
         collection_solution_list = self.album.collection_manager().get_collection_index().get_unfinished_installation_solutions()
         for collection_solution in collection_solution_list:
             catalog = self.album.catalogs().get_by_id(collection_solution.internal()["catalog_id"])
@@ -297,7 +293,7 @@ class InstallManager(IInstallManager):
             if not get_parent_dict(resolve.loaded_solution()):
                 self._clean_unfinished_installations_environment(resolve)
 
-            remove_disc_content_from_solution(resolve)
+            remove_disc_content_from_solution(resolve, remove_package=(exclude_package != coordinates))
 
             self.album.solutions().set_uninstalled(resolve.catalog(), coordinates)
 

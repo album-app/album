@@ -75,8 +75,18 @@ class ICatalog:
         raise NotImplementedError
 
     @abstractmethod
-    def index_path(self) -> Path:
+    def index_file_path(self) -> Path:
         """The path to the catalog index cache."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def set_index_path(self, path) -> Path:
+        """The path to the catalog index cache."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def type(self) -> str:
+        """The type of the catalog."""
         raise NotImplementedError
 
     @abstractmethod
@@ -84,11 +94,11 @@ class ICatalog:
         raise NotImplementedError
 
     @abstractmethod
-    def update_index_cache_if_possible(self):
+    def update_index_cache_if_possible(self, tmp_dir):
         raise NotImplementedError
 
     @abstractmethod
-    def update_index_cache(self):
+    def update_index_cache(self, tmp_dir):
         raise NotImplementedError
 
     @abstractmethod
@@ -99,25 +109,9 @@ class ICatalog:
     def remove(self, active_solution: ISolution):
         raise NotImplementedError
 
-    @abstractmethod
-    def copy_index_from_src_to_cache(self) -> bool:
-        raise NotImplementedError
-
-    @abstractmethod
-    def copy_index_from_cache_to_src(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def download_index(self) -> bool:
-        raise NotImplementedError
-
     @contextmanager
     def retrieve_catalog(self, path=None, force_retrieve=False, update=True) -> Generator[Repo, None, None]:
         yield
-        raise NotImplementedError
-
-    @abstractmethod
-    def write_catalog_meta_information(self):
         raise NotImplementedError
 
     @abstractmethod
@@ -135,3 +129,12 @@ class ICatalog:
     @abstractmethod
     def set_version(self, version):
         raise NotImplementedError
+
+    @abstractmethod
+    def get_version(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_meta_file_path(self):
+        raise NotImplementedError
+
