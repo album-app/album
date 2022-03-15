@@ -163,8 +163,6 @@ class CollectionManager(ICollectionManager):
         return resolve_result
 
     def _resolve(self, str_input: str) -> ICollectionSolution:
-        # this needs to happen before any (potentially not completely installed) solution is resolved
-        self.album.install_manager().clean_unfinished_installations()
 
         str_input= str(str_input)
 

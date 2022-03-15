@@ -10,7 +10,6 @@ from album.core.utils.operations.resolve_operations import clean_resolve_tmp, bu
 from album.core.utils.operations.solution_operations import get_deploy_dict, get_parent_dict
 from album.core.utils.operations.solution_operations import remove_disc_content_from_solution
 from album.runner import album_logging
-from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
 from album.runner.core.model.script_creator import ScriptCreatorInstall, ScriptCreatorUnInstall
 
@@ -23,6 +22,9 @@ class InstallManager(IInstallManager):
         self.album = album
 
     def install(self, solution_to_resolve: str, argv=None):
+        # this needs to happen before any (potentially not completely installed) solution is resolved
+        self.clean_unfinished_installations()
+
         resolve_result = self.album.collection_manager().resolve_and_load(solution_to_resolve)
         self._install_resolve_result(resolve_result, argv, parent=False)
 
@@ -272,7 +274,7 @@ class InstallManager(IInstallManager):
             resolve_solution = build_resolve_string(parent)
             self.uninstall(resolve_solution, rm_dep)
 
-    def _clean_unfinished_installations(self, exclude_package: ICoordinates = None):
+    def clean_unfinished_installations(self):
         collection_solution_list = self.album.collection_manager().get_collection_index().get_unfinished_installation_solutions()
         for collection_solution in collection_solution_list:
             catalog = self.album.catalogs().get_by_id(collection_solution.internal()["catalog_id"])
@@ -296,7 +298,7 @@ class InstallManager(IInstallManager):
             if not get_parent_dict(resolve.loaded_solution()):
                 self._clean_unfinished_installations_environment(resolve)
 
-            remove_disc_content_from_solution(resolve, remove_package=(exclude_package != coordinates))
+            remove_disc_content_from_solution(resolve)
 
             self.album.solutions().set_uninstalled(resolve.catalog(), coordinates)
 

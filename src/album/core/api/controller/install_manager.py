@@ -8,6 +8,11 @@ class IInstallManager:
     __metaclass__ = ABCMeta
 
     @abstractmethod
+    def clean_unfinished_installations(self):
+        """Remove traces of any installation that was started but not finished."""
+        raise NotImplementedError
+
+    @abstractmethod
     def install(self, solution_to_resolve: str, argv=None):
         """Function corresponding to the `install` subcommand of `album`."""
         raise NotImplementedError
