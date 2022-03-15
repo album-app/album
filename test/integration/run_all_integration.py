@@ -1,6 +1,7 @@
 import time
 import unittest
 
+from test.integration.core import test_integration_filestructure
 from test.integration import test_integration_api, test_integration_server, test_integration_commandline
 from test.integration.ci import test_integration_ci
 from test.integration.core import test_integration_uninstall, test_integration_run, \
@@ -29,6 +30,7 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_integration_search))
     suite.addTests(loader.loadTestsFromModule(test_integration_test))
     suite.addTests(loader.loadTestsFromModule(test_integration_clone))
+    suite.addTests(loader.loadTestsFromModule(test_integration_filestructure))
 
     # CI
     suite.addTests(loader.loadTestsFromModule(test_integration_ci))
