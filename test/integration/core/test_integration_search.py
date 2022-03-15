@@ -1,5 +1,3 @@
-import unittest
-
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 

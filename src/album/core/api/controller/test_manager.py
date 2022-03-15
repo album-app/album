@@ -9,6 +9,6 @@ class ITestManager:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def test(self, path, args=None):
+    def test(self, solution_to_resolve: str, args=None):
         """Function corresponding to the `test` subcommand of `album`."""
         raise NotImplementedError

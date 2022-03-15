@@ -1,5 +1,3 @@
-import unittest
-
 from album.core.utils.operations.file_operations import create_path_recursively
 from album.runner.core.model.coordinates import Coordinates
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
@@ -20,30 +18,32 @@ class TestIntegrationUninstall(TestIntegrationCoreCommon):
                 self.album_controller.collection_manager().catalogs().get_cache_catalog().catalog_id()))
         )
 
-        self.fake_install(self.get_test_solution_path(), create_environment=False)
+        path = self.get_test_solution_path()
 
-        resolve_result = self.album_controller.collection_manager().resolve_installed_and_load(self.get_test_solution_path())
+        self.fake_install(path, create_environment=False)
+
+        solution = self.album_controller.collection_manager().resolve_and_load(path)
 
         # lets assume solution had downloads, caches and apps
-        internal_cache_file = self.album_controller.configuration().lnk_path().joinpath(
-            "icache", "0", "a_cache_solution_file.txt"
+        internal_cache_file = solution.loaded_solution().installation().internal_cache_path().joinpath(
+            "a_cache_solution_file.txt"
         )
         create_path_recursively(internal_cache_file.parent)
         internal_cache_file.touch()
 
-        data_file = self.album_controller.configuration().lnk_path().joinpath(
-            "data", "0", "a_cache_data_file.txt"
+        data_file = solution.loaded_solution().installation().data_path().joinpath(
+            "a_cache_data_file.txt"
         )
         create_path_recursively(data_file.parent)
         data_file.touch()
 
-        app_file = self.album_controller.configuration().lnk_path().joinpath(
-            "pck", "0", "a_cache_app_file.txt"
+        app_file = solution.loaded_solution().installation().app_path().joinpath(
+            "a_cache_app_file.txt"
         )
         create_path_recursively(app_file.parent)
         app_file.touch()
 
-        self.album_controller.install_manager().uninstall(resolve_result)
+        self.album_controller.install_manager().uninstall(path)
 
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
@@ -77,8 +77,7 @@ class TestIntegrationUninstall(TestIntegrationCoreCommon):
         )
 
         # run
-        resolve_result = self.album_controller.collection_manager().resolve_installed_and_load(p)
-        self.album_controller.install_manager().uninstall(resolve_result)
+        self.album_controller.install_manager().uninstall(p)
 
         log = self.captured_output.getvalue()
 

@@ -1,8 +1,7 @@
 from album.runner.api import setup, get_cache_path
 from io import StringIO
 
-env_file = StringIO("""name: template-python
-channels:
+env_file = StringIO("""channels:
   - defaults
   - conda-forge
 dependencies:
@@ -33,12 +32,12 @@ def album_run():
         with tempfile.NamedTemporaryFile(dir=get_cache_path(), mode='w', delete=False) as solution_file:
             solution_file.write(get_solution_content())
 
-        solution = album.resolve(solution_file.name)
-        if album.is_installed(solution):
-            album.uninstall(solution)
-        album.install(solution)
-        album.run(solution)
-        os.remove(solution_file.name)
+        solution_file = str(solution_file.name)
+        if album.is_installed(solution_file):
+            album.uninstall(solution_file)
+        album.install(solution_file)
+        album.run(solution_file)
+        os.remove(solution_file)
 
 
 def get_solution_content():

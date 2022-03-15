@@ -8,12 +8,12 @@ class IInstallManager:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def install(self, resolve_solution, argv=None):
+    def install(self, solution_to_resolve: str, argv=None):
         """Function corresponding to the `install` subcommand of `album`."""
         raise NotImplementedError
 
     @abstractmethod
-    def uninstall(self, resolve_solution, rm_dep=False, argv=None):
+    def uninstall(self, solution_to_resolve: str, rm_dep=False, argv=None):
         """Removes a solution from the disk. Thereby uninstalling its environment and deleting all its downloads.
 
         Args:

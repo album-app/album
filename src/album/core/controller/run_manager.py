@@ -46,8 +46,9 @@ class RunManager(IRunManager):
 
         self.init_script = ""
 
-    def run(self, resolve_result: ICollectionSolution, run_immediately=False, argv=None):
+    def run(self, solution_to_resolve: str, run_immediately=False, argv=None):
         """Run an already loaded solution."""
+        resolve_result = self.album.collection_manager().resolve_installed_and_load(solution_to_resolve)
         if not resolve_result.catalog:
             module_logger().debug('solution loaded locally: %s...' % str(resolve_result.loaded_solution().coordinates()))
         else:

@@ -22,8 +22,8 @@ class InstallManager(IInstallManager):
     def __init__(self, album: IAlbumController):
         self.album = album
 
-    def install(self, resolve_result: ICollectionSolution, argv=None):
-        self._clean_unfinished_installations(exclude_package=resolve_result.coordinates())
+    def install(self, solution_to_resolve: str, argv=None):
+        resolve_result = self.album.collection_manager().resolve_and_load(solution_to_resolve)
         self._install_resolve_result(resolve_result, argv, parent=False)
 
     def _resolve_result_is_installed(self, resolve_result: ICollectionSolution) -> bool:
@@ -188,8 +188,11 @@ class InstallManager(IInstallManager):
         self._install_resolve_result(resolve_result, parent=True)
         return resolve_result
 
-    def uninstall(self, resolve_result: ICollectionSolution, rm_dep=False, argv=None):
+    def uninstall(self, solution_to_resolve: str, rm_dep=False, argv=None):
         """Internal installation entry point for `uninstall` subcommand of `album`."""
+        
+        resolve_result = self.album.collection_manager().resolve_installed_and_load(solution_to_resolve)
+        
         module_logger().info("Uninstalling \"%s\"..." % resolve_result.coordinates().name())
 
         if argv is None:

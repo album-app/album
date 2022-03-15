@@ -162,8 +162,12 @@ class CollectionManager(ICollectionManager):
 
         return resolve_result
 
+    def _resolve(self, str_input: str) -> ICollectionSolution:
+        # this needs to happen before any (potentially not completely installed) solution is resolved
+        self.album.install_manager().clean_unfinished_installations()
 
-    def _resolve(self, str_input) -> ICollectionSolution:
+        str_input= str(str_input)
+
         # always first resolve outside any catalog, excluding a DOI which should be first resolved inside a catalog
         path = check_file_or_url(str_input, self.album.configuration().cache_path_download())
 
