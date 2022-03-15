@@ -15,7 +15,7 @@ from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import write_dict_to_json
 from album.core.utils.operations.resolve_operations import dict_to_coordinates, get_attributes_from_string, check_doi, \
-    get_doi_from_input, check_file_or_url, get_parent, build_resolve_string
+    get_doi_from_input, check_file_or_url
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 
@@ -162,40 +162,6 @@ class CollectionManager(ICollectionManager):
 
         return resolve_result
 
-    def resolve_parent(self, parent_dict: dict) -> ICollectionSolution:
-        # resolve the parent mentioned in the current solution to get its metadata
-        resolve_parent_info = build_resolve_string(parent_dict)
-        parent_resolve_result = self.resolve_installed_and_load(resolve_parent_info)
-
-        # resolve parent of the parent
-        parent = get_parent(parent_resolve_result.database_entry())
-
-        # case parent itself has no further parent
-        if parent.internal()["collection_id"] == parent_resolve_result.database_entry().internal()["collection_id"]:
-
-            loaded_solution = self.album.state_manager().load(parent_resolve_result.path())
-            self.solution_handler.set_cache_paths(loaded_solution, parent_resolve_result.catalog())
-
-            parent_resolve_result.set_loaded_solution(loaded_solution)
-
-        # case parent itself has another parent
-        else:
-            parent_catalog = self.album.catalogs().get_by_id(parent.internal()["catalog_id"])
-            parent_coordinates = dict_to_coordinates(parent.setup())
-            path = self.solution_handler.get_solution_file(parent_catalog, parent_coordinates)
-
-            loaded_solution = self.album.state_manager().load(path)
-            self.solution_handler.set_cache_paths(loaded_solution, parent_catalog)
-
-            parent_resolve_result = ResolveResult(
-                path=path,
-                catalog=parent_catalog,
-                collection_entry=parent,
-                coordinates=parent_coordinates,
-                loaded_solution=loaded_solution
-            )
-
-        return parent_resolve_result
 
     def _resolve(self, str_input) -> ICollectionSolution:
         # always first resolve outside any catalog, excluding a DOI which should be first resolved inside a catalog
