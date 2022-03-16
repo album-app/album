@@ -238,6 +238,11 @@ class TestLogfileBuffer(TestUnitCoreCommon):
         self.assertEqual("WARNING", res.level)
         self.assertEqual("message", res.message)
 
+        res = log_buffer.parse_log("WARNING root.script - logging warning")
+        self.assertEqual("root.script", res.name)
+        self.assertEqual("WARNING", res.level)
+        self.assertEqual("logging warning", res.message)
+
         res = log_buffer.parse_log("WARNING name - message")
         self.assertEqual("name", res.name)
         self.assertEqual("WARNING", res.level)
