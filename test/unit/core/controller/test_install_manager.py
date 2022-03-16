@@ -197,8 +197,8 @@ class TestInstallManager(TestUnitCoreCommon):
         _clean_unfinished_installations_environment = MagicMock()
         self.install_manager._clean_unfinished_installations_environment = _clean_unfinished_installations_environment
 
-        set_uninstalled = MagicMock()
-        self.album_controller.collection_manager().solutions().set_uninstalled = set_uninstalled
+        remove_solution = MagicMock()
+        self.album_controller.collection_manager().solutions().remove_solution = remove_solution
 
         # call
         self.install_manager.clean_unfinished_installations()
@@ -209,7 +209,7 @@ class TestInstallManager(TestUnitCoreCommon):
         get_by_id_mock.assert_called_once_with(1)
         retrieve_and_load_resolve_result.assert_called_once()
         _clean_unfinished_installations_environment.assert_called_once()
-        set_uninstalled.assert_called_once()
+        remove_solution.assert_called_once()
 
     @patch('album.core.controller.install_manager.dict_to_coordinates', return_value=Coordinates('g1', 'n1', 'v1'))
     @patch('album.core.controller.install_manager.get_parent_dict', return_value=True)
@@ -235,8 +235,8 @@ class TestInstallManager(TestUnitCoreCommon):
         _clean_unfinished_installations_environment = MagicMock()
         self.install_manager._clean_unfinished_installations_environment = _clean_unfinished_installations_environment
 
-        set_uninstalled = MagicMock()
-        self.album_controller.collection_manager().solutions().set_uninstalled = set_uninstalled
+        remove_solution = MagicMock()
+        self.album_controller.collection_manager().solutions().remove_solution = remove_solution
 
         # call
         self.install_manager.clean_unfinished_installations()
@@ -247,7 +247,7 @@ class TestInstallManager(TestUnitCoreCommon):
         get_by_id_mock.assert_called_once_with(1)
         retrieve_and_load_resolve_result.assert_called_once()
         _clean_unfinished_installations_environment.assert_not_called()
-        set_uninstalled.assert_called_once()
+        remove_solution.assert_called_once()
 
     @patch('album.core.controller.install_manager.remove_disc_content_from_solution')
     def test_clean_unfinished_installations_empty(self, remove_dc):

@@ -300,7 +300,10 @@ class InstallManager(IInstallManager):
 
             remove_disc_content_from_solution(resolve)
 
-            self.album.solutions().set_uninstalled(resolve.catalog(), coordinates)
+            if resolve.catalog().is_cache():
+                self.album.solutions().remove_solution(resolve.catalog(), coordinates)
+            else:
+                self.album.solutions().set_uninstalled(resolve.catalog(), coordinates)
 
     def _clean_unfinished_installations_environment(self, resolve: ICollectionSolution):
         try:
