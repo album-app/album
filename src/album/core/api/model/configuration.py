@@ -48,6 +48,11 @@ class IConfiguration:
         raise NotImplementedError
 
     @abstractmethod
+    def cache_path_tmp_internal_misc(self):
+        """Path for solution unspecific temporary files of album."""
+        raise NotImplementedError
+
+    @abstractmethod
     def cache_path_tmp_user(self):
         """Path for solution specific temporary files of the user."""
         raise NotImplementedError

@@ -190,7 +190,7 @@ class SolutionHandler(ISolutionHandler):
 
     def _download_solution_zip(self, src, coordinates: ICoordinates, target, branch_name="main"):
         file_name = str(self.get_solution_zip_suffix(coordinates))
-        with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
+        with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal_misc()) as tmp_dir:
             repo_dir = Path(tmp_dir).joinpath('repo')
             try:
                 with clone_repository_sparse(src, branch_name, repo_dir) as repo:

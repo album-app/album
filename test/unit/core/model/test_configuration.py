@@ -20,7 +20,7 @@ class TestConfiguration(TestUnitCoreCommon):
     def test_setup(self):
         # prepare
         base_path = Path(self.tmp_dir.name).joinpath("base_path")
-        c_path = base_path.joinpath(DefaultValues.cache_path_tmp_prefix.value)
+        c_path = base_path.joinpath(DefaultValues.cache_path_internal_tmp_prefix.value)
         create_path_recursively(c_path)
         leftover_file = c_path.joinpath("a_leftover_file")
         leftover_file.touch()

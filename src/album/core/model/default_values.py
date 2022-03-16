@@ -43,7 +43,8 @@ class DefaultValues(Enum):
     cache_path_app_prefix = "apps"                                         # base folder prefix where app solutions live
     cache_path_data_prefix = "data"                                        # base folder prefix where data lives
     cache_path_download_prefix = "downloads"                               # base folder prefix where downloads live
-    cache_path_tmp_prefix = "tmp"                                          # base folder prefix where temporary files live
+    cache_path_tmp_prefix = "tmp"                                          # base folder prefix where solution specific user temporary files live
+    cache_path_internal_tmp_prefix = "internal_tmp"                        # base folder prefix where solution unspecific internal temporary files live
     cache_path_envs_prefix = "envs"                                        # base folder prefix where environments live in
 
     # solutions

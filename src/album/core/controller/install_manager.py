@@ -65,7 +65,7 @@ class InstallManager(IInstallManager):
         if not parent:
             if resolve_result.catalog().is_cache():
                 # always clean after registration to a catalog!
-                clean_resolve_tmp(self.album.configuration().cache_path_tmp_user())
+                clean_resolve_tmp(self.album.configuration().cache_path_tmp_internal_misc())
 
         # mark as "installation unfinished"
         self.album.solutions().set_installation_unfinished(
