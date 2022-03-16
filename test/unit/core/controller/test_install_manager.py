@@ -113,8 +113,8 @@ class TestInstallManager(TestUnitCoreCommon):
         parent_resolve_result = ResolveResult(None, None, None, None, loaded_solution=self.parent_solution)
         _install_parent = MagicMock(return_value=parent_resolve_result)
         self.install_manager._install_parent = _install_parent
-        _set_parent = MagicMock()
-        self.install_manager._set_parent = _set_parent
+
+        self.album_controller.solutions().set_parent = MagicMock()
 
         run_solution_install_routine = MagicMock()
         self.install_manager._run_solution_install_routine = run_solution_install_routine

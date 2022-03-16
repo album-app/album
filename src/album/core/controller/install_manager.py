@@ -68,20 +68,16 @@ class InstallManager(IInstallManager):
                 clean_resolve_tmp(self.album.configuration().cache_path_tmp_internal_misc())
 
         # mark as "installation unfinished"
-        self.album.solutions().set_installation_unfinished(
-            resolve_result.catalog(), resolve_result.loaded_solution().coordinates()
-        )
+        self.album.solutions().set_installation_unfinished(resolve_result.catalog(), resolve_result.coordinates())
 
         # run installation recursively
         self._install_active_solution(resolve_result, argv)
 
         # mark as installed and remove "installation unfinished"
-        self.album.solutions().set_installed(
-            resolve_result.catalog(), resolve_result.loaded_solution().coordinates()
-        )
+        self.album.solutions().set_installed(resolve_result.catalog(), resolve_result.coordinates())
         module_logger().info(
             'Installed \"%s\"! execute with `album run %s`' % (
-                resolve_result.loaded_solution().coordinates().name(),
+                resolve_result.coordinates().name(),
                 str(resolve_result.coordinates())
             )
         )
@@ -103,15 +99,6 @@ class InstallManager(IInstallManager):
                 resolve_result.catalog().catalog_id(),
                 resolve_result.coordinates()
             ))
-
-    def _set_parent(self, parent_resolve_result: ICollectionSolution, resolve_result: ICollectionSolution):
-        """Sets the parent of a solution"""
-        self.album.solutions().set_parent(
-            parent_resolve_result.catalog(),
-            resolve_result.catalog(),
-            parent_resolve_result.coordinates(),
-            resolve_result.coordinates()
-        )
 
     def _remove_parent(self, resolve_result: ICollectionSolution):
         """Sets the parent of a solution"""
@@ -148,7 +135,10 @@ class InstallManager(IInstallManager):
                 raise e
 
             if parent_resolve_result:
-                self._set_parent(parent_resolve_result, collection_solution)
+                self.album.solutions().set_parent(
+                    parent_resolve_result.database_entry(),
+                    collection_solution.database_entry()
+                )
             else:
                 self._remove_parent(collection_solution)
 
