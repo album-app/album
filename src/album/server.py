@@ -63,11 +63,7 @@ class AlbumServer:
         @self.app.route("/config")
         def get_config():
             return {
-                "cache_base": str(self.album_instance.configuration().base_cache_path()),
-                "cache_tmp_internal": str(self.album_instance.configuration().cache_path_tmp_internal()),
-                "cache_tmp_user": str(self.album_instance.configuration().cache_path_tmp_user()),
-                "cache_apps": str(self.album_instance.configuration().cache_path_app()),
-                "cache_downloads": str(self.album_instance.configuration().cache_path_download())
+                "cache_base": str(self.album_instance.configuration().base_cache_path())
             }
 
         @self.app.route("/index")

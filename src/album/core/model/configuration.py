@@ -20,14 +20,10 @@ class Configuration(IConfiguration):
         self._base_cache_path = None
         self._conda_executable = None
         self._mamba_executable = None
-        self._cache_path_app = None
-        self._cache_path_data = None
-        self._cache_path_download = None
-        self._cache_path_tmp_internal = None
-        self._cache_path_tmp_internal_misc = None
-        self._cache_path_tmp_user = None
+        self._tmp_path = None
         self._cache_path_envs = None
         self._catalog_collection_path = None
+        self._installation_path = None
         self._lnk_path = None
 
     def base_cache_path(self):
@@ -39,25 +35,16 @@ class Configuration(IConfiguration):
     def mamba_executable(self):
         return self._mamba_executable
 
-    def cache_path_app(self):
-        return self._cache_path_app
-
-    def cache_path_data(self):
-        return self._cache_path_data
+    def installation_path(self):
+        return self._installation_path
 
     def cache_path_download(self):
         return self._cache_path_download
 
-    def cache_path_tmp_internal(self):
-        return self._cache_path_tmp_internal
+    def tmp_path(self):
+        return self._tmp_path
 
-    def cache_path_tmp_internal_misc(self):
-        return self._cache_path_tmp_internal_misc
-
-    def cache_path_tmp_user(self):
-        return self._cache_path_tmp_user
-
-    def cache_path_envs(self):
+    def environments_path(self):
         return self._cache_path_envs
 
     def lnk_path(self):
@@ -86,26 +73,21 @@ class Configuration(IConfiguration):
                 self._conda_executable = shutil.which(self._conda_executable)
 
         self._mamba_executable = shutil.which('mamba')
-        self._cache_path_tmp_internal = self._base_cache_path.joinpath(DefaultValues.cache_path_solution_prefix.value)
-        self._cache_path_tmp_internal_misc = self._base_cache_path.joinpath(DefaultValues.cache_path_internal_tmp_prefix.value)
-        self._cache_path_app = self._base_cache_path.joinpath(DefaultValues.cache_path_app_prefix.value)
-        self._cache_path_data = self._base_cache_path.joinpath(DefaultValues.cache_path_data_prefix.value)
+
         self._cache_path_download = self._base_cache_path.joinpath(DefaultValues.cache_path_download_prefix.value)
-        self._cache_path_tmp_user = self._base_cache_path.joinpath(DefaultValues.cache_path_tmp_prefix.value)
         self._cache_path_envs = self._base_cache_path.joinpath(DefaultValues.cache_path_envs_prefix.value)
         self._catalog_collection_path = self._base_cache_path.joinpath(DefaultValues.catalog_folder_prefix.value)
+        self._installation_path = self._base_cache_path.joinpath(DefaultValues.installation_folder_prefix.value)
+        self._tmp_path = self._base_cache_path.joinpath(DefaultValues.cache_path_tmp_prefix.value)
         self._lnk_path = self._base_cache_path.joinpath(DefaultValues.link_folder_prefix.value)
         self._empty_tmp()
         create_paths_recursively(
             [
-                self._cache_path_tmp_internal,
-                self._cache_path_tmp_internal_misc,
-                self._cache_path_app,
-                self._cache_path_data,
+                self._tmp_path,
                 self._cache_path_download,
-                self._cache_path_tmp_user,
                 self._cache_path_envs,
-                self._catalog_collection_path
+                self._catalog_collection_path,
+                self._installation_path
             ]
         )
 
@@ -120,7 +102,7 @@ class Configuration(IConfiguration):
 
     def get_solution_path_suffix(self, coordinates: Coordinates) -> Path:
         return Path("").joinpath(
-            DefaultValues.cache_path_solution_prefix.value,
+            DefaultValues.catalog_solutions_prefix.value,
             coordinates.group(),
             coordinates.name(),
             coordinates.version()
@@ -162,4 +144,4 @@ class Configuration(IConfiguration):
         # this should not be done since there could be links in tmp_user or tmp_internal which have to be resolved when deleting them
         # force_remove(self._cache_path_tmp_user)
         # force_remove(self._cache_path_tmp_internal)
-        force_remove(self._cache_path_tmp_internal_misc)
+        force_remove(self._tmp_path)

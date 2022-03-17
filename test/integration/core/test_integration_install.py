@@ -45,7 +45,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
             get_link_target(Path(self.tmp_dir.name).joinpath(
                 DefaultValues.catalog_folder_prefix.value,
                 str(self.album_controller.collection_manager().catalogs().get_cache_catalog().name()),
-                DefaultValues.cache_path_solution_prefix.value,
+                DefaultValues.catalog_solutions_prefix.value,
                 "group", "name", "0.1.0"
             )).joinpath("solution.py").exists()
         )
@@ -162,7 +162,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
             Path(self.tmp_dir.name).joinpath(
                 DefaultValues.catalog_folder_prefix.value,
                 str(self.album_controller.collection_manager().catalogs().get_cache_catalog().name),
-                DefaultValues.cache_path_solution_prefix.value,
+                DefaultValues.catalog_solutions_prefix.value,
                 "ida-mdc", "app-fiji", "0.1.0", "solution.py"
             ).exists()
         )
@@ -185,13 +185,13 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         parent_solution_path = get_link_target(Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
             str(self.album_controller.collection_manager().catalogs().get_cache_catalog().name()),
-            DefaultValues.cache_path_solution_prefix.value, 'group',
+            DefaultValues.catalog_solutions_prefix.value, 'group',
             'app1', '0.1.0')).joinpath('solution.py')
         self.assertTrue(parent_solution_path.exists())
         solution_path = get_link_target(Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
             str(self.album_controller.collection_manager().catalogs().get_cache_catalog().name()),
-            DefaultValues.cache_path_solution_prefix.value, 'group',
+            DefaultValues.catalog_solutions_prefix.value, 'group',
             'solution1_app1', '0.1.0')).joinpath('solution.py')
         self.assertTrue(solution_path.exists())
 
@@ -204,7 +204,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         solution_path = Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
             str(self.album_controller.collection_manager().catalogs().get_cache_catalog().name()),
-            DefaultValues.cache_path_solution_prefix.value, 'group',
+            DefaultValues.catalog_solutions_prefix.value, 'group',
             'solution1_app1', '0.1.0'
         )
         self.assertFalse(solution_path.exists())
@@ -302,20 +302,20 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         parent_solution_path = get_link_target(Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
             str(self.album_controller.collection_manager().catalogs().get_cache_catalog().name()),
-            DefaultValues.cache_path_solution_prefix.value, 'group',
+            DefaultValues.catalog_solutions_prefix.value, 'group',
             'app1', '0.1.0')).joinpath('solution.py')
         self.assertTrue(parent_solution_path.exists())
         solution_path = get_link_target(Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
             str(self.album_controller.collection_manager().catalogs().get_cache_catalog().name()),
-            DefaultValues.cache_path_solution_prefix.value, 'group',
+            DefaultValues.catalog_solutions_prefix.value, 'group',
             'solution1_app1', '0.1.0')).joinpath('solution.py')
         self.assertTrue(solution_path.exists())
         self.assertTrue(parent_solution_path.exists())
         solution_child_path = get_link_target(Path(self.tmp_dir.name).joinpath(
             DefaultValues.catalog_folder_prefix.value,
             str(self.album_controller.collection_manager().catalogs().get_cache_catalog().name()),
-            DefaultValues.cache_path_solution_prefix.value, 'group',
+            DefaultValues.catalog_solutions_prefix.value, 'group',
             'solution12_solution1_app1', '0.1.0')).joinpath('solution.py')
         self.assertTrue(solution_child_path.exists())
 
