@@ -95,6 +95,7 @@ class CollectionManager(ICollectionManager):
                 })
             catalog['solutions'] = solutions
         return {
+            'base': str(self.album.configuration().base_cache_path()),
             'catalogs': catalogs
         }
 
