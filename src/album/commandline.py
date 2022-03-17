@@ -102,7 +102,7 @@ def index(album_instance: Album, args):
         print(_as_json(index_dict))
     else:
         res = get_index_as_string(index_dict)
-        module_logger().info('Catalogs in your local collection: %s' % res)
+        module_logger().info(res)
 
 
 def repl(album_instance: Album, args):

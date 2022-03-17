@@ -61,52 +61,25 @@ class TestIntegrationFileStructure(TestIntegrationCoreCommon):
 
     def check_files_exist(self, base, group, name, version, size, id='0'):
         self.assertEqual(size, len(listdir(base.joinpath('lnk', 'pck'))))
-        self.assertEqual(size, len(listdir(base.joinpath('lnk', 'app'))))
-        self.assertEqual(size, len(listdir(base.joinpath('lnk', 'data'))))
-        self.assertEqual(size, len(listdir(base.joinpath('lnk', 'ucache'))))
-        self.assertEqual(size, len(listdir(base.joinpath('lnk', 'icache'))))
+        self.assertEqual(size, len(listdir(base.joinpath('lnk', 'inst'))))
         self.assertTrue(base.joinpath('lnk', 'pck', id).exists())
-        self.assertTrue(base.joinpath('lnk', 'app', id).exists())
-        self.assertTrue(base.joinpath('lnk', 'data', id).exists())
-        self.assertTrue(base.joinpath('lnk', 'ucache', id).exists())
-        self.assertTrue(base.joinpath('lnk', 'icache', id).exists())
+        self.assertTrue(base.joinpath('lnk', 'inst', id).exists())
 
         self.assertTrue(self._link(base.joinpath('catalogs', 'cache_catalog', 'solutions', group, name, version)).exists())
         self.assertEqual(base.joinpath('lnk', 'pck', id).resolve(), get_link_target(
             base.joinpath('catalogs', 'cache_catalog', 'solutions', group, name, version)).resolve())
 
-        self.assertTrue(self._link(base.joinpath('apps', 'cache_catalog', group, name, version)).exists())
-        self.assertEqual(base.joinpath('lnk', 'app', id).resolve(), get_link_target(
-            base.joinpath('apps', 'cache_catalog', group, name, version)).resolve())
-
-        self.assertTrue(self._link(base.joinpath('data', 'cache_catalog', group, name, version)).exists())
-        self.assertEqual(base.joinpath('lnk', 'data', id).resolve(), get_link_target(
-            base.joinpath('data', 'cache_catalog', group, name, version)).resolve())
-
-        self.assertTrue(self._link(base.joinpath('tmp', 'cache_catalog', group, name, version)).exists())
-        self.assertEqual(base.joinpath('lnk', 'ucache', id).resolve(), get_link_target(
-            base.joinpath('tmp', 'cache_catalog', group, name, version)).resolve())
-
-        self.assertTrue(self._link(base.joinpath('solutions', 'cache_catalog', group, name, version)).exists())
-        self.assertEqual(base.joinpath('lnk', 'icache', id).resolve(), get_link_target(
-            base.joinpath('solutions', 'cache_catalog', group, name, version)).resolve())
+        self.assertTrue(self._link(base.joinpath('installations', 'cache_catalog', group, name, version)).exists())
+        self.assertEqual(base.joinpath('lnk', 'inst', id).resolve(), get_link_target(
+            base.joinpath('installations', 'cache_catalog', group, name, version)).resolve())
 
     def check_files_do_not_exist(self, base, group, name, version, size, id='0'):
         self.assertEqual(size, len(listdir(base.joinpath('lnk', 'pck'))))
-        self.assertEqual(size, len(listdir(base.joinpath('lnk', 'app'))))
-        self.assertEqual(size, len(listdir(base.joinpath('lnk', 'data'))))
-        self.assertEqual(size, len(listdir(base.joinpath('lnk', 'ucache'))))
-        self.assertEqual(size, len(listdir(base.joinpath('lnk', 'icache'))))
+        self.assertEqual(size, len(listdir(base.joinpath('lnk', 'inst'))))
         self.assertFalse(base.joinpath('lnk', 'pck', id).exists())
-        self.assertFalse(base.joinpath('lnk', 'app', id).exists())
-        self.assertFalse(base.joinpath('lnk', 'data', id).exists())
-        self.assertFalse(base.joinpath('lnk', 'ucache', id).exists())
-        self.assertFalse(base.joinpath('lnk', 'icache', id).exists())
+        self.assertFalse(base.joinpath('lnk', 'inst', id).exists())
         self.assertFalse(self._link(base.joinpath('catalogs', 'cache_catalog', 'solutions', group, name, version)).exists())
-        self.assertFalse(self._link(base.joinpath('apps', 'cache_catalog', group, name, version)).exists())
-        self.assertFalse(self._link(base.joinpath('data', 'cache_catalog', group, name, version)).exists())
-        self.assertFalse(self._link(base.joinpath('tmp', 'cache_catalog', group, name, version)).exists())
-        self.assertFalse(self._link(base.joinpath('solutions', 'cache_catalog', group, name, version)).exists())
+        self.assertFalse(self._link(base.joinpath('installations', 'cache_catalog', group, name, version)).exists())
 
     def _link(self, link: Path):
         operation_system = platform.system().lower()

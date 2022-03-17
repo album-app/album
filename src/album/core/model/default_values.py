@@ -38,13 +38,11 @@ class DefaultValues(Enum):
     catalog_index_metafile_json = 'album_catalog_index.json'               # the default meta file name of the catalog_index
     catalog_solution_list_file_name = 'album_solution_list.json'           # the default file name for exporting the list of solutions of a catalog
     catalog_folder_prefix = 'catalogs'                                     # base folder prefix where all not local catalogs live
+    installation_folder_prefix = "installations"                           # base folder prefix where installations live
+    cache_path_tmp_prefix = "tmp"                                          # base folder prefix where solution unspecific internal temporary files live
     link_folder_prefix = 'lnk'                                             # base folder prefix where all internal link destinations live
-    cache_path_solution_prefix = "solutions"                               # base folder prefix where solutions live
-    cache_path_app_prefix = "apps"                                         # base folder prefix where app solutions live
-    cache_path_data_prefix = "data"                                        # base folder prefix where data lives
+    catalog_solutions_prefix = "solutions"                                 # base folder prefix where solutions live
     cache_path_download_prefix = "downloads"                               # base folder prefix where downloads live
-    cache_path_tmp_prefix = "tmp"                                          # base folder prefix where solution specific user temporary files live
-    cache_path_internal_tmp_prefix = "internal_tmp"                        # base folder prefix where solution unspecific internal temporary files live
     cache_path_envs_prefix = "envs"                                        # base folder prefix where environments live in
 
     # solutions
@@ -52,12 +50,15 @@ class DefaultValues(Enum):
     changelog_default_name = "CHANGELOG.md"                                # default name of the changelog file
 
     # lnk folder prefixes
-    lnk_data_prefix = 'data'
-    lnk_app_prefix = 'app'
-    lnk_package_prefix = 'pck'
-    lnk_internal_cache_prefix = 'icache'
-    lnk_user_cache_prefix = 'ucache'
-    lnk_env_prefix = 'env'
+    lnk_package_prefix = 'pck'                                             # short name of the folder linked to from the catalogs directory
+    lnk_env_prefix = 'env'                                                 # short name of the folder linked to from the environments directory
+    lnk_solution_prefix = 'inst'                                           # short name of the folder linked to from the installations
+
+    # solution specific files living in the installations folder
+    solution_app_prefix = 'app'                                            # solution specific app files
+    solution_data_prefix = 'data'                                          # solution specific data files
+    solution_internal_cache_prefix = 'icache'                              # solution specific album internal cache files
+    solution_user_cache_prefix = 'ucache'                                  # solution specific user cache files, accessible via runner API
 
     # environment
     default_environment = "album"            # default environment name the album framework operates from

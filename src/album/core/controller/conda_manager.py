@@ -70,7 +70,7 @@ class CondaManager:
             path_expected)) else False
 
     def _environment_name_to_path(self, environment_name, create=True):
-        path = os.path.normpath(self._configuration.cache_path_envs().joinpath(environment_name))
+        path = os.path.normpath(self._configuration.environments_path().joinpath(environment_name))
         target = construct_cache_link_target(self._configuration.lnk_path(), point_from=path,
                                              point_to=DefaultValues.lnk_env_prefix.value, create=create)
         if target:

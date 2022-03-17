@@ -40,7 +40,7 @@ class TestCondaManager(TestUnitCoreCommon):
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_list')
     def test_environment_exists(self, ged_mock):
-        p = str(self.conda._configuration.cache_path_envs().joinpath("envName1"))
+        p = str(self.conda._configuration.environments_path().joinpath("envName1"))
         target = self.conda._configuration.lnk_path().joinpath('0').resolve()
         Path(target).joinpath('whatever').mkdir(parents=True)
         operation_system = platform.system().lower()
@@ -197,7 +197,7 @@ dependencies:
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_set_environment_path(self, gep_mock):
-        p = str(self.conda._configuration.cache_path_envs().joinpath(self.test_environment_name))
+        p = str(self.conda._configuration.environments_path().joinpath(self.test_environment_name))
         gep_mock.return_value = p
         environment = Environment(None, self.test_environment_name, "aPath")
         self.assertIsNone(self.conda.set_environment_path(environment))

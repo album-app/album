@@ -59,7 +59,7 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
         self.assertTrue(local_catalogs_path.exists())
         self.assertTrue(local_catalog_path.exists())
         # meta file available in catalog clone, not in catalog src, as it is a bare repository!
-        with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal_misc()) as tmp_dir:
+        with TemporaryDirectory(dir=self.album.configuration().tmp_path()) as tmp_dir:
             target_tmp = Path(tmp_dir).joinpath("clone")
             with clone_repository(local_catalog_path, target_tmp) as repo:
                 self.assertTrue(

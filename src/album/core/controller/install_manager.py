@@ -6,9 +6,9 @@ from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.api.model.environment import IEnvironment
 from album.core.controller.environment_manager import EnvironmentManager
 from album.core.model.resolve_result import ResolveResult
+from album.core.utils.operations.file_operations import remove_link
 from album.core.utils.operations.resolve_operations import clean_resolve_tmp, build_resolve_string, dict_to_coordinates
 from album.core.utils.operations.solution_operations import get_deploy_dict, get_parent_dict
-from album.core.utils.operations.solution_operations import remove_disc_content_from_solution
 from album.runner import album_logging
 from album.runner.core.api.model.solution import ISolution
 from album.runner.core.model.script_creator import ScriptCreatorInstall, ScriptCreatorUnInstall
@@ -65,7 +65,7 @@ class InstallManager(IInstallManager):
         if not parent:
             if resolve_result.catalog().is_cache():
                 # always clean after registration to a catalog!
-                clean_resolve_tmp(self.album.configuration().cache_path_tmp_internal_misc())
+                clean_resolve_tmp(self.album.configuration().tmp_path())
 
         # mark as "installation unfinished"
         self.album.solutions().set_installation_unfinished(resolve_result.catalog(), resolve_result.coordinates())
@@ -225,10 +225,10 @@ class InstallManager(IInstallManager):
                 raise RuntimeError(
                     "Cannot uninstall \"%s\". Other solution depend on this installation! "
                     "Inspect log for more information!"
-                    % resolve_result.coordinates
+                    % resolve_result.coordinates()
                 )
 
-        remove_disc_content_from_solution(resolve_result)
+        self._remove_disc_content_from_solution(resolve_result)
 
         if resolve_result.catalog().is_cache():
             self.album.solutions().remove_solution(resolve_result.catalog(), resolve_result.coordinates())
@@ -288,7 +288,7 @@ class InstallManager(IInstallManager):
             if not get_parent_dict(resolve.loaded_solution()):
                 self._clean_unfinished_installations_environment(resolve)
 
-            remove_disc_content_from_solution(resolve)
+            self._remove_disc_content_from_solution(resolve)
 
             if resolve.catalog().is_cache():
                 self.album.solutions().remove_solution(resolve.catalog(), coordinates)
@@ -301,3 +301,9 @@ class InstallManager(IInstallManager):
             self.album.environment_manager().remove_environment(environment)
         except LookupError:
             pass
+
+    def _remove_disc_content_from_solution(self, resolve_result: ICollectionSolution):
+        remove_link(self.album.collection_manager().solutions().get_solution_installation_path(
+            resolve_result.catalog(), resolve_result.coordinates()))
+        remove_link(self.album.collection_manager().solutions().get_solution_package_path(
+            resolve_result.catalog(), resolve_result.coordinates()))

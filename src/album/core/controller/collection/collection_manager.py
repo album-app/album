@@ -95,6 +95,7 @@ class CollectionManager(ICollectionManager):
                 })
             catalog['solutions'] = solutions
         return {
+            'base': str(self.album.configuration().base_cache_path()),
             'catalogs': catalogs
         }
 
@@ -186,7 +187,7 @@ class CollectionManager(ICollectionManager):
                     catalog = self.album.catalogs().get_by_id(solution_entry.internal["catalog_id"])
                 else:
                     # download DOI
-                    path = check_doi(doi["doi"], self.album.configuration().cache_path_tmp_internal_misc())
+                    path = check_doi(doi["doi"], self.album.configuration().tmp_path())
 
                     catalog = self.album.catalogs().get_cache_catalog()
             else:  # case no doi

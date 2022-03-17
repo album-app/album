@@ -57,13 +57,13 @@ class MigrationManager(IMigrationManager):
         return catalog_index_path
 
     def load_index(self, catalog: ICatalog):
-        with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal_misc()) as tmp_dir:
+        with TemporaryDirectory(dir=self.album.configuration().tmp_path()) as tmp_dir:
             catalog.update_index_cache(Path(tmp_dir))
         self._load_catalog_index(catalog, CatalogIndex.version)
         self.album.catalogs().set_version(catalog)
 
     def refresh_index(self, catalog: ICatalog) -> bool:
-        with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal_misc()) as tmp_dir:
+        with TemporaryDirectory(dir=self.album.configuration().tmp_path()) as tmp_dir:
             if catalog.update_index_cache_if_possible(tmp_dir):
                 self._load_catalog_index(catalog, CatalogIndex.version)
                 return True

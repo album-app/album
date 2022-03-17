@@ -45,7 +45,7 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         self.album_controller.collection_manager().get_collection_index().add_or_replace_solution = add_or_replace_solution
 
         get_solution_path = MagicMock(return_value="myCopyPath")
-        self.solution_handler.get_solution_path = get_solution_path
+        self.solution_handler.get_solution_package_path = get_solution_path
 
         # call
         self.solution_handler.add_or_replace(catalog, self.active_solution, self.tmp_dir.name)
@@ -71,7 +71,7 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         self.album_controller.collection_manager().get_collection_index().add_or_replace_solution = add_or_replace_solution
 
         get_solution_path = MagicMock(return_value=Path("myCopyPath"))
-        self.solution_handler.get_solution_path = get_solution_path
+        self.solution_handler.get_solution_package_path = get_solution_path
 
         # call
         self.solution_handler.add_or_replace(catalog, self.active_solution, self.closed_tmp_file.name)
@@ -408,10 +408,10 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
 
     def test_get_solution_path(self):
         # call
-        file = Path(self.solution_handler.get_solution_path(self.catalog, Coordinates("g", "n", "v"))).resolve()
+        file = Path(self.solution_handler.get_solution_package_path(self.catalog, Coordinates("g", "n", "v"))).resolve()
         self.assertEqual(
             get_link_target(
-                self.catalog.path().joinpath(DefaultValues.cache_path_solution_prefix.value, "g", "n", "v")).resolve(),
+                self.catalog.path().joinpath(DefaultValues.catalog_solutions_prefix.value, "g", "n", "v")).resolve(),
             file
         )
 
@@ -419,7 +419,7 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         # call
         file = Path(self.solution_handler.get_solution_file(self.catalog, Coordinates("g", "n", "v"))).resolve()
         res = get_link_target(
-            self.catalog.path().joinpath(DefaultValues.cache_path_solution_prefix.value, "g", "n", "v")).joinpath(
+            self.catalog.path().joinpath(DefaultValues.catalog_solutions_prefix.value, "g", "n", "v")).joinpath(
             "solution.py")
         self.assertEqual(res.resolve(), file)
 
@@ -427,12 +427,12 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         # call
         solution_zip = Path(self.solution_handler.get_solution_zip(self.catalog, Coordinates("g", "n", "v"))).resolve()
         res = get_link_target(
-            self.catalog.path().joinpath(DefaultValues.cache_path_solution_prefix.value, "g", "n", "v")).joinpath(
+            self.catalog.path().joinpath(DefaultValues.catalog_solutions_prefix.value, "g", "n", "v")).joinpath(
             "g_n_v.zip")
         self.assertEqual(res.resolve(), solution_zip)
 
     def test_get_solution_zip_suffix(self):
-        res = Path("").joinpath(DefaultValues.cache_path_solution_prefix.value, "g", "n", "v", "g_n_v.zip")
+        res = Path("").joinpath(DefaultValues.catalog_solutions_prefix.value, "g", "n", "v", "g_n_v.zip")
 
         # call
         self.assertEqual(res, self.solution_handler.get_solution_zip_suffix(Coordinates("g", "n", "v")))
@@ -451,7 +451,7 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
 
         # assert
         dl_path = get_link_target(self.catalog.path().joinpath(
-            DefaultValues.cache_path_solution_prefix.value, "g", "n", "v"
+            DefaultValues.catalog_solutions_prefix.value, "g", "n", "v"
         )).joinpath("g_n_v.zip")
         res = Path("a/Path").joinpath(DefaultValues.solution_default_name.value)
         self.assertEqual(res, solution_path)
@@ -468,22 +468,22 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         self.solution_handler.set_cache_paths(active_solution, catalog)
 
         self.assertEqual(
-            Path(config.lnk_path()).joinpath('data', '0').resolve(),
-            active_solution.installation().data_path().resolve()
-        )
-        self.assertEqual(
-            Path(config.lnk_path()).joinpath('app', '0').resolve(),
-            active_solution.installation().app_path().resolve()
-        )
-        self.assertEqual(
             Path(config.lnk_path()).joinpath('pck', '0').resolve(),
             active_solution.installation().package_path().resolve()
         )
         self.assertEqual(
-            Path(config.lnk_path()).joinpath('icache', '0').resolve(),
+            Path(config.lnk_path()).joinpath('inst', '0', 'data').resolve(),
+            active_solution.installation().data_path().resolve()
+        )
+        self.assertEqual(
+            Path(config.lnk_path()).joinpath('inst', '0', 'app').resolve(),
+            active_solution.installation().app_path().resolve()
+        )
+        self.assertEqual(
+            Path(config.lnk_path()).joinpath('inst', '0', 'icache').resolve(),
             active_solution.installation().internal_cache_path().resolve()
         )
         self.assertEqual(
-            Path(config.lnk_path()).joinpath('ucache', '0').resolve(),
+            Path(config.lnk_path()).joinpath('inst', '0', 'ucache').resolve(),
             active_solution.installation().user_cache_path().resolve()
         )

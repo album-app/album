@@ -32,7 +32,9 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         self.assertIsNotNone(self.album_controller.collection_manager().solutions())
 
     def test_get_index_as_dict(self):
-        expected_dict = {'catalogs': [
+        expected_dict = {
+            'base': str(self.album_controller.configuration().base_cache_path()),
+            'catalogs': [
             {
                 'catalog_id': 1,
                 'name': 'cache_catalog',

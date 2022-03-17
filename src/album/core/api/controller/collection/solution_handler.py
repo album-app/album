@@ -1,9 +1,8 @@
 from abc import ABCMeta, abstractmethod
 
-from album.core.api.model.collection_index import ICollectionIndex
-
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.catalog_updates import ISolutionChange
+from album.core.api.model.collection_index import ICollectionIndex
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
 
@@ -49,7 +48,7 @@ class ISolutionHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def get_solution_path(self, catalog: ICatalog, coordinates: ICoordinates):
+    def get_solution_package_path(self, catalog: ICatalog, coordinates: ICoordinates):
         """Gets the cache path of a solution in a catalog given its group, name and version.
 
         Args:
@@ -60,6 +59,22 @@ class ISolutionHandler:
 
         Returns:
             The absolute path to the cache folder of the solution.
+
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_solution_installation_path(self, catalog: ICatalog, coordinates: ICoordinates):
+        """Gets the path of files belonging to an installed solution in a catalog given its group, name and version.
+
+        Args:
+            catalog:
+                The catalog this solution lives in.
+            coordinates:
+                The group affiliation, name, and version of the solution.
+
+        Returns:
+            The absolute path to the installation folder of the solution.
 
         """
         raise NotImplementedError

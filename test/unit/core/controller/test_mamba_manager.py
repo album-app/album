@@ -138,7 +138,7 @@ class TestMambaManager(TestUnitCoreCommon):
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_set_environment_path(self, gep_mock):
-        p = str(self.mamba._configuration.cache_path_envs().joinpath(self.test_environment_name))
+        p = str(self.mamba._configuration.environments_path().joinpath(self.test_environment_name))
         gep_mock.return_value = p
         environment = Environment(None, self.test_environment_name, "aPath")
         self.assertIsNone(self.mamba.set_environment_path(environment))
