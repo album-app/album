@@ -52,8 +52,13 @@ def get_credit_as_string(solution: ISolution) -> str:
         res += '\n\nCredits:\n\n'
         for citation in solution.setup().cite:
             text = citation['text']
-            if 'doi' in citation:
-                text += ' (DOI: %s)' % citation['doi']
+            if 'doi' in citation and 'url' in citation:
+                text += ' (DOI: %s, %s)' % (citation['doi'], citation['url'])
+            else:
+                if 'doi' in citation:
+                    text += ' (DOI: %s)' % citation['doi']
+                if 'url' in citation:
+                    text += ' (%s)' % citation['url']
             res += '%s\n' % text
         res += '\n'
     return res

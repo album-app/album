@@ -225,7 +225,7 @@ class InstallManager(IInstallManager):
                 raise RuntimeError(
                     "Cannot uninstall \"%s\". Other solution depend on this installation! "
                     "Inspect log for more information!"
-                    % resolve_result.coordinates
+                    % resolve_result.coordinates()
                 )
 
         self._remove_disc_content_from_solution(resolve_result)
