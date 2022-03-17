@@ -75,8 +75,8 @@ class Album:
     def get_collection_index(self) -> ICollectionIndex:
         return self._controller.collection_manager().get_collection_index()
 
-    def test(self, collection_solution: ICollectionSolution, args=None):
-        return self._controller.test_manager().test(collection_solution, args)
+    def test(self, solution_to_resolve: str, args=None):
+        return self._controller.test_manager().test(solution_to_resolve, args)
 
     def load(self, path) -> Optional[ISolution]:
         return self._controller.state_manager().load(path)
@@ -86,13 +86,13 @@ class Album:
         """
         return self._controller.search_manager().search(keywords)
 
-    def run(self, collection_solution: ICollectionSolution, argv=None, run_immediately=False):
-        return self._controller.run_manager().run(collection_solution, run_immediately, argv)
+    def run(self, solution_to_resolve: str, argv=None, run_immediately=False):
+        return self._controller.run_manager().run(solution_to_resolve, run_immediately, argv)
 
-    def install(self, collection_solution: ICollectionSolution, argv=None):
-        return self._controller.install_manager().install(collection_solution, argv)
+    def install(self, solution_to_resolve: str, argv=None):
+        return self._controller.install_manager().install(solution_to_resolve, argv)
 
-    def uninstall(self, collection_solution: ICollectionSolution, rm_dep=False, argv=None):
+    def uninstall(self, solution_to_resolve: str, rm_dep=False, argv=None):
         """Removes a solution from the disk. Thereby uninstalling its environment and deleting all its downloads.
 
         Args:
@@ -104,7 +104,7 @@ class Album:
                 Boolean to indicate whether to remove parents too.
 
         """
-        return self._controller.install_manager().uninstall(collection_solution, rm_dep, argv)
+        return self._controller.install_manager().uninstall(solution_to_resolve, rm_dep, argv)
 
     def deploy(self, deploy_path: str, catalog_name: str, dry_run: bool, push_option=None, git_email: str = None,
                git_name: str = None, force_deploy: bool = False, changelog: str = ""):
@@ -185,7 +185,8 @@ class Album:
     def configuration(self) -> IConfiguration:
         return self._controller.configuration()
 
-    def is_installed(self, resolve_result: ICollectionSolution):
+    def is_installed(self, solution_to_resolve: str):
+        resolve_result = self.resolve(solution_to_resolve)
         return self._controller.solutions().is_installed(resolve_result.catalog(), resolve_result.coordinates())
 
     def load_catalog_index(self, catalog: ICatalog):

@@ -316,9 +316,6 @@ class TestScriptManager(TestUnitCoreCommon):
         resolve_args = MagicMock(return_value=["parent_args", "active_solution_args"])
         self.script_manager._resolve_args = resolve_args
 
-        resolve_parent = MagicMock(return_value=ResolveResult("parentPath", None, None, None, self.active_solution))
-        self.album_controller.collection_manager().resolve_parent = resolve_parent
-
         set_environment = MagicMock(return_value=None)
         self.album_controller.environment_manager().set_environment = set_environment
 

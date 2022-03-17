@@ -1,5 +1,7 @@
 from abc import ABCMeta, abstractmethod
 
+from album.core.api.model.collection_index import ICollectionIndex
+
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.catalog_updates import ISolutionChange
 from album.runner.core.api.model.coordinates import ICoordinates
@@ -19,8 +21,7 @@ class ISolutionHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def set_parent(self, catalog_parent: ICatalog, catalog_child: ICatalog, coordinates_parent: ICoordinates,
-                   coordinates_child: ICoordinates):
+    def set_parent(self, parent: ICollectionIndex.ICollectionSolution, child: ICollectionIndex.ICollectionSolution):
         raise NotImplementedError
 
     @abstractmethod

@@ -103,29 +103,17 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
 
     def test_set_parent(self):
         # prepare
-        catalog_parent = EmptyTestClass()
-        catalog_parent.catalog_id = lambda: 0
-
-        catalog_child = EmptyTestClass()
-        catalog_child.catalog_id = lambda: 1
-
         parent_entry = EmptyTestClass()
-        parent_entry.internal = lambda: {"collection_id": 5}
+        parent_entry.internal = lambda: {"collection_id": 5, "catalog_id": 0}
         child_entry = EmptyTestClass()
-        child_entry.internal = lambda: {"collection_id": 10}
+        child_entry.internal = lambda: {"collection_id": 10, "catalog_id": 1}
 
         # mock
-        get_solution_by_catalog_grp_name_version = MagicMock()
-        get_solution_by_catalog_grp_name_version.side_effect = [parent_entry, child_entry]
-        self.solution_handler._get_collection_index().get_solution_by_catalog_grp_name_version = get_solution_by_catalog_grp_name_version
-
         insert_collection_collection = MagicMock()
         self.solution_handler._get_collection_index().insert_collection_collection = insert_collection_collection
 
         # call
-        self.solution_handler.set_parent(
-            catalog_parent, catalog_child, Coordinates("a", "p", "0"), Coordinates("a", "c", "0")
-        )
+        self.solution_handler.set_parent(parent_entry, child_entry)
 
         # assert
         insert_collection_collection.assert_called_once_with(5, 10, 0, 1)
@@ -383,8 +371,8 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         update_solution = MagicMock()
         self.solution_handler.update_solution = update_solution
 
-        _set_parent_from_entry = MagicMock()
-        self.solution_handler._set_parent_from_entry = _set_parent_from_entry
+        set_parent = MagicMock()
+        self.solution_handler.set_parent = set_parent
 
         get_solution_by_catalog_grp_name_version = MagicMock(return_value="internal_solution")
         self.album_controller.collection_manager().get_collection_index().get_solution_by_catalog_grp_name_version = get_solution_by_catalog_grp_name_version
@@ -395,7 +383,7 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         # assert
         _get_db_status_dict.assert_called_once_with({"old_status": 1, "parent": "yes"})
         update_solution.assert_called_once_with(empty_catalog, coordinates, {"parent": "yes"})
-        _set_parent_from_entry.assert_called_once_with("yes", "internal_solution")
+        set_parent.assert_called_once_with("yes", "internal_solution")
         get_solution_by_catalog_grp_name_version.assert_called_once_with(5, coordinates)
 
     @unittest.skip("Needs to be implemented!")

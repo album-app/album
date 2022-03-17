@@ -18,35 +18,29 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
         super().tearDown()
 
     @patch('album.api.Album.load_or_create_collection')
-    @patch('album.commandline._resolve_installed')
     @patch('album.core.controller.run_manager.RunManager.run')
-    def test_run(self, run_mock, resolve_mock, load_or_create_mock):
+    def test_run(self, run_mock, load_or_create_mock):
         sys.argv = ["", "run", "testpath"]
         self.assertIsNone(main())
         self.assertNotIn('ERROR', self.captured_output.getvalue())
-        resolve_mock.assert_called_once()
         run_mock.assert_called_once()
         load_or_create_mock.assert_called_once()
 
     @patch('album.api.Album.load_or_create_collection')
-    @patch('album.commandline._resolve_installed')
     @patch('album.core.controller.test_manager.TestManager.test')
-    def test_test(self, test_mock, resolve_mock, load_or_create_mock):
+    def test_test(self, test_mock, load_or_create_mock):
         sys.argv = ["", "test", "testpath"]
         self.assertIsNone(main())
         self.assertNotIn('ERROR', self.captured_output.getvalue())
-        resolve_mock.assert_called_once()
         test_mock.assert_called_once()
         load_or_create_mock.assert_called_once()
 
     @patch('album.api.Album.load_or_create_collection')
-    @patch('album.commandline._resolve')
     @patch('album.core.controller.install_manager.InstallManager.install')
-    def test_install(self, install_mock, resolve_mock, load_or_create_mock):
+    def test_install(self, install_mock, load_or_create_mock):
         sys.argv = ["", "install", "testpath"]
         self.assertIsNone(main())
         self.assertNotIn('ERROR', self.captured_output.getvalue())
-        resolve_mock.assert_called_once()
         install_mock.assert_called_once()
         load_or_create_mock.assert_called_once()
 
@@ -231,6 +225,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
         # run
         with self.assertRaises(SystemExit) as e:
             main()
+        print(self.captured_output.getvalue())
         self.assertEqual(1, e.exception.code.exit_status)
         # print(self.captured_output.getvalue())
         self.assertIn('INFO ~ print something', self.captured_output.getvalue())

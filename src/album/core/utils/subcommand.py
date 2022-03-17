@@ -95,8 +95,13 @@ class LogfileBuffer(io.StringIO):
             return None
 
     @staticmethod
+    def get_script_logging_formatter_regex():
+        regex_log_level = 'DEBUG|INFO|WARNING|ERROR'
+        return r'(%s)\s+([\s\S]+) - ([\s\S]+)?' % regex_log_level
+
+    @staticmethod
     def _parse_album_runner_log(text):
-        r = re.search(ISolutionScript.get_script_logging_formatter_regex(), text)
+        r = re.search(LogfileBuffer.get_script_logging_formatter_regex(), text)
         if r:
             return LogEntry(name=r.group(2), level=r.group(1), message=r.group(3))
         return None

@@ -205,7 +205,7 @@ class ReleaseManager:
             head = checkout_branch(repo, branch_name)
 
             # always use remote index
-            with TemporaryDirectory(dir=self.configuration.cache_path_tmp_internal()) as tmp_dir:
+            with TemporaryDirectory(dir=self.configuration.cache_path_tmp_internal_misc()) as tmp_dir:
                 repo = Path(tmp_dir).joinpath('repo')
                 try:
                     index_db, index_meta = retrieve_index_files_from_src(self.catalog_src, branch_name=self.catalog.branch_name(), tmp_dir=repo)

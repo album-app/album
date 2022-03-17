@@ -24,6 +24,7 @@ class Configuration(IConfiguration):
         self._cache_path_data = None
         self._cache_path_download = None
         self._cache_path_tmp_internal = None
+        self._cache_path_tmp_internal_misc = None
         self._cache_path_tmp_user = None
         self._cache_path_envs = None
         self._catalog_collection_path = None
@@ -49,6 +50,9 @@ class Configuration(IConfiguration):
 
     def cache_path_tmp_internal(self):
         return self._cache_path_tmp_internal
+
+    def cache_path_tmp_internal_misc(self):
+        return self._cache_path_tmp_internal_misc
 
     def cache_path_tmp_user(self):
         return self._cache_path_tmp_user
@@ -83,6 +87,7 @@ class Configuration(IConfiguration):
 
         self._mamba_executable = shutil.which('mamba')
         self._cache_path_tmp_internal = self._base_cache_path.joinpath(DefaultValues.cache_path_solution_prefix.value)
+        self._cache_path_tmp_internal_misc = self._base_cache_path.joinpath(DefaultValues.cache_path_internal_tmp_prefix.value)
         self._cache_path_app = self._base_cache_path.joinpath(DefaultValues.cache_path_app_prefix.value)
         self._cache_path_data = self._base_cache_path.joinpath(DefaultValues.cache_path_data_prefix.value)
         self._cache_path_download = self._base_cache_path.joinpath(DefaultValues.cache_path_download_prefix.value)
@@ -90,9 +95,11 @@ class Configuration(IConfiguration):
         self._cache_path_envs = self._base_cache_path.joinpath(DefaultValues.cache_path_envs_prefix.value)
         self._catalog_collection_path = self._base_cache_path.joinpath(DefaultValues.catalog_folder_prefix.value)
         self._lnk_path = self._base_cache_path.joinpath(DefaultValues.link_folder_prefix.value)
+        self._empty_tmp()
         create_paths_recursively(
             [
                 self._cache_path_tmp_internal,
+                self._cache_path_tmp_internal_misc,
                 self._cache_path_app,
                 self._cache_path_data,
                 self._cache_path_download,
@@ -102,7 +109,6 @@ class Configuration(IConfiguration):
             ]
         )
 
-        self._empty_tmp()
 
     @staticmethod
     def _build_conda_executable(conda_path):
@@ -153,4 +159,7 @@ class Configuration(IConfiguration):
 
     def _empty_tmp(self):
         """Removes the content of the tmp folder"""
-        force_remove(self._cache_path_tmp_user)
+        # this should not be done since there could be links in tmp_user or tmp_internal which have to be resolved when deleting them
+        # force_remove(self._cache_path_tmp_user)
+        # force_remove(self._cache_path_tmp_internal)
+        force_remove(self._cache_path_tmp_internal_misc)

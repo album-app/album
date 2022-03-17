@@ -2,7 +2,6 @@ from queue import Queue
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.test_manager import ITestManager
-from album.core.api.model.collection_solution import ICollectionSolution
 from album.runner import album_logging
 from album.runner.core.model.script_creator import ScriptCreatorTest
 
@@ -14,10 +13,11 @@ class TestManager(ITestManager):
     def __init__(self, album: IAlbumController):
         self.album = album
 
-    def test(self, resolve_result: ICollectionSolution, args=None):
+    def test(self, solution_to_resolve: str, args=None):
         if args is None:
             args = [""]
 
+        resolve_result = self.album.collection_manager().resolve_installed_and_load(solution_to_resolve)
         solution = resolve_result.loaded_solution()
 
         if solution.setup().pre_test and callable(solution.setup().pre_test) \

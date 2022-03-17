@@ -1,5 +1,6 @@
 import unittest
 from pathlib import Path
+from unittest import mock
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -292,7 +293,7 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         _search_mock.assert_not_called()
         _search_doi_mock.assert_called_once_with("10.5072/zenodo.931388")
         check_doi_mock.assert_called_once_with(
-            "10.5072/zenodo.931388", Path(self.tmp_dir.name).joinpath("tmp")
+            "10.5072/zenodo.931388", mock.ANY
         )
 
     @patch('album.core.controller.collection.collection_manager.check_file_or_url', return_value=None)

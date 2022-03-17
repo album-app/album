@@ -10,8 +10,8 @@ album = Album.Builder().base_cache_path('/my/album/dir').build()
 
 album.load_or_create_collection()
 
-solution1 = album.resolve('album:template-imagej2:0.1.0-SNAPSHOT')
-solution2 = album.resolve('album:template-napari:0.1.0-SNAPSHOT')
+solution1 = 'album:template-imagej2:0.1.0-SNAPSHOT'
+solution2 = 'album:template-napari:0.1.0-SNAPSHOT'
 
 if not album.is_installed(solution1):
     album.install(solution1)

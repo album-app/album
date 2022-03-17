@@ -238,7 +238,7 @@ class DeployManager(IDeployManager):
             return Path(zip_path)
 
     def _get_tmp_dir(self):
-        return self.album.configuration().cache_path_tmp_internal()
+        return self.album.configuration().cache_path_tmp_internal_misc()
 
     @staticmethod
     def _add_to_downloaded_catalog(catalog: ICatalog, active_solution: ISolution, dry_run: bool,

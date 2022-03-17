@@ -1,4 +1,3 @@
-import unittest
 from time import time, sleep
 from unittest.mock import patch
 

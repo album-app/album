@@ -3,6 +3,8 @@ from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from album.core.api.model.collection_index import ICollectionIndex
+
 from album.core.api.controller.collection.solution_handler import ISolutionHandler
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.model.catalog import ICatalog
@@ -49,27 +51,8 @@ class SolutionHandler(ISolutionHandler):
     def add_to_cache_catalog(self, active_solution: ISolution, path):
         self.add_or_replace(self.album.catalogs().get_cache_catalog(), active_solution, path)
 
-    def set_parent(self, catalog_parent: ICatalog, catalog_child: ICatalog, coordinates_parent: ICoordinates,
-                   coordinates_child: ICoordinates):
+    def set_parent(self, parent_entry: ICollectionIndex.ICollectionSolution, child_entry: ICollectionIndex.ICollectionSolution):
 
-        # retrieve parent entry
-        parent_entry = self._get_collection_index().get_solution_by_catalog_grp_name_version(
-            catalog_parent.catalog_id(), coordinates_parent, close=False
-        )
-        # retrieve child entry
-        child_entry = self._get_collection_index().get_solution_by_catalog_grp_name_version(
-            catalog_child.catalog_id(), coordinates_child, close=False
-        )
-
-        self._get_collection_index().insert_collection_collection(
-            parent_entry.internal()["collection_id"],
-            child_entry.internal()["collection_id"],
-            catalog_parent.catalog_id(),
-            catalog_child.catalog_id()
-        )
-
-    def _set_parent_from_entry(self, parent_entry, child_entry):
-        # internal representations of ICollectionSolution
         self._get_collection_index().insert_collection_collection(
             parent_entry.internal()["collection_id"],
             child_entry.internal()["collection_id"],
@@ -132,7 +115,7 @@ class SolutionHandler(ISolutionHandler):
         db_stat = self._get_db_status_dict(change.solution_status())
         self.update_solution(catalog, change.coordinates(), db_stat)
         if change.solution_status()['parent']:
-            self._set_parent_from_entry(
+            self.set_parent(
                 change.solution_status()['parent'],
                 self._get_collection_index().get_solution_by_catalog_grp_name_version(
                     catalog.catalog_id(), change.coordinates()
@@ -190,7 +173,7 @@ class SolutionHandler(ISolutionHandler):
 
     def _download_solution_zip(self, src, coordinates: ICoordinates, target, branch_name="main"):
         file_name = str(self.get_solution_zip_suffix(coordinates))
-        with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
+        with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal_misc()) as tmp_dir:
             repo_dir = Path(tmp_dir).joinpath('repo')
             try:
                 with clone_repository_sparse(src, branch_name, repo_dir) as repo:

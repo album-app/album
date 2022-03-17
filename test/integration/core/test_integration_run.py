@@ -16,8 +16,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         self.fake_install(self.get_test_solution_path())
 
         # run
-        resolve_result = self.album_controller.collection_manager().resolve_and_load(self.get_test_solution_path())
-        self.album_controller.run_manager().run(resolve_result)
+        self.album_controller.run_manager().run(self.get_test_solution_path())
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
@@ -30,8 +29,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
 
         # run
         with self.assertRaises(RuntimeError) as e:
-            resolve_result = self.album_controller.collection_manager().resolve_and_load(p)
-            self.album_controller.run_manager().run(resolve_result)
+            self.album_controller.run_manager().run(p)
 
         # self.assertIn("ERROR", self.captured_output.getvalue())
         self.assertIn("the following arguments are required: --lambda_arg1", self.captured_output.getvalue())
@@ -50,8 +48,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
                 "--lambda_arg1=myFile"]
 
         # run
-        resolve_result = self.album_controller.collection_manager().resolve_and_load(p)
-        self.album_controller.run_manager().run(resolve_result, argv=argv)
+        self.album_controller.run_manager().run(p, argv=argv)
 
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
@@ -75,10 +72,9 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         solution = self.fake_install(self.get_test_solution_path(), create_environment=False)
 
         # run
-        resolve_result = self.album_controller.collection_manager().resolve_and_load(
-            ":".join([solution.coordinates().group(), solution.coordinates().name(), solution.coordinates().version()])
-        )
-        self.album_controller.run_manager().run(resolve_result)
+        solution_str = ":".join(
+            [solution.coordinates().group(), solution.coordinates().name(), solution.coordinates().version()])
+        self.album_controller.run_manager().run(solution_str)
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
@@ -93,10 +89,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         argv = ["", "--log", "DEBUG"]
 
         # run
-        resolve_result = self.album_controller.collection_manager().resolve_and_load(
-            str(self.get_test_solution_path("solution11_minimal.py"))
-        )
-        self.album_controller.run_manager().run(resolve_result, argv=argv)
+        self.album_controller.run_manager().run(self.get_test_solution_path("solution11_minimal.py"), argv=argv)
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
@@ -114,10 +107,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
                 "--file_solution1_app1", self.closed_tmp_file.name]
 
         # run
-        resolve_result = self.album_controller.collection_manager().resolve_and_load(
-            self.get_test_solution_path("solution1_app1.py")
-        )
-        self.album_controller.run_manager().run(resolve_result, argv=argv)
+        self.album_controller.run_manager().run(self.get_test_solution_path("solution1_app1.py"), argv=argv)
 
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
@@ -143,10 +133,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
                 "--file", self.closed_tmp_file.name, "--file_solution1_app1", self.closed_tmp_file.name]
 
         # run
-        resolve_result = self.album_controller.collection_manager().resolve_and_load(
-            self.get_test_solution_path("solution_with_steps.py")
-        )
-        self.album_controller.run_manager().run(resolve_result, argv=argv)
+        self.album_controller.run_manager().run(self.get_test_solution_path("solution_with_steps.py"), argv=argv)
 
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
@@ -184,10 +171,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
                 self.closed_tmp_file.name, "--file_solution1_app1", self.closed_tmp_file.name]
 
         # run
-        resolve_result = self.album_controller.collection_manager().resolve_and_load(
-            self.get_test_solution_path("solution_with_steps_grouped.py")
-        )
-        self.album_controller.run_manager().run(resolve_result, argv=argv)
+        self.album_controller.run_manager().run(self.get_test_solution_path("solution_with_steps_grouped.py"), argv=argv)
 
         self.assertNotIn('ERROR', self.captured_output.getvalue())
         # assert file logs
@@ -214,14 +198,12 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
             self.assertEqual("solution3_noparent_close", log[17])
 
     def test_run_throwing_error_solution(self):
-        resolve_result = self.album_controller.collection_manager().resolve_and_load(
-            self.get_test_solution_path("solution15_album_running_faulty_solution.py")
-        )
-        self.album_controller.install_manager().install(resolve_result)
+        path = self.get_test_solution_path("solution15_album_running_faulty_solution.py")
+        self.album_controller.install_manager().install(path)
 
         # run
         with self.assertRaises(SubProcessError) as e:
-            self.album_controller.run_manager().run(resolve_result)
+            self.album_controller.run_manager().run(path)
         self.assertIn('INFO ~ print something', self.captured_output.getvalue())
         self.assertIn('INFO ~ logging info', self.captured_output.getvalue())
         self.assertEqual(1, self.captured_output.getvalue().count('INFO ~ logging info'))

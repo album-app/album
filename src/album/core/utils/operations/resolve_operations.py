@@ -165,6 +165,8 @@ def is_pathname_valid(pathname: str) -> bool:
 
 
 def check_doi(doi, tmp_cache_dir):
+    tmp_cache_dir = Path(tmp_cache_dir).joinpath(rand_folder_name())
+
     link = "https://doi.org/" + doi  # e.g. 10.5281/zenodo.5571504
 
     url = retrieve_redirect_url(link)
