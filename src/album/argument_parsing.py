@@ -139,14 +139,12 @@ def create_parser():
         action='store_true'
     )
     parser.create_file_command_parser('info', info, 'print information about an album solution.')
-    parser.create_catalog_command_parser(
-        'add-catalog', add_catalog,
-        'add a catalog to your local album configuration file.'
-    )
-    parser.create_catalog_command_parser(
-        'remove-catalog', remove_catalog,
-        'remove a catalog from your local album configuration file.'
-    )
+    p = parser.create_command_parser('add-catalog', add_catalog,
+                                           'add a catalog to your local album configuration file.')
+    p.add_argument('src', type=str, help='src of the catalog')
+    p = parser.create_command_parser('remove-catalog', remove_catalog,
+                                           'remove a catalog from your local album configuration file.')
+    p.add_argument('name', type=str, help='name of the catalog')
     p = parser.create_command_parser(
         'update',
         update,
@@ -256,15 +254,6 @@ class AlbumParser(ArgumentParser):
         """
         parser = self.create_command_parser(command_name, command_function, command_help)
         parser.add_argument('path', type=str, help='path for the solution file')
-        return parser
-
-    def create_catalog_command_parser(self, command_name, command_function, command_help):
-        """Creates a parser for a album command dealing with an album catalog.
-
-        Parser is specified by a name, a function and a help description.
-        """
-        parser = self.create_command_parser(command_name, command_function, command_help)
-        parser.add_argument('src', type=str, help='src of the catalog')
         return parser
 
 

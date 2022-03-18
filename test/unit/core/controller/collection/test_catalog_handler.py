@@ -810,7 +810,7 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
 
         self.assertEqual("myCatalog", c.name())
         self.assertEqual(Path("myPath"), c.path())
-        self.assertEqual(Path("mySrc").absolute(), c.src())
+        self.assertEqual("mySrc", c.src())
         self.assertEqual(1, c.catalog_id())
         self.assertEqual(1, c.is_deletable())
 

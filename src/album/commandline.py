@@ -17,7 +17,7 @@ def add_catalog(album_instance: Album, args) -> None:
 
 
 def remove_catalog(album_instance: Album, args) -> None:
-    album_instance.remove_catalog_by_src(args.src)
+    album_instance.remove_catalog_by_name(args.name)
 
 
 def update(album_instance: Album, args):

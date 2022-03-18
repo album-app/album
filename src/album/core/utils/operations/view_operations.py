@@ -23,7 +23,7 @@ def get_solution_as_string(solution: ISolution, solution_path):
     res += 'Name             : %s\n' % setup.name
     res += 'Version          : %s' % setup.version
     res += '%s' % get_credit_as_string(solution)
-    res += 'Solution metadata:\n\n'
+    res += '\n\n'
     if setup.authors:
         res += 'Solution authors : %s\n' % ", ".join(setup.authors)
     if setup.license:
