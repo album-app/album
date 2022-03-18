@@ -8,14 +8,12 @@ from album.api import Album
 from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.continuous_integration import get_ssh_url, create_report
 from album.core.model.catalog import Catalog, retrieve_index_files_from_src
-from album.core.utils.export.changelog import get_changelog_file_name
 from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_dict_entry, \
     copy, force_remove
 from album.core.utils.operations.git_operations import checkout_branch, add_files_commit_and_push, \
     retrieve_files_from_head, configure_git
-from album.core.utils.operations.resolve_operations import get_zip_name, get_zip_name_prefix, dict_to_coordinates
+from album.core.utils.operations.resolve_operations import get_zip_name_prefix, dict_to_coordinates
 from album.runner import album_logging
-from album.runner.core.api.model.coordinates import ICoordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -58,30 +56,6 @@ class ReleaseManager:
             if not repo.remote().url.startswith("git"):
                 repo.remote().set_url(get_ssh_url(project_path, self.catalog_src))
 
-    def _get_zip_path(self, coordinates: ICoordinates):
-        zip_name = get_zip_name(coordinates)
-        return self.configuration.get_solution_path_suffix(coordinates).joinpath(zip_name)
-
-    def _get_docker_path(self, coordinates: ICoordinates):
-        docker_name = "Dockerfile"
-        return self.configuration.get_solution_path_suffix(coordinates).joinpath(docker_name)
-
-    def _get_changelog_path(self, coordinates: ICoordinates):
-        changelog_name = get_changelog_file_name()
-        return self.configuration.get_solution_path_suffix(coordinates).joinpath(changelog_name)
-
-    def _get_documentation_paths(self, coordinates: ICoordinates, yml_dict: dict):
-        solution_path_suffix = self.configuration.get_solution_path_suffix(coordinates)
-        documentation_paths = []
-        if "documentation" in yml_dict.keys():
-            documentation_list = yml_dict["documentation"]
-            if not isinstance(documentation_list, list):
-                documentation_list = [documentation_list]
-
-            for documentation_name in documentation_list:
-                documentation_paths.append(solution_path_suffix.joinpath(documentation_name))
-        return documentation_paths
-
     @staticmethod
     def _get_yml_dict(head):
         yml_file_path = retrieve_files_from_head(head, '[a-zA-Z0-9]*.yml')[0]
@@ -101,8 +75,9 @@ class ReleaseManager:
             yml_dict, yml_file_path = self._get_yml_dict(head)
 
         # checkout files
-        zip_name = self._get_zip_path(dict_to_coordinates(yml_dict)).name
-        docker_name = self._get_docker_path(dict_to_coordinates(yml_dict)).name
+        coordinates = dict_to_coordinates(yml_dict)
+        solution_relative_path = self.configuration.get_solution_path_suffix_unversioned(coordinates)
+        files = retrieve_files_from_head(head, str(solution_relative_path), option="startswith", number_of_files=-1)
 
         # query deposit
         deposit_name = get_zip_name_prefix(dict_to_coordinates(yml_dict))
@@ -110,7 +85,7 @@ class ReleaseManager:
 
         module_logger().info("Get unpublished deposit with deposit id %s..." % deposit_id)
         deposit = zenodo_manager.zenodo_get_unpublished_deposit_by_id(
-            deposit_id, deposit_name, expected_files=[zip_name, docker_name]
+            deposit_id, deposit_name, expected_files=files
         )
 
         # publish to zenodo
@@ -142,28 +117,14 @@ class ReleaseManager:
         # extract deposit name
         deposit_name = get_zip_name_prefix(coordinates)
 
+        solution_relative_path = self.configuration.get_solution_path_suffix_unversioned(coordinates)
+        files = retrieve_files_from_head(head, str(solution_relative_path), option="startswith", number_of_files=-1)
+
         # get the solution zip to release
-        zip_path = self._get_zip_path(dict_to_coordinates(yml_dict))
-        solution_zip = retrieve_files_from_head(head, str(zip_path), option="startswith")[0]
-
-        # get the docker file
-        docker_path = self._get_docker_path(dict_to_coordinates(yml_dict))
-        docker_file = retrieve_files_from_head(head, str(docker_path), option="startswith")[0]
-
-        # get the changelog file
-        changelog_path = self._get_changelog_path(dict_to_coordinates(yml_dict))
-        changelog_file = retrieve_files_from_head(head, str(changelog_path), option="startswith")[0]
-
-        # get the documentation files (if any)
-        documentation_paths = self._get_documentation_paths(dict_to_coordinates(yml_dict), yml_dict)
-        documentation_files = [
-            retrieve_files_from_head(head, str(documentation_path), option="startswith")[0]
-            for documentation_path in documentation_paths
-        ]
 
         # get the release deposit. Either a new one or an existing one to perform an update on
         deposit = zenodo_manager.zenodo_get_deposit(
-            deposit_name, deposit_id, expected_files=[solution_zip, docker_file, changelog_file]
+            deposit_name, deposit_id, expected_files=files
         )
         module_logger().info("Deposit %s successfully retrieved..." % deposit.id)
 
@@ -172,12 +133,9 @@ class ReleaseManager:
         yml_dict["deposit_id"] = deposit.id
         write_dict_to_yml(yml_file_path, yml_dict)
 
-        # zenodo upload files but not publish
-        deposit = zenodo_manager.zenodo_upload(deposit, solution_zip)
-        zenodo_manager.zenodo_upload(deposit, docker_file)
-        zenodo_manager.zenodo_upload(deposit, changelog_file)
-        for documentation_file in documentation_files:
-            zenodo_manager.zenodo_upload(deposit, documentation_file)
+        for file in files:
+            deposit = zenodo_manager.zenodo_upload(deposit, file)
+
         module_logger().info("Deposit %s successfully retrieved..." % deposit_id)
 
         if report_file:
@@ -249,26 +207,12 @@ class ReleaseManager:
 
             yml_dict, yml_file = self._get_yml_dict(head)
 
-            # get the solution zip to release
-            zip_path = self._get_zip_path(dict_to_coordinates(yml_dict))
-            solution_zip = retrieve_files_from_head(head, str(zip_path), option="startswith")[0]
+            # get files to release
+            coordinates = dict_to_coordinates(yml_dict)
+            solution_relative_path = self.configuration.get_solution_path_suffix_unversioned(coordinates)
+            files = retrieve_files_from_head(head, str(solution_relative_path), option="startswith", number_of_files=-1)
 
-            # get the docker file
-            docker_path = self._get_docker_path(dict_to_coordinates(yml_dict))
-            docker_file = retrieve_files_from_head(head, str(docker_path), option="startswith")[0]
-
-            # get the changelog file
-            changelog_path = self._get_changelog_path(dict_to_coordinates(yml_dict))
-            changelog_file = retrieve_files_from_head(head, str(changelog_path), option="startswith")[0]
-
-            # get the documentation files (if any)
-            documentation_paths = self._get_documentation_paths(dict_to_coordinates(yml_dict), yml_dict)
-            documentation_files = [
-                retrieve_files_from_head(head, str(documentation_path), option="startswith")[0]
-                for documentation_path in documentation_paths
-            ]
-
-            commit_files = [yml_file, solution_zip, docker_file, changelog_file] + documentation_files
+            commit_files = [yml_file] + files
             if not all([Path(f).is_file() for f in commit_files]):
                 raise FileNotFoundError("Invalid deploy request or broken catalog repository!")
 
