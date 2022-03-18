@@ -1,13 +1,14 @@
 import unittest.mock
 from copy import deepcopy
 from pathlib import Path
+from unittest import mock
 from unittest.mock import patch
 
-from album.runner.core.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.resolve_operations import get_doi_from_input, get_cgnv_from_input, get_gnv_from_input, \
     get_attributes_from_string, check_file_or_url, dict_to_coordinates, get_zip_name_prefix, get_zip_name, \
     check_doi, parse_doi_service_url, _parse_zenodo_url
+from album.runner.core.model.coordinates import Coordinates
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
@@ -117,8 +118,8 @@ class TestResolveOperations(TestUnitCoreCommon):
         # assert
         retrieve_url_mock.assert_called_once_with("https://doi.org/10.5281/zenodo.5571504")
         parse_doi_mock.assert_called_once_with(retrieve_url_mock.return_value)
-        dl_mock.assert_called_once_with(parse_doi_mock.return_value, "myTempDir")
-        prepare_mock.assert_called_once_with("myDownloadFile", "myTempDir")
+        dl_mock.assert_called_once_with(parse_doi_mock.return_value, mock.ANY)
+        prepare_mock.assert_called_once_with("myDownloadFile", mock.ANY)
 
     @patch('album.core.utils.operations.resolve_operations._parse_zenodo_url', return_value="link")
     def test_parse_doi_service_url(self, _):

@@ -50,20 +50,12 @@ class TestConfiguration(TestUnitCoreCommon):
             conf.base_cache_path()
         )
         self.assertEqual(
-            Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_solution_prefix.value),
-            conf.cache_path_tmp_internal()
-        )
-        self.assertEqual(
-            Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_app_prefix.value),
-            conf.cache_path_app()
+            Path(new_tmp_dir.name).joinpath(DefaultValues.installation_folder_prefix.value),
+            conf.installation_path()
         )
         self.assertEqual(
             Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_download_prefix.value),
             conf.cache_path_download()
-        )
-        self.assertEqual(
-            Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value),
-            conf.cache_path_tmp_user()
         )
         self.assertEqual(
             Path(new_tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, DefaultValues.catalog_collection_db_name.value),

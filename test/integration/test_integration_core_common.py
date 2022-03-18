@@ -74,7 +74,7 @@ class TestIntegrationCoreCommon(TestCommon):
         copy(
             path,
             cache_catalog.path().joinpath(
-                DefaultValues.cache_path_solution_prefix.value,
+                DefaultValues.catalog_solutions_prefix.value,
                 loaded_solution.coordinates().group(),
                 loaded_solution.coordinates().name(),
                 loaded_solution.coordinates().version(),

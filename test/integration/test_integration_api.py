@@ -59,7 +59,7 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
         self.assertTrue(local_catalogs_path.exists())
         self.assertTrue(local_catalog_path.exists())
         # meta file available in catalog clone, not in catalog src, as it is a bare repository!
-        with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
+        with TemporaryDirectory(dir=self.album.configuration().tmp_path()) as tmp_dir:
             target_tmp = Path(tmp_dir).joinpath("clone")
             with clone_repository(local_catalog_path, target_tmp) as repo:
                 self.assertTrue(
@@ -103,26 +103,26 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
         # upgrade collection
         album.upgrade()
 
-        collection_entry = album.resolve('%s:%s:%s' % (group, name, version))
+        solution_str = '%s:%s:%s' % (group, name, version)
 
         # check that solution exists, but is not installed
-        installed = album.is_installed(collection_entry)
+        installed = album.is_installed(solution_str)
         self.assertFalse(installed)
 
         # install solution
-        album.install(collection_entry)
+        album.install(solution_str)
 
         # check that solution is installed
-        self.assertTrue(album.is_installed(collection_entry))
+        self.assertTrue(album.is_installed(solution_str))
 
         # run solution
-        album.run(collection_entry)
+        album.run(solution_str)
 
         # test solution
-        album.test(collection_entry)
+        album.test(solution_str)
 
         # uninstall solution
-        album.uninstall(collection_entry)
+        album.uninstall(solution_str)
 
         # remove catalog
         album.remove_catalog_by_src(local_catalog_path)

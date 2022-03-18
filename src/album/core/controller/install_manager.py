@@ -6,11 +6,10 @@ from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.api.model.environment import IEnvironment
 from album.core.controller.environment_manager import EnvironmentManager
 from album.core.model.resolve_result import ResolveResult
+from album.core.utils.operations.file_operations import remove_link
 from album.core.utils.operations.resolve_operations import clean_resolve_tmp, build_resolve_string, dict_to_coordinates
 from album.core.utils.operations.solution_operations import get_deploy_dict, get_parent_dict
-from album.core.utils.operations.solution_operations import remove_disc_content_from_solution
 from album.runner import album_logging
-from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
 from album.runner.core.model.script_creator import ScriptCreatorInstall, ScriptCreatorUnInstall
 
@@ -22,8 +21,11 @@ class InstallManager(IInstallManager):
     def __init__(self, album: IAlbumController):
         self.album = album
 
-    def install(self, resolve_result: ICollectionSolution, argv=None):
-        self._clean_unfinished_installations(exclude_package=resolve_result.coordinates())
+    def install(self, solution_to_resolve: str, argv=None):
+        # this needs to happen before any (potentially not completely installed) solution is resolved
+        self.clean_unfinished_installations()
+
+        resolve_result = self.album.collection_manager().resolve_and_load(solution_to_resolve)
         self._install_resolve_result(resolve_result, argv, parent=False)
 
     def _resolve_result_is_installed(self, resolve_result: ICollectionSolution) -> bool:
@@ -63,23 +65,19 @@ class InstallManager(IInstallManager):
         if not parent:
             if resolve_result.catalog().is_cache():
                 # always clean after registration to a catalog!
-                clean_resolve_tmp(self.album.configuration().cache_path_tmp_user())
+                clean_resolve_tmp(self.album.configuration().tmp_path())
 
         # mark as "installation unfinished"
-        self.album.solutions().set_installation_unfinished(
-            resolve_result.catalog(), resolve_result.loaded_solution().coordinates()
-        )
+        self.album.solutions().set_installation_unfinished(resolve_result.catalog(), resolve_result.coordinates())
 
         # run installation recursively
         self._install_active_solution(resolve_result, argv)
 
         # mark as installed and remove "installation unfinished"
-        self.album.solutions().set_installed(
-            resolve_result.catalog(), resolve_result.loaded_solution().coordinates()
-        )
+        self.album.solutions().set_installed(resolve_result.catalog(), resolve_result.coordinates())
         module_logger().info(
             'Installed \"%s\"! execute with `album run %s`' % (
-                resolve_result.loaded_solution().coordinates().name(),
+                resolve_result.coordinates().name(),
                 str(resolve_result.coordinates())
             )
         )
@@ -101,15 +99,6 @@ class InstallManager(IInstallManager):
                 resolve_result.catalog().catalog_id(),
                 resolve_result.coordinates()
             ))
-
-    def _set_parent(self, parent_resolve_result: ICollectionSolution, resolve_result: ICollectionSolution):
-        """Sets the parent of a solution"""
-        self.album.solutions().set_parent(
-            parent_resolve_result.catalog(),
-            resolve_result.catalog(),
-            parent_resolve_result.coordinates(),
-            resolve_result.coordinates()
-        )
 
     def _remove_parent(self, resolve_result: ICollectionSolution):
         """Sets the parent of a solution"""
@@ -146,7 +135,10 @@ class InstallManager(IInstallManager):
                 raise e
 
             if parent_resolve_result:
-                self._set_parent(parent_resolve_result, collection_solution)
+                self.album.solutions().set_parent(
+                    parent_resolve_result.database_entry(),
+                    collection_solution.database_entry()
+                )
             else:
                 self._remove_parent(collection_solution)
 
@@ -188,8 +180,11 @@ class InstallManager(IInstallManager):
         self._install_resolve_result(resolve_result, parent=True)
         return resolve_result
 
-    def uninstall(self, resolve_result: ICollectionSolution, rm_dep=False, argv=None):
+    def uninstall(self, solution_to_resolve: str, rm_dep=False, argv=None):
         """Internal installation entry point for `uninstall` subcommand of `album`."""
+        
+        resolve_result = self.album.collection_manager().resolve_installed_and_load(solution_to_resolve)
+        
         module_logger().info("Uninstalling \"%s\"..." % resolve_result.coordinates().name())
 
         if argv is None:
@@ -230,10 +225,10 @@ class InstallManager(IInstallManager):
                 raise RuntimeError(
                     "Cannot uninstall \"%s\". Other solution depend on this installation! "
                     "Inspect log for more information!"
-                    % resolve_result.coordinates
+                    % resolve_result.coordinates()
                 )
 
-        remove_disc_content_from_solution(resolve_result)
+        self._remove_disc_content_from_solution(resolve_result)
 
         if resolve_result.catalog().is_cache():
             self.album.solutions().remove_solution(resolve_result.catalog(), resolve_result.coordinates())
@@ -269,7 +264,7 @@ class InstallManager(IInstallManager):
             resolve_solution = build_resolve_string(parent)
             self.uninstall(resolve_solution, rm_dep)
 
-    def _clean_unfinished_installations(self, exclude_package: ICoordinates = None):
+    def clean_unfinished_installations(self):
         collection_solution_list = self.album.collection_manager().get_collection_index().get_unfinished_installation_solutions()
         for collection_solution in collection_solution_list:
             catalog = self.album.catalogs().get_by_id(collection_solution.internal()["catalog_id"])
@@ -293,9 +288,12 @@ class InstallManager(IInstallManager):
             if not get_parent_dict(resolve.loaded_solution()):
                 self._clean_unfinished_installations_environment(resolve)
 
-            remove_disc_content_from_solution(resolve, remove_package=(exclude_package != coordinates))
+            self._remove_disc_content_from_solution(resolve)
 
-            self.album.solutions().set_uninstalled(resolve.catalog(), coordinates)
+            if resolve.catalog().is_cache():
+                self.album.solutions().remove_solution(resolve.catalog(), coordinates)
+            else:
+                self.album.solutions().set_uninstalled(resolve.catalog(), coordinates)
 
     def _clean_unfinished_installations_environment(self, resolve: ICollectionSolution):
         try:
@@ -303,3 +301,9 @@ class InstallManager(IInstallManager):
             self.album.environment_manager().remove_environment(environment)
         except LookupError:
             pass
+
+    def _remove_disc_content_from_solution(self, resolve_result: ICollectionSolution):
+        remove_link(self.album.collection_manager().solutions().get_solution_installation_path(
+            resolve_result.catalog(), resolve_result.coordinates()))
+        remove_link(self.album.collection_manager().solutions().get_solution_package_path(
+            resolve_result.catalog(), resolve_result.coordinates()))

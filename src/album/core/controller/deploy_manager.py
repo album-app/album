@@ -192,7 +192,7 @@ class DeployManager(IDeployManager):
 
     def _get_absolute_prefix_path(self, catalog: ICatalog, catalog_local_src: str, active_solution: ISolution):
         return Path(catalog_local_src).joinpath(
-            self.album.solutions().get_solution_path(catalog, active_solution.coordinates())
+            self.album.solutions().get_solution_package_path(catalog, active_solution.coordinates())
         )
 
     def _attach_exports(self, catalog: ICatalog, catalog_local_src: str, active_solution: ISolution, deploy_path: Path):
@@ -238,7 +238,7 @@ class DeployManager(IDeployManager):
             return Path(zip_path)
 
     def _get_tmp_dir(self):
-        return self.album.configuration().cache_path_tmp_internal()
+        return self.album.configuration().tmp_path()
 
     @staticmethod
     def _add_to_downloaded_catalog(catalog: ICatalog, active_solution: ISolution, dry_run: bool,

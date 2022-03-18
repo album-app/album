@@ -47,16 +47,16 @@ def deploy(album_instance: Album, args):
 
 
 def install(album_instance: Album, args):
-    album_instance.install(_resolve(album_instance, args.path), sys.argv)
+    album_instance.install(str(args.path), sys.argv)
 
 
 def uninstall(album_instance: Album, args):
-    album_instance.uninstall(_resolve_installed(album_instance, args.path), args.uninstall_deps, sys.argv)
+    album_instance.uninstall(str(args.path), args.uninstall_deps, sys.argv)
 
 
 def info(album_instance: Album, args):
     solution_path = args.path
-    resolve_result = _resolve(album_instance, args.path)
+    resolve_result = album_instance.resolve(str(args.path))
     print_json = _get_print_json(args)
     solution = resolve_result.loaded_solution()
     if print_json:
@@ -68,7 +68,7 @@ def info(album_instance: Album, args):
 
 
 def run(album_instance: Album, args):
-    album_instance.run(_resolve_installed(album_instance, args.path), argv=sys.argv, run_immediately=args.run_immediately)
+    album_instance.run(str(args.path), argv=sys.argv, run_immediately=args.run_immediately)
 
 
 def search(album_instance: Album, args):
@@ -88,7 +88,7 @@ def start_server(album_instance: Album, args):
 
 
 def test(album_instance: Album, args):
-    album_instance.test(_resolve_installed(album_instance, args.path), sys.argv)
+    album_instance.test(str(args.path), sys.argv)
 
 
 def clone(album_instance: Album, args):
@@ -102,23 +102,15 @@ def index(album_instance: Album, args):
         print(_as_json(index_dict))
     else:
         res = get_index_as_string(index_dict)
-        module_logger().info('Catalogs in your local collection: %s' % res)
+        module_logger().info(res)
 
 
 def repl(album_instance: Album, args):
     """Function corresponding to the `repl` subcommand of `album`."""
     # resolve the input
-    resolve_result = _resolve_installed(album_instance, args.path)
+    resolve_result = album_instance.resolve_installed(str(args.path))
     album_instance.run_solution_script(resolve_result, ScriptRepl())
     module_logger().info('Ran REPL for \"%s\"!' % resolve_result.loaded_solution().coordinates().name())
-
-
-def _resolve(album_instance: Album, solution_resolve: str):
-    return album_instance.resolve(str(solution_resolve))
-
-
-def _resolve_installed(album_instance: Album, solution_resolve: str):
-    return album_instance.resolve_installed(str(solution_resolve))
 
 
 def _get_print_json(args):

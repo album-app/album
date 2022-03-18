@@ -28,37 +28,27 @@ class IConfiguration:
         raise NotImplementedError
 
     @abstractmethod
-    def cache_path_app(self):
-        """Path for solution specific application files."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def cache_path_data(self):
-        """Path for solution specific data files."""
-        raise NotImplementedError
-
-    @abstractmethod
     def cache_path_download(self):
         """Path for solution unspecific downloads."""
         raise NotImplementedError
 
     @abstractmethod
-    def cache_path_tmp_internal(self):
-        """Path for solution specific temporary files of album."""
+    def tmp_path(self) -> Path:
+        """Path for solution unspecific temporary files of album."""
         raise NotImplementedError
 
     @abstractmethod
-    def cache_path_tmp_user(self):
-        """Path for solution specific temporary files of the user."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def cache_path_envs(self):
+    def environments_path(self) -> Path:
         """Path for solution environments."""
         raise NotImplementedError
 
     @abstractmethod
-    def lnk_path(self):
+    def installation_path(self) -> Path:
+        """Path for solution installation files."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def lnk_path(self) -> Path:
         """Path for targets of internal links, used to shorten paths (thank you Windows)."""
         raise NotImplementedError
 

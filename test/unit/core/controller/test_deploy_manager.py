@@ -241,7 +241,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
             catalog_local_src = repo.working_tree_dir
 
             result = Path(repo.working_tree_dir).joinpath(
-                DefaultValues.cache_path_solution_prefix.value,
+                DefaultValues.catalog_solutions_prefix.value,
                 "tsg",
                 "tsn",
                 "tsv",

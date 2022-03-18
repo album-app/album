@@ -12,6 +12,6 @@ class IRunManager:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def run(self, path, run_immediately=False, argv=None):
+    def run(self, solution_to_resolve: str, run_immediately=False, argv=None):
         """Function corresponding to the `run` subcommand of `album`."""
         raise NotImplementedError

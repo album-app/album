@@ -301,7 +301,7 @@ class CatalogHandler(ICatalogHandler):
         return database_version
 
     def _retrieve_catalog_meta_information(self, source, branch_name="main"):
-        with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
+        with TemporaryDirectory(dir=self.album.configuration().tmp_path()) as tmp_dir:
             repo = Path(tmp_dir).joinpath('repo')
             try:
                 _, meta_src = retrieve_index_files_from_src(source, branch_name=branch_name, tmp_dir=repo)

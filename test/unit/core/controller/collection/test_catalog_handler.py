@@ -651,7 +651,7 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
         download_resource_mock.assert_called_once_with('https://mylink.com', branch_name='main', tmp_dir=mock.ANY)
         copy_mock.assert_called_once()
         get_dict_mock.assert_called_once_with(copy_mock.return_value)
-        self.assertTrue(folder_empty(self.album_controller.configuration().cache_path_tmp_internal()))
+        self.assertTrue(folder_empty(self.album_controller.configuration().tmp_path()))
 
     def test__create_catalog_from_src(self):
         # call

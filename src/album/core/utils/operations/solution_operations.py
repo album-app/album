@@ -13,15 +13,6 @@ from album.runner.core.api.model.solution import ISolution
 module_logger = album_logging.get_active_logger
 
 
-def remove_disc_content_from_solution(resolve_result: ICollectionSolution, remove_package:bool = True):
-    remove_link(resolve_result.loaded_solution().installation().data_path())
-    remove_link(resolve_result.loaded_solution().installation().app_path())
-    if remove_package:
-        remove_link(resolve_result.loaded_solution().installation().package_path())
-    remove_link(resolve_result.loaded_solution().installation().user_cache_path())
-    remove_link(resolve_result.loaded_solution().installation().internal_cache_path())
-
-
 def set_environment_paths(solution: ISolution, environment: IEnvironment):
     """Sets the available cache paths of the solution object, given the environment used to run it."""
     solution.installation().set_environment_path(environment.path())

@@ -63,11 +63,7 @@ class AlbumServer:
         @self.app.route("/config")
         def get_config():
             return {
-                "cache_base": str(self.album_instance.configuration().base_cache_path()),
-                "cache_tmp_internal": str(self.album_instance.configuration().cache_path_tmp_internal()),
-                "cache_tmp_user": str(self.album_instance.configuration().cache_path_tmp_user()),
-                "cache_apps": str(self.album_instance.configuration().cache_path_app()),
-                "cache_downloads": str(self.album_instance.configuration().cache_path_download())
+                "cache_base": str(self.album_instance.configuration().base_cache_path())
             }
 
         @self.app.route("/index")
@@ -168,8 +164,7 @@ class AlbumServer:
             task = self._run_solution_method_async(
                 catalog,
                 Coordinates(group, name, version),
-                self.album_instance.clone, args,
-                resolve=False
+                self.album_instance.clone, args
             )
             return {"id": task.id(), "msg": "process started"}
 
@@ -289,14 +284,12 @@ class AlbumServer:
             func()
             return 'Server shutting down...'
 
-    def _run_solution_method_async(self, catalog, group_name_version: Coordinates, method, args=None, resolve=True):
+    def _run_solution_method_async(self, catalog, group_name_version: Coordinates, method, args=None):
         task = Task()
         if catalog is None:
             solution = str(group_name_version)
         else:
             solution = ":".join([catalog, str(group_name_version)])
-        if resolve:
-            solution = self.album_instance.resolve(solution)
         task_args = [solution]
         if args:
             for arg in args:

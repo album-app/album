@@ -14,12 +14,12 @@ class TestIntegrationTest(TestIntegrationCoreCommon):
         super().tearDown()
 
     def test_test_no_test_routine(self):
-        self.fake_install(self.get_test_solution_path("solution0_dummy_no_routines.py"), create_environment=True)
+        path = self.get_test_solution_path("solution0_dummy_no_routines.py")
+
+        self.fake_install(path, create_environment=True)
 
         # this solution has the no test() configured
-        resolve_result = self.album_controller.collection_manager().resolve_and_load(
-            self.get_test_solution_path("solution0_dummy_no_routines.py"))
-        self.album_controller.test_manager().test(resolve_result)
+        self.album_controller.test_manager().test(path)
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())
@@ -29,11 +29,11 @@ class TestIntegrationTest(TestIntegrationCoreCommon):
     def test_test(self, get_environment_path):
         get_environment_path.return_value = self.album_controller.environment_manager().get_conda_manager().get_active_environment_path()
 
-        self.fake_install(self.get_test_solution_path("solution6_noparent_test.py"), create_environment=False)
+        path = self.get_test_solution_path("solution6_noparent_test.py")
 
-        resolve_result = self.album_controller.collection_manager().resolve_and_load(
-            self.get_test_solution_path("solution6_noparent_test.py"))
-        self.album_controller.test_manager().test(resolve_result)
+        self.fake_install(path, create_environment=False)
+
+        self.album_controller.test_manager().test(path)
 
         # assert
         self.assertNotIn('ERROR', self.captured_output.getvalue())

@@ -52,8 +52,13 @@ def get_credit_as_string(solution: ISolution) -> str:
         res += '\n\nCredits:\n\n'
         for citation in solution.setup().cite:
             text = citation['text']
-            if 'doi' in citation:
-                text += ' (DOI: %s)' % citation['doi']
+            if 'doi' in citation and 'url' in citation:
+                text += ' (DOI: %s, %s)' % (citation['doi'], citation['url'])
+            else:
+                if 'doi' in citation:
+                    text += ' (DOI: %s)' % citation['doi']
+                if 'url' in citation:
+                    text += ' (%s)' % citation['url']
             res += '%s\n' % text
         res += '\n'
     return res
@@ -87,6 +92,9 @@ def get_updates_as_string(updates: Dict[str, ICatalogUpdates]) -> str:
 
 def get_index_as_string(index_dict: dict):
     res = '\n'
+    if 'base' in index_dict:
+        res += 'Album base directory: %s\n' % index_dict['base']
+    res += 'Catalogs in your local collection:\n'
     if 'catalogs' in index_dict:
         for catalog in index_dict['catalogs']:
             res += 'Catalog \'%s\':\n' % catalog['name']

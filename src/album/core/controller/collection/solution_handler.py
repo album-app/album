@@ -3,6 +3,8 @@ from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from album.core.api.model.collection_index import ICollectionIndex
+
 from album.core.api.controller.collection.solution_handler import ISolutionHandler
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.model.catalog import ICatalog
@@ -39,7 +41,7 @@ class SolutionHandler(ISolutionHandler):
             deploy_dict
         )
         # get the install location
-        install_location = self.get_solution_path(catalog, dict_to_coordinates(deploy_dict))
+        install_location = self.get_solution_package_path(catalog, dict_to_coordinates(deploy_dict))
 
         if Path(path).is_dir():
             copy_folder(path, install_location, copy_root_folder=False)
@@ -49,27 +51,8 @@ class SolutionHandler(ISolutionHandler):
     def add_to_cache_catalog(self, active_solution: ISolution, path):
         self.add_or_replace(self.album.catalogs().get_cache_catalog(), active_solution, path)
 
-    def set_parent(self, catalog_parent: ICatalog, catalog_child: ICatalog, coordinates_parent: ICoordinates,
-                   coordinates_child: ICoordinates):
+    def set_parent(self, parent_entry: ICollectionIndex.ICollectionSolution, child_entry: ICollectionIndex.ICollectionSolution):
 
-        # retrieve parent entry
-        parent_entry = self._get_collection_index().get_solution_by_catalog_grp_name_version(
-            catalog_parent.catalog_id(), coordinates_parent, close=False
-        )
-        # retrieve child entry
-        child_entry = self._get_collection_index().get_solution_by_catalog_grp_name_version(
-            catalog_child.catalog_id(), coordinates_child, close=False
-        )
-
-        self._get_collection_index().insert_collection_collection(
-            parent_entry.internal()["collection_id"],
-            child_entry.internal()["collection_id"],
-            catalog_parent.catalog_id(),
-            catalog_child.catalog_id()
-        )
-
-    def _set_parent_from_entry(self, parent_entry, child_entry):
-        # internal representations of ICollectionSolution
         self._get_collection_index().insert_collection_collection(
             parent_entry.internal()["collection_id"],
             child_entry.internal()["collection_id"],
@@ -132,7 +115,7 @@ class SolutionHandler(ISolutionHandler):
         db_stat = self._get_db_status_dict(change.solution_status())
         self.update_solution(catalog, change.coordinates(), db_stat)
         if change.solution_status()['parent']:
-            self._set_parent_from_entry(
+            self.set_parent(
                 change.solution_status()['parent'],
                 self._get_collection_index().get_solution_by_catalog_grp_name_version(
                     catalog.catalog_id(), change.coordinates()
@@ -158,17 +141,26 @@ class SolutionHandler(ISolutionHandler):
         except LookupError:
             return False
 
-    def get_solution_path(self, catalog: ICatalog, coordinates: ICoordinates) -> Link:
+    def get_solution_package_path(self, catalog: ICatalog, coordinates: ICoordinates) -> Link:
         base_link = catalog.path().joinpath(self.album.configuration().get_solution_path_suffix(coordinates))
         link_target = construct_cache_link_target(self.album.configuration().lnk_path(), base_link,
                                                   DefaultValues.lnk_package_prefix.value)
         return Link(link_target).set_link(link=base_link)
 
+    def get_solution_installation_path(self, catalog: ICatalog, coordinates: ICoordinates) -> Link:
+        installation_path = self.album.configuration().installation_path()
+        base_link = installation_path.joinpath(
+            catalog.name(), coordinates.group(), coordinates.name(), coordinates.version()
+        )
+        link_target = construct_cache_link_target(self.album.configuration().lnk_path(), base_link,
+                                                  DefaultValues.lnk_solution_prefix.value)
+        return Link(link_target).set_link(link=base_link)
+
     def get_solution_file(self, catalog: ICatalog, coordinates: ICoordinates):
-        return self.get_solution_path(catalog, coordinates).joinpath(DefaultValues.solution_default_name.value)
+        return self.get_solution_package_path(catalog, coordinates).joinpath(DefaultValues.solution_default_name.value)
 
     def get_solution_zip(self, catalog: ICatalog, coordinates: ICoordinates):
-        return self.get_solution_path(catalog, coordinates).joinpath(get_zip_name(coordinates))
+        return self.get_solution_package_path(catalog, coordinates).joinpath(get_zip_name(coordinates))
 
     def get_solution_zip_suffix(self, coordinates: ICoordinates):
         return Path("").joinpath(
@@ -190,7 +182,7 @@ class SolutionHandler(ISolutionHandler):
 
     def _download_solution_zip(self, src, coordinates: ICoordinates, target, branch_name="main"):
         file_name = str(self.get_solution_zip_suffix(coordinates))
-        with TemporaryDirectory(dir=self.album.configuration().cache_path_tmp_internal()) as tmp_dir:
+        with TemporaryDirectory(dir=self.album.configuration().tmp_path()) as tmp_dir:
             repo_dir = Path(tmp_dir).joinpath('repo')
             try:
                 with clone_repository_sparse(src, branch_name, repo_dir) as repo:
@@ -203,40 +195,13 @@ class SolutionHandler(ISolutionHandler):
                 force_remove(repo_dir)
 
     def set_cache_paths(self, solution: ISolution, catalog: ICatalog):
-        # Note: cache paths need the catalog the solution lives in - otherwise there might be problems with solutions
-        # of different catalogs doing similar operations (e.g. downloads) as they might share the same cache path.
-
-        catalog_name = catalog.name()
-        path_suffix = Path("").joinpath(solution.coordinates().group(), solution.coordinates().name(),
-                                        solution.coordinates().version())
-
-        solution.installation().set_package_path(self.get_solution_path(catalog, solution.coordinates()))
-
-        self._set_cache_path(
-            solution.installation().set_data_path,
-            self.album.configuration().cache_path_data().joinpath(str(catalog_name), path_suffix),
-            DefaultValues.lnk_data_prefix.value
-        )
-        self._set_cache_path(
-            solution.installation().set_app_path,
-            self.album.configuration().cache_path_app().joinpath(str(catalog_name), path_suffix),
-            DefaultValues.lnk_app_prefix.value
-        )
-
-        self._set_cache_path(
-            solution.installation().set_internal_cache_path,
-            self.album.configuration().cache_path_tmp_internal().joinpath(str(catalog_name), path_suffix),
-            DefaultValues.lnk_internal_cache_prefix.value
-        )
-        self._set_cache_path(
-            solution.installation().set_user_cache_path,
-            self.album.configuration().cache_path_tmp_user().joinpath(str(catalog_name), path_suffix),
-            DefaultValues.lnk_user_cache_prefix.value
-        )
-
-    def _set_cache_path(self, path_method, link, link_target_prefix):
-        link_target = construct_cache_link_target(self.album.configuration().lnk_path(), link, link_target_prefix)
-        path_method(Link(link_target).set_link(link))
+        package_path = self.get_solution_package_path(catalog, solution.coordinates())
+        solution_path = self.get_solution_installation_path(catalog, solution.coordinates())
+        solution.installation().set_package_path(package_path)
+        solution.installation().set_data_path(solution_path.joinpath(DefaultValues.solution_data_prefix.value))
+        solution.installation().set_app_path(solution_path.joinpath(DefaultValues.solution_app_prefix.value))
+        solution.installation().set_internal_cache_path(solution_path.joinpath(DefaultValues.solution_internal_cache_prefix.value))
+        solution.installation().set_user_cache_path(solution_path.joinpath(DefaultValues.solution_user_cache_prefix.value))
 
     def _get_collection_index(self):
         return self.album.collection_manager().get_collection_index()
