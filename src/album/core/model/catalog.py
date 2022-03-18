@@ -101,7 +101,7 @@ class Catalog(ICatalog):
 
     def is_local(self):
         """Returns Boolean indicating whether the catalog is remote or local."""
-        return not validators.url(str(self._src))
+        return not self._src or (not validators.url(str(self._src)) and Path(self._src).exists())
 
     def update_index_cache_if_possible(self, tmp_dir):
         try:
