@@ -1043,6 +1043,62 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return solutions_list
 
+    def get_solutions_by_grp_name(self, group: str, name: str, close=True) -> List[CollectionSolution]:
+        solutions_list = []
+
+        cursor = self.get_cursor()
+        for row in cursor.execute(
+                "SELECT * FROM collection WHERE \"group\"=:group AND name=:name",
+                {
+                    "group": group,
+                    "name": name
+                }
+        ).fetchall():
+            solution = self._process_solution_row(dict(row), close=False)
+            solutions_list.append(solution)
+
+        if close:
+            self.close_current_connection()
+
+        return solutions_list
+
+    def get_solutions_by_name_version(self, name: str, version: str, close=True) -> List[CollectionSolution]:
+        solutions_list = []
+
+        cursor = self.get_cursor()
+        for row in cursor.execute(
+                "SELECT * FROM collection WHERE name=:name AND version=:version",
+                {
+                    "name": name,
+                    "version": version,
+                }
+        ).fetchall():
+            solution = self._process_solution_row(dict(row), close=False)
+            solutions_list.append(solution)
+
+        if close:
+            self.close_current_connection()
+
+        return solutions_list
+
+    def get_solutions_by_name(self, name: str, close=True) -> List[CollectionSolution]:
+        solutions_list = []
+
+        cursor = self.get_cursor()
+        for row in cursor.execute(
+                "SELECT * FROM collection WHERE name=:name",
+                {
+                    "name": name
+                }
+        ).fetchall():
+            solution = self._process_solution_row(dict(row), close=False)
+            solutions_list.append(solution)
+
+        if close:
+            self.close_current_connection()
+
+        return solutions_list
+
     def get_recently_installed_solutions(self, close=True) -> List[CollectionSolution]:
         solutions_list = []
 

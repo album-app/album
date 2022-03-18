@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 from album.core.model.catalog_updates import ChangeType
 from album.core.model.default_values import DefaultValues
@@ -259,3 +260,68 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
             catalog.catalog_id(), coordinates
         ).internal()["parent"]
         self.assertEqual("app1", parent.setup()["name"])
+
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    def test_resolve(self, get_environment_path):
+        get_environment_path.return_value = self.album_controller.environment_manager().get_conda_manager().get_active_environment_path()
+        self.fake_install(self.get_test_solution_path("solution11_minimal.py"), create_environment=False)
+        res = self.album_controller.collection_manager()._search('cache_catalog:group:name:0.1.0')
+        self.assertIsNotNone(res)
+        self.assertEqual('group', res.setup()['group'])
+        self.assertEqual('name', res.setup()['name'])
+        self.assertEqual('0.1.0', res.setup()['version'])
+        res = self.album_controller.collection_manager()._search('group:name:0.1.0')
+        self.assertIsNotNone(res)
+        self.assertEqual('group', res.setup()['group'])
+        self.assertEqual('name', res.setup()['name'])
+        self.assertEqual('0.1.0', res.setup()['version'])
+        res = self.album_controller.collection_manager()._search('name')
+        self.assertIsNotNone(res)
+        self.assertEqual('group', res.setup()['group'])
+        self.assertEqual('name', res.setup()['name'])
+        self.assertEqual('0.1.0', res.setup()['version'])
+        res = self.album_controller.collection_manager()._search('name:0.1.0')
+        self.assertIsNotNone(res)
+        self.assertEqual('group', res.setup()['group'])
+        self.assertEqual('name', res.setup()['name'])
+        self.assertEqual('0.1.0', res.setup()['version'])
+        res = self.album_controller.collection_manager()._search('group:name')
+        self.assertIsNotNone(res)
+        self.assertEqual('group', res.setup()['group'])
+        self.assertEqual('name', res.setup()['name'])
+        self.assertEqual('0.1.0', res.setup()['version'])
+
+        self.fake_install(self.get_test_solution_path("solution11_changed_version.py"), create_environment=False)
+
+        with self.assertRaises(RuntimeError) as e:
+            self.album_controller.collection_manager()._search('name')
+        self.assertIn('Input is ambiguous', str(e.exception))
+
+        with self.assertRaises(RuntimeError) as e:
+            self.album_controller.collection_manager()._search('group:name')
+        self.assertIn('Input is ambiguous', str(e.exception))
+
+        res = self.album_controller.collection_manager()._search('name:0.1.0')
+        self.assertIsNotNone(res)
+        self.assertEqual('group', res.setup()['group'])
+        self.assertEqual('name', res.setup()['name'])
+        self.assertEqual('0.1.0', res.setup()['version'])
+
+        self.fake_install(self.get_test_solution_path("solution11_changed_group.py"), create_environment=False)
+
+        with self.assertRaises(RuntimeError) as e:
+            self.album_controller.collection_manager()._search('name:0.2.0')
+        self.assertIn('Input is ambiguous', str(e.exception))
+
+        res = self.album_controller.collection_manager()._search('group:name:0.2.0')
+        self.assertIsNotNone(res)
+        self.assertEqual('group', res.setup()['group'])
+        self.assertEqual('name', res.setup()['name'])
+        self.assertEqual('0.2.0', res.setup()['version'])
+
+
+
+
+
+
+

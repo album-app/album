@@ -105,6 +105,21 @@ class ICollectionIndex(IDatabase):
         raise NotImplementedError
 
     @abstractmethod
+    def get_solutions_by_name_version(self, name: str, version: str, close: bool = True) \
+            -> List[ICollectionSolution]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_solutions_by_grp_name(self, group: str, name: str, close: bool = True) \
+            -> List[ICollectionSolution]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_solutions_by_name(self, name: str, close: bool = True) \
+            -> List[ICollectionSolution]:
+        raise NotImplementedError
+
+    @abstractmethod
     def get_recently_installed_solutions(self, close: bool = True) -> List[ICollectionSolution]:
         raise NotImplementedError
 
