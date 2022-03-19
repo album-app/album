@@ -317,20 +317,20 @@ release tests linux:
     - apt-get -y update
     - apt-get install -y libgl1-mesa-dev
     # install templates in default catalog
-    - album install album:template-python:0.1.0-SNAPSHOT
-    - album install album:template-java:0.1.0-SNAPSHOT
-    - album install album:template-r:0.1.0-SNAPSHOT
-    - album install album:template-scijava:0.1.0-SNAPSHOT
-    - album install album:template-imagej:0.1.0-SNAPSHOT
-    - album install album:template-imagej2:0.1.0-SNAPSHOT
-    - album install album:template-bdv:0.1.0-SNAPSHOT
-    - album install album:template-napari:0.1.0-SNAPSHOT
-    - album install album:template-minimal:0.1.0-SNAPSHOT
+    # - album install album:template-python:0.1.0-SNAPSHOT
+    # - album install album:template-java:0.1.0-SNAPSHOT
+    # - album install album:template-r:0.1.0-SNAPSHOT
+    # - album install album:template-scijava:0.1.0-SNAPSHOT
+    # - album install album:template-imagej:0.1.0-SNAPSHOT
+    # - album install album:template-imagej2:0.1.0-SNAPSHOT
+    # - album install album:template-bdv:0.1.0-SNAPSHOT
+    # - album install album:template-napari:0.1.0-SNAPSHOT
+    # - album install album:template-minimal:0.1.0-SNAPSHOT
     # run non-interactive templates
-    - album run album:template-minimal:0.1.0-SNAPSHOT
-    - album run album:template-python:0.1.0-SNAPSHOT
-    - album run album:template-java:0.1.0-SNAPSHOT
-    - album run album:template-r:0.1.0-SNAPSHOT
+    # - album run album:template-minimal:0.1.0-SNAPSHOT
+    # - album run album:template-python:0.1.0-SNAPSHOT
+    # - album run album:template-java:0.1.0-SNAPSHOT
+    # - album run album:template-r:0.1.0-SNAPSHOT
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
