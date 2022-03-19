@@ -7,7 +7,7 @@ import pkg_resources
 from album import core
 from album.api import Album
 from album.commandline import add_catalog, remove_catalog, deploy, \
-    install, repl, run, search, start_server, test, update, clone, upgrade, index, uninstall, info
+    install, repl, run, search, test, update, clone, upgrade, index, uninstall, info
 from album.core.utils.subcommand import SubProcessError
 from album.runner.album_logging import debug_settings, get_active_logger, LogLevel, to_loglevel
 
@@ -81,13 +81,6 @@ def create_parser():
     for parse_creator in parser_creators:
         parse_creator(parser)
     return parser.parser
-
-
-def create_server_parser(parser):
-    p = parser.create_command_parser('server', start_server,
-                                     'start an album server.')
-    p.add_argument('--port', type=int, required=False, default=8080, help='Port')
-    p.add_argument('--host', type=str, required=False, default="127.0.0.1", help='Host')
 
 
 def create_test_parser(parser):

@@ -3,8 +3,15 @@
 album can launch a server which provides a REST API for all command line calls. 
 Please be cautious since this enables others with access to the API to run arbitrary scripts on the system.
 
+## Installing the server functionality
+
+Activate the album environment and run this command:
+```
+pip install album-server
+```
+
 ## Launching the server
-Install album, activate the environment and run this command:
+Activate the album environment and run this command:
 ```
 album server --port 1234
 ```

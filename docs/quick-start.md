@@ -31,7 +31,3 @@
 |`album clone [solution-identifier] [parent-dir-of-new-solution] [name-of-new-solution]`| Copies a solution  into the provided directory with the provided new name.|
 |`album deploy [solution-file] [catalog-name]`| Deploy a solution into a catalog.|
 |`album deploy [solution-file] [catalog-name] --dry-run`| Simulate deploying a solution into a catalog.|
-
-| Server | See [server instructions](/server) for more details.|
-|---|---|
-|`album server --port 1234`| Launch the album REST service - more information [here](/server).|

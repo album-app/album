@@ -263,7 +263,6 @@ cmdline linux:
     - album deploy -h
     - album uninstall -h
     - album repl -h
-    - album server -h
     - album add-catalog -h
     - album remove-catalog -h
     # album catalog admin
