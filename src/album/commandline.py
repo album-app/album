@@ -7,7 +7,6 @@ from album.core.utils.operations.view_operations import get_solution_as_string, 
 from album.runner.album_logging import get_active_logger
 from album.runner.core.api.model.solution import ISolution
 from album.runner.core.model.script_creator import ScriptCreator
-from album.server import AlbumServer
 
 module_logger = get_active_logger
 
@@ -79,12 +78,6 @@ def search(album_instance: Album, args):
     else:
         res = get_search_result_as_string(args, search_result)
         module_logger().info(res)
-
-
-def start_server(album_instance: Album, args):
-    server = AlbumServer(args.port, args.host)
-    server.setup(album_instance)
-    server.start()
 
 
 def test(album_instance: Album, args):

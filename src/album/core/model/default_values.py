@@ -2,8 +2,6 @@ import os
 from enum import Enum
 from pathlib import Path
 
-from appdirs import user_data_dir, user_cache_dir, user_config_dir
-
 import album.core
 
 
@@ -65,7 +63,6 @@ class DefaultValues(Enum):
 
     # album
     app_data_dir = Path.home().joinpath(".album")      # base data path
-    app_cache_dir = Path(user_cache_dir("album"))    # base cache path
 
     # conda
     conda_default_executable = "conda"                                    # default conda executable

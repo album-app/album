@@ -2,10 +2,12 @@ import argparse
 import sys
 import traceback
 
+import pkg_resources
+
 from album import core
 from album.api import Album
 from album.commandline import add_catalog, remove_catalog, deploy, \
-    install, repl, run, search, start_server, test, update, clone, upgrade, index, uninstall, info
+    install, repl, run, search, test, update, clone, upgrade, index, uninstall, info
 from album.core.utils.subcommand import SubProcessError
 from album.runner.album_logging import debug_settings, get_active_logger, LogLevel, to_loglevel
 
@@ -73,17 +75,106 @@ def create_album_instance(level: LogLevel) -> Album:
 def create_parser():
     """Creates a parser for all known album arguments."""
     parser = AlbumParser()
-    p = parser.create_command_parser('search', search, 'search for an album solution using keywords.')
-    p.add_argument('keywords', type=str, nargs='+', help='Search keywords')
-    p = parser.create_file_command_parser('run', run, 'run an album solution.')
+    parser_creators = []
+    for entry_point in pkg_resources.iter_entry_points('console_parsers_album'):
+        parser_creators.append(entry_point.load())
+    for parse_creator in parser_creators:
+        parse_creator(parser)
+    return parser.parser
+
+
+def create_test_parser(parser):
+    parser.create_file_command_parser(
+        'test', test, 'execute the test routine of a solution.')
+
+
+def create_index_parser(parser):
+    parser.create_command_parser('index', index, 'print the index of the local album collection.')
+
+
+def create_clone_parser(parser):
+    p = parser.create_command_parser('clone', clone, 'clone an album solution or catalog template.')
     p.add_argument(
-        '--run-immediately',
+        'src',
+        type=str,
+        help='path for the solution file, group:name:version or name of the catalog template.'
+    )
+    p.add_argument(
+        'target_dir',
+        type=str,
+        help='The target directory where the solution or catalog will be added to. For a catalog, this can also be an empty GIT repository URL.'
+    )
+    p.add_argument(
+        'name',
+        type=str,
+        help='The new name of the cloned solution or catalog.'
+    )
+
+
+def create_upgrade_parser(parser):
+    p = parser.create_command_parser(
+        'upgrade',
+        upgrade,
+        'upgrade the local collection from the catalog index files. Either all catalogs configured, or a specific one.'
+    )
+    p.add_argument('catalog', type=str, help='name of the catalog', nargs='?')
+    p.add_argument(
+        '--dry-run',
         required=False,
-        help='When the solution to run consists of several steps, indicates whether to immediately run '
-             'a step or to wait for all steps to be prepared to run.',
+        help='Parameter to indicate a dry run and only show what would happen.',
+        action='store_true'
+    )
+    p.add_argument(
+        '--override',
+        required=False,
+        help='renews all installed solutions without re-installation. '
+             'Might produce dependency problems as environments are not updated. Handle with care.',
+        action='store_true'
+    )
+
+
+def create_update_parser(parser):
+    p = parser.create_command_parser(
+        'update',
+        update,
+        'Update the catalog index files. Either all catalogs configured, or a specific one.'
+    )
+    p.add_argument('catalog', type=str, help='name of the catalog', nargs='?')
+
+
+def create_remove_catalog_parser(parser):
+    p = parser.create_command_parser('remove-catalog', remove_catalog,
+                                     'remove a catalog from your local album configuration file.')
+    p.add_argument('name', type=str, help='name of the catalog')
+
+
+def create_add_catalog_parser(parser):
+    p = parser.create_command_parser('add-catalog', add_catalog,
+                                     'add a catalog to your local album configuration file.')
+    p.add_argument('src', type=str, help='src of the catalog')
+
+
+def create_info_parser(parser):
+    parser.create_file_command_parser('info', info, 'print information about an album solution.')
+
+
+def create_uninstall_parser(parser):
+    p = parser.create_file_command_parser('uninstall', uninstall, 'uninstall an album solution.')
+    p.add_argument(
+        '--uninstall-deps',
+        required=False,
+        help='Boolean to additionally remove all album dependencies. Choose between %s.'
+             % ", ".join([str(True), str(False)]),
         default=False,
-        action='store_true')
-    parser.create_file_command_parser('repl', repl, 'get an interactive repl for an album solution.')
+        action='store_true'
+    )
+
+
+def create_install_parser(parser):
+    parser.create_file_command_parser('install', install, 'install an album solution.')
+
+
+def create_deploy_parser(parser):
     p = parser.create_file_command_parser('deploy', deploy, 'deploy an album solution.')
     p.add_argument(
         'catalog',
@@ -128,72 +219,25 @@ def create_parser():
         default=None
     )
 
-    parser.create_file_command_parser('install', install, 'install an album solution.')
-    p = parser.create_file_command_parser('uninstall', uninstall, 'uninstall an album solution.')
+
+def create_repl_parser(parser):
+    parser.create_file_command_parser('repl', repl, 'get an interactive repl for an album solution.')
+
+
+def create_run_parser(parser):
+    p = parser.create_file_command_parser('run', run, 'run an album solution.')
     p.add_argument(
-        '--uninstall-deps',
+        '--run-immediately',
         required=False,
-        help='Boolean to additionally remove all album dependencies. Choose between %s.'
-             % ", ".join([str(True), str(False)]),
+        help='When the solution to run consists of several steps, indicates whether to immediately run '
+             'a step or to wait for all steps to be prepared to run.',
         default=False,
-        action='store_true'
-    )
-    parser.create_file_command_parser('info', info, 'print information about an album solution.')
-    p = parser.create_command_parser('add-catalog', add_catalog,
-                                           'add a catalog to your local album configuration file.')
-    p.add_argument('src', type=str, help='src of the catalog')
-    p = parser.create_command_parser('remove-catalog', remove_catalog,
-                                           'remove a catalog from your local album configuration file.')
-    p.add_argument('name', type=str, help='name of the catalog')
-    p = parser.create_command_parser(
-        'update',
-        update,
-        'Update the catalog index files. Either all catalogs configured, or a specific one.'
-    )
-    p.add_argument('catalog', type=str, help='name of the catalog', nargs='?')
-    p = parser.create_command_parser(
-        'upgrade',
-        upgrade,
-        'upgrade the local collection from the catalog index files. Either all catalogs configured, or a specific one.'
-    )
-    p.add_argument('catalog', type=str, help='name of the catalog', nargs='?')
-    p.add_argument(
-        '--dry-run',
-        required=False,
-        help='Parameter to indicate a dry run and only show what would happen.',
-        action='store_true'
-    )
-    p.add_argument(
-        '--override',
-        required=False,
-        help='renews all installed solutions without re-installation. '
-             'Might produce dependency problems as environments are not updated. Handle with care.',
-        action='store_true'
-    )
-    p = parser.create_command_parser('clone', clone, 'clone an album solution or catalog template.')
-    p.add_argument(
-        'src',
-        type=str,
-        help='path for the solution file, group:name:version or name of the catalog template.'
-    )
-    p.add_argument(
-        'target_dir',
-        type=str,
-        help='The target directory where the solution or catalog will be added to. For a catalog, this can also be an empty GIT repository URL.'
-    )
-    p.add_argument(
-        'name',
-        type=str,
-        help='The new name of the cloned solution or catalog.'
-    )
-    parser.create_command_parser('index', index, 'print the index of the local album collection.')
-    parser.create_file_command_parser(
-        'test', test, 'execute the test routine of a solution.')
-    p = parser.create_command_parser('server', start_server,
-                                     'start an album server.')
-    p.add_argument('--port', type=int, required=False, default=8080, help='Port')
-    p.add_argument('--host', type=str, required=False, default="127.0.0.1", help='Host')
-    return parser.parser
+        action='store_true')
+
+
+def create_search_parser(parser):
+    p = parser.create_command_parser('search', search, 'search for an album solution using keywords.')
+    p.add_argument('keywords', type=str, nargs='+', help='Search keywords')
 
 
 class ArgumentParser(argparse.ArgumentParser):

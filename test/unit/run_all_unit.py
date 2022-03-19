@@ -1,7 +1,7 @@
 import time
 import unittest
 
-from test.unit import test_argument_parsing, test_server
+from test.unit import test_argument_parsing
 from test.unit.ci import test_ci_argument_parsing, test_ci_commandline
 from test.unit.ci.controller import test_release_manager, test_zenodo_manager
 from test.unit.ci.utils import test_continuous_integration
@@ -27,7 +27,6 @@ def main():
 
     # album
     suite.addTests(loader.loadTestsFromModule(test_argument_parsing))
-    suite.addTests(loader.loadTestsFromModule(test_server))
 
     # album core.controller.collection
     suite.addTests(loader.loadTestsFromModule(test_collection_manager))
