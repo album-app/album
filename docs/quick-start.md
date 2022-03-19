@@ -10,12 +10,12 @@
 | Manage catalogs  | See [usage instructions](/usage-instructions) for more details. |
 |---|---|
 |`album add-catalog [catalog-directory-or-url]`| Add a catalog to your local collection. |
-|`album remove-catalog [catalog-directory-or-url]`| Remove a catalog from your local collection. This will remove all solutions associated with the catalog!|
+|`album remove-catalog [catalog-name]`| Remove a catalog from your local collection. This will remove all solutions associated with the catalog!|
 |`album update`| Reload all indices of all catalogs added to your local collection.|
-|`album update --src [catalog-directory-or-url]`| Like `update`, but only for one specific catalog.|
+|`album update [catalog-name]`| Like `update`, but only for one specific catalog.|
 |`album upgrade`| Synchronize the latest state of all your catalogs with the state of your local solution collection.|
 |`album upgrade --dry-run`| Same as `upgrade`, but only prints changes and does not apply them to the collection.|
-|`album upgrade --src [catalog-directory-or-url]`| Like `upgrade`, but only for one specific catalog.|
+|`album upgrade [catalog-name]`| Like `upgrade`, but only for one specific catalog.|
 
 | Use solutions | See [usage instructions](/usage-instructions) for more details.|
 |---|---|

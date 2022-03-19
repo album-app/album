@@ -69,9 +69,9 @@ In order to use an existing catalog, you need to add it to your local album coll
 ```
 album add-catalog https://gitlab.com/album-app/catalogs/capture-knowledge
 ```
-You can also remove a catalog - this will remove all solutions associated with the catalog.
+You can also remove a catalog by its name - this will remove all solutions associated with the catalog.
 ```
-album remove-catalog https://gitlab.com/album-app/catalogs/capture-knowledge
+album remove-catalog capture-knowledge
 ```
 Changes to a catalog will not automatically appear in your local collection - you first have to initiate the update process.
 
@@ -89,7 +89,7 @@ album upgrade
 ```
 The same can be done for just one catalog:
 ```
-album update https://gitlab.com/album-app/catalogs/capture-knowledge
-album upgrade https://gitlab.com/album-app/catalogs/capture-knowledge --dry-run
-album upgrade https://gitlab.com/album-app/catalogs/capture-knowledge
+album update capture-knowledge
+album upgrade capture-knowledge --dry-run
+album upgrade capture-knowledge
 ```

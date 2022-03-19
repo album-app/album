@@ -43,8 +43,8 @@ For request catalogs, changes won't appear in album until the newly created bran
 
 5. Upgrade the catalog in your local collection:
 ```
-album update --catalog [catalog-name]
-album upgrade --catalog [catalog-name]
+album update [catalog-name]
+album upgrade [catalog-name]
 ```
 
 ## How to create and use a local catalog
@@ -66,8 +66,8 @@ album deploy [solution-path] [catalog-name]
 
 4. Upgrade the catalog in your local collection:
 ```
-album update --catalog [catalog-name]
-album upgrade --catalog [catalog-name]
+album update [catalog-name]
+album upgrade [catalog-name]
 ```
 
 ## How to manually share a local catalog on GitLab / GitHub
@@ -116,8 +116,8 @@ one is working on (i.e. `0.1.0-SNAPSHOT` prior to releasing `0.1.0`).
 
 In order to test changes to the run method of a solution rapidly without having to uninstall and reinstall a solution, use the `--override` flag after deploying the solution:
 ```
-album update --catalog [catalog-name]
-album upgrade --catalog [catalog-name] --override
+album update [catalog-name]
+album upgrade [catalog-name] --override
 ```
 The `--override` flag will check for each changed solution if it is already installed, and update the local cache of the solution content in this case.
 Now `album run [solution]` will use the updated solution file. Be aware that any changes to the `setup` method of the solution will not be processed,

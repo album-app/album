@@ -423,23 +423,14 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
             "solution.py")
         self.assertEqual(res.resolve(), file)
 
-    def test_get_solution_zip(self):
-        # call
-        solution_zip = Path(self.solution_handler.get_solution_zip(self.catalog, Coordinates("g", "n", "v"))).resolve()
-        res = get_link_target(
-            self.catalog.path().joinpath(DefaultValues.catalog_solutions_prefix.value, "g", "n", "v")).joinpath(
-            "g_n_v.zip")
-        self.assertEqual(res.resolve(), solution_zip)
-
     def test_get_solution_zip_suffix(self):
         res = Path("").joinpath(DefaultValues.catalog_solutions_prefix.value, "g", "n", "v", "g_n_v.zip")
 
         # call
         self.assertEqual(res, self.solution_handler.get_solution_zip_suffix(Coordinates("g", "n", "v")))
 
-    @patch("album.core.controller.collection.solution_handler.SolutionHandler._download_solution_zip")
-    @patch("album.core.controller.collection.solution_handler.unzip_archive", return_value=Path("a/Path"))
-    def test_retrieve_solution(self, unzip_mock, dl_mock):
+    @patch("album.core.controller.collection.solution_handler.SolutionHandler._download_solution")
+    def test_retrieve_solution(self, dl_mock):
         # prepare
         self.catalog = Catalog(self.catalog.catalog_id(), self.catalog.name(), self.catalog.path(),
                                "http://NonsenseUrl.git")
@@ -450,14 +441,11 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         solution_path = self.solution_handler.retrieve_solution(self.catalog, coordinates)
 
         # assert
-        dl_path = get_link_target(self.catalog.path().joinpath(
-            DefaultValues.catalog_solutions_prefix.value, "g", "n", "v"
-        )).joinpath("g_n_v.zip")
-        res = Path("a/Path").joinpath(DefaultValues.solution_default_name.value)
-        self.assertEqual(res, solution_path)
+        res_pck = self.solution_handler.get_solution_package_path(self.catalog, coordinates)
+        res = res_pck.joinpath(DefaultValues.solution_default_name.value)
+        self.assertEqual(res.resolve(), solution_path.resolve())
 
-        dl_mock.assert_called_once_with("http://NonsenseUrl.git", coordinates, dl_path, "main")
-        unzip_mock.assert_called_once_with(dl_path)
+        dl_mock.assert_called_once_with("http://NonsenseUrl.git", coordinates, res_pck)
 
     def test_set_cache_paths(self):
         config = self.album_controller.configuration()

@@ -11,6 +11,7 @@ from git import Repo
 from album.core.utils.operations.file_operations import force_remove, create_path_recursively, folder_empty
 from album.core.utils.operations.url_operations import is_url
 from album.runner import album_logging
+from album.runner.core.api.model.coordinates import ICoordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -133,7 +134,7 @@ def _add_files(repo, file_paths) -> bool:
     return False
 
 
-def add_files_commit_and_push(head, file_paths, commit_message, push=False, email=None, username=None,
+def add_files_commit_and_push(head, file_paths, commit_message, tag=None, push=False, email=None, username=None,
                               push_option_list=None, force=False):
     """Adds files in a given path to a git head and commits.
 
@@ -146,6 +147,8 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, emai
             The path of the files to add
         commit_message:
             The commit message
+        tag:
+            The tag associated with the commit
         push:
             Boolean option to switch on/off pushing to repository remote
         username:
@@ -189,15 +192,37 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, emai
         # commit
         repo.git.commit(m=commit_message)
 
+        if tag:
+            repo.git.tag('-a', tag, '-f', '-m', '')
+
         try:
             if push:
                 module_logger().info('Preparing pushing...')
                 repo.git.push(cmd)
+                if tag:
+                    repo.git.push([remote_name, tag, '-f'])
 
         except git.GitCommandError:
             raise
     else:
         raise RuntimeError("Diff shows no changes to the repository. Aborting...")
+
+
+def remove_files(head, file_paths):
+    """Adds files in a given path to a git head and commits.
+
+    Args:
+        head:
+            The head of the repository
+        file_paths:
+            The path of the files to remove
+    """
+    repo = head.repo
+
+    if repo.index.diff(None) or repo.untracked_files:
+        for file_path in file_paths:
+            module_logger().debug('Removing file %s...' % file_path)
+            repo.git.rm([file_path, '-r', '--ignore-unmatch', '--cached'])
 
 
 def configure_git(repo, email, username):
@@ -452,3 +477,7 @@ def retrieve_default_mr_push_options(repo_url) -> list:
             return []
     else:
         return []
+
+
+def as_tag(coordinates: ICoordinates) -> str:
+    return str(coordinates).replace(':', '-')

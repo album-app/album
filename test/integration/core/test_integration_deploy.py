@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 from shutil import copy
@@ -61,7 +62,70 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         self.assertIsNotNone(solution.setup()['timestamp'])
         self.assertEqual('something changed', solution.setup()['changelog'])
 
-    def test_deploy_folder_no_changelog(self):
+    def test_deploy_folder_remove_file(self):
+        # prepare
+        path, _ = self.setup_empty_catalog("test_catalog")
+        catalog = self.album_controller.collection_manager().catalogs().add_by_src(path)
+
+        coordinates = Coordinates('group', 'name', '0.1.0')
+
+        # copy solution and changelog file into new folder
+        source = Path(self.tmp_dir.name).joinpath('mysolution')
+        source.mkdir(parents=True)
+        copy(self.get_test_solution_path("solution11_minimal.py"), source.joinpath('solution.py'))
+        randomfile = source.joinpath('file.md')
+        with open(randomfile, 'w') as file:
+            file.write('my documentation')
+
+        self.album_controller.deploy_manager().deploy(
+            str(source),
+            catalog_name=catalog.name(),
+            dry_run=False,
+            git_email=DefaultValues.catalog_git_email.value,
+            git_name=DefaultValues.catalog_git_user.value
+        )
+
+        # assert
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
+
+        # check if solution is present and has updated changelog
+        self.album_controller.collection_manager().catalogs().update_any(catalog.name())
+        self.album_controller.collection_manager().catalogs().update_collection(catalog.name())
+        solution = self.album_controller.collection_manager().catalog_collection.get_solution_by_catalog_grp_name_version(
+            catalog.catalog_id(), coordinates)
+        self.assertIsNotNone(solution)
+
+        # check if documentation file was deployed into the catalog and copied into the collection cache
+        with catalog.retrieve_catalog(Path(self.tmp_dir.name).joinpath("tmp_cat_dir")) as tmp_repo:
+            self.assertTrue(
+                Path(tmp_repo.working_tree_dir).joinpath(
+                    self.album_controller.configuration().get_solution_path_suffix_unversioned(coordinates),
+                    'file.md'
+                ).exists()
+            )
+
+        # delete a file in the solution dir and deploy again, check if it is gone
+        os.remove(randomfile)
+        self.album_controller.deploy_manager().deploy(
+            str(source),
+            catalog_name=catalog.name(),
+            dry_run=False,
+            git_email=DefaultValues.catalog_git_email.value,
+            git_name=DefaultValues.catalog_git_user.value,
+            force_deploy=True
+        )
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
+        self.album_controller.collection_manager().catalogs().update_any(catalog.name())
+        self.album_controller.collection_manager().catalogs().update_collection(catalog.name())
+        with catalog.retrieve_catalog(Path(self.tmp_dir.name).joinpath("tmp_cat_dir")) as tmp_repo:
+            self.assertFalse(
+                Path(tmp_repo.working_tree_dir).joinpath(
+                    self.album_controller.configuration().get_solution_path_suffix_unversioned(coordinates),
+                    'file.md'
+                ).exists()
+            )
+
+    def test_deploy_file_no_changelog(self):
         # prepare
         path, _ = self.setup_empty_catalog("test_catalog")
         catalog = self.album_controller.collection_manager().catalogs().add_by_src(path)
@@ -95,7 +159,7 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         self.assertIsNotNone(solution)
         self.assertEqual(None, solution.setup()['changelog'])
 
-    def test_deploy_folder_changelog_parameter(self):
+    def test_deploy_file_changelog_parameter(self):
         # prepare
         path, _ = self.setup_empty_catalog("test_catalog")
         catalog = self.album_controller.collection_manager().catalogs().add_by_src(path)
@@ -172,7 +236,7 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         with catalog.retrieve_catalog(Path(self.tmp_dir.name).joinpath("tmp_cat_dir")) as tmp_repo:
             self.assertTrue(
                 Path(tmp_repo.working_tree_dir).joinpath(
-                    self.album_controller.configuration().get_solution_path_suffix(coordinates),
+                    self.album_controller.configuration().get_solution_path_suffix_unversioned(coordinates),
                     'file.md'
                 ).exists()
             )

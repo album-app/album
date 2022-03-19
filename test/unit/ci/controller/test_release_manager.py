@@ -22,11 +22,6 @@ class TestReleaseManager(TestUnitCoreCommon):
         pass
 
     @unittest.skip("Needs to be implemented!")
-    def test__get_zip_path(self):
-        # todo: implement!
-        pass
-
-    @unittest.skip("Needs to be implemented!")
     def test__get_yml_dict(self):
         # todo: implement!
         pass
