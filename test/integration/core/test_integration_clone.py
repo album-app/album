@@ -74,8 +74,8 @@ class TestIntegrationClone(TestIntegrationCoreCommon):
 
     def test_clone_non_existing_solution(self):
         # run
-        with self.assertRaises(ValueError) as e:
+        with self.assertRaises(LookupError) as e:
             self.album_controller.clone_manager().clone("weirdPath", target_dir=str(Path(self.tmp_dir.name)),
                                                         name="my_solution")
 
-        self.assertIn("Invalid input format", e.exception.args[0])
+        self.assertIn("Cannot find solution", e.exception.args[0])

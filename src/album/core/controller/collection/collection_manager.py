@@ -22,6 +22,8 @@ from album.runner.core.api.model.coordinates import ICoordinates
 module_logger = album_logging.get_active_logger
 
 
+
+
 class CollectionManager(ICollectionManager):
 
     def __init__(self, album: IAlbumController):
@@ -30,7 +32,6 @@ class CollectionManager(ICollectionManager):
         self.catalog_handler = CatalogHandler(self.album)
         self.catalog_collection: Optional[ICollectionIndex] = None
         self.collection_loaded = False
-
     def __del__(self):
         self.close()
 
@@ -194,7 +195,10 @@ class CollectionManager(ICollectionManager):
                 solution_entry = self._search(str_input)
 
                 if not solution_entry:
-                    raise LookupError("Solution cannot be resolved in any catalog!")
+                    raise LookupError(
+                        "Cannot find solution %s! Try <doi>:<prefix>/<suffix> or <prefix>/<suffix> "
+                        "or <group>:<name>:<version> or <catalog>:<group>:<name>:<version> "
+                        "or point to a valid file! Aborting..." % str_input)
 
                 catalog = self.album.catalogs().get_by_id(solution_entry.internal()["catalog_id"])
 
@@ -229,8 +233,10 @@ class CollectionManager(ICollectionManager):
 
     def _search(self, str_input) -> ICollectionIndex.ICollectionSolution:
         """Searches ONLY in the catalog collection, given a string which is interpreted."""
-        attrs = get_attributes_from_string(str_input)
-
+        try:
+            attrs = get_attributes_from_string(str_input)
+        except ValueError:
+            return self._guess(str_input)
         solution_entry = None
         if "doi" in attrs:  # case doi
             solution_entry = self._search_doi(attrs["doi"])
@@ -251,7 +257,6 @@ class CollectionManager(ICollectionManager):
 
                     if solution_entries:
                         solution_entry = solution_entries[0]
-
         return solution_entry
 
     def _search_by_coordinates(self, coordinates: ICoordinates) -> Optional[ICollectionIndex.ICollectionSolution]:
@@ -286,7 +291,7 @@ class CollectionManager(ICollectionManager):
     def retrieve_and_load_resolve_result(self, resolve_result: ICollectionSolution):
         if not Path(resolve_result.path()).exists():
             self.solution_handler.retrieve_solution(resolve_result.catalog(),
-                                               dict_to_coordinates(resolve_result.database_entry().setup()))
+                                                    dict_to_coordinates(resolve_result.database_entry().setup()))
         resolve_result.set_loaded_solution(self.album.state_manager().load(resolve_result.path()))
         resolve_result.set_coordinates(resolve_result.loaded_solution().coordinates())
 
@@ -296,3 +301,49 @@ class CollectionManager(ICollectionManager):
             "catalog_collection_name": name,
             "catalog_collection_version": version
         })
+
+    def _guess(self, str_input) -> Optional[ICollectionIndex.ICollectionSolution]:
+        input_parts = str_input.split(':')
+        call_not_reproducible = "This call is not fully reproducible. Resolving to this solution: %s"
+
+        if len(input_parts) == 1:
+            solutions = self.catalog_collection.get_solutions_by_name(input_parts[0])
+            if len(solutions) == 1:
+                module_logger().warn(call_not_reproducible % dict_to_coordinates(solutions[0].setup()))
+                return solutions[0]
+            if len(solutions) > 1:
+                return self._handle_multiple_solution_matches(solutions)
+            else:
+                return None
+        if len(input_parts) == 2:
+            solutions = self.catalog_collection.get_solutions_by_name_version(input_parts[0], input_parts[1])
+            if len(solutions) == 1:
+                module_logger().warn(call_not_reproducible % dict_to_coordinates(solutions[0].setup()))
+                return solutions[0]
+            if len(solutions) > 1:
+                return self._handle_multiple_solution_matches(solutions)
+            if len(solutions) == 0:
+                solutions = self.catalog_collection.get_solutions_by_grp_name(input_parts[0], input_parts[1])
+                if len(solutions) == 1:
+                    module_logger().warn(call_not_reproducible % dict_to_coordinates(solutions[0].setup()))
+                    return solutions[0]
+                if len(solutions) > 1:
+                    return self._handle_multiple_solution_matches(solutions)
+        return None
+
+    def _handle_multiple_solution_matches(self, solutions: [ICollectionIndex.ICollectionSolution]):
+        call_not_reproducible = "Resolving ambiguous input to %s"
+        cache_id = self.catalogs().get_cache_catalog().catalog_id()
+        cache_matches = [solution for solution in solutions if solution.internal()['catalog_id'] == cache_id]
+        if len(cache_matches) == 1:
+            module_logger().warn(call_not_reproducible % dict_to_coordinates(cache_matches[0].setup()))
+            return cache_matches[0]
+        solutions_ambiguous_str = "Input is ambiguous - choose between one of these solutions:\n%s"
+        raise RuntimeError(solutions_ambiguous_str % self._solutions_as_list(solutions))
+
+    def _solutions_as_list(self, solutions: [ICollectionIndex.ICollectionSolution]):
+        solutions_str = ''
+        for solution in solutions:
+            catalog_name = self.catalogs().get_by_id(solution.internal()['catalog_id']).name()
+            solutions_str += '- %s:%s\n' % (catalog_name, dict_to_coordinates(solutions[0].setup()))
+        return solutions_str
