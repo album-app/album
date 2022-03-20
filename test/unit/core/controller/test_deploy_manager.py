@@ -6,7 +6,6 @@ import git
 from album.core.controller.deploy_manager import DeployManager
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
-from album.runner.core.model.coordinates import Coordinates
 from test.unit.test_unit_core_common import TestGitCommon, TestCatalogAndCollectionCommon, EmptyTestClass
 
 
@@ -122,7 +121,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         _add_to_downloaded_catalog = MagicMock()
         self.deploy_manager._add_to_downloaded_catalog = _add_to_downloaded_catalog
 
-        _deploy_routine_in_local_src = MagicMock(return_value=("zip", ["export1", "export2"]))
+        _deploy_routine_in_local_src = MagicMock(return_value=(["export1", "export2"]))
         self.deploy_manager._deploy_routine_in_local_src = _deploy_routine_in_local_src
 
         _push_directly = MagicMock()
@@ -140,7 +139,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         _add_to_downloaded_catalog.assert_called_once_with(catalog, self.active_solution, False, True)
         _deploy_routine_in_local_src.assert_called_once_with(catalog, repo, self.active_solution, "deployPath")
         _push_directly.assert_called_once_with(
-            self.active_solution, repo, ["zip", "export1", "export2", "indexSrcPath"], False, None, "myEmail", "myName"
+            self.active_solution, repo, [str(Path('solutions','tsg', 'tsn'))], ["export1", "export2", "indexSrcPath"], False, None, "myEmail", "myName"
         )
         refresh_index.assert_called_once()
 
@@ -154,7 +153,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         catalog.src = lambda: "mySrc"
 
         # mock
-        _deploy_routine_in_local_src = MagicMock(return_value=("zip", ["export1", "export2"]))
+        _deploy_routine_in_local_src = MagicMock(return_value=(["export1", "export2"]))
         self.deploy_manager._deploy_routine_in_local_src = _deploy_routine_in_local_src
 
         _create_merge_request = MagicMock()
@@ -171,7 +170,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         )
         retrieve_default_mr_push_options.assert_called_once_with("mySrc")
         _create_merge_request.assert_called_once_with(
-            self.active_solution, repo, ["zip", "export1", "export2"], False, "pushOptions", "myEmail", "myName"
+            self.active_solution, repo, ["export1", "export2"], False, "pushOptions", "myEmail", "myName"
         )
 
     def test__deploy_routine_in_local_src(self):
@@ -182,18 +181,14 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         catalog = EmptyTestClass()
 
         # mock
-        _copy_and_zip = MagicMock(return_value="zip")
-        self.deploy_manager._copy_and_zip = _copy_and_zip
-
-        _attach_exports = MagicMock(return_value="exports")
-        self.deploy_manager._attach_exports = _attach_exports
+        _collect_solution_files = MagicMock(return_value="exports")
+        self.deploy_manager._collect_solution_files = _collect_solution_files
 
         # call
         r = self.deploy_manager._deploy_routine_in_local_src(catalog, repo, self.active_solution, "deployPath")
 
         # assert
-        self.assertEqual(r[0], "zip")
-        self.assertEqual(r[1], "exports")
+        self.assertEqual(r, "exports")
 
     def test__add_to_downloaded_catalog(self):
         # prepare
@@ -232,32 +227,13 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         # call & assert
         self.assertEqual(expected, self.deploy_manager.get_download_path(catalog))
 
-    @patch('album.core.utils.operations.solution_operations.get_deploy_dict')
-    def test__get_absolute_zip_path(self, deploy_dict_mock):
-        deploy_dict_mock.return_value = {"name": "tsn", "group": "tsg", "version": "tsv"}
-
-        # prepare
-        with self.setup_tmp_repo() as repo:
-            catalog_local_src = repo.working_tree_dir
-
-            result = Path(repo.working_tree_dir).joinpath(
-                DefaultValues.catalog_solutions_prefix.value,
-                "tsg",
-                "tsn",
-                "tsv",
-                "_".join(["tsg", "tsn", "tsv"]) + ".zip"
-            )
-
-            self.assertEqual(result,
-                             self.deploy_manager._get_absolute_zip_path(catalog_local_src, self.active_solution))
-
     def test__get_absolute_prefix_path(self):
         # fixme: definitely fix me! smth. is wrong
         pass
 
     @patch('album.core.controller.deploy_manager.create_docker_file', return_value="dockerfile")
     @patch('album.core.controller.deploy_manager.create_changelog_file', return_value="changelogfile")
-    def test__attach_exports(self, create_changelog_file, create_docker_file):
+    def test__collect_solution_files(self, create_changelog_file, create_docker_file):
         # prepare
         catalog_src_path, _ = self.setup_empty_catalog("test_cat")
         catalog = Catalog(
@@ -265,49 +241,15 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         )
 
         # mock
-        _copy_files_from_solution = MagicMock()
-        _copy_files_from_solution.side_effect = [["cover1", "cover2"], ["documentation1", "documentation2"]]
-        self.deploy_manager._copy_files_from_solution = _copy_files_from_solution
-
         _create_yaml_file_in_local_src = MagicMock(return_value="ymlfile")
         self.deploy_manager._create_yaml_file_in_local_src = _create_yaml_file_in_local_src
 
         # call
-        r = self.deploy_manager._attach_exports(catalog, catalog_src_path, self.active_solution, "deployPath")
+        r = self.deploy_manager._collect_solution_files(catalog, catalog_src_path, self.active_solution, Path("deployPath"))
 
-        expected = ["cover1", "cover2", "documentation1", "documentation2", "dockerfile", "ymlfile", "changelogfile"]
+        expected = ["dockerfile", "ymlfile", "changelogfile"]
         # assert
         self.assertListEqual(expected, r)
-
-    @patch('album.core.controller.deploy_manager.zip_folder', return_value="absPathZipFile")
-    @patch('album.core.controller.deploy_manager.zip_paths', return_value="absPathZipFile")
-    def test__copy_and_zip(self, zip_path_mock, zip_folder):
-        with self.setup_tmp_repo() as repo:
-            catalog_local_src = repo.working_tree_dir
-
-            solution_folder_to_deploy_locally = Path(self.tmp_dir.name)
-            solution_file_to_deploy_locally = Path(self.tmp_dir.name).joinpath("nice_file.py")
-            solution_file_to_deploy_locally.touch()
-
-            # result
-            r = Path(repo.working_tree_dir).joinpath(
-                self.album_controller.collection_manager().solutions().get_solution_zip_suffix(
-                    Coordinates('tsg', 'tsn', 'tsv'))
-            )
-
-        # copy and zip a folder
-        self.deploy_manager._copy_and_zip(catalog_local_src, self.active_solution, solution_folder_to_deploy_locally)
-        zip_folder.assert_called_once_with(solution_folder_to_deploy_locally, r)
-        zip_path_mock.assert_not_called()
-
-        # reset
-        zip_path_mock.reset_mock()
-        zip_folder.reset_mock()
-
-        # copy and zip a file
-        self.deploy_manager._copy_and_zip(catalog_local_src, self.active_solution, solution_file_to_deploy_locally)
-        zip_path_mock.assert_called_once()
-        zip_folder.assert_not_called()
 
     @patch('album.core.controller.deploy_manager.force_remove')
     @patch('album.core.controller.deploy_manager.folder_empty', return_value=False)
@@ -353,18 +295,20 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
 
     @patch('album.core.controller.deploy_manager.checkout_main', return_value="head")
     @patch('album.core.controller.deploy_manager.add_files_commit_and_push')
-    def test__push_directly(self, add_files_commit_and_push, checkout_main):
+    @patch('album.core.controller.deploy_manager.remove_files')
+    def test__push_directly(self, remove_files, add_files_commit_and_push, checkout_main):
         repo = EmptyTestClass()
         file_paths = ["a", "b", "c"]
 
         commit_msg = "Adding new/updated tsg_tsn_tsv"
 
         # call
-        self.deploy_manager._push_directly(self.active_solution, repo, file_paths, False, None, None, None)
+        self.deploy_manager._push_directly(self.active_solution, repo, [], file_paths, False, None, None, None)
 
         # assert
+        remove_files.assert_called_once_with("head", [])
         add_files_commit_and_push.assert_called_once_with(
-            "head", file_paths, commit_msg, push=True, email=None, push_option_list=[], username=None, force=False
+            "head", file_paths, commit_msg, push=True, email=None, push_option_list=[], tag='tsg-tsn-tsv', username=None, force=False
         )
 
     @patch('album.core.controller.deploy_manager.get_deploy_dict')
@@ -382,47 +326,3 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         f.close()
 
         self.assertEqual(["group: tsg\n", "name: tsn\n", "version: tsv\n"], f_content)
-
-    @patch('album.core.controller.deploy_manager.get_dict_entries_from_attribute_path')
-    @patch('album.core.controller.deploy_manager.copy')
-    def test__copy_files_from_solution(self, copy, get_dict_entries_from_attribute_path):
-        # prepare
-        copy.side_effect = ["copy1", "copy2"]
-        get_dict_entries_from_attribute_path.return_value = [self.closed_tmp_file.name, self.closed_tmp_file.name]
-
-        # call
-        r = self.deploy_manager._copy_files_from_solution(
-            self.active_solution,
-            Path(self.tmp_dir.name),
-            Path("target_deploy_path"),
-            "attribute_name",
-            "attribute_log_name"
-        )
-
-        expected = ["copy1", "copy2"]
-
-        # assert
-        self.assertListEqual(expected, r)
-
-    @patch('album.core.controller.deploy_manager.get_dict_entries_from_attribute_path')
-    @patch('album.core.controller.deploy_manager.copy')
-    def test__copy_files_from_solution_file_does_not_exist(self, copy, get_dict_entries_from_attribute_path):
-        # prepare
-        copy.side_effect = ["copy1", "copy2", "copy3"]
-        get_dict_entries_from_attribute_path.return_value = [
-            self.closed_tmp_file.name, "fileNotExist", self.closed_tmp_file.name
-        ]
-
-        # call
-        r = self.deploy_manager._copy_files_from_solution(
-            self.active_solution,
-            Path(self.tmp_dir.name),
-            Path("target_deploy_path"),
-            "attribute_name",
-            "attribute_log_name"
-        )
-
-        expected = ["copy1", "copy2"]
-
-        # assert
-        self.assertListEqual(expected, r)

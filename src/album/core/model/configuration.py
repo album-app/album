@@ -108,6 +108,13 @@ class Configuration(IConfiguration):
             coordinates.version()
         )
 
+    def get_solution_path_suffix_unversioned(self, coordinates: Coordinates) -> Path:
+        return Path("").joinpath(
+            DefaultValues.catalog_solutions_prefix.value,
+            coordinates.group(),
+            coordinates.name()
+        )
+
     def get_cache_path_catalog(self, catalog_name):
         return self._base_cache_path.joinpath(DefaultValues.catalog_folder_prefix.value, catalog_name)
 

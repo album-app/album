@@ -224,7 +224,6 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         self.assertEqual(2, len(catalog.index().get_all_solutions()))
 
         # install
-        resolve_result = self.album_controller.collection_manager().resolve_and_load("group:solution1_app1:0.1.0")
         coordinates = Coordinates("group", "solution1_app1", "0.1.0")
         self.album_controller.install_manager().install("group:solution1_app1:0.1.0")
 

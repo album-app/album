@@ -123,7 +123,7 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         self.assertEqual("Adding new/updated group_name_0.1.0\n", head.commit.message)
 
         # change deployed files so another commit is possible
-        with open(self.path.joinpath("solutions", "group", "name", "0.1.0", "name.yml"), "a") as f:
+        with open(self.path.joinpath("solutions", "group", "name", "name.yml"), "a") as f:
             f.write("\ntest: mytest")
 
         # gather arguments

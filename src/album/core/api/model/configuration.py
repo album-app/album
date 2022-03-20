@@ -67,6 +67,11 @@ class IConfiguration:
         raise NotImplementedError
 
     @abstractmethod
+    def get_solution_path_suffix_unversioned(self, coordinates: ICoordinates) -> Path:
+        """Returns the suffix path for a solution giving its group and name"""
+        raise NotImplementedError
+
+    @abstractmethod
     def get_cache_path_catalog(self, catalog_name):
         """Get the cache path to the catalog with a certain ID. Catalog independent!
 

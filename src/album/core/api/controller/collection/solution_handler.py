@@ -96,22 +96,6 @@ class ISolutionHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def get_solution_zip(self, catalog: ICatalog, coordinates: ICoordinates):
-        """Gets the cache zip of a solution given its group, name and version living inside the catalog.
-
-        Args:
-            catalog:
-                The catalog this solution belongs to.
-            coordinates:
-                The group affiliation, name, and version of the solution.
-
-        Returns:
-            The absolute path to the solution.py cache file.
-
-        """
-        raise NotImplementedError
-
-    @abstractmethod
     def retrieve_solution(self, catalog: ICatalog, coordinates: ICoordinates):
         """Downloads or copies a solution from the catalog to the local resource (cache path of the catalog).
 
