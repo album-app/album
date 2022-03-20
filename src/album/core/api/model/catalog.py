@@ -6,6 +6,7 @@ from typing import Optional, List, Generator
 from git import Repo
 
 from album.core.api.model.catalog_index import ICatalogIndex
+from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
 
 
@@ -106,7 +107,7 @@ class ICatalog:
         raise NotImplementedError
 
     @abstractmethod
-    def remove(self, active_solution: ISolution):
+    def remove(self, coordinates: ICoordinates):
         raise NotImplementedError
 
     @contextmanager

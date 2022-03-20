@@ -220,5 +220,40 @@ class TestGitOperations(TestGitCommon):
         # ToDo: implement
         pass
 
+    def test_add_remove_get_tags(self):
+        with self.setup_tmp_repo(commit_solution_file=False) as repo:
+            git_op.add_tag(repo, 'a')
+            git_op.add_tag(repo, 'b')
+            tags = git_op.get_tags(repo)
+            self.assertEqual(['b', 'a'], tags)
+            git_op.remove_tag(repo, 'a')
+            tags = git_op.get_tags(repo)
+            self.assertEqual(['b'], tags)
+
+    def test_revert(self):
+        with self.setup_tmp_repo(commit_solution_file=False) as repo:
+            testfolder = Path(repo.working_tree_dir).joinpath('test')
+            testfolder.mkdir()
+            testfile_a = testfolder.joinpath('a.txt')
+            testfile_a.touch()
+            repo.git.add(str(testfile_a))
+            repo.git.commit('-m', 'bla')
+            git_op.add_tag(repo, 'tag1')
+            os.remove(testfile_a)
+            testfile_b = Path(repo.working_tree_dir).joinpath('b.txt')
+            testfile_c = testfolder.joinpath('c.txt')
+            testfile_b.touch()
+            testfile_c.touch()
+            repo.git.rm(str(testfile_a))
+            repo.git.add(str(testfile_b), str(testfile_c))
+            repo.git.commit('-m', 'bla')
+            self.assertTrue(testfile_c.exists())
+            self.assertFalse(testfile_a.exists())
+            git_op.revert(repo, 'tag1', [str(testfolder)])
+            self.assertTrue(testfile_a.exists())
+            self.assertTrue(testfile_b.exists())
+            self.assertFalse(testfile_c.exists())
+
+
 if __name__ == '__main__':
     unittest.main()

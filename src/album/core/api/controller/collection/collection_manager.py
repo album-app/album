@@ -126,7 +126,7 @@ class ICollectionManager:
                 What to resolve. Either path, doi, group:name:version, catalog:group:name:version, url
 
         Returns:
-            list with resolve result and loaded album.
+            The resolve result
 
         """
         raise NotImplementedError

@@ -637,6 +637,8 @@ class CatalogIndex(ICatalogIndex, Database):
         solution_dict = self.get_solution_by_coordinates(coordinates, close=close)
         if solution_dict:
             self.remove_solution(solution_dict["solution_id"])
+            return solution_dict
+        return None
 
     # ### catalog_features ###
 

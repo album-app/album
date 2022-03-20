@@ -8,6 +8,7 @@ from album.core.model.catalog import Catalog, retrieve_index_files_from_src
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove
+from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.runner.core.model.solution import Solution
 from test.unit.test_unit_core_common import TestCatalogAndCollectionCommon
 
@@ -144,9 +145,8 @@ class TestCatalog(TestCatalogAndCollectionCommon):
         for key in CatalogIndex.get_solution_column_keys():
             d[key] = "%s%s" % (key, "0")
 
-        solution = Solution(d)
         # call
-        self.catalog.remove(solution)
+        self.catalog.remove(dict_to_coordinates(d))
 
         # assert
         self.assertEqual(9, len(self.catalog._catalog_index))
@@ -159,32 +159,11 @@ class TestCatalog(TestCatalogAndCollectionCommon):
         for key in CatalogIndex.get_solution_column_keys():
             d[key] = "%s%s" % (key, "new")
 
-        solution = Solution(d)
-
         # call
-        self.catalog.remove(solution)
+        self.catalog.remove(dict_to_coordinates(d))
 
         # assert
-        self.assertIn("Solution not installed!", self.get_logs()[-1])
-        self.assertEqual(10, len(self.catalog._catalog_index))
-
-    def test_remove_not_local(self):
-        # prepare
-        self.populate_index()
-        self.assertEqual(10, len(self.catalog._catalog_index))
-
-        d = {}
-        for key in CatalogIndex.get_solution_column_keys():
-            d[key] = "%s%s" % (key, "0")
-
-        solution = Solution(d)
-        self.catalog.is_local = MagicMock(return_value=False)
-
-        # call
-        self.catalog.remove(solution)
-
-        # assert
-        self.assertIn("Cannot remove entries", self.get_logs()[-1])
+        self.assertIn("Solution not found", self.get_logs()[-1])
         self.assertEqual(10, len(self.catalog._catalog_index))
 
     def test_download_index_files(self):

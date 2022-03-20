@@ -146,6 +146,37 @@ class Album:
             changelog=changelog
         )
 
+    def undeploy(self, solution_to_resolve: str, catalog_name: str, dry_run: bool, push_option=None, git_email: str = None,
+                 git_name: str = None):
+        """Function corresponding to the `undeploy` subcommand of `album`.
+
+        Removes the solution from the given catalog.
+
+        Args:
+            solution_to_resolve:
+                Solution identifier which should be removed (group:name:version).
+            catalog_name:
+                The catalog to remove the solution from.
+            dry_run:
+                When set, prepares undeploy in local src of the catalog,
+                but not actually removing it the catalog src.
+            push_option:
+                Push options for the catalog repository.
+            git_email:
+                The git email to use. (Default: systems git configuration)
+            git_name:
+                The git user to use. (Default: systems git configuration)
+
+        """
+        return self._controller.deploy_manager().undeploy(
+            solution_to_resolve=solution_to_resolve,
+            catalog_name=catalog_name,
+            dry_run=dry_run,
+            push_options=push_option,
+            git_email=git_email,
+            git_name=git_name
+        )
+
     def clone(self, path: str, target_dir: str, name: str) -> None:
         """
         Function corresponding to the `clone` subcommand of `album`.

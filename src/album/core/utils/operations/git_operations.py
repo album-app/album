@@ -11,7 +11,6 @@ from git import Repo
 from album.core.utils.operations.file_operations import force_remove, create_path_recursively, folder_empty
 from album.core.utils.operations.url_operations import is_url
 from album.runner import album_logging
-from album.runner.core.api.model.coordinates import ICoordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -134,7 +133,7 @@ def _add_files(repo, file_paths) -> bool:
     return False
 
 
-def add_files_commit_and_push(head, file_paths, commit_message, tag=None, push=False, email=None, username=None,
+def add_files_commit_and_push(head, file_paths, commit_message, push=False, email=None, username=None,
                               push_option_list=None, force=False):
     """Adds files in a given path to a git head and commits.
 
@@ -147,8 +146,6 @@ def add_files_commit_and_push(head, file_paths, commit_message, tag=None, push=F
             The path of the files to add
         commit_message:
             The commit message
-        tag:
-            The tag associated with the commit
         push:
             Boolean option to switch on/off pushing to repository remote
         username:
@@ -180,10 +177,7 @@ def add_files_commit_and_push(head, file_paths, commit_message, tag=None, push=F
         if force:
             cmd = cmd + ['-f']
 
-        try:
-            remote_name = repo.remote().refs.HEAD.remote_name
-        except AttributeError:
-            remote_name = "origin"
+        remote_name = get_remote_name(repo)
 
         cmd = cmd + [remote_name, head]
 
@@ -192,20 +186,34 @@ def add_files_commit_and_push(head, file_paths, commit_message, tag=None, push=F
         # commit
         repo.git.commit(m=commit_message)
 
-        if tag:
-            repo.git.tag('-a', tag, '-f', '-m', '')
+        if push:
+            module_logger().info('Preparing pushing...')
+            repo.git.push(cmd)
 
-        try:
-            if push:
-                module_logger().info('Preparing pushing...')
-                repo.git.push(cmd)
-                if tag:
-                    repo.git.push([remote_name, tag, '-f'])
-
-        except git.GitCommandError:
-            raise
     else:
         raise RuntimeError("Diff shows no changes to the repository. Aborting...")
+
+
+def add_tag(repo, tag):
+    """Adds a tag to the most recent commit.
+
+    Args:
+        repo:
+            The repository
+        tag:
+            The tag associated with the commit
+    """
+    repo.git.tag('-a', tag, '-f', '-m', '')
+    remote_name = get_remote_name(repo)
+    repo.git.push([remote_name, tag, '-f'])
+
+
+def get_remote_name(repo):
+    try:
+        remote_name = repo.remote().refs.HEAD.remote_name
+    except AttributeError:
+        remote_name = "origin"
+    return remote_name
 
 
 def remove_files(head, file_paths):
@@ -223,6 +231,33 @@ def remove_files(head, file_paths):
         for file_path in file_paths:
             module_logger().debug('Removing file %s...' % file_path)
             repo.git.rm([file_path, '-r', '--ignore-unmatch', '--cached'])
+
+
+def remove_tag(repo, tag):
+    """Adds files in a given path to a git head and commits.
+
+    Args:
+        repo:
+            The repository
+        tag:
+            The tag to remove
+    """
+    remote_name = get_remote_name(repo)
+    repo.git.tag('-d', tag)
+    repo.git.push('--delete', remote_name, tag)
+
+
+def get_tags(repo):
+    tags = [tag.name for tag in sorted(repo.tags, key=lambda t: t.commit.committed_datetime)]
+    tags.reverse()
+    return tags
+
+
+def revert(repo, tag, files: list):
+    for file in files:
+        repo.git.reset(tag, '--', file)
+        repo.git.checkout('--', file)
+        repo.git.clean('-fd', file)
 
 
 def configure_git(repo, email, username):
@@ -477,7 +512,3 @@ def retrieve_default_mr_push_options(repo_url) -> list:
             return []
     else:
         return []
-
-
-def as_tag(coordinates: ICoordinates) -> str:
-    return str(coordinates).replace(':', '-')
