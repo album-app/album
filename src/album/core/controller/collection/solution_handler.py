@@ -3,19 +3,18 @@ from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from album.core.api.model.collection_index import ICollectionIndex
-
 from album.core.api.controller.collection.solution_handler import ISolutionHandler
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.catalog_updates import ISolutionChange, ChangeType
+from album.core.api.model.collection_index import ICollectionIndex
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.model.link import Link
-from album.core.utils.operations.file_operations import copy_folder, copy, unzip_archive, construct_cache_link_target, \
+from album.core.utils.operations.file_operations import copy_folder, copy, construct_cache_link_target, \
     force_remove
-from album.core.utils.operations.git_operations import clone_repository_sparse, checkout_files, as_tag
-from album.core.utils.operations.resolve_operations import dict_to_coordinates, get_zip_name
+from album.core.utils.operations.git_operations import clone_repository_sparse, checkout_files
+from album.core.utils.operations.resolve_operations import dict_to_coordinates, get_zip_name, as_tag
 from album.core.utils.operations.solution_operations import get_deploy_dict
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates

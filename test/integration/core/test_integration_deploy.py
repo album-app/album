@@ -1,7 +1,10 @@
+import filecmp
 import os
 import sys
 from pathlib import Path
 from shutil import copy
+
+from album.core.api.model.catalog_updates import ChangeType
 
 from album.core.model.default_values import DefaultValues
 from album.runner.core.model.coordinates import Coordinates
@@ -34,13 +37,13 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         self.assertIn('test_catalog', updates)
         self.assertEqual(0, len(updates['test_catalog'].solution_changes()))
 
-    def test_deploy_file(self):
+    def test_deploy_undeploy_file(self):
         path, _ = self.setup_empty_catalog("test_catalog")
         catalog = self.album_controller.collection_manager().catalogs().add_by_src(path)
 
         # call
         self.album_controller.deploy_manager().deploy(
-            str(self.get_test_solution_path()),
+            str(self.get_test_solution_path("solution11_minimal.py")),
             catalog_name=catalog.name(),
             changelog='something changed',
             dry_run=False,
@@ -48,12 +51,34 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
             git_name=DefaultValues.catalog_git_user.value
         )
 
-        # assert
-        self.assertNotIn('ERROR', self.captured_output.getvalue())
+        # deploy a second version
+        self.album_controller.deploy_manager().deploy(
+            str(self.get_test_solution_path("solution11_changed_version.py")),
+            catalog_name=catalog.name(),
+            changelog='something changed',
+            dry_run=False,
+            git_email=DefaultValues.catalog_git_email.value,
+            git_name=DefaultValues.catalog_git_user.value
+        )
+
+        # deploy a third version
+        self.album_controller.deploy_manager().deploy(
+            str(self.get_test_solution_path("solution11_version3.py")),
+            catalog_name=catalog.name(),
+            changelog='something changed',
+            dry_run=False,
+            git_email=DefaultValues.catalog_git_email.value,
+            git_name=DefaultValues.catalog_git_user.value
+        )
+
+        # get changes into local collection
         self.album_controller.collection_manager().catalogs().update_any('test_catalog')
         updates = self.album_controller.collection_manager().catalogs().update_collection('test_catalog')
+
+        # assert if updates contain three solutions
         self.assertIn('test_catalog', updates)
-        self.assertEqual(1, len(updates['test_catalog'].solution_changes()))
+        self.assertEqual(3, len(updates['test_catalog'].solution_changes()))
+        # check if first solution was added properly
         solution = self.album_controller.collection_manager().catalog_collection.get_solution_by_catalog_grp_name_version(
             self.album_controller.collection_manager().catalogs().get_by_name('test_catalog').catalog_id(),
             Coordinates('group', 'name', '0.1.0')
@@ -61,6 +86,88 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         self.assertIsNotNone(solution)
         self.assertIsNotNone(solution.setup()['timestamp'])
         self.assertEqual('something changed', solution.setup()['changelog'])
+
+        # check if current solution file on the catalog is the last one deployed
+        remote_solution_file = Path(self.album_controller.configuration().get_solution_path_suffix_unversioned(
+            Coordinates('group', 'name', '0.1.0')), DefaultValues.solution_default_name.value)
+        with catalog.retrieve_catalog(Path(self.tmp_dir.name).joinpath('tmp_cat_dir')) as tmp_repo:
+            solution_file = Path(tmp_repo.working_tree_dir).joinpath(remote_solution_file)
+            self.assertTrue(solution_file.exists())
+            self.assertTrue(filecmp.cmp(self.get_test_solution_path('solution11_version3.py'), solution_file))
+
+        # undeploy second solution
+        self.album_controller.deploy_manager().undeploy(
+            "group:name:0.2.0",
+            catalog_name=catalog.name(),
+            dry_run=False,
+            git_email=DefaultValues.catalog_git_email.value,
+            git_name=DefaultValues.catalog_git_user.value
+        )
+
+        # update collection
+        self.album_controller.collection_manager().catalogs().update_any('test_catalog')
+        updates = self.album_controller.collection_manager().catalogs().update_collection('test_catalog')
+
+        # check if the update contains the removal
+        self.assertIn('test_catalog', updates)
+        self.assertEqual(1, len(updates['test_catalog'].solution_changes()))
+        change = updates['test_catalog'].solution_changes()[0]
+        self.assertEqual(Coordinates('group', 'name', '0.2.0'), change.coordinates())
+        self.assertEqual(ChangeType.REMOVED, change.change_type())
+
+        # check if the last version in the repo is still the third one
+        with catalog.retrieve_catalog(Path(self.tmp_dir.name).joinpath('tmp_cat_dir')) as tmp_repo:
+            solution_file = Path(tmp_repo.working_tree_dir).joinpath(remote_solution_file)
+            self.assertTrue(solution_file.exists())
+            self.assertTrue(filecmp.cmp(self.get_test_solution_path('solution11_version3.py'), solution_file))
+
+        # undeploy the first third solution
+        # this should revert the solution file back to the first version and remove the entry from the database
+        self.album_controller.deploy_manager().undeploy(
+            "group:name:0.3.0",
+            catalog_name=catalog.name(),
+            dry_run=False,
+            git_email=DefaultValues.catalog_git_email.value,
+            git_name=DefaultValues.catalog_git_user.value
+        )
+
+        # update collection
+        self.album_controller.collection_manager().catalogs().update_any('test_catalog')
+        updates = self.album_controller.collection_manager().catalogs().update_collection('test_catalog')
+
+        # check if the last version in the repo is now the first one
+        with catalog.retrieve_catalog(Path(self.tmp_dir.name).joinpath('tmp_cat_dir')) as tmp_repo:
+            solution_file = Path(tmp_repo.working_tree_dir).joinpath(remote_solution_file)
+            self.assertTrue(solution_file.exists())
+            self.assertTrue(filecmp.cmp(self.get_test_solution_path('solution11_minimal.py'), solution_file))
+
+        # undeploy the first version
+        self.album_controller.deploy_manager().undeploy(
+            "group:name:0.1.0",
+            catalog_name=catalog.name(),
+            dry_run=False,
+            git_email=DefaultValues.catalog_git_email.value,
+            git_name=DefaultValues.catalog_git_user.value
+        )
+
+        # this should remove the solution files from the repo and remove the entry from the database
+        with catalog.retrieve_catalog(Path(self.tmp_dir.name).joinpath('tmp_cat_dir')) as tmp_repo:
+            solution_file = Path(tmp_repo.working_tree_dir).joinpath(remote_solution_file)
+            self.assertFalse(solution_file.exists())
+
+        # update collection
+        self.album_controller.collection_manager().catalogs().update_any('test_catalog')
+        self.album_controller.collection_manager().catalogs().update_collection('test_catalog')
+
+        # check that all solutions were removed
+        solutions = self.album_controller.collection_manager().catalog_collection.get_solutions_by_catalog(
+            self.album_controller.collection_manager().catalogs().get_by_name('test_catalog').catalog_id(),
+        )
+        self.assertEqual(0, len(solutions))
+
+        print(self.captured_output.getvalue())
+        self.assertNotIn('WARNING', self.captured_output.getvalue())
+        self.assertNotIn('ERROR', self.captured_output.getvalue())
 
     def test_deploy_folder_remove_file(self):
         # prepare

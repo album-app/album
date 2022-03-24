@@ -45,6 +45,12 @@ def deploy(album_instance: Album, args):
     )
 
 
+def undeploy(album_instance: Album, args):
+    album_instance.undeploy(
+        args.path, args.catalog, args.dry_run, args.push_option, args.git_email, args.git_name
+    )
+
+
 def install(album_instance: Album, args):
     album_instance.install(str(args.path), sys.argv)
 

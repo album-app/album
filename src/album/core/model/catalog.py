@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Optional, Tuple, List, Generator
 
 import validators
+from album.runner.core.api.model.coordinates import ICoordinates
 from git import Repo, GitCommandError
 
 from album.core.api.model.catalog import ICatalog
@@ -153,19 +154,12 @@ class Catalog(ICatalog):
         self._catalog_index.save()
         self._catalog_index.export(self._solution_list_path)
 
-    def remove(self, active_solution: ISolution):
-        # todo: discuss conditions to remove solutions
-        if self.is_local():
-            solution_attrs = get_deploy_dict(active_solution)
-            solution_entry = self._catalog_index.remove_solution_by_group_name_version(
-                dict_to_coordinates(solution_attrs)
-            )
-            if solution_entry:
-                self._catalog_index.export(self._solution_list_path)
-            else:
-                module_logger().warning("Solution not installed! Doing nothing...")
+    def remove(self, coordinates: ICoordinates):
+        solution_entry = self._catalog_index.remove_solution_by_group_name_version(coordinates)
+        if solution_entry:
+            self._catalog_index.export(self._solution_list_path)
         else:
-            module_logger().warning("Cannot remove entries from a remote catalog! Doing nothing...")
+            module_logger().warning("Solution not found! Doing nothing...")
 
     def _update_index_cache(self, tmp_dir):
         repo_dir = Path(tmp_dir).joinpath('repo')

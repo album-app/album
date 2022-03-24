@@ -7,7 +7,7 @@ import pkg_resources
 from album import core
 from album.api import Album
 from album.commandline import add_catalog, remove_catalog, deploy, \
-    install, repl, run, search, test, update, clone, upgrade, index, uninstall, info
+    install, repl, run, search, test, update, clone, upgrade, index, uninstall, info, undeploy
 from album.core.utils.subcommand import SubProcessError
 from album.runner.album_logging import debug_settings, get_active_logger, LogLevel, to_loglevel
 
@@ -216,6 +216,39 @@ def create_deploy_parser(parser):
         '--changelog',
         required=False,
         help='Description of changes from the previous version of the solution to this version.',
+        default=None
+    )
+
+
+def create_undeploy_parser(parser):
+    p = parser.create_file_command_parser('undeploy', undeploy, 'undeploy an album solution.')
+    p.add_argument(
+        'catalog',
+        type=str,
+        help='Specify a catalog name to remove the solution from. Must be configured!')
+    p.add_argument(
+        '--dry-run',
+        required=False,
+        help='Parameter to indicate a dry run and only show what would happen.',
+        action='store_true'
+    )
+    p.add_argument(
+        '--push-option',
+        required=False,
+        help='Push options for the catalog repository.',
+        default=None,
+        nargs="+"
+    )
+    p.add_argument(
+        '--git-email',
+        required=False,
+        help='Email to use for all git operations. If none given, system is required to be proper configured!',
+        default=None
+    )
+    p.add_argument(
+        '--git-name',
+        required=False,
+        help='Name to use for all git operations. If none given, system is required to be proper configured!',
         default=None
     )
 
