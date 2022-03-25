@@ -11,8 +11,8 @@ from album.core.model.catalog import Catalog, retrieve_index_files_from_src
 from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_dict_entry, \
     copy, force_remove
 from album.core.utils.operations.git_operations import checkout_branch, add_files_commit_and_push, \
-    retrieve_files_from_head, configure_git
-from album.core.utils.operations.resolve_operations import get_zip_name_prefix, dict_to_coordinates
+    retrieve_files_from_head, configure_git, add_tag
+from album.core.utils.operations.resolve_operations import get_zip_name_prefix, dict_to_coordinates, as_tag
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
@@ -226,6 +226,7 @@ class ReleaseManager:
                 username=ci_user_name,
                 email=ci_user_email
             )
+            add_tag(repo, as_tag(coordinates))
 
         return True
 
