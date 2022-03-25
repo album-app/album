@@ -64,7 +64,7 @@ class ReleaseManager:
         return [yml_dict, yml_file_path]
 
     def zenodo_publish(self, branch_name, zenodo_base_url, zenodo_access_token):
-        zenodo_base_url, zenodo_access_token = self.__prepare_zenodo_arguments(zenodo_base_url, zenodo_access_token)
+        zenodo_base_url, zenodo_access_token = self._prepare_zenodo_arguments(zenodo_base_url, zenodo_access_token)
 
         zenodo_manager = self._get_zenodo_manager(zenodo_access_token, zenodo_base_url)
 
@@ -93,7 +93,7 @@ class ReleaseManager:
         module_logger().info("Published unpublished deposit with deposit id %s..." % deposit_id)
 
     def zenodo_upload(self, branch_name, zenodo_base_url, zenodo_access_token, report_file):
-        zenodo_base_url, zenodo_access_token = self.__prepare_zenodo_arguments(zenodo_base_url, zenodo_access_token)
+        zenodo_base_url, zenodo_access_token = self._prepare_zenodo_arguments(zenodo_base_url, zenodo_access_token)
 
         zenodo_manager = self._get_zenodo_manager(zenodo_access_token, zenodo_base_url)
         with self._open_repo() as repo:
@@ -143,7 +143,7 @@ class ReleaseManager:
             module_logger().info("Created report file under %s" % str(report_file))
 
     @staticmethod
-    def __prepare_zenodo_arguments(zenodo_base_url: str, zenodo_access_token: str):
+    def _prepare_zenodo_arguments(zenodo_base_url: str, zenodo_access_token: str):
         if zenodo_base_url is None or zenodo_access_token is None:
             raise RuntimeError('Zenodo base URL or Zenodo access token invalid! '
                                'See https://zenodo.org/ documentation for information!')

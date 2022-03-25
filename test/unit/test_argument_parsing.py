@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from album import argument_parsing
 from album.commandline import search, remove_catalog, add_catalog, uninstall, install, repl, deploy, run, \
-    start_server, test, clone
+    test, clone
 
 
 class TestArgumentParsing(unittest.TestCase):
@@ -34,7 +34,6 @@ class TestArgumentParsing(unittest.TestCase):
 
         # check parsing of subcommands
         self.assertSubcommandParsed(parser, "search", search, "keyword")
-        self.assertSubcommandParsed(parser, "server", start_server, "1234")
         self.assertSubcommandWithFileArgParsed(parser, "run", run)
         self.assertSubcommandWithFileArgParsed(parser, "deploy", deploy, ['catalog-name'])
         self.assertSubcommandWithFileArgParsed(parser, "clone", clone, ['target-dir', 'name'])

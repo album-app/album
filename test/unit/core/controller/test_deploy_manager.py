@@ -6,6 +6,7 @@ import git
 from album.core.controller.deploy_manager import DeployManager
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
+from album.runner.core.model.coordinates import Coordinates
 from test.unit.test_unit_core_common import TestGitCommon, TestCatalogAndCollectionCommon, EmptyTestClass
 
 
@@ -108,7 +109,8 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         with self.assertRaises(RuntimeError):
             self.deploy_manager._deploy(catalog, self.active_solution, "myDeployPath", False, False, None)
 
-    def test__deploy_to_direct_catalog(self):
+    @patch('album.core.controller.deploy_manager.add_tag')
+    def test__deploy_to_direct_catalog(self, _):
         # prepare
         catalog = EmptyTestClass()
         catalog.src = lambda: "mySrc"
@@ -139,7 +141,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         _add_to_downloaded_catalog.assert_called_once_with(catalog, self.active_solution, False, True)
         _deploy_routine_in_local_src.assert_called_once_with(catalog, repo, self.active_solution, "deployPath")
         _push_directly.assert_called_once_with(
-            self.active_solution, repo, [str(Path('solutions','tsg', 'tsn'))], ["export1", "export2", "indexSrcPath"], False, None, "myEmail", "myName"
+            self.active_solution.coordinates(), repo, [str(Path('solutions','tsg', 'tsn'))], ["export1", "export2", "indexSrcPath"], False, None, "myEmail", "myName"
         )
         refresh_index.assert_called_once()
 
@@ -170,7 +172,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         )
         retrieve_default_mr_push_options.assert_called_once_with("mySrc")
         _create_merge_request.assert_called_once_with(
-            self.active_solution, repo, ["export1", "export2"], False, "pushOptions", "myEmail", "myName"
+            self.active_solution.coordinates(), repo, ["export1", "export2"], False, "pushOptions", "myEmail", "myName"
         )
 
     def test__deploy_routine_in_local_src(self):
@@ -279,13 +281,13 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         self.assertEqual(Path(self.closed_tmp_file.name), r)
 
     def test_retrieve_head_name(self):
-        self.assertEqual("tsg_tsn_tsv", DeployManager.retrieve_head_name(self.active_solution))
+        self.assertEqual("tsg_tsn_tsv", DeployManager.retrieve_head_name(Coordinates("tsg", "tsn", "tsv")))
 
     @patch('album.core.controller.deploy_manager.add_files_commit_and_push', return_value=True)
     def test__create_merge_request(self, add_files_commit_and_push_mock):
         with self.setup_tmp_repo() as repo:
             # call
-            DeployManager._create_merge_request(self.active_solution, repo, [self.closed_tmp_file.name], dry_run=True)
+            DeployManager._create_merge_request(Coordinates("tsg", "tsn", "tsv"), repo, [self.closed_tmp_file.name], dry_run=True)
 
             add_files_commit_and_push_mock.assert_called_once_with(
                 repo.heads[1], [self.closed_tmp_file.name],
@@ -296,19 +298,20 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
     @patch('album.core.controller.deploy_manager.checkout_main', return_value="head")
     @patch('album.core.controller.deploy_manager.add_files_commit_and_push')
     @patch('album.core.controller.deploy_manager.remove_files')
-    def test__push_directly(self, remove_files, add_files_commit_and_push, checkout_main):
+    @patch('album.core.controller.deploy_manager.add_tag')
+    def test__push_directly(self, add_tag, remove_files, add_files_commit_and_push, checkout_main):
         repo = EmptyTestClass()
         file_paths = ["a", "b", "c"]
 
         commit_msg = "Adding new/updated tsg_tsn_tsv"
 
         # call
-        self.deploy_manager._push_directly(self.active_solution, repo, [], file_paths, False, None, None, None)
+        self.deploy_manager._push_directly(self.active_solution.coordinates(), repo, [], file_paths, False, None, None, None)
 
         # assert
         remove_files.assert_called_once_with("head", [])
         add_files_commit_and_push.assert_called_once_with(
-            "head", file_paths, commit_msg, push=True, email=None, push_option_list=[], tag='tsg-tsn-tsv', username=None, force=False
+            "head", file_paths, commit_msg, push=True, email=None, push_option_list=[], username=None, force=False
         )
 
     @patch('album.core.controller.deploy_manager.get_deploy_dict')

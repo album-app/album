@@ -64,7 +64,7 @@ class ICatalogUpdates:
         raise NotImplementedError
 
     @abstractmethod
-    def solution_changes(self):
+    def solution_changes(self) -> List[ISolutionChange]:
         raise NotImplementedError
 
     @abstractmethod

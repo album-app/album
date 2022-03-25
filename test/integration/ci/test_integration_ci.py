@@ -1,6 +1,7 @@
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import git
 
@@ -8,6 +9,7 @@ from album.ci.argument_parsing import main
 from album.core.model.catalog import Catalog
 from album.core.utils.operations.git_operations import checkout_branch
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
+from test.unit.test_unit_core_common import EmptyTestClass
 
 
 class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
@@ -91,10 +93,38 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         branch_name = self.deploy_request()
 
         # gather arguments
-        sys.argv = ["", "upload", self.name, str(self.path), self.src, "--branch-name=%s" % branch_name]
+        sys.argv = ["", "upload", self.name, str(self.path), str(self.src), "--branch-name=%s" % branch_name]
 
         # run
         self.assertIsNone(main())
+
+    @patch('album.ci.controller.zenodo_manager.ZenodoManager.zenodo_get_deposit')
+    @patch('album.ci.controller.zenodo_manager.ZenodoManager.zenodo_upload')
+    @patch('album.ci.controller.release_manager.ReleaseManager._prepare_zenodo_arguments', return_value = ("url", "token"))
+    def test_prepare_zenodo_upload(self, _prepare_zenodo_arguments, zenodo_upload, zenodo_get_deposit):
+        # mock
+        deposit = EmptyTestClass()
+        deposit.id = "id"
+        deposit.metadata = EmptyTestClass()
+        deposit.metadata.prereserve_doi = {}
+        deposit.metadata.prereserve_doi["doi"] = "doi"
+        zenodo_get_deposit.return_value = deposit
+
+        # deploy request to test catalog
+        branch_name = self.deploy_request()
+
+        # gather arguments
+        sys.argv = ["", "upload", self.name, str(self.path), str(self.src), "--branch-name=%s" % branch_name]
+
+        # run
+        self.assertIsNone(main())
+
+        self.assertEqual(4, zenodo_upload.call_count)
+        solution_dir = self.path.joinpath('solutions', 'group', 'name')
+        self.assertEqual(str(solution_dir.joinpath('CHANGELOG.md')), zenodo_upload.call_args_list[0][0][1])
+        self.assertEqual(str(solution_dir.joinpath('Dockerfile')), zenodo_upload.call_args_list[1][0][1])
+        self.assertEqual(str(solution_dir.joinpath('name.yml')), zenodo_upload.call_args_list[2][0][1])
+        self.assertEqual(str(solution_dir.joinpath('solution.py')), zenodo_upload.call_args_list[3][0][1])
 
     def test_update_index(self):
         # deploy request to test catalog

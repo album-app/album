@@ -417,9 +417,9 @@ class CondaManager:
                 Indicates whether to pipe the output of the subprocess or just return it as is.
         """
         if debug_settings():
-            fp = open(str(DefaultValues.app_cache_dir.value.joinpath('album_test.py')), 'w')
+            fp = open(str(self._configuration.tmp_path().joinpath('album_test.py')), 'w')
             module_logger().debug(
-                "Executable file in: %s..." % str(DefaultValues.app_cache_dir.value.joinpath('album_test.py')))
+                "Executable file in: %s..." % str(self._configuration.tmp_path().joinpath('album_test.py')))
         else:
             fp = tempfile.NamedTemporaryFile(mode='w+', delete=False)
             module_logger().debug('Executable file in: %s...' % fp.name)

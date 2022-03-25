@@ -297,3 +297,11 @@ def get_parent(parent_collection_entry: ICollectionIndex.ICollectionSolution) ->
 
         return parent
     return parent_collection_entry
+
+
+def as_tag(coordinates: ICoordinates) -> str:
+    return "-".join([coordinates.group(), coordinates.name(), coordinates.version()])
+
+
+def as_tag_unversioned(coordinates: ICoordinates) -> str:
+    return "-".join([coordinates.group(), coordinates.name()])
