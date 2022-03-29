@@ -43,6 +43,34 @@ class ZenodoManager:
 
         return deposit
 
+    @staticmethod
+    def zenodo_delete(deposit, file):
+        """ Deletes a solution file from a ZenodoDeposit. Expects the deposit to be writable. (e.g. unpublished)
+
+        Args:
+            deposit:
+                The deposit to upload to.
+            file:
+                The file to delete.
+
+        Returns:
+            The updated deposit.
+
+        """
+        file_basename = os.path.basename(file)
+
+        if file_basename in deposit.files:  # File does exist
+            module_logger().debug(
+                "Update file %s in Zenodo deposit with id %s..." % (file_basename, deposit.id)
+            )
+            deposit.delete_file(file_basename, file)
+        else:
+            module_logger().warning(
+                "Cannot find file %s in Zenodo deposit with id %s." % (file_basename, deposit.id)
+            )
+
+        return deposit
+
     def zenodo_get_deposit(self, deposit_name, deposit_id, expected_files=None):
         """Queries zenodo to get the deposit of the solution_file. Creates an empty deposit if no deposit exists.
 

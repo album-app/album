@@ -390,7 +390,7 @@ class DeployManager(IDeployManager):
         """
         coordinates = active_solution.coordinates()
 
-        yaml_path = solution_home.joinpath("%s%s" % (coordinates.name(), ".yml"))
+        yaml_path = solution_home.joinpath(".solution.yml")
 
         module_logger().debug('Writing yaml file to: %s...' % yaml_path)
         write_dict_to_yml(yaml_path, get_deploy_dict(active_solution))

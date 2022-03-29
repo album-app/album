@@ -58,8 +58,55 @@ def checkout_branch(git_repo, branch_name):
         raise IndexError("Branch \"%s\" not in repository!" % branch_name) from e
 
 
-def retrieve_files_from_head(head, pattern, option="", number_of_files=1):
-    """Extracts a file with a "startswith" pattern given a branch (or head) of a repository.
+def retrieve_files_from_head(head, pattern, number_of_files=1, relative=False):
+    """Extracts a file with a pattern given a branch (or head) of a repository.
+
+    Args:
+        number_of_files:
+            The number of files to expect to be found when using the given pattern. Use -1 for arbitrary many.
+        head:
+            The branch (or more general head) of the catalog repository where the solution file was committed in.
+        pattern:
+            The pattern the path of the file to retrieve.
+        relative:
+            Whether the returned paths are relative or absolute.
+
+    Returns:
+        The absolute path of the solution directory (in the catalog repository).
+
+    """
+    pattern = str(pattern)
+
+    pattern_matches = head.repo.git.ls_files(pattern)
+
+    res = []
+    for file in pattern_matches.split('\n'):
+        # unfortunately git on windows internally uses linux-separator as path separator.
+        # Paths therefore might have the wrong separator.
+        file = file.replace('/', os.path.sep)
+        module_logger().debug("Found file: %s..." % file)
+        if relative:
+            res.append(file)
+        else:
+            res.append(os.path.join(head.repo.working_tree_dir, file))
+
+
+    if not res:
+        raise RuntimeError("Head \"%s\" does not hold pattern \"%s\"! Aborting..." % (head.name, pattern))
+
+    if number_of_files > 0:
+        if len(res) != number_of_files:
+            raise RuntimeError(
+                "Head \"%s\" holds pattern \"%s\" %s times, but expected %s. Aborting..." %
+                (head.name, pattern, len(res), number_of_files)
+            )
+
+    return res
+
+
+def retrieve_files_from_head_last_commit(head, pattern, option="", number_of_files=1):
+    """Extracts a file with a "startswith" pattern given a branch (or head) of a repository, only factoring in
+    files that were changed in the last commit.
 
     Args:
         number_of_files:

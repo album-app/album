@@ -1,7 +1,9 @@
+import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Generator
 
+from album.runner import album_logging
 from git import Repo
 
 from album.api import Album
@@ -11,9 +13,8 @@ from album.core.model.catalog import Catalog, retrieve_index_files_from_src
 from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_dict_entry, \
     copy, force_remove
 from album.core.utils.operations.git_operations import checkout_branch, add_files_commit_and_push, \
-    retrieve_files_from_head, configure_git, add_tag
+    retrieve_files_from_head_last_commit, configure_git, add_tag, retrieve_files_from_head
 from album.core.utils.operations.resolve_operations import get_zip_name_prefix, dict_to_coordinates, as_tag
-from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
@@ -58,7 +59,7 @@ class ReleaseManager:
 
     @staticmethod
     def _get_yml_dict(head):
-        yml_file_path = retrieve_files_from_head(head, '[a-zA-Z0-9]*.yml')[0]
+        yml_file_path = retrieve_files_from_head_last_commit(head, '.solution.yml')[0]
         yml_dict = get_dict_from_yml(yml_file_path)
 
         return [yml_dict, yml_file_path]
@@ -77,7 +78,7 @@ class ReleaseManager:
         # checkout files
         coordinates = dict_to_coordinates(yml_dict)
         solution_relative_path = self.configuration.get_solution_path_suffix_unversioned(coordinates)
-        files = retrieve_files_from_head(head, str(solution_relative_path), option="startswith", number_of_files=-1)
+        files = retrieve_files_from_head(head, str(solution_relative_path) + os.sep + "*", number_of_files=-1, relative=True)
 
         # query deposit
         deposit_name = get_zip_name_prefix(dict_to_coordinates(yml_dict))
@@ -85,7 +86,7 @@ class ReleaseManager:
 
         module_logger().info("Get unpublished deposit with deposit id %s..." % deposit_id)
         deposit = zenodo_manager.zenodo_get_unpublished_deposit_by_id(
-            deposit_id, deposit_name, expected_files=None
+            deposit_id, deposit_name, expected_files=files
         )
 
         # publish to zenodo
@@ -118,20 +119,24 @@ class ReleaseManager:
         deposit_name = get_zip_name_prefix(coordinates)
 
         solution_relative_path = self.configuration.get_solution_path_suffix_unversioned(coordinates)
-        files = retrieve_files_from_head(head, str(solution_relative_path), option="startswith", number_of_files=-1)
+        files = retrieve_files_from_head(head, str(solution_relative_path) + os.sep + "*", number_of_files=-1, relative=True)
 
         # get the solution zip to release
 
         # get the release deposit. Either a new one or an existing one to perform an update on
-        deposit = zenodo_manager.zenodo_get_deposit(
-            deposit_name, deposit_id, expected_files=files
-        )
+        deposit = zenodo_manager.zenodo_get_deposit(deposit_name, deposit_id)
         module_logger().info("Deposit %s successfully retrieved..." % deposit.id)
 
         # include doi and ID in yml
         yml_dict["doi"] = deposit.metadata.prereserve_doi["doi"]
         yml_dict["deposit_id"] = deposit.id
         write_dict_to_yml(yml_file_path, yml_dict)
+
+        if deposit.files:
+            for file in deposit.files:
+                if file not in files:
+                    # remove file from deposit
+                    zenodo_manager.zenodo_delete(deposit, file)
 
         for file in files:
             deposit = zenodo_manager.zenodo_upload(deposit, file)
@@ -210,7 +215,7 @@ class ReleaseManager:
             # get files to release
             coordinates = dict_to_coordinates(yml_dict)
             solution_relative_path = self.configuration.get_solution_path_suffix_unversioned(coordinates)
-            files = retrieve_files_from_head(head, str(solution_relative_path), option="startswith", number_of_files=-1)
+            files = retrieve_files_from_head(head, str(solution_relative_path) + os.sep + "*", number_of_files=-1)
 
             commit_files = [yml_file] + files
             if not all([Path(f).is_file() for f in commit_files]):

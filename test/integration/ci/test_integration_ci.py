@@ -105,6 +105,7 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         # mock
         deposit = EmptyTestClass()
         deposit.id = "id"
+        deposit.files = []
         deposit.metadata = EmptyTestClass()
         deposit.metadata.prereserve_doi = {}
         deposit.metadata.prereserve_doi["doi"] = "doi"
@@ -120,10 +121,10 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         self.assertIsNone(main())
 
         self.assertEqual(4, zenodo_upload.call_count)
-        solution_dir = self.path.joinpath('solutions', 'group', 'name')
-        self.assertEqual(str(solution_dir.joinpath('CHANGELOG.md')), zenodo_upload.call_args_list[0][0][1])
-        self.assertEqual(str(solution_dir.joinpath('Dockerfile')), zenodo_upload.call_args_list[1][0][1])
-        self.assertEqual(str(solution_dir.joinpath('name.yml')), zenodo_upload.call_args_list[2][0][1])
+        solution_dir = Path('solutions', 'group', 'name')
+        self.assertEqual(str(solution_dir.joinpath('.solution.yml')), zenodo_upload.call_args_list[0][0][1])
+        self.assertEqual(str(solution_dir.joinpath('CHANGELOG.md')), zenodo_upload.call_args_list[1][0][1])
+        self.assertEqual(str(solution_dir.joinpath('Dockerfile')), zenodo_upload.call_args_list[2][0][1])
         self.assertEqual(str(solution_dir.joinpath('solution.py')), zenodo_upload.call_args_list[3][0][1])
 
     def test_update_index(self):
@@ -153,7 +154,7 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         self.assertEqual("Adding new/updated group_name_0.1.0\n", head.commit.message)
 
         # change deployed files so another commit is possible
-        with open(self.path.joinpath("solutions", "group", "name", "name.yml"), "a") as f:
+        with open(self.path.joinpath("solutions", "group", "name", ".solution.yml"), "a") as f:
             f.write("\ntest: mytest")
 
         # gather arguments

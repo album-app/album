@@ -28,12 +28,12 @@ class TestGitOperations(TestGitCommon):
 
     def test__retrieve_files_from_head(self):
         with self.setup_tmp_repo() as repo:
-            file_of_commit = git_op.retrieve_files_from_head(repo.heads["main"], "solutions")[0]
+            file_of_commit = git_op.retrieve_files_from_head_last_commit(repo.heads["main"], "solutions")[0]
             self.assertEqual(self.commit_file, file_of_commit)
 
     def test_retrieve_files_from_head_branch(self):
         with self.setup_tmp_repo(create_test_branch=True) as repo:
-            file_of_commit = git_op.retrieve_files_from_head(repo.heads["test_branch"], "solutions")[0]
+            file_of_commit = git_op.retrieve_files_from_head_last_commit(repo.heads["test_branch"], "solutions")[0]
 
             self.assertEqual(self.commit_file, file_of_commit)
 
@@ -52,14 +52,14 @@ class TestGitOperations(TestGitCommon):
             repo.git.commit('-m', 'message', '--no-verify')
 
             with self.assertRaises(RuntimeError) as context:
-                git_op.retrieve_files_from_head(repo.heads["main"], "solutions")
+                git_op.retrieve_files_from_head_last_commit(repo.heads["main"], "solutions")
 
             self.assertTrue("times, but expected" in str(context.exception))
 
     def test_retrieve_files_from_head_no_files(self):
         with self.setup_tmp_repo(commit_solution_file=False) as repo:
             with self.assertRaises(RuntimeError) as context:
-                git_op.retrieve_files_from_head(repo.heads["main"], "solutions")
+                git_op.retrieve_files_from_head_last_commit(repo.heads["main"], "solutions")
 
             self.assertTrue("does not hold pattern" in str(context.exception))
 
