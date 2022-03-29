@@ -4,6 +4,8 @@ from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import git
+
 from album.core.model.catalog import Catalog, retrieve_index_files_from_src
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.default_values import DefaultValues
@@ -167,11 +169,21 @@ class TestCatalog(TestCatalogAndCollectionCommon):
         self.assertEqual(10, len(self.catalog._catalog_index))
 
     def test_download_index_files(self):
-        dir = Path(self.tmp_dir.name).joinpath('bla')
-        db, meta = retrieve_index_files_from_src(DefaultValues.default_catalog_src.value, dir)
+        catalog_src_path, catalog_clone_path = self.setup_empty_catalog('test')
+        CatalogIndex('test', catalog_clone_path.joinpath(DefaultValues.catalog_index_file_name.value)).save()
+        with git.Repo(catalog_clone_path) as repo:
+            repo.git.add(DefaultValues.catalog_index_file_name.value)
+            repo.git.commit('-m', 'bla')
+            repo.git.push()
+
+        tmp_dir = Path(self.tmp_dir.name).joinpath('bla')
+
+        db, meta = retrieve_index_files_from_src(catalog_src_path, tmp_dir)
         self.assertTrue(db.exists())
         self.assertTrue(meta.exists())
-        force_remove(dir)
+        force_remove(tmp_dir)
+        force_remove(catalog_src_path)
+        force_remove(catalog_clone_path)
 
     def test_retrieve_catalog(self):
         # prepare
