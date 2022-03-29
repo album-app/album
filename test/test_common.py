@@ -85,17 +85,11 @@ class TestCommon(unittest.TestCase):
         with clone_repository(catalog_src_path, catalog_clone_path) as repo:
             head = repo.active_branch
 
-            catalog_meta_data_dict = self.get_catalog_meta_dict(name)
-            catalog_meta_data_dict["type"] = catalog_type
-
-            write_dict_to_json(
-                catalog_clone_path.joinpath(DefaultValues.catalog_index_metafile_json.value),
-                catalog_meta_data_dict
-            )
+            self.album_controller.catalogs().create_new_metadata(catalog_clone_path, name, catalog_type)
 
             add_files_commit_and_push(
                 head,
-                [catalog_clone_path.joinpath(DefaultValues.catalog_index_metafile_json.value)],
+                [catalog_clone_path],
                 "init",
                 push=True,
                 username=DefaultValues.catalog_git_user.value,

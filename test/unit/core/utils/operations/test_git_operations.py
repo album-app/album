@@ -189,7 +189,7 @@ class TestGitOperations(TestGitCommon):
         repo.close()
 
         # check
-        self.assertIn("album_catalog_index.db", os.listdir(p), "Download failed!")
+        self.assertIn("album_catalog_index.json", os.listdir(p), "Download failed!")
 
     def test_retrieve_defaul_mr_push_options(self):
         urls = ["https://docs.gitlab.com/ee/user/project/push_options.html",

@@ -85,7 +85,7 @@ class ReleaseManager:
 
         module_logger().info("Get unpublished deposit with deposit id %s..." % deposit_id)
         deposit = zenodo_manager.zenodo_get_unpublished_deposit_by_id(
-            deposit_id, deposit_name, expected_files=files
+            deposit_id, deposit_name, expected_files=None
         )
 
         # publish to zenodo
