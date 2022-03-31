@@ -62,6 +62,9 @@ class TestUnitCoreCommon(TestCommon):
             'args': [{'name': 'a1', 'type': 'string', 'description': ''}],
             'title': 't1',
             'timestamp': '',
+            'custom': {
+                'my_key': 'my_value'
+            }
         }
 
     def setup_catalog_no_git(self):

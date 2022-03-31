@@ -208,6 +208,22 @@ class CatalogIndex(ICatalogIndex, Database):
                     )
                 )
 
+        if 'custom' in solution_attrs:
+            for key in solution_attrs['custom']:
+                value = solution_attrs['custom'][key]
+                custom_id = self._exists_custom_key(key, value, close=False)
+                if not custom_id:
+                    custom_id = self._insert_custom_key(key, value, close=False)
+                solution_custom_key_id = self.next_id('solution_custom')
+                cursor.execute(
+                    'INSERT INTO solution_custom values (?, ?, ?)',
+                    (
+                        solution_custom_key_id,
+                        solution_id,
+                        custom_id
+                    )
+                )
+
         if 'covers' in solution_attrs:
             for cover in solution_attrs['covers']:
                 if not self._exists_cover(cover, solution_id):
@@ -318,6 +334,22 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return r["argument_id"] if r else None
 
+    def _exists_custom_key(self, custom_key, custom_value, close=True):
+        cursor = self.get_cursor()
+
+        exc_str = "SELECT * FROM custom WHERE custom_key=:custom_key AND custom_value=:custom_value "
+        exc_val = {
+            "custom_key": custom_key,
+            "custom_value": custom_value,
+        }
+
+        r = cursor.execute(exc_str, exc_val).fetchone()
+
+        if close:
+            self.close_current_connection()
+
+        return r["custom_id"] if r else None
+
     def _insert_argument(self, argument, close=True):
         argument_id = self.next_id("argument")
 
@@ -338,6 +370,24 @@ class CatalogIndex(ICatalogIndex, Database):
             self.close_current_connection()
 
         return argument_id
+
+    def _insert_custom_key(self, custom_key, custom_value, close=True):
+        custom_id = self.next_id("custom")
+
+        cursor = self.get_cursor()
+        cursor.execute(
+            "INSERT INTO custom values (?, ?, ?)",
+            (
+                custom_id,
+                custom_key,
+                custom_value
+            )
+        )
+
+        if close:
+            self.close_current_connection()
+
+        return custom_id
 
     def _exists_citation(self, citation, close=True):
         cursor = self.get_cursor()
@@ -499,6 +549,7 @@ class CatalogIndex(ICatalogIndex, Database):
         solution["args"] = self._get_arguments_by_solution(solution_id)
         solution["cite"] = self._get_citations_by_solution(solution_id)
         solution["tags"] = self._get_tags_by_solution(solution_id)
+        solution["custom"] = self._get_custom_by_solution(solution_id)
 
     def get_solution_by_doi(self, doi, close=True) -> Optional[dict]:
         module_logger().debug("Get solution by doi: \"%s\"..." % doi)
@@ -602,6 +653,13 @@ class CatalogIndex(ICatalogIndex, Database):
         )
 
         cursor.execute(
+            "DELETE FROM solution_custom WHERE solution_id=:solution_id",
+            {
+                "solution_id": solution_id
+            }
+        )
+
+        cursor.execute(
             "DELETE FROM tag "
             "WHERE NOT EXISTS (SELECT st.tag_id FROM solution_tag st "
             "WHERE tag.tag_id = st.tag_id)")
@@ -620,6 +678,11 @@ class CatalogIndex(ICatalogIndex, Database):
             "DELETE FROM author "
             "WHERE NOT EXISTS (SELECT sa.author_id FROM solution_author sa "
             "WHERE author.author_id = sa.author_id)")
+
+        cursor.execute(
+            "DELETE FROM custom "
+            "WHERE NOT EXISTS (SELECT sa.custom_id FROM solution_custom sa "
+            "WHERE custom.custom_id = sa.custom_id)")
 
         cursor.execute(
             "DELETE FROM solution WHERE solution_id=:solution_id",
@@ -758,6 +821,27 @@ class CatalogIndex(ICatalogIndex, Database):
         res = []
         for row in r:
             res.append(dict(row))
+
+        if close:
+            self.close_current_connection()
+
+        return res
+
+    def _get_custom_by_solution(self, solution_id, close=True):
+        cursor = self.get_cursor()
+        r = cursor.execute(
+            "SELECT a.* FROM custom a "
+            "JOIN solution_custom sa ON sa.custom_id = a.custom_id "
+            "WHERE sa.solution_id=:solution_id",
+            {
+                "solution_id": solution_id
+            }
+        ).fetchall()
+
+        res = {}
+        for row in r:
+            dict_row = dict(row)
+            res[row['custom_key']] = row['custom_value']
 
         if close:
             self.close_current_connection()
