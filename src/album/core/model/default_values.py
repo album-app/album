@@ -45,6 +45,8 @@ class DefaultValues(Enum):
 
     # solutions
     solution_default_name = "solution.py"                                  # default name how solution.py files are called
+    solution_yml_default_name = "solution.yml"                             # default name of the solution.yml file
+    solution_zip_default_name = "solution.zip"                             # default name of the solution.zip file
     changelog_default_name = "CHANGELOG.md"                                # default name of the changelog file
 
     # lnk folder prefixes

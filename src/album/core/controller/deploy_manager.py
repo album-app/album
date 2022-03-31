@@ -388,9 +388,7 @@ class DeployManager(IDeployManager):
             The Path to the created markdown file.
 
         """
-        coordinates = active_solution.coordinates()
-
-        yaml_path = solution_home.joinpath(".solution.yml")
+        yaml_path = solution_home.joinpath(DefaultValues.solution_yml_default_name.value)
 
         module_logger().debug('Writing yaml file to: %s...' % yaml_path)
         write_dict_to_yml(yaml_path, get_deploy_dict(active_solution))

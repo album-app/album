@@ -42,7 +42,7 @@ class TestReleaseManager(TestUnitCoreCommon):
         #prepare
         repo_dir = Path(self.tmp_dir.name).joinpath("repo")
         repo_dir.mkdir(parents=True)
-        yml_relative_path = Path('solutions', 'group', 'name', '.solution.yml')
+        yml_relative_path = Path('solutions', 'group', 'name', 'solution.yml')
         solution_relative_path = Path('solutions', 'group', 'name', 'solution.py')
         with git.Repo.init(repo_dir) as repo:
             configure_git(repo, DefaultValues.catalog_git_email.value, DefaultValues.catalog_git_user.value)
@@ -81,11 +81,11 @@ class TestReleaseManager(TestUnitCoreCommon):
         release_manager.zenodo_upload('branch', None, None, None)
 
         # assert
-        self.assertEqual(2, zenodo_upload.call_count)
+        self.assertEqual(3, zenodo_upload.call_count)
         self.assertTrue(catalog_path.joinpath(yml_relative_path).exists())
-        self.assertEqual(str(yml_relative_path), zenodo_upload.call_args_list[0][0][1])
+        self.assertEqual(str(catalog_path.joinpath(yml_relative_path)), zenodo_upload.call_args_list[0][0][1])
         self.assertTrue(catalog_path.joinpath(solution_relative_path).exists())
-        self.assertEqual(str(solution_relative_path), zenodo_upload.call_args_list[1][0][1])
+        self.assertTrue(str(zenodo_upload.call_args_list[1][0][1]).endswith('solution.zip'))
         force_remove(repo_dir)
 
     @unittest.skip("Needs to be implemented!")

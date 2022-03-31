@@ -1,7 +1,9 @@
 import os
 
-from album.ci.utils import zenodo_api
+from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.runner import album_logging
+
+from album.ci.utils import zenodo_api
 
 module_logger = album_logging.get_active_logger
 
@@ -71,12 +73,12 @@ class ZenodoManager:
 
         return deposit
 
-    def zenodo_get_deposit(self, deposit_name, deposit_id, expected_files=None):
+    def zenodo_get_deposit(self, metadata, deposit_id, expected_files=None):
         """Queries zenodo to get the deposit of the solution_file. Creates an empty deposit if no deposit exists.
 
         Args:
-            deposit_name:
-                The name of the deposit.
+            metadata:
+                The metadata of the zenodo deposit.
             deposit_id:
                 The deposit ID of the deposit the solution file lives in.
             expected_files:
@@ -95,13 +97,20 @@ class ZenodoManager:
         if deposit_id:  # case deposit already exists
             deposit = self._zenodo_get_deposit_by_id(deposit_id)
 
-            self._check_deposit(deposit, deposit_name, expected_files)
+            self._check_deposit(deposit, metadata.title, expected_files)
 
         else:
             module_logger().debug("Query new deposit with DOI...")
-            deposit = self.query.deposit_create_with_prereserve_doi(deposit_name)
+            deposit = self.query.deposit_create_with_prereserve_doi(metadata)
 
         return deposit
+
+    def _get_deposit_name(self, solution_meta):
+        if solution_meta['title']:
+            deposit_name = solution_meta['title']
+        else:
+            deposit_name = str(dict_to_coordinates(solution_meta))
+        return deposit_name
 
     def zenodo_get_unpublished_deposit_by_id(self, deposit_id, deposit_name, expected_files=None):
         deposit = self._zenodo_get_unpublished(deposit_id)

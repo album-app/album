@@ -322,7 +322,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
 
         y_path = DeployManager._create_yaml_file_in_local_src(self.active_solution, target)
 
-        self.assertEqual(target.joinpath(".solution.yml"), y_path)
+        self.assertEqual(target.joinpath("solution.yml"), y_path)
 
         f = open(y_path)
         f_content = f.readlines()
