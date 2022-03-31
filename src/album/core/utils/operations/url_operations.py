@@ -1,14 +1,15 @@
 import re
 import tempfile
+import zipfile
 from pathlib import Path
 
 import requests
+from album.runner import album_logging
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
 from album.ci.utils.zenodo_api import ResponseStatus
-from album.core.utils.operations.file_operations import create_path_recursively
-from album.runner import album_logging
+from album.core.utils.operations.file_operations import create_path_recursively, copy
 
 module_logger = album_logging.get_active_logger
 
@@ -93,14 +94,13 @@ def download(str_input, base):
     Path(base).mkdir(exist_ok=True, parents=True)
 
     with _get_session() as s:
-        r = s.get(str_input, allow_redirects=True)
+        r = s.get(str_input, allow_redirects=True, stream=True)
 
-        content_type = r.headers.get('content-type').lower()
-        if content_type == 'application/zip':
-            suffix = '.zip'
-            new_file, tmp_file_name = tempfile.mkstemp(dir=base, suffix=suffix)
-        else:
-            new_file, tmp_file_name = tempfile.mkstemp(dir=base)
+        new_file, tmp_file_name = tempfile.mkstemp(dir=base)
         with open(tmp_file_name, 'wb') as out:
             out.write(r.content)
+        if zipfile.is_zipfile(tmp_file_name):
+            new_file, tmp_file_name_zip = tempfile.mkstemp(dir=base, suffix='.zip')
+            copy(tmp_file_name, tmp_file_name_zip)
+            return Path(tmp_file_name_zip)
         return Path(tmp_file_name)
