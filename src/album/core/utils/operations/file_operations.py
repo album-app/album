@@ -7,6 +7,7 @@ import shutil
 import stat
 import sys
 import tempfile
+import zipfile
 from pathlib import Path
 from typing import Optional
 from zipfile import ZipFile
@@ -305,7 +306,7 @@ def rand_folder_name(f_len=8):
 
 def check_zip(path):
     """Checks a given zip file."""
-    return not ZipFile(path).testzip()
+    return zipfile.is_zipfile(path)
 
 
 def construct_cache_link_target(point_to_base: Path, point_from, point_to, create=True) -> Optional[Path]:

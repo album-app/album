@@ -53,6 +53,13 @@ CREATE TABLE IF NOT EXISTS argument
     required      INTEGER
 );
 
+CREATE TABLE IF NOT EXISTS custom
+(
+    custom_id         INTEGER PRIMARY KEY,
+    custom_key        TEXT not null,
+    custom_value      TEXT
+);
+
 CREATE TABLE IF NOT EXISTS solution
 (
     solution_id       INTEGER PRIMARY KEY,
@@ -105,4 +112,14 @@ CREATE TABLE IF NOT EXISTS solution_argument
     argument_id          INTEGER,
     FOREIGN KEY (solution_id) REFERENCES solution (solution_id),
     FOREIGN KEY (argument_id) REFERENCES argument (argument_id)
+);
+
+
+CREATE TABLE IF NOT EXISTS solution_custom
+(
+    solution_custom_id INTEGER PRIMARY KEY,
+    solution_id          INTEGER,
+    custom_id          INTEGER,
+    FOREIGN KEY (solution_id) REFERENCES solution (solution_id),
+    FOREIGN KEY (custom_id) REFERENCES custom (custom_id)
 );

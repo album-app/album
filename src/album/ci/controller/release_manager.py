@@ -1,19 +1,25 @@
+import os
+import tempfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Generator
 
+from album.ci.utils.zenodo_api import ZenodoMetadata
+from album.runner import album_logging
 from git import Repo
 
 from album.api import Album
 from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.continuous_integration import get_ssh_url, create_report
 from album.core.model.catalog import Catalog, retrieve_index_files_from_src
+from album.core.model.default_values import DefaultValues
+from album.core.utils.export.changelog import get_changelog_file_name
+from album.core.utils.operations import view_operations
 from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_dict_entry, \
-    copy, force_remove
+    copy, force_remove, zip_folder
 from album.core.utils.operations.git_operations import checkout_branch, add_files_commit_and_push, \
-    retrieve_files_from_head, configure_git, add_tag
-from album.core.utils.operations.resolve_operations import get_zip_name_prefix, dict_to_coordinates, as_tag
-from album.runner import album_logging
+    retrieve_files_from_head_last_commit, configure_git, add_tag, retrieve_files_from_head
+from album.core.utils.operations.resolve_operations import dict_to_coordinates, as_tag
 
 module_logger = album_logging.get_active_logger
 
@@ -58,7 +64,7 @@ class ReleaseManager:
 
     @staticmethod
     def _get_yml_dict(head):
-        yml_file_path = retrieve_files_from_head(head, '[a-zA-Z0-9]*.yml')[0]
+        yml_file_path = retrieve_files_from_head_last_commit(head, DefaultValues.solution_yml_default_name.value)[0]
         yml_dict = get_dict_from_yml(yml_file_path)
 
         return [yml_dict, yml_file_path]
@@ -74,23 +80,46 @@ class ReleaseManager:
             # get the yml file to release from current branch
             yml_dict, yml_file_path = self._get_yml_dict(head)
 
-        # checkout files
+            with tempfile.TemporaryDirectory(dir=self.album_instance.configuration().tmp_path()) as tmp:
+
+                # checkout files
+                files, file_names = self._get_release_files(repo, yml_dict, tmp)
+
+                # query deposit
+                deposit_name = self._get_deposit_metadata(yml_dict).title
+                deposit_id = get_dict_entry(yml_dict, "deposit_id", allow_none=False)
+
+                module_logger().info("Get unpublished deposit with deposit id %s..." % deposit_id)
+                deposit = zenodo_manager.zenodo_get_unpublished_deposit_by_id(
+                    deposit_id, deposit_name, expected_files=file_names
+                )
+
+                # publish to zenodo
+                deposit.publish()
+
+        add_tag(repo, as_tag(dict_to_coordinates(yml_dict)))
+
+        module_logger().info("Published unpublished deposit with deposit id %s..." % deposit_id)
+
+    def _get_release_files(self, repo, yml_dict, tmp):
         coordinates = dict_to_coordinates(yml_dict)
         solution_relative_path = self.configuration.get_solution_path_suffix_unversioned(coordinates)
-        files = retrieve_files_from_head(head, str(solution_relative_path), option="startswith", number_of_files=-1)
-
-        # query deposit
-        deposit_name = get_zip_name_prefix(dict_to_coordinates(yml_dict))
-        deposit_id = get_dict_entry(yml_dict, "deposit_id", allow_none=False)
-
-        module_logger().info("Get unpublished deposit with deposit id %s..." % deposit_id)
-        deposit = zenodo_manager.zenodo_get_unpublished_deposit_by_id(
-            deposit_id, deposit_name, expected_files=None
-        )
-
-        # publish to zenodo
-        deposit.publish()
-        module_logger().info("Published unpublished deposit with deposit id %s..." % deposit_id)
+        solution_dir_in_repo = Path(repo.working_tree_dir).joinpath(solution_relative_path)
+        zip = Path(tmp).joinpath(DefaultValues.solution_zip_default_name.value)
+        zip_folder(solution_dir_in_repo, zip)
+        docker_name = solution_dir_in_repo.joinpath("Dockerfile")
+        changelog_name = solution_dir_in_repo.joinpath(get_changelog_file_name())
+        documentation_paths = self._get_documentation_paths(solution_dir_in_repo, yml_dict)
+        cover_paths = self._get_cover_paths(solution_dir_in_repo, yml_dict)
+        solution_yml = solution_dir_in_repo.joinpath(DefaultValues.solution_yml_default_name.value)
+        files = [str(solution_yml), str(zip), str(docker_name)]
+        for doc in documentation_paths:
+            files.append(str(doc))
+        for cover in cover_paths:
+            files.append(str(cover))
+        if changelog_name.exists():
+            files.append(str(changelog_name))
+        return files, [Path(file).name for file in files]
 
     def zenodo_upload(self, branch_name, zenodo_base_url, zenodo_access_token, report_file):
         zenodo_base_url, zenodo_access_token = self._prepare_zenodo_arguments(zenodo_base_url, zenodo_access_token)
@@ -102,39 +131,39 @@ class ReleaseManager:
             # get the yml file to release
             yml_dict, yml_file_path = self._get_yml_dict(head)
 
-        # get metadata from yml_file
-        try:
-            deposit_id = yml_dict["deposit_id"]
-        except KeyError:
-            deposit_id = None
-        coordinates = dict_to_coordinates(yml_dict)
+            # get metadata from yml_file
+            try:
+                deposit_id = yml_dict["deposit_id"]
+            except KeyError:
+                deposit_id = None
+            coordinates = dict_to_coordinates(yml_dict)
 
-        # do not upload SNAPSHOT versions
-        if coordinates.version().endswith("SNAPSHOT"):
-            module_logger().info("Will not upload SNAPSHOT version to zenodo! Skipping...")
-            return
+            # do not upload SNAPSHOT versions
+            if coordinates.version().endswith("SNAPSHOT"):
+                module_logger().info("Will not upload SNAPSHOT version to zenodo! Skipping...")
+                return
 
-        # extract deposit name
-        deposit_name = get_zip_name_prefix(coordinates)
+            with tempfile.TemporaryDirectory(dir=self.album_instance.configuration().tmp_path()) as tmp:
 
-        solution_relative_path = self.configuration.get_solution_path_suffix_unversioned(coordinates)
-        files = retrieve_files_from_head(head, str(solution_relative_path), option="startswith", number_of_files=-1)
+                files, file_names = self._get_release_files(repo, yml_dict, tmp)
 
-        # get the solution zip to release
+                # get the release deposit. Either a new one or an existing one to perform an update on
+                deposit = zenodo_manager.zenodo_get_deposit(self._get_deposit_metadata(yml_dict), deposit_id)
+                module_logger().info("Deposit %s successfully retrieved..." % deposit.id)
 
-        # get the release deposit. Either a new one or an existing one to perform an update on
-        deposit = zenodo_manager.zenodo_get_deposit(
-            deposit_name, deposit_id, expected_files=files
-        )
-        module_logger().info("Deposit %s successfully retrieved..." % deposit.id)
+                # include doi and ID in yml
+                yml_dict["doi"] = deposit.metadata.prereserve_doi["doi"]
+                yml_dict["deposit_id"] = deposit.id
+                write_dict_to_yml(yml_file_path, yml_dict)
 
-        # include doi and ID in yml
-        yml_dict["doi"] = deposit.metadata.prereserve_doi["doi"]
-        yml_dict["deposit_id"] = deposit.id
-        write_dict_to_yml(yml_file_path, yml_dict)
+                if deposit.files:
+                    for file in deposit.files:
+                        if file not in file_names:
+                            # remove file from deposit
+                            zenodo_manager.zenodo_delete(deposit, file)
 
-        for file in files:
-            deposit = zenodo_manager.zenodo_upload(deposit, file)
+                for file in files:
+                    deposit = zenodo_manager.zenodo_upload(deposit, file)
 
         module_logger().info("Deposit %s successfully retrieved..." % deposit_id)
 
@@ -210,7 +239,7 @@ class ReleaseManager:
             # get files to release
             coordinates = dict_to_coordinates(yml_dict)
             solution_relative_path = self.configuration.get_solution_path_suffix_unversioned(coordinates)
-            files = retrieve_files_from_head(head, str(solution_relative_path), option="startswith", number_of_files=-1)
+            files = retrieve_files_from_head(head, str(solution_relative_path) + os.sep + "*", number_of_files=-1)
 
             commit_files = [yml_file] + files
             if not all([Path(f).is_file() for f in commit_files]):
@@ -226,7 +255,6 @@ class ReleaseManager:
                 username=ci_user_name,
                 email=ci_user_email
             )
-            add_tag(repo, as_tag(coordinates))
 
         return True
 
@@ -258,3 +286,63 @@ class ReleaseManager:
         # TODO in case one wants to reuse the zenodo manager, this needs to be smarter, but be aware that another call
         #  to this method might have different parameters
         return ZenodoManager(zenodo_base_url, zenodo_access_token)
+
+    @staticmethod
+    def _get_documentation_paths(base_dir, yml_dict: dict):
+        documentation_paths = []
+        if "documentation" in yml_dict.keys():
+            documentation_list = yml_dict["documentation"]
+            if not isinstance(documentation_list, list):
+                documentation_list = [documentation_list]
+
+            for documentation_name in documentation_list:
+                documentation_paths.append(base_dir.joinpath(documentation_name))
+        return documentation_paths
+
+    @staticmethod
+    def _get_cover_paths(base_dir, yml_dict: dict):
+        cover_paths = []
+        if "covers" in yml_dict.keys():
+            cover_list = yml_dict["covers"]
+            if not isinstance(cover_list, list):
+                cover_list = [cover_list]
+
+            for cover in cover_list:
+                if 'source' in cover:
+                    cover_paths.append(base_dir.joinpath(cover['source']))
+        return cover_paths
+
+    def _get_deposit_metadata(self, solution_meta):
+        if 'title' in solution_meta:
+            deposit_name = solution_meta['title']
+        else:
+            deposit_name = str(dict_to_coordinates(solution_meta))
+        if 'authors' in solution_meta:
+            authors = solution_meta['authors']
+        else:
+            authors = []
+        creators = [{"name": author} for author in authors]
+        if not creators:
+            creators = [{"name": "unknown"}]
+        description = "Album solution - for more information read https://album.solutions."
+        if 'description' in solution_meta:
+            description = solution_meta['description']
+        license = None
+        if 'license' in solution_meta:
+            license = solution_meta['license']
+        version = None
+        if 'version' in solution_meta:
+            version = solution_meta['version']
+        related_identifiers = [{'relation': 'cites', 'identifier': DefaultValues.album_cite_doi.value}]
+        references = [view_operations.get_citation_as_string({
+            'doi': DefaultValues.album_cite_doi.value,
+            'url': DefaultValues.album_cite_url.value,
+            'text': DefaultValues.album_cite_text.value})]
+        if 'cite' in solution_meta:
+            for citation in solution_meta['cite']:
+                if 'doi' in citation:
+                    related_identifiers.append({'relation': 'cites', 'identifier': citation['doi']})
+                if 'text' in citation:
+                    references.append(view_operations.get_citation_as_string(citation))
+
+        return ZenodoMetadata.default_values(deposit_name, creators, description, license, version, related_identifiers, references)

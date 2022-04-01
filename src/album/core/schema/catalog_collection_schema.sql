@@ -76,6 +76,15 @@ CREATE TABLE IF NOT EXISTS argument
     FOREIGN KEY (catalog_id) REFERENCES catalog (catalog_id)
 );
 
+CREATE TABLE IF NOT EXISTS custom
+(
+    custom_id       INTEGER PRIMARY KEY,
+    catalog_id      INTEGER,
+    custom_key      TEXT not null,
+    custom_value    TEXT,
+    FOREIGN KEY (catalog_id) REFERENCES catalog (catalog_id)
+);
+
 CREATE TABLE IF NOT EXISTS collection
 (
     collection_id            INTEGER PRIMARY KEY,
@@ -156,6 +165,17 @@ CREATE TABLE IF NOT EXISTS collection_argument
     catalog_id             INTEGER,
     FOREIGN KEY (collection_id) REFERENCES collection (collection_id),
     FOREIGN KEY (argument_id) REFERENCES argument (argument_id),
+    FOREIGN KEY (catalog_id) REFERENCES catalog (catalog_id)
+);
+
+CREATE TABLE IF NOT EXISTS collection_custom
+(
+    collection_custom_id INTEGER PRIMARY KEY,
+    collection_id          INTEGER,
+    custom_id            INTEGER,
+    catalog_id             INTEGER,
+    FOREIGN KEY (collection_id) REFERENCES collection (collection_id),
+    FOREIGN KEY (custom_id) REFERENCES custom (custom_id),
     FOREIGN KEY (catalog_id) REFERENCES catalog (catalog_id)
 );
 

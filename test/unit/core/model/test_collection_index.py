@@ -200,6 +200,16 @@ class TestCollectionIndex(TestUnitCoreCommon):
         # assert
         self.assertFalse(self.test_catalog_collection_index.is_table_empty("argument"))
 
+    def test__insert_custom(self):
+        self.is_empty_or_full(empty=True)
+        self.assertTrue(self.test_catalog_collection_index.is_table_empty("custom"))
+
+        # call
+        self.test_catalog_collection_index._insert_custom('custom_key', 'custom_value', 1)
+
+        # assert
+        self.assertFalse(self.test_catalog_collection_index.is_table_empty("custom"))
+
     def test__insert_cover(self):
         self.is_empty_or_full(empty=True)
         self.assertTrue(self.test_catalog_collection_index.is_table_empty("cover"))
@@ -299,6 +309,17 @@ class TestCollectionIndex(TestUnitCoreCommon):
         self.assertEqual(r2, self.test_catalog_collection_index._exists_argument(arg_no_type, 1))
         self.assertEqual(r3, self.test_catalog_collection_index._exists_argument(arg_no_default, 1))
         self.assertEqual(r4, self.test_catalog_collection_index._exists_argument(arg_minimal, 1))
+
+    def test__exists_custom(self):
+        self.is_empty_or_full(empty=True)
+        self.assertTrue(self.test_catalog_collection_index.is_table_empty("custom"))
+
+        # assert
+        self.assertIsNone(self.test_catalog_collection_index._exists_custom('custom_key', 'custom_value', 1))
+
+        r1 = self.test_catalog_collection_index._insert_custom('custom_key', 'custom_value', 1)
+
+        self.assertEqual(r1, self.test_catalog_collection_index._exists_custom('custom_key', 'custom_value', 1))
 
     def test__exists_cover(self):
         self.is_empty_or_full(empty=True)
@@ -462,6 +483,24 @@ class TestCollectionIndex(TestUnitCoreCommon):
 
         # assert
         self.assertEqual([argument1, argument2], r)
+
+    def test__get_custom_by_solution(self):
+        self.test_catalog_collection_index.insert_catalog(
+            "myName1", "mySrc1", "myPath1", True, None, "direct"
+        )
+        self.test_catalog_collection_index.insert_solution(
+            1, self._get_solution_attrs(1, "grp1", "name1", "version1", None, {"custom": []})
+        )
+
+        self.test_catalog_collection_index._insert_custom('custom_key', 'custom_value', 1, close=False)
+
+        self.test_catalog_collection_index._insert_collection_custom(1, 1, 1)
+
+        # call
+        r = self.test_catalog_collection_index._get_custom_by_solution(1)
+
+        # assert
+        self.assertEqual({'custom_key': 'custom_value'}, r)
 
     def test__get_tags_by_solution(self):
         self.test_catalog_collection_index.insert_catalog(

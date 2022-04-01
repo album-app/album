@@ -332,6 +332,14 @@ class CollectionIndex(ICollectionIndex, Database):
                 if not self._exists_documentation(documentation, catalog_id, collection_id, close=False):
                     self._insert_documentation(documentation, catalog_id, collection_id, close=False)
 
+        if 'custom' in solution_attrs:
+            for custom in solution_attrs['custom']:
+                custom_value = solution_attrs['custom'][custom]
+                custom_id = self._exists_custom(custom, custom_value, catalog_id)
+                if not custom_id:
+                    custom_id = self._insert_custom(custom, custom_value, catalog_id, close=False)
+                self._insert_collection_custom(collection_id, custom_id, catalog_id, close=False)
+
         if close:
             self.close_current_connection()
 
@@ -355,6 +363,25 @@ class CollectionIndex(ICollectionIndex, Database):
             self.close_current_connection()
 
         return collection_solution_argument_id
+
+    def _insert_collection_custom(self, collection_id, custom_id, catalog_id, close=True):
+        collection_solution_custom_id = self.next_id("collection_custom")
+
+        cursor = self.get_cursor()
+        cursor.execute(
+            "INSERT INTO collection_custom values (?, ?, ?, ?)",
+            (
+                collection_solution_custom_id,
+                collection_id,
+                custom_id,
+                catalog_id
+            )
+        )
+
+        if close:
+            self.close_current_connection()
+
+        return collection_solution_custom_id
 
     def _insert_collection_citation(self, collection_id, citation_id, catalog_id, close=True):
         collection_solution_citation_id = self.next_id("collection_citation")
@@ -512,6 +539,24 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return r["argument_id"] if r else None
 
+    def _exists_custom(self, custom_key, custom_value, catalog_id, close=True):
+        cursor = self.get_cursor()
+
+        exc_str = "SELECT * FROM custom WHERE custom_key=:custom_key AND custom_value=:custom_value " \
+                  "AND catalog_id=:catalog_id "
+        exc_val = {
+            "custom_key": custom_key,
+            "custom_value": custom_value,
+            "catalog_id": catalog_id,
+        }
+
+        r = cursor.execute(exc_str, exc_val).fetchone()
+
+        if close:
+            self.close_current_connection()
+
+        return r["custom_id"] if r else None
+
     def _insert_argument(self, argument, catalog_id, close=True):
         argument_id = self.next_id("argument")
         cursor = self.get_cursor()
@@ -533,6 +578,25 @@ class CollectionIndex(ICollectionIndex, Database):
             self.close_current_connection()
 
         return argument_id
+
+    def _insert_custom(self, custom_key, custom_value, catalog_id, close=True):
+        custom_id = self.next_id("custom")
+        cursor = self.get_cursor()
+
+        cursor.execute(
+            "INSERT INTO custom values (?, ?, ?, ?)",
+            (
+                custom_id,
+                catalog_id,
+                custom_key,
+                custom_value
+            )
+        )
+
+        if close:
+            self.close_current_connection()
+
+        return custom_id
 
     def _exists_citation(self, citation, catalog_id, close=True):
         cursor = self.get_cursor()
@@ -793,6 +857,7 @@ class CollectionIndex(ICollectionIndex, Database):
         setup["args"] = self._get_arguments_by_solution(collection_id, close=False)
         setup["covers"] = self._get_covers_by_solution(collection_id, close=False)
         setup["documentation"] = self._get_documentation_by_solution(collection_id, close=False)
+        setup["custom"] = self._get_custom_by_solution(collection_id, close=False)
         internal["children"] = self._get_children_of_solution(collection_id, close=False)
         internal["parent"] = self.get_parent_of_solution(collection_id, close=close)
         return CollectionIndex.CollectionSolution(setup, internal)
@@ -835,6 +900,27 @@ class CollectionIndex(ICollectionIndex, Database):
             if row["default_value"]:
                 argument["default_value"] = row["default_value"]
             res.append(argument)
+
+        if close:
+            self.close_current_connection()
+
+        return res
+
+    def _get_custom_by_solution(self, collection_id, close=True):
+        cursor = self.get_cursor()
+
+        r = cursor.execute(
+            "SELECT a.* FROM custom a "
+            "JOIN collection_custom sa ON sa.custom_id = a.custom_id "
+            "WHERE sa.collection_id=:collection_id",
+            {
+                "collection_id": collection_id
+            }
+        ).fetchall()
+
+        res = {}
+        for row in r:
+            res[row["custom_key"]] = row["custom_value"]
 
         if close:
             self.close_current_connection()
@@ -1215,6 +1301,13 @@ class CollectionIndex(ICollectionIndex, Database):
         )
 
         cursor.execute(
+            "DELETE FROM collection_custom WHERE collection_id=:collection_id",
+            {
+                "collection_id": collection_id
+            }
+        )
+
+        cursor.execute(
             "DELETE FROM collection_collection WHERE collection_id_child=:collection_id",
             {
                 "collection_id": collection_id
@@ -1257,6 +1350,12 @@ class CollectionIndex(ICollectionIndex, Database):
             "DELETE FROM author "
             "WHERE NOT EXISTS (SELECT sa.collection_author_id FROM collection_author sa "
             "WHERE author.author_id = sa.author_id)"
+        )
+
+        cursor.execute(
+            "DELETE FROM custom "
+            "WHERE NOT EXISTS (SELECT sa.custom_id FROM collection_custom sa "
+            "WHERE custom.custom_id = sa.custom_id)"
         )
 
         # finally delete solution

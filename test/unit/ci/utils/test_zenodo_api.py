@@ -217,8 +217,8 @@ class TestZenodoAPI(TestZenodoCommon):
     def test_deposit_create_with_prereserve_doi(self):
 
         title = "unit_test_solution.py"
-
-        self.test_deposit2 = self.zenodoAPI.deposit_create_with_prereserve_doi(title)
+        creators = [{"name": "me"}]
+        self.test_deposit2 = self.zenodoAPI.deposit_create_with_prereserve_doi(ZenodoMetadata.default_values(title, creators, "", "", ""))
 
         self.assertIsNot(self.test_deposit2.id, "", "ID empty string!")
         self.assertIsNot(self.test_deposit2.metadata.prereserve_doi["doi"], "", "doi empty string!")

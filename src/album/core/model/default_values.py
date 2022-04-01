@@ -8,6 +8,10 @@ import album.core
 class DefaultValues(Enum):
     """Add an entry here to initialize default attributes for a album framework installation instance."""
 
+    album_cite_doi = 'arXiv:2110.00601'      # album DOI
+    album_cite_text = 'Albrecht, Schmidt, Harrington. Album: a framework for scientific data processing with software solutions of heterogeneous tools.'      # album text
+    album_cite_url = 'https://album.solutions'      # album url
+
     # runner
     runner_api_packet_version = '0.3.1'      # set to None to use with url
     runner_api_packet_name = 'album-runner'  # can also point to zip/url like: https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip
@@ -45,6 +49,8 @@ class DefaultValues(Enum):
 
     # solutions
     solution_default_name = "solution.py"                                  # default name how solution.py files are called
+    solution_yml_default_name = "solution.yml"                             # default name of the solution.yml file
+    solution_zip_default_name = "solution.zip"                             # default name of the solution.zip file
     changelog_default_name = "CHANGELOG.md"                                # default name of the changelog file
 
     # lnk folder prefixes

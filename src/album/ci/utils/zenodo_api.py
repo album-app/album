@@ -178,20 +178,22 @@ class ZenodoMetadata(ZenodoEntry):
     """All possible metadata of a @ZenodoDeposit."""
 
     @classmethod
-    def default_values(cls, title):
+    def default_values(cls, title, creators, description, license, version, related_identifiers, references):
         default_values = {
             "access_right": AccessRight.OPEN.value,
             "access_right_category": None,
-            "creators": [{"name": "UploadInitialization", "affiliation": 'ALBUM_MDC'}],
-            "description": "Album solution file",
+            "creators": creators,
+            "description": description,
             "doi": None,
-            "license": None,
+            "license": license,
             "prereserve_doi": "true",
             "publication_date": None,
-            "related_identifiers": None,
+            "related_identifiers": related_identifiers,
             "relations": None,
+            "references": references,
             "resource_type": None,
             "title": title,
+            "version": version,
             "upload_type": UploadType.SOFTWARE.value,
         }
         return cls(default_values)
@@ -211,6 +213,8 @@ class ZenodoMetadata(ZenodoEntry):
         self.resource_type = self._get_attribute(entry_dict, "resource_type")
         self.title = self._get_attribute(entry_dict, "title")
         self.upload_type = self._get_attribute(entry_dict, "upload_type")
+        self.version = self._get_attribute(entry_dict, "version")
+        self.references = self._get_attribute(entry_dict, "references")
 
 
 class IterableList(list):
@@ -305,6 +309,9 @@ class ZenodoDeposit(ZenodoEntry):
         self.state = self._get_attribute(entry_dict, "state")
         self.submitted = self._get_attribute(entry_dict, "submitted")
         self.title = self._get_attribute(entry_dict, "title")
+        self.version = self._get_attribute(entry_dict, "version")
+        self.related_identifiers = self._get_attribute(entry_dict, "related_identifiers")
+        self.references = self._get_attribute(entry_dict, "references")
 
         meta_init = self._get_attribute(entry_dict, "metadata")
         self.metadata = ZenodoMetadata(meta_init) if meta_init is not None else meta_init
@@ -726,6 +733,8 @@ class ZenodoAPI:
             if status_code != ResponseStatus.InternalServerError:
                 print("Detailed message:")
                 print(response.json()["message"])
+                if response.json()["errors"]:
+                    print(response.json()["errors"])
 
         raise InvalidResponseStatusError("Error \'%s\' occurred. See Log for detailed information!" % status_code.name)
 
@@ -786,12 +795,9 @@ class ZenodoAPI:
 
         return ZenodoDeposit(response_dict, self.base_url, self.params["access_token"])
 
-    def deposit_create_with_prereserve_doi(self, title):
+    def deposit_create_with_prereserve_doi(self, metadata):
         deposit = self.deposit_create()
-
-        default_zenodo_metadata = ZenodoMetadata.default_values(title)
-
-        deposit.update(default_zenodo_metadata)
+        deposit.update(metadata)
 
         return deposit
 

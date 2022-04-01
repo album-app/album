@@ -51,17 +51,22 @@ def get_credit_as_string(solution: ISolution) -> str:
     if solution.setup().cite:
         res += '\n\nCredits:\n\n'
         for citation in solution.setup().cite:
-            text = citation['text']
-            if 'doi' in citation and 'url' in citation:
-                text += ' (DOI: %s, %s)' % (citation['doi'], citation['url'])
-            else:
-                if 'doi' in citation:
-                    text += ' (DOI: %s)' % citation['doi']
-                if 'url' in citation:
-                    text += ' (%s)' % citation['url']
+            text = get_citation_as_string(citation)
             res += '%s\n' % text
         res += '\n'
     return res
+
+
+def get_citation_as_string(citation):
+    text = citation['text']
+    if 'doi' in citation and 'url' in citation:
+        text += ' (DOI: %s, %s)' % (citation['doi'], citation['url'])
+    else:
+        if 'doi' in citation:
+            text += ' (DOI: %s)' % citation['doi']
+        if 'url' in citation:
+            text += ' (%s)' % citation['url']
+    return text
 
 
 def get_updates_as_string(updates: Dict[str, ICatalogUpdates]) -> str:

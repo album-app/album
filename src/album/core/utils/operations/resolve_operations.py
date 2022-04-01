@@ -5,6 +5,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from album.runner import album_logging
+
 from album.ci.utils.zenodo_api import ZenodoAPI
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
@@ -12,7 +14,6 @@ from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove, \
     create_path_recursively, rand_folder_name, check_zip, unzip_archive, copy, copy_folder
 from album.core.utils.operations.url_operations import is_url, download, retrieve_redirect_url, download_resource
-from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.model.coordinates import Coordinates
 
@@ -173,7 +174,7 @@ def check_doi(doi, tmp_cache_dir):
 
     link_to_solution_zip = parse_doi_service_url(url)
 
-    p = download_resource(link_to_solution_zip, tmp_cache_dir)
+    p = download_resource(link_to_solution_zip, tmp_cache_dir.joinpath('solution.zip'))
 
     return prepare_path(p, tmp_cache_dir)
 
@@ -243,7 +244,7 @@ def prepare_path(path, tmp_cache_dir):
     if p.exists():
         target_folder = tmp_cache_dir.joinpath(rand_folder_name())
         if p.is_file():  # zip or file
-            if p.suffix == ".zip" and check_zip(p):  # zip file
+            if check_zip(p):  # zip file
                 p = unzip_archive(p, target_folder)
                 p = p.joinpath(DefaultValues.solution_default_name.value)
             else:  # python file
