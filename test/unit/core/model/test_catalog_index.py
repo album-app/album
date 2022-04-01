@@ -45,6 +45,7 @@ class TestCatalogIndex(TestUnitCoreCommon):
         for row in r:
             tables.append(row["tbl_name"])
 
+
         for t in tables:
             if t != "catalog_index":  # catalog_index is never empty
                 if empty:
@@ -137,6 +138,16 @@ class TestCatalogIndex(TestUnitCoreCommon):
 
         # assert
         self.assertFalse(self.catalog_index.is_table_empty("argument"))
+
+    def test__insert_custom(self):
+        self.is_empty_or_full(empty=True)
+        self.assertTrue(self.catalog_index.is_table_empty("custom"))
+
+        # call
+        self.catalog_index._insert_custom_key('my_key', 'my_value')
+
+        # assert
+        self.assertFalse(self.catalog_index.is_table_empty("custom"))
 
     def test__insert_cover(self):
         self.is_empty_or_full(empty=True)
@@ -237,6 +248,17 @@ class TestCatalogIndex(TestUnitCoreCommon):
         self.assertEqual(r2, self.catalog_index._exists_argument(arg_no_type))
         self.assertEqual(r3, self.catalog_index._exists_argument(arg_no_default))
         self.assertEqual(r4, self.catalog_index._exists_argument(arg_minimal))
+
+    def test__exists_custom(self):
+        self.is_empty_or_full(empty=True)
+        self.assertTrue(self.catalog_index.is_table_empty("custom"))
+
+        # assert
+        self.assertIsNone(self.catalog_index._exists_custom_key('my_key', 'my_value'))
+
+        r1 = self.catalog_index._insert_custom_key('my_key', 'my_value')
+
+        self.assertEqual(r1, self.catalog_index._exists_custom_key('my_key', 'my_value'))
 
     def test__exists_cover(self):
         self.is_empty_or_full(empty=True)

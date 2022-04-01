@@ -183,6 +183,11 @@ class TestResolveOperations(TestUnitCoreCommon):
     @patch('album.core.utils.operations.resolve_operations.download')
     def test_check_file_or_url_case_url(self, download_mock, unzip_archive_mock, copy_mock, copy_folder_mock,
                                         rand_folder_name_mock, check_zip_mock):
+        def check_zip(name):
+            return str(name).endswith('.zip')
+
+        check_zip_mock.side_effect = check_zip
+
         # prepare
         zipfile = Path(self.tmp_dir.name).joinpath("zipfile.zip")
         zipfile.touch()
@@ -208,7 +213,7 @@ class TestResolveOperations(TestUnitCoreCommon):
 
         copy_folder_mock.assert_not_called()
         unzip_archive_mock.assert_not_called()
-        check_zip_mock.assert_not_called()
+        check_zip_mock.assert_called_once()
 
     @patch('album.core.utils.operations.resolve_operations.check_zip')
     @patch('album.core.utils.operations.resolve_operations.rand_folder_name')
@@ -256,6 +261,11 @@ class TestResolveOperations(TestUnitCoreCommon):
     @patch('album.core.utils.operations.resolve_operations.download')
     def test_check_file_or_url_case_file(self, download_mock, unzip_archive_mock, copy_mock, copy_folder_mock,
                                          rand_folder_name_mock, check_zip_mock):
+        def check_zip(name):
+            return str(name).endswith('.zip')
+
+        check_zip_mock.side_effect = check_zip
+
         # prepare
         zipfile = Path(self.tmp_dir.name).joinpath("zipfile.zip")
         zipfile.touch()
@@ -284,7 +294,7 @@ class TestResolveOperations(TestUnitCoreCommon):
         unzip_archive_mock.assert_not_called()
         download_mock.assert_not_called()
         copy_folder_mock.assert_not_called()
-        check_zip_mock.assert_not_called()
+        check_zip_mock.assert_called_once()
 
     @patch('album.core.utils.operations.resolve_operations.check_zip')
     @patch('album.core.utils.operations.resolve_operations.rand_folder_name')

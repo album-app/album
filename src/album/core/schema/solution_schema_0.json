@@ -143,15 +143,15 @@
                     "type": "string"
                 },
                 "group": {
-                    "title": "name",
+                    "title": "group",
                     "type": "string"
                 },
                 "title": {
-                    "title": "name",
+                    "title": "title",
                     "type": "string"
                 },
                 "album_api_version": {
-                    "title": "name",
+                    "title": "album_api_version",
                     "type": "string"
                 },
                 "tags": {
@@ -180,6 +180,10 @@
                 },
                 "steps": {
                     "title": "steps"
+                },
+                "custom": {
+                    "title": "custom",
+                    "type": "object"
                 },
                 "install": {
                     "title": "install"
