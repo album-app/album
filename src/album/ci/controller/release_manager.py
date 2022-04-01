@@ -14,6 +14,7 @@ from album.ci.utils.continuous_integration import get_ssh_url, create_report
 from album.core.model.catalog import Catalog, retrieve_index_files_from_src
 from album.core.model.default_values import DefaultValues
 from album.core.utils.export.changelog import get_changelog_file_name
+from album.core.utils.operations import view_operations
 from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, get_dict_entry, \
     copy, force_remove, zip_folder
 from album.core.utils.operations.git_operations import checkout_branch, add_files_commit_and_push, \
@@ -332,4 +333,16 @@ class ReleaseManager:
         version = None
         if 'version' in solution_meta:
             version = solution_meta['version']
-        return ZenodoMetadata.default_values(deposit_name, creators, description, license, version)
+        related_identifiers = [{'relation': 'cites', 'identifier': DefaultValues.album_cite_doi.value}]
+        references = [view_operations.get_citation_as_string({
+            'doi': DefaultValues.album_cite_doi.value,
+            'url': DefaultValues.album_cite_url.value,
+            'text': DefaultValues.album_cite_text.value})]
+        if 'cite' in solution_meta:
+            for citation in solution_meta['cite']:
+                if 'doi' in citation:
+                    related_identifiers.append({'relation': 'cites', 'identifier': citation['doi']})
+                if 'text' in citation:
+                    references.append(view_operations.get_citation_as_string(citation))
+
+        return ZenodoMetadata.default_values(deposit_name, creators, description, license, version, related_identifiers, references)

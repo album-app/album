@@ -178,7 +178,7 @@ class ZenodoMetadata(ZenodoEntry):
     """All possible metadata of a @ZenodoDeposit."""
 
     @classmethod
-    def default_values(cls, title, creators, description, license, version):
+    def default_values(cls, title, creators, description, license, version, related_identifiers, references):
         default_values = {
             "access_right": AccessRight.OPEN.value,
             "access_right_category": None,
@@ -188,8 +188,9 @@ class ZenodoMetadata(ZenodoEntry):
             "license": license,
             "prereserve_doi": "true",
             "publication_date": None,
-            "related_identifiers": None,
+            "related_identifiers": related_identifiers,
             "relations": None,
+            "references": references,
             "resource_type": None,
             "title": title,
             "version": version,
@@ -213,6 +214,7 @@ class ZenodoMetadata(ZenodoEntry):
         self.title = self._get_attribute(entry_dict, "title")
         self.upload_type = self._get_attribute(entry_dict, "upload_type")
         self.version = self._get_attribute(entry_dict, "version")
+        self.references = self._get_attribute(entry_dict, "references")
 
 
 class IterableList(list):
@@ -308,6 +310,8 @@ class ZenodoDeposit(ZenodoEntry):
         self.submitted = self._get_attribute(entry_dict, "submitted")
         self.title = self._get_attribute(entry_dict, "title")
         self.version = self._get_attribute(entry_dict, "version")
+        self.related_identifiers = self._get_attribute(entry_dict, "related_identifiers")
+        self.references = self._get_attribute(entry_dict, "references")
 
         meta_init = self._get_attribute(entry_dict, "metadata")
         self.metadata = ZenodoMetadata(meta_init) if meta_init is not None else meta_init
