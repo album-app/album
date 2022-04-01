@@ -221,7 +221,7 @@ class CondaManager:
         env_prefix = os.path.normpath(self._environment_name_to_path(environment_name))
 
         # TODO in debug mode, use -v to display the installation process
-        subprocess_args = [self._get_install_environment_executable(), 'env', 'create', '-q', '--force', '-f',
+        subprocess_args = [self._get_install_environment_executable(), 'env', 'create', '--force', '-f',
                            os.path.normpath(env_file.name), '-p', env_prefix]
 
         try:
@@ -300,7 +300,7 @@ class CondaManager:
                 "    - %s==%s\n" % (DefaultValues.runner_api_packet_name.value, album_api_version)
             )
 
-        subprocess_args = [self._get_install_environment_executable(), 'env', 'create', '--force', '-q',
+        subprocess_args = [self._get_install_environment_executable(), 'env', 'create', '--force',
                            '--file', env_file.name, '-p', env_prefix]
 
         try:
