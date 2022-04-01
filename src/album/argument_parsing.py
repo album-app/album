@@ -308,6 +308,7 @@ class AlbumParser(ArgumentParser):
                  ' Instead, the result of the command - if present - is printed as JSON.',
             action='store_true'
         )
+        parent_parser.add_argument('--version', '-V', action='version', version="%s " % core.__version__)
         return parent_parser
 
     def create_parser(self):
