@@ -185,11 +185,11 @@ class CollectionManager(ICollectionManager):
 
                 # either a doi is found in the collection or it will be downloaded and ends up in a local catalog
                 if solution_entry:
-                    catalog = self.album.catalogs().get_by_id(solution_entry.internal["catalog_id"])
+                    catalog = self.album.catalogs().get_by_id(solution_entry.internal()["catalog_id"])
+                    path = self.solution_handler.get_solution_file(catalog, dict_to_coordinates(solution_entry.setup()))
                 else:
                     # download DOI
                     path = check_doi(doi["doi"], self.album.configuration().tmp_path())
-
                     catalog = self.album.catalogs().get_cache_catalog()
             else:  # case no doi
                 solution_entry = self._search(str_input)
@@ -201,7 +201,6 @@ class CollectionManager(ICollectionManager):
                         "or point to a valid file! Aborting..." % str_input)
 
                 catalog = self.album.catalogs().get_by_id(solution_entry.internal()["catalog_id"])
-
                 path = self.solution_handler.get_solution_file(catalog, dict_to_coordinates(solution_entry.setup()))
 
         coordinates = None
@@ -289,7 +288,7 @@ class CollectionManager(ICollectionManager):
         return solution_entries if solution_entries else None
 
     def retrieve_and_load_resolve_result(self, resolve_result: ICollectionSolution):
-        if not Path(resolve_result.path()).exists():
+        if not resolve_result.path() or not Path(resolve_result.path()).exists():
             self.solution_handler.retrieve_solution(resolve_result.catalog(),
                                                     dict_to_coordinates(resolve_result.database_entry().setup()))
         resolve_result.set_loaded_solution(self.album.state_manager().load(resolve_result.path()))
