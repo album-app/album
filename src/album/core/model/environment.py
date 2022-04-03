@@ -58,12 +58,17 @@ class Environment(IEnvironment):
                     # case valid url
                     if validators.url(env_file):
                         yaml_path = download_resource(env_file, yaml_path)
+                    # case file content
+                    elif 'dependencies:' in env_file and '\n' in env_file:
+                        with open(str(yaml_path), "w+") as f:
+                            f.writelines(env_file)
+                        yaml_path = yaml_path
                     # case Path
                     elif Path(env_file).is_file() and Path(env_file).stat().st_size > 0:
                         yaml_path = copy(env_file, yaml_path)
                     else:
-                        raise TypeError("Yaml file must either be a url to a valid file"
-                                        " or point to a file on the disk!")
+                        raise TypeError("environment_file must either contain the content of the environment file, "
+                                        "contain the url to a valid file or point to a file on the disk!")
                 # case String stream
                 elif isinstance(env_file, StringIO):
                     with open(str(yaml_path), "w+") as f:

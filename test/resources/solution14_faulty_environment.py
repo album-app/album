@@ -1,13 +1,11 @@
-from io import StringIO
-
 from album.runner.api import setup
 
-env_file = StringIO("""name: template-python
+env_file = """name: template-python
 channels:
   - defaults
 dependencies:
   - albuasdasdm=0.0.0.1
-""")
+"""
 
 setup(
     group="group",
