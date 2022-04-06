@@ -1,6 +1,16 @@
 # Command line overview
 
-`solution-identifier` can be `group:name:version`, `catalog-name:group:name:version`, a path, a URL, or a DOI.
+In the listed commands `solution-identifier` can be replaced by:
+- `name` - the name of the solution
+- `group:name` - group and name of the solution
+- `group:name:version` - the full coordinates of the solution
+- `catalog:group:name:version` - the catalog name and the solution coordinates
+- a path to a single solution python file
+- a path to the solution folder containing the `solution.py` file 
+- URL (python file or zip containing `solution.py`)
+- DOI 
+
+See [usage instructions](/usage-instructions) for more details.
 
 | Album basics  |   |
 |---|---|
