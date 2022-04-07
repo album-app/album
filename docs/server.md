@@ -28,7 +28,7 @@ album server --port 1234
   ```
 - Add a catalog to the album installation the server is running on (the src can be a local folder or a URL - make sure to encode it, for example using [this tool](https://www.urlencoder.org/):
   ```
-  http://192.0.0.1:1234/add-catalog?src=URL_OR_PARH_ENCODED
+  http://192.0.0.1:1234/add-catalog?src=URL_OR_PATH_ENCODED
   ```
 - Remove a catalog from the album installation the server is running on:
   ```
