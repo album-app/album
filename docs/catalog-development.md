@@ -4,7 +4,7 @@ This page documents how to setup and use your own catalogs. We encourage folks w
 use our [capture-knowledge](https://gitlab.com/album-app/catalogs/capture-knowledge) catalog instead. 
 Please [contact us](/contributing) if you have questions!
 
-All instructions are command line calls based on the Unix syntax - Windows users have to use backslashes for local paths and `dir` instead of `cd`.
+All instructions are command line calls based on the Unix syntax - Windows users have to use backslashes for local paths.
 
 ## Catalog types
 
