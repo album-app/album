@@ -20,11 +20,15 @@ A solution holds all information to solve a specific problem. Ideally, this incl
 * information about what to cite if this solution is used to solve scientific problems
 * information about the author of the solution itself
 
-A solution can be identified..
-- by string: `GROUP:NAME:VERSION` or `CATALOG_NAME:GROUP:NAME:VERSION`
-- by file path (Python file or ZIP)
-- by URL pointing to the solution file
-- by DOI
+A solution can be identified by..
+- `name` - the name of the solution. Album will complain if your collection contains multiple solutions matching this name (i.e. different versions or groups).
+- `group:name` - group and name of the solution, separated by colon. Album will complain if your collection contains multiple solutions matching this name (i.e. multiple versions).
+- `group:name:version` - these are the full coordinates of the solution, separated by colon.
+- `catalog:group:name:version` - the catalog name and the solution coordinates, separated by colon.
+- a path to a `solution.py` file if the solution consists of only one file
+- a path to the solution folder containing the `solution.py` file 
+- a URL to either a python file or a zip file containing the solution files, including `solution.py`
+- a DOI - we currently support Zenodo DOIs published by our catalog Zenodo API 
 
 In this guide we will use `album:template-python:0.1.0` as an example since this solution is part of the default catalog
 and you can run all the following commands without editing them - replace this with the identifier of your target solution.
