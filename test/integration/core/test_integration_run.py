@@ -199,7 +199,9 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
             self.assertEqual("solution3_noparent_run", log[16])
             self.assertEqual("solution3_noparent_close", log[17])
 
-    def test_run_throwing_error_solution(self):
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    def test_run_throwing_error_solution(self, get_environment_path):
+        get_environment_path.return_value = self.album_controller.environment_manager().get_conda_manager().get_active_environment_path()
         path = self.get_test_solution_path("solution15_album_running_faulty_solution.py")
         self.album_controller.install_manager().install(path)
 
@@ -216,4 +218,4 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         self.assertEqual(1, self.captured_output.getvalue().count('INFO ~~~ album in album: logging info'))
         self.assertIn('WARNING ~~~ album in album: logging warning', self.captured_output.getvalue())
         self.assertIn('ERROR ~~~ album in album: logging error', self.captured_output.getvalue())
-        self.assertIn('ERROR ~~~ RuntimeError: Error in run method', self.captured_output.getvalue())
+        self.assertIn('INFO ~~~ RuntimeError: Error in run method', self.captured_output.getvalue())

@@ -8,7 +8,6 @@ from typing import Optional
 
 from album.runner import album_logging
 from album.runner.album_logging import LogEntry, LogLevel
-from album.runner.core.api.model.solution_script import ISolutionScript
 
 module_logger = album_logging.get_active_logger
 
@@ -233,21 +232,17 @@ class LogPipe(threading.Thread):
 def _run_process(command, log: LogProcessing, pipe_output):
     if pipe_output:
         stdout = log.info_logger
-        stderr = log.error_logger
         info_pipe = LogPipe(stdout)
-        error_pipe = LogPipe(stderr)
         p = subprocess.Popen(
             command,
             stdout=info_pipe,
-            stderr=error_pipe,
+            stderr=subprocess.STDOUT,
             bufsize=1,
             universal_newlines=True
         )
         p.wait()
         info_pipe.close()
-        error_pipe.close()
         sys.stdout.flush()
-        sys.stderr.flush()
         log.close()
         if p.returncode != 0:
             raise SubProcessError(1, p.returncode)

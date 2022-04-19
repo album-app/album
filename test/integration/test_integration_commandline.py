@@ -236,4 +236,4 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
         self.assertIn('INFO ~~~ album in album: logging info', self.captured_output.getvalue())
         self.assertIn('WARNING ~~~ album in album: logging warning', self.captured_output.getvalue())
         self.assertIn('ERROR ~~~ album in album: logging error', self.captured_output.getvalue())
-        self.assertIn('ERROR ~~~ RuntimeError: Error in run method', self.captured_output.getvalue())
+        self.assertIn('INFO ~~~ RuntimeError: Error in run method', self.captured_output.getvalue())
