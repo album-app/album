@@ -22,7 +22,7 @@ setup(
     tags=["tag1", "tag2"],
     license="license",
     covers=[],
-    album_api_version="0.3.1",
+    album_api_version="0.4.0",
     args=[
         {
             "name": "testArg1",
