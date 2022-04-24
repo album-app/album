@@ -54,7 +54,7 @@ setup(
     name="solution8_arguments",
     title="solution7",
     version="0.1.0",
-    album_api_version="0.4.0",
+    album_api_version="0.4.1",
     args=[
         {
             "name": "integer_arg1",
