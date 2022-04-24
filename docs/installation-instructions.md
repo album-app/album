@@ -25,3 +25,9 @@ conda env create -f https://gitlab.com/album-app/album/-/raw/v0.2.0/album.yml
 ```
 conda activate album
 ```
+
+## Windows notes
+**After installing Conda, the Conda command is not found.**
+Use the Anaconda Command Prompt or add these to the PATH variable of your system:
+- C:\\Users\USERNAME\Anaconda-dir
+- C:\\Users\USERNAME\Anaconda-dir\Scripts
