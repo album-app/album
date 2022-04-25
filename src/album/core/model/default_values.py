@@ -13,7 +13,7 @@ class DefaultValues(Enum):
     album_cite_url = 'https://album.solutions'      # album url
 
     # runner
-    runner_api_packet_version = '0.3.1'      # set to None to use with url
+    runner_api_packet_version = '0.4.1'      # set to None to use with url
     runner_api_packet_name = 'album-runner'  # can also point to zip/url like: https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip
     runner_pip_version = 'pip=21.0'
 

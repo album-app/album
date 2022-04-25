@@ -64,7 +64,7 @@ setup(
     group="group",
     name="solution9_throws_exception",
     version="0.1.0",
-    album_api_version="0.3.1",
+    album_api_version="0.4.1",
     run=run,
     dependencies={
         'environment_file': env_file

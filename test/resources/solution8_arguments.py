@@ -11,29 +11,28 @@ def album_run():
     ia1 = args.integer_arg1
     ia2 = args.integer_arg2
     sa1 = args.string_arg1
+    fa1 = args.file_arg1
+    da1 = args.directory_arg1
+    ba1 = args.boolean_arg1
 
     la1 = args.lambda_arg1
     la2 = args.lambda_arg2
 
-    get_active_logger().info("integer_arg1")
-    get_active_logger().info(type(ia1))
-    get_active_logger().info(ia1)
+    get_active_logger().info("integer_arg1: %s %s" % (type(ia1), ia1))
 
-    get_active_logger().info("integer_arg2")
-    get_active_logger().info(type(ia2))
-    get_active_logger().info(ia2)
+    get_active_logger().info("integer_arg2: %s %s" % (type(ia2), ia2))
 
-    get_active_logger().info("string_arg1")
-    get_active_logger().info(type(sa1))
-    get_active_logger().info(sa1)
+    get_active_logger().info("string_arg1: %s %s" % (type(sa1), sa1))
 
-    get_active_logger().info("lambda_arg1")
-    get_active_logger().info(type(la1))
-    get_active_logger().info(la1)
+    get_active_logger().info("file_arg1: %s %s" % (type(fa1), fa1))
 
-    get_active_logger().info("lambda_arg2")
-    get_active_logger().info(type(la2))
-    get_active_logger().info(la2)
+    get_active_logger().info("directory_arg1: %s %s" % (type(da1), da1))
+
+    get_active_logger().info("boolean_arg1: %s %s" % (type(ba1), ba1))
+
+    get_active_logger().info("lambda_arg1: %s %s" % (type(la1), la1))
+
+    get_active_logger().info("lambda_arg2: %s %s" % (type(la2), la2))
 
     get_active_logger().info("solution8_arguments_run_end")
 
@@ -55,26 +54,44 @@ setup(
     name="solution8_arguments",
     title="solution7",
     version="0.1.0",
-    album_api_version="0.3.1",
+    album_api_version="0.4.1",
     args=[
         {
             "name": "integer_arg1",
             "default": 1,
             "description": "PositiveIntegerValue",
-            "type": "int"
+            "type": "integer"
         },
         {
             "name": "integer_arg2",
             "required": False,
             "default": -1000,
             "description": "NegativeIntegerValue",
-            "type": "int"
+            "type": "integer"
         },
         {
             "name": "string_arg1",
             "default": "DefaultStringValue",
             "description": "MyStringValue",
-            "type": "str"
+            "type": "string"
+        },
+        {
+            "name": "file_arg1",
+            "default": "DefaultFileValue.txt",
+            "description": "MyFileValue",
+            "type": "file"
+        },
+        {
+            "name": "directory_arg1",
+            "default": "DefaultDirectoryValue.txt",
+            "description": "MyDirectoryValue",
+            "type": "directory"
+        },
+        {
+            "name": "boolean_arg1",
+            "default": "DefaultBooleanValue.txt",
+            "description": "MyBooleanValue",
+            "type": "boolean"
         },
         {
             "name": "lambda_arg1",

@@ -158,7 +158,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
             'tags': ['tag1', 'tag2'],
             'license': 'license',
             'covers': [],
-            'album_api_version': '0.3.1',
+            'album_api_version': '0.4.1',
             'args': [
                 {
                     'name': 'testArg1',
@@ -236,4 +236,4 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
         self.assertIn('INFO ~~~ album in album: logging info', self.captured_output.getvalue())
         self.assertIn('WARNING ~~~ album in album: logging warning', self.captured_output.getvalue())
         self.assertIn('ERROR ~~~ album in album: logging error', self.captured_output.getvalue())
-        self.assertIn('ERROR ~~~ RuntimeError: Error in run method', self.captured_output.getvalue())
+        self.assertIn('INFO ~~~ RuntimeError: Error in run method', self.captured_output.getvalue())
