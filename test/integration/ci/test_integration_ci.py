@@ -22,6 +22,8 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         self.repo = None
 
     def tearDown(self) -> None:
+        if self.repo:
+            self.repo.close()
         super().tearDown()
 
     def deploy_request(self):
@@ -60,12 +62,14 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
 
         # run
         self.assertIsNone(main())
+        repo = git.Repo(self.path)
         self.assertEqual(
-            "myCiUserName", git.Repo(self.path).config_reader().get_value("user", "name")
+            "myCiUserName", repo.config_reader().get_value("user", "name")
         )
         self.assertEqual(
-            "myCiUserEmail", git.Repo(self.path).config_reader().get_value("user", "email")
+            "myCiUserEmail", repo.config_reader().get_value("user", "email")
         )
+        repo.close()
 
     def test_configure_ssh(self):
         # gather arguments
@@ -137,11 +141,9 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         # run
         self.assertIsNone(main())
 
-        r_repo = git.Repo(self.path)
-
         # assert
-        self.assertEqual(r_repo.active_branch.name, "group_name_0.1.0")
-        self.assertListEqual(["album_catalog_index.db", "album_solution_list.json"], r_repo.untracked_files)
+        self.assertEqual(self.repo.active_branch.name, "group_name_0.1.0")
+        self.assertListEqual(["album_catalog_index.db", "album_solution_list.json"], self.repo.untracked_files)
 
     def test_commit_changes(self):
         # deploy request to test catalog
@@ -172,11 +174,9 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         # run
         self.assertIsNone(main())
 
-        r_repo = git.Repo(self.path)
-
         # check out last commit
-        self.assertEqual(r_repo.active_branch.name, "group_name_0.1.0")
-        self.assertEqual("Prepared branch \"group_name_0.1.0\" for merging.\n", r_repo.active_branch.commit.message)
+        self.assertEqual(self.repo.active_branch.name, "group_name_0.1.0")
+        self.assertEqual("Prepared branch \"group_name_0.1.0\" for merging.\n", self.repo.active_branch.commit.message)
 
     @unittest.skip("Needs to be implemented!")
     def test_merge(self):

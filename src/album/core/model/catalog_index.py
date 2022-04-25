@@ -594,19 +594,20 @@ class CatalogIndex(ICatalogIndex, Database):
         return solutions
 
     def _update_solution(self, coordinates: ICoordinates, solution_attrs: dict, close=True) -> None:
-        # it is easier to delete and insert again instead of updating all connection-tables
-        solution_dict = self.get_solution_by_coordinates(coordinates, close=False)
-        if solution_dict:
-            self.remove_solution(solution_dict["solution_id"])
-        else:
-            raise RuntimeError("Cannot update solution \"%s\"! Does not exist!" % str(coordinates))
+        try:
+            # it is easier to delete and insert again instead of updating all connection-tables
+            solution_dict = self.get_solution_by_coordinates(coordinates, close=False)
+            if solution_dict:
+                self.remove_solution(solution_dict["solution_id"])
+            else:
+                raise RuntimeError("Cannot update solution \"%s\"! Does not exist!" % str(coordinates))
 
-        self._insert_solution(solution_attrs, close=False)
+            self._insert_solution(solution_attrs, close=False)
 
-        self.save()
-
-        if close:
-            self.close_current_connection()
+            self.save()
+        finally:
+            if close:
+                self.close_current_connection()
 
     def remove_solution(self, solution_id, close=True):
         cursor = self.get_cursor()

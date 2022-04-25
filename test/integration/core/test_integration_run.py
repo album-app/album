@@ -203,7 +203,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
     def test_run_throwing_error_solution(self, get_environment_path):
         get_environment_path.return_value = self.album_controller.environment_manager().get_conda_manager().get_active_environment_path()
         path = self.get_test_solution_path("solution15_album_running_faulty_solution.py")
-        self.album_controller.install_manager().install(path)
+        self.fake_install(path, create_environment=False)
 
         # run
         with self.assertRaises(SubProcessError) as e:
