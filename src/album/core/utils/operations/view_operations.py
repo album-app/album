@@ -8,11 +8,7 @@ from album.runner.core.api.model.solution import ISolution
 
 
 def get_solution_as_string(solution: ISolution, solution_path):
-    param_example_str = ''
     setup = solution.setup()
-    if setup.args:
-        for arg in setup.args:
-            param_example_str += '--%s PARAMETER_VALUE ' % arg['name']
     res = 'Solution details about %s:\n\n' % solution_path
     if setup.title:
         res += '%s\n' % setup.title
@@ -35,7 +31,7 @@ def get_solution_as_string(solution: ISolution, solution_path):
     res += '\n'
     res += 'Usage:\n\n'
     res += '  album install %s\n' % solution_path
-    res += '  album run %s %s\n' % (solution.coordinates(), param_example_str)
+    res += '  %s\n' % get_solution_run_call_as_string(solution)
     res += '  album test %s\n' % solution.coordinates()
     res += '  album uninstall %s\n' % solution.coordinates()
     res += '\n'
@@ -44,6 +40,17 @@ def get_solution_as_string(solution: ISolution, solution_path):
         for arg in setup.args:
             res += '  --%s: %s\n' % (arg["name"], arg["description"])
     return res
+
+
+def get_solution_run_call_as_string(solution):
+    param_example_str = ''
+    if solution.setup().args:
+        for arg in solution.setup().args:
+            if 'required' in arg:
+                if arg['required']:
+                    param_example_str += '--%s PARAMETER_VALUE ' % arg['name']
+    run_call = 'album run %s %s' % (solution.coordinates(), param_example_str)
+    return run_call
 
 
 def get_credit_as_string(solution: ISolution) -> str:

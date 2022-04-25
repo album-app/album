@@ -2,6 +2,54 @@
     "$ref": "#/definitions/RDF",
     "$schema": "http://json-schema.org/draft-07/schema#",
     "definitions": {
+        "Parent": {
+            "anyOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "group": {
+                            "title": "group",
+                            "type": "string"
+                        },
+                        "name": {
+                            "title": "name",
+                            "type": "string"
+                        },
+                        "version": {
+                            "title": "version",
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "group",
+                        "name",
+                        "version"
+                    ]
+                }, {
+                    "type": "object",
+                    "properties": {
+                        "resolve_solution": {
+                            "title": "resolve_solution",
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "resolve_solution"
+                    ]
+                }, {
+                    "type": "object",
+                    "properties": {
+                        "doi": {
+                            "title": "doi",
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "doi"
+                    ]
+                }
+            ]
+        },
         "Argument": {
             "additionalProperties": false,
             "properties": {
@@ -15,7 +63,8 @@
                 },
                 "type": {
                     "title": "type",
-                    "type": "string"
+                    "type": "string",
+                    "enum": ["string", "file", "directory", "boolean", "integer", "float"]
                 },
                 "default": {
                     "title": "default"
@@ -39,7 +88,7 @@
             "properties": {
                 "parent": {
                     "title": "parent",
-                    "type": "object"
+                    "$ref": "#/definitions/Parent"
                 },
                 "environment_file": {
                     "title": "environment_file"

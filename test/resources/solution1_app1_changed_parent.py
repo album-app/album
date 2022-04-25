@@ -31,7 +31,7 @@ setup(
     name="solution1_app1",
     title="solution one on app one",
     version="0.1.0",
-    album_api_version="0.3.1",
+    album_api_version="0.4.1",
     args=[{
         "name": "file_solution1_app1",
         "description": "",

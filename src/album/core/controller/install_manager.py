@@ -9,6 +9,7 @@ from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import remove_link
 from album.core.utils.operations.resolve_operations import clean_resolve_tmp, build_resolve_string, dict_to_coordinates
 from album.core.utils.operations.solution_operations import get_deploy_dict, get_parent_dict
+from album.core.utils.operations.view_operations import get_solution_run_call_as_string
 from album.runner import album_logging
 from album.runner.core.api.model.solution import ISolution
 from album.runner.core.model.script_creator import ScriptCreatorInstall, ScriptCreatorUnInstall
@@ -55,10 +56,13 @@ class InstallManager(IInstallManager):
                     resolve_result.catalog().name(), str(resolve_result.loaded_solution().coordinates())
                 )
             )
-        module_logger().info('Installing \"%s\"...' % resolve_result.loaded_solution().coordinates().name())
-        if not parent:  # fail when already installed
+        if not parent:
+            module_logger().info('Installing \"%s\"...' % resolve_result.loaded_solution().coordinates().name())
+            # fail when already installed
             if self._resolve_result_is_installed(resolve_result):
                 raise RuntimeError("Solution already installed. Uninstall solution first!")
+        else:
+            module_logger().info('Installing parent solution \"%s\"...' % resolve_result.loaded_solution().coordinates().name())
 
         self._register(resolve_result)
 
@@ -75,12 +79,11 @@ class InstallManager(IInstallManager):
 
         # mark as installed and remove "installation unfinished"
         self.album.solutions().set_installed(resolve_result.catalog(), resolve_result.coordinates())
-        module_logger().info(
-            'Installed \"%s\"! execute with `album run %s`' % (
-                resolve_result.coordinates().name(),
-                str(resolve_result.coordinates())
-            )
-        )
+        if parent:
+            module_logger().info('Installed parent solution \"%s\"!' % resolve_result.coordinates().name())
+        else:
+            module_logger().info('Installed \"%s\"! Learn more about the solution by calling `album info %s`.'
+                                 % (resolve_result.coordinates().name(), resolve_result.coordinates()))
 
     def _register(self, resolve_result: ICollectionSolution):
         """Registers a resolve result in the collection"""
@@ -252,7 +255,7 @@ class InstallManager(IInstallManager):
             self.album.environment_manager().run_scripts(environment, [script])
             album_logging.pop_active_logger()
         else:
-            module_logger().info(
+            module_logger().debug(
                 'No \"uninstall\" routine configured for solution \"%s\"! Skipping...' %
                 active_solution.coordinates().name()
             )

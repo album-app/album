@@ -37,7 +37,7 @@ setup(
    group="my-group-name",
    name="my-solution-name",
    version="0.1.0-SNAPSHOT",
-    album_api_version="0.3.1"
+    album_api_version="0.4.1"
 )
 ```
 
@@ -59,7 +59,7 @@ setup(
     group="my-group-name",
     name="my-solution-name",
     version="0.1.0-SNAPSHOT",
-    album_api_version="0.3.1",
+    album_api_version="0.4.1",
     dependencies={"environment_file": env_file}
 )
 ```
@@ -73,7 +73,7 @@ setup(
     group="my-group-name",
     name="my-solution-name",
     version="0.1.0-SNAPSHOT",
-    album_api_version="0.3.1",
+    album_api_version="0.4.1",
     title="The title of this solution",
     description="A description of what this solution is doing.",
     authors=["My name", "My coworkers name"],
@@ -107,7 +107,7 @@ setup(
    group="my-group-name",
    name="my-solution-name",
    version="0.1.0-SNAPSHOT",
-   album_api_version="0.3.1",
+   album_api_version="0.4.1",
    install=install,
    uninstall=uninstall
 )
@@ -127,7 +127,7 @@ setup(
     group="my-group-name",
     name="my-solution-name",
     version="0.1.0-SNAPSHOT",
-    album_api_version="0.3.1",
+    album_api_version="0.4.1",
     args=[{
         "name": "name",
         "type": "string",
@@ -164,7 +164,7 @@ setup(
     group="my-group-name",
     name="my-solution-name",
     version="0.1.0-SNAPSHOT",
-    album_api_version="0.3.1",
+    album_api_version="0.4.1",
     args=[{
        "name": "file",
        "description": "input text file path"
@@ -187,7 +187,7 @@ setup(
    group="my-group-name",
    name="my-child-solution-name",
    version="0.1.0-SNAPSHOT",
-   album_api_version="0.3.1",
+   album_api_version="0.4.1",
    dependencies={
       "parent": {
          "group": "album",
@@ -220,7 +220,8 @@ The setup parameters are derived from the [bioimage.io](https://bioimage.io) spe
 The solution is initially executed from the album environment while the following parameters are only called from the solution target environment.
 
 * `run`: This method is called during `album run your-solution` and during `album test your-solution`.
-* `install`: This method is called during `album install your-solution`, after the target environment was created. 
+* `install`: If defined, this method is called during `album install your-solution`, after the target environment was created. 
+* `uninstall`: If defined, this method is called during `album install your-solution`, before the target environment and all solution related files are deleted. 
 * `pre_test`: The method is called during  `album test your-solution`. This function is evaluated before the `run` and `test` function are evaluated. The  purpose of this function is to do things like prepare files for testing and generate the input arguments. It can return a list of strings which will be used as input parameters for the `run` call.
 * `test`: The method is called during  `album test your-solution`. It is called after `pre_test` and `run` and should fail or succeed based on what was stored during the `run` call and the given input parameters. You can make it fail by throwing an error.
 
@@ -261,24 +262,47 @@ setup(
 
 ## Solution API
 
-The solution API is provided through the `album-runner` module. There
-are multiple key methods:
+The solution API is provided through the `album-runner` module. There are multiple key methods:
 
-`get_environment_name()`:  This is the name of the
-conda environment for this particular solution.  
+`get_environment_name()`:  This is the name of the conda environment for this particular solution.  
 
-`get_environment_path()`:  This is the local path for
-the conda environment of this particular solution.  
+`get_environment_path()`:  This is the local path for the conda environment of this particular solution.  
 
-`get_data_path()`: Returns the data path provided for the solution.
+`get_data_path()`: Returns the data path provided for the solution. It is empty by default and is supposed to be used to store any kind of data during solution installation or execution. It will be deleted when the solution is uninstalled.
 
-`get_package_path()`: Returns the package path provided for the solution.
+`get_package_path()`: Returns the package path provided for the solution. This directory contains the solution file and all additional files deployed with the solution file. This directory should not be altered.  It will be deleted when the solution is uninstalled.
 
-`get_app_path()`: Returns the app path provided for the solution.
+`get_app_path()`: Returns the app path provided for the solution. It is empty by default and is supposed to be used to store any kind of application files during installation of a solution.  It will be deleted when the solution is uninstalled.
 
-`get_cache_path()`: Returns the cache path provided for the solution.
+`get_cache_path()`: Returns the cache path provided for the solution. It is empty by default and supposed to be used for any temporary files of a solution during installation or execution. It might be deleted at any time when the solution is not running.
 
-`in_target_environment()`: Returns `true` if the current python is the
-python from the solution target environment.
+`in_target_environment()`: Returns `true` if the current python is the python from the solution target environment.
 
-`get_args()`: Get the parsed argument from the solution call.
+`get_args()`: Get the parsed arguments from the solution call.
+
+Exemplary usage of solution API:
+
+```python
+from album.runner.api import setup
+
+def run():
+    from album.runner.api import get_args, get_data_path
+    from shutil import copy
+    # get input file from arguments
+    input_file = get_args().input
+    # create solution data directory if not exists
+    get_data_path().mkdir(parents=True, exist_ok=True)
+    # copy input file into solution data directory
+    file_copy = get_data_path().joinpath(input_file.name)
+    copy(input_file, file_copy)
+
+setup(
+    ...,
+    args=[{
+       "name": "input",
+       "type": "file",
+       "description": "input file path"
+    }],
+    run=run
+)
+```

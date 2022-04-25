@@ -98,7 +98,7 @@ class Album:
         Args:
             argv:
                 Arguments which should be appended to the script call
-            collection_solution:
+            solution_to_resolve:
                 The solution to remove
             rm_dep:
                 Boolean to indicate whether to remove parents too.

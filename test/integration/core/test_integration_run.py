@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import patch
 
 from album.core.utils.subcommand import SubProcessError
@@ -31,7 +32,6 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         with self.assertRaises(RuntimeError) as e:
             self.album_controller.run_manager().run(p)
 
-        # self.assertIn("ERROR", self.captured_output.getvalue())
         self.assertIn("the following arguments are required: --lambda_arg1", self.captured_output.getvalue())
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
@@ -44,26 +44,28 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         # gather arguments
         argv = ["", "--integer_arg1=5",
                 "--integer_arg2=5000",
+                "--file_arg1=aFile",
+                "--directory_arg1=aDirectory",
+                "--boolean_arg1=True",
                 "--string_arg1=MyChosenString",
                 "--lambda_arg1=myFile"]
 
         # run
         self.album_controller.run_manager().run(p, argv=argv)
 
+        print(self.captured_output.getvalue())
         self.assertNotIn('ERROR', self.captured_output.getvalue())
 
         log = self.captured_output.getvalue()
 
-        self.assertIn("integer_arg1", log)
-        self.assertIn("5", log)
-        self.assertIn("integer_arg2", log)
-        self.assertIn("5000", log)
-        self.assertIn("string_arg1", log)
-        self.assertIn("MyChosenString", log)
-        self.assertIn("lambda_arg1", log)
-        self.assertIn("MyChosenString", log)
-        self.assertIn("myFile.txt", log)
-        self.assertIn("None", log)
+        self.assertIn("integer_arg1: <class \'int\'> 5", log)
+        self.assertIn("integer_arg2: <class \'int\'> 5000", log)
+        self.assertIn("file_arg1: %s aFile" % str(type(Path())), log)
+        self.assertIn("directory_arg1: %s aDirectory" % str(type(Path())), log)
+        self.assertIn("boolean_arg1: <class 'bool'> True", log)
+        self.assertIn("string_arg1: <class \'str\'> MyChosenString", log)
+        self.assertIn("lambda_arg1: <class \'str\'> myFile.txt", log)
+        self.assertIn("lambda_arg2: <class \'NoneType\'> None", log)
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_with_group_name_version(self, get_environment_path):
@@ -197,7 +199,9 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
             self.assertEqual("solution3_noparent_run", log[16])
             self.assertEqual("solution3_noparent_close", log[17])
 
-    def test_run_throwing_error_solution(self):
+    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    def test_run_throwing_error_solution(self, get_environment_path):
+        get_environment_path.return_value = self.album_controller.environment_manager().get_conda_manager().get_active_environment_path()
         path = self.get_test_solution_path("solution15_album_running_faulty_solution.py")
         self.album_controller.install_manager().install(path)
 
@@ -214,4 +218,4 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         self.assertEqual(1, self.captured_output.getvalue().count('INFO ~~~ album in album: logging info'))
         self.assertIn('WARNING ~~~ album in album: logging warning', self.captured_output.getvalue())
         self.assertIn('ERROR ~~~ album in album: logging error', self.captured_output.getvalue())
-        self.assertIn('ERROR ~~~ RuntimeError: Error in run method', self.captured_output.getvalue())
+        self.assertIn('INFO ~~~ RuntimeError: Error in run method', self.captured_output.getvalue())
