@@ -1,7 +1,6 @@
 # Catalog management
 
-This page documents how to setup and use your own catalogs. We encourage folks who don't want to curate their own catalogs to 
-use our [capture-knowledge](https://gitlab.com/album-app/catalogs/capture-knowledge) catalog instead. 
+This page documents how to setup and use your own catalogs. 
 Please [contact us](/contributing) if you have questions!
 
 All instructions are command line calls based on the Unix syntax - Windows users have to use backslashes for local paths.
@@ -86,7 +85,7 @@ cd [catalog-dir]
 git push -u online main
 ```
 
-# How to track solution development \[within the catalog repository\]
+## How to track solution development \[within the catalog repository\]
 We recommend making a separate repository for developing your solutions, next to the catalog repository (see our [default](https://gitlab.com/album-app/catalogs/default) and [default-dev](https://gitlab.com/album-app/catalogs/default) repositories as an example - `default` is a catalog which was created via the `clone` command demonstrated below, `default-dev` does not have a fixed structure, it's just the source from where we deploy solutions into the catalog) 
 
 One can also add the source files of solutions to the catalog repository - here is an example:
