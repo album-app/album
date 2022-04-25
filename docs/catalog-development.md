@@ -86,19 +86,21 @@ cd [catalog-dir]
 git push -u online main
 ```
 
-# How to track solution development within the catalog repository
-Catalogs contain zipped representations of solutions - it's therefore not great for tracking the source files of the solutions with git. But one can easily add the source files of solutions to the catalog repository.
+# How to track solution development \[within the catalog repository\]
+We recommend making a separate repository for developing your solutions, next to the catalog repository (see our [default](https://gitlab.com/album-app/catalogs/default) and [default-dev](https://gitlab.com/album-app/catalogs/default) repositories as an example - `default` is a catalog which was created via the `clone` command demonstrated below, `default-dev` does not have a fixed structure, it's just the source from where we deploy solutions into the catalog) 
 
-Add your solution source files for example to `[catalog-clone-parent-dir]/[catalog-name]/src/`:
+One can also add the source files of solutions to the catalog repository - here is an example:
+
+Add your solution source files for example to `[catalog-dir]/src/`:
 ```
-[catalog-clone-parent-dir]/[catalog-name]/src/groupA/solution1/solution.py`
-[catalog-clone-parent-dir]/[catalog-name]/src/groupA/solution2/solution.py`
-[catalog-clone-parent-dir]/[catalog-name]/src/groupB/solution1/solution.py`
+[catalog-dir]/src/groupA/solution1/solution.py`
+[catalog-dir]/src/groupA/solution2/solution.py`
+[catalog-dir]/src/groupB/solution1/solution.py`
 ```
 Add them to the repository using the default git commands.
 This is how you would deploy these solutions into the catalog:
 ```
-album deploy [catalog-clone-parent-dir]/[catalog-name]/src/groupA/solution1 [catalog-name]
+album deploy [catalog-dir]/src/groupA/solution1 [catalog-name]
 ```
 
 ## How to create a catalog with a website representation
