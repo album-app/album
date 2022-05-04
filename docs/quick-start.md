@@ -35,7 +35,7 @@ See [usage instructions](/usage-instructions) for more details.
 |`album run [solution-identifier]`| Run a solution.|
 |`album test [solution-identifier]`| Test if a solution behaves on your system as expected.|
 
-| Write your own solutions |See [solution development guide](/solution-development) for more details.|
+| Write your own solutions |See [solution development guide](/solution-development) and [catalog development guide](/catalog-development) for more details.|
 |---|---|
 |`album clone [catalog-template-name] [parent-dir-of-new-catalog] [name-of-new-catalog]`| Creates a new catalog based on any template from [here](https://gitlab.com/album-app/catalogs/templates) into the provided directory with the provided new name.|
 |`album clone [solution-identifier] [parent-dir-of-new-solution] [name-of-new-solution]`| Copies a solution  into the provided directory with the provided new name.|

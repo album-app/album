@@ -1,7 +1,7 @@
 # Developing solutions
 
 ## Tips for writing solutions
-- We recommend making a separate repository for developing your solutions (see our [default](https://gitlab.com/album-app/catalogs/default) and [default-dev](https://gitlab.com/album-app/catalogs/default) repositories as an example - `default` can be created via the `clone` command demonstrated below, `default-dev` does not have a fixed structure, it's just the source from where we deploy solutions into the catalog) 
+- We recommend tracking the development of your solutions in a git repository - independent of optionally [deploying them to a catalog](/catalog-development) 
 - We recommend keeping solutions short - develop the tool or algorithm separately - the solution is just a thin wrapper describing how to use the tool or algorithm.
 - Use [semantic versioning](https://semver.org/), append `-SNAPSHOT` to your version if you are redeploying the same version repeatedly for test purposes 
 
