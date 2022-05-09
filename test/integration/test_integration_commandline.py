@@ -212,7 +212,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
         # run
         with self.assertRaises(SystemExit) as e:
             main()
-        self.assertEquals(1, e.exception.code.exit_status)
+        self.assertEquals(1, e.exception.code)
 
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
     def test_run_album_throwing_error_solution(self, get_environment_path):
@@ -226,7 +226,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
         with self.assertRaises(SystemExit) as e:
             main()
         print(self.captured_output.getvalue())
-        self.assertEqual(1, e.exception.code.exit_status)
+        self.assertEqual(1, e.exception.code)
         # print(self.captured_output.getvalue())
         self.assertIn('INFO ~ print something', self.captured_output.getvalue())
         self.assertIn('INFO ~ logging info', self.captured_output.getvalue())

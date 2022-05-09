@@ -340,7 +340,7 @@ class CondaManager:
         else:
             subprocess_args = [
                 self._conda_executable, 'run', '--no-capture-output', '--prefix',
-                os.path.normpath(environment_path), 'python',
+                os.path.normpath(environment_path), 'python', '-u',
                 os.path.normpath(script_full_path)
             ]
         subcommand.run(subprocess_args, pipe_output=pipe_output)
