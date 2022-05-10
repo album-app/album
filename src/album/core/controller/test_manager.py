@@ -20,8 +20,9 @@ class TestManager(ITestManager):
         resolve_result = self.album.collection_manager().resolve_installed_and_load(solution_to_resolve)
         solution = resolve_result.loaded_solution()
 
-        if solution.setup().pre_test and callable(solution.setup().pre_test) \
-                and solution.setup().test and callable(solution.setup().test):
+        if (solution.setup().pre_test and callable(solution.setup().pre_test)
+                and solution.setup().test and callable(solution.setup().test)) or \
+                (not solution.setup().pre_test and solution.setup().test and callable(solution.setup().test)):
             queue = Queue()
             script_test_creator = ScriptCreatorTest()
 
