@@ -73,7 +73,7 @@ def info(album_instance: Album, args):
 
 
 def run(album_instance: Album, args):
-    album_instance.run(str(args.path), argv=sys.argv, run_immediately=args.run_immediately)
+    album_instance.run(str(args.path), argv=sys.argv)
 
 
 def search(album_instance: Album, args):

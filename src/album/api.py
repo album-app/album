@@ -86,13 +86,13 @@ class Album:
         """
         return self._controller.search_manager().search(keywords)
 
-    def run(self, solution_to_resolve: str, argv=None, run_immediately=False):
-        return self._controller.run_manager().run(solution_to_resolve, run_immediately, argv)
+    def run(self, solution_to_resolve: str, argv=None, run_async=False):
+        return self._run_async(self._controller.run_manager().run, (solution_to_resolve, False, argv), run_async)
 
-    def install(self, solution_to_resolve: str, argv=None):
-        return self._controller.install_manager().install(solution_to_resolve, argv)
+    def install(self, solution_to_resolve: str, argv=None, run_async=False):
+        return self._run_async(self._controller.install_manager().install, (solution_to_resolve, argv), run_async)
 
-    def uninstall(self, solution_to_resolve: str, rm_dep=False, argv=None):
+    def uninstall(self, solution_to_resolve: str, rm_dep=False, argv=None, run_async=False):
         """Removes a solution from the disk. Thereby uninstalling its environment and deleting all its downloads.
 
         Args:
@@ -104,7 +104,7 @@ class Album:
                 Boolean to indicate whether to remove parents too.
 
         """
-        return self._controller.install_manager().uninstall(solution_to_resolve, rm_dep, argv)
+        return self._run_async(self._controller.install_manager().uninstall, (solution_to_resolve, rm_dep, argv), run_async)
 
     def deploy(self, deploy_path: str, catalog_name: str, dry_run: bool, push_option=None, git_email: str = None,
                git_name: str = None, force_deploy: bool = False, changelog: str = ""):
@@ -222,3 +222,9 @@ class Album:
 
     def load_catalog_index(self, catalog: ICatalog):
         return self._controller.migration_manager().load_index(catalog)
+
+    def _run_async(self, method, args, run_async=False):
+        if run_async:
+            return self._controller.task_manager().create_and_register_task(method, args)
+        else:
+            return method(*args)
