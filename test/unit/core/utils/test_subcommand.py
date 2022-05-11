@@ -1,17 +1,15 @@
-import io
+import logging
 import logging
 import os
-import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unittest
 from io import StringIO
-from logging import StreamHandler
-from unittest.mock import MagicMock
 
 from album.core.utils import subcommand
-from album.core.utils.subcommand import LogfileBuffer, SubProcessError, LogPipe
+from album.core.utils.subcommand import LogfileBuffer, SubProcessError
 from album.runner import album_logging
 from album.runner.album_logging import pop_active_logger, get_active_logger, get_active_logger_in_thread, \
     push_active_logger
@@ -23,101 +21,69 @@ class TestSubcommand(TestUnitCoreCommon):
         super().setUp()
 
     def test_run(self):
-        handler = StreamHandler()
-        info = MagicMock(return_value=None)
-        handler.handle = info
+        with self.assertLogs(self.logger, level='DEBUG') as cm:
+            # call
+            subcommand.run(["echo", "test"])
 
-        self.logger.addHandler(handler)
-        self.logger.setLevel("DEBUG")
-
-        # call
-        subcommand.run(["echo", "test"])
-
-        # assert
-        self.assertTrue(info.call_count > 1)
-        name1, args1, kwargs1 = info.mock_calls[0]
-        name2, args2, kwargs2 = info.mock_calls[1]
-        self.assertTrue("Running command: echo test...", args1[0].msg)
-        self.assertEqual("test", args2[0].msg)
+            sys.stdout.flush()
+            time.sleep(0.5)
+            print("")
+            # assert
+            self.assertTrue(len(cm.output) > 1)
+            self.assertTrue(cm.output[0].endswith("Running command: echo test..."))
+            self.assertTrue(cm.output[1].endswith("test"))
 
     def test_run_python(self):
-        handler = StreamHandler()
-        self.logger.addHandler(handler)
-        self.logger.setLevel("DEBUG")
-        info = MagicMock(return_value=None)
-        handler.handle = info
+        with self.assertLogs(self.logger, level='DEBUG') as cm:
+            fd, path = tempfile.mkstemp()
+            try:
+                with os.fdopen(fd, 'w') as tmp:
+                    tmp.write('print(\'nothing happening\')\n')
+                subcommand.run(["python", path])
+            finally:
+                os.remove(path)
 
-        fd, path = tempfile.mkstemp()
-        try:
-            with os.fdopen(fd, 'w') as tmp:
-                tmp.write('print(\'nothing happening\')\n')
-            subcommand.run(["python", path])
-        finally:
-            os.remove(path)
+            time.sleep(0.2)
 
-        self.assertTrue(info.call_count == 2)
-        name1, args1, kwargs1 = info.mock_calls[0]
-        name2, args2, kwargs2 = info.mock_calls[1]
-        self.assertTrue("Running command: python %s..." % path, args1[0].msg)
-        self.assertEqual("nothing happening", args2[0].msg)
+            self.assertEqual(2, len(cm.output))
+            self.assertTrue(cm.output[0].endswith("Running command: python %s..." % path))
+            self.assertTrue(cm.output[1].endswith("nothing happening"))
 
     def test_run_throw_error(self):
-        handler = StreamHandler()
-        self.logger.addHandler(handler)
-        self.logger.setLevel("DEBUG")
-        info = MagicMock(return_value=None)
-        handler.handle = info
 
-        fd, path = tempfile.mkstemp()
-        try:
-            with os.fdopen(fd, 'w') as tmp:
-                tmp.write('raise RuntimeError(\'this should not happen\')\n')
-            with self.assertRaises(SubProcessError):
-                subcommand.run(["python", path])
-        finally:
-            os.remove(path)
+        with self.assertLogs(self.logger, level='DEBUG') as cm:
+            fd, path = tempfile.mkstemp()
+            try:
+                with os.fdopen(fd, 'w') as tmp:
+                    tmp.write('raise RuntimeError(\'this should not happen\')\n')
+                with self.assertRaises(SubProcessError):
+                    subcommand.run(["python", path])
+            finally:
+                os.remove(path)
+                sys.stderr.flush()
+                sys.stdout.flush()
 
-        self.assertTrue(info.call_count == 5)
-        name1, args1, kwargs1 = info.mock_calls[0]
-        name2, args2, kwargs2 = info.mock_calls[1]
-        name6, args6, kwargs6 = info.mock_calls[4]
-        self.assertTrue("Running command: python %s..." % path, args1[0].msg)
-        self.assertIn("Traceback", args2[0].msg)
-        self.assertIn("RuntimeError: this should not happen", args6[0].msg)
+            time.sleep(0.2)
+            self.assertEqual(5, len(cm.output))
+            self.assertIn("Running command: python %s..." % path, cm.output[0])
+            self.assertIn("Traceback", cm.output[1])
+            self.assertIn("RuntimeError: this should not happen", cm.output[4])
 
     def test_run_print_to_stderr(self):
-        handler = StreamHandler()
-        self.logger.addHandler(handler)
-        self.logger.setLevel("DEBUG")
-        info = MagicMock(return_value=None)
-        handler.handle = info
+        with self.assertLogs(self.logger, level='DEBUG') as cm:
 
-        fd, path = tempfile.mkstemp()
-        try:
-            with os.fdopen(fd, 'w') as tmp:
-                tmp.write('import sys\nprint(\'this should not happen\', file = sys.stderr)\n')
-            subcommand.run(["python", path])
-        finally:
-            os.remove(path)
+            fd, path = tempfile.mkstemp()
+            try:
+                with os.fdopen(fd, 'w') as tmp:
+                    tmp.write('import sys\nprint(\'this should not happen\', file = sys.stderr)\n')
+                subcommand.run(["python", path])
+            finally:
+                os.remove(path)
 
-        self.assertTrue(info.call_count == 2)
-        name1, args1, kwargs1 = info.mock_calls[0]
-        name2, args2, kwargs2 = info.mock_calls[1]
-        self.assertTrue("Running command: python %s..." % path, args1[0].msg)
-        self.assertIn("this should not happen", args2[0].msg)
-
-    def test_run_iteratively_throw_error(self):
-        handler = StreamHandler()
-        self.logger.addHandler(handler)
-        self.logger.setLevel("DEBUG")
-        info = MagicMock(return_value=None)
-        handler.handle = info
-        subcommand.run(["echo", "test"])
-        self.assertTrue(info.call_count > 1)
-        name1, args1, kwargs1 = info.mock_calls[0]
-        name2, args2, kwargs2 = info.mock_calls[1]
-        self.assertTrue("Running command: echo test...", args1[0].msg)
-        self.assertEqual("test", args2[0].msg)
+            time.sleep(0.2)
+            self.assertEqual(2, len(cm.output))
+            self.assertTrue(cm.output[0].endswith("Running command: python %s..." % path))
+            self.assertTrue(cm.output[1].endswith("this should not happen"))
 
     def test_run_logging_from_thread(self):
         self.logger.setLevel("DEBUG")
@@ -128,26 +94,6 @@ class TestSubcommand(TestUnitCoreCommon):
     def _run_in_thread(self, parent_thread_id):
         album_logging.configure_logging("thread", parent_thread_id=parent_thread_id)
         self.test_run()
-
-
-class TestLogPipe(TestUnitCoreCommon):
-
-    def test_multiple_subprocess_pipe_calls(self):
-        # calling this repeatedly is catching potential bad file descriptor errors
-        self.log_subprocess()
-        self.log_subprocess()
-
-    def log_subprocess(self):
-        logpipe = LogPipe(io.StringIO())
-        logpipe2 = LogPipe(io.StringIO())
-        p = subprocess.Popen(
-            ['echo', 'bla'],
-            stdout=logpipe,
-            stderr=logpipe2
-        )
-        p.wait()
-        logpipe.close()
-        logpipe2.close()
 
 
 class TestLogfileBuffer(TestUnitCoreCommon):
@@ -195,6 +141,8 @@ class TestLogfileBuffer(TestUnitCoreCommon):
 
         logger1 = get_active_logger_in_thread(thread1.ident)
         logger2 = get_active_logger_in_thread(thread2.ident)
+
+        time.sleep(0.2)
 
         self.assertIsNotNone(logger1)
         self.assertIsNotNone(logger2)

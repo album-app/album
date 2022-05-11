@@ -1,9 +1,7 @@
 import io
-import os
 import re
 import subprocess
 import sys
-import threading
 from typing import Optional
 
 from album.runner import album_logging
@@ -136,6 +134,7 @@ class LogfileBuffer(io.StringIO):
     def _regex_log_level():
         return "DEBUG|INFO|WARNING|ERROR"
 
+
 class LogProcessing:
     def __init__(self, logger, log_output, message_formatter):
         if log_output:
@@ -177,7 +176,6 @@ def run(command, log_output=True, message_formatter=None, pipe_output=True):
             When exit-status of subprocess is not 0.
 
     """
-
     module_logger().debug('Running command: %s...' % " ".join(command))
 
     logger = album_logging.get_active_logger()
@@ -195,58 +193,21 @@ class SubProcessError(RuntimeError):
         super().__init__(message)
 
 
-class LogPipe(threading.Thread):
-    """derived from https://gist.github.com/alfredodeza/dcea71d5c0234c54d9b1"""
-
-    def __init__(self, logger):
-        """Setup the object with a logger and a loglevel
-        and start the thread
-        """
-        threading.Thread.__init__(self)
-        self.daemon = False
-        self.logger = logger
-        self.fdRead, self.fdWrite = os.pipe()
-        self.pipeReader = os.fdopen(self.fdRead)
-        self.process = None
-        self.start()
-
-    def fileno(self):
-        """Return the write file descriptor of the pipe
-        """
-        return self.fdWrite
-
-    def run(self):
-        """Run the thread, logging everything.
-        """
-        for line in iter(self.pipeReader.readline, ''):
-            self.logger.write(line.strip('\n'))
-
-        self.pipeReader.close()
-
-    def close(self):
-        """Close the write end of the pipe.
-        """
-        os.close(self.fdWrite)
-
-
 def _run_process(command, log: LogProcessing, pipe_output):
     if pipe_output:
-        stdout = log.info_logger
-        info_pipe = LogPipe(stdout)
-        p = subprocess.Popen(
-            command,
-            stdout=info_pipe,
-            stderr=subprocess.STDOUT,
-            bufsize=1,
-            universal_newlines=True
-        )
-        p.wait()
-        info_pipe.close()
+        process = subprocess.Popen(command, shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                   text=True)
+        while True:
+            output = process.stdout.readline()
+            if process.poll() is not None:
+                break
+            if output:
+                log.log_info(output.rstrip())
         sys.stdout.flush()
-        log.close()
-        if p.returncode != 0:
-            raise SubProcessError(1, p.returncode)
-        return 0
+        rc = process.poll()
+        if rc != 0:
+            raise SubProcessError(rc, "ERROR while running %s" % " ".join(command))
+        return rc
     else:
         return subprocess.run(command)
 

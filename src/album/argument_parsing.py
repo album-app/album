@@ -34,13 +34,16 @@ def _capture_output():
     logger.handlers.clear()
 
 
-def _handle_exception(e, silent: bool = False, exit_status=None):
-    # if not silent:
-    get_active_logger().error('album command failed: %s' % str(e))
-    get_active_logger().debug(traceback.format_exc())
-    sys.exit(e)
-    # else:
-    #     sys.exit(exit_status)
+def _handle_exception(e, silent: bool = False):
+    if not silent:
+        get_active_logger().error('album command failed: %s' % str(e))
+        get_active_logger().debug(traceback.format_exc())
+    if type(e) is int:
+        sys.exit(e)
+    elif hasattr(e, "exit_status"):
+        sys.exit(e.exit_status)
+    else:
+        sys.exit(e)
 
 
 def __run_subcommand(args, parser, level: LogLevel, print_json):
@@ -62,8 +65,11 @@ def __run_subcommand(args, parser, level: LogLevel, print_json):
 
     try:
         args[0].func(album_instance, args[0])  # execute entry point function
+    except KeyboardInterrupt as e:
+        get_active_logger().error("Album command canceled.")
+        sys.exit(1)
     except SubProcessError as e:
-        _handle_exception(e, silent=True, exit_status=e.exit_status)
+        _handle_exception(e, silent=True)
     except Exception as e:
         _handle_exception(e)
 
@@ -77,7 +83,11 @@ def create_parser():
     parser = AlbumParser()
     parser_creators = []
     for entry_point in pkg_resources.iter_entry_points('console_parsers_album'):
-        parser_creators.append(entry_point.load())
+        try:
+            parser_creators.append(entry_point.load())
+        except Exception as e:
+            get_active_logger().error("Cannot load console parser %s" % entry_point.name)
+            get_active_logger().debug(str(e))
     for parse_creator in parser_creators:
         parse_creator(parser)
     return parser.parser

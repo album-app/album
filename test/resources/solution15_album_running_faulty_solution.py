@@ -44,8 +44,7 @@ def get_solution_content():
     return '''from album.runner.api import setup
 from io import StringIO
 
-env_file = StringIO("""name: template-python
-channels:
+env_file = StringIO("""channels:
   - defaults
 dependencies:
   - python=3.7
