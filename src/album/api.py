@@ -106,7 +106,7 @@ class Album:
         """
         return self._run_async(self._controller.install_manager().uninstall, (solution_to_resolve, rm_dep, argv), run_async)
 
-    def deploy(self, deploy_path: str, catalog_name: str, dry_run: bool, push_option=None, git_email: str = None,
+    def deploy(self, deploy_path: str, catalog_name: str, dry_run: bool, push_options=None, git_email: str = None,
                git_name: str = None, force_deploy: bool = False, changelog: str = ""):
         """Function corresponding to the `deploy` subcommand of `album`.
 
@@ -125,7 +125,7 @@ class Album:
             dry_run:
                 When set, prepares deployment in local src of the catlog (creating zip, docker, yml),
                 but not adding to the catalog src.
-            push_option:
+            push_options:
                 Push options for the catalog repository.
             git_email:
                 The git email to use. (Default: systems git configuration)
@@ -139,14 +139,14 @@ class Album:
             deploy_path=deploy_path,
             catalog_name=catalog_name,
             dry_run=dry_run,
-            push_options=push_option,
+            push_options=push_options,
             git_email=git_email,
             git_name=git_name,
             force_deploy=force_deploy,
             changelog=changelog
         )
 
-    def undeploy(self, solution_to_resolve: str, catalog_name: str, dry_run: bool, push_option=None, git_email: str = None,
+    def undeploy(self, solution_to_resolve: str, catalog_name: str, dry_run: bool, push_options=None, git_email: str = None,
                  git_name: str = None):
         """Function corresponding to the `undeploy` subcommand of `album`.
 
@@ -160,7 +160,7 @@ class Album:
             dry_run:
                 When set, prepares undeploy in local src of the catalog,
                 but not actually removing it the catalog src.
-            push_option:
+            push_options:
                 Push options for the catalog repository.
             git_email:
                 The git email to use. (Default: systems git configuration)
@@ -172,7 +172,7 @@ class Album:
             solution_to_resolve=solution_to_resolve,
             catalog_name=catalog_name,
             dry_run=dry_run,
-            push_options=push_option,
+            push_options=push_options,
             git_email=git_email,
             git_name=git_name
         )
