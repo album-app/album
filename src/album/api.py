@@ -5,6 +5,8 @@ from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.api.model.configuration import IConfiguration
+from album.core.api.model.event import IEvent
+from album.core.api.model.task import ITask
 from album.core.controller.album_controller import AlbumController
 from album.core.utils.core_logging import configure_root_logger
 from album.runner.album_logging import pop_active_logger, LogLevel
@@ -223,6 +225,14 @@ class Album:
     def load_catalog_index(self, catalog: ICatalog):
         return self._controller.migration_manager().load_index(catalog)
 
+    def add_event_listener(self, event_name, callback, solution_id=None):
+        return self._controller.event_manager().add_listener(event_name, callback, solution_id)
+
+    def remove_event_listener(self, event_name, callback, solution_id=None):
+        return self._controller.event_manager().remove_listener(event_name, callback, solution_id)
+
+    def publish_event(self, event: IEvent):
+        return self._controller.event_manager().publish(event)
 
     def get_task_status(self, task_id) -> ITask.Status:
         """Get the status of a task managed by the task manager."""

@@ -6,6 +6,7 @@ from album.core.api.controller.collection.collection_manager import ICollectionM
 from album.core.api.controller.collection.solution_handler import ISolutionHandler
 from album.core.api.controller.deploy_manager import IDeployManager
 from album.core.api.controller.environment_manager import IEnvironmentManager
+from album.core.api.controller.event_manager import IEventManager
 from album.core.api.controller.install_manager import IInstallManager
 from album.core.api.controller.migration_manager import IMigrationManager
 from album.core.api.controller.run_manager import IRunManager
@@ -75,7 +76,14 @@ class IAlbumController:
     def collection_manager(self) -> ICollectionManager:
         raise NotImplementedError
 
+    @abstractmethod
+    def event_manager(self) -> IEventManager:
+        raise NotImplementedError
 
     @abstractmethod
     def task_manager(self) -> ITaskManager:
+        raise NotImplementedError
+
+    @abstractmethod
+    def close(self):
         raise NotImplementedError

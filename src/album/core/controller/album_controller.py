@@ -5,6 +5,7 @@ from album.core.api.controller.collection.catalog_handler import ICatalogHandler
 from album.core.api.controller.collection.solution_handler import ISolutionHandler
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.environment_manager import IEnvironmentManager
+from album.core.api.controller.event_manager import IEventManager
 from album.core.api.controller.migration_manager import IMigrationManager
 from album.core.api.controller.script_manager import IScriptManager
 from album.core.api.controller.task_manager import ITaskManager
@@ -13,6 +14,7 @@ from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.deploy_manager import DeployManager
 from album.core.controller.environment_manager import EnvironmentManager
+from album.core.controller.event_manager import EventManager
 from album.core.controller.install_manager import InstallManager
 from album.core.controller.migration_manager import MigrationManager
 from album.core.controller.run_manager import RunManager
@@ -38,6 +40,7 @@ class AlbumController(IAlbumController):
         self._environment_manager = None
         self._state_manager = None
         self._script_manager = None
+        self._event_manager = None
         self._task_manager = None
         self._configuration = None
 
@@ -107,6 +110,11 @@ class AlbumController(IAlbumController):
         if not self._collection_manager:
             self._collection_manager = CollectionManager(self)
         return self._collection_manager
+
+    def event_manager(self) -> IEventManager:
+        if not self._event_manager:
+            self._event_manager = EventManager()
+        return self._event_manager
 
     def task_manager(self) -> ITaskManager:
         if not self._task_manager:
