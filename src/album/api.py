@@ -1,6 +1,7 @@
 import pathlib
 from typing import Optional, Union
 
+from album.core.api.controller.controller import IAlbumController
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
 from album.core.api.model.collection_solution import ICollectionSolution
@@ -38,17 +39,17 @@ class Album:
             return self
 
         def build(self) -> 'Album':
-            return Album(self)
+            _controller = AlbumController(self._base_cache_path)
+            configure_root_logger(
+                log_format=self._log_format,
+                log_format_time=self._log_format_time,
+                log_level=self._log_level
+            )
+            return Album(_controller, logger_pushed=True)
 
-    def __init__(self, builder: 'Album.Builder') -> None:
-        self._options = builder
-        self._controller = AlbumController(self._options._base_cache_path)
-        self.logger_pushed = True
-        configure_root_logger(
-            log_format=self._options._log_format,
-            log_format_time=self._options._log_format_time,
-            log_level=self._options._log_level
-        )
+    def __init__(self, album_controller: IAlbumController, logger_pushed = False) -> None:
+        self._controller = album_controller
+        self.logger_pushed = logger_pushed
 
     def __del__(self):
         self.close()
