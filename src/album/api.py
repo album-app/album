@@ -223,6 +223,20 @@ class Album:
     def load_catalog_index(self, catalog: ICatalog):
         return self._controller.migration_manager().load_index(catalog)
 
+
+    def get_task_status(self, task_id) -> ITask.Status:
+        """Get the status of a task managed by the task manager."""
+        task = self._controller.task_manager().get_task(task_id)
+        if task is None:
+            raise LookupError("Task with id %s not found." % task_id)
+        return self._controller.task_manager().get_status(task)
+
+    def create_and_register_task(self, method, args) -> str:
+        return self._controller.task_manager().create_and_register_task(method, args)
+
+    def finish_tasks(self):
+        return self._controller.task_manager().finish_tasks()
+
     def _run_async(self, method, args, run_async=False):
         if run_async:
             return self._controller.task_manager().create_and_register_task(method, args)

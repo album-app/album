@@ -12,6 +12,7 @@ from album.core.api.controller.run_manager import IRunManager
 from album.core.api.controller.script_manager import IScriptManager
 from album.core.api.controller.search_manager import ISearchManager
 from album.core.api.controller.state_manager import IStateManager
+from album.core.api.controller.task_manager import ITaskManager
 from album.core.api.controller.test_manager import ITestManager
 from album.core.api.model.configuration import IConfiguration
 
@@ -72,4 +73,9 @@ class IAlbumController:
 
     @abstractmethod
     def collection_manager(self) -> ICollectionManager:
+        raise NotImplementedError
+
+
+    @abstractmethod
+    def task_manager(self) -> ITaskManager:
         raise NotImplementedError
