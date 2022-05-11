@@ -4,7 +4,7 @@ from threading import Thread
 
 from album.core.api.controller.task_manager import ITaskManager
 from album.core.api.model.task import ITask
-from album.core.model.task import LogHandler
+from album.core.model.task import LogHandler, Task
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
@@ -63,7 +63,11 @@ class TaskManager(ITaskManager):
         # while self.server.task_manager.server_queue.unfinished_tasks and time() < stop:
         #     sleep(1)
 
-    def register_task(self, task: ITask):
+    def create_and_register_task(self, method, args) -> str:
+        task = Task(method, args)
+        return self.register_task(task)
+
+    def register_task(self, task: ITask) -> str:
         if not self.workers_initialized:
             self._initialize_workers()
         task.set_id(str(self.task_count))
