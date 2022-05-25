@@ -74,6 +74,10 @@ class DefaultValues(Enum):
     conda_default_executable = "conda"                                    # default conda executable
     conda_path = os.getenv('ALBUM_CONDA_PATH', conda_default_executable)  # default conda path, either env. var or conda
 
+    # events
+    before_run_event_name = 'before-run'
+    after_run_event_name = 'after-run'
+
     # server
     server_port = 5476              # default port used to launch server
     server_host = "127.0.0.1"       # default host used to launch server. Set to 0.0.0.0 when used in docker

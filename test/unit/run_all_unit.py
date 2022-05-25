@@ -5,6 +5,7 @@ from test.unit import test_argument_parsing
 from test.unit.ci import test_ci_argument_parsing, test_ci_commandline
 from test.unit.ci.controller import test_release_manager, test_zenodo_manager
 from test.unit.ci.utils import test_continuous_integration
+from test.unit.core.controller import test_event_manager
 from test.unit.core.controller import test_mamba_manager
 from test.unit.core.controller import test_script_manager
 from test.unit.core.controller import test_search_manager, test_install_manager, test_run_manager, test_deploy_manager, \
@@ -46,6 +47,7 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_task_manager))
     suite.addTests(loader.loadTestsFromModule(test_test_manager))
     suite.addTests(loader.loadTestsFromModule(test_script_manager))
+    suite.addTests(loader.loadTestsFromModule(test_event_manager))
 
     # album.core.model
     suite.addTests(loader.loadTestsFromModule(test_catalog))

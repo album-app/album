@@ -26,7 +26,7 @@ class ITask:
         FAILED = 3
 
     @abstractmethod
-    def id(self):
+    def id(self) -> str:
         raise NotImplementedError
 
     @abstractmethod
@@ -54,5 +54,5 @@ class ITask:
         raise NotImplementedError
 
     @abstractmethod
-    def set_id(self, task_id):
+    def set_id(self, task_id: str):
         raise NotImplementedError

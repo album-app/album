@@ -20,7 +20,11 @@ class ITaskManager:
         raise NotImplementedError
 
     @abstractmethod
-    def register_task(self, task: ITask):
+    def create_and_register_task(self, method, args) -> str:
+        raise NotImplementedError
+
+    @abstractmethod
+    def register_task(self, task: ITask) -> str:
         raise NotImplementedError
 
     @abstractmethod

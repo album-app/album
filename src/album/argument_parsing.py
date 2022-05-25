@@ -268,14 +268,7 @@ def create_repl_parser(parser):
 
 
 def create_run_parser(parser):
-    p = parser.create_file_command_parser('run', run, 'run an album solution.')
-    p.add_argument(
-        '--run-immediately',
-        required=False,
-        help='When the solution to run consists of several steps, indicates whether to immediately run '
-             'a step or to wait for all steps to be prepared to run.',
-        default=False,
-        action='store_true')
+    parser.create_file_command_parser('run', run, 'run an album solution.')
 
 
 def create_search_parser(parser):

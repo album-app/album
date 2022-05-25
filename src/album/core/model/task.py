@@ -22,6 +22,11 @@ class Task(ITask):
     _log_handler: LogHandler = None
     _status: ITask.Status = None
 
+    def __init__(self, method=None, args=None):
+        self._method = method
+        if args:
+            self._args = args
+
     def id(self):
         return self._id
 

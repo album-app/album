@@ -92,9 +92,33 @@
                 },
                 "environment_file": {
                     "title": "environment_file"
+                },
+                "plugins": {
+                    "items": {
+                        "$ref": "#/definitions/Plugin"
+                    },
+                    "title": "plugins",
+                    "type": "array"
                 }
             },
             "required": [],
+            "type": "object"
+        },
+        "Plugin": {
+            "additionalProperties": false,
+            "properties": {
+                "id": {
+                    "title": "id",
+                    "type": "string"
+                },
+                "args": {
+                    "title": "args",
+                    "type": "object"
+                }
+            },
+            "required": [
+                "id"
+            ],
             "type": "object"
         },
         "Citation": {
