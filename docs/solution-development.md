@@ -34,17 +34,16 @@ from album.runner.api import setup
 
 
 setup(
-   group="my-group-name",
-   name="my-solution-name",
-   version="0.1.0-SNAPSHOT",
-    album_api_version="0.5.1"
+    group="my-group-name",
+    name="my-solution-name",
+    version="0.1.0-SNAPSHOT",
+    album_api_version="0.5.1",
 )
 ```
 
 Make solutions reproducible by adding a conda environment specification using fixed versioning:
 ```python
 from album.runner.api import setup
-from io import StringIO
 
 
 env_file = """channels:
@@ -60,7 +59,7 @@ setup(
     name="my-solution-name",
     version="0.1.0-SNAPSHOT",
     album_api_version="0.5.1",
-    dependencies={"environment_file": env_file}
+    dependencies={"environment_file": env_file},
 )
 ```
 
@@ -77,39 +76,41 @@ setup(
     title="The title of this solution",
     description="A description of what this solution is doing.",
     solution_creators=["My name", "My coworkers name"],
-    cite=[{
-       "text": "My citation text",
-       "doi": "my.citation.doi",
-       "url": "my://citation.url"
-    }],
+    cite=[
+        {
+            "text": "My citation text",
+            "doi": "my.citation.doi",
+            "url": "my://citation.url",
+        }
+    ],
     tags=["dummy", "python"],
     license="MIT",
     documentation=["documentation.md"],
-    covers=[{
-       "description": "Dummy cover image.",
-       "source": "cover.png"
-    }]
+    covers=[{"description": "Dummy cover image.", "source": "cover.png"}],
 )
+
 ```
 
 Add custom install / uninstall methods (they will be called from the solution environment):
 ```python
 from album.runner.api import setup
 
+
 def install():
     print("installing..")
+
 
 def uninstall():
     print("uninstalling..")
 
 
 setup(
-   group="my-group-name",
-   name="my-solution-name",
-   version="0.1.0-SNAPSHOT",
-   album_api_version="0.5.1",
-   install=install,
-   uninstall=uninstall
+    group="my-group-name",
+    name="my-solution-name",
+    version="0.1.0-SNAPSHOT",
+    album_api_version="0.5.1",
+    install=install,
+    uninstall=uninstall,
 )
 ```
 
@@ -117,8 +118,10 @@ Make solutions accessible by adding arguments:
 ```python
 from album.runner.api import setup
 
+
 def run():
     from album.runner.api import get_args
+
     args = get_args()
     print("Hi " + args.name + ", nice to meet you!")
 
@@ -128,12 +131,14 @@ setup(
     name="my-solution-name",
     version="0.1.0-SNAPSHOT",
     album_api_version="0.5.1",
-    args=[{
-        "name": "name",
-        "type": "string",
-        "default": "Bugs Bunny",
-        "description": "How to you want to be addressed?"
-    }],
+    args=[
+        {
+            "name": "name",
+            "type": "string",
+            "default": "Bugs Bunny",
+            "description": "How to you want to be addressed?",
+        }
+    ],
     run=run
 )
 ```
@@ -145,16 +150,21 @@ from album.runner.api import setup
 
 def run():
     from album.runner.api import get_args
+
     with open(get_args().file, "a") as file:
         file.write("RUNNING\n")
 
+
 def prepare_test():
     import tempfile
+
     file = tempfile.NamedTemporaryFile(delete=False, mode="w+")
     return {"--file": file.name}
 
+
 def test():
     from album.runner.api import get_args
+
     with open(get_args().file, "r") as file:
         file_content = file.readlines()
     assert ["RUNNING\n"] == file_content
@@ -165,13 +175,10 @@ setup(
     name="my-solution-name",
     version="0.1.0-SNAPSHOT",
     album_api_version="0.5.1",
-    args=[{
-       "name": "file",
-       "description": "input text file path"
-    }],
+    args=[{"name": "file", "description": "input text file path"}],
     run=run,
     pre_test=prepare_test,
-    test=test
+    test=test,
 )
 ```
 
@@ -184,18 +191,19 @@ from album.runner.api import setup
 
 
 setup(
-   group="my-group-name",
-   name="my-child-solution-name",
-   version="0.1.0-SNAPSHOT",
-   album_api_version="0.5.1",
-   dependencies={
-      "parent": {
-         "group": "album",
-         "name": "template-python",
-         "version": "0.1.0"
-      }
-   }
+    group="my-group-name",
+    name="my-child-solution-name",
+    version="0.1.0-SNAPSHOT",
+    album_api_version="0.5.1",
+    dependencies={
+        "parent": {
+            "group": "album",
+            "name": "template-python",
+            "version": "0.1.0"
+        }
+    }
 )
+
 ```
 
 ## Testing your solution
@@ -229,6 +237,7 @@ Executable method parameters point to a method like this:
 ```python
 def my_run_method():
     print("I'm running")
+
 
 setup(
     ...,
@@ -296,13 +305,16 @@ def run():
     file_copy = get_data_path().joinpath(input_file.name)
     copy(input_file, file_copy)
 
+
 setup(
     ...,
-    args=[{
-       "name": "input",
-       "type": "file",
-       "description": "input file path"
-    }],
+    args=[
+        {
+            "name": "input",
+            "type": "file",
+            "description": "input file path"
+        }
+    ],
     run=run
 )
 ```
