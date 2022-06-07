@@ -37,7 +37,7 @@ setup(
    group="my-group-name",
    name="my-solution-name",
    version="0.1.0-SNAPSHOT",
-    album_api_version="0.4.1"
+    album_api_version="0.4.2"
 )
 ```
 
@@ -59,7 +59,7 @@ setup(
     group="my-group-name",
     name="my-solution-name",
     version="0.1.0-SNAPSHOT",
-    album_api_version="0.4.1",
+    album_api_version="0.4.2",
     dependencies={"environment_file": env_file}
 )
 ```
@@ -73,7 +73,7 @@ setup(
     group="my-group-name",
     name="my-solution-name",
     version="0.1.0-SNAPSHOT",
-    album_api_version="0.4.1",
+    album_api_version="0.4.2",
     title="The title of this solution",
     description="A description of what this solution is doing.",
     authors=["My name", "My coworkers name"],
@@ -107,7 +107,7 @@ setup(
    group="my-group-name",
    name="my-solution-name",
    version="0.1.0-SNAPSHOT",
-   album_api_version="0.4.1",
+   album_api_version="0.4.2",
    install=install,
    uninstall=uninstall
 )
@@ -127,7 +127,7 @@ setup(
     group="my-group-name",
     name="my-solution-name",
     version="0.1.0-SNAPSHOT",
-    album_api_version="0.4.1",
+    album_api_version="0.4.2",
     args=[{
         "name": "name",
         "type": "string",
@@ -164,7 +164,7 @@ setup(
     group="my-group-name",
     name="my-solution-name",
     version="0.1.0-SNAPSHOT",
-    album_api_version="0.4.1",
+    album_api_version="0.4.2",
     args=[{
        "name": "file",
        "description": "input text file path"
@@ -187,7 +187,7 @@ setup(
    group="my-group-name",
    name="my-child-solution-name",
    version="0.1.0-SNAPSHOT",
-   album_api_version="0.4.1",
+   album_api_version="0.4.2",
    dependencies={
       "parent": {
          "group": "album",
