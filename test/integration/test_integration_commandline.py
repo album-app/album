@@ -18,6 +18,15 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
         super().tearDown()
 
     @patch('album.api.Album.load_or_create_collection')
+    def test_mismatching_args(self, load_or_create_mock):
+        sys.argv = ["", "--versn"]
+        with self.assertRaises(SystemExit) as e:
+            main()
+        self.assertEqual(SystemExit(1).code, e.exception.code)
+        self.assertIn('Invalid argument(s): [\'--versn\']', self.captured_output.getvalue())
+        load_or_create_mock.assert_not_called()
+
+    @patch('album.api.Album.load_or_create_collection')
     @patch('album.core.controller.run_manager.RunManager.run')
     def test_run(self, run_mock, load_or_create_mock):
         sys.argv = ["", "run", "testpath"]

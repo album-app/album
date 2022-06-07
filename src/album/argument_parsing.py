@@ -18,15 +18,15 @@ def main():
     parser = create_parser()
 
     get_active_logger().debug('Parsing base album call arguments...')
-    args = parser.parse_known_args()
-    __handle_args(args, parser)
+    namespace, args = parser.parse_known_args()
+    __handle_args(namespace, args, parser)
 
 
-def __handle_args(args, parser):
+def __handle_args(namespace, args, parser):
     """Handles all arguments provided after the album command."""
-    level = args[0].log
-    print_json = getattr(args[0], "json", False)
-    __run_subcommand(args, parser, level, print_json)
+    level = namespace.log
+    print_json = getattr(namespace, "json", False)
+    __run_subcommand(namespace, args, parser, level, print_json)
 
 
 def _capture_output():
@@ -46,7 +46,7 @@ def _handle_exception(e, silent: bool = False):
         sys.exit(e)
 
 
-def __run_subcommand(args, parser, level: LogLevel, print_json):
+def __run_subcommand(namespace, args, parser, level: LogLevel, print_json):
     """Calls a specific album subcommand."""
     album_command = ""
     try:
@@ -54,18 +54,22 @@ def __run_subcommand(args, parser, level: LogLevel, print_json):
     except IndexError:
         parser.error("Please provide a valid action!")
     get_active_logger().debug("Running %s subcommand..." % album_command)
-    sys.argv = [sys.argv[0]] + args[1]
+    sys.argv = [sys.argv[0]] + args
 
     # Makes sure album is initialized.
     album_instance = create_album_instance(level)
     if print_json:
         _capture_output()
     get_active_logger().info("album version %s | contact via %s " % (core.__version__, core.__email__))
-    album_instance.load_or_create_collection()
 
     try:
-        args[0].func(album_instance, args[0])  # execute entry point function
-    except KeyboardInterrupt as e:
+        if hasattr(namespace, 'func'):
+            album_instance.load_or_create_collection()
+            namespace.func(album_instance, namespace)  # execute entry point function
+        else:
+            get_active_logger().error("Invalid argument(s): %s" % args)
+            sys.exit(1)
+    except KeyboardInterrupt:
         get_active_logger().error("Album command canceled.")
         sys.exit(1)
     except SubProcessError as e:
