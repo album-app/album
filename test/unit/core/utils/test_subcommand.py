@@ -20,7 +20,7 @@ class TestSubcommand(TestUnitCoreCommon):
     def setUp(self):
         super().setUp()
 
-    @unittest.skipIf(sys.platform == 'darwin', "FIXME Logs missing on MacOS")
+    @unittest.skip("Fixme!")
     def test_run(self):
         with self.assertLogs(self.logger, level='DEBUG') as cm:
             # call
