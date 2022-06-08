@@ -1,5 +1,4 @@
 import logging
-import logging
 import os
 import sys
 import tempfile
@@ -86,7 +85,7 @@ class TestSubcommand(TestUnitCoreCommon):
             self.assertTrue(cm.output[0].endswith("Running command: python %s..." % path))
             self.assertTrue(cm.output[1].endswith("this should not happen"))
 
-    @unittest.skipIf(sys.platform == 'darwin', "FIXME Logs missing on MacOS")
+    @unittest.skip("Fixme!")
     def test_run_logging_from_thread(self):
         self.logger.setLevel("DEBUG")
         thread = threading.Thread(target=self._run_in_thread, args=(threading.current_thread().ident,))
