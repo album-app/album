@@ -242,6 +242,7 @@ def prepare_path(path, tmp_cache_dir):
     """
     p = Path(path)
     if p.exists():
+        # copying to tmp-dir necessary for cloning
         target_folder = tmp_cache_dir.joinpath(rand_folder_name())
         if p.is_file():  # zip or file
             if check_zip(p):  # zip file

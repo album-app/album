@@ -7,9 +7,9 @@ from git import Repo
 from album.core.api.controller.clone_manager import ICloneManager
 from album.core.api.controller.controller import IAlbumController
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations import url_operations, file_operations
+from album.core.utils.operations import url_operations
 from album.core.utils.operations.file_operations import create_path_recursively, get_dict_from_json, \
-    list_files_recursively, force_remove
+    list_files_recursively, force_remove, copy_folder, unzip_archive
 from album.core.utils.operations.git_operations import create_bare_repository, clone_repository, \
     add_files_commit_and_push, checkout_main
 from album.runner import album_logging
@@ -36,10 +36,9 @@ class CloneManager(ICloneManager):
         """Copies a solution (by resolving and downloading) to a given target path."""
         resolve_result = self.album.collection_manager().resolve(path)
 
-        target_path_solution = target_path.joinpath(DefaultValues.solution_default_name.value)
-        file_operations.copy(resolve_result.path(), target_path_solution)
+        copy_folder(resolve_result.path().parent, target_path, copy_root_folder=False)
 
-        module_logger().info('Copied solution %s to %s!' % (resolve_result.path(), target_path_solution))
+        module_logger().info('Copied solution %s to %s!' % (resolve_result.path(), target_path))
 
     def _clone_catalog_template(self, template_name, target_path, catalog_name, git_email: str = None,
                                 git_name: str = None):
@@ -48,14 +47,13 @@ class CloneManager(ICloneManager):
             DefaultValues.catalog_template_url.value, template_name, template_name
         )
         if url_operations.is_downloadable(template_url):
-
             download_zip_target = self.album.configuration().cache_path_download().joinpath(template_name + ".zip")
             download_unzip_target = self.album.configuration().cache_path_download().joinpath(template_name)
 
             url_operations.download_resource(template_url, download_zip_target)
             module_logger().debug('Downloaded template from %s to %s!' % (template_url, download_zip_target))
 
-            file_operations.unzip_archive(download_zip_target, download_unzip_target)
+            unzip_archive(download_zip_target, download_unzip_target)
             download_unzip_target_subdir = download_unzip_target.joinpath(f"{template_name}-main")
 
             self.setup_repository_from_template(target_path, download_unzip_target_subdir, catalog_name, git_email,
@@ -91,7 +89,7 @@ class CloneManager(ICloneManager):
     def _copy_template_into_repository(self, repo: Repo, template_folder, catalog_name: str, email=None, username=None):
         head = checkout_main(repo)
 
-        file_operations.copy_folder(
+        copy_folder(
             template_folder, repo.working_tree_dir, copy_root_folder=False
         )
 
@@ -108,7 +106,6 @@ class CloneManager(ICloneManager):
             email=email,
             username=username
         )
-
 
     @staticmethod
     def _get_catalog_type_from_template(template_base_path):
