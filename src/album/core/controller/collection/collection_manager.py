@@ -22,8 +22,6 @@ from album.runner.core.api.model.coordinates import ICoordinates
 module_logger = album_logging.get_active_logger
 
 
-
-
 class CollectionManager(ICollectionManager):
 
     def __init__(self, album: IAlbumController):
@@ -32,6 +30,7 @@ class CollectionManager(ICollectionManager):
         self.catalog_handler = CatalogHandler(self.album)
         self.catalog_collection: Optional[ICollectionIndex] = None
         self.collection_loaded = False
+
     def __del__(self):
         self.close()
 
@@ -166,7 +165,7 @@ class CollectionManager(ICollectionManager):
 
     def _resolve(self, str_input: str) -> ICollectionSolution:
 
-        str_input= str(str_input)
+        str_input = str(str_input)
 
         # always first resolve outside any catalog, excluding a DOI which should be first resolved inside a catalog
         path = check_file_or_url(str_input, self.album.configuration().cache_path_download())
@@ -198,7 +197,7 @@ class CollectionManager(ICollectionManager):
                     raise LookupError(
                         "Cannot find solution %s! Try <doi>:<prefix>/<suffix> or <prefix>/<suffix> "
                         "or <group>:<name>:<version> or <catalog>:<group>:<name>:<version> "
-                        "or point to a valid file! Aborting..." % str_input)
+                        "or point to a valid file or folder! Aborting..." % str_input)
 
                 catalog = self.album.catalogs().get_by_id(solution_entry.internal()["catalog_id"])
                 path = self.solution_handler.get_solution_file(catalog, dict_to_coordinates(solution_entry.setup()))
