@@ -435,17 +435,18 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         self.catalog = Catalog(self.catalog.catalog_id(), self.catalog.name(), self.catalog.path(),
                                "http://NonsenseUrl.git")
         self.catalog.is_cache = MagicMock(return_value=False)
-
-        # call & assert
+        get_solution_package_path = MagicMock(return_value=Path("somewhere"))
+        self.solution_handler.get_solution_package_path = get_solution_package_path
         coordinates = Coordinates("g", "n", "v")
+
+        # call
         solution_path = self.solution_handler.retrieve_solution(self.catalog, coordinates)
 
         # assert
-        res_pck = self.solution_handler.get_solution_package_path(self.catalog, coordinates)
-        res = res_pck.joinpath(DefaultValues.solution_default_name.value)
+        res = get_solution_package_path.return_value.joinpath(DefaultValues.solution_default_name.value)
         self.assertEqual(res.resolve(), solution_path.resolve())
 
-        dl_mock.assert_called_once_with("http://NonsenseUrl.git", coordinates, res_pck)
+        dl_mock.assert_called_once_with("http://NonsenseUrl.git", coordinates, get_solution_package_path.return_value)
 
     def test_set_cache_paths(self):
         config = self.album_controller.configuration()

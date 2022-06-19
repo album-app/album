@@ -10,7 +10,6 @@ import tempfile
 import zipfile
 from pathlib import Path
 from typing import Optional
-from zipfile import ZipFile
 
 import yaml
 
@@ -19,6 +18,7 @@ from album.runner import album_logging
 module_logger = album_logging.get_active_logger
 enc = sys.getfilesystemencoding()
 
+win_shell = None
 
 def get_dict_from_yml(yml_file):
     """Reads a dictionary from a file in yml format."""
@@ -328,22 +328,17 @@ def construct_cache_link_target(point_to_base: Path, point_from, point_to, creat
     root = point_to_base.joinpath(point_to)
 
     if 'windows' in operation_system:
-        # pylnk3 is windows only
-        from pylnk3 import Lnk, for_file
         point_from = str(point_from) + '.lnk'
-        if Path(point_from).exists():
-            resolve = Path(Lnk(point_from).path).absolute()
-            return resolve
+        shortcut = Path(point_from)
+        if shortcut.exists():
+            return _get_shortcut_target(shortcut)
         if create:
             point_to = root.joinpath(_next_free_pointer_number(root))
 
             create_path_recursively(point_to)
-            create_path_recursively(Path(point_from).parent)
+            create_path_recursively(shortcut.parent)
 
-            for_file(
-                target_file=os.path.normpath(str(point_to)),
-                lnk_name=point_from
-            )
+            _create_shortcut(shortcut, target=point_to)
             resolve = point_to.absolute()
             return resolve
     else:
@@ -375,12 +370,39 @@ def get_link_target(link: Path):
     operation_system = platform.system().lower()
     if 'windows' in operation_system:
         # pylnk3 is windows only
-        from pylnk3 import Lnk, for_file
         link = str(link) + '.lnk'
-        if Path(link).exists():
-            resolve = Path(Lnk(link).path).absolute()
-            return resolve
+        shortcut = Path(link)
+        if shortcut.exists():
+            return _get_shortcut_target(shortcut)
     else:
         if Path(link).exists():
             return Path(link).resolve()
     return None
+
+
+def _create_shortcut(shortcut_path, target):
+    shortcut_path = Path(shortcut_path)
+    if not shortcut_path.parent.exists():
+        shortcut_path.parent.mkdir(parents=True, exist_ok=True)
+    sh = _get_global_win_shell()
+    wscript = sh.CreateShortCut(str(shortcut_path.absolute()))
+    wscript.TargetPath = str(Path(target).absolute())
+    wscript.save()
+
+
+def _get_shortcut_target(shortcut_path):
+    shortcut_path = Path(shortcut_path)
+    if not shortcut_path.parent.exists():
+        raise LookupError("Shortcut %s doesn't exist." % shortcut_path)
+
+    sh = _get_global_win_shell()
+    wscript = sh.CreateShortCut(str(shortcut_path.absolute()))
+    return Path(wscript.TargetPath)
+
+
+def _get_global_win_shell():
+    global win_shell
+    import win32com.client
+    if win_shell is None:
+        win_shell = win32com.client.Dispatch("Wscript.Shell")
+    return win_shell

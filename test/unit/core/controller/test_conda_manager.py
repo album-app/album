@@ -9,6 +9,7 @@ import yaml
 
 from album.core.controller.conda_manager import CondaManager
 from album.core.model.environment import Environment
+from album.core.utils.operations.file_operations import _create_shortcut
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
@@ -41,19 +42,15 @@ class TestCondaManager(TestUnitCoreCommon):
     @patch('album.core.controller.conda_manager.CondaManager.get_environment_list')
     def test_environment_exists(self, ged_mock):
         p = str(self.conda._configuration.environments_path().joinpath("envName1"))
-        target = self.conda._configuration.lnk_path().joinpath('0').resolve()
+        target = self.conda._configuration.lnk_path().joinpath('0')
         Path(target).joinpath('whatever').mkdir(parents=True)
         operation_system = platform.system().lower()
         if 'windows' in operation_system:
-            from pylnk3 import for_file
-            for_file(
-                target_file=str(target),
-                lnk_name=p+'.lnk'
-            )
+            _create_shortcut(p+'.lnk',  target)
         else:
-            os.symlink(target, p)
+            os.symlink(target.resolve(), p)
 
-        ged_mock.return_value = [target]
+        ged_mock.return_value = [target.resolve()]
 
         self.assertTrue(self.conda.environment_exists("envName1"))
         self.assertFalse(self.conda.environment_exists("notExitendEnvs"))
