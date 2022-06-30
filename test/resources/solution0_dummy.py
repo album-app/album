@@ -28,6 +28,7 @@ setup(
             "name": "testArg1",
             "description": "testArg1Description",
             "type": "string",
+            "default": "defaultValue",
         }
     ],
     run=album_run,

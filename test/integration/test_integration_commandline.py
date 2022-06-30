@@ -172,7 +172,8 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
                 {
                     'name': 'testArg1',
                     'description': 'testArg1Description',
-                    'type': 'string'
+                    'type': 'string',
+                    'default': 'defaultValue',
                 }
             ]
         }, json.loads(stdout_content.getvalue()))

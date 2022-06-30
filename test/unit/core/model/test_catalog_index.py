@@ -131,7 +131,7 @@ class TestCatalogIndex(TestUnitCoreCommon):
             "name": "myName",
             "type": "myType",
             "description": "myDescription",
-            "default_value": "myDefaultValue"
+            "default": "myDefaultValue"
         }
         # call
         self.catalog_index._insert_argument(arg)
@@ -216,12 +216,12 @@ class TestCatalogIndex(TestUnitCoreCommon):
             "name": "myName",
             "type": "myType",
             "description": "myDescription",
-            "default_value": "myDefaultValue"
+            "default": "myDefaultValue"
         }
         arg_no_type = {
             "name": "myName",
             "description": "myDescription",
-            "default_value": "myDefaultValue"
+            "default": "myDefaultValue"
         }
         arg_no_default = {
             "name": "myName",

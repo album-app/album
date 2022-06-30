@@ -192,7 +192,7 @@ class TestCollectionIndex(TestUnitCoreCommon):
             "name": "myName",
             "type": "myType",
             "description": "myDescription",
-            "default_value": "myDefaultValue"
+            "default": "myDefaultValue"
         }
         # call
         self.test_catalog_collection_index._insert_argument(arg, 1)
@@ -277,12 +277,12 @@ class TestCollectionIndex(TestUnitCoreCommon):
             "name": "myName",
             "type": "myType",
             "description": "myDescription",
-            "default_value": "myDefaultValue"
+            "default": "myDefaultValue"
         }
         arg_no_type = {
             "name": "myName",
             "description": "myDescription",
-            "default_value": "myDefaultValue"
+            "default": "myDefaultValue"
         }
         arg_no_default = {
             "name": "myName",
@@ -463,13 +463,13 @@ class TestCollectionIndex(TestUnitCoreCommon):
             "name": "myArgument",
             "type": "str",
             "description": "myDescription",
-            "default_value": "myDefaultValue"
+            "default": "myDefaultValue"
         }
         argument2 = {
             "name": "myArgument",
             "type": "str",
             "description": "myDescription",
-            "default_value": "myDefaultValue"
+            "default": "myDefaultValue"
         }
 
         self.test_catalog_collection_index._insert_argument(argument1, 1, close=False)
