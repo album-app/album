@@ -1,10 +1,10 @@
 from datetime import datetime
 from pathlib import Path
 
-import keepachangelog
 from album.core.model.default_values import DefaultValues
 
 from album.core.api.model.catalog import ICatalog
+from album.core.utils.export.keepachangelog import to_raw_dict
 from album.core.utils.operations.file_operations import create_path_recursively
 from album.runner.album_logging import get_active_logger
 from album.runner.core.api.model.solution import ISolution
@@ -64,7 +64,7 @@ def process_changelog_file(catalog: ICatalog, active_solution: ISolution, deploy
 
     if changelog_file.exists():
         # process existing changelog file
-        changelogs = keepachangelog.to_raw_dict(str(changelog_file))
+        changelogs = to_raw_dict(str(changelog_file))
         keyword = str(active_solution.setup().version).lower()
         if keyword in changelogs:
             active_solution.setup().changelog = changelogs[keyword]['raw']
