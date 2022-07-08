@@ -313,7 +313,7 @@ class CatalogIndex(ICatalogIndex, Database):
             "argument_description": argument["description"],
         }
         argument_type = get_dict_entry(argument, "type")
-        argument_default_value = get_dict_entry(argument, "default_value")
+        argument_default_value = get_dict_entry(argument, "default")
 
         if argument_type:
             exc_str += "AND type=:argument_type "
@@ -361,7 +361,7 @@ class CatalogIndex(ICatalogIndex, Database):
                 argument["name"],
                 get_dict_entry(argument, "type"),
                 argument["description"],
-                get_dict_entry(argument, "default_value"),
+                get_dict_entry(argument, "default"),
                 get_dict_entry(argument, "required")
             )
         )

@@ -518,7 +518,7 @@ class CollectionIndex(ICollectionIndex, Database):
             "catalog_id": catalog_id,
         }
         argument_type = get_dict_entry(argument, "type")
-        argument_default_value = get_dict_entry(argument, "default_value")
+        argument_default_value = get_dict_entry(argument, "default")
 
         if argument_type:
             exc_str += "AND type=:argument_type "
@@ -569,7 +569,7 @@ class CollectionIndex(ICollectionIndex, Database):
                 argument["name"],
                 get_dict_entry(argument, "type"),
                 argument["description"],
-                get_dict_entry(argument, "default_value"),
+                get_dict_entry(argument, "default"),
                 get_dict_entry(argument, "required")
             )
         )
@@ -898,7 +898,7 @@ class CollectionIndex(ICollectionIndex, Database):
         for row in r:
             argument = {"name": row["name"], "type": row["type"], "description": row["description"]}
             if row["default_value"]:
-                argument["default_value"] = row["default_value"]
+                argument["default"] = row["default_value"]
             res.append(argument)
 
         if close:
