@@ -155,7 +155,7 @@ class Configuration(IConfiguration):
         return catalog_collection_dict
 
     def get_catalog_collection_meta_path(self):
-        return self._catalog_collection_path.parent.joinpath(
+        return Path(self._catalog_collection_path).joinpath(
             DefaultValues.catalog_collection_json_name.value
         )
 
