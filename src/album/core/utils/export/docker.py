@@ -24,7 +24,7 @@ def create_docker_file(active_solution: ISolution, target_folder: Path) -> Path:
     docker_file_stream = docker_file_stream.replace("<version>", album.core.__version__)
     docker_file_stream = docker_file_stream.replace("<name>", zip_name)
     docker_file_stream = docker_file_stream.replace("<run_name>", str(coordinates))
-    author = "; ".join(active_solution.setup().authors) if active_solution.setup().authors else "\"\""
+    author = "; ".join(active_solution.setup().solution_creators) if active_solution.setup().solution_creators else "\"\""
     docker_file_stream = docker_file_stream.replace("<maintainer>", author)
 
     # replace template with entries and copy dockerfile to deploy_src

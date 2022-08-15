@@ -80,9 +80,9 @@ class InstallManager(IInstallManager):
         # mark as installed and remove "installation unfinished"
         self.album.solutions().set_installed(resolve_result.catalog(), resolve_result.coordinates())
         if parent:
-            module_logger().info('Installed parent solution \"%s\"!' % resolve_result.coordinates().name())
+            module_logger().info('Installed parent solution %s!' % resolve_result.coordinates().name())
         else:
-            module_logger().info('Installed \"%s\"! Learn more about the solution by calling `album info %s`.'
+            module_logger().info('Installed %s! Learn more about the solution by calling `album info %s`.'
                                  % (resolve_result.coordinates().name(), resolve_result.coordinates()))
 
     def _register(self, resolve_result: ICollectionSolution):

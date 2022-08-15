@@ -71,7 +71,7 @@ def build_test_catalog(name, path):
                 "name": "inp8"
             }
         ],
-        "authors": ["Sample Author"],
+        "solution_creators": ["Sample Author"],
         "cite": [],
         "covers": [
             {
@@ -102,7 +102,7 @@ def build_test_catalog(name, path):
                 "name": "inp1"
             }
         ],
-        "authors": ["Sample Author"],
+        "solution_creators": ["Sample Author"],
         "covers": [
             {
                 "description": "coverDescription",
@@ -138,7 +138,7 @@ def build_single_solution_catalog(name, path):
                 "name": "inp1"
             }
         ],
-        "authors": [],
+        "solution_creators": [],
         "cite": [],
         "covers": [],
         "description": "",

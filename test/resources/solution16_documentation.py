@@ -16,14 +16,14 @@ setup(
     version="0.1.0",
     doi="a/doi",
     description="A description",
-    authors=["Me"],
+    solution_creators=["Me"],
     cite=[],
     acknowledgement="Hi mom",
     tags=["tag1", "tag2"],
     license="license",
     covers=[],
     documentation=["file.md"],
-    album_api_version="0.2.1",
+    album_api_version="0.5.1",
     args=[
         {
             "name": "testArg1",

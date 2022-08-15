@@ -20,14 +20,14 @@ def get_solution_as_string(solution: ISolution, solution_path):
     res += 'Version          : %s' % setup.version
     res += '%s' % get_credit_as_string(solution)
     res += '\n\n'
-    if setup.authors:
-        res += 'Solution authors : %s\n' % ", ".join(setup.authors)
+    if setup.solution_creators:
+        res += 'Solution creators : %s\n' % ", ".join(setup.solution_creators)
     if setup.license:
-        res += 'License          : %s\n' % setup.license
+        res += 'License           : %s\n' % setup.license
     if setup.acknowledgement:
-        res += 'Acknowledgement  : %s\n' % setup.acknowledgement
+        res += 'Acknowledgement   : %s\n' % setup.acknowledgement
     if setup.tags:
-        res += 'Tags             : %s\n' % ", ".join(setup.tags)
+        res += 'Tags              : %s\n' % ", ".join(setup.tags)
     res += '\n'
     res += 'Usage:\n\n'
     res += '  album install %s\n' % solution_path

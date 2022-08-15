@@ -1,5 +1,6 @@
 import shutil
 import unittest
+from copy import deepcopy
 from unittest.mock import MagicMock
 
 from album.core.model.catalog import Catalog
@@ -66,8 +67,18 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
         self.catalog = Catalog(1, "catalog_name", "catalog/path", "http://google.com/doesNotExist.ico")
         self.assertFalse(self.migration_manager.refresh_index(self.catalog))
 
-    def test_validate_solution_attrs(self):
+    def test_migrate_solution_attrs(self):
         self.setup_solution_no_env()
         self.active_solution.setup().pop('timestamp')
         self.active_solution.setup().pop('album_version')
-        self.migration_manager.validate_solution_attrs(self.active_solution.setup())
+        self.migration_manager.migrate_solution_attrs(self.active_solution.setup())
+
+    def test_migrate_solution_schema0_attrs(self):
+        self.setup_solution_no_env()
+        self.active_solution.setup().pop('timestamp')
+        self.active_solution.setup().pop('album_version')
+        self.active_solution.setup()["album_api_version"] = "0.4.2"
+        self.active_solution.setup()["authors"] = deepcopy(self.active_solution.setup()["solution_creators"])
+        self.active_solution.setup().pop('solution_creators')
+        attrs = self.migration_manager.migrate_solution_attrs(self.active_solution.setup())
+        self.assertEqual(["a1", "a2"], attrs["solution_creators"])

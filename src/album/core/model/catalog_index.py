@@ -149,8 +149,8 @@ class CatalogIndex(ICatalogIndex, Database):
                 hash_val
             )
         )
-        if 'authors' in solution_attrs:
-            for author in solution_attrs['authors']:
+        if 'solution_creators' in solution_attrs:
+            for author in solution_attrs['solution_creators']:
                 author_id = self._exists_author(author, close=False)
                 if not author_id:
                     author_id = self._insert_author(author, close=False)
@@ -543,7 +543,7 @@ class CatalogIndex(ICatalogIndex, Database):
 
     def _append_metadata_to_solution_dict(self, solution):
         solution_id = solution["solution_id"]
-        solution["authors"] = self._get_authors_by_solution(solution_id)
+        solution["solution_creators"] = self._get_authors_by_solution(solution_id)
         solution["covers"] = self._get_covers_by_solution(solution_id)
         solution["documentation"] = self._get_documentation_by_solution(solution_id)
         solution["args"] = self._get_arguments_by_solution(solution_id)

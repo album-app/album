@@ -317,8 +317,8 @@ class ReleaseManager:
             deposit_name = solution_meta['title']
         else:
             deposit_name = str(dict_to_coordinates(solution_meta))
-        if 'authors' in solution_meta:
-            authors = solution_meta['authors']
+        if 'solution_creators' in solution_meta:
+            authors = solution_meta['solution_creators']
         else:
             authors = []
         creators = [{"name": author} for author in authors]
