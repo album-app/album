@@ -76,6 +76,8 @@ class CollectionManager(ICollectionManager):
                     collection_version,
                 )
             else:
+                print(self.album.configuration().get_catalog_collection_path())
+                print(self.album.configuration().get_catalog_collection_meta_path())
                 raise RuntimeError(
                     "Album collection database file found, but no meta file specifying the database version."
                 )

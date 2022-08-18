@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.collection_index import CollectionIndex
 from album.runner.core.model.coordinates import Coordinates
+from album.core.model.default_values import DefaultValues
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
@@ -70,9 +71,8 @@ class TestCollectionIndex(TestUnitCoreCommon):
         )
 
         # call
-        self.test_catalog_collection_index.update_name_version(
-            "myName", self.test_catalog_collection_index.version
-        )
+        self.test_catalog_collection_index.update_name_version("myName",
+                                                               DefaultValues.catalog_collection_db_version.value)
 
         # assert
         self.assertEqual("myName", self.test_catalog_collection_index.get_name())

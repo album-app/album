@@ -69,9 +69,7 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
 
         # run
         with patch("album.ci.argument_parsing.create_album_instance") as p:
-            p.return_value = Album(
-                AlbumController(base_cache_path=Path(self.tmp_dir.name))
-            )
+            p.return_value = Album(AlbumController(base_cache_path=Path(self.tmp_dir.name)))
             self.assertIsNone(main())
         repo = git.Repo(self.path)
         self.assertEqual("myCiUserName", repo.config_reader().get_value("user", "name"))
@@ -93,9 +91,7 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
 
         # run
         with patch("album.ci.argument_parsing.create_album_instance") as p:
-            p.return_value = Album(
-                AlbumController(base_cache_path=Path(self.tmp_dir.name))
-            )
+            p.return_value = Album(AlbumController(base_cache_path=Path(self.tmp_dir.name)))
             self.assertIsNone(main())
         self.assertTrue(git.Repo(self.path).remote().url.startswith("git@"))
         self.assertIn("myGitGroup/myTestCatalog", git.Repo(self.path).remote().url)
@@ -121,9 +117,7 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
 
         # run
         with patch("album.ci.argument_parsing.create_album_instance") as p:
-            p.return_value = Album(
-                AlbumController(base_cache_path=Path(self.tmp_dir.name))
-            )
+            p.return_value = Album(AlbumController(base_cache_path=Path(self.tmp_dir.name)))
             self.assertIsNone(main())
 
     @patch("album.ci.controller.zenodo_manager.ZenodoManager.zenodo_get_deposit")
@@ -159,9 +153,7 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
 
         # run
         with patch("album.ci.argument_parsing.create_album_instance") as p:
-            p.return_value = Album(
-                AlbumController(base_cache_path=Path(self.tmp_dir.name))
-            )
+            p.return_value = Album(AlbumController(base_cache_path=Path(self.tmp_dir.name)))
             self.assertIsNone(main())
 
         self.assertEqual(4, zenodo_upload.call_count)
@@ -201,9 +193,7 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
 
         # run
         with patch("album.ci.argument_parsing.create_album_instance") as p:
-            p.return_value = Album(
-                AlbumController(base_cache_path=Path(self.tmp_dir.name))
-            )
+            p.return_value = Album(AlbumController(base_cache_path=Path(self.tmp_dir.name)))
             self.assertIsNone(main())
 
         # assert
@@ -243,9 +233,7 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
 
         # run
         with patch("album.ci.argument_parsing.create_album_instance") as p:
-            p.return_value = Album(
-                AlbumController(base_cache_path=Path(self.tmp_dir.name))
-            )
+            p.return_value = Album(AlbumController(base_cache_path=Path(self.tmp_dir.name)))
             self.assertIsNone(main())
 
         # check out last commit
