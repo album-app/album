@@ -5,7 +5,9 @@ from unittest.mock import patch
 
 import git
 
+from album.api import Album
 from album.ci.argument_parsing import main
+from album.core.controller.album_controller import AlbumController
 from album.core.model.catalog import Catalog
 from album.core.utils.operations.git_operations import checkout_branch
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
@@ -61,7 +63,9 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         ]
 
         # run
-        self.assertIsNone(main())
+        with patch("album.ci.argument_parsing.create_album_instance") as p:
+            p.return_value = Album(AlbumController(base_cache_path=Path(self.tmp_dir.name)))
+            self.assertIsNone(main())
         repo = git.Repo(self.path)
         self.assertEqual(
             "myCiUserName", repo.config_reader().get_value("user", "name")
@@ -83,7 +87,9 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         ]
 
         # run
-        self.assertIsNone(main())
+        with patch("album.ci.argument_parsing.create_album_instance") as p:
+            p.return_value = Album(AlbumController(base_cache_path=Path(self.tmp_dir.name)))
+            self.assertIsNone(main())
         self.assertTrue(git.Repo(self.path).remote().url.startswith("git@"))
         self.assertIn("myGitGroup/myTestCatalog", git.Repo(self.path).remote().url)
 
@@ -100,7 +106,9 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         sys.argv = ["", "upload", self.name, str(self.path), str(self.src), "--branch-name=%s" % branch_name]
 
         # run
-        self.assertIsNone(main())
+        with patch("album.ci.argument_parsing.create_album_instance") as p:
+            p.return_value = Album(AlbumController(base_cache_path=Path(self.tmp_dir.name)))
+            self.assertIsNone(main())
 
     @patch('album.ci.controller.zenodo_manager.ZenodoManager.zenodo_get_deposit')
     @patch('album.ci.controller.zenodo_manager.ZenodoManager.zenodo_upload')
@@ -122,7 +130,9 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         sys.argv = ["", "upload", self.name, str(self.path), str(self.src), "--branch-name=%s" % branch_name]
 
         # run
-        self.assertIsNone(main())
+        with patch("album.ci.argument_parsing.create_album_instance") as p:
+            p.return_value = Album(AlbumController(base_cache_path=Path(self.tmp_dir.name)))
+            self.assertIsNone(main())
 
         self.assertEqual(4, zenodo_upload.call_count)
         solution_dir = Path('solutions', 'group', 'name')
@@ -139,7 +149,9 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         sys.argv = ["", "update", self.name, str(self.path), str(self.src), "--branch-name=%s" % branch_name]
 
         # run
-        self.assertIsNone(main())
+        with patch("album.ci.argument_parsing.create_album_instance") as p:
+            p.return_value = Album(AlbumController(base_cache_path=Path(self.tmp_dir.name)))
+            self.assertIsNone(main())
 
         # assert
         self.assertEqual(self.repo.active_branch.name, "group_name_0.1.0")
@@ -172,7 +184,9 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         ]
 
         # run
-        self.assertIsNone(main())
+        with patch("album.ci.argument_parsing.create_album_instance") as p:
+            p.return_value = Album(AlbumController(base_cache_path=Path(self.tmp_dir.name)))
+            self.assertIsNone(main())
 
         # check out last commit
         self.assertEqual(self.repo.active_branch.name, "group_name_0.1.0")
