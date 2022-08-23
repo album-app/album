@@ -219,3 +219,12 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         self.assertIn('WARNING ~~~ album in album: logging warning', self.captured_output.getvalue())
         self.assertIn('ERROR ~~~ album in album: logging error', self.captured_output.getvalue())
         self.assertIn('INFO ~~~ RuntimeError: Error in run method', self.captured_output.getvalue())
+
+    def test_run_schema0(self):
+        path = self.get_test_solution_path("solution17_schema0.py")
+        self.album_controller.install_manager().install(path)
+
+        # run
+        self.album_controller.run_manager().run(path)
+        print(self.captured_output.getvalue())
+        self.assertIn('INFO ~ [\'Me\']', self.captured_output.getvalue())

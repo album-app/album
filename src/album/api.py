@@ -47,7 +47,7 @@ class Album:
             )
             return Album(_controller, logger_pushed=True)
 
-    def __init__(self, album_controller: IAlbumController, logger_pushed = False) -> None:
+    def __init__(self, album_controller: IAlbumController, logger_pushed=False) -> None:
         self._controller = album_controller
         self.logger_pushed = logger_pushed
 
@@ -107,7 +107,8 @@ class Album:
                 Boolean to indicate whether to remove parents too.
 
         """
-        return self._run_async(self._controller.install_manager().uninstall, (solution_to_resolve, rm_dep, argv), run_async)
+        return self._run_async(self._controller.install_manager().uninstall, (solution_to_resolve, rm_dep, argv),
+                               run_async)
 
     def deploy(self, deploy_path: str, catalog_name: str, dry_run: bool, push_options=None, git_email: str = None,
                git_name: str = None, force_deploy: bool = False, changelog: str = ""):
@@ -149,7 +150,8 @@ class Album:
             changelog=changelog
         )
 
-    def undeploy(self, solution_to_resolve: str, catalog_name: str, dry_run: bool, push_options=None, git_email: str = None,
+    def undeploy(self, solution_to_resolve: str, catalog_name: str, dry_run: bool, push_options=None,
+                 git_email: str = None,
                  git_name: str = None):
         """Function corresponding to the `undeploy` subcommand of `album`.
 

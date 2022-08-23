@@ -40,5 +40,5 @@ class IMigrationManager:
         raise NotImplementedError
 
     @abstractmethod
-    def validate_solution_attrs(self, attrs):
+    def migrate_solution_attrs(self, attrs):
         raise NotImplementedError

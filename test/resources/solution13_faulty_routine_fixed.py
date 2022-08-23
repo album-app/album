@@ -9,6 +9,6 @@ setup(
     name="faultySolution",
     title="name",
     version="0.1.0",
-    album_api_version="0.4.1",
+    album_api_version="0.5.1",
     install=album_install,
 )

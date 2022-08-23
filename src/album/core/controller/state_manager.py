@@ -28,7 +28,7 @@ class StateManager(IStateManager):
 
     def _setup_solution(self, **attrs):
         """This configures a solution for use by the main album tool."""
-        self.album.migration_manager().validate_solution_attrs(attrs)
+        attrs = self.album.migration_manager().migrate_solution_attrs(attrs)
         next_solution = Solution(attrs)
         self._push_active_solution(next_solution)
 

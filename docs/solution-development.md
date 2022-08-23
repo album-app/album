@@ -16,7 +16,7 @@ It copies a solution into the provided directory with the provided new name.
 Afterwards, open and edit `solution.py` in the new solution directory:
 
 - replace the identifiers (`group`, `name`, `version`)
-- replace all the relevant content, including `authors` with your (and your coworker's) name
+- replace all the relevant content, including `solution_creators` with your (and your coworker's) name
 - attributing the authors of the tool or algorithm the solution is using should happen in the `cite` tag
 
 We provide templates, check out the full list in our [default catalog repo](https://gitlab.com/album-app/catalogs/default).
@@ -37,7 +37,7 @@ setup(
    group="my-group-name",
    name="my-solution-name",
    version="0.1.0-SNAPSHOT",
-    album_api_version="0.4.2"
+    album_api_version="0.5.1"
 )
 ```
 
@@ -59,7 +59,7 @@ setup(
     group="my-group-name",
     name="my-solution-name",
     version="0.1.0-SNAPSHOT",
-    album_api_version="0.4.2",
+    album_api_version="0.5.1",
     dependencies={"environment_file": env_file}
 )
 ```
@@ -73,10 +73,10 @@ setup(
     group="my-group-name",
     name="my-solution-name",
     version="0.1.0-SNAPSHOT",
-    album_api_version="0.4.2",
+    album_api_version="0.5.1",
     title="The title of this solution",
     description="A description of what this solution is doing.",
-    authors=["My name", "My coworkers name"],
+    solution_creators=["My name", "My coworkers name"],
     cite=[{
        "text": "My citation text",
        "doi": "my.citation.doi",
@@ -107,7 +107,7 @@ setup(
    group="my-group-name",
    name="my-solution-name",
    version="0.1.0-SNAPSHOT",
-   album_api_version="0.4.2",
+   album_api_version="0.5.1",
    install=install,
    uninstall=uninstall
 )
@@ -127,7 +127,7 @@ setup(
     group="my-group-name",
     name="my-solution-name",
     version="0.1.0-SNAPSHOT",
-    album_api_version="0.4.2",
+    album_api_version="0.5.1",
     args=[{
         "name": "name",
         "type": "string",
@@ -164,7 +164,7 @@ setup(
     group="my-group-name",
     name="my-solution-name",
     version="0.1.0-SNAPSHOT",
-    album_api_version="0.4.2",
+    album_api_version="0.5.1",
     args=[{
        "name": "file",
        "description": "input text file path"
@@ -187,7 +187,7 @@ setup(
    group="my-group-name",
    name="my-child-solution-name",
    version="0.1.0-SNAPSHOT",
-   album_api_version="0.4.2",
+   album_api_version="0.5.1",
    dependencies={
       "parent": {
          "group": "album",
@@ -244,7 +244,7 @@ setup(
   * `type` (optional): The type of the argument as a string. 
   * `default` (optional): The default value of the argument.
   * `required` (optional): If set to `True`, the solution will fail before executing the `run` method and ask for this argument in case it's not provided. 
-* `authors`: The author(s) of the solution. This is an array of strings.
+* `solution_creators`: The creator(s) of the solution. This is an array of strings.
 * `changelog`: A string describing what changed in comparison to the last deployed version.
 * `covers`: This is a list of cover images to be displayed for this solution in a catalog. Each list entry is a dictionary with the following keys: 
   * `source`: The path to the cover - either a local path relative to and inside the solution folder, or a URL. 

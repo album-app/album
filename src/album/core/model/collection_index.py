@@ -294,8 +294,8 @@ class CollectionIndex(ICollectionIndex, Database):
             )
         )
 
-        if 'authors' in solution_attrs:
-            for author in solution_attrs['authors']:
+        if 'solution_creators' in solution_attrs:
+            for author in solution_attrs['solution_creators']:
                 author_id = self._exists_author(author, catalog_id, close=False)
                 if not author_id:
                     author_id = self._insert_author(author, catalog_id, close=False)
@@ -851,7 +851,7 @@ class CollectionIndex(ICollectionIndex, Database):
         for key in solution_dict.keys():
             if key not in setup:
                 internal[key] = solution_dict[key]
-        setup["authors"] = self._get_authors_by_solution(collection_id, close=False)
+        setup["solution_creators"] = self._get_authors_by_solution(collection_id, close=False)
         setup["tags"] = self._get_tags_by_solution(collection_id, close=False)
         setup["cite"] = self._get_citations_by_solution(collection_id, close=False)
         setup["args"] = self._get_arguments_by_solution(collection_id, close=False)

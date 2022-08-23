@@ -437,7 +437,7 @@ class TestCollectionIndex(TestUnitCoreCommon):
             "myName1", "mySrc1", "myPath1", True, None, "direct"
         )
         self.test_catalog_collection_index.insert_solution(
-            1, self._get_solution_attrs(1, "grp1", "name1", "version1", None, {'authors': []})
+            1, self._get_solution_attrs(1, "grp1", "name1", "version1", None, {'solution_creators': []})
         )
         self.test_catalog_collection_index._insert_author("authorName", 1, close=False)
         self.test_catalog_collection_index._insert_author("authorName2", 1, close=False)
