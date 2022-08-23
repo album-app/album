@@ -10,8 +10,12 @@ from io import StringIO
 from album.core.utils import subcommand
 from album.core.utils.subcommand import LogfileBuffer, SubProcessError
 from album.runner import album_logging
-from album.runner.album_logging import pop_active_logger, get_active_logger, get_active_logger_in_thread, \
-    push_active_logger
+from album.runner.album_logging import (
+    pop_active_logger,
+    get_active_logger,
+    get_active_logger_in_thread,
+    push_active_logger,
+)
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
@@ -21,7 +25,7 @@ class TestSubcommand(TestUnitCoreCommon):
 
     @unittest.skip("Fixme!")
     def test_run(self):
-        with self.assertLogs(self.logger, level='DEBUG') as cm:
+        with self.assertLogs(self.logger, level="DEBUG") as cm:
             # call
             subcommand.run(["echo", "test"])
 
@@ -34,11 +38,11 @@ class TestSubcommand(TestUnitCoreCommon):
             self.assertTrue(cm.output[1].endswith("test"))
 
     def test_run_python(self):
-        with self.assertLogs(self.logger, level='DEBUG') as cm:
+        with self.assertLogs(self.logger, level="DEBUG") as cm:
             fd, path = tempfile.mkstemp()
             try:
-                with os.fdopen(fd, 'w') as tmp:
-                    tmp.write('print(\'nothing happening\')\n')
+                with os.fdopen(fd, "w") as tmp:
+                    tmp.write("print('nothing happening')\n")
                 subcommand.run(["python", path])
             finally:
                 os.remove(path)
@@ -46,16 +50,18 @@ class TestSubcommand(TestUnitCoreCommon):
             time.sleep(0.2)
 
             self.assertEqual(2, len(cm.output))
-            self.assertTrue(cm.output[0].endswith("Running command: python %s..." % path))
+            self.assertTrue(
+                cm.output[0].endswith("Running command: python %s..." % path)
+            )
             self.assertTrue(cm.output[1].endswith("nothing happening"))
 
     def test_run_throw_error(self):
 
-        with self.assertLogs(self.logger, level='DEBUG') as cm:
+        with self.assertLogs(self.logger, level="DEBUG") as cm:
             fd, path = tempfile.mkstemp()
             try:
-                with os.fdopen(fd, 'w') as tmp:
-                    tmp.write('raise RuntimeError(\'this should not happen\')\n')
+                with os.fdopen(fd, "w") as tmp:
+                    tmp.write("raise RuntimeError('this should not happen')\n")
                 with self.assertRaises(SubProcessError):
                     subcommand.run(["python", path])
             finally:
@@ -70,25 +76,31 @@ class TestSubcommand(TestUnitCoreCommon):
             self.assertIn("RuntimeError: this should not happen", cm.output[4])
 
     def test_run_print_to_stderr(self):
-        with self.assertLogs(self.logger, level='DEBUG') as cm:
+        with self.assertLogs(self.logger, level="DEBUG") as cm:
 
             fd, path = tempfile.mkstemp()
             try:
-                with os.fdopen(fd, 'w') as tmp:
-                    tmp.write('import sys\nprint(\'this should not happen\', file = sys.stderr)\n')
+                with os.fdopen(fd, "w") as tmp:
+                    tmp.write(
+                        "import sys\nprint('this should not happen', file = sys.stderr)\n"
+                    )
                 subcommand.run(["python", path])
             finally:
                 os.remove(path)
 
             time.sleep(0.2)
             self.assertEqual(2, len(cm.output))
-            self.assertTrue(cm.output[0].endswith("Running command: python %s..." % path))
+            self.assertTrue(
+                cm.output[0].endswith("Running command: python %s..." % path)
+            )
             self.assertTrue(cm.output[1].endswith("this should not happen"))
 
     @unittest.skip("Fixme!")
     def test_run_logging_from_thread(self):
         self.logger.setLevel("DEBUG")
-        thread = threading.Thread(target=self._run_in_thread, args=(threading.current_thread().ident,))
+        thread = threading.Thread(
+            target=self._run_in_thread, args=(threading.current_thread().ident,)
+        )
         thread.start()
         thread.join()
 
@@ -98,7 +110,6 @@ class TestSubcommand(TestUnitCoreCommon):
 
 
 class TestLogfileBuffer(TestUnitCoreCommon):
-
     def tearDown(self) -> None:
         pop_active_logger()
         super().tearDown()
@@ -124,12 +135,16 @@ class TestLogfileBuffer(TestUnitCoreCommon):
         self.assertEqual("s", logs[8])
         self.assertIn("l", logs[9])
 
-    @unittest.skipIf(sys.platform == 'darwin', "Multiprocessing broken for MACOS!")
+    @unittest.skipIf(sys.platform == "darwin", "Multiprocessing broken for MACOS!")
     def test_multiprocessing(self):
         capture_output1 = StringIO()
         capture_output2 = StringIO()
-        thread1 = threading.Thread(target=self.log_in_thread, args=("thread1", capture_output1))
-        thread2 = threading.Thread(target=self.log_in_thread, args=("thread2", capture_output2))
+        thread1 = threading.Thread(
+            target=self.log_in_thread, args=("thread1", capture_output1)
+        )
+        thread2 = threading.Thread(
+            target=self.log_in_thread, args=("thread2", capture_output2)
+        )
 
         thread1.start()
         thread2.start()
@@ -202,7 +217,9 @@ class TestLogfileBuffer(TestUnitCoreCommon):
         self.assertEqual("INFO", res.level)
         self.assertEqual("message", res.message)
 
-        res = log_buffer.parse_log("15:22:24.487 [SciJava-7e75bf2d-Thread-0] DEBUG message")
+        res = log_buffer.parse_log(
+            "15:22:24.487 [SciJava-7e75bf2d-Thread-0] DEBUG message"
+        )
         self.assertIsNone(res)
 
         res = log_buffer.parse_log("[WARNING] message")
@@ -218,15 +235,17 @@ class TestLogfileBuffer(TestUnitCoreCommon):
     @staticmethod
     def log_in_thread(name, stream_handler):
         logger = logging.getLogger(name)
-        logger.setLevel('INFO')
+        logger.setLevel("INFO")
         ch = logging.StreamHandler(stream_handler)
-        ch.setLevel('INFO')
-        ch.setFormatter(logging.Formatter('%(message)s'))
+        ch.setLevel("INFO")
+        ch.setFormatter(logging.Formatter("%(message)s"))
         logger.addHandler(ch)
         push_active_logger(logger)
         log_buffer = LogfileBuffer(get_active_logger())
         for i in range(0, 100):
-            log_buffer.write(name + "_" + str(i) + "\n")  # print, logger.info() should all end with a newline
+            log_buffer.write(
+                name + "_" + str(i) + "\n"
+            )  # print, logger.info() should all end with a newline
 
     def get_logs(self):
         return self.as_list(self.captured_output.getvalue())

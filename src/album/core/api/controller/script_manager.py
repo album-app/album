@@ -20,9 +20,14 @@ class IScriptManager:
         raise NotImplementedError
 
     @abstractmethod
-    def build_queue(self, solution: ICollectionSolution, queue, script_creator: IScriptCreator,
-                    run_immediately=False,
-                    argv=None):
+    def build_queue(
+        self,
+        solution: ICollectionSolution,
+        queue,
+        script_creator: IScriptCreator,
+        run_immediately=False,
+        argv=None,
+    ):
         """Builds the queue of an active-album object.
 
         Args:
@@ -43,5 +48,7 @@ class IScriptManager:
         raise NotImplementedError
 
     @abstractmethod
-    def run_solution_script(self, resolve_result: ICollectionSolution, script: IScriptCreator):
+    def run_solution_script(
+        self, resolve_result: ICollectionSolution, script: IScriptCreator
+    ):
         raise NotImplementedError

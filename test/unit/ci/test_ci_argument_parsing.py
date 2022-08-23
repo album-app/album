@@ -4,7 +4,6 @@ from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestCiArgumentParsing(TestUnitCoreCommon):
-
     @unittest.skip("Needs to be implemented!")
     def test_main(self):
         pass
@@ -15,7 +14,6 @@ class TestCiArgumentParsing(TestUnitCoreCommon):
 
 
 class TestAlbumCIParser(TestUnitCoreCommon):
-
     @unittest.skip("Needs to be implemented!")
     def test__init__(self):
         pass

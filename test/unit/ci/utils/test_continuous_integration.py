@@ -4,7 +4,6 @@ from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestContinuousIntegration(TestUnitCoreCommon):
-
     def setUp(self) -> None:
         pass
 

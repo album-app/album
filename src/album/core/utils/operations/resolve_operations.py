@@ -11,9 +11,21 @@ from album.ci.utils.zenodo_api import ZenodoAPI
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import force_remove, \
-    create_path_recursively, rand_folder_name, check_zip, unzip_archive, copy, copy_folder
-from album.core.utils.operations.url_operations import is_url, download, retrieve_redirect_url, download_resource
+from album.core.utils.operations.file_operations import (
+    force_remove,
+    create_path_recursively,
+    rand_folder_name,
+    check_zip,
+    unzip_archive,
+    copy,
+    copy_folder,
+)
+from album.core.utils.operations.url_operations import (
+    is_url,
+    download,
+    retrieve_redirect_url,
+    download_resource,
+)
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.model.coordinates import Coordinates
 
@@ -50,50 +62,45 @@ def get_attributes_from_string(str_input: str) -> dict:
                 raise ValueError(
                     "Invalid input format: %s! Try <doi>:<prefix>/<suffix> or <prefix>/<suffix> "
                     "or <group>:<name>:<version> or <catalog>:<group>:<name>:<version> "
-                    "or point to a valid file! Aborting..." % str_input)
+                    "or point to a valid file! Aborting..." % str_input
+                )
     module_logger().debug("Parsed %s from the input... " % attrs_dict)
     return attrs_dict
 
 
 def get_gnv_from_input(str_input: str):
-    """Parses Group, Name, Version from input, separated by ":". """
-    s = re.search('^([^:]+):([^:]+):([^:]+)$', str_input)
+    """Parses Group, Name, Version from input, separated by ":"."""
+    s = re.search("^([^:]+):([^:]+):([^:]+)$", str_input)
 
     if s:
-        return {
-            "group": s.group(1),
-            "name": s.group(2),
-            "version": s.group(3)
-        }
+        return {"group": s.group(1), "name": s.group(2), "version": s.group(3)}
     return None
 
 
 def get_cgnv_from_input(str_input: str):
-    """Parses Catalog, Group, Name, Version from input, separated by ":". """
-    s = re.search('^([^:]+):([^:]+):([^:]+):([^:]+)$', str_input)
+    """Parses Catalog, Group, Name, Version from input, separated by ":"."""
+    s = re.search("^([^:]+):([^:]+):([^:]+):([^:]+)$", str_input)
 
     if s:
         return {
             "catalog": s.group(1),
             "group": s.group(2),
             "name": s.group(3),
-            "version": s.group(4)
+            "version": s.group(4),
         }
     return None
 
 
 def get_doi_from_input(str_input: str):
     """Parses the DOI from string input."""
-    s = re.search('^(^doi:)?([^:\/]*\/[^:\/]*)$', str_input)
+    s = re.search("^(^doi:)?([^:\/]*\/[^:\/]*)$", str_input)
     if s:
-        return {
-            "doi": s.group(2)
-        }
+        return {"doi": s.group(2)}
     return None
 
 
 def is_pathname_valid(pathname: str) -> bool:
-    """ Checks if a pathname is valid for the current OS
+    """Checks if a pathname is valid for the current OS
 
     `True` if the passed pathname is a valid pathname for the current OS;
     `False` otherwise.
@@ -117,8 +124,11 @@ def is_pathname_valid(pathname: str) -> bool:
         # Directory guaranteed to exist. If the current OS is Windows, this is
         # the drive to which Windows was installed (e.g., the "%HOMEDRIVE%"
         # environment variable); else, the typical root directory.
-        root_dirname = os.environ.get('HOMEDRIVE', 'C:') \
-            if sys.platform == 'win32' else os.path.sep
+        root_dirname = (
+            os.environ.get("HOMEDRIVE", "C:")
+            if sys.platform == "win32"
+            else os.path.sep
+        )
         assert os.path.isdir(root_dirname)  # ...Murphy and her ironclad Law
 
         # Append a path separator to this directory if needed.
@@ -148,7 +158,7 @@ def is_pathname_valid(pathname: str) -> bool:
             #   * Under most POSIX-compatible OSes, "ENAMETOOLONG".
             #   * Under some edge-case OSes (e.g., SunOS, *BSD), "ERANGE".
             except OSError as exc:
-                if hasattr(exc, 'winerror'):
+                if hasattr(exc, "winerror"):
                     if exc.winerror == ERROR_INVALID_NAME:
                         return False
                 elif exc.errno in {errno.ENAMETOOLONG, errno.ERANGE}:
@@ -174,13 +184,13 @@ def check_doi(doi, tmp_cache_dir):
 
     link_to_solution_zip = parse_doi_service_url(url)
 
-    p = download_resource(link_to_solution_zip, tmp_cache_dir.joinpath('solution.zip'))
+    p = download_resource(link_to_solution_zip, tmp_cache_dir.joinpath("solution.zip"))
 
     return prepare_path(p, tmp_cache_dir)
 
 
 def parse_doi_service_url(url):
-    if re.search('https:\/\/[a-zA-Z.]*zenodo[.]org\/', url):
+    if re.search("https:\/\/[a-zA-Z.]*zenodo[.]org\/", url):
         link = _parse_zenodo_url(url)
     else:
         raise NotImplementedError("DOI service not supported!")
@@ -189,7 +199,7 @@ def parse_doi_service_url(url):
 
 
 def _parse_zenodo_url(url):
-    g = re.search('(https:\/\/[a-zA-Z.]*zenodo[.]org\/)(record)[\/]([0-9]*)$', url)
+    g = re.search("(https:\/\/[a-zA-Z.]*zenodo[.]org\/)(record)[\/]([0-9]*)$", url)
 
     if g:
         record_id = g.group(3)
@@ -206,11 +216,15 @@ def retrieve_zenodo_record_download_zip(record_id):
 
     file_dl = None
     for file in record.files:
-        if re.search("[.]zip$", file.key):  # there is only a single zip file in the record
+        if re.search(
+            "[.]zip$", file.key
+        ):  # there is only a single zip file in the record
             file_dl = file.get_download_link()
 
     if not file_dl:
-        raise ValueError("No valid zip file found int the zenodo record with id \"%s\"!" % record_id)
+        raise ValueError(
+            'No valid zip file found int the zenodo record with id "%s"!' % record_id
+        )
 
     return file_dl
 
@@ -249,7 +263,9 @@ def prepare_path(path, tmp_cache_dir):
                 p = unzip_archive(p, target_folder)
                 p = p.joinpath(DefaultValues.solution_default_name.value)
             else:  # python file
-                p = copy(p, target_folder.joinpath(DefaultValues.solution_default_name.value))
+                p = copy(
+                    p, target_folder.joinpath(DefaultValues.solution_default_name.value)
+                )
         elif p.is_dir():  # unzipped zip
             p = copy_folder(p, target_folder, copy_root_folder=False)
             p = p.joinpath(DefaultValues.solution_default_name.value)
@@ -259,8 +275,14 @@ def prepare_path(path, tmp_cache_dir):
 
 def dict_to_coordinates(solution_attr) -> ICoordinates:
     if not all([k in solution_attr.keys() for k in ["name", "version", "group"]]):
-        raise ValueError("Cannot resolve solution! Group, name and version must be specified!")
-    return Coordinates(group=solution_attr["group"], name=solution_attr["name"], version=solution_attr["version"])
+        raise ValueError(
+            "Cannot resolve solution! Group, name and version must be specified!"
+        )
+    return Coordinates(
+        group=solution_attr["group"],
+        name=solution_attr["name"],
+        version=solution_attr["version"],
+    )
 
 
 def get_zip_name(coordinates: ICoordinates):
@@ -271,12 +293,18 @@ def get_zip_name_prefix(coordinates: ICoordinates):
     return "_".join([coordinates.group(), coordinates.name(), coordinates.version()])
 
 
-def build_resolve_string(resolve_solution_dict: dict, catalog: Optional[ICatalog] = None):
+def build_resolve_string(
+    resolve_solution_dict: dict, catalog: Optional[ICatalog] = None
+):
     if "doi" in resolve_solution_dict.keys():
         resolve_solution = resolve_solution_dict["doi"]
     elif all([x in resolve_solution_dict.keys() for x in ["group", "name", "version"]]):
         resolve_solution = ":".join(
-            [resolve_solution_dict["group"], resolve_solution_dict["name"], resolve_solution_dict["version"]]
+            [
+                resolve_solution_dict["group"],
+                resolve_solution_dict["name"],
+                resolve_solution_dict["version"],
+            ]
         )
 
         if catalog:
@@ -290,7 +318,9 @@ def build_resolve_string(resolve_solution_dict: dict, catalog: Optional[ICatalog
     return resolve_solution
 
 
-def get_parent(parent_collection_entry: ICollectionIndex.ICollectionSolution) -> ICollectionIndex.ICollectionSolution:
+def get_parent(
+    parent_collection_entry: ICollectionIndex.ICollectionSolution,
+) -> ICollectionIndex.ICollectionSolution:
     """Given an collection entry (aka row of the collection table) this method returns the corresponding parent"""
     if parent_collection_entry.internal()["parent"]:
         parent = parent_collection_entry.internal()["parent"]

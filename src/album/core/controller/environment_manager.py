@@ -16,7 +16,6 @@ module_logger = album_logging.get_active_logger
 
 
 class EnvironmentManager(IEnvironmentManager):
-
     def __init__(self, album: IAlbumController):
         self._conda_manager = CondaManager(album.configuration())
         if album.configuration().mamba_executable():
@@ -25,37 +24,49 @@ class EnvironmentManager(IEnvironmentManager):
             self._env_install_manager = self._conda_manager
         self._album = album
 
-    def install_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
+    def install_environment(
+        self, collection_solution: ICollectionSolution
+    ) -> IEnvironment:
         environment = Environment(
             collection_solution.loaded_solution().setup().dependencies,
-            self.get_environment_name(collection_solution.coordinates(), collection_solution.catalog()),
-            collection_solution.loaded_solution().installation().internal_cache_path()
+            self.get_environment_name(
+                collection_solution.coordinates(), collection_solution.catalog()
+            ),
+            collection_solution.loaded_solution().installation().internal_cache_path(),
         )
-        self._env_install_manager.install(environment, collection_solution.loaded_solution().setup().album_api_version)
+        self._env_install_manager.install(
+            environment, collection_solution.loaded_solution().setup().album_api_version
+        )
         set_environment_paths(collection_solution.loaded_solution(), environment)
         return environment
 
     def set_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
-        parent = collection_solution.database_entry().internal()['parent']
+        parent = collection_solution.database_entry().internal()["parent"]
         # solution runs in its own environment
         if not parent:
 
             environment = Environment(
                 dependencies_dict=None,
-                environment_name=self.get_environment_name(collection_solution.coordinates(), collection_solution.catalog()),
-                cache_path=collection_solution.loaded_solution().installation().internal_cache_path()
+                environment_name=self.get_environment_name(
+                    collection_solution.coordinates(), collection_solution.catalog()
+                ),
+                cache_path=collection_solution.loaded_solution()
+                .installation()
+                .internal_cache_path(),
             )
             self._conda_manager.set_environment_path(environment)
 
         # solution runs in the parents environment - we need to resolve first to get info about parents environment
         else:
             coordinates = dict_to_coordinates(parent.setup())
-            catalog = self._album.catalogs().get_by_id(parent.internal()['catalog_id'])
+            catalog = self._album.catalogs().get_by_id(parent.internal()["catalog_id"])
 
             environment = Environment(
                 None,
                 self.get_environment_name(coordinates, catalog),
-                collection_solution.loaded_solution().installation().internal_cache_path()
+                collection_solution.loaded_solution()
+                .installation()
+                .internal_cache_path(),
             )
             self._conda_manager.set_environment_path(environment)
 
@@ -70,7 +81,9 @@ class EnvironmentManager(IEnvironmentManager):
 
     def run_scripts(self, environment: IEnvironment, scripts, pipe_output=True):
         if environment:
-            self._conda_manager.run_scripts(environment, scripts, pipe_output=pipe_output)
+            self._conda_manager.run_scripts(
+                environment, scripts, pipe_output=pipe_output
+            )
         else:
             raise EnvironmentError("Environment not set! Cannot run scripts!")
 
@@ -79,7 +92,14 @@ class EnvironmentManager(IEnvironmentManager):
 
     @staticmethod
     def get_environment_name(coordinates: ICoordinates, catalog: ICatalog) -> str:
-        return "_".join([str(catalog.name()), coordinates.group(), coordinates.name(), coordinates.version()])
+        return "_".join(
+            [
+                str(catalog.name()),
+                coordinates.group(),
+                coordinates.name(),
+                coordinates.version(),
+            ]
+        )
 
     @staticmethod
     def remove_disc_content_from_environment(environment: IEnvironment):

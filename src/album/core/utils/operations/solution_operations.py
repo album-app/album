@@ -25,7 +25,7 @@ def get_deploy_dict(solution: ISolution) -> dict:
 
     for k in solution.setup().keys():
         value = solution.setup()[k]
-        if not callable(value) and k != 'dependencies':
+        if not callable(value) and k != "dependencies":
             # deepcopy necessary. Else original album object will loose "action" attributes in its arguments
             d[k] = copy.deepcopy(value)
 
@@ -44,8 +44,8 @@ def _remove_action_from_args(solution_dict):
 
 
 def get_parent_dict(solution: ISolution) -> Optional[dict]:
-    if solution.setup().dependencies and 'parent' in solution.setup().dependencies:
-        return solution.setup().dependencies['parent']
+    if solution.setup().dependencies and "parent" in solution.setup().dependencies:
+        return solution.setup().dependencies["parent"]
     return None
 
 
@@ -54,7 +54,7 @@ def get_steps_dict(solution: ISolution) -> Optional[dict]:
 
 
 def create_hash(string_representation):
-    hash_val = hashlib.md5(string_representation.encode('utf-8')).hexdigest()
+    hash_val = hashlib.md5(string_representation.encode("utf-8")).hexdigest()
 
     return hash_val
 

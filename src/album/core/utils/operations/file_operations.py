@@ -20,9 +20,10 @@ enc = sys.getfilesystemencoding()
 
 win_shell = None
 
+
 def get_dict_from_yml(yml_file):
     """Reads a dictionary from a file in yml format."""
-    with open(yml_file, 'r') as yml_f:
+    with open(yml_file, "r") as yml_f:
         d = yaml.safe_load(yml_f)
 
     if not isinstance(d, dict):
@@ -36,7 +37,7 @@ def write_dict_to_yml(yml_file, d):
     yml_file = Path(yml_file)
     create_path_recursively(yml_file.parent)
 
-    with open(yml_file, 'w+') as yml_f:
+    with open(yml_file, "w+") as yml_f:
         yml_f.write(yaml.dump(d, Dumper=yaml.Dumper))
 
     return True
@@ -78,7 +79,7 @@ def write_dict_to_json(json_file, d):
     json_file = Path(json_file)
     create_path_recursively(json_file.parent)
 
-    with open(json_file, 'w+') as json_f:
+    with open(json_file, "w+") as json_f:
         json_f.write(json.dumps(d))
 
     return True
@@ -88,7 +89,7 @@ def get_dict_from_json(json_file):
     """Reads dictionary from JSON file."""
     json_file = Path(json_file)
 
-    with open(json_file, 'r') as json_f:
+    with open(json_file, "r") as json_f:
         d = json.load(json_f)
 
     return d
@@ -185,7 +186,9 @@ def copy_folder(folder_to_copy, destination, copy_root_folder=True, force_copy=F
         root = Path(root)
 
         for d in dirs:
-            copy_folder(root.joinpath(d), destination.joinpath(d), copy_root_folder=False)
+            copy_folder(
+                root.joinpath(d), destination.joinpath(d), copy_root_folder=False
+            )
         for fi in files:
             copy(root.joinpath(fi), destination)
         break
@@ -226,7 +229,7 @@ def zip_folder(folder_path, zip_archive_file):
 
     create_path_recursively(zip_archive_file.parent)
 
-    return shutil.make_archive(str(zip_archive_file), 'zip', folder_path)
+    return shutil.make_archive(str(zip_archive_file), "zip", folder_path)
 
 
 def zip_paths(paths_to_include, zip_archive_file, tmp_dir=None):
@@ -267,7 +270,9 @@ def force_remove(path, warning=True):
                 except PermissionError:
                     handle_remove_readonly(os.unlink, path, sys.exc_info())
             else:
-                shutil.rmtree(str(path), ignore_errors=False, onerror=handle_remove_readonly)
+                shutil.rmtree(
+                    str(path), ignore_errors=False, onerror=handle_remove_readonly
+                )
         except PermissionError as e:
             module_logger().warn("Cannot delete %s." % str(path))
             if not warning:
@@ -277,7 +282,7 @@ def force_remove(path, warning=True):
 def remove_link(link_target):
     """Removes a link from the file system."""
     if link_target:
-        dispose_op = getattr(link_target, 'dispose', None)
+        dispose_op = getattr(link_target, "dispose", None)
         if callable(dispose_op):
             dispose_op()
         else:
@@ -309,7 +314,9 @@ def check_zip(path):
     return zipfile.is_zipfile(path)
 
 
-def construct_cache_link_target(point_to_base: Path, point_from, point_to, create=True) -> Optional[Path]:
+def construct_cache_link_target(
+    point_to_base: Path, point_from, point_to, create=True
+) -> Optional[Path]:
     """Constructs a link from point_from to point_to.
 
     Args:
@@ -327,8 +334,8 @@ def construct_cache_link_target(point_to_base: Path, point_from, point_to, creat
     operation_system = platform.system().lower()
     root = point_to_base.joinpath(point_to)
 
-    if 'windows' in operation_system:
-        point_from = str(point_from) + '.lnk'
+    if "windows" in operation_system:
+        point_from = str(point_from) + ".lnk"
         shortcut = Path(point_from)
         if shortcut.exists():
             return _get_shortcut_target(shortcut)
@@ -368,9 +375,9 @@ def _next_free_pointer_number(root):
 
 def get_link_target(link: Path):
     operation_system = platform.system().lower()
-    if 'windows' in operation_system:
+    if "windows" in operation_system:
         # pylnk3 is windows only
-        link = str(link) + '.lnk'
+        link = str(link) + ".lnk"
         shortcut = Path(link)
         if shortcut.exists():
             return _get_shortcut_target(shortcut)
@@ -403,6 +410,7 @@ def _get_shortcut_target(shortcut_path):
 def _get_global_win_shell():
     global win_shell
     import win32com.client
+
     if win_shell is None:
         win_shell = win32com.client.Dispatch("Wscript.Shell")
     return win_shell

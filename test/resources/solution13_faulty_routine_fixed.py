@@ -4,6 +4,7 @@ from album.runner.api import setup
 def album_install():
     pass
 
+
 setup(
     group="group",
     name="faultySolution",

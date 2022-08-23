@@ -48,5 +48,5 @@ setup(
     install=album_install,
     pre_test=album_pre_test,
     test=album_test,
-    dependencies={}
+    dependencies={},
 )

@@ -5,8 +5,7 @@ from album.runner.core.api.model.coordinates import ICoordinates
 
 
 class IEventManager:
-    """Interface handling events.
-    """
+    """Interface handling events."""
 
     __metaclass__ = ABCMeta
 

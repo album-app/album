@@ -12,7 +12,6 @@ from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestTaskManager(TestUnitCoreCommon):
-
     def test_handle_task(self):
         album_logging.set_loglevel(LogLevel.INFO)
         task = Task(self._log_to_active_logger)
@@ -56,7 +55,7 @@ class TestTaskManager(TestUnitCoreCommon):
         self.assertEqual(1, len(task.log_handler().records()))
         self.assertEqual("test", task.log_handler().records()[0].msg)
 
-    @unittest.skipIf(sys.platform == 'darwin', "FIXME Logs missing on MacOS")
+    @unittest.skipIf(sys.platform == "darwin", "FIXME Logs missing on MacOS")
     def test_register_task_in_subcommand(self):
 
         album_logging.set_loglevel(LogLevel.DEBUG)
@@ -74,11 +73,16 @@ class TestTaskManager(TestUnitCoreCommon):
         for record in task.log_handler().records():
             print(record.msg)
         self.assertTrue(len(task.log_handler().records()) > 1)
-        self.assertEqual("Running command: echo test...", task.log_handler().records()[0].msg)
+        self.assertEqual(
+            "Running command: echo test...", task.log_handler().records()[0].msg
+        )
         self.assertEqual("test", task.log_handler().records()[1].msg)
 
     def _log_to_active_logger_via_thread(self):
-        thread = Thread(target=self._log_to_active_logger_in_thread, args=(threading.current_thread().ident, ))
+        thread = Thread(
+            target=self._log_to_active_logger_in_thread,
+            args=(threading.current_thread().ident,),
+        )
         thread.start()
         thread.join()
 
@@ -94,10 +98,12 @@ class TestTaskManager(TestUnitCoreCommon):
 
     @staticmethod
     def _log_to_active_logger_in_thread(parent_thread_id):
-        album_logging.configure_logging("test", loglevel=LogLevel.INFO, parent_thread_id=parent_thread_id)
+        album_logging.configure_logging(
+            "test", loglevel=LogLevel.INFO, parent_thread_id=parent_thread_id
+        )
         album_logging.get_active_logger().info("test")
         album_logging.pop_active_logger()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

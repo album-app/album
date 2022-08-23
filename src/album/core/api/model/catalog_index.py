@@ -38,7 +38,9 @@ class ICatalogIndex(IDatabase):
     def get_solution(self, solution_id: int, close: bool = True) -> Optional[dict]:
         raise NotImplementedError
 
-    def get_solution_by_coordinates(self, coordinates: ICoordinates, close: bool = True) -> Optional[dict]:
+    def get_solution_by_coordinates(
+        self, coordinates: ICoordinates, close: bool = True
+    ) -> Optional[dict]:
         """Resolves a solution by its name, version and group.
 
         Args:
@@ -73,7 +75,9 @@ class ICatalogIndex(IDatabase):
         """
         raise NotImplementedError
 
-    def get_all_solution_versions(self, group: str, name: str, close: bool = True) -> Optional[List[dict]]:
+    def get_all_solution_versions(
+        self, group: str, name: str, close: bool = True
+    ) -> Optional[List[dict]]:
         raise NotImplementedError
 
     @abstractmethod
@@ -81,11 +85,15 @@ class ICatalogIndex(IDatabase):
         raise NotImplementedError
 
     @abstractmethod
-    def remove_solution_by_group_name_version(self, coordinates: ICoordinates, close: bool = True):
+    def remove_solution_by_group_name_version(
+        self, coordinates: ICoordinates, close: bool = True
+    ):
         raise NotImplementedError
 
     @abstractmethod
-    def update(self, coordinates: ICoordinates, solution_attrs: dict, close: bool = True):
+    def update(
+        self, coordinates: ICoordinates, solution_attrs: dict, close: bool = True
+    ):
         """Updates a catalog to include a solution as a node with the attributes given.
          Updates exiting nodes if node already present in tree.
 

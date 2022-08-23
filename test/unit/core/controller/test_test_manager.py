@@ -4,7 +4,6 @@ from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestTestManager(TestUnitCoreCommon):
-
     def setUp(self):
         super().setUp()
 
@@ -14,5 +13,5 @@ class TestTestManager(TestUnitCoreCommon):
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

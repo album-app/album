@@ -7,18 +7,19 @@ from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestSolutionOperations(TestUnitCoreCommon):
-    
     def setUp(self):
         super().setUp()
 
     def tearDown(self) -> None:
         super().tearDown()
 
-    test_environment_yml = StringIO("""name: unit-test-env
+    test_environment_yml = StringIO(
+        """name: unit-test-env
 channels:
   - conda-forge
   - defaults
-""")
+"""
+    )
 
     def test_get_deploy_dict(self):
         active_solution = Solution(self.solution_default_dict)
@@ -31,13 +32,13 @@ channels:
             attrs_dict_result[key] = str(idx)
 
         # additional values
-        attrs_dict_additional = {
-            "this_should_not_appear": lambda value: print(value)
-        }
+        attrs_dict_additional = {"this_should_not_appear": lambda value: print(value)}
 
         # create album attrs dict
         attrs_dict = {**attrs_dict_result, **attrs_dict_additional}
-        self.assertEqual(len(attrs_dict), len(attrs_dict_additional) + len(attrs_dict_result))
+        self.assertEqual(
+            len(attrs_dict), len(attrs_dict_additional) + len(attrs_dict_result)
+        )
 
         active_solution = Solution(attrs_dict)
 

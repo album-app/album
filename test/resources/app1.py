@@ -25,14 +25,17 @@ setup(
     title="app one",
     version="0.1.0",
     album_api_version="0.5.1",
-    args=[{
-        "name": "file",
-        "description": "",
-    }, {
-        "name": "app1_param",
-        "description": "",
-    }],
+    args=[
+        {
+            "name": "file",
+            "description": "",
+        },
+        {
+            "name": "app1_param",
+            "description": "",
+        },
+    ],
     run=album_run,
     close=album_close,
-    dependencies={}
+    dependencies={},
 )

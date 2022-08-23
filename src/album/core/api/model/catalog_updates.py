@@ -7,8 +7,8 @@ from album.runner.core.api.model.coordinates import ICoordinates
 
 
 class ChangeType(Enum):
-    ADDED = 1,
-    REMOVED = 2,
+    ADDED = (1,)
+    REMOVED = (2,)
     CHANGED = 3
 
 

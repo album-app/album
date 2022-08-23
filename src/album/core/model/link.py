@@ -18,7 +18,7 @@ class Link(type(Path())):
         if self._link:
             operation_system = platform.system().lower()
             link = os.path.normpath(self._link)
-            if 'windows' in operation_system:
-                link += '.lnk'
+            if "windows" in operation_system:
+                link += ".lnk"
             if os.path.exists(link) or os.path.islink(link):
                 os.remove(link)

@@ -18,8 +18,17 @@ class IDeployManager:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def deploy(self, deploy_path: str, catalog_name: str, dry_run: bool, push_options=None, git_email: str = None,
-               git_name: str = None, force_deploy: bool = False, changelog: str = ""):
+    def deploy(
+        self,
+        deploy_path: str,
+        catalog_name: str,
+        dry_run: bool,
+        push_options=None,
+        git_email: str = None,
+        git_name: str = None,
+        force_deploy: bool = False,
+        changelog: str = "",
+    ):
         """Function corresponding to the `deploy` subcommand of `album`.
 
         Generates the yml for a album and creates a merge request to the catalog only
@@ -50,8 +59,15 @@ class IDeployManager:
         raise NotImplementedError
 
     @abstractmethod
-    def undeploy(self, solution_to_resolve: str, catalog_name: str, dry_run: bool, push_options=None,
-                 git_email: str = None, git_name: str = None):
+    def undeploy(
+        self,
+        solution_to_resolve: str,
+        catalog_name: str,
+        dry_run: bool,
+        push_options=None,
+        git_email: str = None,
+        git_name: str = None,
+    ):
         """Function corresponding to the `deploy` subcommand of `album`.
 
         Generates the yml for a album and creates a merge request to the catalog only

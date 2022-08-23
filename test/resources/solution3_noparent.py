@@ -24,11 +24,13 @@ setup(
     title="solution three, no parent",
     version="0.1.0",
     album_api_version="0.5.1",
-    args=[{
-        "name": "file",
-        "description": "",
-    }],
+    args=[
+        {
+            "name": "file",
+            "description": "",
+        }
+    ],
     run=album_run,
     close=album_close,
-    dependencies={}
+    dependencies={},
 )

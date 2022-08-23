@@ -15,17 +15,23 @@ class IMigrationManager:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def migrate_collection_index(self, collection_index: ICollectionIndex, initial_version):
+    def migrate_collection_index(
+        self, collection_index: ICollectionIndex, initial_version
+    ):
         """Migrates a collection index database to the target version."""
         raise NotImplementedError
 
     @abstractmethod
-    def migrate_catalog_collection_db(self, collection_index_path, curr_version, target_version):
+    def migrate_catalog_collection_db(
+        self, collection_index_path, curr_version, target_version
+    ):
         """Migrates a given collection index to the target version."""
         raise NotImplementedError
 
     @abstractmethod
-    def migrate_catalog_index_db(self, catalog_index_path, curr_version, target_version):
+    def migrate_catalog_index_db(
+        self, catalog_index_path, curr_version, target_version
+    ):
         """Migrates the index of a given catalog to the current framework version if possible."""
         raise NotImplementedError
 
