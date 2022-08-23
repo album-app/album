@@ -38,7 +38,7 @@ album add-catalog [repo-url]
 ```
 album deploy [solution-path] [catalog-name]
 ```
-For request catalogs, changes won't appear in album until the newly created branch is merged.
+For request catalogs, changes won't appear in Album until the newly created branch is merged.
 
 5. Upgrade the catalog in your local collection:
 ```
