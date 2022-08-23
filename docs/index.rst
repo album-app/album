@@ -32,4 +32,5 @@ Java, Kotlin, and more.
    catalog-development
    server
    python-api
+   package
    contributing
