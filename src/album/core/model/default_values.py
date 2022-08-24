@@ -16,6 +16,7 @@ class DefaultValues(Enum):
     runner_api_packet_version = "0.5.1"  # set to None to use with url
     runner_api_packet_name = "album-runner"  # can also point to zip/url like: https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip
     runner_pip_version = "pip=21.0"
+    first_runner_conda_version = "0.5.1"
 
     # templates
     catalog_template_url = "https://gitlab.com/album-app/catalogs/templates"  # base URL of available catalog templates

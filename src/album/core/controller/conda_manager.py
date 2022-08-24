@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path
 
 import yaml
+from packaging import version
 
 from album.core.api.model.configuration import IConfiguration
 from album.core.api.model.environment import IEnvironment
@@ -289,6 +290,30 @@ class CondaManager:
 
     @staticmethod
     def _append_framework_to_yml(content, album_api_version):
+        if version.parse(album_api_version) >= version.parse(
+            DefaultValues.first_runner_conda_version.value
+        ):
+            return CondaManager._append_framework_via_conda_to_yml(
+                content, album_api_version
+            )
+        else:
+            return CondaManager._append_framework_via_pip_to_yml(
+                content, album_api_version
+            )
+
+    @staticmethod
+    def _append_framework_via_conda_to_yml(content, album_api_version):
+        framework = "conda-forge::%s=%s" % (
+            DefaultValues.runner_api_packet_name.value,
+            album_api_version,
+        )
+        if not "dependencies" in content or not content["dependencies"]:
+            content["dependencies"] = []
+        content["dependencies"].append(framework)
+        return content
+
+    @staticmethod
+    def _append_framework_via_pip_to_yml(content, album_api_version):
         # There might be environments without pip, so the the dependency content needs
         # to be adjusted to make sure pip is available.
         framework = "%s==%s" % (
@@ -354,9 +379,7 @@ class CondaManager:
                 + "  - defaults\n"
                 + "dependencies:\n"
                 + "  - python=3.8\n"
-                + "  - pip\n"
-                + "  - pip:\n"
-                + "    - %s==%s\n"
+                + "  - conda-forge::%s=%s\n"
                 % (DefaultValues.runner_api_packet_name.value, album_api_version)
             )
 
