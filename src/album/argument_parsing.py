@@ -80,9 +80,7 @@ def __run_subcommand(namespace, args, parser, level: LogLevel, print_json):
     album_instance = create_album_instance(level)
     if print_json:
         _capture_output()
-    get_active_logger().info(
-        "album version %s | contact via %s " % (core.__version__, core.__email__)
-    )
+    get_active_logger().info("album version %s" % core.__version__)
 
     try:
         if hasattr(namespace, "func"):
