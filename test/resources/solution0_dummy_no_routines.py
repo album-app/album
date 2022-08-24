@@ -12,5 +12,5 @@ setup(
             "description": "testArg1Description",
         }
     ],
-    dependencies={}
+    dependencies={},
 )

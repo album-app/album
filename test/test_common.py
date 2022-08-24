@@ -12,10 +12,16 @@ from album.api import Album
 from album.core.controller.album_controller import AlbumController
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import write_dict_to_json, force_remove
-from album.core.utils.operations.git_operations import create_bare_repository, clone_repository, \
-    add_files_commit_and_push
-from album.core.utils.operations.view_operations import get_message_filter, get_logger_name_minimizer_filter, \
-    get_logging_formatter
+from album.core.utils.operations.git_operations import (
+    create_bare_repository,
+    clone_repository,
+    add_files_commit_and_push,
+)
+from album.core.utils.operations.view_operations import (
+    get_message_filter,
+    get_logger_name_minimizer_filter,
+    get_logging_formatter,
+)
 from album.runner.album_logging import get_active_logger
 from test.global_exception_watcher import GlobalExceptionWatcher
 
@@ -43,21 +49,29 @@ class TestCommon(unittest.TestCase):
 
     def setup_album_controller(self):
         if self.album_controller:
-            raise AttributeError("Only one instance of an AlbumController should be used!"
-                                 "Either use setup_album_instance or setup_album_controller!")
+            raise AttributeError(
+                "Only one instance of an AlbumController should be used!"
+                "Either use setup_album_instance or setup_album_controller!"
+            )
         self.album_controller = AlbumController(base_cache_path=Path(self.tmp_dir.name))
 
     def setup_album_instance(self):
         if self.album:
-            raise AttributeError("Only one instance of an Album should be used!"
-                                 "Either use setup_album_instance or setup_album_controller!")
-        with patch('album.api.configure_root_logger'):
-            self.album = Album.Builder().base_cache_path(Path(self.tmp_dir.name)).build()
+            raise AttributeError(
+                "Only one instance of an Album should be used!"
+                "Either use setup_album_instance or setup_album_controller!"
+            )
+        with patch("album.api.configure_root_logger"):
+            self.album = (
+                Album.Builder().base_cache_path(Path(self.tmp_dir.name)).build()
+            )
         if self.album_controller:
             self.album._controller = self.album_controller
         else:
             self.album_controller = self.album._controller
-        self.album_patch = patch('album.argument_parsing.create_album_instance', return_value=self.album)
+        self.album_patch = patch(
+            "album.argument_parsing.create_album_instance", return_value=self.album
+        )
         self.album_patch.start()
 
     def setup_silent_test_logging(self, logger_name="test-logger"):
@@ -65,11 +79,13 @@ class TestCommon(unittest.TestCase):
         self.logger = get_active_logger()
         self.logger.handlers.clear()
         self.logger.name = logger_name
-        self.logger.setLevel('INFO')
+        self.logger.setLevel("INFO")
         ch = logging.StreamHandler(self.captured_output)
-        ch.setLevel('INFO')
+        ch.setLevel("INFO")
         ch.setFormatter(
-            get_logging_formatter(fmt='%(log_color)s%(asctime)s %(levelname)s %(shortened_name)s%(message)s')
+            get_logging_formatter(
+                fmt="%(log_color)s%(asctime)s %(levelname)s %(shortened_name)s%(message)s"
+            )
         )
         ch.addFilter(get_logger_name_minimizer_filter())
         ch.addFilter(get_message_filter())
@@ -85,7 +101,9 @@ class TestCommon(unittest.TestCase):
         with clone_repository(catalog_src_path, catalog_clone_path) as repo:
             head = repo.active_branch
 
-            self.album_controller.catalogs().create_new_metadata(catalog_clone_path, name, catalog_type)
+            self.album_controller.catalogs().create_new_metadata(
+                catalog_clone_path, name, catalog_type
+            )
 
             add_files_commit_and_push(
                 head,
@@ -93,7 +111,7 @@ class TestCommon(unittest.TestCase):
                 "init",
                 push=True,
                 username=DefaultValues.catalog_git_user.value,
-                email=DefaultValues.catalog_git_email.value
+                email=DefaultValues.catalog_git_email.value,
             )
 
         return catalog_src_path, catalog_clone_path
@@ -101,17 +119,21 @@ class TestCommon(unittest.TestCase):
     def setup_collection(self, init_catalogs=True, init_collection=True):
         if init_catalogs:
             with patch(
-                    "album.core.model.configuration.Configuration.get_initial_catalogs"
+                "album.core.model.configuration.Configuration.get_initial_catalogs"
             ) as get_initial_catalogs_mock:
                 get_initial_catalogs_mock.return_value = {}
 
                 # create collection
                 self.album_controller.collection_manager().load_or_create()
         elif init_collection:
-            with patch("album.core.controller.collection.catalog_handler.CatalogHandler.add_initial_catalogs"):
+            with patch(
+                "album.core.controller.collection.catalog_handler.CatalogHandler.add_initial_catalogs"
+            ):
                 self.album_controller.collection_manager().load_or_create()
         # check everything is freshly initialized
-        self.assertTrue(self.album_controller.collection_manager().get_collection_index().is_empty())
+        self.assertTrue(
+            self.album_controller.collection_manager().get_collection_index().is_empty()
+        )
 
     def teardown_tmp_resources(self):
         # garbage collector
@@ -124,7 +146,7 @@ class TestCommon(unittest.TestCase):
             try:
                 force_remove(self.tmp_dir.name)
             except PermissionError:
-                if sys.platform == 'win32' or sys.platform == 'cygwin':
+                if sys.platform == "win32" or sys.platform == "cygwin":
                     pass
                 else:
                     raise
@@ -132,7 +154,7 @@ class TestCommon(unittest.TestCase):
     def teardown_logging(self):
         self.logger.handlers.clear()
         if self.album:
-            album_logger = logging.getLogger('album')
+            album_logger = logging.getLogger("album")
             album_logger.handlers.clear()
 
     def get_logs(self):
@@ -146,5 +168,7 @@ class TestCommon(unittest.TestCase):
             super(TestCommon, self).run(result)
 
     @staticmethod
-    def get_catalog_meta_dict(name="cache_catalog", version="0.1.0", catalog_type="direct"):
+    def get_catalog_meta_dict(
+        name="cache_catalog", version="0.1.0", catalog_type="direct"
+    ):
         return {"name": name, "version": version, "type": catalog_type}

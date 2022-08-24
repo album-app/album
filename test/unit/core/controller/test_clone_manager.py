@@ -20,7 +20,7 @@ class TestCondaManager(TestUnitCoreCommon):
         # todo: implement
         pass
 
-    @patch('album.core.controller.clone_manager.copy_folder', return_value=False)
+    @patch("album.core.controller.clone_manager.copy_folder", return_value=False)
     def test__clone_solution(self, copy_folder_mock):
         # create mocks
         resolve_result = ResolveResult(
@@ -28,7 +28,7 @@ class TestCondaManager(TestUnitCoreCommon):
             catalog=None,
             loaded_solution=self.active_solution,
             collection_entry=None,
-            coordinates=self.active_solution.coordinates()
+            coordinates=self.active_solution.coordinates(),
         )
 
         resolve = MagicMock(return_value=resolve_result)
@@ -40,7 +40,9 @@ class TestCondaManager(TestUnitCoreCommon):
         self.clone_manager._clone_solution(p, t)
 
         # assert
-        copy_folder_mock.assert_called_once_with(Path("tmp_dir"), t, copy_root_folder=False)
+        copy_folder_mock.assert_called_once_with(
+            Path("tmp_dir"), t, copy_root_folder=False
+        )
 
     @unittest.skip("Needs to be implemented!")
     def test__try_cloning_catalog_template(self):

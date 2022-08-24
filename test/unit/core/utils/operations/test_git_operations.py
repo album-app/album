@@ -12,7 +12,6 @@ from test.unit.test_unit_core_common import TestGitCommon
 
 
 class TestGitOperations(TestGitCommon):
-
     def test_checkout_branch(self):
         with self.setup_tmp_repo(create_test_branch=True) as repo:
             head = git_op.checkout_branch(repo, "test_branch")
@@ -24,16 +23,22 @@ class TestGitOperations(TestGitCommon):
             with self.assertRaises(IndexError) as context:
                 git_op.checkout_branch(repo, "NoValidBranch")
 
-            self.assertTrue("Branch \"NoValidBranch\" not in repository!" in str(context.exception))
+            self.assertTrue(
+                'Branch "NoValidBranch" not in repository!' in str(context.exception)
+            )
 
     def test__retrieve_files_from_head(self):
         with self.setup_tmp_repo() as repo:
-            file_of_commit = git_op.retrieve_files_from_head_last_commit(repo.heads["main"], "solutions")[0]
+            file_of_commit = git_op.retrieve_files_from_head_last_commit(
+                repo.heads["main"], "solutions"
+            )[0]
             self.assertEqual(self.commit_file, file_of_commit)
 
     def test_retrieve_files_from_head_branch(self):
         with self.setup_tmp_repo(create_test_branch=True) as repo:
-            file_of_commit = git_op.retrieve_files_from_head_last_commit(repo.heads["test_branch"], "solutions")[0]
+            file_of_commit = git_op.retrieve_files_from_head_last_commit(
+                repo.heads["test_branch"], "solutions"
+            )[0]
 
             self.assertEqual(self.commit_file, file_of_commit)
 
@@ -49,17 +54,21 @@ class TestGitOperations(TestGitCommon):
             tmp_file_2.close()
 
             repo.index.add([tmp_file_1.name, tmp_file_2.name])
-            repo.git.commit('-m', 'message', '--no-verify')
+            repo.git.commit("-m", "message", "--no-verify")
 
             with self.assertRaises(RuntimeError) as context:
-                git_op.retrieve_files_from_head_last_commit(repo.heads["main"], "solutions")
+                git_op.retrieve_files_from_head_last_commit(
+                    repo.heads["main"], "solutions"
+                )
 
             self.assertTrue("times, but expected" in str(context.exception))
 
     def test_retrieve_files_from_head_no_files(self):
         with self.setup_tmp_repo(commit_solution_file=False) as repo:
             with self.assertRaises(RuntimeError) as context:
-                git_op.retrieve_files_from_head_last_commit(repo.heads["main"], "solutions")
+                git_op.retrieve_files_from_head_last_commit(
+                    repo.heads["main"], "solutions"
+                )
 
             self.assertTrue("does not hold pattern" in str(context.exception))
 
@@ -82,16 +91,25 @@ class TestGitOperations(TestGitCommon):
             copy(tmp_file2.name, Path(repo.working_tree_dir).joinpath("myFile3"))
 
             # all files untracked
-            self.assertListEqual(["myFile1", "myFile2", "myFile3"], repo.untracked_files)
+            self.assertListEqual(
+                ["myFile1", "myFile2", "myFile3"], repo.untracked_files
+            )
 
             git_op._add_files(repo, ["myFile1", "myFile2"])
 
             # all but one file added
             self.assertListEqual(["myFile3"], repo.untracked_files)
 
-    @patch('album.core.utils.operations.solution_operations.get_deploy_dict', return_value={})
+    @patch(
+        "album.core.utils.operations.solution_operations.get_deploy_dict",
+        return_value={},
+    )
     def test_add_files_commit_and_push(self, _):
-        attrs_dict = {"name": "test_solution_name", "group": "test_solution_group", "version": "test_solution_version"}
+        attrs_dict = {
+            "name": "test_solution_name",
+            "group": "test_solution_group",
+            "version": "test_solution_version",
+        }
         active_solution = Solution(attrs_dict)
 
         tmp_file = tempfile.NamedTemporaryFile(delete=False)
@@ -107,13 +125,15 @@ class TestGitOperations(TestGitCommon):
                 active_solution.coordinates().group(),
                 active_solution.coordinates().name(),
                 active_solution.coordinates().version(),
-                "%s%s" % (active_solution.coordinates().name(), ".py")
+                "%s%s" % (active_solution.coordinates().name(), ".py"),
             )
             copy(tmp_file.name, tmp_file_in_repo)
 
             commit_msg = "Adding new/updated %s" % active_solution.coordinates().name()
 
-            git_op.add_files_commit_and_push(new_head, [tmp_file_in_repo], commit_msg, push=False)
+            git_op.add_files_commit_and_push(
+                new_head, [tmp_file_in_repo], commit_msg, push=False
+            )
 
             # new branch created
             self.assertTrue("test_solution_name" in repo.branches)
@@ -126,12 +146,15 @@ class TestGitOperations(TestGitCommon):
             # correct branch checked out
             self.assertEqual(repo.active_branch.name, "test_solution_name")
 
-    @patch('album.core.utils.operations.solution_operations.get_deploy_dict', return_value={})
+    @patch(
+        "album.core.utils.operations.solution_operations.get_deploy_dict",
+        return_value={},
+    )
     def test_add_files_commit_and_push_no_diff(self, _):
         attrs_dict = {
             "name": "test_solution_name",
             "group": "mygroup",
-            "version": "myversion"
+            "version": "myversion",
         }
         Solution(attrs_dict)
 
@@ -140,7 +163,9 @@ class TestGitOperations(TestGitCommon):
             new_head.checkout()
 
             with self.assertRaises(RuntimeError):
-                git_op.add_files_commit_and_push(new_head, [self.commit_file], "a_wonderful_cmt_msg", push=False)
+                git_op.add_files_commit_and_push(
+                    new_head, [self.commit_file], "a_wonderful_cmt_msg", push=False
+                )
 
     def test_init_repository_clean_repository(self):
         tmp_file = tempfile.NamedTemporaryFile(delete=False)
@@ -183,19 +208,19 @@ class TestGitOperations(TestGitCommon):
     def test_download_repository(self):
         p = Path(self.tmp_dir.name).joinpath("testGitDownload")
         # run
-        repo = git_op.download_repository(
-            DefaultValues._catalog_url.value, p
-        )
+        repo = git_op.download_repository(DefaultValues._catalog_url.value, p)
         repo.close()
 
         # check
         self.assertIn("album_catalog_index.json", os.listdir(p), "Download failed!")
 
     def test_retrieve_defaul_mr_push_options(self):
-        urls = ["https://docs.gitlab.com/ee/user/project/push_options.html",
-                "https://gitlab.com/album-app/album/-/merge_requests",
-                "https://github.com/",
-                "asdasd"]
+        urls = [
+            "https://docs.gitlab.com/ee/user/project/push_options.html",
+            "https://gitlab.com/album-app/album/-/merge_requests",
+            "https://github.com/",
+            "asdasd",
+        ]
 
         exp = [[], ["merge_request.create"], [], []]
 
@@ -222,38 +247,38 @@ class TestGitOperations(TestGitCommon):
 
     def test_add_remove_get_tags(self):
         with self.setup_tmp_repo(commit_solution_file=False) as repo:
-            git_op.add_tag(repo, 'a')
-            git_op.add_tag(repo, 'b')
+            git_op.add_tag(repo, "a")
+            git_op.add_tag(repo, "b")
             tags = git_op.get_tags(repo)
-            self.assertEqual(['b', 'a'], tags)
-            git_op.remove_tag(repo, 'a')
+            self.assertEqual(["b", "a"], tags)
+            git_op.remove_tag(repo, "a")
             tags = git_op.get_tags(repo)
-            self.assertEqual(['b'], tags)
+            self.assertEqual(["b"], tags)
 
     def test_revert(self):
         with self.setup_tmp_repo(commit_solution_file=False) as repo:
-            testfolder = Path(repo.working_tree_dir).joinpath('test')
+            testfolder = Path(repo.working_tree_dir).joinpath("test")
             testfolder.mkdir()
-            testfile_a = testfolder.joinpath('a.txt')
+            testfile_a = testfolder.joinpath("a.txt")
             testfile_a.touch()
             repo.git.add(str(testfile_a))
-            repo.git.commit('-m', 'bla')
-            git_op.add_tag(repo, 'tag1')
+            repo.git.commit("-m", "bla")
+            git_op.add_tag(repo, "tag1")
             os.remove(testfile_a)
-            testfile_b = Path(repo.working_tree_dir).joinpath('b.txt')
-            testfile_c = testfolder.joinpath('c.txt')
+            testfile_b = Path(repo.working_tree_dir).joinpath("b.txt")
+            testfile_c = testfolder.joinpath("c.txt")
             testfile_b.touch()
             testfile_c.touch()
             repo.git.rm(str(testfile_a))
             repo.git.add(str(testfile_b), str(testfile_c))
-            repo.git.commit('-m', 'bla')
+            repo.git.commit("-m", "bla")
             self.assertTrue(testfile_c.exists())
             self.assertFalse(testfile_a.exists())
-            git_op.revert(repo, 'tag1', [str(testfolder)])
+            git_op.revert(repo, "tag1", [str(testfolder)])
             self.assertTrue(testfile_a.exists())
             self.assertTrue(testfile_b.exists())
             self.assertFalse(testfile_c.exists())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

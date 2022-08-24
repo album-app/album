@@ -111,7 +111,9 @@ class ICatalog:
         raise NotImplementedError
 
     @contextmanager
-    def retrieve_catalog(self, path=None, force_retrieve=False, update=True) -> Generator[Repo, None, None]:
+    def retrieve_catalog(
+        self, path=None, force_retrieve=False, update=True
+    ) -> Generator[Repo, None, None]:
         yield
         raise NotImplementedError
 
@@ -138,4 +140,3 @@ class ICatalog:
     @abstractmethod
     def get_meta_file_path(self):
         raise NotImplementedError
-

@@ -8,7 +8,6 @@ from album.runner.core.api.model.solution import ISolution
 
 
 class ICollectionSolution:
-
     @abstractmethod
     def catalog(self) -> ICatalog:
         raise NotImplementedError

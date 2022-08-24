@@ -3,6 +3,7 @@ from album.runner.api import setup
 
 def album_run():
     from album.runner.api import get_active_solution
+
     print(get_active_solution().setup().authors)
 
 
@@ -29,5 +30,5 @@ setup(
         }
     ],
     run=album_run,
-    dependencies={}
+    dependencies={},
 )

@@ -9,7 +9,6 @@ from test.unit.test_unit_core_common import TestCatalogAndCollectionCommon
 
 
 class TestMigrationManager(TestCatalogAndCollectionCommon):
-
     def setUp(self):
         super().setUp()
         self.setup_collection(init_catalogs=False)
@@ -64,21 +63,27 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
         pass
 
     def test_refresh_index_broken_src(self):
-        self.catalog = Catalog(1, "catalog_name", "catalog/path", "http://google.com/doesNotExist.ico")
+        self.catalog = Catalog(
+            1, "catalog_name", "catalog/path", "http://google.com/doesNotExist.ico"
+        )
         self.assertFalse(self.migration_manager.refresh_index(self.catalog))
 
     def test_migrate_solution_attrs(self):
         self.setup_solution_no_env()
-        self.active_solution.setup().pop('timestamp')
-        self.active_solution.setup().pop('album_version')
+        self.active_solution.setup().pop("timestamp")
+        self.active_solution.setup().pop("album_version")
         self.migration_manager.migrate_solution_attrs(self.active_solution.setup())
 
     def test_migrate_solution_schema0_attrs(self):
         self.setup_solution_no_env()
-        self.active_solution.setup().pop('timestamp')
-        self.active_solution.setup().pop('album_version')
+        self.active_solution.setup().pop("timestamp")
+        self.active_solution.setup().pop("album_version")
         self.active_solution.setup()["album_api_version"] = "0.4.2"
-        self.active_solution.setup()["authors"] = deepcopy(self.active_solution.setup()["solution_creators"])
-        self.active_solution.setup().pop('solution_creators')
-        attrs = self.migration_manager.migrate_solution_attrs(self.active_solution.setup())
+        self.active_solution.setup()["authors"] = deepcopy(
+            self.active_solution.setup()["solution_creators"]
+        )
+        self.active_solution.setup().pop("solution_creators")
+        attrs = self.migration_manager.migrate_solution_attrs(
+            self.active_solution.setup()
+        )
         self.assertEqual(["a1", "a2"], attrs["solution_creators"])

@@ -32,18 +32,14 @@ setup(
     title="solution one on app one",
     version="0.1.0",
     album_api_version="0.5.1",
-    args=[{
-        "name": "file_solution1_app1",
-        "description": "",
-    }],
+    args=[
+        {
+            "name": "file_solution1_app1",
+            "description": "",
+        }
+    ],
     run=album_run,
     close=album_close,
     install=album_install,
-    dependencies={
-        'parent': {
-            'name': 'app2',
-            'group': 'group',
-            'version': '0.1.0'
-        }
-    }
-    )
+    dependencies={"parent": {"name": "app2", "group": "group", "version": "0.1.0"}},
+)

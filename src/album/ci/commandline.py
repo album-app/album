@@ -10,11 +10,18 @@ def configure_ssh(release_manager: ReleaseManager, args):
 
 
 def zenodo_publish(release_manager: ReleaseManager, args):
-    release_manager.zenodo_publish(args.branch_name, args.zenodo_base_url, args.zenodo_access_token)
+    release_manager.zenodo_publish(
+        args.branch_name, args.zenodo_base_url, args.zenodo_access_token
+    )
 
 
 def zenodo_upload(release_manager: ReleaseManager, args):
-    release_manager.zenodo_upload(args.branch_name, args.zenodo_base_url, args.zenodo_access_token, args.report_file)
+    release_manager.zenodo_upload(
+        args.branch_name,
+        args.zenodo_base_url,
+        args.zenodo_access_token,
+        args.report_file,
+    )
 
 
 def update_index(release_manager: ReleaseManager, args):
@@ -28,4 +35,10 @@ def commit_changes(release_manager: ReleaseManager, args):
 
 
 def merge(release_manager: ReleaseManager, args):
-    release_manager.merge(args.branch_name, args.dry_run, args.push_option, args.ci_user_name, args.ci_user_email)
+    release_manager.merge(
+        args.branch_name,
+        args.dry_run,
+        args.push_option,
+        args.ci_user_name,
+        args.ci_user_email,
+    )

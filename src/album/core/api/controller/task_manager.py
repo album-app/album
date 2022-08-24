@@ -4,8 +4,7 @@ from album.core.api.model.task import ITask
 
 
 class ITaskManager:
-    """Interface for retrieving the status of a solution.
-        """
+    """Interface for retrieving the status of a solution."""
 
     __metaclass__ = ABCMeta
 

@@ -24,5 +24,5 @@ setup(
     ],
     run=album_run,
     install=album_install,
-    dependencies={}
+    dependencies={},
 )

@@ -2,7 +2,6 @@ import unittest
 
 
 class TestDatabase(unittest.TestCase):
-
     @unittest.skip("Needs to be implemented!")
     def test__init__(self):
         pass

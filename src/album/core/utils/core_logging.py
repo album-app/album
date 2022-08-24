@@ -1,15 +1,25 @@
 import logging
 import sys
 
-from album.core.utils.operations.view_operations import get_logger_name_minimizer_filter, get_logging_formatter, \
-    get_message_filter
-from album.runner.album_logging import set_loglevel, debug_settings, LogLevel, push_active_logger
+from album.core.utils.operations.view_operations import (
+    get_logger_name_minimizer_filter,
+    get_logging_formatter,
+    get_message_filter,
+)
+from album.runner.album_logging import (
+    set_loglevel,
+    debug_settings,
+    LogLevel,
+    push_active_logger,
+)
 
 
-def configure_root_logger(log_format: str = None, log_format_time: str = None, log_level: LogLevel = None):
+def configure_root_logger(
+    log_format: str = None, log_format_time: str = None, log_level: LogLevel = None
+):
     if not log_level:
         log_level = LogLevel(debug_settings())
-    logger = logging.getLogger('album')
+    logger = logging.getLogger("album")
     logger.setLevel(log_level.name)
     # create console handler and set level to debug
     # ToDo: different handlers necessary? e.g. logging additional into a file?
@@ -58,11 +68,11 @@ def add_logging_level(levelName, levelNum, methodName=None):
         methodName = levelName.lower()
 
     if hasattr(logging, levelName):
-       raise AttributeError('{} already defined in logging module'.format(levelName))
+        raise AttributeError("{} already defined in logging module".format(levelName))
     if hasattr(logging, methodName):
-       raise AttributeError('{} already defined in logging module'.format(methodName))
+        raise AttributeError("{} already defined in logging module".format(methodName))
     if hasattr(logging.getLoggerClass(), methodName):
-       raise AttributeError('{} already defined in logger class'.format(methodName))
+        raise AttributeError("{} already defined in logger class".format(methodName))
 
     # This method was inspired by the answers to Stack Overflow post
     # http://stackoverflow.com/q/2183233/2988730, especially
@@ -70,6 +80,7 @@ def add_logging_level(levelName, levelNum, methodName=None):
     def logForLevel(self, message, *args, **kwargs):
         if self.isEnabledFor(levelNum):
             self._log(levelNum, message, args, **kwargs)
+
     def logToRoot(message, *args, **kwargs):
         logging.log(levelNum, message, *args, **kwargs)
 

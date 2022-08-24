@@ -1,25 +1,36 @@
 from typing import List, Optional
 
 from album.core.api.model.catalog import ICatalog
-from album.core.api.model.catalog_updates import ISolutionChange, ChangeType, ICatalogAttributeChange, ICatalogUpdates
+from album.core.api.model.catalog_updates import (
+    ISolutionChange,
+    ChangeType,
+    ICatalogAttributeChange,
+    ICatalogUpdates,
+)
 from album.runner.core.api.model.coordinates import ICoordinates
 
 
 class SolutionChange(ISolutionChange):
-
-    def __init__(self, coordinates: ICoordinates, change_type: ChangeType, change_log: Optional[str] = None,
-                 solution_status: Optional[dict] = None):
+    def __init__(
+        self,
+        coordinates: ICoordinates,
+        change_type: ChangeType,
+        change_log: Optional[str] = None,
+        solution_status: Optional[dict] = None,
+    ):
         self._coordinates = coordinates
         self._change_type = change_type
         self._change_log = change_log
         self._solution_status = solution_status
 
     def __eq__(self, other):
-        return isinstance(other, ISolutionChange) \
-               and other.coordinates() == self._coordinates \
-               and other.change_type() == self._change_type \
-               and other.change_log() == self._change_log \
-               and other.solution_status() == self._solution_status
+        return (
+            isinstance(other, ISolutionChange)
+            and other.coordinates() == self._coordinates
+            and other.change_type() == self._change_type
+            and other.change_log() == self._change_log
+            and other.solution_status() == self._solution_status
+        )
 
     def as_dict(self):
         return {
@@ -45,7 +56,6 @@ class SolutionChange(ISolutionChange):
 
 
 class CatalogAttributeChange(ICatalogAttributeChange):
-
     def __init__(self, attribute: str, old_value, new_value):
         self._attribute = attribute
         self._old_value = old_value
@@ -66,8 +76,12 @@ class CatalogUpdates(ICatalogUpdates):
     _catalog_attribute_changes: List[ICatalogAttributeChange] = []
     _solution_changes: List[ISolutionChange] = []
 
-    def __init__(self, catalog: ICatalog, solution_changes: Optional[List[ISolutionChange]] = None,
-                 catalog_attribute_changes: Optional[List[ICatalogAttributeChange]] = None) -> None:
+    def __init__(
+        self,
+        catalog: ICatalog,
+        solution_changes: Optional[List[ISolutionChange]] = None,
+        catalog_attribute_changes: Optional[List[ICatalogAttributeChange]] = None,
+    ) -> None:
         if catalog_attribute_changes is None:
             catalog_attribute_changes = []
         if solution_changes is None:
@@ -81,10 +95,8 @@ class CatalogUpdates(ICatalogUpdates):
         for change in self._solution_changes:
             solution_changes_as_dict.append(change.as_dict())
         return {
-            "catalog": {
-                "name": self._catalog.name()
-            },
-            "solution_changes": solution_changes_as_dict
+            "catalog": {"name": self._catalog.name()},
+            "solution_changes": solution_changes_as_dict,
         }
 
     def __str__(self) -> str:

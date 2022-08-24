@@ -2,9 +2,7 @@ from abc import ABCMeta, abstractmethod
 
 
 class IEvent:
-    """Interface for an event.
-
-    """
+    """Interface for an event."""
 
     __metaclass__ = ABCMeta
 

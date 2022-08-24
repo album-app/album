@@ -9,7 +9,6 @@ from album.runner.core.model.solution import Solution
 
 
 class StateManager(IStateManager):
-
     def __init__(self, album: IAlbumController):
         self._active_solution = []
         self.album = album
@@ -17,7 +16,7 @@ class StateManager(IStateManager):
         api.setup = self._setup_solution
 
     def load(self, path) -> Optional[ISolution]:
-        get_active_logger().debug(f'Loading solution from {path}...')
+        get_active_logger().debug(f"Loading solution from {path}...")
         with open(path, "r") as f:
             solution = f.read()
         exec(solution)

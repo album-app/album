@@ -16,7 +16,6 @@ from test.unit.test_unit_core_common import TestCatalogAndCollectionCommon
 
 
 class TestCatalog(TestCatalogAndCollectionCommon):
-
     def setUp(self):
         super().setUp()
         self.setup_collection(False, True)
@@ -46,11 +45,15 @@ class TestCatalog(TestCatalogAndCollectionCommon):
 
     def test__init__(self):
         new_catalog = self.catalog
-        self.assertEqual(new_catalog._path, Path(self.tmp_dir.name).joinpath('testPath'))
+        self.assertEqual(
+            new_catalog._path, Path(self.tmp_dir.name).joinpath("testPath")
+        )
         self.assertIsNotNone(new_catalog._src)
         self.assertTrue(new_catalog.is_local())
-        self.assertEqual(new_catalog._name, 'test')
-        self.assertDictEqual(self.get_catalog_meta_dict("test"), new_catalog.get_meta_information())
+        self.assertEqual(new_catalog._name, "test")
+        self.assertDictEqual(
+            self.get_catalog_meta_dict("test"), new_catalog.get_meta_information()
+        )
 
     @unittest.skip("Needs to be implemented!")
     def test_update_index_cache_if_possible(self):
@@ -100,7 +103,7 @@ class TestCatalog(TestCatalogAndCollectionCommon):
         solution = Solution(d)
 
         # this doi is already in index
-        solution._setup.doi = 'doi1'
+        solution._setup.doi = "doi1"
 
         # call
         with self.assertRaises(RuntimeError):
@@ -120,7 +123,9 @@ class TestCatalog(TestCatalogAndCollectionCommon):
         with self.assertRaises(RuntimeError):
             self.catalog.add(solution)
 
-    @patch('album.core.controller.collection.solution_handler.SolutionHandler.get_solution_file')
+    @patch(
+        "album.core.controller.collection.solution_handler.SolutionHandler.get_solution_file"
+    )
     def test_add_solution_already_present_overwrite(self, get_solution_cache_file_mock):
         self.populate_index()
         self.assertEqual(len(self.catalog._catalog_index), 10)
@@ -169,14 +174,17 @@ class TestCatalog(TestCatalogAndCollectionCommon):
         self.assertEqual(10, len(self.catalog._catalog_index))
 
     def test_download_index_files(self):
-        catalog_src_path, catalog_clone_path = self.setup_empty_catalog('test')
-        CatalogIndex('test', catalog_clone_path.joinpath(DefaultValues.catalog_index_file_name.value)).save()
+        catalog_src_path, catalog_clone_path = self.setup_empty_catalog("test")
+        CatalogIndex(
+            "test",
+            catalog_clone_path.joinpath(DefaultValues.catalog_index_file_name.value),
+        ).save()
         with git.Repo(catalog_clone_path) as repo:
             repo.git.add(DefaultValues.catalog_index_file_name.value)
-            repo.git.commit('-m', 'bla')
+            repo.git.commit("-m", "bla")
             repo.git.push()
 
-        tmp_dir = Path(self.tmp_dir.name).joinpath('bla')
+        tmp_dir = Path(self.tmp_dir.name).joinpath("bla")
 
         db, meta = retrieve_index_files_from_src(catalog_src_path, tmp_dir)
         self.assertTrue(db.exists())
@@ -187,8 +195,12 @@ class TestCatalog(TestCatalogAndCollectionCommon):
 
     def test_retrieve_catalog(self):
         # prepare
-        self.catalog = Catalog(self.catalog._catalog_id, self.catalog._name, self.catalog._path,
-                               DefaultValues.default_catalog_src.value)
+        self.catalog = Catalog(
+            self.catalog._catalog_id,
+            self.catalog._name,
+            self.catalog._path,
+            DefaultValues.default_catalog_src.value,
+        )
 
         dl_path = Path(self.tmp_dir.name).joinpath("test")
 
@@ -208,9 +220,11 @@ class TestCatalog(TestCatalogAndCollectionCommon):
     def test_get_meta_information(self):
         self.assertEqual(
             self.catalog.get_meta_information(),
-            self.get_catalog_meta_dict(self.catalog._name, self.catalog._version, self.catalog._type)
+            self.get_catalog_meta_dict(
+                self.catalog._name, self.catalog._version, self.catalog._type
+            ),
         )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

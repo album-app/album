@@ -7,12 +7,14 @@ import requests
 
 class InvalidResponseStatusError(BaseException):
     """Raised when the response status is not the one expected."""
+
     pass
 
 
 @unique
 class ResponseStatus(Enum):
     """Response values and their name."""
+
     OK = 200  # response included
     Created = 201  # response included
     Accepted = 202  # response included
@@ -31,6 +33,7 @@ class ResponseStatus(Enum):
 @unique
 class DepositStatus(Enum):
     """All possible zenodo deposit status."""
+
     DRAFT = "draft"
     PUBLISHED = "published"
 
@@ -38,6 +41,7 @@ class DepositStatus(Enum):
 @unique
 class SortOrder(Enum):
     """Sort order of the results obtained in 'list' methods."""
+
     BEST_MATCH = "bestmatch"
     MOST_RECENT = "mostrecent"
 
@@ -45,6 +49,7 @@ class SortOrder(Enum):
 @unique
 class UploadType(Enum):
     """Possible upload values and their name."""
+
     PUBLICATION = "publication"
     POSTER = "poster"
     PRESENTATION = "presentation"
@@ -60,6 +65,7 @@ class UploadType(Enum):
 @unique
 class AccessRight(Enum):
     """Possible upload values and their name."""
+
     OPEN = "open"
     EMBARGOED = "embargoed"
     RESTRICTED = "restricted"
@@ -69,6 +75,7 @@ class AccessRight(Enum):
 @unique
 class PublicationType(Enum):
     """Possible publication values and their name."""
+
     ANNOTATION_COLLECTION = "annotationcollection"
     BOOK = "book"
     SECTION = "section"
@@ -138,7 +145,7 @@ class ZenodoEntry(object):
         """
         self.entry_dict = entry_dict
         self.base_url = base_url
-        self.params = {'access_token': access_token}
+        self.params = {"access_token": access_token}
 
     def to_dict(self):
         """Removes sensitive information from the object and gives back its dictionary representation.
@@ -178,7 +185,16 @@ class ZenodoMetadata(ZenodoEntry):
     """All possible metadata of a @ZenodoDeposit."""
 
     @classmethod
-    def default_values(cls, title, creators, description, license, version, related_identifiers, references):
+    def default_values(
+        cls,
+        title,
+        creators,
+        description,
+        license,
+        version,
+        related_identifiers,
+        references,
+    ):
         default_values = {
             "access_right": AccessRight.OPEN.value,
             "access_right_category": None,
@@ -199,16 +215,20 @@ class ZenodoMetadata(ZenodoEntry):
         return cls(default_values)
 
     def __init__(self, entry_dict):
-        super().__init__(entry_dict, '', '')
+        super().__init__(entry_dict, "", "")
         self.access_right = self._get_attribute(entry_dict, "access_right")
-        self.access_right_category = self._get_attribute(entry_dict, "access_right_category")
+        self.access_right_category = self._get_attribute(
+            entry_dict, "access_right_category"
+        )
         self.creators = self._get_attribute(entry_dict, "creators")
         self.description = self._get_attribute(entry_dict, "description")
         self.doi = self._get_attribute(entry_dict, "doi")
         self.license = self._get_attribute(entry_dict, "license")
         self.prereserve_doi = self._get_attribute(entry_dict, "prereserve_doi")
         self.publication_date = self._get_attribute(entry_dict, "publication_date")
-        self.related_identifiers = self._get_attribute(entry_dict, "related_identifiers")
+        self.related_identifiers = self._get_attribute(
+            entry_dict, "related_identifiers"
+        )
         self.relations = self._get_attribute(entry_dict, "relations")
         self.resource_type = self._get_attribute(entry_dict, "resource_type")
         self.title = self._get_attribute(entry_dict, "title")
@@ -263,7 +283,7 @@ class ZenodoFile(ZenodoEntry):
         return (f for f in deposit._files)
 
     def __init__(self, entry_dict):
-        super().__init__(entry_dict, '', '')
+        super().__init__(entry_dict, "", "")
         self.checksum = self._get_attribute(entry_dict, "checksum")
         self.bucket = self._get_attribute(entry_dict, "bucket")
         self.key = self._get_attribute(entry_dict, "key")
@@ -310,11 +330,15 @@ class ZenodoDeposit(ZenodoEntry):
         self.submitted = self._get_attribute(entry_dict, "submitted")
         self.title = self._get_attribute(entry_dict, "title")
         self.version = self._get_attribute(entry_dict, "version")
-        self.related_identifiers = self._get_attribute(entry_dict, "related_identifiers")
+        self.related_identifiers = self._get_attribute(
+            entry_dict, "related_identifiers"
+        )
         self.references = self._get_attribute(entry_dict, "references")
 
         meta_init = self._get_attribute(entry_dict, "metadata")
-        self.metadata = ZenodoMetadata(meta_init) if meta_init is not None else meta_init
+        self.metadata = (
+            ZenodoMetadata(meta_init) if meta_init is not None else meta_init
+        )
 
         files_init = self._get_attribute(entry_dict, "files")
         self.files = files_init
@@ -360,7 +384,9 @@ class ZenodoDeposit(ZenodoEntry):
                     unique_control += 1
 
         if unique_control > 1:
-            raise AssertionError("Deposit broken. File names not unique. Please reload deposit and try again!")
+            raise AssertionError(
+                "Deposit broken. File names not unique. Please reload deposit and try again!"
+            )
 
         return file_id
 
@@ -423,8 +449,8 @@ class ZenodoDeposit(ZenodoEntry):
         r = requests.put(
             link,
             params=self.params,
-            data=json.dumps({'metadata': zenodo_metadata.to_dict()}),
-            headers=headers
+            data=json.dumps({"metadata": zenodo_metadata.to_dict()}),
+            headers=headers,
         )
 
         response_dict = ZenodoAPI.validate_response(r, ResponseStatus.OK)
@@ -451,7 +477,7 @@ class ZenodoDeposit(ZenodoEntry):
         r = requests.delete(link, params=self.params)
 
         if ZenodoAPI.validate_response(r, ResponseStatus.NoContent):
-            self.__init__({}, '', '')
+            self.__init__({}, "", "")
 
         return True
 
@@ -469,7 +495,7 @@ class ZenodoDeposit(ZenodoEntry):
 
         # todo: check if already published
 
-        link = self.base_url + '/api/deposit/depositions/%s/actions/publish' % self.id
+        link = self.base_url + "/api/deposit/depositions/%s/actions/publish" % self.id
         r = requests.post(link, params=self.params)
 
         response_dict = ZenodoAPI.validate_response(r, ResponseStatus.Accepted)
@@ -493,7 +519,9 @@ class ZenodoDeposit(ZenodoEntry):
             draft_id, _ = os.path.splitext(os.path.basename(latest_draft_l))
             return draft_id
 
-        link = self.base_url + "/api/deposit/depositions/%s/actions/newversion" % self.id
+        link = (
+            self.base_url + "/api/deposit/depositions/%s/actions/newversion" % self.id
+        )
 
         r = requests.post(link, params=self.params)
 
@@ -507,7 +535,9 @@ class ZenodoDeposit(ZenodoEntry):
             latest_draft_link = self.links["latest_draft"]
             latest_draft_id = extract_draft_id(latest_draft_link)
         except KeyError as e:
-            raise KeyError("Could not find link to latest_draft in response! Aborting...") from e
+            raise KeyError(
+                "Could not find link to latest_draft in response! Aborting..."
+            ) from e
 
         return ZenodoAPI(self.base_url, self.params["access_token"]).deposit_get(
             latest_draft_id, status=DepositStatus.DRAFT
@@ -550,9 +580,9 @@ class ZenodoDeposit(ZenodoEntry):
         """
         link = self.base_url + "/api/deposit/depositions/%s/files" % self.id
 
-        data = {'name': os.path.basename(file)}
-        open_file = open(file, 'rb')
-        files = {'file': open_file}
+        data = {"name": os.path.basename(file)}
+        open_file = open(file, "rb")
+        files = {"file": open_file}
 
         r = requests.post(link, data=data, files=files, params=self.params)
 
@@ -577,7 +607,10 @@ class ZenodoDeposit(ZenodoEntry):
         Raises:
             InvalidResponseStatusError: If query response status other than expected.
         """
-        link = self.base_url + '/api/deposit/depositions/%s/files/%s' % (self.id, file_id)
+        link = self.base_url + "/api/deposit/depositions/%s/files/%s" % (
+            self.id,
+            file_id,
+        )
 
         r = requests.delete(link, params=self.params)
 
@@ -661,13 +694,17 @@ class ZenodoRecordStats(ZenodoEntry):
     """Class holding the statistics of a @ZenodoRecord."""
 
     def __init__(self, entry_dict):
-        super().__init__(entry_dict, '', '')
+        super().__init__(entry_dict, "", "")
         self.downloads = self._get_attribute(entry_dict, "downloads")
         self.unique_downloads = self._get_attribute(entry_dict, "unique_downloads")
         self.unique_views = self._get_attribute(entry_dict, "unique_views")
         self.version_downloads = self._get_attribute(entry_dict, "version_downloads")
-        self.version_unique_downloads = self._get_attribute(entry_dict, "version_unique_downloads")
-        self.version_unique_views = self._get_attribute(entry_dict, "version_unique_views")
+        self.version_unique_downloads = self._get_attribute(
+            entry_dict, "version_unique_downloads"
+        )
+        self.version_unique_views = self._get_attribute(
+            entry_dict, "version_unique_views"
+        )
         self.version_views = self._get_attribute(entry_dict, "version_views")
         self.version_volume = self._get_attribute(entry_dict, "version_volume")
         self.views = self._get_attribute(entry_dict, "views")
@@ -675,8 +712,8 @@ class ZenodoRecordStats(ZenodoEntry):
 
 
 class ZenodoDefaultUrl(Enum):
-    sandbox_url = 'https://sandbox.zenodo.org/'
-    url = 'https://zenodo.org/'
+    sandbox_url = "https://sandbox.zenodo.org/"
+    url = "https://zenodo.org/"
 
 
 class ZenodoAPI:
@@ -694,10 +731,10 @@ class ZenodoAPI:
                 The authentication token needed to perform operations.
         """
         self.base_url = base_url
-        self.params = {'access_token': ""}
+        self.params = {"access_token": ""}
 
         if access_token:
-            self.params['access_token'] = access_token
+            self.params["access_token"] = access_token
 
     @staticmethod
     def validate_response(response, expected_response_code=None):
@@ -720,13 +757,23 @@ class ZenodoAPI:
         if not expected_response_code:
             expected_response_code = status_code
 
-        if status_code in [ResponseStatus.OK, ResponseStatus.Accepted, ResponseStatus.Created]:
+        if status_code in [
+            ResponseStatus.OK,
+            ResponseStatus.Accepted,
+            ResponseStatus.Created,
+        ]:
             if status_code != expected_response_code:
-                raise InvalidResponseStatusError("Expected %s got %s" % (expected_response_code.name, status_code.name))
+                raise InvalidResponseStatusError(
+                    "Expected %s got %s"
+                    % (expected_response_code.name, status_code.name)
+                )
             return response.json()
         elif status_code == ResponseStatus.NoContent:
             if status_code != expected_response_code:
-                raise InvalidResponseStatusError("Expected %s got %s" % (expected_response_code.name, status_code.name))
+                raise InvalidResponseStatusError(
+                    "Expected %s got %s"
+                    % (expected_response_code.name, status_code.name)
+                )
             return json.dumps(True)
         else:
             print("Error: %s" % status_code.name)
@@ -736,11 +783,19 @@ class ZenodoAPI:
                 if response.json()["errors"]:
                     print(response.json()["errors"])
 
-        raise InvalidResponseStatusError("Error \'%s\' occurred. See Log for detailed information!" % status_code.name)
+        raise InvalidResponseStatusError(
+            "Error '%s' occurred. See Log for detailed information!" % status_code.name
+        )
 
     # ############# Deposits #############
 
-    def deposit_get(self, deposit_id=None, q="", status=DepositStatus.PUBLISHED, sort=SortOrder.BEST_MATCH):
+    def deposit_get(
+        self,
+        deposit_id=None,
+        q="",
+        status=DepositStatus.PUBLISHED,
+        sort=SortOrder.BEST_MATCH,
+    ):
         """Retrieve a deposit.
 
         Args:
@@ -763,9 +818,10 @@ class ZenodoAPI:
             link = link + "/%s" % deposit_id
             params = self.params
         else:
-            params = {**{'q': q,
-                         'status': status.value,
-                         'sort': sort.value}, **self.params}
+            params = {
+                **{"q": q, "status": status.value, "sort": sort.value},
+                **self.params,
+            }
 
         r = requests.get(link, params=params)
 
@@ -774,9 +830,15 @@ class ZenodoAPI:
         deposit_list = []
         if isinstance(response_dict, list):
             for deposit_dict in response_dict:
-                deposit_list.append(ZenodoDeposit(deposit_dict, self.base_url, self.params["access_token"]))
+                deposit_list.append(
+                    ZenodoDeposit(
+                        deposit_dict, self.base_url, self.params["access_token"]
+                    )
+                )
         else:
-            deposit_list.append(ZenodoDeposit(response_dict, self.base_url, self.params["access_token"]))
+            deposit_list.append(
+                ZenodoDeposit(response_dict, self.base_url, self.params["access_token"])
+            )
 
         return deposit_list
 
@@ -787,7 +849,7 @@ class ZenodoAPI:
             A ZenodoDeposit object.
         """
 
-        link = self.base_url + '/api/deposit/depositions'
+        link = self.base_url + "/api/deposit/depositions"
 
         r = requests.post(link, params=self.params, json={})
 
@@ -804,12 +866,14 @@ class ZenodoAPI:
     # ############# Records #############
 
     # todo: write tests
-    def records_get(self,
-                    record_id=None,
-                    q="",
-                    status=DepositStatus.PUBLISHED,
-                    sort=SortOrder.BEST_MATCH,
-                    record_type=UploadType.SOFTWARE):
+    def records_get(
+        self,
+        record_id=None,
+        q="",
+        status=DepositStatus.PUBLISHED,
+        sort=SortOrder.BEST_MATCH,
+        record_type=UploadType.SOFTWARE,
+    ):
         """Retrieve a record or searches through published records.
 
         Args:
@@ -834,10 +898,15 @@ class ZenodoAPI:
             link = link + "/%s" % str(record_id)
             params = self.params
         else:
-            params = {**{'q': q,
-                         'status': status.value,
-                         'sort': sort.value,
-                         'type': record_type.value}, **self.params}
+            params = {
+                **{
+                    "q": q,
+                    "status": status.value,
+                    "sort": sort.value,
+                    "type": record_type.value,
+                },
+                **self.params,
+            }
 
         r = requests.get(link, params=params)
 
@@ -846,8 +915,14 @@ class ZenodoAPI:
         record_list = []
         if isinstance(response_dict, list):
             for record_dict in response_dict:
-                record_list.append(ZenodoRecord(record_dict, self.base_url, self.params["access_token"]))
+                record_list.append(
+                    ZenodoRecord(
+                        record_dict, self.base_url, self.params["access_token"]
+                    )
+                )
         else:
-            record_list.append(ZenodoRecord(response_dict, self.base_url, self.params["access_token"]))
+            record_list.append(
+                ZenodoRecord(response_dict, self.base_url, self.params["access_token"])
+            )
 
         return record_list

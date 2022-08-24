@@ -3,9 +3,7 @@ from album.core.controller.conda_manager import CondaManager
 
 
 class MambaManager(CondaManager):
-    """Class for handling conda environments via mamba.
-
-    """
+    """Class for handling conda environments via mamba."""
 
     def __init__(self, configuration: IConfiguration):
         super().__init__(configuration)

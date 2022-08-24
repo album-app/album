@@ -62,7 +62,6 @@ class TestLogHandler(TestUnitCoreCommon):
 
 
 class TestTask(TestUnitCoreCommon):
-
     def setUp(self):
         pass
 
@@ -72,5 +71,5 @@ class TestTask(TestUnitCoreCommon):
     # todo: implement
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

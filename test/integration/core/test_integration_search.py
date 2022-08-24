@@ -2,7 +2,6 @@ from test.integration.test_integration_core_common import TestIntegrationCoreCom
 
 
 class TestIntegrationSearch(TestIntegrationCoreCommon):
-
     def setUp(self):
         super().setUp()
 
@@ -11,5 +10,4 @@ class TestIntegrationSearch(TestIntegrationCoreCommon):
 
     def test_search_emtpy_index(self):
         self.album_controller.search_manager().search("keyword")
-        self.assertNotIn('ERROR', self.captured_output.getvalue())
-
+        self.assertNotIn("ERROR", self.captured_output.getvalue())

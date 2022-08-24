@@ -10,7 +10,9 @@ class IEnvironmentManager:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def install_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
+    def install_environment(
+        self, collection_solution: ICollectionSolution
+    ) -> IEnvironment:
         raise NotImplementedError
 
     @abstractmethod

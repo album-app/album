@@ -4,7 +4,6 @@ from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestCiCommandline(TestUnitCoreCommon):
-
     def setUp(self):
         pass
 

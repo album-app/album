@@ -8,17 +8,42 @@ from test.unit.ci.utils import test_continuous_integration
 from test.unit.core.controller import test_event_manager
 from test.unit.core.controller import test_mamba_manager
 from test.unit.core.controller import test_script_manager
-from test.unit.core.controller import test_search_manager, test_install_manager, test_run_manager, test_deploy_manager, \
-    test_conda_manager, test_test_manager, test_task_manager, test_clone_manager, test_migration_manager, \
-    test_environment_manager
-from test.unit.core.controller.collection import test_collection_manager, test_catalog_handler, test_solution_handler
-from test.unit.core.model import test_catalog, test_configuration, test_environment, \
-    test_catalog_index, test_collection_index, test_task, test_database
+from test.unit.core.controller import (
+    test_search_manager,
+    test_install_manager,
+    test_run_manager,
+    test_deploy_manager,
+    test_conda_manager,
+    test_test_manager,
+    test_task_manager,
+    test_clone_manager,
+    test_migration_manager,
+    test_environment_manager,
+)
+from test.unit.core.controller.collection import (
+    test_collection_manager,
+    test_catalog_handler,
+    test_solution_handler,
+)
+from test.unit.core.model import (
+    test_catalog,
+    test_configuration,
+    test_environment,
+    test_catalog_index,
+    test_collection_index,
+    test_task,
+    test_database,
+)
 from test.unit.core.utils import test_subcommand
 from test.unit.core.utils.export import test_changelog, test_docker
 from test.unit.core.utils.operations import test_dict_operations
-from test.unit.core.utils.operations import test_url_operations, test_file_operations, test_git_operations, \
-    test_resolve_operations, test_solution_operations
+from test.unit.core.utils.operations import (
+    test_url_operations,
+    test_file_operations,
+    test_git_operations,
+    test_resolve_operations,
+    test_solution_operations,
+)
 
 
 def main():

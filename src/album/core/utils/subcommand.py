@@ -13,7 +13,9 @@ module_logger = album_logging.get_active_logger
 class LogfileBuffer(io.StringIO):
     """Class for logging in a subprocess. Logs to the current active logger."""
 
-    def __init__(self, module_logger, message_formatter='%(message)s', error_logger = False):
+    def __init__(
+        self, module_logger, message_formatter="%(message)s", error_logger=False
+    ):
         super().__init__()
         self.message_formatter = message_formatter
         self.leftover_message = None
@@ -21,9 +23,9 @@ class LogfileBuffer(io.StringIO):
         self.is_error_logger = error_logger
         self.logger = module_logger
         self.logger_name = self.logger.name
-        self.logger_name_script = self.logger_name + '.script'
+        self.logger_name_script = self.logger_name + ".script"
         self.logger_name_current = self.logger_name_script
-        self.logger_name_unnamed = self.logger_name_script + '.log'
+        self.logger_name_unnamed = self.logger_name_script + ".log"
 
     def write(self, input) -> int:
         if not isinstance(input, str):
@@ -36,9 +38,9 @@ class LogfileBuffer(io.StringIO):
 
             if log_entry.name:
                 log_entry.name = log_entry.name.strip()
-                if log_entry.name.startswith('root.script'):
-                    log_entry.name = log_entry.name.lstrip('root.script')
-                    log_entry.name = log_entry.name.lstrip('.')
+                if log_entry.name.startswith("root.script"):
+                    log_entry.name = log_entry.name.lstrip("root.script")
+                    log_entry.name = log_entry.name.lstrip(".")
                 if len(log_entry.name) > 0:
                     log_entry.name = self.logger_name_script + "." + log_entry.name
                 else:
@@ -56,9 +58,9 @@ class LogfileBuffer(io.StringIO):
         else:  # unknown message not using or logging.
             self.logger.name = self.logger_name_current
             if self.is_error_logger:
-                self._log('ERROR', m)
+                self._log("ERROR", m)
             else:
-                self._log('INFO', m)
+                self._log("INFO", m)
         self.logger.name = self.logger_name
         #
         return 1
@@ -93,8 +95,8 @@ class LogfileBuffer(io.StringIO):
 
     @staticmethod
     def get_script_logging_formatter_regex():
-        regex_log_level = 'DEBUG|INFO|WARNING|ERROR'
-        return r'(%s)\s+([\s\S]+) - ([\s\S]+)?' % regex_log_level
+        regex_log_level = "DEBUG|INFO|WARNING|ERROR"
+        return r"(%s)\s+([\s\S]+) - ([\s\S]+)?" % regex_log_level
 
     @staticmethod
     def _parse_album_runner_log(text):
@@ -105,7 +107,11 @@ class LogfileBuffer(io.StringIO):
 
     @staticmethod
     def _parse_album_log(text):
-        r = re.search(r'\d\d:\d\d:\d\d (%s)(?:[\s]+(~*))? ([\s\S]+)?' % LogfileBuffer._regex_log_level(), text)
+        r = re.search(
+            r"\d\d:\d\d:\d\d (%s)(?:[\s]+(~*))? ([\s\S]+)?"
+            % LogfileBuffer._regex_log_level(),
+            text,
+        )
         if r:
             if len(r.groups()) == 3:
                 name = r.group(2)
@@ -118,14 +124,14 @@ class LogfileBuffer(io.StringIO):
 
     @staticmethod
     def _parse_level_colon_log(text):
-        r = re.search(r'(%s): ([\s\S]+)?' % LogfileBuffer._regex_log_level(), text)
+        r = re.search(r"(%s): ([\s\S]+)?" % LogfileBuffer._regex_log_level(), text)
         if r:
             return LogEntry(name=None, level=r.group(1), message=r.group(2))
         return None
 
     @staticmethod
     def _parse_level_brackets_log(text):
-        r = re.search(r'\[(%s)\] ([\s\S]+)?' % LogfileBuffer._regex_log_level(), text)
+        r = re.search(r"\[(%s)\] ([\s\S]+)?" % LogfileBuffer._regex_log_level(), text)
         if r:
             return LogEntry(name=None, level=r.group(1), message=r.group(2))
         return None
@@ -139,7 +145,9 @@ class LogProcessing:
     def __init__(self, logger, log_output, message_formatter):
         if log_output:
             self.info_logger = LogfileBuffer(logger, message_formatter)
-            self.error_logger = LogfileBuffer(logger, message_formatter, error_logger=True)
+            self.error_logger = LogfileBuffer(
+                logger, message_formatter, error_logger=True
+            )
         else:
             self.info_logger = io.StringIO()
             self.error_logger = io.StringIO()
@@ -176,7 +184,7 @@ def run(command, log_output=True, message_formatter=None, pipe_output=True):
             When exit-status of subprocess is not 0.
 
     """
-    module_logger().debug('Running command: %s...' % " ".join(command))
+    module_logger().debug("Running command: %s..." % " ".join(command))
 
     logger = album_logging.get_active_logger()
     log_processing = LogProcessing(logger, log_output, message_formatter)
@@ -187,7 +195,6 @@ def run(command, log_output=True, message_formatter=None, pipe_output=True):
 
 
 class SubProcessError(RuntimeError):
-
     def __init__(self, exit_status, message) -> None:
         self.exit_status = exit_status
         super().__init__(message)
@@ -195,8 +202,13 @@ class SubProcessError(RuntimeError):
 
 def _run_process(command, log: LogProcessing, pipe_output):
     if pipe_output:
-        process = subprocess.Popen(command, shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                   text=True)
+        process = subprocess.Popen(
+            command,
+            shell=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
         while True:
             output = process.stdout.readline()
             if process.poll() is not None:

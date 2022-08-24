@@ -48,5 +48,5 @@ setup(
     uninstall=album_uninstall,
     pre_test=album_pre_test,
     test=album_test,
-    dependencies={}
+    dependencies={},
 )

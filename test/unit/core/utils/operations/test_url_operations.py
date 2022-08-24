@@ -1,12 +1,16 @@
 import unittest
 from pathlib import Path
 
-from album.core.utils.operations.url_operations import is_downloadable, download_resource, _request_get, is_url
+from album.core.utils.operations.url_operations import (
+    is_downloadable,
+    download_resource,
+    _request_get,
+    is_url,
+)
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestUrlOperations(TestUnitCoreCommon):
-
     def setUp(self) -> None:
         super().setUp()
         self.downloadable_url = "https://www.google.com/favicon.ico"
@@ -37,7 +41,10 @@ class TestUrlOperations(TestUnitCoreCommon):
 
         with self.assertRaises(AssertionError) as context:
             r = download_resource(self.wrong_url, p)
-            self.assertEqual(context.exception, "Resource \"%s\" not downloadable!" % self.downloadable_url)
+            self.assertEqual(
+                context.exception,
+                'Resource "%s" not downloadable!' % self.downloadable_url,
+            )
 
     def test__request_get_ok(self):
         _request_get(self.downloadable_url)
@@ -45,7 +52,9 @@ class TestUrlOperations(TestUnitCoreCommon):
     def test__request_get_failed(self):
         with self.assertRaises(ConnectionError) as context:
             _request_get(self.wrong_url)
-            self.assertEqual(context.exception, "Could not connect to resource %s!" % self.wrong_url)
+            self.assertEqual(
+                context.exception, "Could not connect to resource %s!" % self.wrong_url
+            )
 
     def test_is_url(self):
         u1 = is_url("http://abc.de")

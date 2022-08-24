@@ -12,7 +12,6 @@ from test.unit.test_unit_core_common import TestUnitCoreCommon, EmptyTestClass
 
 
 class TestInstallManager(TestUnitCoreCommon):
-
     def setUp(self):
         super().setUp()
         self.setup_collection()
@@ -28,10 +27,12 @@ class TestInstallManager(TestUnitCoreCommon):
         # create mocks
         resolve_result = ResolveResult(
             path=Path("aPath"),
-            catalog=self.album_controller.collection_manager().catalogs().get_cache_catalog(),
+            catalog=self.album_controller.collection_manager()
+            .catalogs()
+            .get_cache_catalog(),
             loaded_solution=self.active_solution,
             collection_entry=None,
-            coordinates=self.active_solution.coordinates()
+            coordinates=self.active_solution.coordinates(),
         )
 
         _install_resolve_result = MagicMock(return_value=None)
@@ -44,7 +45,9 @@ class TestInstallManager(TestUnitCoreCommon):
         self.install_manager.install("aPath", [])
 
         # assert
-        _install_resolve_result.assert_called_once_with(resolve_result, [], parent=False)
+        _install_resolve_result.assert_called_once_with(
+            resolve_result, [], parent=False
+        )
 
     @unittest.skip("Needs to be implemented!")
     def test__resolve_result_is_installed(self):
@@ -82,16 +85,28 @@ class TestInstallManager(TestUnitCoreCommon):
         self.environment_manager.set_environment = set_environment
 
         run_solution_install_routine = MagicMock()
-        self.install_manager._run_solution_install_routine = run_solution_install_routine
+        self.install_manager._run_solution_install_routine = (
+            run_solution_install_routine
+        )
 
         # call
         self.install_manager._install_active_solution(
-            ResolveResult("", self.album_controller.collection_manager().catalogs().get_cache_catalog(), None,
-                          self.active_solution.coordinates(), self.active_solution), ["myargs"]
+            ResolveResult(
+                "",
+                self.album_controller.collection_manager()
+                .catalogs()
+                .get_cache_catalog(),
+                None,
+                self.active_solution.coordinates(),
+                self.active_solution,
+            ),
+            ["myargs"],
         )
 
         # assert
-        run_solution_install_routine.assert_called_once_with(self.active_solution, None, ["myargs"])
+        run_solution_install_routine.assert_called_once_with(
+            self.active_solution, None, ["myargs"]
+        )
         set_environment.assert_not_called()
         install_environment.assert_called_once()
 
@@ -99,7 +114,9 @@ class TestInstallManager(TestUnitCoreCommon):
         self.active_solution._setup.album_api_version = "test"
 
         self.parent_solution = Solution(deepcopy(dict(self.active_solution.setup())))
-        self.parent_solution.environment = lambda: EmptyTestClass()  # different object in memory
+        self.parent_solution.environment = (
+            lambda: EmptyTestClass()
+        )  # different object in memory
 
         self.active_solution._setup.dependencies = {"parent": "aParent"}
 
@@ -110,25 +127,38 @@ class TestInstallManager(TestUnitCoreCommon):
         set_environment = MagicMock(return_value=None)
         self.environment_manager.set_environment = set_environment
 
-        parent_resolve_result = ResolveResult(None, None, None, None, loaded_solution=self.parent_solution)
+        parent_resolve_result = ResolveResult(
+            None, None, None, None, loaded_solution=self.parent_solution
+        )
         _install_parent = MagicMock(return_value=parent_resolve_result)
         self.install_manager._install_parent = _install_parent
 
         self.album_controller.solutions().set_parent = MagicMock()
 
         run_solution_install_routine = MagicMock()
-        self.install_manager._run_solution_install_routine = run_solution_install_routine
+        self.install_manager._run_solution_install_routine = (
+            run_solution_install_routine
+        )
 
         # call
         self.install_manager._install_active_solution(
-            ResolveResult("", self.album_controller.collection_manager().catalogs().get_cache_catalog(), None,
-                          self.active_solution.coordinates(), self.active_solution), ["myargs"]
+            ResolveResult(
+                "",
+                self.album_controller.collection_manager()
+                .catalogs()
+                .get_cache_catalog(),
+                None,
+                self.active_solution.coordinates(),
+                self.active_solution,
+            ),
+            ["myargs"],
         )
 
         # assert
         _install_parent.assert_called_once_with("aParent")
-        run_solution_install_routine.assert_called_once_with(self.active_solution, set_environment.return_value,
-                                                             ["myargs"])
+        run_solution_install_routine.assert_called_once_with(
+            self.active_solution, set_environment.return_value, ["myargs"]
+        )
         set_environment.assert_called_once()
         install_environment.assert_not_called()
 
@@ -137,7 +167,10 @@ class TestInstallManager(TestUnitCoreCommon):
         # TODO implement
         pass
 
-    @patch('album.core.controller.install_manager.build_resolve_string', return_value="myResolveString")
+    @patch(
+        "album.core.controller.install_manager.build_resolve_string",
+        return_value="myResolveString",
+    )
     def test__install_parent(self, build_resolve_string_mock):
         # mocks
         _install = MagicMock(return_value=None)
@@ -173,34 +206,55 @@ class TestInstallManager(TestUnitCoreCommon):
         # TODO implement
         pass
 
-    @patch('album.core.controller.install_manager.dict_to_coordinates', return_value=Coordinates('g1', 'n1', 'v1'))
-    @patch('album.core.controller.install_manager.get_parent_dict', return_value=False)
+    @patch(
+        "album.core.controller.install_manager.dict_to_coordinates",
+        return_value=Coordinates("g1", "n1", "v1"),
+    )
+    @patch("album.core.controller.install_manager.get_parent_dict", return_value=False)
     def test_clean_unfinished_installations_env_exists(self, _, __):
         # mocks
         remove_dc = MagicMock()
-        self.album_controller.install_manager()._remove_disc_content_from_solution = remove_dc
+        self.album_controller.install_manager()._remove_disc_content_from_solution = (
+            remove_dc
+        )
 
         set_cache_paths = MagicMock()
-        self.album_controller.collection_manager().solutions().set_cache_paths = set_cache_paths
-        get_unfinished_installation_solutions = MagicMock(
-            return_value=[CollectionIndex.CollectionSolution(
-                {'group': 'g1', 'name': 'n1', 'version': 'v1'},  # setup
-                {'catalog_id': 1}  # internal
-            )]
+        self.album_controller.collection_manager().solutions().set_cache_paths = (
+            set_cache_paths
         )
-        self.album_controller.collection_manager().get_collection_index().get_unfinished_installation_solutions = get_unfinished_installation_solutions
+        get_unfinished_installation_solutions = MagicMock(
+            return_value=[
+                CollectionIndex.CollectionSolution(
+                    {"group": "g1", "name": "n1", "version": "v1"},  # setup
+                    {"catalog_id": 1},  # internal
+                )
+            ]
+        )
+        self.album_controller.collection_manager().get_collection_index().get_unfinished_installation_solutions = (
+            get_unfinished_installation_solutions
+        )
 
-        get_by_id_mock = MagicMock(return_value=self.album_controller.collection_manager().catalogs().get_cache_catalog())
+        get_by_id_mock = MagicMock(
+            return_value=self.album_controller.collection_manager()
+            .catalogs()
+            .get_cache_catalog()
+        )
         self.album_controller.collection_manager().catalogs().get_by_id = get_by_id_mock
 
         retrieve_and_load_resolve_result = MagicMock()
-        self.album_controller.collection_manager().retrieve_and_load_resolve_result = retrieve_and_load_resolve_result
+        self.album_controller.collection_manager().retrieve_and_load_resolve_result = (
+            retrieve_and_load_resolve_result
+        )
 
         _clean_unfinished_installations_environment = MagicMock()
-        self.install_manager._clean_unfinished_installations_environment = _clean_unfinished_installations_environment
+        self.install_manager._clean_unfinished_installations_environment = (
+            _clean_unfinished_installations_environment
+        )
 
         remove_solution = MagicMock()
-        self.album_controller.collection_manager().solutions().remove_solution = remove_solution
+        self.album_controller.collection_manager().solutions().remove_solution = (
+            remove_solution
+        )
 
         # call
         self.install_manager.clean_unfinished_installations()
@@ -213,34 +267,55 @@ class TestInstallManager(TestUnitCoreCommon):
         _clean_unfinished_installations_environment.assert_called_once()
         remove_solution.assert_called_once()
 
-    @patch('album.core.controller.install_manager.dict_to_coordinates', return_value=Coordinates('g1', 'n1', 'v1'))
-    @patch('album.core.controller.install_manager.get_parent_dict', return_value=True)
+    @patch(
+        "album.core.controller.install_manager.dict_to_coordinates",
+        return_value=Coordinates("g1", "n1", "v1"),
+    )
+    @patch("album.core.controller.install_manager.get_parent_dict", return_value=True)
     def test_clean_unfinished_installations_parent(self, _, __):
         # mocks
         remove_dc = MagicMock()
-        self.album_controller.install_manager()._remove_disc_content_from_solution = remove_dc
+        self.album_controller.install_manager()._remove_disc_content_from_solution = (
+            remove_dc
+        )
 
         set_cache_paths = MagicMock()
-        self.album_controller.collection_manager().solutions().set_cache_paths = set_cache_paths
-        get_unfinished_installation_solutions = MagicMock(
-            return_value=[CollectionIndex.CollectionSolution(
-                {'group': 'g1', 'name': 'n1', 'version': 'v1'},  # setup
-                {'catalog_id': 1}  # internal
-            )]
+        self.album_controller.collection_manager().solutions().set_cache_paths = (
+            set_cache_paths
         )
-        self.album_controller.collection_manager().get_collection_index().get_unfinished_installation_solutions = get_unfinished_installation_solutions
+        get_unfinished_installation_solutions = MagicMock(
+            return_value=[
+                CollectionIndex.CollectionSolution(
+                    {"group": "g1", "name": "n1", "version": "v1"},  # setup
+                    {"catalog_id": 1},  # internal
+                )
+            ]
+        )
+        self.album_controller.collection_manager().get_collection_index().get_unfinished_installation_solutions = (
+            get_unfinished_installation_solutions
+        )
 
-        get_by_id_mock = MagicMock(return_value=self.album_controller.collection_manager().catalogs().get_cache_catalog())
+        get_by_id_mock = MagicMock(
+            return_value=self.album_controller.collection_manager()
+            .catalogs()
+            .get_cache_catalog()
+        )
         self.album_controller.collection_manager().catalogs().get_by_id = get_by_id_mock
 
         retrieve_and_load_resolve_result = MagicMock()
-        self.album_controller.collection_manager().retrieve_and_load_resolve_result = retrieve_and_load_resolve_result
+        self.album_controller.collection_manager().retrieve_and_load_resolve_result = (
+            retrieve_and_load_resolve_result
+        )
 
         _clean_unfinished_installations_environment = MagicMock()
-        self.install_manager._clean_unfinished_installations_environment = _clean_unfinished_installations_environment
+        self.install_manager._clean_unfinished_installations_environment = (
+            _clean_unfinished_installations_environment
+        )
 
         remove_solution = MagicMock()
-        self.album_controller.collection_manager().solutions().remove_solution = remove_solution
+        self.album_controller.collection_manager().solutions().remove_solution = (
+            remove_solution
+        )
 
         # call
         self.install_manager.clean_unfinished_installations()
@@ -257,21 +332,35 @@ class TestInstallManager(TestUnitCoreCommon):
 
         # mocks
         remove_dc = MagicMock()
-        self.album_controller.install_manager()._remove_disc_content_from_solution = remove_dc
+        self.album_controller.install_manager()._remove_disc_content_from_solution = (
+            remove_dc
+        )
 
         set_cache_paths = MagicMock()
-        self.album_controller.collection_manager().solutions().set_cache_paths = set_cache_paths
-        get_by_id_mock = MagicMock(return_value=self.album_controller.collection_manager().catalogs().get_cache_catalog())
+        self.album_controller.collection_manager().solutions().set_cache_paths = (
+            set_cache_paths
+        )
+        get_by_id_mock = MagicMock(
+            return_value=self.album_controller.collection_manager()
+            .catalogs()
+            .get_cache_catalog()
+        )
         self.album_controller.collection_manager().catalogs().get_by_id = get_by_id_mock
 
         retrieve_and_load_resolve_result = MagicMock()
-        self.album_controller.collection_manager().retrieve_and_load_resolve_result = retrieve_and_load_resolve_result
+        self.album_controller.collection_manager().retrieve_and_load_resolve_result = (
+            retrieve_and_load_resolve_result
+        )
 
         _clean_unfinished_installations_environment = MagicMock()
-        self.install_manager._clean_unfinished_installations_environment = _clean_unfinished_installations_environment
+        self.install_manager._clean_unfinished_installations_environment = (
+            _clean_unfinished_installations_environment
+        )
 
         set_uninstalled = MagicMock()
-        self.album_controller.collection_manager().solutions().set_uninstalled = set_uninstalled
+        self.album_controller.collection_manager().solutions().set_uninstalled = (
+            set_uninstalled
+        )
 
         # call
         self.install_manager.clean_unfinished_installations()
@@ -325,5 +414,5 @@ class TestInstallManager(TestUnitCoreCommon):
         remove_environment.assert_called_once_with("myEnv")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
