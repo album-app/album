@@ -104,7 +104,7 @@ class TestCondaManager(TestUnitCoreCommon):
         )
         self.assertTrue(self.conda.environment_exists(self.test_environment_name))
 
-    def test__append_framework_to_yml(self):
+    def test__append_framework_to_yml_pip(self):
         output = CondaManager._append_framework_to_yml(
             yaml.safe_load(
                 """
@@ -129,6 +129,16 @@ dependencies:
                 "name": "test",
                 "dependencies": ["pip=21.0", {"pip": ["album-runner==0.3.0"]}],
             },
+            output,
+        )
+
+    def test__append_framework_to_yml_conda(self):
+        output = CondaManager._append_framework_to_yml(
+            yaml.safe_load("""dependencies:\n  - python"""),
+            "0.5.1",
+        )
+        self.assertEqual(
+            {"dependencies": ["python", "conda-forge::album-runner=0.5.1"]},
             output,
         )
 

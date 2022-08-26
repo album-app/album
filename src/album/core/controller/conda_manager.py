@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path
 
 import yaml
+from packaging import version
 
 from album.core.api.model.configuration import IConfiguration
 from album.core.api.model.environment import IEnvironment
@@ -247,48 +248,37 @@ class CondaManager:
         if not (yaml_path.is_file() and yaml_path.stat().st_size > 0):
             raise ValueError("File not a valid yml file!")
 
-        if not album_api_version:
-            album_api_version = DefaultValues.runner_api_packet_version.value
-        if not DefaultValues.runner_api_packet_version.value:
-            album_api_version = None
-
         with open(yaml_path, "r") as f:
             content = yaml.safe_load(f)
 
-        self._append_framework_to_yml(content, album_api_version)
-
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".yml"
-        ) as env_file:
-            env_file.write(yaml.safe_dump(content))
-
-        env_prefix = os.path.normpath(self._environment_name_to_path(environment_name))
-
-        # TODO in debug mode, use -v to display the installation process
-        subprocess_args = [
-            self._get_install_environment_executable(),
-            "env",
-            "create",
-            "--force",
-            "-f",
-            os.path.normpath(env_file.name),
-            "-p",
-            env_prefix,
-        ]
-
-        try:
-            subcommand.run(subprocess_args, log_output=True)
-        except SubProcessError as e:
-            # cleanup after failed installation
-            if self.environment_exists(environment_name):
-                module_logger().debug("Cleanup failed installation...")
-                self.remove_environment(environment_name)
-            raise RuntimeError("Command failed due to reasons above!") from e
-        # finally:
-        #     os.remove(env_file.name)
+        self._append_runner_and_install(album_api_version, environment_name, content)
 
     @staticmethod
     def _append_framework_to_yml(content, album_api_version):
+        if version.parse(album_api_version) >= version.parse(
+            DefaultValues.first_runner_conda_version.value
+        ):
+            return CondaManager._append_framework_via_conda_to_yml(
+                content, album_api_version
+            )
+        else:
+            return CondaManager._append_framework_via_pip_to_yml(
+                content, album_api_version
+            )
+
+    @staticmethod
+    def _append_framework_via_conda_to_yml(content, album_api_version):
+        framework = "conda-forge::%s=%s" % (
+            DefaultValues.runner_api_packet_name.value,
+            album_api_version,
+        )
+        if not "dependencies" in content or not content["dependencies"]:
+            content["dependencies"] = []
+        content["dependencies"].append(framework)
+        return content
+
+    @staticmethod
+    def _append_framework_via_pip_to_yml(content, album_api_version):
         # There might be environments without pip, so the the dependency content needs
         # to be adjusted to make sure pip is available.
         framework = "%s==%s" % (
@@ -338,28 +328,33 @@ class CondaManager:
                     "Environment with name %s already exists!" % environment_name
                 )
 
-        env_prefix = os.path.normpath(self._environment_name_to_path(environment_name))
+        env_content = {
+            "channels": ["defaults"],
+            "dependencies": [
+                "python=%s" % DefaultValues.default_solution_python_version.value
+            ],
+        }
+
+        self._append_runner_and_install(
+            album_api_version, environment_name, env_content
+        )
+
+    def _append_runner_and_install(
+        self, album_api_version, environment_name, environment_content
+    ):
 
         if not album_api_version:
             album_api_version = DefaultValues.runner_api_packet_version.value
-        if not DefaultValues.runner_api_packet_version.value:
-            album_api_version = None
 
+        environment_content = self._append_framework_to_yml(
+            environment_content, album_api_version
+        )
+        env_prefix = os.path.normpath(self._environment_name_to_path(environment_name))
         with tempfile.NamedTemporaryFile(
             mode="w", delete=False, suffix=".yml"
         ) as env_file:
 
-            env_file.write(
-                "channels:\n"
-                + "  - defaults\n"
-                + "dependencies:\n"
-                + "  - python=3.8\n"
-                + "  - pip\n"
-                + "  - pip:\n"
-                + "    - %s==%s\n"
-                % (DefaultValues.runner_api_packet_name.value, album_api_version)
-            )
-
+            env_file.write(yaml.safe_dump(environment_content))
         subprocess_args = [
             self._get_install_environment_executable(),
             "env",
@@ -370,7 +365,6 @@ class CondaManager:
             "-p",
             env_prefix,
         ]
-
         try:
             subcommand.run(subprocess_args, log_output=True)
         except RuntimeError as e:
