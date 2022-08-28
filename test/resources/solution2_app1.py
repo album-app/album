@@ -23,25 +23,21 @@ setup(
     name="solution2_app1",
     title="solution two on app one",
     version="0.1.0",
-    album_api_version="0.4.1",
-    args=[{
-        "name": "file_solution2_app1",
-        "description": "",
-    }],
+    album_api_version="0.5.1",
+    args=[
+        {
+            "name": "file_solution2_app1",
+            "description": "",
+        }
+    ],
     run=album_run,
     close=album_close,
     dependencies={
-        'parent': {
-            'name': 'app1',
-            'group': 'group',
-            'version': '0.1.0',
-            'args': [
-                {
-                    "name": "app1_param",
-                    "value": "app1_param_other_value"
-                }
-            ]
+        "parent": {
+            "name": "app1",
+            "group": "group",
+            "version": "0.1.0",
+            "args": [{"name": "app1_param", "value": "app1_param_other_value"}],
         }
-    }
-    )
-
+    },
+)

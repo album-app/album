@@ -4,7 +4,7 @@ from threading import Thread
 
 from album.core.api.controller.task_manager import ITaskManager
 from album.core.api.model.task import ITask
-from album.core.model.task import LogHandler
+from album.core.model.task import LogHandler, Task
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
@@ -28,7 +28,9 @@ class TaskManager(ITaskManager):
     def _initialize_workers(self):
         self.workers_initialized = True
         current_thread = threading.current_thread().ident
-        module_logger().info(f"TaskManager: Initializing {self.num_fetch_threads} worker threads...")
+        module_logger().info(
+            f"TaskManager: Initializing {self.num_fetch_threads} worker threads..."
+        )
         for i in range(self.num_fetch_threads):
             worker = Thread(target=self._run_queue_entry, args=(i, current_thread))
             worker.setDaemon(True)
@@ -40,19 +42,25 @@ class TaskManager(ITaskManager):
     def get_status(self, task: ITask):
         return {
             "status": task.status().name,
-            "records": self._records_to_json(task.log_handler().records())
+            "records": self._records_to_json(task.log_handler().records()),
         }
 
     @staticmethod
     def _records_to_json(records):
         res = []
         for record in records:
-            res.append({
-                "asctime": None if not hasattr(record, 'asctime') else str(record.asctime),
-                "name": None if not hasattr(record, 'name') else str(record.name),
-                "levelname": None if not hasattr(record, 'levelname') else str(record.levelname),
-                "msg": None if not hasattr(record, 'msg') else str(record.msg),
-            })
+            res.append(
+                {
+                    "asctime": None
+                    if not hasattr(record, "asctime")
+                    else str(record.asctime),
+                    "name": None if not hasattr(record, "name") else str(record.name),
+                    "levelname": None
+                    if not hasattr(record, "levelname")
+                    else str(record.levelname),
+                    "msg": None if not hasattr(record, "msg") else str(record.msg),
+                }
+            )
         return res
 
     def _finish_queue(self):
@@ -63,7 +71,11 @@ class TaskManager(ITaskManager):
         # while self.server.task_manager.server_queue.unfinished_tasks and time() < stop:
         #     sleep(1)
 
-    def register_task(self, task: ITask):
+    def create_and_register_task(self, method, args) -> str:
+        task = Task(method, args)
+        return self.register_task(task)
+
+    def register_task(self, task: ITask) -> str:
         if not self.workers_initialized:
             self._initialize_workers()
         task.set_id(str(self.task_count))
@@ -75,7 +87,9 @@ class TaskManager(ITaskManager):
         return task.id()
 
     def _run_queue_entry(self, i, parent_thread):
-        album_logging.configure_logging("worker" + str(i), parent_thread_id=parent_thread)
+        album_logging.configure_logging(
+            "worker" + str(i), parent_thread_id=parent_thread
+        )
         while True:
             task = self.server_queue.get()
             self._handle_task(task)

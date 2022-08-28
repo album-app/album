@@ -12,9 +12,9 @@ class ICatalogHandler:
     def create_cache_catalog(self):
         """Creates the local catalog on the disk from the available initial catalogs.
 
-         Does not contain a DB file. Used only when album starts the first time.
+        Does not contain a DB file. Used only when album starts the first time.
 
-         """
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -28,12 +28,12 @@ class ICatalogHandler:
 
     @abstractmethod
     def add_by_src(self, source, branch_name="main") -> ICatalog:
-        """ Adds a catalog. Creates them from their src. (Git, network-drive, folder outside cache, etc.)"""
+        """Adds a catalog. Creates them from their src. (Git, network-drive, folder outside cache, etc.)"""
         raise NotImplementedError
 
     @abstractmethod
     def _add_to_index(self, catalog: ICatalog) -> int:
-        """ Adds a catalog to the collection index.
+        """Adds a catalog to the collection index.
 
         Args:
             catalog: The catalog object
@@ -95,8 +95,9 @@ class ICatalogHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def update_collection(self, catalog_name=None, dry_run: bool = False, override: bool = False) -> Dict[
-        str, ICatalogUpdates]:
+    def update_collection(
+        self, catalog_name=None, dry_run: bool = False, override: bool = False
+    ) -> Dict[str, ICatalogUpdates]:
         """Includes all new changes from a given catalog (or all catalogs) in the catalog_collection."""
         raise NotImplementedError
 

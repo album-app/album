@@ -4,9 +4,17 @@ import unittest
 from test.integration import test_integration_api, test_integration_commandline
 from test.integration.ci import test_integration_ci
 from test.integration.core import test_integration_filestructure
-from test.integration.core import test_integration_uninstall, test_integration_run, \
-    test_integration_search, test_integration_test, test_integration_repl, \
-    test_integration_install, test_integration_catalog_features, test_integration_deploy, test_integration_clone
+from test.integration.core import (
+    test_integration_uninstall,
+    test_integration_run,
+    test_integration_search,
+    test_integration_test,
+    test_integration_repl,
+    test_integration_install,
+    test_integration_catalog_features,
+    test_integration_deploy,
+    test_integration_clone,
+)
 
 
 def main():

@@ -6,16 +6,29 @@ import stat
 import unittest.mock
 from pathlib import Path
 
-from album.core.utils.operations.file_operations import get_dict_from_yml, write_dict_to_yml, \
-    create_empty_file_recursively, \
-    create_path_recursively, write_dict_to_json, force_remove, zip_folder, unzip_archive, copy, \
-    copy_folder, zip_paths, rand_folder_name, folder_empty, _next_free_pointer_number, get_link_target, \
-    construct_cache_link_target, list_files_recursively
+from album.core.utils.operations.file_operations import (
+    get_dict_from_yml,
+    write_dict_to_yml,
+    create_empty_file_recursively,
+    create_path_recursively,
+    write_dict_to_json,
+    force_remove,
+    zip_folder,
+    unzip_archive,
+    copy,
+    copy_folder,
+    zip_paths,
+    rand_folder_name,
+    folder_empty,
+    _next_free_pointer_number,
+    get_link_target,
+    construct_cache_link_target,
+    list_files_recursively,
+)
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestFileOperations(TestUnitCoreCommon):
-
     def setUp(self):
         super().setUp()
         self.set_dummy_solution_path()
@@ -25,7 +38,11 @@ class TestFileOperations(TestUnitCoreCommon):
 
     def set_dummy_solution_path(self):
         current_path = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
-        self.dummysolution = str(current_path.joinpath("..", "..", "..", "..", "resources", "solution0_dummy.py"))
+        self.dummysolution = str(
+            current_path.joinpath(
+                "..", "..", "..", "..", "resources", "solution0_dummy.py"
+            )
+        )
 
     def test_get_dict_from_yml(self):
         tmp_folder = pathlib.Path(self.tmp_dir.name)
@@ -84,7 +101,9 @@ class TestFileOperations(TestUnitCoreCommon):
         self.assertFalse(folder_empty(p))
 
     def test_create_empty_file_recursively(self):
-        tmp_file = pathlib.Path(self.tmp_dir.name).joinpath("test_folder", "new_folder", "t.txt")
+        tmp_file = pathlib.Path(self.tmp_dir.name).joinpath(
+            "test_folder", "new_folder", "t.txt"
+        )
 
         create_empty_file_recursively(tmp_file)
 
@@ -149,7 +168,9 @@ class TestFileOperations(TestUnitCoreCommon):
 
         copy_folder(source_copy, target_copy, copy_root_folder=True)
 
-        self.assertTrue(target_copy.joinpath(source_copy.name, "a_new_folder", "bFile.txt").exists())
+        self.assertTrue(
+            target_copy.joinpath(source_copy.name, "a_new_folder", "bFile.txt").exists()
+        )
         self.assertTrue(target_copy.joinpath(source_copy.name, "aFile.txt").exists())
 
     def test_copy(self):
@@ -167,7 +188,9 @@ class TestFileOperations(TestUnitCoreCommon):
 
         # copy
         copy(source_copy_file, target_copy)  # to new target folder
-        copy(source_copy_file, target_copy.joinpath("newname.txt"))  # to new target folder with new name
+        copy(
+            source_copy_file, target_copy.joinpath("newname.txt")
+        )  # to new target folder with new name
 
         # assert
         self.assertTrue(target_copy.joinpath("aFile.txt").exists())
@@ -215,7 +238,9 @@ class TestFileOperations(TestUnitCoreCommon):
 
         # check
         self.assertTrue(target_unzip.joinpath("test_source_folder1").exists())
-        self.assertTrue(target_unzip.joinpath("test_source_folder1", "aFile.txt").exists())
+        self.assertTrue(
+            target_unzip.joinpath("test_source_folder1", "aFile.txt").exists()
+        )
         self.assertTrue(target_unzip.joinpath("bFile.txt").exists())
 
     def test_unzip_archive(self):
@@ -291,10 +316,17 @@ class TestFileOperations(TestUnitCoreCommon):
         r = list_files_recursively(p, relative=True)
 
         self.assertListEqual(
-            [p.joinpath("a", "b", "myfileB").relative_to(p), p.joinpath("a", "myfileA").relative_to(p)], r
+            [
+                p.joinpath("a", "b", "myfileB").relative_to(p),
+                p.joinpath("a", "myfileA").relative_to(p),
+            ],
+            r,
         )
 
-    @unittest.skipIf(platform.system().lower() == 'windows', "Linking in windows currently not tested!")
+    @unittest.skipIf(
+        platform.system().lower() == "windows",
+        "Linking in windows currently not tested!",
+    )
     def test_construct_cache_link_target(self):
         point_from = Path(self.tmp_dir.name).joinpath("point_from")
 
@@ -302,7 +334,9 @@ class TestFileOperations(TestUnitCoreCommon):
         r = construct_cache_link_target(Path(self.tmp_dir.name), point_from, "point_to")
 
         # assert
-        self.assertEqual(Path(self.tmp_dir.name).joinpath("point_to", "0").resolve(), r.resolve())
+        self.assertEqual(
+            Path(self.tmp_dir.name).joinpath("point_to", "0").resolve(), r.resolve()
+        )
 
     def test__next_free_pointer_number(self):
         p0 = Path(self.tmp_dir.name).joinpath("0")
@@ -317,7 +351,10 @@ class TestFileOperations(TestUnitCoreCommon):
 
         self.assertEqual("2", r)
 
-    @unittest.skipIf(platform.system().lower() == 'windows', "Linking in windows currently not tested!")
+    @unittest.skipIf(
+        platform.system().lower() == "windows",
+        "Linking in windows currently not tested!",
+    )
     def test_get_link_target(self):
         point_to = Path(self.tmp_dir.name).joinpath("point_to")
         point_to.touch()
@@ -328,5 +365,5 @@ class TestFileOperations(TestUnitCoreCommon):
 
         self.assertEqual(point_to.resolve(), get_link_target(point_from).resolve())
 
-    if __name__ == '__main__':
+    if __name__ == "__main__":
         unittest.main()

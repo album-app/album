@@ -1,0 +1,13 @@
+name: album
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - pip
+  - git>=2.34
+  - pip:
+      - https://gitlab.com/album-app/album/-/archive/dev/album-dev.zip
+      - https://gitlab.com/album-app/plugins/album-distributed/-/archive/main/album-distributed-main.zip
+      - https://gitlab.com/album-app/plugins/album-gui/-/archive/main/album-gui-main.zip
+      - https://gitlab.com/album-app/plugins/album-socket/-/archive/main/album-socket-main.zip

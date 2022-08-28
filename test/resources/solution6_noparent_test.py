@@ -39,9 +39,7 @@ def album_prepare_test():
     file.close()
 
     # and we set the arguments
-    return {
-        "--file": file.name
-    }
+    return {"--file": file.name}
 
 
 def album_test():
@@ -56,7 +54,9 @@ def album_test():
     file.close()
     # and we do a test
     expected_result = [
-        "File created in album_prepare_test\n", "solution6_noparent_test_run\n", "solution6_noparent_test_close\n"
+        "File created in album_prepare_test\n",
+        "solution6_noparent_test_run\n",
+        "solution6_noparent_test_close\n",
     ]
     assert expected_result == file_content
 
@@ -66,14 +66,16 @@ setup(
     name="solution6_noparent_test",
     title="solution six, no parent, nice test routine",
     version="0.1.0",
-    album_api_version="0.4.1",
-    args=[{
-        "name": "file",
-        "description": "",
-    }],
+    album_api_version="0.5.1",
+    args=[
+        {
+            "name": "file",
+            "description": "",
+        }
+    ],
     run=album_run,
     close=album_close,
     pre_test=album_prepare_test,
     test=album_test,
-    dependencies={}
+    dependencies={},
 )

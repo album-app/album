@@ -1,10 +1,13 @@
 import pathlib
 from typing import Optional, Union
 
+from album.core.api.controller.controller import IAlbumController
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.api.model.configuration import IConfiguration
+from album.core.api.model.event import IEvent
+from album.core.api.model.task import ITask
 from album.core.controller.album_controller import AlbumController
 from album.core.utils.core_logging import configure_root_logger
 from album.runner.album_logging import pop_active_logger, LogLevel
@@ -19,34 +22,36 @@ class Album:
         _log_format_time: str = None
         _log_level: LogLevel = None
 
-        def base_cache_path(self, base_cache_path: Union[str, pathlib.Path]) -> 'Album.Builder':
+        def base_cache_path(
+            self, base_cache_path: Union[str, pathlib.Path]
+        ) -> "Album.Builder":
             self._base_cache_path = base_cache_path
             return self
 
-        def log_format(self, log_format: str) -> 'Album.Builder':
+        def log_format(self, log_format: str) -> "Album.Builder":
             self._log_format = log_format
             return self
 
-        def log_format_time(self, log_format_time: str) -> 'Album.Builder':
+        def log_format_time(self, log_format_time: str) -> "Album.Builder":
             self._log_format_time = log_format_time
             return self
 
-        def log_level(self, log_level: LogLevel) -> 'Album.Builder':
+        def log_level(self, log_level: LogLevel) -> "Album.Builder":
             self._log_level = log_level
             return self
 
-        def build(self) -> 'Album':
-            return Album(self)
+        def build(self) -> "Album":
+            _controller = AlbumController(self._base_cache_path)
+            configure_root_logger(
+                log_format=self._log_format,
+                log_format_time=self._log_format_time,
+                log_level=self._log_level,
+            )
+            return Album(_controller, logger_pushed=True)
 
-    def __init__(self, builder: 'Album.Builder') -> None:
-        self._options = builder
-        self._controller = AlbumController(self._options._base_cache_path)
-        self.logger_pushed = True
-        configure_root_logger(
-            log_format=self._options._log_format,
-            log_format_time=self._options._log_format_time,
-            log_level=self._options._log_level
-        )
+    def __init__(self, album_controller: IAlbumController, logger_pushed=False) -> None:
+        self._controller = album_controller
+        self.logger_pushed = logger_pushed
 
     def __del__(self):
         self.close()
@@ -55,7 +60,9 @@ class Album:
         return self._controller.collection_manager().resolve_and_load(resolve_solution)
 
     def resolve_installed(self, resolve_solution: str) -> ICollectionSolution:
-        return self._controller.collection_manager().resolve_installed_and_load(resolve_solution)
+        return self._controller.collection_manager().resolve_installed_and_load(
+            resolve_solution
+        )
 
     def load_or_create_collection(self):
         self._controller.collection_manager().load_or_create()
@@ -82,17 +89,26 @@ class Album:
         return self._controller.state_manager().load(path)
 
     def search(self, keywords):
-        """Searches through album catalogs to find closest matching solution.
-        """
+        """Searches through album catalogs to find closest matching solution."""
         return self._controller.search_manager().search(keywords)
 
-    def run(self, solution_to_resolve: str, argv=None, run_immediately=False):
-        return self._controller.run_manager().run(solution_to_resolve, run_immediately, argv)
+    def run(self, solution_to_resolve: str, argv=None, run_async=False):
+        return self._run_async(
+            self._controller.run_manager().run,
+            (solution_to_resolve, False, argv),
+            run_async,
+        )
 
-    def install(self, solution_to_resolve: str, argv=None):
-        return self._controller.install_manager().install(solution_to_resolve, argv)
+    def install(self, solution_to_resolve: str, argv=None, run_async=False):
+        return self._run_async(
+            self._controller.install_manager().install,
+            (solution_to_resolve, argv),
+            run_async,
+        )
 
-    def uninstall(self, solution_to_resolve: str, rm_dep=False, argv=None):
+    def uninstall(
+        self, solution_to_resolve: str, rm_dep=False, argv=None, run_async=False
+    ):
         """Removes a solution from the disk. Thereby uninstalling its environment and deleting all its downloads.
 
         Args:
@@ -104,10 +120,23 @@ class Album:
                 Boolean to indicate whether to remove parents too.
 
         """
-        return self._controller.install_manager().uninstall(solution_to_resolve, rm_dep, argv)
+        return self._run_async(
+            self._controller.install_manager().uninstall,
+            (solution_to_resolve, rm_dep, argv),
+            run_async,
+        )
 
-    def deploy(self, deploy_path: str, catalog_name: str, dry_run: bool, push_option=None, git_email: str = None,
-               git_name: str = None, force_deploy: bool = False, changelog: str = ""):
+    def deploy(
+        self,
+        deploy_path: str,
+        catalog_name: str,
+        dry_run: bool,
+        push_options=None,
+        git_email: str = None,
+        git_name: str = None,
+        force_deploy: bool = False,
+        changelog: str = "",
+    ):
         """Function corresponding to the `deploy` subcommand of `album`.
 
         Generates the yml for a album and creates a merge request to the catalog only
@@ -125,7 +154,7 @@ class Album:
             dry_run:
                 When set, prepares deployment in local src of the catlog (creating zip, docker, yml),
                 but not adding to the catalog src.
-            push_option:
+            push_options:
                 Push options for the catalog repository.
             git_email:
                 The git email to use. (Default: systems git configuration)
@@ -139,15 +168,22 @@ class Album:
             deploy_path=deploy_path,
             catalog_name=catalog_name,
             dry_run=dry_run,
-            push_options=push_option,
+            push_options=push_options,
             git_email=git_email,
             git_name=git_name,
             force_deploy=force_deploy,
-            changelog=changelog
+            changelog=changelog,
         )
 
-    def undeploy(self, solution_to_resolve: str, catalog_name: str, dry_run: bool, push_option=None, git_email: str = None,
-                 git_name: str = None):
+    def undeploy(
+        self,
+        solution_to_resolve: str,
+        catalog_name: str,
+        dry_run: bool,
+        push_options=None,
+        git_email: str = None,
+        git_name: str = None,
+    ):
         """Function corresponding to the `undeploy` subcommand of `album`.
 
         Removes the solution from the given catalog.
@@ -160,7 +196,7 @@ class Album:
             dry_run:
                 When set, prepares undeploy in local src of the catalog,
                 but not actually removing it the catalog src.
-            push_option:
+            push_options:
                 Push options for the catalog repository.
             git_email:
                 The git email to use. (Default: systems git configuration)
@@ -172,9 +208,9 @@ class Album:
             solution_to_resolve=solution_to_resolve,
             catalog_name=catalog_name,
             dry_run=dry_run,
-            push_options=push_option,
+            push_options=push_options,
             git_email=git_email,
-            git_name=git_name
+            git_name=git_name,
         )
 
     def clone(self, path: str, target_dir: str, name: str) -> None:
@@ -195,11 +231,17 @@ class Album:
             pop_active_logger()
         self._controller.close()
 
-    def run_solution_script(self, resolve_result: ICollectionSolution, script: IScriptCreator):
+    def run_solution_script(
+        self, resolve_result: ICollectionSolution, script: IScriptCreator
+    ):
         self._controller.script_manager().run_solution_script(resolve_result, script)
 
     def upgrade(self, catalog_name=None, dry_run=False, override=False):
-        return self._controller.collection_manager().catalogs().update_collection(catalog_name, dry_run, override)
+        return (
+            self._controller.collection_manager()
+            .catalogs()
+            .update_collection(catalog_name, dry_run, override)
+        )
 
     def update(self, catalog_name=None):
         return self._controller.collection_manager().catalogs().update_any(catalog_name)
@@ -208,17 +250,61 @@ class Album:
         return self._controller.collection_manager().catalogs().add_by_src(catalog_src)
 
     def remove_catalog_by_src(self, catalog_src):
-        return self._controller.collection_manager().catalogs().remove_from_collection_by_src(catalog_src)
+        return (
+            self._controller.collection_manager()
+            .catalogs()
+            .remove_from_collection_by_src(catalog_src)
+        )
 
     def remove_catalog_by_name(self, catalog_src):
-        return self._controller.collection_manager().catalogs().remove_from_collection_by_name(catalog_src)
+        return (
+            self._controller.collection_manager()
+            .catalogs()
+            .remove_from_collection_by_name(catalog_src)
+        )
 
     def configuration(self) -> IConfiguration:
         return self._controller.configuration()
 
     def is_installed(self, solution_to_resolve: str):
         resolve_result = self.resolve(solution_to_resolve)
-        return self._controller.solutions().is_installed(resolve_result.catalog(), resolve_result.coordinates())
+        return self._controller.solutions().is_installed(
+            resolve_result.catalog(), resolve_result.coordinates()
+        )
 
     def load_catalog_index(self, catalog: ICatalog):
         return self._controller.migration_manager().load_index(catalog)
+
+    def add_event_listener(self, event_name, callback, solution_id=None):
+        return self._controller.event_manager().add_listener(
+            event_name, callback, solution_id
+        )
+
+    def remove_event_listener(self, event_name, callback, solution_id=None):
+        return self._controller.event_manager().remove_listener(
+            event_name, callback, solution_id
+        )
+
+    def publish_event(self, event: IEvent):
+        return self._controller.event_manager().publish(event)
+
+    def get_task_status(self, task_id) -> ITask.Status:
+        """Get the status of a task managed by the task manager."""
+        task = self._controller.task_manager().get_task(task_id)
+        if task is None:
+            raise LookupError("Task with id %s not found." % task_id)
+        return self._controller.task_manager().get_status(task)
+
+    def create_and_register_task(self, method, args) -> str:
+        return self._controller.task_manager().create_and_register_task(method, args)
+
+    def finish_tasks(self):
+        return self._controller.task_manager().finish_tasks()
+
+    def _run_async(self, method, args, run_async=False):
+        if run_async:
+            return self._controller.task_manager().create_and_register_task(
+                method, args
+            )
+        else:
+            return method(*args)

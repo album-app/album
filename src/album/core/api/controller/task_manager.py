@@ -4,8 +4,7 @@ from album.core.api.model.task import ITask
 
 
 class ITaskManager:
-    """Interface for retrieving the status of a solution.
-        """
+    """Interface for retrieving the status of a solution."""
 
     __metaclass__ = ABCMeta
 
@@ -20,7 +19,11 @@ class ITaskManager:
         raise NotImplementedError
 
     @abstractmethod
-    def register_task(self, task: ITask):
+    def create_and_register_task(self, method, args) -> str:
+        raise NotImplementedError
+
+    @abstractmethod
+    def register_task(self, task: ITask) -> str:
         raise NotImplementedError
 
     @abstractmethod

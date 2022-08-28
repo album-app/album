@@ -12,7 +12,6 @@ from test.integration.test_integration_core_common import TestIntegrationCoreCom
 
 
 class TestIntegrationAPI(TestIntegrationCoreCommon):
-
     def setUp(self):
         super().setUp()
         self.setup_album_instance()
@@ -54,8 +53,11 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
 
         album.clone("template:catalog", local_catalog_path_str, local_catalog_name)
 
-        self.assertCatalogPresence(self.album._controller.collection_manager().catalogs().get_all(), local_catalog_path,
-                                   False)
+        self.assertCatalogPresence(
+            self.album._controller.collection_manager().catalogs().get_all(),
+            local_catalog_path,
+            False,
+        )
         self.assertTrue(local_catalogs_path.exists())
         self.assertTrue(local_catalog_path.exists())
         # meta file available in catalog clone, not in catalog src, as it is a bare repository!
@@ -63,15 +65,20 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
             target_tmp = Path(tmp_dir).joinpath("clone")
             with clone_repository(local_catalog_path, target_tmp) as repo:
                 self.assertTrue(
-                    Path(repo.working_tree_dir).joinpath(DefaultValues.catalog_index_metafile_json.value).exists()
+                    Path(repo.working_tree_dir)
+                    .joinpath(DefaultValues.catalog_index_metafile_json.value)
+                    .exists()
                 )
             force_remove(target_tmp)
 
         # add catalog
         catalog = album.add_catalog(local_catalog_path)
 
-        self.assertCatalogPresence(self.album._controller.collection_manager().catalogs().get_all(),
-                                   str(local_catalog_path.resolve()), True)
+        self.assertCatalogPresence(
+            self.album._controller.collection_manager().catalogs().get_all(),
+            str(local_catalog_path.resolve()),
+            True,
+        )
 
         # clone solution
         group = "group"
@@ -81,8 +88,7 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
         solution_target_dir = Path(self.tmp_dir.name).joinpath("my-solutions")
         solution_target_name = "my-" + name
         solution_target_file = solution_target_dir.joinpath(
-            solution_target_name,
-            DefaultValues.solution_default_name.value
+            solution_target_name, DefaultValues.solution_default_name.value
         )
 
         # assert that it's not installed
@@ -94,7 +100,11 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
 
         # deploy solution to catalog
         album.deploy(
-            str(solution_target_file), local_catalog_name, dry_run=False, git_name="myname", git_email="mymail"
+            str(solution_target_file),
+            local_catalog_name,
+            dry_run=False,
+            git_name="myname",
+            git_email="mymail",
         )
 
         # update catalog cache
@@ -103,7 +113,7 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
         # upgrade collection
         album.upgrade()
 
-        solution_str = '%s:%s:%s' % (group, name, version)
+        solution_str = "%s:%s:%s" % (group, name, version)
 
         # check that solution exists, but is not installed
         installed = album.is_installed(solution_str)
@@ -126,8 +136,11 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
 
         # remove catalog
         album.remove_catalog_by_src(local_catalog_path)
-        self.assertCatalogPresence(self.album._controller.collection_manager().catalogs().get_all(), local_catalog_path,
-                                   False)
+        self.assertCatalogPresence(
+            self.album._controller.collection_manager().catalogs().get_all(),
+            local_catalog_path,
+            False,
+        )
 
         # check that solution is not accessible any more
         # TODO
@@ -140,5 +153,5 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
         self.assertEqual(should_be_present, present)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -35,7 +35,7 @@ setup(
     name="solution7_long_routines",
     title="solution7",
     version="0.1.0",
-    album_api_version="0.4.1",
+    album_api_version="0.5.1",
     args=[
         {
             "name": "testArg1",
@@ -48,5 +48,5 @@ setup(
     install=album_install,
     pre_test=album_pre_test,
     test=album_test,
-    dependencies={}
+    dependencies={},
 )

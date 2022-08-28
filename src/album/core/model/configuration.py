@@ -6,7 +6,11 @@ from pathlib import Path
 
 from album.core.api.model.configuration import IConfiguration
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import create_paths_recursively, force_remove, get_dict_from_json
+from album.core.utils.operations.file_operations import (
+    create_paths_recursively,
+    force_remove,
+    get_dict_from_json,
+)
 from album.runner import album_logging
 from album.runner.core.model.coordinates import Coordinates
 
@@ -14,7 +18,6 @@ module_logger = album_logging.get_active_logger
 
 
 class Configuration(IConfiguration):
-
     def __init__(self):
         self._is_setup = False
         self._base_cache_path = None
@@ -55,10 +58,14 @@ class Configuration(IConfiguration):
 
     def setup(self, base_cache_path=None):
         if self._is_setup:
-            raise RuntimeError("Configuration::setup was already called and should not be called twice.")
+            raise RuntimeError(
+                "Configuration::setup was already called and should not be called twice."
+            )
         self._is_setup = True
         # base root path where everything lives
-        self._base_cache_path = Path(os.getenv('ALBUM_BASE_CACHE_PATH', DefaultValues.app_data_dir.value))
+        self._base_cache_path = Path(
+            os.getenv("ALBUM_BASE_CACHE_PATH", DefaultValues.app_data_dir.value)
+        )
         if base_cache_path:
             self._base_cache_path = Path(base_cache_path)
 
@@ -69,17 +76,29 @@ class Configuration(IConfiguration):
             self._conda_executable = self._build_conda_executable(conda_path)
         else:
             self._conda_executable = conda_path
-            if 'windows' in operation_system:
+            if "windows" in operation_system:
                 self._conda_executable = shutil.which(self._conda_executable)
 
-        self._mamba_executable = shutil.which('mamba')
+        self._mamba_executable = shutil.which("mamba")
 
-        self._cache_path_download = self._base_cache_path.joinpath(DefaultValues.cache_path_download_prefix.value)
-        self._cache_path_envs = self._base_cache_path.joinpath(DefaultValues.cache_path_envs_prefix.value)
-        self._catalog_collection_path = self._base_cache_path.joinpath(DefaultValues.catalog_folder_prefix.value)
-        self._installation_path = self._base_cache_path.joinpath(DefaultValues.installation_folder_prefix.value)
-        self._tmp_path = self._base_cache_path.joinpath(DefaultValues.cache_path_tmp_prefix.value)
-        self._lnk_path = self._base_cache_path.joinpath(DefaultValues.link_folder_prefix.value)
+        self._cache_path_download = self._base_cache_path.joinpath(
+            DefaultValues.cache_path_download_prefix.value
+        )
+        self._cache_path_envs = self._base_cache_path.joinpath(
+            DefaultValues.cache_path_envs_prefix.value
+        )
+        self._catalog_collection_path = self._base_cache_path.joinpath(
+            DefaultValues.catalog_folder_prefix.value
+        )
+        self._installation_path = self._base_cache_path.joinpath(
+            DefaultValues.installation_folder_prefix.value
+        )
+        self._tmp_path = self._base_cache_path.joinpath(
+            DefaultValues.cache_path_tmp_prefix.value
+        )
+        self._lnk_path = self._base_cache_path.joinpath(
+            DefaultValues.link_folder_prefix.value
+        )
         self._empty_tmp()
         create_paths_recursively(
             [
@@ -87,15 +106,14 @@ class Configuration(IConfiguration):
                 self._cache_path_download,
                 self._cache_path_envs,
                 self._catalog_collection_path,
-                self._installation_path
+                self._installation_path,
             ]
         )
-
 
     @staticmethod
     def _build_conda_executable(conda_path):
         operation_system = sys.platform
-        if operation_system == 'linux' or operation_system == 'darwin':
+        if operation_system == "linux" or operation_system == "darwin":
             return str(Path(conda_path).joinpath("bin", "conda"))
         else:
             return str(Path(conda_path).joinpath("Scripts", "conda.exe"))
@@ -105,22 +123,25 @@ class Configuration(IConfiguration):
             DefaultValues.catalog_solutions_prefix.value,
             coordinates.group(),
             coordinates.name(),
-            coordinates.version()
+            coordinates.version(),
         )
 
     def get_solution_path_suffix_unversioned(self, coordinates: Coordinates) -> Path:
         return Path("").joinpath(
             DefaultValues.catalog_solutions_prefix.value,
             coordinates.group(),
-            coordinates.name()
+            coordinates.name(),
         )
 
     def get_cache_path_catalog(self, catalog_name):
-        return self._base_cache_path.joinpath(DefaultValues.catalog_folder_prefix.value, catalog_name)
+        return self._base_cache_path.joinpath(
+            DefaultValues.catalog_folder_prefix.value, catalog_name
+        )
 
     def get_catalog_collection_path(self):
         collection_db_path = Path(self._catalog_collection_path).joinpath(
-            DefaultValues.catalog_collection_db_name.value)
+            DefaultValues.catalog_collection_db_name.value
+        )
         return collection_db_path
 
     def get_catalog_collection_meta_dict(self):

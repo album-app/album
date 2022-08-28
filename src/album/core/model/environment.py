@@ -4,8 +4,12 @@ from pathlib import Path
 import validators
 
 from album.core.api.model.environment import IEnvironment
-from album.core.utils.operations.file_operations import create_path_recursively, copy, write_dict_to_yml, \
-    get_dict_from_yml
+from album.core.utils.operations.file_operations import (
+    create_path_recursively,
+    copy,
+    write_dict_to_yml,
+    get_dict_from_yml,
+)
 from album.core.utils.operations.url_operations import download_resource
 from album.runner import album_logging
 
@@ -13,7 +17,6 @@ module_logger = album_logging.get_active_logger
 
 
 class Environment(IEnvironment):
-
     def __init__(self, dependencies_dict, environment_name, cache_path: Path):
         """Init routine
 
@@ -47,11 +50,10 @@ class Environment(IEnvironment):
 
         """
         if dependencies_dict:
-            if 'environment_file' in dependencies_dict:
-                env_file = dependencies_dict['environment_file']
+            if "environment_file" in dependencies_dict:
+                env_file = dependencies_dict["environment_file"]
 
-                yaml_path = self._cache_path.joinpath(
-                    "%s%s" % (self._name, ".yml"))
+                yaml_path = self._cache_path.joinpath("%s%s" % (self._name, ".yml"))
                 create_path_recursively(yaml_path.parent)
 
                 if isinstance(env_file, str):
@@ -59,7 +61,7 @@ class Environment(IEnvironment):
                     if validators.url(env_file):
                         yaml_path = download_resource(env_file, yaml_path)
                     # case file content
-                    elif 'dependencies:' in env_file and '\n' in env_file:
+                    elif "dependencies:" in env_file and "\n" in env_file:
                         with open(str(yaml_path), "w+") as f:
                             f.writelines(env_file)
                         yaml_path = yaml_path
@@ -67,8 +69,10 @@ class Environment(IEnvironment):
                     elif Path(env_file).is_file() and Path(env_file).stat().st_size > 0:
                         yaml_path = copy(env_file, yaml_path)
                     else:
-                        raise TypeError("environment_file must either contain the content of the environment file, "
-                                        "contain the url to a valid file or point to a file on the disk!")
+                        raise TypeError(
+                            "environment_file must either contain the content of the environment file, "
+                            "contain the url to a valid file or point to a file on the disk!"
+                        )
                 # case String stream
                 elif isinstance(env_file, StringIO):
                     with open(str(yaml_path), "w+") as f:
@@ -76,8 +80,10 @@ class Environment(IEnvironment):
                         f.writelines(env_file.readlines())
                     yaml_path = yaml_path
                 else:
-                    raise RuntimeError('Environment file specified, but format is unknown!'
-                                       ' Don\'t know where to run solution!')
+                    raise RuntimeError(
+                        "Environment file specified, but format is unknown!"
+                        " Don't know where to run solution!"
+                    )
 
                 yaml_dict = get_dict_from_yml(yaml_path)
                 yaml_dict["name"] = self._name

@@ -9,16 +9,12 @@ module_logger = album_logging.get_active_logger
 
 
 class ZenodoManager:
-
     def __init__(self, zenodo_base_url, zenodo_access_token):
-        self.query = zenodo_api.ZenodoAPI(
-            zenodo_base_url,
-            zenodo_access_token
-        )
+        self.query = zenodo_api.ZenodoAPI(zenodo_base_url, zenodo_access_token)
 
     @staticmethod
     def zenodo_upload(deposit, file):
-        """ Uploads a solution file to a ZenodoDeposit. Expects the deposit to be writable. (e.g. unpublished)
+        """Uploads a solution file to a ZenodoDeposit. Expects the deposit to be writable. (e.g. unpublished)
 
         Args:
             deposit:
@@ -34,12 +30,14 @@ class ZenodoManager:
 
         if file_basename in deposit.files:  # File does exist
             module_logger().debug(
-                "Update file %s in Zenodo deposit with id %s..." % (file_basename, deposit.id)
+                "Update file %s in Zenodo deposit with id %s..."
+                % (file_basename, deposit.id)
             )
             deposit.update_file(file_basename, file)
         else:
             module_logger().debug(
-                "Create file %s in Zenodo deposit with id %s..." % (file_basename, deposit.id)
+                "Create file %s in Zenodo deposit with id %s..."
+                % (file_basename, deposit.id)
             )
             deposit.create_file(file)
 
@@ -47,7 +45,7 @@ class ZenodoManager:
 
     @staticmethod
     def zenodo_delete(deposit, file):
-        """ Deletes a solution file from a ZenodoDeposit. Expects the deposit to be writable. (e.g. unpublished)
+        """Deletes a solution file from a ZenodoDeposit. Expects the deposit to be writable. (e.g. unpublished)
 
         Args:
             deposit:
@@ -63,12 +61,14 @@ class ZenodoManager:
 
         if file_basename in deposit.files:  # File does exist
             module_logger().debug(
-                "Update file %s in Zenodo deposit with id %s..." % (file_basename, deposit.id)
+                "Update file %s in Zenodo deposit with id %s..."
+                % (file_basename, deposit.id)
             )
             deposit.delete_file(file_basename, file)
         else:
             module_logger().warning(
-                "Cannot find file %s in Zenodo deposit with id %s." % (file_basename, deposit.id)
+                "Cannot find file %s in Zenodo deposit with id %s."
+                % (file_basename, deposit.id)
             )
 
         return deposit
@@ -106,13 +106,15 @@ class ZenodoManager:
         return deposit
 
     def _get_deposit_name(self, solution_meta):
-        if solution_meta['title']:
-            deposit_name = solution_meta['title']
+        if solution_meta["title"]:
+            deposit_name = solution_meta["title"]
         else:
             deposit_name = str(dict_to_coordinates(solution_meta))
         return deposit_name
 
-    def zenodo_get_unpublished_deposit_by_id(self, deposit_id, deposit_name, expected_files=None):
+    def zenodo_get_unpublished_deposit_by_id(
+        self, deposit_id, deposit_name, expected_files=None
+    ):
         deposit = self._zenodo_get_unpublished(deposit_id)
 
         # raise error when not found
@@ -129,11 +131,14 @@ class ZenodoManager:
         if expected_files:
             for expected_file in expected_files:
                 if expected_file not in deposit.files:
-                    raise AttributeError('Deposit has no file with the name %s!' % expected_file)
+                    raise AttributeError(
+                        "Deposit has no file with the name %s!" % expected_file
+                    )
 
         if deposit.title != expected_deposit_name:
             raise AttributeError(
-                'Deposit name different than expected! Expected: %s Found: %s' % (expected_deposit_name, deposit.title)
+                "Deposit name different than expected! Expected: %s Found: %s"
+                % (expected_deposit_name, deposit.title)
             )
 
     def _zenodo_get_deposit_by_id(self, deposit_id):
@@ -152,16 +157,20 @@ class ZenodoManager:
         return deposit
 
     def _zenodo_get_unpublished(self, deposit_id):
-        deposit = self.query.deposit_get(deposit_id, status=zenodo_api.DepositStatus.DRAFT)
+        deposit = self.query.deposit_get(
+            deposit_id, status=zenodo_api.DepositStatus.DRAFT
+        )
 
         if deposit:
             deposit = deposit[0]
 
             module_logger().debug("Deposit with id %s found..." % deposit.id)
 
-            if deposit.metadata is None \
-                    or not isinstance(deposit.metadata.prereserve_doi, dict) \
-                    or "doi" not in deposit.metadata.prereserve_doi.keys():
+            if (
+                deposit.metadata is None
+                or not isinstance(deposit.metadata.prereserve_doi, dict)
+                or "doi" not in deposit.metadata.prereserve_doi.keys()
+            ):
                 raise RuntimeError("Deposit has no prereserved DOI! Invalid deposit!")
 
         return deposit

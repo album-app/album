@@ -1,9 +1,16 @@
 import sys
 
 from album.api import Album
-from album.core.utils.operations.solution_operations import get_deploy_dict, serialize_json
-from album.core.utils.operations.view_operations import get_solution_as_string, \
-    get_updates_as_string, get_index_as_string, get_search_result_as_string
+from album.core.utils.operations.solution_operations import (
+    get_deploy_dict,
+    serialize_json,
+)
+from album.core.utils.operations.view_operations import (
+    get_solution_as_string,
+    get_updates_as_string,
+    get_index_as_string,
+    get_search_result_as_string,
+)
 from album.runner.album_logging import get_active_logger
 from album.runner.core.api.model.solution import ISolution
 from album.runner.core.model.script_creator import ScriptCreator
@@ -24,14 +31,16 @@ def update(album_instance: Album, args):
 
 
 def upgrade(album_instance: Album, args):
-    updates = album_instance.upgrade(getattr(args, "catalog", None), dry_run=args.dry_run, override=args.override)
+    updates = album_instance.upgrade(
+        getattr(args, "catalog", None), dry_run=args.dry_run, override=args.override
+    )
     print_json = _get_print_json(args)
     if print_json:
         print(_as_json(updates))
     else:
-        res = ''
+        res = ""
         if args.dry_run:
-            res += 'An upgrade would apply the following updates:\n'
+            res += "An upgrade would apply the following updates:\n"
         else:
             res += "Applied the following updates:\n"
         res += get_updates_as_string(updates)
@@ -40,14 +49,25 @@ def upgrade(album_instance: Album, args):
 
 def deploy(album_instance: Album, args):
     album_instance.deploy(
-        args.path, args.catalog, args.dry_run, args.push_option, args.git_email, args.git_name, args.force_deploy,
-        args.changelog
+        args.path,
+        args.catalog,
+        args.dry_run,
+        args.push_option,
+        args.git_email,
+        args.git_name,
+        args.force_deploy,
+        args.changelog,
     )
 
 
 def undeploy(album_instance: Album, args):
     album_instance.undeploy(
-        args.path, args.catalog, args.dry_run, args.push_option, args.git_email, args.git_name
+        args.path,
+        args.catalog,
+        args.dry_run,
+        args.push_option,
+        args.git_email,
+        args.git_name,
     )
 
 
@@ -73,7 +93,7 @@ def info(album_instance: Album, args):
 
 
 def run(album_instance: Album, args):
-    album_instance.run(str(args.path), argv=sys.argv, run_immediately=args.run_immediately)
+    album_instance.run(str(args.path), argv=sys.argv)
 
 
 def search(album_instance: Album, args):
@@ -109,7 +129,9 @@ def repl(album_instance: Album, args):
     # resolve the input
     resolve_result = album_instance.resolve_installed(str(args.path))
     album_instance.run_solution_script(resolve_result, ScriptRepl())
-    module_logger().info('Ran REPL for \"%s\"!' % resolve_result.loaded_solution().coordinates().name())
+    module_logger().info(
+        'Ran REPL for "%s"!' % resolve_result.loaded_solution().coordinates().name()
+    )
 
 
 def _get_print_json(args):

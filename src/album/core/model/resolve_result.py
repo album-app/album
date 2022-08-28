@@ -8,8 +8,14 @@ from album.runner.core.api.model.solution import ISolution
 
 
 class ResolveResult(ICollectionSolution):
-    def __init__(self, path, catalog: ICatalog, collection_entry: ICollectionIndex.ICollectionSolution,
-                 coordinates: ICoordinates, loaded_solution=None):
+    def __init__(
+        self,
+        path,
+        catalog: ICatalog,
+        collection_entry: ICollectionIndex.ICollectionSolution,
+        coordinates: ICoordinates,
+        loaded_solution=None,
+    ):
         self._catalog: ICatalog = catalog
         self._path = path
         self._collection_entry: ICollectionIndex.ICollectionSolution = collection_entry
@@ -17,12 +23,14 @@ class ResolveResult(ICollectionSolution):
         self._loaded_solution: ISolution = loaded_solution
 
     def __eq__(self, other):
-        return isinstance(other, ICollectionSolution) and \
-               other.catalog() == self._catalog and \
-               other.path() == self._path and \
-               other.loaded_solution() == self._loaded_solution and \
-               other.database_entry() == self._collection_entry and \
-               other.coordinates() == self._coordinates
+        return (
+            isinstance(other, ICollectionSolution)
+            and other.catalog() == self._catalog
+            and other.path() == self._path
+            and other.loaded_solution() == self._loaded_solution
+            and other.database_entry() == self._collection_entry
+            and other.coordinates() == self._coordinates
+        )
 
     def catalog(self) -> ICatalog:
         return self._catalog

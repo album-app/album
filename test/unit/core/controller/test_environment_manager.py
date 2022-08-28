@@ -4,7 +4,6 @@ from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestEnvironmentManager(TestUnitCoreCommon):
-
     def setUp(self):
         super().setUp()
         self.setup_album_controller()

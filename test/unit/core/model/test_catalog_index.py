@@ -11,10 +11,11 @@ from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestCatalogIndex(TestUnitCoreCommon):
-
     def setUp(self):
         super().setUp()
-        self.catalog_index = CatalogIndex("test", Path(self.tmp_dir.name).joinpath("test_db_file"))
+        self.catalog_index = CatalogIndex(
+            "test", Path(self.tmp_dir.name).joinpath("test_db_file")
+        )
         self.is_empty_or_full(empty=True)
 
     def tearDown(self):
@@ -44,7 +45,6 @@ class TestCatalogIndex(TestUnitCoreCommon):
         tables = []
         for row in r:
             tables.append(row["tbl_name"])
-
 
         for t in tables:
             if t != "catalog_index":  # catalog_index is never empty
@@ -131,7 +131,7 @@ class TestCatalogIndex(TestUnitCoreCommon):
             "name": "myName",
             "type": "myType",
             "description": "myDescription",
-            "default_value": "myDefaultValue"
+            "default": "myDefaultValue",
         }
         # call
         self.catalog_index._insert_argument(arg)
@@ -144,7 +144,7 @@ class TestCatalogIndex(TestUnitCoreCommon):
         self.assertTrue(self.catalog_index.is_table_empty("custom"))
 
         # call
-        self.catalog_index._insert_custom_key('my_key', 'my_value')
+        self.catalog_index._insert_custom_key("my_key", "my_value")
 
         # assert
         self.assertFalse(self.catalog_index.is_table_empty("custom"))
@@ -154,7 +154,9 @@ class TestCatalogIndex(TestUnitCoreCommon):
         self.assertTrue(self.catalog_index.is_table_empty("cover"))
 
         # call
-        self.catalog_index._insert_cover({"source": "myCover", "description": "myDescription"}, 1)
+        self.catalog_index._insert_cover(
+            {"source": "myCover", "description": "myDescription"}, 1
+        )
 
         # assert
         self.assertFalse(self.catalog_index.is_table_empty("cover"))
@@ -216,22 +218,19 @@ class TestCatalogIndex(TestUnitCoreCommon):
             "name": "myName",
             "type": "myType",
             "description": "myDescription",
-            "default_value": "myDefaultValue"
+            "default": "myDefaultValue",
         }
         arg_no_type = {
             "name": "myName",
             "description": "myDescription",
-            "default_value": "myDefaultValue"
+            "default": "myDefaultValue",
         }
         arg_no_default = {
             "name": "myName",
             "type": "myType",
-            "description": "myDescription"
+            "description": "myDescription",
         }
-        arg_minimal = {
-            "name": "myName",
-            "description": "myDescription"
-        }
+        arg_minimal = {"name": "myName", "description": "myDescription"}
 
         # assert
         self.assertIsNone(self.catalog_index._exists_argument(arg))
@@ -254,11 +253,13 @@ class TestCatalogIndex(TestUnitCoreCommon):
         self.assertTrue(self.catalog_index.is_table_empty("custom"))
 
         # assert
-        self.assertIsNone(self.catalog_index._exists_custom_key('my_key', 'my_value'))
+        self.assertIsNone(self.catalog_index._exists_custom_key("my_key", "my_value"))
 
-        r1 = self.catalog_index._insert_custom_key('my_key', 'my_value')
+        r1 = self.catalog_index._insert_custom_key("my_key", "my_value")
 
-        self.assertEqual(r1, self.catalog_index._exists_custom_key('my_key', 'my_value'))
+        self.assertEqual(
+            r1, self.catalog_index._exists_custom_key("my_key", "my_value")
+        )
 
     def test__exists_cover(self):
         self.is_empty_or_full(empty=True)
@@ -278,11 +279,15 @@ class TestCatalogIndex(TestUnitCoreCommon):
         self.assertTrue(self.catalog_index.is_table_empty("documentation"))
 
         # assert
-        self.assertIsNone(self.catalog_index._exists_documentation("myDocumentation", 1))
+        self.assertIsNone(
+            self.catalog_index._exists_documentation("myDocumentation", 1)
+        )
 
         r = self.catalog_index._insert_documentation("myDocumentation", 1)
 
-        self.assertEqual(r, self.catalog_index._exists_documentation("myDocumentation", 1))
+        self.assertEqual(
+            r, self.catalog_index._exists_documentation("myDocumentation", 1)
+        )
 
     # ### solution ###
 
@@ -313,7 +318,9 @@ class TestCatalogIndex(TestUnitCoreCommon):
         solution_id1, _ = self.fill_solution()
 
         # call
-        solution = self.catalog_index.get_solution_by_coordinates(Coordinates("tsg", "tsn", "tsv"))
+        solution = self.catalog_index.get_solution_by_coordinates(
+            Coordinates("tsg", "tsn", "tsv")
+        )
 
         # assert
         self.assertEqual(solution_id1, solution["solution_id"])
@@ -347,9 +354,7 @@ class TestCatalogIndex(TestUnitCoreCommon):
         self.catalog_index._update_solution(coordinates, solution_update_default_dict)
 
         # assert
-        updated_sol = self.catalog_index.get_solution_by_coordinates(
-            coordinates
-        )
+        updated_sol = self.catalog_index.get_solution_by_coordinates(coordinates)
 
         self.assertEqual("aNewD", updated_sol["description"])
 
@@ -381,16 +386,22 @@ class TestCatalogIndex(TestUnitCoreCommon):
     def test_remove_solution_by_group_name_version(self):
         # mocks
         get_solution_by_group_name_version = MagicMock(return_value={"solution_id": 1})
-        self.catalog_index.get_solution_by_coordinates = get_solution_by_group_name_version
+        self.catalog_index.get_solution_by_coordinates = (
+            get_solution_by_group_name_version
+        )
 
         remove_solution = MagicMock(return_value=None)
         self.catalog_index.remove_solution = remove_solution
 
         # call
-        self.catalog_index.remove_solution_by_group_name_version(Coordinates("a", "b", "c"))
+        self.catalog_index.remove_solution_by_group_name_version(
+            Coordinates("a", "b", "c")
+        )
 
         # assert
-        get_solution_by_group_name_version.assert_called_once_with(Coordinates("a", "b", "c"), close=True)
+        get_solution_by_group_name_version.assert_called_once_with(
+            Coordinates("a", "b", "c"), close=True
+        )
         remove_solution.assert_called_once_with(1)
 
     # ### catalog_features ###

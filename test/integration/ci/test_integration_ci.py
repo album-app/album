@@ -5,7 +5,9 @@ from unittest.mock import patch
 
 import git
 
+from album.api import Album
 from album.ci.argument_parsing import main
+from album.core.controller.album_controller import AlbumController
 from album.core.model.catalog import Catalog
 from album.core.utils.operations.git_operations import checkout_branch
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
@@ -13,7 +15,6 @@ from test.unit.test_unit_core_common import EmptyTestClass
 
 
 class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
-
     def setUp(self):
         super().setUp()
         self.name = "test_catalog"
@@ -28,7 +29,13 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
 
     def deploy_request(self):
         catalog_cache_path = Path(self.tmp_dir.name).joinpath("test_catalog_cache")
-        self._catalog = Catalog(None, name=self.name, path=catalog_cache_path, src=self.src, catalog_type="request")
+        self._catalog = Catalog(
+            None,
+            name=self.name,
+            path=catalog_cache_path,
+            src=self.src,
+            catalog_type="request",
+        )
 
         self.album_controller.catalogs()._add_to_index(self._catalog)
 
@@ -57,15 +64,17 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
             str(self.path),  # catalog_repo_clone_path
             str(self.src),  # catalog_src
             "--ci-user-name=myCiUserName",
-            "--ci-user-email=myCiUserEmail"
+            "--ci-user-email=myCiUserEmail",
         ]
 
         # run
-        self.assertIsNone(main())
+        with patch("album.ci.argument_parsing.create_album_instance") as p:
+            p.return_value = Album(
+                AlbumController(base_cache_path=Path(self.tmp_dir.name))
+            )
+            self.assertIsNone(main())
         repo = git.Repo(self.path)
-        self.assertEqual(
-            "myCiUserName", repo.config_reader().get_value("user", "name")
-        )
+        self.assertEqual("myCiUserName", repo.config_reader().get_value("user", "name"))
         self.assertEqual(
             "myCiUserEmail", repo.config_reader().get_value("user", "email")
         )
@@ -79,11 +88,15 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
             self.name,
             str(self.path),
             str(self.src),
-            "--ci-project-path=myGitGroup/myTestCatalog"
+            "--ci-project-path=myGitGroup/myTestCatalog",
         ]
 
         # run
-        self.assertIsNone(main())
+        with patch("album.ci.argument_parsing.create_album_instance") as p:
+            p.return_value = Album(
+                AlbumController(base_cache_path=Path(self.tmp_dir.name))
+            )
+            self.assertIsNone(main())
         self.assertTrue(git.Repo(self.path).remote().url.startswith("git@"))
         self.assertIn("myGitGroup/myTestCatalog", git.Repo(self.path).remote().url)
 
@@ -97,15 +110,31 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         branch_name = self.deploy_request()
 
         # gather arguments
-        sys.argv = ["", "upload", self.name, str(self.path), str(self.src), "--branch-name=%s" % branch_name]
+        sys.argv = [
+            "",
+            "upload",
+            self.name,
+            str(self.path),
+            str(self.src),
+            "--branch-name=%s" % branch_name,
+        ]
 
         # run
-        self.assertIsNone(main())
+        with patch("album.ci.argument_parsing.create_album_instance") as p:
+            p.return_value = Album(
+                AlbumController(base_cache_path=Path(self.tmp_dir.name))
+            )
+            self.assertIsNone(main())
 
-    @patch('album.ci.controller.zenodo_manager.ZenodoManager.zenodo_get_deposit')
-    @patch('album.ci.controller.zenodo_manager.ZenodoManager.zenodo_upload')
-    @patch('album.ci.controller.release_manager.ReleaseManager._prepare_zenodo_arguments', return_value = ("url", "token"))
-    def test_prepare_zenodo_upload(self, _prepare_zenodo_arguments, zenodo_upload, zenodo_get_deposit):
+    @patch("album.ci.controller.zenodo_manager.ZenodoManager.zenodo_get_deposit")
+    @patch("album.ci.controller.zenodo_manager.ZenodoManager.zenodo_upload")
+    @patch(
+        "album.ci.controller.release_manager.ReleaseManager._prepare_zenodo_arguments",
+        return_value=("url", "token"),
+    )
+    def test_prepare_zenodo_upload(
+        self, _prepare_zenodo_arguments, zenodo_upload, zenodo_get_deposit
+    ):
         # mock
         deposit = EmptyTestClass()
         deposit.id = "id"
@@ -119,31 +148,70 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         branch_name = self.deploy_request()
 
         # gather arguments
-        sys.argv = ["", "upload", self.name, str(self.path), str(self.src), "--branch-name=%s" % branch_name]
+        sys.argv = [
+            "",
+            "upload",
+            self.name,
+            str(self.path),
+            str(self.src),
+            "--branch-name=%s" % branch_name,
+        ]
 
         # run
-        self.assertIsNone(main())
+        with patch("album.ci.argument_parsing.create_album_instance") as p:
+            p.return_value = Album(
+                AlbumController(base_cache_path=Path(self.tmp_dir.name))
+            )
+            self.assertIsNone(main())
 
         self.assertEqual(4, zenodo_upload.call_count)
-        solution_dir = Path('solutions', 'group', 'name')
-        self.assertTrue(str(zenodo_upload.call_args_list[0][0][1]).endswith(str(solution_dir.joinpath('solution.yml'))))
-        self.assertTrue(str(zenodo_upload.call_args_list[1][0][1]).endswith('solution.zip'))
-        self.assertTrue(str(zenodo_upload.call_args_list[2][0][1]).endswith(str(solution_dir.joinpath('Dockerfile'))))
-        self.assertTrue(str(zenodo_upload.call_args_list[3][0][1]).endswith(str(solution_dir.joinpath('CHANGELOG.md'))))
+        solution_dir = Path("solutions", "group", "name")
+        self.assertTrue(
+            str(zenodo_upload.call_args_list[0][0][1]).endswith(
+                str(solution_dir.joinpath("solution.yml"))
+            )
+        )
+        self.assertTrue(
+            str(zenodo_upload.call_args_list[1][0][1]).endswith("solution.zip")
+        )
+        self.assertTrue(
+            str(zenodo_upload.call_args_list[2][0][1]).endswith(
+                str(solution_dir.joinpath("Dockerfile"))
+            )
+        )
+        self.assertTrue(
+            str(zenodo_upload.call_args_list[3][0][1]).endswith(
+                str(solution_dir.joinpath("CHANGELOG.md"))
+            )
+        )
 
     def test_update_index(self):
         # deploy request to test catalog
         branch_name = self.deploy_request()
 
         # gather arguments
-        sys.argv = ["", "update", self.name, str(self.path), str(self.src), "--branch-name=%s" % branch_name]
+        sys.argv = [
+            "",
+            "update",
+            self.name,
+            str(self.path),
+            str(self.src),
+            "--branch-name=%s" % branch_name,
+        ]
 
         # run
-        self.assertIsNone(main())
+        with patch("album.ci.argument_parsing.create_album_instance") as p:
+            p.return_value = Album(
+                AlbumController(base_cache_path=Path(self.tmp_dir.name))
+            )
+            self.assertIsNone(main())
 
         # assert
         self.assertEqual(self.repo.active_branch.name, "group_name_0.1.0")
-        self.assertListEqual(["album_catalog_index.db", "album_solution_list.json"], self.repo.untracked_files)
+        self.assertListEqual(
+            ["album_catalog_index.db", "album_solution_list.json"],
+            self.repo.untracked_files,
+        )
 
     def test_commit_changes(self):
         # deploy request to test catalog
@@ -156,7 +224,9 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         self.assertEqual("Adding new/updated group_name_0.1.0\n", head.commit.message)
 
         # change deployed files so another commit is possible
-        with open(self.path.joinpath("solutions", "group", "name", "solution.yml"), "a") as f:
+        with open(
+            self.path.joinpath("solutions", "group", "name", "solution.yml"), "a"
+        ) as f:
             f.write("\ntest: mytest")
 
         # gather arguments
@@ -168,15 +238,22 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
             str(self.src),
             "--branch-name=%s" % branch_name,
             "--ci-user-name=myCiUserName",
-            "--ci-user-email=myCiUserEmail"
+            "--ci-user-email=myCiUserEmail",
         ]
 
         # run
-        self.assertIsNone(main())
+        with patch("album.ci.argument_parsing.create_album_instance") as p:
+            p.return_value = Album(
+                AlbumController(base_cache_path=Path(self.tmp_dir.name))
+            )
+            self.assertIsNone(main())
 
         # check out last commit
         self.assertEqual(self.repo.active_branch.name, "group_name_0.1.0")
-        self.assertEqual("Prepared branch \"group_name_0.1.0\" for merging.\n", self.repo.active_branch.commit.message)
+        self.assertEqual(
+            'Prepared branch "group_name_0.1.0" for merging.\n',
+            self.repo.active_branch.commit.message,
+        )
 
     @unittest.skip("Needs to be implemented!")
     def test_merge(self):

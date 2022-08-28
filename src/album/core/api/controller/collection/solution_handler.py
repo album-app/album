@@ -20,7 +20,11 @@ class ISolutionHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def set_parent(self, parent: ICollectionIndex.ICollectionSolution, child: ICollectionIndex.ICollectionSolution):
+    def set_parent(
+        self,
+        parent: ICollectionIndex.ICollectionSolution,
+        child: ICollectionIndex.ICollectionSolution,
+    ):
         raise NotImplementedError
 
     @abstractmethod
@@ -32,7 +36,9 @@ class ISolutionHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def update_solution(self, catalog: ICatalog, coordinates: ICoordinates, attrs: dict):
+    def update_solution(
+        self, catalog: ICatalog, coordinates: ICoordinates, attrs: dict
+    ):
         raise NotImplementedError
 
     @abstractmethod
@@ -64,7 +70,9 @@ class ISolutionHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def get_solution_installation_path(self, catalog: ICatalog, coordinates: ICoordinates):
+    def get_solution_installation_path(
+        self, catalog: ICatalog, coordinates: ICoordinates
+    ):
         """Gets the path of files belonging to an installed solution in a catalog given its group, name and version.
 
         Args:

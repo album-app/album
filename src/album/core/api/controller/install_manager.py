@@ -2,8 +2,7 @@ from abc import ABCMeta, abstractmethod
 
 
 class IInstallManager:
-    """Interface handling the installation and uninstallation process of a solution.
-    """
+    """Interface handling the installation and uninstallation process of a solution."""
 
     __metaclass__ = ABCMeta
 

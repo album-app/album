@@ -39,7 +39,9 @@ class ICollectionIndex(IDatabase):
         raise NotImplementedError
 
     @abstractmethod
-    def insert_catalog(self, name, src, path, deletable, branch_name, catalog_type, close: bool = True):
+    def insert_catalog(
+        self, name, src, path, deletable, branch_name, catalog_type, close: bool = True
+    ):
         raise NotImplementedError
 
     @abstractmethod
@@ -75,56 +77,75 @@ class ICollectionIndex(IDatabase):
         raise NotImplementedError
 
     @abstractmethod
-    def get_all_installed_solutions_by_catalog(self, catalog_id, close: bool = True) -> List[ICollectionSolution]:
+    def get_all_installed_solutions_by_catalog(
+        self, catalog_id, close: bool = True
+    ) -> List[ICollectionSolution]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_solutions_by_catalog(self, catalog_id, close: bool = True) -> List[ICollectionSolution]:
+    def get_solutions_by_catalog(
+        self, catalog_id, close: bool = True
+    ) -> List[ICollectionSolution]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_solution_by_hash(self, hash_value, close: bool = True) -> Optional[ICollectionSolution]:
+    def get_solution_by_hash(
+        self, hash_value, close: bool = True
+    ) -> Optional[ICollectionSolution]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_solution_by_collection_id(self, collection_id, close: bool = True) -> Optional[ICollectionSolution]:
+    def get_solution_by_collection_id(
+        self, collection_id, close: bool = True
+    ) -> Optional[ICollectionSolution]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_solution_by_doi(self, doi, close: bool = True) -> Optional[ICollectionSolution]:
+    def get_solution_by_doi(
+        self, doi, close: bool = True
+    ) -> Optional[ICollectionSolution]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_solution_by_catalog_grp_name_version(self, catalog_id, coordinates: ICoordinates, close: bool = True) \
-            -> Optional[ICollectionSolution]:
+    def get_solution_by_catalog_grp_name_version(
+        self, catalog_id, coordinates: ICoordinates, close: bool = True
+    ) -> Optional[ICollectionSolution]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_solutions_by_grp_name_version(self, coordinates: ICoordinates, close: bool = True) \
-            -> List[ICollectionSolution]:
+    def get_solutions_by_grp_name_version(
+        self, coordinates: ICoordinates, close: bool = True
+    ) -> List[ICollectionSolution]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_solutions_by_name_version(self, name: str, version: str, close: bool = True) \
-            -> List[ICollectionSolution]:
+    def get_solutions_by_name_version(
+        self, name: str, version: str, close: bool = True
+    ) -> List[ICollectionSolution]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_solutions_by_grp_name(self, group: str, name: str, close: bool = True) \
-            -> List[ICollectionSolution]:
+    def get_solutions_by_grp_name(
+        self, group: str, name: str, close: bool = True
+    ) -> List[ICollectionSolution]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_solutions_by_name(self, name: str, close: bool = True) \
-            -> List[ICollectionSolution]:
+    def get_solutions_by_name(
+        self, name: str, close: bool = True
+    ) -> List[ICollectionSolution]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_recently_installed_solutions(self, close: bool = True) -> List[ICollectionSolution]:
+    def get_recently_installed_solutions(
+        self, close: bool = True
+    ) -> List[ICollectionSolution]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_recently_launched_solutions(self, close: bool = True) -> List[ICollectionSolution]:
+    def get_recently_launched_solutions(
+        self, close: bool = True
+    ) -> List[ICollectionSolution]:
         raise NotImplementedError
 
     @abstractmethod
@@ -132,16 +153,26 @@ class ICollectionIndex(IDatabase):
         raise NotImplementedError
 
     @abstractmethod
-    def update_solution(self, catalog_id, coordinates: ICoordinates, solution_attrs: dict, supported_attrs: list,
-                        close: bool = True):
+    def update_solution(
+        self,
+        catalog_id,
+        coordinates: ICoordinates,
+        solution_attrs: dict,
+        supported_attrs: list,
+        close: bool = True,
+    ):
         raise NotImplementedError
 
     @abstractmethod
-    def add_or_replace_solution(self, catalog_id, coordinates: ICoordinates, solution_attrs, close: bool = True):
+    def add_or_replace_solution(
+        self, catalog_id, coordinates: ICoordinates, solution_attrs, close: bool = True
+    ):
         raise NotImplementedError
 
     @abstractmethod
-    def remove_solution(self, catalog_id, coordinates: ICoordinates, close: bool = True):
+    def remove_solution(
+        self, catalog_id, coordinates: ICoordinates, close: bool = True
+    ):
         raise NotImplementedError
 
     @abstractmethod
@@ -149,8 +180,14 @@ class ICollectionIndex(IDatabase):
         raise NotImplementedError
 
     @abstractmethod
-    def insert_collection_collection(self, collection_id_parent, collection_id_child, catalog_id_parent,
-                                     catalog_id_child, close=True):
+    def insert_collection_collection(
+        self,
+        collection_id_parent,
+        collection_id_child,
+        catalog_id_parent,
+        catalog_id_child,
+        close=True,
+    ):
         raise NotImplementedError
 
     @abstractmethod

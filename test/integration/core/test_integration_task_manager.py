@@ -9,16 +9,22 @@ from test.integration.test_integration_core_common import TestIntegrationCoreCom
 class TestIntegrationTaskManager(TestIntegrationCoreCommon):
     def setUp(self):
         super().setUp()
-    
+
     def tearDown(self) -> None:
         super().tearDown()
 
-    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
     def test_run_happy_solution(self, get_environment_path):
-        get_environment_path.return_value = self.album_controller.environment_manager().get_conda_manager().get_active_environment_path()
+        get_environment_path.return_value = (
+            self.album_controller.environment_manager()
+            .get_conda_manager()
+            .get_active_environment_path()
+        )
         solution_path = self.get_test_solution_path()
         self.fake_install(solution_path, create_environment=False)
-        resolve_result = self.album_controller.collection_manager().resolve_and_load(solution_path)
+        resolve_result = self.album_controller.collection_manager().resolve_and_load(
+            solution_path
+        )
         task = Task()
         task._method = self.album_controller.run_manager().run
         task._args = [resolve_result]
@@ -33,12 +39,18 @@ class TestIntegrationTaskManager(TestIntegrationCoreCommon):
         self.assertEqual("FINISHED", status.get("status"))
         self.assertEqual(Task.Status.FINISHED, task.status())
 
-    @patch('album.core.controller.conda_manager.CondaManager.get_environment_path')
+    @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
     def test_run_sad_solution(self, get_environment_path):
-        get_environment_path.return_value = self.album_controller.environment_manager().get_conda_manager().get_active_environment_path()
+        get_environment_path.return_value = (
+            self.album_controller.environment_manager()
+            .get_conda_manager()
+            .get_active_environment_path()
+        )
         solution_path = self.get_test_solution_path("solution9_throws_exception.py")
         self.fake_install(solution_path, create_environment=False)
-        resolve_result = self.album_controller.collection_manager().resolve_and_load(solution_path)
+        resolve_result = self.album_controller.collection_manager().resolve_and_load(
+            solution_path
+        )
         task = Task()
         task.method = self.album_controller.run_manager().run
         task.args = [resolve_result]
@@ -58,4 +70,3 @@ class TestIntegrationTaskManager(TestIntegrationCoreCommon):
             sleep(1)
         # make sure tasks are finished
         self.assertFalse(task_manager.server_queue.unfinished_tasks)
-

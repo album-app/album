@@ -8,7 +8,11 @@ from urllib.parse import urlparse
 import git
 from git import Repo
 
-from album.core.utils.operations.file_operations import force_remove, create_path_recursively, folder_empty
+from album.core.utils.operations.file_operations import (
+    force_remove,
+    create_path_recursively,
+    folder_empty,
+)
 from album.core.utils.operations.url_operations import is_url
 from album.runner import album_logging
 
@@ -35,7 +39,8 @@ def checkout_branch(git_repo, branch_name):
     """
     try:  # checkout branch locally
         module_logger().debug(
-            "Found the following branches locally: \n %s..." % "\n".join([h.name for h in git_repo.heads])
+            "Found the following branches locally: \n %s..."
+            % "\n".join([h.name for h in git_repo.heads])
         )
         head = git_repo.heads[branch_name]
         head.checkout()
@@ -55,7 +60,7 @@ def checkout_branch(git_repo, branch_name):
             except IndexError:
                 module_logger().debug("Not found! Trying next...")
         module_logger().debug("Nothing left to try...")
-        raise IndexError("Branch \"%s\" not in repository!" % branch_name) from e
+        raise IndexError('Branch "%s" not in repository!' % branch_name) from e
 
 
 def retrieve_files_from_head(head, pattern, number_of_files=1, relative=False):
@@ -80,25 +85,26 @@ def retrieve_files_from_head(head, pattern, number_of_files=1, relative=False):
     pattern_matches = head.repo.git.ls_files(pattern)
 
     res = []
-    for file in pattern_matches.split('\n'):
+    for file in pattern_matches.split("\n"):
         # unfortunately git on windows internally uses linux-separator as path separator.
         # Paths therefore might have the wrong separator.
-        file = file.replace('/', os.path.sep)
+        file = file.replace("/", os.path.sep)
         module_logger().debug("Found file: %s..." % file)
         if relative:
             res.append(file)
         else:
             res.append(os.path.join(head.repo.working_tree_dir, file))
 
-
     if not res:
-        raise RuntimeError("Head \"%s\" does not hold pattern \"%s\"! Aborting..." % (head.name, pattern))
+        raise RuntimeError(
+            'Head "%s" does not hold pattern "%s"! Aborting...' % (head.name, pattern)
+        )
 
     if number_of_files > 0:
         if len(res) != number_of_files:
             raise RuntimeError(
-                "Head \"%s\" holds pattern \"%s\" %s times, but expected %s. Aborting..." %
-                (head.name, pattern, len(res), number_of_files)
+                'Head "%s" holds pattern "%s" %s times, but expected %s. Aborting...'
+                % (head.name, pattern, len(res), number_of_files)
             )
 
     return res
@@ -142,27 +148,37 @@ def retrieve_files_from_head_last_commit(head, pattern, option="", number_of_fil
     for file in diff:
         # unfortunately git on windows internally uses linux-separator as path separator.
         # Paths therefore might have the wrong separator.
-        path = file.b_path.replace('/', os.path.sep)
+        path = file.b_path.replace("/", os.path.sep)
         module_logger().debug("Found file in commit diff to parent: %s..." % path)
         module_logger().debug("Matching pattern %s..." % pattern)
 
         if option == "startswith":
             if path.startswith(pattern):
-                module_logger().debug("Found file matching pattern %s: %s..." % (pattern, path))
-                abs_path_solution_file.append(os.path.join(head.repo.working_tree_dir, path))
+                module_logger().debug(
+                    "Found file matching pattern %s: %s..." % (pattern, path)
+                )
+                abs_path_solution_file.append(
+                    os.path.join(head.repo.working_tree_dir, path)
+                )
         else:
             if re.search(pattern, path):
-                module_logger().debug("Found file matching pattern %s: %s..." % (pattern, path))
-                abs_path_solution_file.append(os.path.join(head.repo.working_tree_dir, path))
+                module_logger().debug(
+                    "Found file matching pattern %s: %s..." % (pattern, path)
+                )
+                abs_path_solution_file.append(
+                    os.path.join(head.repo.working_tree_dir, path)
+                )
 
     if not abs_path_solution_file:
-        raise RuntimeError("Head \"%s\" does not hold pattern \"%s\"! Aborting..." % (head.name, pattern))
+        raise RuntimeError(
+            'Head "%s" does not hold pattern "%s"! Aborting...' % (head.name, pattern)
+        )
 
     if number_of_files > 0:
         if len(abs_path_solution_file) != number_of_files:
             raise RuntimeError(
-                "Head \"%s\" holds pattern \"%s\" %s times, but expected %s. Aborting..." %
-                (head.name, pattern, len(abs_path_solution_file), number_of_files)
+                'Head "%s" holds pattern "%s" %s times, but expected %s. Aborting...'
+                % (head.name, pattern, len(abs_path_solution_file), number_of_files)
             )
 
     return abs_path_solution_file
@@ -171,17 +187,25 @@ def retrieve_files_from_head_last_commit(head, pattern, option="", number_of_fil
 def _add_files(repo, file_paths) -> bool:
     """Add files to the repo in the branch currently checked out."""
     if repo.index.diff(None) or repo.untracked_files:
-        module_logger().info('Preparing committing...')
+        module_logger().info("Preparing committing...")
         for file_path in file_paths:
-            module_logger().debug('Adding file %s...' % file_path)
+            module_logger().debug("Adding file %s..." % file_path)
             # todo: nice catching here?
             repo.git.add(file_path)
         return True
     return False
 
 
-def add_files_commit_and_push(head, file_paths, commit_message, push=False, email=None, username=None,
-                              push_option_list=None, force=False):
+def add_files_commit_and_push(
+    head,
+    file_paths,
+    commit_message,
+    push=False,
+    email=None,
+    username=None,
+    push_option_list=None,
+    force=False,
+):
     """Adds files in a given path to a git head and commits.
 
     Args:
@@ -219,22 +243,24 @@ def add_files_commit_and_push(head, file_paths, commit_message, push=False, emai
     if _add_files(repo, file_paths):
 
         # build command
-        cmd_option = ['--set-upstream']
+        cmd_option = ["--set-upstream"]
         cmd = cmd_option + push_options
         if force:
-            cmd = cmd + ['-f']
+            cmd = cmd + ["-f"]
 
         remote_name = get_remote_name(repo)
 
         cmd = cmd + [remote_name, head]
 
-        module_logger().debug("Running command: repo.git.push(%s)..." % (", ".join(str(x) for x in cmd)))
+        module_logger().debug(
+            "Running command: repo.git.push(%s)..." % (", ".join(str(x) for x in cmd))
+        )
 
         # commit
         repo.git.commit(m=commit_message)
 
         if push:
-            module_logger().info('Preparing pushing...')
+            module_logger().info("Preparing pushing...")
             repo.git.push(cmd)
 
     else:
@@ -250,9 +276,9 @@ def add_tag(repo, tag):
         tag:
             The tag associated with the commit
     """
-    repo.git.tag('-a', tag, '-f', '-m', '')
+    repo.git.tag("-a", tag, "-f", "-m", "")
     remote_name = get_remote_name(repo)
-    repo.git.push([remote_name, tag, '-f'])
+    repo.git.push([remote_name, tag, "-f"])
 
 
 def get_remote_name(repo):
@@ -276,8 +302,8 @@ def remove_files(head, file_paths):
 
     if repo.index.diff(None) or repo.untracked_files:
         for file_path in file_paths:
-            module_logger().debug('Removing file %s...' % file_path)
-            repo.git.rm([file_path, '-r', '--ignore-unmatch', '--cached'])
+            module_logger().debug("Removing file %s..." % file_path)
+            repo.git.rm([file_path, "-r", "--ignore-unmatch", "--cached"])
 
 
 def remove_tag(repo, tag):
@@ -290,21 +316,23 @@ def remove_tag(repo, tag):
             The tag to remove
     """
     remote_name = get_remote_name(repo)
-    repo.git.tag('-d', tag)
-    repo.git.push('--delete', remote_name, tag)
+    repo.git.tag("-d", tag)
+    repo.git.push("--delete", remote_name, tag)
 
 
 def get_tags(repo):
-    tags = [tag.name for tag in sorted(repo.tags, key=lambda t: t.commit.committed_datetime)]
+    tags = [
+        tag.name for tag in sorted(repo.tags, key=lambda t: t.commit.committed_datetime)
+    ]
     tags.reverse()
     return tags
 
 
 def revert(repo, tag, files: list):
     for file in files:
-        repo.git.reset(tag, '--', file)
-        repo.git.checkout('--', file)
-        repo.git.clean('-fd', file)
+        repo.git.reset(tag, "--", file)
+        repo.git.checkout("--", file)
+        repo.git.clean("-fd", file)
 
 
 def configure_git(repo, email, username):
@@ -324,10 +352,10 @@ def configure_git(repo, email, username):
 
     """
     if username:
-        module_logger().info("Set username to \"%s\"" % username)
+        module_logger().info('Set username to "%s"' % username)
         repo.config_writer().set_value("user", "name", username).release()
     if email:
-        module_logger().info("Set email to \"%s\"" % email)
+        module_logger().info('Set email to "%s"' % email)
         repo.config_writer().set_value("user", "email", email).release()
     if not username and not email:
         module_logger().warning("Neither username nor email given! Doing nothing...")
@@ -346,7 +374,9 @@ def create_new_head(repo, name):
     return new_head
 
 
-def download_repository(repo_url, git_folder_path, force_download=True, update=True) -> Repo:
+def download_repository(
+    repo_url, git_folder_path, force_download=True, update=True
+) -> Repo:
     """Downloads or updates the repository behind a url, returns repository object on success.
 
     If repository already cached, head is detached to origin HEAD for a clean start for new branches.
@@ -381,7 +411,9 @@ def download_repository(repo_url, git_folder_path, force_download=True, update=T
         if force_download:
             force_remove(git_folder_path)
 
-        module_logger().info("Download repository from %s in %s..." % (repo_url, git_folder_path))
+        module_logger().info(
+            "Download repository from %s in %s..." % (repo_url, git_folder_path)
+        )
         repo = git.Repo.clone_from(repo_url, git_folder_path)
 
     return repo
@@ -394,7 +426,9 @@ def checkout_files(repo, files_to_download):
 
 
 @contextmanager
-def clone_repository_sparse(repo_url, branch_name, target_repo_path) -> Generator[Repo, None, None]:
+def clone_repository_sparse(
+    repo_url, branch_name, target_repo_path
+) -> Generator[Repo, None, None]:
     """Clones a repository branch to a given path.
 
     Args:
@@ -410,9 +444,18 @@ def clone_repository_sparse(repo_url, branch_name, target_repo_path) -> Generato
     force_remove(git_folder_path)
     create_path_recursively(git_folder_path)
 
-    module_logger().debug("Cloning repository without history from %s into %s..." % (repo_url, git_folder_path))
+    module_logger().debug(
+        "Cloning repository without history from %s into %s..."
+        % (repo_url, git_folder_path)
+    )
     repo = git.Repo.clone_from(
-        repo_url, git_folder_path, branch=branch_name, no_checkout=True, depth=1, no_tags=True, single_branch=True
+        repo_url,
+        git_folder_path,
+        branch=branch_name,
+        no_checkout=True,
+        depth=1,
+        no_tags=True,
+        single_branch=True,
     )
     yield repo
     repo.close()
@@ -436,7 +479,7 @@ def clone_repository(src, target_repo_path, force=False) -> Generator[Repo, None
         if force:
             force_remove(target_repo_path)
         else:
-            raise RuntimeError("Target folder \"%s\" not empty!" % str(target_repo_path))
+            raise RuntimeError('Target folder "%s" not empty!' % str(target_repo_path))
 
     create_path_recursively(target_repo_path)
     repo = git.Repo.clone_from(src, target_repo_path)
@@ -483,7 +526,7 @@ def create_bare_repository(target):
     repo = git.Repo.init(target, bare=True)
 
     # ref HEAD to main
-    repo.git.symbolic_ref('HEAD', 'refs/heads/main')
+    repo.git.symbolic_ref("HEAD", "refs/heads/main")
 
     repo.close()
 
@@ -494,7 +537,7 @@ def create_repository(target):
     repo = git.Repo.init(target)
 
     # ref HEAD to main
-    repo.git.symbolic_ref('HEAD', 'refs/heads/main')
+    repo.git.symbolic_ref("HEAD", "refs/heads/main")
 
     return repo
 
@@ -506,9 +549,9 @@ def clean_repository(repo, target_head_name=None):
     remote_name = repo.remote().name
     remote_ref = remote_name + "/" + target_head_name
     # reset to current remote HEAD reference name
-    repo.git.reset(['--hard', remote_ref])
+    repo.git.reset(["--hard", remote_ref])
     # remove all leftover-untracked files (if any)
-    repo.git.clean('-fd')
+    repo.git.clean("-fd")
 
 
 def get_local_remote_ref_head(repo):

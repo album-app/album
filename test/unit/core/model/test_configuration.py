@@ -10,7 +10,6 @@ from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestConfiguration(TestUnitCoreCommon):
-
     def setUp(self) -> None:
         super().setUp()
 
@@ -45,21 +44,25 @@ class TestConfiguration(TestUnitCoreCommon):
         conf.setup(base_cache_path=new_tmp_dir.name)
 
         # assert
+        self.assertEqual(Path(new_tmp_dir.name), conf.base_cache_path())
         self.assertEqual(
-            Path(new_tmp_dir.name),
-            conf.base_cache_path()
+            Path(new_tmp_dir.name).joinpath(
+                DefaultValues.installation_folder_prefix.value
+            ),
+            conf.installation_path(),
         )
         self.assertEqual(
-            Path(new_tmp_dir.name).joinpath(DefaultValues.installation_folder_prefix.value),
-            conf.installation_path()
+            Path(new_tmp_dir.name).joinpath(
+                DefaultValues.cache_path_download_prefix.value
+            ),
+            conf.cache_path_download(),
         )
         self.assertEqual(
-            Path(new_tmp_dir.name).joinpath(DefaultValues.cache_path_download_prefix.value),
-            conf.cache_path_download()
-        )
-        self.assertEqual(
-            Path(new_tmp_dir.name).joinpath(DefaultValues.catalog_folder_prefix.value, DefaultValues.catalog_collection_db_name.value),
-            conf.get_catalog_collection_path()
+            Path(new_tmp_dir.name).joinpath(
+                DefaultValues.catalog_folder_prefix.value,
+                DefaultValues.catalog_collection_db_name.value,
+            ),
+            conf.get_catalog_collection_path(),
         )
 
     @unittest.skipUnless(sys.platform.startswith("win"), "requires Windoofs")
@@ -70,7 +73,9 @@ class TestConfiguration(TestUnitCoreCommon):
         expected = Path("myPathToConda").joinpath("Scripts", "conda.exe")
         self.assertEqual(r, str(expected))
 
-    @unittest.skipUnless(sys.platform == 'linux' or sys.platform == 'darwin', "requires a proper OS")
+    @unittest.skipUnless(
+        sys.platform == "linux" or sys.platform == "darwin", "requires a proper OS"
+    )
     def test__build_conda_executable_linux(self):
         conf = Configuration()
         r = conf._build_conda_executable("myPathToConda")
@@ -98,7 +103,7 @@ class TestConfiguration(TestUnitCoreCommon):
         # todo: implement
         pass
 
-    @patch('album.core.model.configuration.force_remove')
+    @patch("album.core.model.configuration.force_remove")
     def test_empty_tmp(self, force_remove_mock):
         force_remove_mock.return_value = None
         # call
@@ -109,5 +114,5 @@ class TestConfiguration(TestUnitCoreCommon):
         force_remove_mock.assert_called_once()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

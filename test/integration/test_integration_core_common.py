@@ -10,7 +10,6 @@ from test.test_common import TestCommon
 
 
 class TestIntegrationCoreCommon(TestCommon):
-
     def setUp(self):
         super().setUp()
         self.setup_album_controller()
@@ -21,7 +20,12 @@ class TestIntegrationCoreCommon(TestCommon):
         super().tearDown()
 
     def _remove_test_environments(self):
-        local_catalog_name = str(self.album_controller.collection_manager().catalogs().get_cache_catalog().name())
+        local_catalog_name = str(
+            self.album_controller.collection_manager()
+            .catalogs()
+            .get_cache_catalog()
+            .name()
+        )
         env_names = [
             local_catalog_name + "_group_name_0.1.0",
             local_catalog_name + "_group_app1_0.1.0",
@@ -38,11 +42,17 @@ class TestIntegrationCoreCommon(TestCommon):
             local_catalog_name + "_group_solution10_uninstall_0.1.0",
             local_catalog_name + "_group_solution13_faultySolution_0.1.0",
             local_catalog_name + "_group_solution_with_steps_0.1.0",
-            local_catalog_name + "_solution_with_steps_grouped_0.1.0"
+            local_catalog_name + "_solution_with_steps_grouped_0.1.0",
         ]
         for e in env_names:
-            if self.album_controller.environment_manager().get_conda_manager().environment_exists(e):
-                self.album_controller.environment_manager().get_conda_manager().remove_environment(e)
+            if (
+                self.album_controller.environment_manager()
+                .get_conda_manager()
+                .environment_exists(e)
+            ):
+                self.album_controller.environment_manager().get_conda_manager().remove_environment(
+                    e
+                )
 
     @staticmethod
     def get_test_solution_path(solution_file="solution0_dummy.py"):
@@ -54,21 +64,37 @@ class TestIntegrationCoreCommon(TestCommon):
         # add to local catalog
         loaded_solution = self.album_controller.state_manager().load(path)
 
-        cache_catalog = self.album_controller.collection_manager().catalogs().get_cache_catalog()
+        cache_catalog = (
+            self.album_controller.collection_manager().catalogs().get_cache_catalog()
+        )
         if create_environment:
-            env_name = "_".join([cache_catalog.name(), loaded_solution.get_identifier()])
+            env_name = "_".join(
+                [cache_catalog.name(), loaded_solution.get_identifier()]
+            )
             self.album_controller.environment_manager().get_conda_manager().install(
-                Environment(None, env_name, Path("unusedCachePath")))
+                Environment(None, env_name, Path("unusedCachePath"))
+            )
 
         # add to collection, assign to local catalog
-        len_catalog_before = len(self.album_controller.collection_manager().catalog_collection.get_solutions_by_catalog(
-            cache_catalog.catalog_id()))
-        self.album_controller.collection_manager().solutions().add_to_cache_catalog(loaded_solution, path)
-        self.album_controller.collection_manager().solutions().set_installed(cache_catalog,
-                                                                             loaded_solution.coordinates())
-        self.assertEqual(len_catalog_before + 1, len(
+        len_catalog_before = len(
             self.album_controller.collection_manager().catalog_collection.get_solutions_by_catalog(
-                cache_catalog.catalog_id())))
+                cache_catalog.catalog_id()
+            )
+        )
+        self.album_controller.collection_manager().solutions().add_to_cache_catalog(
+            loaded_solution, path
+        )
+        self.album_controller.collection_manager().solutions().set_installed(
+            cache_catalog, loaded_solution.coordinates()
+        )
+        self.assertEqual(
+            len_catalog_before + 1,
+            len(
+                self.album_controller.collection_manager().catalog_collection.get_solutions_by_catalog(
+                    cache_catalog.catalog_id()
+                )
+            ),
+        )
 
         # copy to correct folder
         copy(
@@ -78,7 +104,7 @@ class TestIntegrationCoreCommon(TestCommon):
                 loaded_solution.coordinates().group(),
                 loaded_solution.coordinates().name(),
                 loaded_solution.coordinates().version(),
-                DefaultValues.solution_default_name.value
-            )
+                DefaultValues.solution_default_name.value,
+            ),
         )
         return loaded_solution

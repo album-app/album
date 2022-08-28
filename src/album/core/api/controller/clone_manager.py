@@ -7,7 +7,14 @@ class ICloneManager:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def clone(self, path: str, target_dir: str, name: str, git_email: str = None, git_name: str = None) -> None:
+    def clone(
+        self,
+        path: str,
+        target_dir: str,
+        name: str,
+        git_email: str = None,
+        git_name: str = None,
+    ) -> None:
         """
         Function corresponding to the `clone` subcommand of `album`.
 

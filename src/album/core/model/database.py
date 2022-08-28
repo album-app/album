@@ -75,9 +75,7 @@ class Database(IDatabase, ABC):
         return cursor
 
     def _create_connection(self):
-        con = sqlite3.connect(
-            str(self.path)
-        )
+        con = sqlite3.connect(str(self.path))
         con.row_factory = sqlite3.Row
         return con
 
@@ -85,14 +83,18 @@ class Database(IDatabase, ABC):
         cursor = self.get_cursor()
 
         table_name_id = table_name + "_id"
-        is_empty = False if cursor.execute("SELECT * FROM %s" % table_name).fetchone() else True
+        is_empty = (
+            False
+            if cursor.execute("SELECT * FROM %s" % table_name).fetchone()
+            else True
+        )
         if is_empty:
             return 1
 
         # note: always use subquery for count/max etc. operations as sqlite python API requires full rows back!
         r = cursor.execute(
-            "SELECT * FROM %s WHERE %s = (SELECT MAX(%s) FROM %s)" %
-            (table_name, table_name_id, table_name_id, table_name)
+            "SELECT * FROM %s WHERE %s = (SELECT MAX(%s) FROM %s)"
+            % (table_name, table_name_id, table_name_id, table_name)
         ).fetchone()
 
         if close:

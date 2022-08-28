@@ -16,7 +16,7 @@ It copies a solution into the provided directory with the provided new name.
 Afterwards, open and edit `solution.py` in the new solution directory:
 
 - replace the identifiers (`group`, `name`, `version`)
-- replace all the relevant content, including `authors` with your (and your coworker's) name
+- replace all the relevant content, including `solution_creators` with your (and your coworker's) name
 - attributing the authors of the tool or algorithm the solution is using should happen in the `cite` tag
 
 We provide templates, check out the full list in our [default catalog repo](https://gitlab.com/album-app/catalogs/default).
@@ -34,17 +34,16 @@ from album.runner.api import setup
 
 
 setup(
-   group="my-group-name",
-   name="my-solution-name",
-   version="0.1.0-SNAPSHOT",
-    album_api_version="0.4.1"
+    group="my-group-name",
+    name="my-solution-name",
+    version="0.1.0-SNAPSHOT",
+    album_api_version="0.5.1",
 )
 ```
 
 Make solutions reproducible by adding a conda environment specification using fixed versioning:
 ```python
 from album.runner.api import setup
-from io import StringIO
 
 
 env_file = """channels:
@@ -59,8 +58,8 @@ setup(
     group="my-group-name",
     name="my-solution-name",
     version="0.1.0-SNAPSHOT",
-    album_api_version="0.4.1",
-    dependencies={"environment_file": env_file}
+    album_api_version="0.5.1",
+    dependencies={"environment_file": env_file},
 )
 ```
 
@@ -73,43 +72,45 @@ setup(
     group="my-group-name",
     name="my-solution-name",
     version="0.1.0-SNAPSHOT",
-    album_api_version="0.4.1",
+    album_api_version="0.5.1",
     title="The title of this solution",
     description="A description of what this solution is doing.",
-    authors=["My name", "My coworkers name"],
-    cite=[{
-       "text": "My citation text",
-       "doi": "my.citation.doi",
-       "url": "my://citation.url"
-    }],
+    solution_creators=["My name", "My coworkers name"],
+    cite=[
+        {
+            "text": "My citation text",
+            "doi": "my.citation.doi",
+            "url": "my://citation.url",
+        }
+    ],
     tags=["dummy", "python"],
     license="MIT",
     documentation=["documentation.md"],
-    covers=[{
-       "description": "Dummy cover image.",
-       "source": "cover.png"
-    }]
+    covers=[{"description": "Dummy cover image.", "source": "cover.png"}],
 )
+
 ```
 
 Add custom install / uninstall methods (they will be called from the solution environment):
 ```python
 from album.runner.api import setup
 
+
 def install():
     print("installing..")
+
 
 def uninstall():
     print("uninstalling..")
 
 
 setup(
-   group="my-group-name",
-   name="my-solution-name",
-   version="0.1.0-SNAPSHOT",
-   album_api_version="0.4.1",
-   install=install,
-   uninstall=uninstall
+    group="my-group-name",
+    name="my-solution-name",
+    version="0.1.0-SNAPSHOT",
+    album_api_version="0.5.1",
+    install=install,
+    uninstall=uninstall,
 )
 ```
 
@@ -117,8 +118,10 @@ Make solutions accessible by adding arguments:
 ```python
 from album.runner.api import setup
 
+
 def run():
     from album.runner.api import get_args
+
     args = get_args()
     print("Hi " + args.name + ", nice to meet you!")
 
@@ -127,13 +130,15 @@ setup(
     group="my-group-name",
     name="my-solution-name",
     version="0.1.0-SNAPSHOT",
-    album_api_version="0.4.1",
-    args=[{
-        "name": "name",
-        "type": "string",
-        "default": "Bugs Bunny",
-        "description": "How to you want to be addressed?"
-    }],
+    album_api_version="0.5.1",
+    args=[
+        {
+            "name": "name",
+            "type": "string",
+            "default": "Bugs Bunny",
+            "description": "How to you want to be addressed?",
+        }
+    ],
     run=run
 )
 ```
@@ -145,16 +150,21 @@ from album.runner.api import setup
 
 def run():
     from album.runner.api import get_args
+
     with open(get_args().file, "a") as file:
         file.write("RUNNING\n")
 
+
 def prepare_test():
     import tempfile
+
     file = tempfile.NamedTemporaryFile(delete=False, mode="w+")
     return {"--file": file.name}
 
+
 def test():
     from album.runner.api import get_args
+
     with open(get_args().file, "r") as file:
         file_content = file.readlines()
     assert ["RUNNING\n"] == file_content
@@ -164,14 +174,11 @@ setup(
     group="my-group-name",
     name="my-solution-name",
     version="0.1.0-SNAPSHOT",
-    album_api_version="0.4.1",
-    args=[{
-       "name": "file",
-       "description": "input text file path"
-    }],
+    album_api_version="0.5.1",
+    args=[{"name": "file", "description": "input text file path"}],
     run=run,
     pre_test=prepare_test,
-    test=test
+    test=test,
 )
 ```
 
@@ -184,18 +191,19 @@ from album.runner.api import setup
 
 
 setup(
-   group="my-group-name",
-   name="my-child-solution-name",
-   version="0.1.0-SNAPSHOT",
-   album_api_version="0.4.1",
-   dependencies={
-      "parent": {
-         "group": "album",
-         "name": "template-python",
-         "version": "0.1.0"
-      }
-   }
+    group="my-group-name",
+    name="my-child-solution-name",
+    version="0.1.0-SNAPSHOT",
+    album_api_version="0.5.1",
+    dependencies={
+        "parent": {
+            "group": "album",
+            "name": "template-python",
+            "version": "0.1.0"
+        }
+    }
 )
+
 ```
 
 ## Testing your solution
@@ -230,6 +238,7 @@ Executable method parameters point to a method like this:
 def my_run_method():
     print("I'm running")
 
+
 setup(
     ...,
     run=my_run_method
@@ -244,7 +253,7 @@ setup(
   * `type` (optional): The type of the argument as a string. 
   * `default` (optional): The default value of the argument.
   * `required` (optional): If set to `True`, the solution will fail before executing the `run` method and ask for this argument in case it's not provided. 
-* `authors`: The author(s) of the solution. This is an array of strings.
+* `solution_creators`: The creator(s) of the solution. This is an array of strings.
 * `changelog`: A string describing what changed in comparison to the last deployed version.
 * `covers`: This is a list of cover images to be displayed for this solution in a catalog. Each list entry is a dictionary with the following keys: 
   * `source`: The path to the cover - either a local path relative to and inside the solution folder, or a URL. 
@@ -296,13 +305,16 @@ def run():
     file_copy = get_data_path().joinpath(input_file.name)
     copy(input_file, file_copy)
 
+
 setup(
     ...,
-    args=[{
-       "name": "input",
-       "type": "file",
-       "description": "input file path"
-    }],
+    args=[
+        {
+            "name": "input",
+            "type": "file",
+            "description": "input file path"
+        }
+    ],
     run=run
 )
 ```

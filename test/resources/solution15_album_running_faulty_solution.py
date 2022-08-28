@@ -1,7 +1,8 @@
 from album.runner.api import setup, get_cache_path
 from io import StringIO
 
-env_file = StringIO("""channels:
+env_file = StringIO(
+    """channels:
   - defaults
   - conda-forge
 dependencies:
@@ -10,7 +11,9 @@ dependencies:
   - git
   - pip:
     - https://gitlab.com/album-app/album/-/archive/dev/album-dev.zip
-""")
+"""
+)
+
 
 def album_run():
     from album.api import Album
@@ -29,7 +32,9 @@ def album_run():
         album = Album.Builder().base_cache_path(album_cache).build()
         album.load_or_create_collection()
 
-        with tempfile.NamedTemporaryFile(dir=get_cache_path(), mode='w', delete=False) as solution_file:
+        with tempfile.NamedTemporaryFile(
+            dir=get_cache_path(), mode="w", delete=False
+        ) as solution_file:
             solution_file.write(get_solution_content())
 
         solution_file = str(solution_file.name)
@@ -44,8 +49,7 @@ def get_solution_content():
     return '''from album.runner.api import setup
 from io import StringIO
 
-env_file = StringIO("""name: template-python
-channels:
+env_file = StringIO("""channels:
   - defaults
 dependencies:
   - python=3.7
@@ -64,7 +68,7 @@ setup(
     group="group",
     name="solution9_throws_exception",
     version="0.1.0",
-    album_api_version="0.4.1",
+    album_api_version="0.5.1",
     run=run,
     dependencies={
         'environment_file': env_file
@@ -79,7 +83,5 @@ setup(
     version="0.1.0",
     album_api_version="0.3.1",
     run=album_run,
-    dependencies={
-        'environment_file': env_file
-    }
+    dependencies={"environment_file": env_file},
 )

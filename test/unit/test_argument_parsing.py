@@ -5,15 +5,24 @@ import unittest.mock
 from unittest.mock import patch
 
 from album import argument_parsing
-from album.commandline import search, remove_catalog, add_catalog, uninstall, install, repl, deploy, run, \
-    test, clone
+from album.commandline import (
+    search,
+    remove_catalog,
+    add_catalog,
+    uninstall,
+    install,
+    repl,
+    deploy,
+    run,
+    test,
+    clone,
+)
 
 
 class TestArgumentParsing(unittest.TestCase):
-
-    @patch('album.argument_parsing.__run_subcommand', return_value=True)
+    @patch("album.argument_parsing.__run_subcommand", return_value=True)
     def test_run(self, _):
-        fp = tempfile.NamedTemporaryFile(mode='w+', delete=False)
+        fp = tempfile.NamedTemporaryFile(mode="w+", delete=False)
         fp.close()
 
         try:
@@ -35,8 +44,12 @@ class TestArgumentParsing(unittest.TestCase):
         # check parsing of subcommands
         self.assertSubcommandParsed(parser, "search", search, "keyword")
         self.assertSubcommandWithFileArgParsed(parser, "run", run)
-        self.assertSubcommandWithFileArgParsed(parser, "deploy", deploy, ['catalog-name'])
-        self.assertSubcommandWithFileArgParsed(parser, "clone", clone, ['target-dir', 'name'])
+        self.assertSubcommandWithFileArgParsed(
+            parser, "deploy", deploy, ["catalog-name"]
+        )
+        self.assertSubcommandWithFileArgParsed(
+            parser, "clone", clone, ["target-dir", "name"]
+        )
         self.assertSubcommandWithFileArgParsed(parser, "repl", repl)
         self.assertSubcommandWithFileArgParsed(parser, "install", install)
         self.assertSubcommandWithFileArgParsed(parser, "uninstall", uninstall)
@@ -56,7 +69,9 @@ class TestArgumentParsing(unittest.TestCase):
         args = parser.parse_known_args()
         self.assertEqual(method, args[0].func)
 
-    def assertSubcommandWithFileArgParsed(self, parser, name, method, additional_args=None):
+    def assertSubcommandWithFileArgParsed(
+        self, parser, name, method, additional_args=None
+    ):
         if additional_args is None:
             additional_args = []
         sys.argv = ["", name, "test/path"] + additional_args
@@ -64,5 +79,5 @@ class TestArgumentParsing(unittest.TestCase):
         self.assertEqual(method, args[0].func)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
