@@ -875,12 +875,13 @@ class CollectionIndex(ICollectionIndex, Database):
 
         res = []
         for row in r:
-            argument = {
-                "name": row["name"],
-                "type": row["type"],
-                "description": row["description"],
-            }
-            if row["default_value"]:
+            row = dict(row)
+            argument = {"name": row["name"], "type": row["type"]}
+            if "description" in row and row["description"] is not None:
+                argument["description"] = row["description"]
+            if "required" in row and row["required"] is not None:
+                argument["required"] = bool(row["required"])
+            if "default_value" in row and row["default_value"] is not None:
                 argument["default"] = row["default_value"]
             res.append(argument)
 

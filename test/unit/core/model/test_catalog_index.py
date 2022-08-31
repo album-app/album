@@ -131,6 +131,7 @@ class TestCatalogIndex(TestUnitCoreCommon):
             "name": "myName",
             "type": "myType",
             "description": "myDescription",
+            "required": False,
             "default": "myDefaultValue",
         }
         # call

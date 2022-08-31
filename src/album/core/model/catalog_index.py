@@ -334,7 +334,7 @@ class CatalogIndex(ICatalogIndex, Database):
                 argument_id,
                 argument["name"],
                 get_dict_entry(argument, "type"),
-                argument["description"],
+                get_dict_entry(argument, "description"),
                 get_dict_entry(argument, "default"),
                 get_dict_entry(argument, "required"),
             ),

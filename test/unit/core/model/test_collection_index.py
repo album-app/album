@@ -245,6 +245,7 @@ class TestCollectionIndex(TestUnitCoreCommon):
             "name": "myName",
             "type": "myType",
             "description": "myDescription",
+            "required": False,
             "default": "myDefaultValue",
         }
         # call
@@ -621,12 +622,14 @@ class TestCollectionIndex(TestUnitCoreCommon):
             "name": "myArgument",
             "type": "str",
             "description": "myDescription",
+            "required": False,
             "default": "myDefaultValue",
         }
         argument2 = {
             "name": "myArgument",
             "type": "str",
             "description": "myDescription",
+            "required": True,
             "default": "myDefaultValue",
         }
 
