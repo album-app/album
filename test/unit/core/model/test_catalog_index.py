@@ -172,6 +172,26 @@ class TestCatalogIndex(TestUnitCoreCommon):
         # assert
         self.assertFalse(self.catalog_index.is_table_empty("documentation"))
 
+    def test__get_arguments_by_solution(self):
+        self.is_empty_or_full(empty=True)
+        self.assertTrue(self.catalog_index.is_table_empty("argument"))
+        arg = {
+            "name": "myName",
+            "type": "myType",
+            "description": "myDescription",
+            "required": False,
+            "default": "myDefaultValue",
+        }
+        arg_id = self.catalog_index._insert_argument(arg)
+        self.catalog_index.get_cursor().execute(
+            "INSERT INTO solution_argument values (?, ?, ?)",
+            (1, 1, arg_id),
+        )
+
+        # assert
+        self.assertFalse(self.catalog_index.is_table_empty("argument"))
+        self.assertEqual([arg], self.catalog_index._get_arguments_by_solution(1))
+
     def test__exists_author(self):
         self.is_empty_or_full(empty=True)
         self.assertTrue(self.catalog_index.is_table_empty("author"))
