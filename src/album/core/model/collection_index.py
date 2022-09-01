@@ -216,6 +216,46 @@ class CollectionIndex(ICollectionIndex, Database):
             {"catalog_id": catalog_id},
         )
         cursor.execute(
+            "DELETE FROM collection_author " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM author " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM collection_citation " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM citation " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM collection_argument " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM argument " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM collection_custom " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM custom " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM cover " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM documentation " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
             "DELETE FROM collection_collection " "WHERE catalog_id_parent=:catalog_id",
             {"catalog_id": catalog_id},
         )
@@ -875,12 +915,13 @@ class CollectionIndex(ICollectionIndex, Database):
 
         res = []
         for row in r:
-            argument = {
-                "name": row["name"],
-                "type": row["type"],
-                "description": row["description"],
-            }
-            if row["default_value"]:
+            row = dict(row)
+            argument = {"name": row["name"], "type": row["type"]}
+            if "description" in row and row["description"] is not None:
+                argument["description"] = row["description"]
+            if "required" in row and row["required"] is not None:
+                argument["required"] = bool(row["required"])
+            if "default_value" in row and row["default_value"] is not None:
                 argument["default"] = row["default_value"]
             res.append(argument)
 
