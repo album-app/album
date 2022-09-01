@@ -216,6 +216,46 @@ class CollectionIndex(ICollectionIndex, Database):
             {"catalog_id": catalog_id},
         )
         cursor.execute(
+            "DELETE FROM collection_author " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM author " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM collection_citation " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM citation " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM collection_argument " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM argument " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM collection_custom " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM custom " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM cover " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM documentation " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
             "DELETE FROM collection_collection " "WHERE catalog_id_parent=:catalog_id",
             {"catalog_id": catalog_id},
         )
