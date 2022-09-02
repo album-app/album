@@ -7,4 +7,4 @@ dependencies:
   - pip
   - git>=2.34
   - pip:
-      - album==0.9.1  # point to latest pypi version here.
+      - album==0.9.2  # point to latest pypi version here.
