@@ -37,11 +37,13 @@ class TestCollectionIndex(TestUnitCoreCommon):
             if t != "catalog_collection":  # catalog_collection is never empty
                 if empty:
                     self.assertTrue(
-                        self.test_catalog_collection_index.is_table_empty(t)
+                        self.test_catalog_collection_index.is_table_empty(t),
+                        "table table should be empty: %s" % t,
                     )
                 else:
                     self.assertFalse(
-                        self.test_catalog_collection_index.is_table_empty(t)
+                        self.test_catalog_collection_index.is_table_empty(t),
+                        "table table should not be empty: %s" % t,
                     )
 
         self.test_catalog_collection_index.close_current_connection()
@@ -200,9 +202,26 @@ class TestCollectionIndex(TestUnitCoreCommon):
 
         self.assertEqual([r, r2], self.test_catalog_collection_index.get_all_catalogs())
 
-    @unittest.skip("Needs to be implemented!")
     def test_remove_catalog(self):
-        pass
+        self.assertEqual([], self.test_catalog_collection_index.get_all_catalogs())
+        self.is_empty_or_full(empty=True)
+
+        catalog_id = self.test_catalog_collection_index.insert_catalog(
+            "myName1",
+            "mySrc1",
+            "myPath1",
+            deletable=True,
+            branch_name=None,
+            catalog_type="direct",
+        )
+
+        self.test_catalog_collection_index.insert_solution(
+            catalog_id, self.get_solution_dict()
+        )
+
+        self.test_catalog_collection_index.remove_catalog(catalog_id)
+
+        self.is_empty_or_full(empty=True)
 
     # ### metadata ###
     def test__insert_author(self):
@@ -245,6 +264,7 @@ class TestCollectionIndex(TestUnitCoreCommon):
             "name": "myName",
             "type": "myType",
             "description": "myDescription",
+            "required": False,
             "default": "myDefaultValue",
         }
         # call
@@ -621,12 +641,14 @@ class TestCollectionIndex(TestUnitCoreCommon):
             "name": "myArgument",
             "type": "str",
             "description": "myDescription",
+            "required": False,
             "default": "myDefaultValue",
         }
         argument2 = {
             "name": "myArgument",
             "type": "str",
             "description": "myDescription",
+            "required": True,
             "default": "myDefaultValue",
         }
 
@@ -1161,7 +1183,8 @@ class TestCollectionIndex(TestUnitCoreCommon):
             "cat2", Coordinates("grp", "name", "version")
         )
 
-        self.assertEqual(2, len(self.test_catalog_collection_index.get_all_solutions()))
+        solutions = self.test_catalog_collection_index.get_all_solutions()
+        self.assertEqual(2, len(solutions))
         self.assertEqual(4, self.test_catalog_collection_index.next_id("collection"))
 
         # remove third solution
