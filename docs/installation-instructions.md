@@ -6,6 +6,11 @@ Prerequisites:
 
 - a Conda installation, i.e. [Miniconda](https://docs.conda.io/en/latest/miniconda.html)
 
+- we highly recommend that you install Mamba in your base environment - currently Album will use Mamba for installing environments and fall back to Conda if Mamba is not available, but we might fully switch to Mamba in the future to enhance reproducibility. This is how you install Mamba:
+```
+conda install -n base mamba -c conda-forge
+```
+
 **Install the album conda environment:**
 
 For the most recently released album version, run this command:
