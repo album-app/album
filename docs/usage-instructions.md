@@ -6,11 +6,14 @@ Once Album is installed, list all available commands:
 ```
 album -h
 ```
-Have a look at your local collection. 
+Have a look at your local collection.
 ```
 album index
 ```
-When running Album for the first time, the default Album catalog is added and you should see a list of template solutions in your collection.
+When running Album for the first time, the default Album catalog is added and you should see a list of template solutions in your collection. <br>
+<br>
+Please note that this local collection is unique for each user of the system. If another user runs the 
+index command the output will be different.
 
 ## What is a solution?
 A solution holds all information to solve a specific problem. Ideally, this includes:
