@@ -320,6 +320,37 @@
     - echo $PATH
     - conda create -y --channel=conda-forge -n album python=3.9 pip git
     - source $tmpdir/miniconda/bin/activate
+    - conda activate album
+    - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
+    - python -V
+  after_script:
+    - tmpdir=$(</tmp/tmpdir)
+    - echo $tmpdir
+    - rm -rf $tmpdir
+
+
+# Macos base template for running tests with conda as package manager
+#
+# Installs miniconda in a fresh tmp directory and activates it.
+# DO NOT ALLOW JOBS TO BE RUN IN PARALLEL!
+#
+
+.macos_base_template_conda_with_mamba:
+  tags:
+    - macos
+    - shell
+  before_script:
+    - echo "$(uname)"
+    - sw_vers
+    - tmpdir=$(mktemp -d /tmp/album-test.XXXXXX)
+    - echo $tmpdir
+    - echo $tmpdir > /tmp/tmpdir
+    - curl https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh --output $tmpdir/miniconda.sh
+    - bash $tmpdir/miniconda.sh -b -p $tmpdir/miniconda
+    - export PATH=$PATH:$tmpdir/miniconda/bin/
+    - echo $PATH
+    - conda create -y --channel=conda-forge -n album python=3.9 pip git
+    - source $tmpdir/miniconda/bin/activate
     - conda install -y mamba -c conda-forge
     - conda activate album
     - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip

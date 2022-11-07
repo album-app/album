@@ -2,11 +2,13 @@ import json
 import pkgutil
 import shutil
 import sqlite3
+from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pkg_resources
-from jsonschema import validate
+from jsonschema import validate, ValidationError
+from packaging import version
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.migration_manager import IMigrationManager
@@ -32,9 +34,13 @@ class MigrationManager(IMigrationManager):
         self.migrate_catalog_collection_db(
             collection_index.get_path(),
             initial_version,  # current version
+<<<<<<< HEAD
             # CollectionIndex.version  # current framework target version
             DBVersion.from_string(DefaultValues.catalog_collection_db_version.value)
 
+=======
+            CollectionIndex.version,  # current framework target version
+>>>>>>> 426945e (formatting via black)
         )
 
     def _load_catalog_index(self, catalog: ICatalog, initial_version) -> None:
@@ -43,6 +49,7 @@ class MigrationManager(IMigrationManager):
         self.migrate_catalog_index_db(
             catalog.index().get_path(),
             initial_version,  # current version
+<<<<<<< HEAD
             # CatalogIndex.version
             DBVersion.from_string(DefaultValues.catalog_index_db_version.value)  # current framework target version
         )
@@ -79,6 +86,33 @@ class MigrationManager(IMigrationManager):
                         module_logger().error("Could not migrate the catalog collection database: %s" % e)
                         Path(catalog_index_path).unlink()
                         shutil.copy(Path(tmp_dir).joinpath("album_catalog_index.db"), catalog_index_path)
+=======
+            CatalogIndex.version,  # current framework target version
+        )
+
+    def migrate_catalog_collection_db(
+        self, collection_index_path, curr_version, target_version
+    ):
+        if curr_version != target_version:
+            # todo: execute catalog_collection SQL migration scripts if necessary!
+            # todo: set new version in DB
+            raise NotImplementedError(
+                'Cannot migrate collection from version "%s" to version "%s"!'
+                % (curr_version, target_version)
+            )
+        return collection_index_path
+
+    def migrate_catalog_index_db(
+        self, catalog_index_path, curr_version, target_version
+    ):
+        if curr_version != target_version:
+            # todo: execute catalog index SQL migration scripts if necessary!
+            # todo: set new version in DB
+            raise NotImplementedError(
+                "Cannot migrate collection from version %s to version %s."
+                % (curr_version, target_version)
+            )
+>>>>>>> 426945e (formatting via black)
         return catalog_index_path
 
     def load_index(self, catalog: ICatalog):
@@ -122,6 +156,7 @@ class MigrationManager(IMigrationManager):
             self.schema_solution_runner_0_4_2 = json.loads(data)
 
     @staticmethod
+<<<<<<< HEAD
     def _load_catalog_collection_migration_schema(curr_version, target_version):
         with open(pkg_resources.resource_filename('album.core.schema.migrations.catalog_collection',
                                                   'migrate_catalog_collection_%s_to_%s.sql' % (
@@ -158,6 +193,13 @@ class MigrationManager(IMigrationManager):
         index_dict = get_dict_from_json(catalog_index_json_path)
         index_dict["version"] = DefaultValues.catalog_index_db_version.value
         write_dict_to_json(catalog_index_json_path, index_dict)
+=======
+    def _convert_schema0_schema1(attrs):
+        if "authors" in attrs:
+            attrs["solution_creators"] = deepcopy(attrs["authors"])
+            attrs.pop("authors")
+        return attrs
+>>>>>>> 426945e (formatting via black)
 
     @staticmethod
     def _convert_schema0_schema1(attrs):

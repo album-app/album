@@ -120,8 +120,11 @@ class Album:
                 Boolean to indicate whether to remove parents too.
 
         """
-        return self._run_async(self._controller.install_manager().uninstall, (solution_to_resolve, rm_dep, argv),
-                               run_async)
+        return self._run_async(
+            self._controller.install_manager().uninstall,
+            (solution_to_resolve, rm_dep, argv),
+            run_async,
+        )
 
     def deploy(
         self,
@@ -172,9 +175,15 @@ class Album:
             changelog=changelog,
         )
 
-    def undeploy(self, solution_to_resolve: str, catalog_name: str, dry_run: bool, push_options=None,
-                 git_email: str = None,
-                 git_name: str = None):
+    def undeploy(
+        self,
+        solution_to_resolve: str,
+        catalog_name: str,
+        dry_run: bool,
+        push_options=None,
+        git_email: str = None,
+        git_name: str = None,
+    ):
         """Function corresponding to the `undeploy` subcommand of `album`.
 
         Removes the solution from the given catalog.

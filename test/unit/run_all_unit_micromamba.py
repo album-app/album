@@ -32,6 +32,7 @@ from test.unit.core.model import (
     test_collection_index,
     test_task,
     test_database,
+    test_db_version,
 )
 from test.unit.core.utils import test_subcommand
 from test.unit.core.utils.export import test_changelog, test_docker

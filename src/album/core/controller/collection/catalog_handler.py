@@ -167,10 +167,15 @@ class CatalogHandler(ICatalogHandler):
         if not local_path.exists():
             local_path.mkdir(parents=True)
                                                                                             # CatalogIndex.version \
-        meta_data = "{\"name\": \"" + name \
-                    + "\", \"version\": \"" + DefaultValues.catalog_index_db_version.value \
-                    + "\", \"type\": \"" + catalog_type \
-                    + "\"}"
+        meta_data = (
+            '{\"name\": \"'
+            + name
+            + '\", \"version\": \"'
+            + DefaultValues.catalog_index_db_version.value
+            + '\", \"type\": \"'
+            + catalog_type
+            + '\"}'
+            )
         with open(local_path.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as meta:
             meta.writelines(meta_data)
 

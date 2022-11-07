@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS test_table (
+CREATE TABLE IF NOT EXISTS test_table2 (
     spalte_1 INTEGER DEFAULT 0,
     spalte_2 TEXT DEFAULT "default"
 );
