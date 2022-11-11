@@ -28,6 +28,11 @@ class IConfiguration:
         raise NotImplementedError
 
     @abstractmethod
+    def micromamba_executable(self):
+        """The micromamba executable. Either a full path to a mamba executable/binary or a command"""
+        raise NotImplementedError
+
+    @abstractmethod
     def cache_path_download(self):
         """Path for solution unspecific downloads."""
         raise NotImplementedError
@@ -105,4 +110,10 @@ class IConfiguration:
     @abstractmethod
     def get_initial_catalogs_branch_name(self):
         """Returns the default catalogs branches to use."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_installed_package_manager(self):
+        """Check which package manager is installed. Micromamba, conda using mamba or just conda. Picks them in this
+        order."""
         raise NotImplementedError

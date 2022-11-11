@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -14,7 +15,7 @@ from album.core.model.link import Link
 from album.core.utils import subcommand
 from album.core.utils.operations.file_operations import (
     construct_cache_link_target,
-    remove_link,
+    remove_link, force_remove,
 )
 from album.core.utils.subcommand import SubProcessError
 from album.runner import album_logging
@@ -40,6 +41,13 @@ class CondaManager:
 
     def _get_install_environment_executable(self):
         return self._conda_executable
+
+    @staticmethod
+    def check_for_executable():
+        if not subprocess.run([DefaultValues.conda_path.value]).returncode:
+            return True
+        else:
+            return False
 
     def get_environment_list(self):
         """Returns the available album conda environments."""
@@ -166,16 +174,7 @@ class CondaManager:
         path = self.get_environment_path(environment_name, create=False)
 
         try:
-            subprocess_args = [
-                self._get_install_environment_executable(),
-                "env",
-                "remove",
-                "-y",
-                "-q",
-                "-p",
-                os.path.normpath(path),
-            ]
-
+            subprocess_args = self._get_remove_env_args(path)
             subcommand.run(subprocess_args, log_output=False)
         except SubProcessError:
             module_logger().debug(
@@ -350,21 +349,13 @@ class CondaManager:
             environment_content, album_api_version
         )
         env_prefix = os.path.normpath(self._environment_name_to_path(environment_name))
+        force_remove(env_prefix)
         with tempfile.NamedTemporaryFile(
             mode="w", delete=False, suffix=".yml"
         ) as env_file:
 
             env_file.write(yaml.safe_dump(environment_content))
-        subprocess_args = [
-            self._get_install_environment_executable(),
-            "env",
-            "create",
-            "--force",
-            "--file",
-            env_file.name,
-            "-p",
-            env_prefix,
-        ]
+        subprocess_args = self._get_env_create_args(env_file, env_prefix)
         try:
             subcommand.run(subprocess_args, log_output=True)
         except RuntimeError as e:
@@ -376,18 +367,20 @@ class CondaManager:
         finally:
             os.remove(env_file.name)
 
-    def run_script(self, environment_path, script_full_path, pipe_output=True):
-        """Runs a script in the given environment.
+    def _get_env_create_args(self, env_file, env_prefix):
+        subprocess_args = [
+            self._get_install_environment_executable(),
+            "env",
+            "create",
+            "--force",
+            "--file",
+            env_file.name,
+            "-p",
+            env_prefix,
+        ]
+        return subprocess_args
 
-        Args:
-            environment_path:
-                The prefix path of the environment to install the package to.
-            script_full_path:
-                The full path to the script to run.
-            pipe_output:
-                Indicates whether to pipe the output of the subprocess or just return it as is.
-
-        """
+    def _get_run_script_args(self, environment_path, script_full_path):
         if sys.platform == "win32" or sys.platform == "cygwin":
             # NOTE: WHEN USING 'CONDA RUN' THE CORRECT ENVIRONMENT GETS TEMPORARY ACTIVATED,
             # BUT THE PATH POINTS TO THE WRONG PYTHON (conda base folder python) BECAUSE THE CONDA BASE PATH
@@ -413,6 +406,33 @@ class CondaManager:
                 "-u",
                 os.path.normpath(script_full_path),
             ]
+        return subprocess_args
+
+    def _get_remove_env_args(self, path):
+        subprocess_args = [
+            self._get_install_environment_executable(),
+            "env",
+            "remove",
+            "-y",
+            "-q",
+            "-p",
+            os.path.normpath(path),
+        ]
+        return subprocess_args
+
+    def run_script(self, environment_path, script_full_path, pipe_output=True):
+        """Runs a script in the given environment.
+
+        Args:
+            environment_path:
+                The prefix path of the environment to install the package to.
+            script_full_path:
+                The full path to the script to run.
+            pipe_output:
+                Indicates whether to pipe the output of the subprocess or just return it as is.
+
+        """
+        subprocess_args = self._get_run_script_args(environment_path,script_full_path)
         subcommand.run(subprocess_args, pipe_output=pipe_output)
 
     def set_environment_path(self, environment: IEnvironment):
