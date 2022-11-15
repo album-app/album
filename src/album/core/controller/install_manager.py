@@ -367,12 +367,9 @@ class InstallManager(IInstallManager):
                 coordinates=coordinates,
             )
 
-            self.album.collection_manager().retrieve_and_load_resolve_result(resolve)
-
             self.album.solutions().set_cache_paths(
                 resolve.loaded_solution(), resolve.catalog()
             )
-
             # only remove environment when solution has its own environment
             if not get_parent_dict(resolve.loaded_solution()):
                 self._clean_unfinished_installations_environment(resolve)

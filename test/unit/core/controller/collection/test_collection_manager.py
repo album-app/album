@@ -192,7 +192,9 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         get_catalog_mock = MagicMock(return_value=local_catalog)
         get_solution_mock = MagicMock(return_value="path/to/solution")
         search_mock = MagicMock(
-            return_value=CollectionIndex.CollectionSolution(internal={"catalog_id": 1})
+            return_value=CollectionIndex.CollectionSolution(
+                setup=self.solution_default_dict, internal={"catalog_id": 1}
+            )
         )
         retrieve_and_load_mock = MagicMock()
         retrieve_and_load_mock.side_effect = lambda x: setattr(
