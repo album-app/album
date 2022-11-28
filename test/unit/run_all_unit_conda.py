@@ -52,64 +52,64 @@ def main():
     ### unittests
 
     # album
-    suite.addTests(loader.loadTestsFromModule(test_argument_parsing))
+#    suite.addTests(loader.loadTestsFromModule(test_argument_parsing))
 
     # album core.controller.collection
-    suite.addTests(loader.loadTestsFromModule(test_collection_manager))
-    suite.addTests(loader.loadTestsFromModule(test_catalog_handler))
-    suite.addTests(loader.loadTestsFromModule(test_solution_handler))
+#    suite.addTests(loader.loadTestsFromModule(test_collection_manager))
+#    suite.addTests(loader.loadTestsFromModule(test_catalog_handler))
+#    suite.addTests(loader.loadTestsFromModule(test_solution_handler))
 
     # album core.controller
-    suite.addTests(loader.loadTestsFromModule(test_clone_manager))
+#    suite.addTests(loader.loadTestsFromModule(test_clone_manager))
     suite.addTests(loader.loadTestsFromModule(test_conda_manager))
     suite.addTests(loader.loadTestsFromModule(test_mamba_manager))
-    suite.addTests(loader.loadTestsFromModule(test_deploy_manager))
+#    suite.addTests(loader.loadTestsFromModule(test_deploy_manager))
     suite.addTests(loader.loadTestsFromModule(test_environment_manager))
-    suite.addTests(loader.loadTestsFromModule(test_install_manager))
-    suite.addTests(loader.loadTestsFromModule(test_migration_manager))
-    suite.addTests(loader.loadTestsFromModule(test_run_manager))
-    suite.addTests(loader.loadTestsFromModule(test_search_manager))
-    suite.addTests(loader.loadTestsFromModule(test_task_manager))
-    suite.addTests(loader.loadTestsFromModule(test_test_manager))
-    suite.addTests(loader.loadTestsFromModule(test_script_manager))
-    suite.addTests(loader.loadTestsFromModule(test_event_manager))
+#    suite.addTests(loader.loadTestsFromModule(test_install_manager))
+#    suite.addTests(loader.loadTestsFromModule(test_migration_manager))
+#    suite.addTests(loader.loadTestsFromModule(test_run_manager))
+#    suite.addTests(loader.loadTestsFromModule(test_search_manager))
+#    suite.addTests(loader.loadTestsFromModule(test_task_manager))
+#    suite.addTests(loader.loadTestsFromModule(test_test_manager))
+#    suite.addTests(loader.loadTestsFromModule(test_script_manager))
+#    suite.addTests(loader.loadTestsFromModule(test_event_manager))
 
     # album.core.model
-    suite.addTests(loader.loadTestsFromModule(test_catalog))
-    suite.addTests(loader.loadTestsFromModule(test_catalog_index))
-    suite.addTests(loader.loadTestsFromModule(test_collection_index))
-    suite.addTests(loader.loadTestsFromModule(test_configuration))
-    suite.addTests(loader.loadTestsFromModule(test_environment))
-    suite.addTests(loader.loadTestsFromModule(test_task))
+#    suite.addTests(loader.loadTestsFromModule(test_catalog))
+#    suite.addTests(loader.loadTestsFromModule(test_catalog_index))
+#    suite.addTests(loader.loadTestsFromModule(test_collection_index))
+#    suite.addTests(loader.loadTestsFromModule(test_configuration))
+#    suite.addTests(loader.loadTestsFromModule(test_environment))
+#    suite.addTests(loader.loadTestsFromModule(test_task))
 
     # album.core.concept
-    suite.addTests(loader.loadTestsFromModule(test_database))
+#    suite.addTests(loader.loadTestsFromModule(test_database))
 
     # album.core.utils
-    suite.addTests(loader.loadTestsFromModule(test_subcommand))
+#    suite.addTests(loader.loadTestsFromModule(test_subcommand))
 
     # album.core.utils.operations
-    suite.addTests(loader.loadTestsFromModule(test_file_operations))
-    suite.addTests(loader.loadTestsFromModule(test_git_operations))
-    suite.addTests(loader.loadTestsFromModule(test_resolve_operations))
-    suite.addTests(loader.loadTestsFromModule(test_url_operations))
-    suite.addTests(loader.loadTestsFromModule(test_solution_operations))
-    suite.addTests(loader.loadTestsFromModule(test_dict_operations))
+#    suite.addTests(loader.loadTestsFromModule(test_file_operations))
+#    suite.addTests(loader.loadTestsFromModule(test_git_operations))
+#    suite.addTests(loader.loadTestsFromModule(test_resolve_operations))
+#    suite.addTests(loader.loadTestsFromModule(test_url_operations))
+#    suite.addTests(loader.loadTestsFromModule(test_solution_operations))
+#    suite.addTests(loader.loadTestsFromModule(test_dict_operations))
 
     # album.core.utils.export
-    suite.addTests(loader.loadTestsFromModule(test_docker))
-    suite.addTests(loader.loadTestsFromModule(test_changelog))
+#    suite.addTests(loader.loadTestsFromModule(test_docker))
+#    suite.addTests(loader.loadTestsFromModule(test_changelog))
 
     # album.ci
-    suite.addTests(loader.loadTestsFromModule(test_ci_argument_parsing))
-    suite.addTests(loader.loadTestsFromModule(test_ci_commandline))
+#    suite.addTests(loader.loadTestsFromModule(test_ci_argument_parsing))
+#    suite.addTests(loader.loadTestsFromModule(test_ci_commandline))
 
     # album.ci.controller
-    suite.addTests(loader.loadTestsFromModule(test_release_manager))
-    suite.addTests(loader.loadTestsFromModule(test_zenodo_manager))
+#    suite.addTests(loader.loadTestsFromModule(test_release_manager))
+#    suite.addTests(loader.loadTestsFromModule(test_zenodo_manager))
 
     # album.ci.utils
-    suite.addTests(loader.loadTestsFromModule(test_continuous_integration))
+#    suite.addTests(loader.loadTestsFromModule(test_continuous_integration))
     # suite.addTests(loader.loadTestsFromModule(test_zenodo_api))
 
     runner = unittest.TextTestRunner(verbosity=3)
