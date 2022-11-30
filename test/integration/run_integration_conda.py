@@ -17,11 +17,9 @@ def main():
     ### integration
 
     # Core
-    suite.addTests(loader.loadTestsFromModule(test_integration_catalog_features))
     suite.addTests(loader.loadTestsFromModule(test_integration_install))
     suite.addTests(loader.loadTestsFromModule(test_integration_run))
     suite.addTests(loader.loadTestsFromModule(test_integration_test))
-    suite.addTests(loader.loadTestsFromModule(test_integration_filestructure))
 
     runner = unittest.TextTestRunner(verbosity=3)
     result = runner.run(suite)

@@ -14,7 +14,6 @@ def main():
     ### unittests
 
     # album core.controller
-    suite.addTests(loader.loadTestsFromModule(test_conda_manager))
     suite.addTests(loader.loadTestsFromModule(test_mamba_manager))
     suite.addTests(loader.loadTestsFromModule(test_environment_manager))
 
