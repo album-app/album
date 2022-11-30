@@ -466,7 +466,7 @@ docker deploy:
 
 # Linux Tests
 
-.cmdline linux:
+cmdline linux:
   extends: .linux_base_template_micromamba
   stage: build
   script:
