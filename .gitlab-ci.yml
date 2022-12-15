@@ -564,43 +564,43 @@ unit tests windows micromamba:
   extends: .windows_base_template_micromamba
   stage: test
   script:
-    - $cmnd = powershell.exe -command {micromamba activate album 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit_micromamba.py 2>&1 | Write-Host; exit(0)}
-    - if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}
+    - $cmnd = powershell.exe -command {micromamba activate album 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit_micromamba.py 2>&1 | Write-Host; exit($lastexitcode)}
+
 
 unit tests windows conda:
   extends: .windows_base_template_conda
   stage: test
   script:
-    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_unit_solo_conda.py 2>&1 | Write-Host; exit(0)}
-    - if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}
+    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_unit_solo_conda.py 2>&1 | Write-Host; exit($lastexitcode)}
+
 
 unit tests windows conda with mamba:
   extends: .windows_base_template_conda_with_mamba
   stage: test
   script:
-    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit_conda.py 2>&1 | Write-Host; exit(0)}
-    - if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}
+    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit_conda.py 2>&1 | Write-Host; exit($lastexitcode)}
+
 
 integration tests windows conda with mamba:
   extends: .windows_base_template_conda_with_mamba
   stage: test
   script:
-    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\integration\run_integration_conda.py 2>&1 | Write-Host; exit(0)}
-    - if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}
+    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\integration\run_integration_conda.py 2>&1 | Write-Host; exit($lastexitcode)}
+
 
 integration tests windows micromamba:
   extends: .windows_base_template_micromamba
   stage: test
   script:
-    - $cmnd = powershell.exe -command {micromamba activate album 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration_micromamba.py 2>&1 | Write-Host; exit(0)}
-    - if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}
+    - $cmnd = powershell.exe -command {micromamba activate album 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration_micromamba.py 2>&1 | Write-Host; exit($lastexitcode)}
+
 
 integration tests windows conda:
   extends: .windows_base_template_conda
   stage: test
   script:
-    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\integration\run_integration_conda.py 2>&1 | Write-Host; exit(0)}
-    - if ("Success" -in $cmnd[-2..-1]) {exit(0)} else {exit(1)}
+    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\integration\run_integration_conda.py 2>&1 | Write-Host; exit($lastexitcode)}
+
 
 release tests linux:
   extends: .linux_base_template_micromamba
