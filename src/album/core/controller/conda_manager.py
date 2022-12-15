@@ -44,7 +44,7 @@ class CondaManager:
 
     @staticmethod
     def check_for_executable():
-        if not subprocess.run([DefaultValues.conda_path.value]).returncode:
+        if not subprocess.run([DefaultValues.conda_path.value], capture_output=True).returncode:
             return True
         else:
             return False
