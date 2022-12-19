@@ -294,26 +294,6 @@ dependencies:
         create_mock.assert_called_once_with(environment, None)
         update_mock.assert_not_called()
 
-    @patch("album.core.controller.conda_manager.CondaManager.create")
-    @patch("album.core.controller.conda_manager.CondaManager.update")
-    @patch("album.core.controller.conda_manager.CondaManager.environment_exists")
-    def test_create_or_update_env_env_present(
-        self, ex_env_mock, update_mock, create_mock
-    ):
-
-        ex_env_mock.return_value = True
-        environment = Environment(None, "aName", "aPath")
-
-        self.micromamba.create_or_update_env(environment)
-
-        update_mock.assert_called_once_with(environment)
-        create_mock.assert_not_called()
-
-    @unittest.skip("Needs to be implemented!")
-    def test_update(self):
-        # ToDo: implement
-        pass
-
     @patch("album.core.controller.conda_manager.CondaManager.create_environment")
     @patch(
         "album.core.controller.conda_manager.CondaManager.create_environment_from_file"
