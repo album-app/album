@@ -44,9 +44,10 @@ class CondaManager:
 
     @staticmethod
     def check_for_executable():
-        if not subprocess.run([DefaultValues.conda_path.value], capture_output=True).returncode:
+        try:
+            subprocess.run([DefaultValues.conda_path.value], capture_output=True)
             return True
-        else:
+        except FileNotFoundError:
             return False
 
     def get_environment_list(self):
@@ -134,13 +135,13 @@ class CondaManager:
 
     def get_active_environment_name(self):
         """Returns the environment from the active album."""
-        conda_list = self.get_info()
-        return conda_list["active_prefix_name"]
+        environment_info = self.get_info()
+        return environment_info["active_prefix_name"]
 
     def get_active_environment_path(self):
         """Returns the environment form the active album."""
-        conda_list = self.get_info()
-        path = conda_list["active_prefix"]
+        environment_info = self.get_info()
+        path = environment_info["active_prefix"]
         link = construct_cache_link_target(
             self._configuration.lnk_path(),
             point_from=path,

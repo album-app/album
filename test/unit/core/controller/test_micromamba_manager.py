@@ -41,16 +41,28 @@ class TestMicromambaManager(TestUnitCoreCommon):
 
         self.assertListEqual(expected, res)
 
+    @unittest.skipIf(platform.system() != "Windows", "This is a unittest which uses windows style links (.lnk)")
     @patch("album.core.controller.conda_manager.CondaManager.get_environment_list")
-    def test_environment_exists(self, ged_mock):
+    def test_environment_exists_win(self, ged_mock):
         p = str(self.micromamba._configuration.environments_path().joinpath("envName1"))
         target = self.micromamba._configuration.lnk_path().joinpath("0")
         Path(target).joinpath("whatever").mkdir(parents=True)
         operation_system = platform.system().lower()
-        if "windows" in operation_system:
-            _create_shortcut(p + ".lnk", target)
-        else:
-            os.symlink(target.resolve(), p)
+        _create_shortcut(p + ".lnk", target)
+
+        ged_mock.return_value = [target.resolve()]
+
+        self.assertTrue(self.micromamba.environment_exists("envName1"))
+        self.assertFalse(self.micromamba.environment_exists("notExitendEnvs"))
+
+    @unittest.skipIf(platform.system() == "Windows", "This is a unittest which uses unix style links (symlinks)")
+    @patch("album.core.controller.conda_manager.CondaManager.get_environment_list")
+    def test_environment_exists_unix(self, ged_mock):
+        p = str(self.micromamba._configuration.environments_path().joinpath("envName1"))
+        target = self.micromamba._configuration.lnk_path().joinpath("0")
+        Path(target).joinpath("whatever").mkdir(parents=True)
+        operation_system = platform.system().lower()
+        os.symlink(target.resolve(), p)
 
         ged_mock.return_value = [target.resolve()]
 
@@ -82,7 +94,6 @@ class TestMicromambaManager(TestUnitCoreCommon):
     def test_get_info(self):
         r = self.micromamba.get_info()
 
-        # self.assertIn("envs", r) NOT SURE WHAT WAS TESTED FOR CONDA HERE BUT THIS DOESN'T OCCUR IN THE MICROMAMBA OUTPUT
         self.assertIn("environment", r)
         self.assertIn("env location", r)
 
@@ -91,46 +102,6 @@ class TestMicromambaManager(TestUnitCoreCommon):
         r = self.micromamba.list_environment(p)
 
         self.assertIsNotNone(r)
-
-    def test_create_environment_from_file_valid_file(self):
-        self.assertFalse(self.micromamba.environment_exists(self.test_environment_name))
-        env_file = """dependencies:"""
-
-        with open(Path(self.tmp_dir.name).joinpath("env_file.yml"), "w") as f:
-            f.writelines(env_file)
-
-        self.micromamba.create_environment_from_file(
-            Path(self.tmp_dir.name).joinpath("env_file.yml"), self.test_environment_name
-        )
-        self.assertTrue(self.micromamba.environment_exists(self.test_environment_name))
-
-    def test__append_framework_to_yml_pip(self):
-        output = MicromambaManager._append_framework_to_yml(
-            yaml.safe_load(
-                """
-dependencies:
-    - pip
-    - pip:
-         - bla
-         - blub
-"""
-            ),
-            "0.3.0",
-        )
-        self.assertEqual(
-            {"dependencies": ["pip", {"pip": ["bla", "blub", "album-runner==0.3.0"]}]},
-            output,
-        )
-        output = MicromambaManager._append_framework_to_yml(
-            yaml.safe_load("""name: test"""), "0.3.0"
-        )
-        self.assertEqual(
-            {
-                "name": "test",
-                "dependencies": ["pip=21.0", {"pip": ["album-runner==0.3.0"]}],
-            },
-            output,
-        )
 
     def test__append_framework_to_yml_conda(self):
         output = MicromambaManager._append_framework_to_yml(
@@ -159,7 +130,8 @@ dependencies:
     def test_create_environment(self):
         self.assertFalse(self.micromamba.environment_exists(self.test_environment_name))
 
-        skip = False
+        skip = False  # The test checks if an environment error is raised when the same environment ist created two
+        # times the skip variable is used two skip the second env creation call if the first one fails
 
         try:
             self.micromamba.create_environment(self.test_environment_name)

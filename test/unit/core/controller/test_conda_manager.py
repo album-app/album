@@ -159,7 +159,8 @@ dependencies:
     def test_create_environment(self):
         self.assertFalse(self.conda.environment_exists(self.test_environment_name))
 
-        skip = False
+        skip = False  # The test checks if an environment error is raised when the same environment ist created two
+        # times the skip variable is used two skip the second env creation call if the first one fails
 
         try:
             self.conda.create_environment(self.test_environment_name)

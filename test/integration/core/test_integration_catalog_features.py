@@ -348,7 +348,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
     def test_resolve(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_path()
         )
         self.fake_install(

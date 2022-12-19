@@ -92,7 +92,7 @@ class EnvironmentManager(IEnvironmentManager):
         else:
             raise EnvironmentError("Environment not set! Cannot run scripts!")
 
-    def get_conda_manager(self):
+    def get_package_manager(self):
         return self._package_manager
 
     @staticmethod

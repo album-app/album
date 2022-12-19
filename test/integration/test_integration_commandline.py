@@ -254,7 +254,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
     def test_run_sad_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album._controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_path()
         )
         solution_path = self.get_test_solution_path("solution9_throws_exception.py")
@@ -270,7 +270,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
     def test_run_album_throwing_error_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album._controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_path()
         )
         solution_path = str(

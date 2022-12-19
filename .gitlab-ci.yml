@@ -28,7 +28,7 @@
     - '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12'                                                                                                                                                                                                                                                                                          # set Security download protocol to avoid https errors
     - 'if(-Not (Test-Path $7ZIP_EXE)) {if(-Not (Test-Path $7ZIP_INSTALLER)){Invoke-Webrequest -URI https://www.7-zip.org/a/7z2201-x64.exe -OutFile $7ZIP_INSTALLER}}'
     - 'if(-Not (Test-Path $7ZIP_EXE)) {Start-Process -FilePath $7ZIP_INSTALLER -Args "/S" -Verb RunAs -Wait}'
-    - 'Invoke-Webrequest -URI https://micro.mamba.pm/api/micromamba/win-64/latest -OutFile micromamba.tar.bz2'
+    - 'Invoke-Webrequest -URI https://gitlab.com/album-app/plugins/album-package/-/raw/micromamba_installer/micromamba-1.0.0_WINDOWS.tar.bz2?inline=false -OutFile micromamba.tar.bz2'
     - '& $7ZIP_EXE x micromamba.tar.bz2 -aoa'
     - '& $7ZIP_EXE x micromamba.tar -ttar -aoa -r Library\bin\micromamba.exe $("-o" + $Env:MAMBA_ROOT_PREFIX)'
     - '$progressPreference = $oldProgressPreference'
@@ -124,6 +124,7 @@
 # Uses a docker image where micromamba will be installed.
 # Creates a album environment.
 #
+
 .linux_base_template_micromamba:
   image: ubuntu:latest
   tags:
@@ -135,7 +136,7 @@
     - export MAMBA_ROOT_PREFIX=$CI_PROJECT_DIR/micromamba
     - export ALBUM_CONDA_PATH=$CI_PROJECT_DIR/bin/micromamba
     - mkdir -p $CI_PROJECT_DIR/bin/
-    - curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj -C $CI_PROJECT_DIR/bin/ --strip-components=1 bin/micromamba
+    - curl -Ls https://gitlab.com/album-app/plugins/album-package/-/raw/micromamba_installer/micromamba-1.0.0_LINUX_X86_64.tar.bz2?inline=false | tar -xvj -C $CI_PROJECT_DIR/bin/ --strip-components=1 bin/micromamba
     - eval "$($CI_PROJECT_DIR/bin/micromamba shell hook -s posix)"
     - micromamba create -y -n album album -c conda-forge python=3.10
     - micromamba activate album
@@ -154,6 +155,7 @@
       - ${CONDA_PREFIX}/pkgs/*.tar.bz2
       - ${CONDA_PREFIX}/pkgs/urls.txt
       - .cache/pip
+
 
 # Linux base template for running test with conda as package manager
 #
@@ -250,7 +252,7 @@
     - export MAMBA_ROOT_PREFIX=$tmpdir/micromamba
     - export ALBUM_CONDA_PATH=$tmpdir/bin/micromamba
     - mkdir -p $tmpdir/bin/
-    - curl -Ls https://micro.mamba.pm/api/micromamba/osx-64/latest | tar -xvj -C $tmpdir/bin/ --strip-components=1 bin/micromamba
+    - curl -Ls https://gitlab.com/album-app/plugins/album-package/-/raw/micromamba_installer/micromamba-1.0.0_MACOS_X86_64.tar.bz2?inline=false | tar -xvj -C $tmpdir/bin/ --strip-components=1 bin/micromamba
     - eval "$($tmpdir/bin/micromamba shell hook -s posix)"
     - micromamba create -y -n album album -c conda-forge python=3.10
     - micromamba activate album
@@ -486,25 +488,25 @@ unit tests linux micromamba:
   extends: .linux_base_template_micromamba
   stage: test
   script:
-    - MAMBA_ROOT_PREFIX=$CI_PROJECT_DIR/micromamba  ALBUM_CONDA_PATH=$CI_PROJECT_DIR/bin/micromamba python -m unittest test/unit/run_all_unit_micromamba.py
+    - ALBUM_CONDA_PATH=$CI_PROJECT_DIR/bin/micromamba python -m unittest test/unit/run_all_unit_micromamba.py
 
 unit tests linux conda:
   extends: .linux_base_template_conda
   stage: test
   script:
-    - python -m unittest test/unit/run_unit_solo_conda.py
+    - python -m unittest test/unit/run_all_unit_conda.py
 
 unit tests linux conda with mamba:
   extends: .linux_base_template_conda_with_mamba
   stage: test
   script:
-    - python -m unittest test/unit/run_all_unit_conda.py
+    - python -m unittest test/unit/run_all_unit_conda_with_mamba.py
 
 integration tests linux micromamba:
   extends: .linux_base_template_micromamba
   stage: test
   script:
-    - MAMBA_ROOT_PREFIX=$CI_PROJECT_DIR/micromamba  ALBUM_CONDA_PATH=$CI_PROJECT_DIR/bin/micromamba python -m unittest test/integration/run_all_integration_micromamba.py
+    - python -m unittest test/integration/run_all_integration_micromamba.py
 
 integration tests linux conda:
   extends: .linux_base_template_conda
@@ -530,13 +532,13 @@ unit tests macos conda:
   extends: .macos_base_template_conda
   stage: test
   script:
-    - python -m unittest test/unit/run_unit_solo_conda.py
+    - python -m unittest test/unit/run_all_unit_conda.py
 
 unit tests macos conda with mamba:
   extends: .macos_base_template_conda_with_mamba
   stage: test
   script:
-    - python -m unittest test/unit/run_all_unit_conda.py
+    - python -m unittest test/unit/run_all_unit_conda_with_mamba.py
 
 
 integration tests macos micromamba:
@@ -571,14 +573,14 @@ unit tests windows conda:
   extends: .windows_base_template_conda
   stage: test
   script:
-    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_unit_solo_conda.py 2>&1 | Write-Host; exit($lastexitcode)}
+    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit_conda.py 2>&1 | Write-Host; exit($lastexitcode)}
 
 
 unit tests windows conda with mamba:
   extends: .windows_base_template_conda_with_mamba
   stage: test
   script:
-    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit_conda.py 2>&1 | Write-Host; exit($lastexitcode)}
+    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit_conda_with_mamba.py 2>&1 | Write-Host; exit($lastexitcode)}
 
 
 integration tests windows conda with mamba:

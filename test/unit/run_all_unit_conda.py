@@ -5,7 +5,6 @@ from test.unit.core.controller import (
     test_conda_manager,
     test_environment_manager,
 )
-from test.unit.core.controller import test_mamba_manager
 
 
 def main():
@@ -14,7 +13,7 @@ def main():
     ### unittests
 
     # album core.controller
-    suite.addTests(loader.loadTestsFromModule(test_mamba_manager))
+    suite.addTests(loader.loadTestsFromModule(test_conda_manager))
     suite.addTests(loader.loadTestsFromModule(test_environment_manager))
 
     runner = unittest.TextTestRunner(verbosity=3)

@@ -52,15 +52,15 @@ class MicromambaManager(CondaManager):
 
     def get_active_environment_name(self):
         """Returns the environment from the active album."""
-        conda_list = self.get_info()
-        env_name = conda_list["environment"]
+        environment_info = self.get_info()
+        env_name = environment_info["environment"]
         env_name = env_name.rstrip(" (active)")
         return env_name
 
     def get_active_environment_path(self):
         """Returns the environment for the active album."""
-        conda_list = self.get_info()
-        path = conda_list["env location"]
+        environment_info = self.get_info()
+        path = environment_info["env location"]
         link = construct_cache_link_target(
             self._configuration.lnk_path(),
             point_from=path,
