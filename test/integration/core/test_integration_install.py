@@ -22,7 +22,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
     def test_install_minimal_solution(self, _, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_path()
         )
 
@@ -161,7 +161,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         leftover_env_name = local_catalog_name + "_group_faultySolution_0.1.0"
         self.assertTrue(
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .environment_exists(leftover_env_name)
         )
 
@@ -195,7 +195,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         # check cleaned up
         self.assertFalse(
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .environment_exists(leftover_env_name)
         )
         self.assertEqual(
@@ -223,7 +223,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         leftover_env_name = local_catalog_name + "_solution14_faulty_environment_0.1.0"
         self.assertFalse(
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .environment_exists(leftover_env_name)
         )
 
@@ -527,7 +527,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
     ):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_path()
         )
         environment_exists.return_value = True

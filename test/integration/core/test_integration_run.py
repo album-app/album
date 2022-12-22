@@ -26,7 +26,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
     def test_run_arguments(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_path()
         )
         p = self.get_test_solution_path("solution8_arguments.py")
@@ -45,7 +45,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
     def test_run_arguments_given(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_path()
         )
         # create test environment
@@ -85,7 +85,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
     def test_run_with_group_name_version(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_path()
         )
         # create test environment
@@ -110,7 +110,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
     def test_run_minimal_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_path()
         )
         self.fake_install(
@@ -137,7 +137,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
     def test_run_with_parent(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_path()
         )
         # fake install what we need
@@ -175,7 +175,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
     def test_run_with_steps(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_path()
         )
         # fake install what we need
@@ -235,7 +235,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
     def test_run_with_grouped_steps(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_path()
         )
         self.fake_install(
@@ -307,7 +307,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
     def test_run_throwing_error_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_path()
         )
         path = self.get_test_solution_path(

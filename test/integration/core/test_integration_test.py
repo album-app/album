@@ -31,7 +31,7 @@ class TestIntegrationTest(TestIntegrationCoreCommon):
     def test_test(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_path()
         )
 

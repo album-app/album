@@ -28,19 +28,19 @@ class TestIntegrationFileStructure(TestIntegrationCoreCommon):
     def test_file_structure(self, _, __, install_environment, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_path()
         )
         environment = Environment(
             {},
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_name(),
             None,
         )
         environment.set_path(
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_path()
         )
         install_environment.return_value = environment
