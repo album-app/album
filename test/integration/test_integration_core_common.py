@@ -47,10 +47,10 @@ class TestIntegrationCoreCommon(TestCommon):
         for e in env_names:
             if (
                 self.album_controller.environment_manager()
-                .get_conda_manager()
+                .get_package_manager()
                 .environment_exists(e)
             ):
-                self.album_controller.environment_manager().get_conda_manager().remove_environment(
+                self.album_controller.environment_manager().get_package_manager().remove_environment(
                     e
                 )
 
@@ -71,7 +71,7 @@ class TestIntegrationCoreCommon(TestCommon):
             env_name = "_".join(
                 [cache_catalog.name(), loaded_solution.get_identifier()]
             )
-            self.album_controller.environment_manager().get_conda_manager().install(
+            self.album_controller.environment_manager().get_package_manager().install(
                 Environment(None, env_name, Path("unusedCachePath"))
             )
 

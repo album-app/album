@@ -17,7 +17,7 @@ class TestIntegrationTaskManager(TestIntegrationCoreCommon):
     def test_run_happy_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_path()
         )
         solution_path = self.get_test_solution_path()
@@ -43,7 +43,7 @@ class TestIntegrationTaskManager(TestIntegrationCoreCommon):
     def test_run_sad_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_path()
         )
         solution_path = self.get_test_solution_path("solution9_throws_exception.py")

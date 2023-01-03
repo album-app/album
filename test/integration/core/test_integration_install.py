@@ -1,3 +1,4 @@
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -21,7 +22,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
     def test_install_minimal_solution(self, _, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_path()
         )
 
@@ -38,6 +39,47 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
 
     def test_install(self):
         self.album_controller.install_manager().install(self.get_test_solution_path())
+
+        # assert solution was added to local catalog
+        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        collection = self.album_controller.collection_manager().catalog_collection
+        self.assertEqual(
+            1,
+            len(
+                collection.get_solutions_by_catalog(
+                    self.album_controller.collection_manager()
+                    .catalogs()
+                    .get_cache_catalog()
+                    .catalog_id()
+                )
+            ),
+        )
+
+        # assert solution is in the right place and has the right name
+        self.assertTrue(
+            get_link_target(
+                Path(self.tmp_dir.name).joinpath(
+                    DefaultValues.catalog_folder_prefix.value,
+                    str(
+                        self.album_controller.collection_manager()
+                        .catalogs()
+                        .get_cache_catalog()
+                        .name()
+                    ),
+                    DefaultValues.catalog_solutions_prefix.value,
+                    "group",
+                    "name",
+                    "0.1.0",
+                )
+            )
+            .joinpath("solution.py")
+            .exists()
+        )
+
+    def test_install_from_directory(self):
+        self.album_controller.install_manager().install(
+            self.get_test_solution_path("solution_in_directory")
+        )
 
         # assert solution was added to local catalog
         self.assertNotIn("ERROR", self.captured_output.getvalue())
@@ -119,7 +161,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         leftover_env_name = local_catalog_name + "_group_faultySolution_0.1.0"
         self.assertTrue(
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .environment_exists(leftover_env_name)
         )
 
@@ -153,7 +195,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         # check cleaned up
         self.assertFalse(
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .environment_exists(leftover_env_name)
         )
         self.assertEqual(
@@ -181,7 +223,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         leftover_env_name = local_catalog_name + "_solution14_faulty_environment_0.1.0"
         self.assertFalse(
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .environment_exists(leftover_env_name)
         )
 
@@ -194,6 +236,41 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
             )
         )
         self.assertTrue(local_file.exists())
+
+        self.album_controller.install_manager().clean_unfinished_installations()
+
+        self.assertFalse(local_file.exists())
+        self.assertEqual(
+            [],
+            self.album_controller.collection_manager().catalog_collection.get_unfinished_installation_solutions(),
+        )
+
+    def test_cleanup_missing_solution_file(self):
+        self.assertEqual(
+            [],
+            self.album_controller.collection_manager().catalog_collection.get_unfinished_installation_solutions(),
+        )
+
+        # call
+        with self.assertRaises(RuntimeError):
+            self.album_controller.install_manager().install(
+                self.get_test_solution_path("solution14_faulty_environment.py")
+            )
+
+        local_catalog = (
+            self.album_controller.collection_manager().catalogs().get_cache_catalog()
+        )
+
+        # check file is copied
+        local_file = (
+            self.album_controller.collection_manager()
+            .solutions()
+            .get_solution_file(
+                local_catalog, Coordinates("group", "faultySolution", "0.1.0")
+            )
+        )
+        self.assertTrue(local_file.exists())
+        os.remove(local_file)
 
         self.album_controller.install_manager().clean_unfinished_installations()
 
@@ -450,7 +527,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
     ):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
-            .get_conda_manager()
+            .get_package_manager()
             .get_active_environment_path()
         )
         environment_exists.return_value = True

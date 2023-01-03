@@ -44,5 +44,5 @@ class IEnvironmentManager:
         raise NotImplementedError
 
     @abstractmethod
-    def get_conda_manager(self):
+    def get_package_manager(self):
         raise NotImplementedError

@@ -1,10 +1,13 @@
 import os
 import platform
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
 from album.core.api.model.configuration import IConfiguration
+from album.core.controller.conda_manager import CondaManager
+from album.core.controller.micromamba_manager import MicromambaManager
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import (
     create_paths_recursively,
@@ -23,6 +26,7 @@ class Configuration(IConfiguration):
         self._base_cache_path = None
         self._conda_executable = None
         self._mamba_executable = None
+        self._micromamba_executable = None
         self._tmp_path = None
         self._cache_path_envs = None
         self._catalog_collection_path = None
@@ -37,6 +41,9 @@ class Configuration(IConfiguration):
 
     def mamba_executable(self):
         return self._mamba_executable
+
+    def micromamba_executable(self):
+        return self._micromamba_executable
 
     def installation_path(self):
         return self._installation_path
@@ -69,17 +76,12 @@ class Configuration(IConfiguration):
         if base_cache_path:
             self._base_cache_path = Path(base_cache_path)
 
-        # conda executable
-        conda_path = DefaultValues.conda_path.value
-        operation_system = platform.system().lower()
-        if conda_path is not DefaultValues.conda_default_executable.value:
-            self._conda_executable = self._build_conda_executable(conda_path)
+        # get installed package manager
+        if self.get_installed_package_manager() == "micromamba":
+            self._micromamba_executable = DefaultValues.micromamba_path.value
         else:
-            self._conda_executable = conda_path
-            if "windows" in operation_system:
-                self._conda_executable = shutil.which(self._conda_executable)
-
-        self._mamba_executable = shutil.which("mamba")
+            self._conda_executable = DefaultValues.conda_path.value
+            self._mamba_executable = shutil.which("mamba")
 
         self._cache_path_download = self._base_cache_path.joinpath(
             DefaultValues.cache_path_download_prefix.value
@@ -173,3 +175,11 @@ class Configuration(IConfiguration):
         # force_remove(self._cache_path_tmp_user)
         # force_remove(self._cache_path_tmp_internal)
         force_remove(self._tmp_path)
+
+    def get_installed_package_manager(self):
+        """Check which package manager is installed. Micromamba, conda using mamba or just conda. Picks them in this
+        order."""
+        if MicromambaManager.check_for_executable():
+            return "micromamba"
+        elif CondaManager.check_for_executable():
+            return "conda"
