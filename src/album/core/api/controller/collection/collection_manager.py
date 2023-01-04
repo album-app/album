@@ -81,44 +81,6 @@ class ICollectionManager:
         raise NotImplementedError
 
     @abstractmethod
-    def resolve_and_load_catalog_coordinates(
-        self, catalog: ICatalog, coordinates: ICoordinates
-    ) -> ICollectionSolution:
-        """Resolves a string input and loads its content.
-
-        Downloads a catalog if not already cached.
-
-        Args:
-            catalog:
-                Catalog to resolve in.
-            coordinates:
-                Coordinates to resolve.
-
-        Returns:
-            The resolve result, including the loaded solution.
-
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def resolve_and_load_coordinates(
-        self, coordinates: ICoordinates
-    ) -> ICollectionSolution:
-        """Resolves a string input and loads its content.
-
-        Downloads a catalog if not already cached.
-
-        Args:
-            coordinates:
-                Coordinates to resolve.
-
-        Returns:
-            The resolve result, including the loaded solution.
-
-        """
-        raise NotImplementedError
-
-    @abstractmethod
     def resolve(self, resolve_solution) -> ICollectionSolution:
         """Resolves a string input and loads its content.
 

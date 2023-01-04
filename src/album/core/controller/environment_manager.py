@@ -92,10 +92,21 @@ class EnvironmentManager(IEnvironmentManager):
         self.remove_disc_content_from_environment(environment)
         return res
 
-    def run_scripts(self, environment: IEnvironment, scripts, pipe_output=True):
+    def run_script(
+        self,
+        environment: IEnvironment,
+        script,
+        environment_variables=None,
+        argv=None,
+        pipe_output=True,
+    ):
         if environment:
-            self._package_manager.run_scripts(
-                environment, scripts, pipe_output=pipe_output
+            self._package_manager.run_script(
+                environment,
+                script,
+                environment_variables=environment_variables,
+                argv=argv,
+                pipe_output=pipe_output,
             )
         else:
             raise EnvironmentError("Environment not set! Cannot run scripts!")

@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 
 from album.core.api.controller.controller import IAlbumController
@@ -16,13 +17,9 @@ from album.core.utils.operations.solution_operations import (
     get_deploy_dict,
     get_parent_dict,
 )
-from album.core.utils.operations.view_operations import get_solution_run_call_as_string
 from album.runner import album_logging
 from album.runner.core.api.model.solution import ISolution
-from album.runner.core.model.script_creator import (
-    ScriptCreatorInstall,
-    ScriptCreatorUnInstall,
-)
+from album.runner.core.default_values_runner import DefaultValuesRunner
 
 module_logger = album_logging.get_active_logger
 
@@ -126,10 +123,7 @@ class InstallManager(IInstallManager):
         # register in collection
         if resolve_result.catalog().is_cache():
             # a cache catalog is living in the collection so no need to update, we can add it directly
-            self.album.solutions().add_to_cache_catalog(
-                resolve_result.loaded_solution(),
-                resolve_result.path().parent,  # the directory holding the solution file
-            )
+            self.album.solutions().add_to_cache_catalog(resolve_result)
         else:
             # update the collection holding the solution entry
             self._update_in_collection_index(resolve_result)
@@ -211,15 +205,34 @@ class InstallManager(IInstallManager):
         self, active_solution: ISolution, environment: IEnvironment, argv
     ):
         """Run install routine of album if specified"""
-        script_creator_install = ScriptCreatorInstall()
-
         if active_solution.setup().install and callable(
             active_solution.setup().install
         ):
             module_logger().debug("Creating install script...")
-            script = script_creator_install.create_script(active_solution, argv)
+
+            env_variables = os.environ.copy()
+            env_variables[
+                DefaultValuesRunner.env_variable_action.value
+            ] = ISolution.Action.INSTALL.name
+            env_variables[DefaultValuesRunner.env_variable_installation.value] = str(
+                active_solution.installation().installation_path()
+            )
+            env_variables[DefaultValuesRunner.env_variable_package.value] = str(
+                active_solution.installation().package_path()
+            )
+            env_variables[DefaultValuesRunner.env_variable_environment.value] = str(
+                environment.path()
+            )
+            env_variables[DefaultValuesRunner.env_variable_logger_level.value] = str(
+                album_logging.get_loglevel_name()
+            )
+
             module_logger().debug("Calling install routine specified in solution...")
-            self.album.environment_manager().run_scripts(environment, [script])
+            self.album.environment_manager().run_script(
+                environment,
+                active_solution.script(),
+                environment_variables=env_variables,
+            )
         else:
             module_logger().debug(
                 'No "install" routine configured for solution "%s". Skipping...'
@@ -321,16 +334,36 @@ class InstallManager(IInstallManager):
         self, active_solution: ISolution, environment: IEnvironment, argv
     ):
         """Run uninstall routine of album if specified. Expects environment to be set!"""
-        script_creator_un_install = ScriptCreatorUnInstall()
 
         if active_solution.setup().uninstall and callable(
             active_solution.setup().uninstall
         ):
-            module_logger().debug("Creating uninstall script...")
-            script = script_creator_un_install.create_script(active_solution, argv)
             module_logger().debug("Calling uninstall routine specified in solution...")
             album_logging.configure_logging("uninstall")
-            self.album.environment_manager().run_scripts(environment, [script])
+
+            env_variables = os.environ.copy()
+            env_variables[
+                DefaultValuesRunner.env_variable_action.value
+            ] = ISolution.Action.UNINSTALL.name
+            env_variables[DefaultValuesRunner.env_variable_installation.value] = str(
+                active_solution.installation().installation_path()
+            )
+            env_variables[DefaultValuesRunner.env_variable_package.value] = str(
+                active_solution.installation().package_path()
+            )
+            env_variables[DefaultValuesRunner.env_variable_environment.value] = str(
+                environment.path()
+            )
+            env_variables[DefaultValuesRunner.env_variable_logger_level.value] = str(
+                album_logging.get_loglevel_name()
+            )
+
+            self.album.environment_manager().run_script(
+                environment,
+                active_solution.script(),
+                environment_variables=env_variables,
+            )
+
             album_logging.pop_active_logger()
         else:
             module_logger().debug(

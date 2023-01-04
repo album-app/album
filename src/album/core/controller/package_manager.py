@@ -371,20 +371,42 @@ class PackageManager:
         finally:
             os.remove(env_file.name)
 
-    def run_script(self, environment_path, script_full_path, pipe_output=True):
-        """Runs a script in the given environment.
+    def run_script(
+        self,
+        environment: IEnvironment,
+        script,
+        environment_variables=None,
+        argv=None,
+        pipe_output=True,
+    ):
+        """Runs the solution in the target environment
 
         Args:
-            environment_path:
-                The prefix path of the environment to install the package to.
-            script_full_path:
-                The full path to the script to run.
+            script:
+                Script calling the solution
+            environment:
+                The virtual environment used to run the script
+            environment_variables:
+                The environment variables to attach to the script process
+            argv:
+                The arguments to attach to the script process
             pipe_output:
                 Indicates whether to pipe the output of the subprocess or just return it as is.
-
         """
-        subprocess_args = self._get_run_script_args(environment_path, script_full_path)
-        subcommand.run(subprocess_args, pipe_output=pipe_output)
+        if not environment.path():
+            raise EnvironmentError(
+                "Could not find environment %s. Is the solution installed?"
+                % environment.name()
+            )
+
+        module_logger().debug("run_in_environment: %s..." % str(environment.path()))
+
+        subprocess_args = self._get_run_script_args(environment.path(), script)
+        if argv and len(argv) > 1:
+            subprocess_args.extend(argv[1:])
+        subcommand.run(
+            subprocess_args, pipe_output=pipe_output, env=environment_variables
+        )
 
     def set_environment_path(self, environment: IEnvironment):
         """Sets the environment path for the given environment."""

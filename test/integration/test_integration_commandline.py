@@ -5,6 +5,7 @@ import sys
 from unittest.mock import patch
 
 from album.argument_parsing import main
+from album.core.model.resolve_result import ResolveResult
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
@@ -69,7 +70,13 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
             self.album._controller.collection_manager().catalogs().get_cache_catalog()
         )
         self.album._controller.collection_manager().solutions().add_to_cache_catalog(
-            h, self.get_test_solution_path()
+            ResolveResult(
+                self.get_test_solution_path(),
+                None,
+                None,
+                h.coordinates(),
+                loaded_solution=h,
+            )
         )
 
         self.assertEqual(
@@ -107,7 +114,13 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
             self.album._controller.collection_manager().catalogs().get_cache_catalog()
         )
         self.album._controller.collection_manager().solutions().add_to_cache_catalog(
-            h, self.get_test_solution_path()
+            ResolveResult(
+                self.get_test_solution_path(),
+                None,
+                None,
+                h.coordinates(),
+                loaded_solution=h,
+            )
         )
 
         self.assertEqual(

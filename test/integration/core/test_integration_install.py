@@ -59,22 +59,13 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
 
         # assert solution is in the right place and has the right name
         self.assertTrue(
-            get_link_target(
-                Path(self.tmp_dir.name).joinpath(
-                    DefaultValues.catalog_folder_prefix.value,
-                    str(
-                        self.album_controller.collection_manager()
-                        .catalogs()
-                        .get_cache_catalog()
-                        .name()
-                    ),
-                    DefaultValues.catalog_solutions_prefix.value,
-                    "group",
-                    "name",
-                    "0.1.0",
-                )
+            self.album_controller.solutions()
+            .get_solution_file(
+                self.album_controller.collection_manager()
+                .catalogs()
+                .get_cache_catalog(),
+                Coordinates("group", "name", "0.1.0"),
             )
-            .joinpath("solution.py")
             .exists()
         )
 

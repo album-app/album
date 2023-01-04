@@ -39,3 +39,7 @@ class ICollectionSolution:
     @abstractmethod
     def set_database_entry(self, database_entry: ICollectionIndex.ICollectionSolution):
         raise NotImplementedError
+
+    @abstractmethod
+    def is_single_file(self) -> bool:
+        raise NotImplementedError

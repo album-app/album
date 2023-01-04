@@ -21,7 +21,7 @@ class StateManager(IStateManager):
             solution = f.read()
         exec(solution)
         active_solution = self._get_active_solution()
-        active_solution.set_script(solution)
+        active_solution.set_script(path)
         self._pop_active_solution()
         return active_solution
 

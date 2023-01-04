@@ -11,7 +11,6 @@ from album.core.api.model.task import ITask
 from album.core.controller.album_controller import AlbumController
 from album.core.utils.core_logging import configure_root_logger
 from album.runner.album_logging import pop_active_logger, LogLevel
-from album.runner.core.api.model.script_creator import IScriptCreator
 from album.runner.core.api.model.solution import ISolution
 
 
@@ -234,9 +233,9 @@ class Album:
         self._controller.close()
 
     def run_solution_script(
-        self, resolve_result: ICollectionSolution, script: IScriptCreator
+        self, resolve_result: ICollectionSolution, action: ISolution.Action
     ):
-        self._controller.script_manager().run_solution_script(resolve_result, script)
+        self._controller.script_manager().run_solution_script(resolve_result, action)
 
     def upgrade(self, catalog_name=None, dry_run=False, override=False):
         return (

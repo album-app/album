@@ -16,6 +16,7 @@ from album.core.utils.operations.file_operations import (
     force_remove,
     copy_folder,
     unzip_archive,
+    copy,
 )
 from album.core.utils.operations.git_operations import (
     create_bare_repository,
@@ -58,7 +59,15 @@ class CloneManager(ICloneManager):
         """Copies a solution (by resolving and downloading) to a given target path."""
         resolve_result = self.album.collection_manager().resolve(path)
 
-        copy_folder(resolve_result.path().parent, target_path, copy_root_folder=False)
+        if resolve_result.is_single_file():
+            copy(
+                resolve_result.path(),
+                target_path.joinpath(DefaultValues.solution_default_name.value),
+            )
+        else:
+            copy_folder(
+                resolve_result.path().parent, target_path, copy_root_folder=False
+            )
 
         module_logger().info(
             "Copied solution %s to %s!" % (resolve_result.path(), target_path)

@@ -78,13 +78,28 @@ class CollectionManager(ICollectionManager):
             else:
                 # TODO: legacy code (if block), remove with first stable version of album
                 # needed for backwards compatibility with old album collection versions
-                if Path(self.album.configuration().get_catalog_collection_meta_path()).parent.parent.joinpath(
-                        DefaultValues.catalog_collection_json_name.value).exists():
+                if (
+                    Path(self.album.configuration().get_catalog_collection_meta_path())
+                    .parent.parent.joinpath(
+                        DefaultValues.catalog_collection_json_name.value
+                    )
+                    .exists()
+                ):
                     shutil.move(
-                        Path(self.album.configuration().get_catalog_collection_meta_path().parent.parent.joinpath(
-                            DefaultValues.catalog_collection_json_name.value)),
-                        Path(self.album.configuration().get_catalog_collection_meta_path()))
-                    collection_meta = self.album.configuration().get_catalog_collection_meta_dict()
+                        Path(
+                            self.album.configuration()
+                            .get_catalog_collection_meta_path()
+                            .parent.parent.joinpath(
+                                DefaultValues.catalog_collection_json_name.value
+                            )
+                        ),
+                        Path(
+                            self.album.configuration().get_catalog_collection_meta_path()
+                        ),
+                    )
+                    collection_meta = (
+                        self.album.configuration().get_catalog_collection_meta_dict()
+                    )
                     collection_version = collection_meta["catalog_collection_version"]
                 else:
                     raise RuntimeError(
@@ -98,7 +113,7 @@ class CollectionManager(ICollectionManager):
         )
         self.album.migration_manager().migrate_collection_index(
             self.catalog_collection,
-            initial_version=MMVersion.from_string(collection_version)
+            initial_version=MMVersion.from_string(collection_version),
         )
         if newly_created:
             self.catalog_handler.add_initial_catalogs()
@@ -114,7 +129,7 @@ class CollectionManager(ICollectionManager):
         for catalog in catalogs:
             solutions = []
             for solution in self.catalog_collection.get_solutions_by_catalog(
-                    catalog["catalog_id"]
+                catalog["catalog_id"]
             ):
                 solutions.append(
                     {"setup": solution.setup(), "internal": solution.internal()}
@@ -157,7 +172,9 @@ class CollectionManager(ICollectionManager):
 
         return resolve_result
 
-    def resolve_and_load_catalog_coordinates(self, catalog: ICatalog, coordinates: ICoordinates) -> ICollectionSolution:
+    def resolve_and_load_catalog_coordinates(
+        self, catalog: ICatalog, coordinates: ICoordinates
+    ) -> ICollectionSolution:
         collection_entry = self._search_in_specific_catalog(
             catalog.catalog_id(), coordinates
         )
@@ -177,7 +194,9 @@ class CollectionManager(ICollectionManager):
 
         return resolve_result
 
-    def resolve_and_load_coordinates(self, coordinates: ICoordinates) -> ICollectionSolution:
+    def resolve_and_load_coordinates(
+        self, coordinates: ICoordinates
+    ) -> ICollectionSolution:
         collection_entry = self._search_by_coordinates(coordinates)
         catalog = self.album.catalogs().get_by_id(
             collection_entry.internal()["catalog_id"]
@@ -217,8 +236,17 @@ class CollectionManager(ICollectionManager):
             str_input, self.album.configuration().cache_path_download()
         )
 
+        single_file = False
+
         doi = get_doi_from_input(str_input)
         if path:
+            if not path.exists():
+                raise FileNotFoundError(path)
+            single_file = path.is_file() and not path.is_dir()
+
+            if not single_file:
+                path = path.joinpath(DefaultValues.solution_default_name.value)
+
             # will load the solution behind the path to get meta-information
             solution_entry = self._search_for_local_file(path)
 
@@ -268,6 +296,7 @@ class CollectionManager(ICollectionManager):
             catalog=catalog,
             collection_entry=solution_entry,
             coordinates=coordinates,
+            single_file_solution=single_file,
         )
 
         return resolve
@@ -328,7 +357,9 @@ class CollectionManager(ICollectionManager):
                         solution_entry = solution_entries[0]
         return solution_entry
 
-    def _search_by_coordinates(self, coordinates: ICoordinates) -> Optional[ICollectionIndex.ICollectionSolution]:
+    def _search_by_coordinates(
+        self, coordinates: ICoordinates
+    ) -> Optional[ICollectionIndex.ICollectionSolution]:
         solution_entry = self._search_in_local_catalog(
             coordinates
         )  # resolve in local catalog first!
@@ -346,20 +377,25 @@ class CollectionManager(ICollectionManager):
 
         return solution_entry
 
-    def _search_in_local_catalog(self, coordinates: ICoordinates) -> Optional[ICollectionIndex.ICollectionSolution]:
+    def _search_in_local_catalog(
+        self, coordinates: ICoordinates
+    ) -> Optional[ICollectionIndex.ICollectionSolution]:
         """Searches in the local catalog only"""
         return self._search_in_specific_catalog(
             self.album.catalogs().get_cache_catalog().catalog_id(), coordinates
         )
 
-    def _search_in_specific_catalog(self, catalog_id, coordinates: ICoordinates) -> \
-            Optional[ICollectionIndex.ICollectionSolution]:
+    def _search_in_specific_catalog(
+        self, catalog_id, coordinates: ICoordinates
+    ) -> Optional[ICollectionIndex.ICollectionSolution]:
         """Searches in a given catalog only"""
         return self.catalog_collection.get_solution_by_catalog_grp_name_version(
             catalog_id, coordinates
         )
 
-    def _search_in_catalogs(self, coordinates: ICoordinates) -> List[ICollectionIndex.ICollectionSolution]:
+    def _search_in_catalogs(
+        self, coordinates: ICoordinates
+    ) -> List[ICollectionIndex.ICollectionSolution]:
         """Searches the whole collection giving coordinates"""
         solution_entries = self.catalog_collection.get_solutions_by_grp_name_version(
             coordinates
@@ -380,10 +416,10 @@ class CollectionManager(ICollectionManager):
 
     @staticmethod
     def write_version_to_json(path, name, version) -> None:
-        write_dict_to_json(path, {
-            "catalog_collection_name": name,
-            "catalog_collection_version": version
-        })
+        write_dict_to_json(
+            path,
+            {"catalog_collection_name": name, "catalog_collection_version": version},
+        )
 
     def _guess(self, str_input) -> Optional[ICollectionIndex.ICollectionSolution]:
         input_parts = str_input.split(":")
@@ -427,7 +463,9 @@ class CollectionManager(ICollectionManager):
                     return self._handle_multiple_solution_matches(solutions)
         return None
 
-    def _handle_multiple_solution_matches(self, solutions: [ICollectionIndex.ICollectionSolution]):
+    def _handle_multiple_solution_matches(
+        self, solutions: [ICollectionIndex.ICollectionSolution]
+    ):
         call_not_reproducible = "Resolving ambiguous input to %s"
         cache_id = self.catalogs().get_cache_catalog().catalog_id()
         cache_matches = [
@@ -435,31 +473,42 @@ class CollectionManager(ICollectionManager):
             for solution in solutions
             if solution.internal()["catalog_id"] == cache_id
         ]
-        non_cache_matches = [solution for solution in solutions if solution.internal()["catalog_id"] != cache_id]
+        non_cache_matches = [
+            solution
+            for solution in solutions
+            if solution.internal()["catalog_id"] != cache_id
+        ]
         if len(cache_matches) == 1:
             module_logger().warn(
                 call_not_reproducible % dict_to_coordinates(cache_matches[0].setup())
             )
             return cache_matches[0]
         elif len(cache_matches) > 1:
-            latest_installed_solution = self._get_latest_installed_solution(cache_matches)
+            latest_installed_solution = self._get_latest_installed_solution(
+                cache_matches
+            )
             if latest_installed_solution:
                 module_logger().warn(
-                    call_not_reproducible % dict_to_coordinates(latest_installed_solution.setup())
+                    call_not_reproducible
+                    % dict_to_coordinates(latest_installed_solution.setup())
                 )
             return latest_installed_solution
         elif len(non_cache_matches) > 0:
-            latest_installed_solution = self._get_latest_installed_solution(non_cache_matches)
+            latest_installed_solution = self._get_latest_installed_solution(
+                non_cache_matches
+            )
             if latest_installed_solution:
                 module_logger().warn(
-                    call_not_reproducible % dict_to_coordinates(latest_installed_solution.setup())
+                    call_not_reproducible
+                    % dict_to_coordinates(latest_installed_solution.setup())
                 )
                 return latest_installed_solution
             else:
                 latest_solution = self._get_latest_solution(non_cache_matches)
                 if latest_solution:
                     module_logger().warn(
-                        call_not_reproducible % dict_to_coordinates(latest_solution.setup())
+                        call_not_reproducible
+                        % dict_to_coordinates(latest_solution.setup())
                     )
                     return latest_solution
         else:
@@ -478,16 +527,20 @@ class CollectionManager(ICollectionManager):
         return solutions_str
 
     @staticmethod
-    def _get_latest_installed_solution(solutions: [ICollectionIndex.ICollectionSolution]):
-        installed_solutions = [solution for solution in solutions if solution.internal()["installed"] == 1]
+    def _get_latest_installed_solution(
+        solutions: [ICollectionIndex.ICollectionSolution],
+    ):
+        installed_solutions = [
+            solution for solution in solutions if solution.internal()["installed"] == 1
+        ]
         return CollectionManager._get_latest_solution(installed_solutions)
 
     @staticmethod
     def _get_latest_solution(solutions: [ICollectionIndex.ICollectionSolution]):
         latest_solution = solutions[0]
         for solution in solutions:
-            if MMVersion.from_string(solution.setup()["version"]) > \
-                    MMVersion.from_string(latest_solution.setup()["version"]):
+            if MMVersion.from_string(
+                solution.setup()["version"]
+            ) > MMVersion.from_string(latest_solution.setup()["version"]):
                 latest_solution = solution
         return latest_solution
-

@@ -1,24 +1,20 @@
 import argparse
+import os
 from queue import Queue, Empty
 from typing import List
+
+from album.runner import album_logging
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.script_manager import IScriptManager
 from album.core.api.model.collection_solution import ICollectionSolution
-from album.core.controller.run_manager import SolutionGroup
 from album.core.model.script_queue_entry import ScriptQueueEntry
-from album.core.utils.operations.resolve_operations import build_resolve_string
 from album.core.utils.operations.solution_operations import (
-    get_steps_dict,
     get_parent_dict,
 )
 from album.runner.album_logging import get_active_logger
-from album.runner.core.api.model.script_creator import IScriptCreator
 from album.runner.core.api.model.solution import ISolution
-from album.runner.core.model.script_creator import (
-    ScriptCreatorRun,
-    ScriptCreatorRunWithParent,
-)
+from album.runner.core.default_values_runner import DefaultValuesRunner
 
 module_logger = get_active_logger
 
@@ -28,15 +24,35 @@ class ScriptManager(IScriptManager):
         self.album = album
 
     def run_solution_script(
-        self, resolve_result: ICollectionSolution, script_creator: ScriptCreatorRun
+        self, resolve_result: ICollectionSolution, solution_action: ISolution.Action
     ):
         queue = Queue()
-        self.build_queue(resolve_result, queue, script_creator, False, [""])
+        self.build_queue(resolve_result, queue, solution_action, False, [""])
         script_queue_entry = queue.get(block=False)
-        self.album.environment_manager().run_scripts(
+
+        env_variables = os.environ.copy()
+        env_variables[
+            DefaultValuesRunner.env_variable_action.value
+        ] = script_queue_entry.solution_action.name
+        env_variables[DefaultValuesRunner.env_variable_installation.value] = str(
+            script_queue_entry.solution_installation_path
+        )
+        env_variables[DefaultValuesRunner.env_variable_package.value] = str(
+            script_queue_entry.solution_package_path
+        )
+        env_variables[DefaultValuesRunner.env_variable_environment.value] = str(
+            script_queue_entry.environment.path()
+        )
+        env_variables[DefaultValuesRunner.env_variable_logger_level.value] = str(
+            album_logging.get_loglevel_name()
+        )
+
+        self.album.environment_manager().run_script(
             script_queue_entry.environment,
-            script_queue_entry.scripts,
+            script_queue_entry.script,
             pipe_output=False,
+            argv=script_queue_entry.args,
+            environment_variables=env_variables,
         )
 
     def run_queue(self, queue: Queue):
@@ -60,197 +76,43 @@ class ScriptManager(IScriptManager):
         self,
         collection_solution: ICollectionSolution,
         queue,
-        script_creator: ScriptCreatorRun,
+        solution_action: ISolution.Action,
         run_immediately=False,
         argv=None,
     ):
         if argv is None:
             argv = [""]
         solution = collection_solution.loaded_solution()
-        steps = get_steps_dict(solution)
-        if steps:  # solution consists of at least one step
-            # a step base album is first initialized in the album environment to be able to harvest it's arguments
-            # active_solution.init() THIS FEATURE IS TEMPORARY DISABLED
 
-            step_solution_parsed_args = self.__parse_args(solution, argv)
-            module_logger().debug("Building queue for %s steps.." % len(steps))
-
-            for i, step in enumerate(steps):
-                module_logger().debug(
-                    "Adding step %s / %s to queue..." % (i, len(steps))
-                )
-                if type(step) is list:
-                    self._build_steps_queue(
-                        queue,
-                        step,
-                        script_creator,
-                        run_immediately,
-                        step_solution_parsed_args,
-                    )
-                else:
-                    self._build_steps_queue(
-                        queue,
-                        [step],
-                        script_creator,
-                        run_immediately,
-                        step_solution_parsed_args,
-                    )
-        else:  # single element queue, no steps
-            parent = get_parent_dict(solution)
-            if parent:
-                module_logger().debug(
-                    "Adding standalone solution with parent to queue..."
-                )
-                # create script with parent
-                queue.put(
-                    self._create_solution_run_with_parent_script_standalone(
-                        collection_solution, argv, script_creator
-                    )
-                )
-            else:
-                module_logger().debug("Adding standalone to queue...")
-                # create script without parent
-                queue.put(
-                    self._create_solution_run_script_standalone(
-                        collection_solution, argv, script_creator
-                    )
-                )
-
-    def _build_steps_queue(
-        self,
-        queue: Queue,
-        steps: list,
-        script_creator: ScriptCreatorRun,
-        run_immediately=False,
-        step_solution_parsed_args=None,
-    ):
-        """Builds the queue of step-album to be executed. FIFO queue expected.
-
-        Args:
-            script_creator:
-                The ScriptCreatorRun object to use to create the execution script.
-            step_solution_parsed_args:
-                Namespace object from parsing the step-solution arguments
-            queue:
-                The queue object.
-            steps:
-                The steps of a stepped solution.
-            run_immediately:
-                Boolean. When true, a collection is run immediately without solving for further steps and pushing them
-                to the queue. Can result in resolving problems in further downstream collections. Necessary for
-                branching decisions.
-
-        """
-        # start with an empty collection of steps with the same parent
-        same_parent_step_collection = SolutionGroup(step_solution_parsed_args)
-        citations = []
-
-        for step in steps:
-            module_logger().debug('resolving step "%s"...' % step["name"])
-            resolve_result = self.album.collection_manager().resolve_installed_and_load(
-                build_resolve_string(step)
-            )
-
-            citations.append(resolve_result.loaded_solution())
-
-            parent = get_parent_dict(resolve_result.loaded_solution())
-            if parent:  # collect steps as long as they have the same parent
-                current_parent_script_resolve = (
-                    self.album.collection_manager().resolve_installed_and_load(
-                        build_resolve_string(parent)
-                    )
-                )
-
-                # check whether the step has the same parent as the previous steps
-                if (
-                    same_parent_step_collection.parent
-                    and same_parent_step_collection.parent.coordinates()
-                    != current_parent_script_resolve.coordinates()
-                ):
-
-                    # put old collection to queue
-                    queue.put(
-                        self._create_solution_run_collection_script(
-                            same_parent_step_collection, script_creator
-                        )
-                    )
-
-                    # runs the old collection immediately
-                    if run_immediately:
-                        self.run_queue(queue)
-
-                    # set new parent
-                    same_parent_step_collection.parent = current_parent_script_resolve
-
-                    # overwrite old steps
-                    same_parent_step_collection.steps_solution = [
-                        resolve_result.loaded_solution()
-                    ]
-                    same_parent_step_collection.steps = [step]
-
-                else:  # same or new parent
-                    module_logger().debug('Pushed step "%s" in queue...' % step["name"])
-
-                    # set parent
-                    same_parent_step_collection.parent = current_parent_script_resolve
-
-                    # append another step to the steps already having the same parent
-                    same_parent_step_collection.steps_solution.append(
-                        resolve_result.loaded_solution()
-                    )
-                    same_parent_step_collection.steps.append(step)
-
-            else:  # add a step without collection (also parent)
-                # put collection (if any) to queue
-                if same_parent_step_collection.parent:
-                    queue.put(
-                        self._create_solution_run_collection_script(
-                            same_parent_step_collection, script_creator
-                        )
-                    )
-
-                # empty the collection for possible next steps
-                same_parent_step_collection = SolutionGroup(step_solution_parsed_args)
-
-                # run the old collection immediately
-                if run_immediately:
-                    self.run_queue(queue)
-
-                # harvest arguments in the description of the step
-                step_args = self._get_args(step, step_solution_parsed_args[0])
-
-                # add step without parent
-                queue.put(
-                    self._create_solution_run_script_standalone(
-                        resolve_result, step_args, script_creator
-                    )
-                )
-
-        # put rest to queue
-        if same_parent_step_collection.parent:
+        parent = get_parent_dict(solution)
+        if parent:
+            module_logger().debug("Adding standalone solution with parent to queue...")
+            # create script with parent
             queue.put(
-                self._create_solution_run_collection_script(
-                    same_parent_step_collection, script_creator
+                self._create_solution_run_with_parent_script_standalone(
+                    collection_solution, argv, solution_action
                 )
             )
-
-        self._print_credit(citations)
-
-        # run the old collection immediately
-        if run_immediately:
-            self.run_queue(queue)
+        else:
+            module_logger().debug("Adding standalone to queue...")
+            # create script without parent
+            queue.put(
+                self._create_solution_run_script_standalone(
+                    collection_solution, argv, solution_action
+                )
+            )
 
     def _create_solution_run_script_standalone(
         self,
         collection_solution: ICollectionSolution,
         args: list,
-        script_creator: IScriptCreator,
+        solution_action: ISolution.Action,
     ) -> ScriptQueueEntry:
         """Creates the execution script for a album object giving its arguments.
 
         Args:
-            script_creator:
-                The ScriptCreator object to use to create the execution script.
+            solution_action:
+                The action to trigger when executing the solution (i.e. run, install, or test).
             collection_solution:
                 The collection solution object to create the executable script for.
             args:
@@ -269,25 +131,34 @@ class ScriptManager(IScriptManager):
         environment = self.album.environment_manager().set_environment(
             collection_solution
         )
-        script = script_creator.create_script(
-            collection_solution.loaded_solution(), args
+        installation_path = (
+            collection_solution.loaded_solution().installation().installation_path()
+        )
+        package_path = (
+            collection_solution.loaded_solution().installation().package_path()
         )
 
         return ScriptQueueEntry(
-            collection_solution.coordinates(), [script], environment=environment
+            collection_solution.coordinates(),
+            collection_solution.loaded_solution().script(),
+            solution_action,
+            args,
+            environment=environment,
+            solution_installation_path=installation_path,
+            solution_package_path=package_path,
         )
 
     def _create_solution_run_with_parent_script_standalone(
         self,
         collection_solution: ICollectionSolution,
         args: list,
-        script_creator: ScriptCreatorRun,
+        solution_action: ISolution.Action,
     ) -> ScriptQueueEntry:
         """Creates the execution script for a album object having a parent dependency giving its arguments.
 
         Args:
-            script_creator:
-                The ScriptCreatorRun object to use to create the execution script.
+            solution_action:
+                The action to trigger when executing the solution (i.e. run, install, or test).
             collection_solution:
                 The collection solution object to create the executable script for.
             args:
@@ -302,111 +173,18 @@ class ScriptManager(IScriptManager):
         )
         active_solution = collection_solution.loaded_solution()
 
-        # create script
-        script = script_creator.create_script(
-            collection_solution.loaded_solution(), args
-        )
-
         # TODO this should probably move into the runner
         self._print_credit([active_solution])
 
         return ScriptQueueEntry(
-            collection_solution.loaded_solution().coordinates(), [script], environment
+            collection_solution.loaded_solution().coordinates(),
+            collection_solution.loaded_solution().script(),
+            solution_action,
+            args,
+            environment,
+            active_solution.installation().installation_path(),
+            active_solution.installation().package_path(),
         )
-
-    def _create_solution_run_collection_script(
-        self, solution_collection: SolutionGroup, script_creator: ScriptCreatorRun
-    ) -> ScriptQueueEntry:
-        """Creates the execution script for a collection of solutions all having the same parent dependency.
-
-        Args:
-            script_creator:
-                The ScriptCreator object to use to create the execution script.
-            solution_collection
-        Returns:
-            The solution shared parent object and its scripts.
-
-        """
-        # load parent & steps
-        parent_solution = self.album.state_manager().load(
-            solution_collection.parent.path()
-        )
-        self.album.solutions().set_cache_paths(
-            parent_solution, solution_collection.parent.catalog()
-        )
-
-        environment = self.album.environment_manager().set_environment(
-            solution_collection.parent
-        )
-        module_logger().debug(
-            'Creating script for steps (%s) with parent "%s"...'
-            % (
-                ", ".join(
-                    [s.coordinates().name() for s in solution_collection.steps_solution]
-                ),
-                parent_solution.coordinates().name(),
-            )
-        )
-
-        # handle arguments
-        parsed_parent_args, parsed_steps_args_list = self._resolve_args(
-            parent_solution=parent_solution,
-            steps_solution=solution_collection.steps_solution,
-            steps=solution_collection.steps,
-            step_solution_parsed_args=solution_collection.parent_parsed_args,
-        )
-
-        # create script
-        scripts = self._create_solution_run_with_parent_script(
-            parent_solution,
-            parsed_parent_args,
-            solution_collection.steps_solution,
-            parsed_steps_args_list,
-            script_creator,
-        )
-
-        return ScriptQueueEntry(parent_solution.coordinates(), scripts, environment)
-
-    @staticmethod
-    def _create_solution_run_with_parent_script(
-        parent_solution: ISolution,
-        parent_args: list,
-        child_solution_list: List[ISolution],
-        child_args: list,
-        script_creator: ScriptCreatorRun,
-    ):
-        """Creates the script for the parent solution as well as for all its steps (child solutions).
-
-        Args:
-            script_creator:
-                The ScriptCreatorRun object to use to create the execution script.
-            parent_solution:
-                The parent solution object.
-            parent_args:
-                Arguments to use for the parent call.
-            child_solution_list:
-                A list of all solution objects to be executed with the same parent.
-            child_args:
-                List of arguments for the call of each child solution.
-
-        Returns:
-            A list holding all execution scripts.
-
-        """
-        module_logger().debug(
-            'Creating album script with parent "%s"...'
-            % parent_solution.coordinates().name()
-        )
-
-        script_creator_run_with_parent = ScriptCreatorRunWithParent(
-            script_creator, child_solution_list, child_args
-        )
-        script = script_creator_run_with_parent.create_script(
-            parent_solution, parent_args
-        )
-        script_list = [script]
-
-        return script_list
 
     def __parse_args(self, active_solution: ISolution, args: list):
         """Parse arguments of loaded solution."""
@@ -505,8 +283,29 @@ class ScriptManager(IScriptManager):
             'Running script in environment of solution "%s"...'
             % script_queue_entry.coordinates.name()
         )
-        self.album.environment_manager().run_scripts(
-            script_queue_entry.environment, script_queue_entry.scripts
+
+        env_variables = os.environ.copy()
+        env_variables[
+            DefaultValuesRunner.env_variable_action.value
+        ] = script_queue_entry.solution_action.name
+        env_variables[DefaultValuesRunner.env_variable_installation.value] = str(
+            script_queue_entry.solution_installation_path
+        )
+        env_variables[DefaultValuesRunner.env_variable_package.value] = str(
+            script_queue_entry.solution_package_path
+        )
+        env_variables[DefaultValuesRunner.env_variable_environment.value] = str(
+            script_queue_entry.environment.path()
+        )
+        env_variables[DefaultValuesRunner.env_variable_logger_level.value] = str(
+            album_logging.get_loglevel_name()
+        )
+
+        self.album.environment_manager().run_script(
+            script_queue_entry.environment,
+            script_queue_entry.script,
+            argv=script_queue_entry.args,
+            environment_variables=env_variables,
         )
         module_logger().debug(
             'Done running script in environment of solution "%s"...'

@@ -101,6 +101,6 @@ class MicromambaManager(PackageManager):
             "-q",
             "-p",
             os.path.normpath(path),
-            "--all"
+            "--all",
         ]
         return subprocess_args

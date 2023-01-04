@@ -164,7 +164,7 @@ class LogProcessing:
         self.error_logger.close()
 
 
-def run(command, log_output=True, message_formatter=None, pipe_output=True):
+def run(command, log_output=True, message_formatter=None, pipe_output=True, env=None):
     """Runs a command in a subprocess thereby logging its output.
 
     Args:
@@ -176,6 +176,8 @@ def run(command, log_output=True, message_formatter=None, pipe_output=True):
             The command to run.
         pipe_output:
             Indicates whether to pipe the output of the subprocess or just return it as is.
+        env:
+            The environment variables of the process.
 
     Returns:
         Exit status of the subprocess.
@@ -190,7 +192,7 @@ def run(command, log_output=True, message_formatter=None, pipe_output=True):
     logger = album_logging.get_active_logger()
     log_processing = LogProcessing(logger, log_output, message_formatter)
 
-    exit_status = _run_process(command, log_processing, pipe_output)
+    exit_status = _run_process(command, log_processing, pipe_output, env)
 
     return exit_status
 
@@ -201,26 +203,17 @@ class SubProcessError(RuntimeError):
         super().__init__(message)
 
 
-def _run_process(command, log: LogProcessing, pipe_output):
+def _run_process(command, log: LogProcessing, pipe_output, env):
     if pipe_output:
-        if platform.system() == "Windows":
-            process = subprocess.Popen(
-                command,
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                encoding=sys.getdefaultencoding(),
-                text=True,
-            )
-        else:
-            process = subprocess.Popen(
-                command,
-                shell=False,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                encoding=sys.getdefaultencoding(),
-                text=True,
-            )
+        process = subprocess.Popen(
+            command,
+            shell=platform.system() == "Windows",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            encoding=sys.getdefaultencoding(),
+            text=True,
+            env=env
+        )
         while True:
             output = process.stdout.readline()
             if process.poll() is not None:
@@ -234,9 +227,9 @@ def _run_process(command, log: LogProcessing, pipe_output):
             raise SubProcessError(rc, "ERROR while running %s " % " ".join(command))
         return rc
     else:
-        return subprocess.run(command, encoding=sys.getdefaultencoding())
+        return subprocess.run(command, encoding=sys.getdefaultencoding(), env=env)
 
 
-def check_output(command):
+def check_output(command, env=None):
     """Runs a command thereby checking its output."""
-    return subprocess.check_output(command).decode("utf-8")
+    return subprocess.check_output(command, env=env).decode("utf-8")

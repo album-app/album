@@ -30,14 +30,25 @@ class IEnvironmentManager:
         raise NotImplementedError
 
     @abstractmethod
-    def run_scripts(self, environment: IEnvironment, scripts, pipe_output=True):
+    def run_script(
+        self,
+        environment: IEnvironment,
+        script,
+        environment_variables=None,
+        argv=None,
+        pipe_output=True,
+    ):
         """Runs the solution in the target environment
 
         Args:
-            scripts:
-                List of he scripts calling the solution(s)
+            script:
+                Script calling the solution
             environment:
-                The virtual environment used to run the scripts
+                The virtual environment used to run the script
+            environment_variables:
+                The environment variables to attach to the script process
+            argv:
+                The arguments to attach to the script process
             pipe_output:
                 Indicates whether to pipe the output of the subprocess or just return it as is.
         """
