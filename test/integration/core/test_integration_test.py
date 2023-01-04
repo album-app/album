@@ -2,6 +2,7 @@ import sys
 import unittest
 from unittest.mock import patch
 
+from album.core.utils.subcommand import SubProcessError
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 

@@ -8,6 +8,7 @@ from album.core.api.controller.controller import IAlbumController
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.catalog_updates import ISolutionChange, ChangeType
 from album.core.api.model.collection_index import ICollectionIndex
+from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.model.link import Link
@@ -43,28 +44,26 @@ class SolutionHandler(ISolutionHandler):
     def __init__(self, album: IAlbumController):
         self.album = album
 
-    def add_or_replace(self, catalog: ICatalog, active_solution: ISolution, path):
-        deploy_dict = get_deploy_dict(active_solution)
+    def add_or_replace(self, catalog: ICatalog, solution: ICollectionSolution):
+        deploy_dict = get_deploy_dict(solution.loaded_solution())
         self._get_collection_index().add_or_replace_solution(
-            catalog.catalog_id(), active_solution.coordinates(), deploy_dict
+            catalog.catalog_id(), solution.coordinates(), deploy_dict
         )
         # get the install location
         install_location = self.get_solution_package_path(
             catalog, dict_to_coordinates(deploy_dict)
         )
 
-        if Path(path).is_dir():
-            copy_folder(path, install_location, copy_root_folder=False)
-        else:
+        if solution.is_single_file():
             copy(
-                path,
+                solution.path(),
                 install_location.joinpath(DefaultValues.solution_default_name.value),
             )
+        else:
+            copy_folder(solution.path(), install_location, copy_root_folder=False)
 
-    def add_to_cache_catalog(self, active_solution: ISolution, path):
-        self.add_or_replace(
-            self.album.catalogs().get_cache_catalog(), active_solution, path
-        )
+    def add_to_cache_catalog(self, solution: ICollectionSolution):
+        self.add_or_replace(self.album.catalogs().get_cache_catalog(), solution)
 
     def set_parent(
         self,
@@ -253,18 +252,7 @@ class SolutionHandler(ISolutionHandler):
             catalog, solution.coordinates()
         )
         solution.installation().set_package_path(package_path)
-        solution.installation().set_data_path(
-            solution_path.joinpath(DefaultValues.solution_data_prefix.value)
-        )
-        solution.installation().set_app_path(
-            solution_path.joinpath(DefaultValues.solution_app_prefix.value)
-        )
-        solution.installation().set_internal_cache_path(
-            solution_path.joinpath(DefaultValues.solution_internal_cache_prefix.value)
-        )
-        solution.installation().set_user_cache_path(
-            solution_path.joinpath(DefaultValues.solution_user_cache_prefix.value)
-        )
+        solution.installation().set_installation_path(solution_path)
 
     def _get_collection_index(self):
         return self.album.collection_manager().get_collection_index()

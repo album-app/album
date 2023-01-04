@@ -1,6 +1,7 @@
 import json
 import os
 import platform
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
@@ -9,6 +10,7 @@ import yaml
 
 from album.core.controller.conda_manager import CondaManager
 from album.core.controller.package_manager import PackageManager
+from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
 from album.core.utils.operations.file_operations import _create_shortcut
 from test.unit.test_unit_core_common import TestUnitCoreCommon
@@ -114,6 +116,10 @@ class TestCondaManager(TestUnitCoreCommon):
         )
         self.assertTrue(self.conda.environment_exists(self.test_environment_name))
 
+    @unittest.skipIf(
+        DefaultValues.runner_api_package_version.value is None,
+        "Skipped because custom runner version is used",
+    )
     def test__append_framework_to_yml_pip(self):
         output = PackageManager.append_framework_to_yml(
             yaml.safe_load(
@@ -128,7 +134,13 @@ dependencies:
             "0.3.0",
         )
         self.assertEqual(
-            {"dependencies": ["pip", {"pip": ["bla", "blub", "album-runner==0.3.0"]}]},
+            {
+                "dependencies": [
+                    "conda-forge::album-solution-api=0.6.0",
+                    "pip",
+                    {"pip": ["bla", "blub"]},
+                ]
+            },
             output,
         )
         output = PackageManager.append_framework_to_yml(
@@ -137,18 +149,22 @@ dependencies:
         self.assertEqual(
             {
                 "name": "test",
-                "dependencies": ["pip=21.0", {"pip": ["album-runner==0.3.0"]}],
+                "dependencies": ["conda-forge::album-solution-api=0.6.0"],
             },
             output,
         )
 
+    @unittest.skipIf(
+        DefaultValues.runner_api_package_version.value is None,
+        "Skipped because custom runner version is used",
+    )
     def test__append_framework_to_yml_conda(self):
         output = CondaManager.append_framework_to_yml(
             yaml.safe_load("""dependencies:\n  - python"""),
             "0.5.1",
         )
         self.assertEqual(
-            {"dependencies": ["python", "conda-forge::album-runner=0.5.1"]},
+            {"dependencies": ["python", "conda-forge::album-solution-api=0.6.0"]},
             output,
         )
 
@@ -201,19 +217,11 @@ dependencies:
             self.assertTrue(
                 self.conda.is_installed(
                     self.conda.get_environment_path(self.test_environment_name),
-                    "album-runner",
+                    "album-solution-api",
                 )
             )
         else:
             unittest.skip("WARNING - CONDA ERROR!")
-
-    def test_run_script(self):
-        with open(self.closed_tmp_file.name, "w") as f:
-            f.writelines('print("%s")' % self.test_environment_name)
-
-        p = self.conda.get_active_environment_path()
-
-        self.conda.run_script(p, self.closed_tmp_file.name)
 
     @unittest.skip("Tested in tear_down() routine!")
     def test_remove_environment(self, active_env_mock):
@@ -269,29 +277,30 @@ dependencies:
         self.assertTrue(self.conda.is_installed(environment.path(), "python", "2.7"))
 
     @patch(
-        "album.core.controller.package_manager.PackageManager.run_script",
+        "album.core.utils.subcommand.run",
         return_value="ranScript",
     )
-    def test_run_scripts(self, conda_run_mock):
-        script = 'print("%s")' % self.test_environment_name
-        environment = Environment(None, "aName", "aPath")
-        environment._path = "NotNone"
-
-        self.conda.run_scripts(environment, script)
-        conda_run_mock.assert_called_once()
+    def test_run_script(self, run_mock):
+        with tempfile.NamedTemporaryFile(mode="w") as tmp:
+            tmp.write('print("%s")' % self.test_environment_name)
+            environment = Environment(None, "aName", "aPath")
+            environment._path = "NotNone"
+            self.conda.run_script(environment, tmp.name)
+            run_mock.assert_called_once()
 
     @patch(
-        "album.core.controller.package_manager.PackageManager.run_script",
+        "album.core.utils.subcommand.run",
         return_value="ranScript",
     )
-    def test_run_scripts_no_path(self, conda_run_mock):
-        script = 'print("%s")' % self.test_environment_name
-        environment = Environment(None, "aName", "aPath")
-        environment._path = None
+    def test_run_script_no_path(self, conda_run_mock):
+        with tempfile.NamedTemporaryFile(mode="w") as tmp:
+            tmp.write('print("%s")' % self.test_environment_name)
+            environment = Environment(None, "aName", "aPath")
+            environment._path = None
 
-        with self.assertRaises(EnvironmentError):
-            self.conda.run_scripts(environment, script)
-        conda_run_mock.assert_not_called()
+            with self.assertRaises(EnvironmentError):
+                self.conda.run_script(environment, tmp.name)
+            conda_run_mock.assert_not_called()
 
     def test_create_or_update_env_no_env(self):
         update_mock = MagicMock()

@@ -263,11 +263,10 @@ def prepare_path(path, tmp_cache_dir):
                 p = unzip_archive(p, target_folder)
                 p = p.joinpath(DefaultValues.solution_default_name.value)
             else:  # python file
-                p = copy(
-                    p, target_folder.joinpath(DefaultValues.solution_default_name.value)
-                )
-        elif p.is_dir():  # unzipped zip
-            p = copy_folder(p, target_folder, copy_root_folder=False)
+                # do not copy specified single file anywhere
+                pass
+        elif p.is_dir():  # folder
+            # p = copy_folder(p, target_folder, copy_root_folder=False)
             p = p.joinpath(DefaultValues.solution_default_name.value)
 
         return p

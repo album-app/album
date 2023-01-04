@@ -1,52 +1,15 @@
 from queue import Queue
-from typing import List
 
 import pkg_resources
 
-from album.runner import album_logging
-
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.run_manager import IRunManager
-from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.model.default_values import DefaultValues
 from album.core.model.event import Event
+from album.runner import album_logging
 from album.runner.core.api.model.solution import ISolution
-from album.runner.core.model.script_creator import ScriptCreatorRun
 
 module_logger = album_logging.get_active_logger
-
-
-class SolutionGroup:
-    def __init__(
-        self,
-        parent_parsed_args=None,
-        parent: ICollectionSolution = None,
-        steps_solution=None,
-        steps=None,
-    ):
-        if parent_parsed_args is None:
-            parent_parsed_args = [None]
-        if steps_solution is None:
-            steps_solution = []
-        if steps is None:
-            steps = []
-        self.parent_parsed_args = parent_parsed_args
-        self.parent = parent
-        self.steps_solution: List[
-            ISolution
-        ] = steps_solution  # The solution objects of all steps.
-
-        self.steps = (
-            steps  # The step description of the step. Must hold the argument keyword.
-        )
-
-    def __eq__(self, o: object) -> bool:
-        return (
-            isinstance(o, SolutionGroup)
-            and o.parent.coordinates() == self.parent.coordinates()
-            and o.steps_solution == self.steps_solution
-            and o.steps == self.steps
-        )
 
 
 class RunManager(IRunManager):
@@ -79,7 +42,7 @@ class RunManager(IRunManager):
 
         # builds the queue
         self.album.script_manager().build_queue(
-            resolve_result, que, ScriptCreatorRun(), run_immediately, argv
+            resolve_result, que, ISolution.Action.RUN, run_immediately, argv
         )
 
         self.album.event_manager().publish(

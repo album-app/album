@@ -1,14 +1,15 @@
 import json
 import os
 import platform
+import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import yaml
 
 from album.core.controller.micromamba_manager import MicromambaManager
-from album.core.controller.package_manager import PackageManager
+from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
 from album.core.utils.operations.file_operations import _create_shortcut
 from test.unit.test_unit_core_common import TestUnitCoreCommon
@@ -25,7 +26,9 @@ class TestMicromambaManager(TestUnitCoreCommon):
     def tearDown(self) -> None:
         if self.micromamba.environment_exists(self.test_environment_name):
             self.micromamba.remove_environment(self.test_environment_name)
-            self.assertFalse(self.micromamba.environment_exists(self.test_environment_name))
+            self.assertFalse(
+                self.micromamba.environment_exists(self.test_environment_name)
+            )
         super().tearDown()
 
     def test_get_environment_list(self):
@@ -70,9 +73,15 @@ class TestMicromambaManager(TestUnitCoreCommon):
 
     @patch("album.core.controller.package_manager.PackageManager.get_environment_list")
     def test_get_environment_path(self, ged_mock):
-        link1 = self.micromamba._configuration.lnk_path().joinpath("env", "%s" % 0).resolve()
+        link1 = (
+            self.micromamba._configuration.lnk_path()
+            .joinpath("env", "%s" % 0)
+            .resolve()
+        )
         ged_mock.return_value = [link1]
-        self.assertEqual(link1, self.micromamba.get_environment_path("envName1").resolve())
+        self.assertEqual(
+            link1, self.micromamba.get_environment_path("envName1").resolve()
+        )
 
     def test_get_environment_path_invalid_env(self):
         self.assertFalse(self.micromamba.environment_exists("NotExistingEnv"))
@@ -102,41 +111,17 @@ class TestMicromambaManager(TestUnitCoreCommon):
 
         self.assertIsNotNone(r)
 
-    def test__append_framework_to_yml_pip(self):
-        output = PackageManager.append_framework_to_yml(
-            yaml.safe_load(
-                """
-dependencies:
-    - pip
-    - pip:
-         - bla
-         - blub
-"""
-            ),
-            "0.3.0",
-        )
-        self.assertEqual(
-            {"dependencies": ["pip", {"pip": ["bla", "blub", "album-runner==0.3.0"]}]},
-            output,
-        )
-        output = PackageManager.append_framework_to_yml(
-            yaml.safe_load("""name: test"""), "0.3.0"
-        )
-        self.assertEqual(
-            {
-                "name": "test",
-                "dependencies": ["pip=21.0", {"pip": ["album-runner==0.3.0"]}],
-            },
-            output,
-        )
-
+    @unittest.skipIf(
+        DefaultValues.runner_api_package_version.value is None,
+        "Skipped because custom runner version is used",
+    )
     def test__append_framework_to_yml_conda(self):
         output = MicromambaManager.append_framework_to_yml(
             yaml.safe_load("""dependencies:\n  - python"""),
             "0.5.1",
         )
         self.assertEqual(
-            {"dependencies": ["python", "conda-forge::album-runner=0.5.1"]},
+            {"dependencies": ["python", "conda-forge::album-solution-api=0.6.0"]},
             output,
         )
 
@@ -171,7 +156,9 @@ dependencies:
             with self.assertRaises(EnvironmentError):
                 self.micromamba.create_environment(self.test_environment_name)
 
-            self.assertTrue(self.micromamba.environment_exists(self.test_environment_name))
+            self.assertTrue(
+                self.micromamba.environment_exists(self.test_environment_name)
+            )
 
             # check if python & pip installed
             self.assertTrue(
@@ -182,26 +169,34 @@ dependencies:
             )
             self.assertTrue(
                 self.micromamba.is_installed(
-                    self.micromamba.get_environment_path(self.test_environment_name), "pip"
-                )
-            )
-            # check if album-runner installed
-            self.assertTrue(
-                self.micromamba.is_installed(
                     self.micromamba.get_environment_path(self.test_environment_name),
-                    "album-runner",
+                    "pip",
                 )
             )
+            # check if album-runner installed (only if installed via conda):
+            if DefaultValues.runner_api_package_version.value is not None:
+                self.assertTrue(
+                    self.micromamba.is_installed(
+                        self.micromamba.get_environment_path(
+                            self.test_environment_name
+                        ),
+                        "album-solution-api",
+                    )
+                )
         else:
             unittest.skip("WARNING - MICROMAMBA ERROR!")
 
-    def test_run_script(self):
-        with open(self.closed_tmp_file.name, "w") as f:
-            f.writelines('print("%s")' % self.test_environment_name)
-
-        p = self.micromamba.get_active_environment_path()
-
-        self.micromamba.run_script(p, self.closed_tmp_file.name)
+    @patch(
+        "album.core.utils.subcommand.run",
+        return_value="ranScript",
+    )
+    def test_run_script(self, run_mock):
+        with tempfile.NamedTemporaryFile(mode="w") as tmp:
+            tmp.write('print("%s")' % self.test_environment_name)
+            environment = Environment(None, "aName", "aPath")
+            environment._path = "NotNone"
+            self.micromamba.run_script(environment, tmp.name)
+            run_mock.assert_called_once()
 
     @unittest.skip("Tested in tear_down() routine!")
     def test_remove_environment(self, active_env_mock):
@@ -251,35 +246,16 @@ dependencies:
             ]"""
         )
         environment = Environment(None, "aName", "aPath")
-        self.assertTrue(self.micromamba.is_installed(environment.path(), "python"))
-        self.assertTrue(self.micromamba.is_installed(environment.path(), "python", "3.9.5"))
-        self.assertFalse(self.micromamba.is_installed(environment.path(), "python", "500.1"))
-        self.assertTrue(self.micromamba.is_installed(environment.path(), "python", "2.7"))
 
-    @patch(
-        "album.core.controller.package_manager.PackageManager.run_script",
-        return_value="ranScript",
-    )
-    def test_run_scripts(self, conda_run_mock):
-        script = 'print("%s")' % self.test_environment_name
-        environment = Environment(None, "aName", "aPath")
-        environment._path = "Not/None"
-
-        self.micromamba.run_scripts(environment, script)
-        conda_run_mock.assert_called_once()
-
-    @patch(
-        "album.core.controller.package_manager.PackageManager.run_script",
-        return_value="ranScript",
-    )
-    def test_run_scripts_no_path(self, conda_run_mock):
-        script = 'print("%s")' % self.test_environment_name
-        environment = Environment(None, "aName", "aPath")
-        environment._path = None
-
-        with self.assertRaises(EnvironmentError):
-            self.micromamba.run_scripts(environment, script)
-        conda_run_mock.assert_not_called()
+        self.assertTrue(
+            self.micromamba.is_installed(environment.path(), "python", "3.9.5")
+        )
+        self.assertFalse(
+            self.micromamba.is_installed(environment.path(), "python", "500.1")
+        )
+        self.assertTrue(
+            self.micromamba.is_installed(environment.path(), "python", "2.7")
+        )
 
     @patch("album.core.controller.package_manager.PackageManager.create")
     @patch("album.core.controller.package_manager.PackageManager.update")

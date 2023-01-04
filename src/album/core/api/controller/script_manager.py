@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 from queue import Queue
 
 from album.core.api.model.collection_solution import ICollectionSolution
-from album.runner.core.api.model.script_creator import IScriptCreator
+from album.runner.core.api.model.solution import ISolution
 
 
 class IScriptManager:
@@ -24,15 +24,15 @@ class IScriptManager:
         self,
         solution: ICollectionSolution,
         queue,
-        script_creator: IScriptCreator,
+        solution_action: ISolution.Action,
         run_immediately=False,
         argv=None,
     ):
         """Builds the queue of an active-album object.
 
         Args:
-            script_creator:
-                The ScriptCreatorRun object to use to create the execution script.
+            solution_action:
+                The action to trigger when executing the solution (i.e. run, install, or test).
             solution:
                 The resolve_result of a solution object to build the run-que for.
             queue:
@@ -49,6 +49,6 @@ class IScriptManager:
 
     @abstractmethod
     def run_solution_script(
-        self, resolve_result: ICollectionSolution, script: IScriptCreator
+        self, resolve_result: ICollectionSolution, solution_action: ISolution.Action
     ):
         raise NotImplementedError

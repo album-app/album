@@ -16,12 +16,14 @@ class ResolveResult(ICollectionSolution):
         collection_entry: ICollectionIndex.ICollectionSolution,
         coordinates: ICoordinates,
         loaded_solution=None,
+        single_file_solution=False,
     ):
         self._catalog: ICatalog = catalog
         self._path = path
         self._collection_entry: ICollectionIndex.ICollectionSolution = collection_entry
         self._coordinates: ICoordinates = coordinates
         self._loaded_solution: ISolution = loaded_solution
+        self._is_single_file = single_file_solution
 
         if collection_entry and not loaded_solution:
             self._load_solution_from_collection_entry()
@@ -63,3 +65,6 @@ class ResolveResult(ICollectionSolution):
     def _load_solution_from_collection_entry(self):
         attrs = self._collection_entry.setup()
         self.set_loaded_solution(Solution(attrs))
+
+    def is_single_file(self):
+        return self._is_single_file

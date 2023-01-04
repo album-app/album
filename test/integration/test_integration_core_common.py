@@ -3,8 +3,8 @@ from pathlib import Path
 from typing import Optional
 from unittest.mock import MagicMock
 
-from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
+from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import copy
 from album.runner.core.model.solution import Solution
 from test.test_common import TestCommon
@@ -85,7 +85,13 @@ class TestIntegrationCoreCommon(TestCommon):
             )
         )
         self.album_controller.collection_manager().solutions().add_to_cache_catalog(
-            loaded_solution, path
+            ResolveResult(
+                path,
+                None,
+                None,
+                loaded_solution.coordinates(),
+                loaded_solution=loaded_solution,
+            )
         )
         self.album_controller.collection_manager().solutions().set_installed(
             cache_catalog, loaded_solution.coordinates()
@@ -102,12 +108,8 @@ class TestIntegrationCoreCommon(TestCommon):
         # copy to correct folder
         copy(
             path,
-            cache_catalog.path().joinpath(
-                DefaultValues.catalog_solutions_prefix.value,
-                loaded_solution.coordinates().group(),
-                loaded_solution.coordinates().name(),
-                loaded_solution.coordinates().version(),
-                DefaultValues.solution_default_name.value,
+            self.album_controller.solutions().get_solution_file(
+                cache_catalog, loaded_solution.coordinates()
             ),
         )
         return loaded_solution

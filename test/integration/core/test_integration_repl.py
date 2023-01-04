@@ -25,17 +25,17 @@ class TestIntegrationRepl(TestIntegrationCoreCommon):
             cmd = ["-m", "album", "repl", solution_path]
             child = pexpect.spawn(sys.executable, cmd, env=env)
             child.sendline("import album")
+            child.sendline("import os")
             self.assertEqual(0, child.expect(r">>>"))
-            child.sendline("from album.runner.api import get_environment_name")
+            child.sendline("from album.runner.api import get_environment_path")
             self.assertEqual(0, child.expect(r">>>"))
-            child.sendline("print(get_environment_name())")
-            self.assertEqual(
-                0, child.expect(r"cache_catalog_group_solution8_arguments_0.1.0")
-            )
+            child.sendline("print(os.path.basename(get_environment_path()))")
+            self.assertEqual(0, child.expect(r"0"))
             child.sendline("exit()")
             child.close()
         else:
             cmd = ["album", "repl", solution_path]
+
             p = subprocess.Popen(
                 cmd,
                 env=env,
