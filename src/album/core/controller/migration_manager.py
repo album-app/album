@@ -49,12 +49,19 @@ class MigrationManager(IMigrationManager):
         """Loads current index on disk and migrates if necessary"""
         catalog.load_index()
         target_version = DBVersion.from_string(DefaultValues.catalog_index_db_version.value)
+        tmp_list= []
+        for i in self.catalog_db_versions:
+            tmp_list.append(str(i))
+        print("THE VERSION LIST IN _LOAD_CATALOG_INDEX: %s" % tmp_list)
+        print("THE CURRENT VERSION IN _LOAD_CATALOG_INDEX: %s" % str(current_version))
+        print("THE TARGET VERSION IN _LOAD_CATALOG_INDEX: %s" % str(target_version))
         if not current_version == target_version:
             if current_version < target_version:
                 for vers in range(self.catalog_db_versions.index(current_version),
                                   self.catalog_db_versions.index(target_version)):
                     current_version = self.catalog_db_versions[vers]
                     next_version = self.catalog_db_versions[vers + 1]
+                    print("!!!!!!!!!Migrating catalog index from %s to %s" % (current_version, next_version))
                     self.migrate_catalog_index_db(catalog.index().get_path(), current_version, next_version)
             else:
                 raise Exception("Your catalog index database of %s is newer than the current version of your Album. "
@@ -196,6 +203,7 @@ class MigrationManager(IMigrationManager):
                     versions.append(DBVersion.from_string(file.split("_")[-1].split(".")[0]))
                 except (ValueError, IndexError):
                     raise ValueError("Could not parse version from file name: %s" % file)
+        versions.sort()
         return versions
 
     @staticmethod
@@ -207,4 +215,5 @@ class MigrationManager(IMigrationManager):
                     versions.append(DBVersion.from_string(file.split("_")[-1].split(".")[0]))
                 except (ValueError, IndexError):
                     raise ValueError("Could not parse version from file name: %s" % file)
+        versions.sort()
         return versions

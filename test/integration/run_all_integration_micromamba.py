@@ -14,6 +14,7 @@ from test.integration.core import (
     test_integration_catalog_features,
     test_integration_deploy,
     test_integration_clone,
+    test_integration_migration_manager
 )
 
 
@@ -38,6 +39,7 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_integration_test))
     suite.addTests(loader.loadTestsFromModule(test_integration_clone))
     suite.addTests(loader.loadTestsFromModule(test_integration_filestructure))
+    suite.addTests(loader.loadTestsFromModule(test_integration_migration_manager))
 
     # CI
     suite.addTests(loader.loadTestsFromModule(test_integration_ci))
