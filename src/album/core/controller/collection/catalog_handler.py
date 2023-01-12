@@ -166,7 +166,7 @@ class CatalogHandler(ICatalogHandler):
         local_path = Path(local_path)
         if not local_path.exists():
             local_path.mkdir(parents=True)
-                                                                                            # CatalogIndex.version \
+
         meta_data = (
             '{\"name\": \"'
             + name

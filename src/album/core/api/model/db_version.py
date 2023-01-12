@@ -14,13 +14,24 @@ class IDBVersion:
         raise NotImplementedError
 
     @abstractmethod
-    def __le__(self, other):
+    def __lt__(self, other):
         raise NotImplementedError
 
     @abstractmethod
-    def __ge__(self, other):
+    def __gt__(self, other):
         raise NotImplementedError
 
     @abstractmethod
     def __str__(self):
+        """Returns the version string"""
+        raise NotImplementedError
+
+    @classmethod
+    def from_string(cls, version_string):
+        """Create a DBVersion object from a string"""
+        raise NotImplementedError
+
+    @classmethod
+    def from_sql_schema_name(cls, sql_schema_name):
+        """Returns the target version of a given sql schema name"""
         raise NotImplementedError

@@ -12,7 +12,6 @@ from album.core.model.default_values import DefaultValues
 
 
 class CollectionIndex(ICollectionIndex, Database):
-    #version = "0.1.0"  # TODO: put into default values.
 
     class CollectionSolution(ICollectionIndex.ICollectionSolution):
         def __init__(self, setup: dict = None, internal: dict = None):
@@ -42,7 +41,6 @@ class CollectionIndex(ICollectionIndex, Database):
         data = pkgutil.get_data("album.core.schema", "catalog_collection_schema.sql")
         cursor = self.get_cursor()
         cursor.executescript(data.decode("utf-8"))
-        #self.update_name_version(self.name, self.version, close=False)
         self.update_name_version(self.name, DefaultValues.catalog_collection_db_version.value, close=False)
 
         self.close_current_connection()

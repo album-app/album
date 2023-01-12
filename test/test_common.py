@@ -11,7 +11,7 @@ from unittest.mock import patch
 from album.api import Album
 from album.core.controller.album_controller import AlbumController
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import write_dict_to_json, force_remove
+from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.git_operations import (
     create_bare_repository,
     clone_repository,
@@ -119,7 +119,7 @@ class TestCommon(unittest.TestCase):
     def setup_collection(self, init_catalogs=True, init_collection=True):
         if init_catalogs:
             with patch(
-                "album.core.model.configuration.Configuration.get_initial_catalogs"
+                    "album.core.model.configuration.Configuration.get_initial_catalogs"
             ) as get_initial_catalogs_mock:
                 get_initial_catalogs_mock.return_value = {}
 
@@ -127,7 +127,7 @@ class TestCommon(unittest.TestCase):
                 self.album_controller.collection_manager().load_or_create()
         elif init_collection:
             with patch(
-                "album.core.controller.collection.catalog_handler.CatalogHandler.add_initial_catalogs"
+                    "album.core.controller.collection.catalog_handler.CatalogHandler.add_initial_catalogs"
             ):
                 self.album_controller.collection_manager().load_or_create()
         # check everything is freshly initialized
@@ -169,6 +169,6 @@ class TestCommon(unittest.TestCase):
 
     @staticmethod
     def get_catalog_meta_dict(
-        name="cache_catalog", version="0.1.0", catalog_type="direct"
+            name="cache_catalog", version="0.1.0", catalog_type="direct"
     ):
         return {"name": name, "version": version, "type": catalog_type}

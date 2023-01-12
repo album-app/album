@@ -1,4 +1,5 @@
 import json
+import os
 import pkgutil
 import shutil
 import sqlite3
@@ -27,32 +28,37 @@ class MigrationManager(IMigrationManager):
         self.schema_solution = None
         self.schema_solution_runner_0_4_2 = None
         self.album = album
+        self.collection_db_versions = self._read_collection_database_versions_from_scripts()
+        self.catalog_db_versions = self._read_catalog_database_versions_from_scripts()
 
-    def migrate_collection_index(
-        self, collection_index: ICollectionIndex, initial_version
-    ):
-        self.migrate_catalog_collection_db(
-            collection_index.get_path(),
-            initial_version,  # current version
-<<<<<<< HEAD
-            # CollectionIndex.version  # current framework target version
-            DBVersion.from_string(DefaultValues.catalog_collection_db_version.value)
+    def migrate_collection_index(self, collection_index: ICollectionIndex, initial_version: IDBVersion):
+        current_version = initial_version
+        target_version = DBVersion.from_string(DefaultValues.catalog_collection_db_version.value)
+        if not current_version == target_version:
+            if current_version < target_version:
+                for vers in range(self.collection_db_versions.index(current_version),
+                                  self.collection_db_versions.index(target_version)):
+                    current_version = self.collection_db_versions[vers]
+                    next_version = self.collection_db_versions[vers + 1]
+                    self.migrate_catalog_collection_db(collection_index.get_path(), current_version, next_version)
+            else:
+                raise Exception("Your catalog collection database is newer than the current version of your Album. "
+                                "Please Update your Album.")
 
-=======
-            CollectionIndex.version,  # current framework target version
->>>>>>> 426945e (formatting via black)
-        )
-
-    def _load_catalog_index(self, catalog: ICatalog, initial_version) -> None:
+    def _load_catalog_index(self, catalog: ICatalog, current_version: IDBVersion) -> None:
         """Loads current index on disk and migrates if necessary"""
         catalog.load_index()
-        self.migrate_catalog_index_db(
-            catalog.index().get_path(),
-            initial_version,  # current version
-<<<<<<< HEAD
-            # CatalogIndex.version
-            DBVersion.from_string(DefaultValues.catalog_index_db_version.value)  # current framework target version
-        )
+        target_version = DBVersion.from_string(DefaultValues.catalog_index_db_version.value)
+        if not current_version == target_version:
+            if current_version < target_version:
+                for vers in range(self.catalog_db_versions.index(current_version),
+                                  self.catalog_db_versions.index(target_version)):
+                    current_version = self.catalog_db_versions[vers]
+                    next_version = self.catalog_db_versions[vers + 1]
+                    self.migrate_catalog_index_db(catalog.index().get_path(), current_version, next_version)
+            else:
+                raise Exception("Your catalog index database of %s is newer than the current version of your Album. "
+                                "Please Update your Album." % catalog.name())
 
     def migrate_catalog_collection_db(self, collection_index_path, curr_version, target_version):
         if not curr_version == target_version:
@@ -69,7 +75,9 @@ class MigrationManager(IMigrationManager):
                         module_logger().error("Could not migrate the catalog collection database: %s" % e)
                         Path(collection_index_path).unlink()
                         shutil.copy(Path(tmp_dir).joinpath("catalog_collection.db"), collection_index_path)
-
+            else:
+                raise Exception("Your catalog collection database is newer than the current version of your Album. "
+                                "Please Update your Album.")
         return collection_index_path
 
     def migrate_catalog_index_db(self, catalog_index_path, curr_version, target_version):
@@ -86,33 +94,9 @@ class MigrationManager(IMigrationManager):
                         module_logger().error("Could not migrate the catalog collection database: %s" % e)
                         Path(catalog_index_path).unlink()
                         shutil.copy(Path(tmp_dir).joinpath("album_catalog_index.db"), catalog_index_path)
-=======
-            CatalogIndex.version,  # current framework target version
-        )
-
-    def migrate_catalog_collection_db(
-        self, collection_index_path, curr_version, target_version
-    ):
-        if curr_version != target_version:
-            # todo: execute catalog_collection SQL migration scripts if necessary!
-            # todo: set new version in DB
-            raise NotImplementedError(
-                'Cannot migrate collection from version "%s" to version "%s"!'
-                % (curr_version, target_version)
-            )
-        return collection_index_path
-
-    def migrate_catalog_index_db(
-        self, catalog_index_path, curr_version, target_version
-    ):
-        if curr_version != target_version:
-            # todo: execute catalog index SQL migration scripts if necessary!
-            # todo: set new version in DB
-            raise NotImplementedError(
-                "Cannot migrate collection from version %s to version %s."
-                % (curr_version, target_version)
-            )
->>>>>>> 426945e (formatting via black)
+            else:
+                raise Exception("Your catalog index database is newer than the current version of your Album. "
+                                "Please Update your Album.")
         return catalog_index_path
 
     def load_index(self, catalog: ICatalog):
@@ -160,7 +144,8 @@ class MigrationManager(IMigrationManager):
     def _load_catalog_collection_migration_schema(curr_version, target_version):
         with open(pkg_resources.resource_filename('album.core.schema.migrations.catalog_collection',
                                                   'migrate_catalog_collection_%s_to_%s.sql' % (
-                                                          str(curr_version), str(target_version)))) as file:
+                                                          str(curr_version).replace('.', ''),
+                                                          str(target_version).replace('.', '')))) as file:
             schema = file.read()
         return schema
 
@@ -168,7 +153,8 @@ class MigrationManager(IMigrationManager):
     def _load_catalog_index_migration_schema(curr_version, target_version):
         with open(pkg_resources.resource_filename('album.core.schema.migrations.catalog_index',
                                                   'migrate_catalog_index_%s_to_%s.sql' % (
-                                                          str(curr_version), str(target_version)))) as file:
+                                                          str(curr_version).replace('.', ''),
+                                                          str(target_version).replace('.', '')))) as file:
             schema = file.read()
         return schema
 
@@ -202,8 +188,23 @@ class MigrationManager(IMigrationManager):
 >>>>>>> 426945e (formatting via black)
 
     @staticmethod
-    def _convert_schema0_schema1(attrs):
-        if "authors" in attrs:
-            attrs["solution_creators"] = deepcopy(attrs["authors"])
-            attrs.pop("authors")
-        return attrs
+    def _read_collection_database_versions_from_scripts():
+        versions = [DBVersion.from_string("0.0.0")]
+        for file in os.listdir(pkg_resources.resource_filename('album.core.schema.migrations.catalog_collection', '')):
+            if ".sql" in file:
+                try:
+                    versions.append(DBVersion.from_string(file.split("_")[-1].split(".")[0]))
+                except (ValueError, IndexError):
+                    raise ValueError("Could not parse version from file name: %s" % file)
+        return versions
+
+    @staticmethod
+    def _read_catalog_database_versions_from_scripts():
+        versions = [DBVersion.from_string("0.0.0")]
+        for file in os.listdir(pkg_resources.resource_filename('album.core.schema.migrations.catalog_index', '')):
+            if ".sql" in file:
+                try:
+                    versions.append(DBVersion.from_string(file.split("_")[-1].split(".")[0]))
+                except (ValueError, IndexError):
+                    raise ValueError("Could not parse version from file name: %s" % file)
+        return versions
