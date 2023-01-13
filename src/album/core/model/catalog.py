@@ -33,7 +33,11 @@ def retrieve_index_files_from_src(
     tmp_dir = Path(tmp_dir)
     with clone_repository_sparse(src, branch_name, tmp_dir) as repo:
         # meta file - must be available
-        checkout_files(repo, [DefaultValues.catalog_index_metafile_json.value])
+        try:
+            checkout_files(repo, [DefaultValues.catalog_index_metafile_json.value])
+        except GitCommandError as e:
+            raise FileNotFoundError("Could not retrieve meta file from source.") from e
+            raise FileNotFoundError("Could not retrieve meta file from source.") from e  # todo: own exception class
         try:
             # db file - optional
             checkout_files(repo, [DefaultValues.catalog_index_file_name.value])
@@ -131,6 +135,10 @@ class Catalog(ICatalog):
         try:
             self.update_index_cache(tmp_dir)
         except GitCommandError as e:
+            module_logger().warning("Could not refresh index. Git command failed:")
+            module_logger().warning(e)
+            return False
+        except FileNotFoundError as e:
             module_logger().warning("Could not refresh index. Git command failed:")
             module_logger().warning(e)
             return False
