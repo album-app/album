@@ -81,7 +81,6 @@ class CatalogHandler(ICatalogHandler):
             self.album.migration_manager().migrate_catalog_index_db(
                 catalog.index_file_path(),  # the path to the catalog
                 DBVersion.from_string(catalog_meta_information["version"]),  # eventually outdated remote version
-                # CatalogIndex.version  # current version in the library
                 DBVersion.from_string(DefaultValues.catalog_index_db_version.value)
             )
 

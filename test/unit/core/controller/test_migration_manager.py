@@ -21,6 +21,10 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
         self.setup_outdated_temporary_collection()
         self.migration_manager = self.album_controller._migration_manager
         self.migration_manager.load_index(self.catalog)
+        self.migration_manager.catalog_db_versions = [DBVersion.from_string('0.0.0'), DBVersion.from_string('0.0.1'),
+                                                      DBVersion.from_string('0.1.0')]
+        self.migration_manager.collection_db_versions = [DBVersion.from_string('0.0.0'), DBVersion.from_string('0.0.1'),
+                                                         DBVersion.from_string('0.1.0')]
 
     def tearDown(self) -> None:
         self.catalog.dispose()
@@ -56,7 +60,7 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
             Path(self.tmp_dir.name).joinpath("album_catalog_index.db"))
 
         self.catalog.set_index_path(Path(self.tmp_dir.name).joinpath("album_catalog_index.db"))
-        self.catalog.set_meta_file_path(Path(self.tmp_dir.name).joinpath("album_catalog_index.json"))
+        self.catalog._meta_file_path = Path(self.tmp_dir.name).joinpath("album_catalog_index.json")
 
     def test_load_index(self):
         # prepare
@@ -105,8 +109,8 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
 
     def test_migrate_collection_index(self):
         # prepare
-        current_version = DBVersion.from_string("0.0.1")
         false_current_version = DBVersion.from_string("9.9.9")
+        current_version = DBVersion.from_string("0.0.0")
 
         migrate_catalog_collection_db = MagicMock()
         self.migration_manager.migrate_catalog_collection_db = migrate_catalog_collection_db
@@ -118,11 +122,11 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
 
         self.migration_manager.migrate_collection_index(
             self.album_controller._collection_manager.catalog_collection, current_version)
-        migrate_catalog_collection_db.assert_called_once()
+        self.assertEqual(migrate_catalog_collection_db.call_count, 2)
 
     def test_load_catalog_index(self):
         # prepare
-        current_version = DBVersion.from_string("0.0.1")
+        current_version = DBVersion.from_string("0.0.0")
         false_current_version = DBVersion.from_string("9.9.9")
 
         migrate_catalog_index_db = MagicMock()
@@ -133,7 +137,7 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
             self.migration_manager._load_catalog_index(self.catalog, false_current_version)
 
         self.migration_manager._load_catalog_index(self.catalog, current_version)
-        migrate_catalog_index_db.assert_called_once()
+        self.assertEqual(migrate_catalog_index_db.call_count, 2)
 
     def test_refresh_index(self):
         # prepare
@@ -153,8 +157,10 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
     def test_load_solution_schema(self):
         pass
 
-    def test_load_catalog_collection_migration_schema(self):
+    @patch('pkg_resources.resource_filename')
+    def test_load_catalog_collection_migration_schema(self, pkg_resources):
         # prepare
+        pkg_resources.return_value = Path(os.path.realpath(__file__)).parent.parent.parent.parent.joinpath("resources", "migrations", "catalog_collection", "migrate_catalog_collection_001_to_010.sql")
         prep_schema = """CREATE TABLE IF NOT EXISTS test_table2 (
     spalte_1 INTEGER DEFAULT 0,
     spalte_2 TEXT DEFAULT "default"
@@ -171,8 +177,10 @@ WHERE name = 'album_collection'"""
         # assert
         self.assertEqual(prep_schema, called_schema)
 
-    def test_load_catalog_index_migration_schema(self):
+    @patch('pkg_resources.resource_filename')
+    def test_load_catalog_index_migration_schema(self, pkg_resources):
         # prepare
+        pkg_resources.return_value = Path(os.path.realpath(__file__)).parent.parent.parent.parent.joinpath("resources", "migrations", "catalog_index", "migrate_catalog_index_001_to_010.sql")
         prep_schema = """CREATE TABLE IF NOT EXISTS test_table2 (
     spalte_1 INTEGER DEFAULT 0,
     spalte_2 TEXT DEFAULT "default"
@@ -216,8 +224,8 @@ WHERE name = 'album_collection'"""
         self.migration_manager._update_catalog_collection_version()
 
         # assert
-        self.assertTrue(json.load(open(Path(self.tmp_dir.name).joinpath("catalog_collection.json"), "r"))[
-                            "catalog_collection_version"] == "0.1.0")
+        with open(Path(self.tmp_dir.name).joinpath("catalog_collection.json")) as file:
+            self.assertTrue(json.load(file)["catalog_collection_version"] == "0.1.0")
 
     def test_update_catalog_index_version(self):
         # call
@@ -225,15 +233,14 @@ WHERE name = 'album_collection'"""
             Path(self.tmp_dir.name).joinpath("album_catalog_index.json"))
 
         # assert
-        self.assertTrue(json.load(open(Path(self.tmp_dir.name).joinpath("album_catalog_index.json"), "r"))[
-                            "version"] == "0.1.0")
+        with open(Path(self.tmp_dir.name).joinpath("album_catalog_index.json")) as file:
+            self.assertTrue(json.load(file)["version"] == "0.1.0")
 
     @patch("os.listdir")
     def test_read_collection_database_versions_from_scripts(self, listdir):
         # prepare
-        listdir.return_value = ["migrate_catalog_collection_000_to_010.sql",
-                                "migrate_catalog_collection_010_to_020.sql"]
-        versions = [DBVersion.from_string("0.0.0"), DBVersion.from_string("0.1.0"), DBVersion.from_string("0.2.0")]
+        listdir.return_value = ["migrate_catalog_collection_010_to_020.sql"]
+        versions = [DBVersion.from_string("0.1.0"), DBVersion.from_string("0.2.0")]
 
         # call
         called_versions = self.migration_manager._read_collection_database_versions_from_scripts()
@@ -244,12 +251,11 @@ WHERE name = 'album_collection'"""
     @patch("os.listdir")
     def test_read_catalog_database_versions_from_scripts(self, listdir):
         # prepare
-        listdir.return_value = ["migrate_catalog_index_000_to_010.sql",
-                                "migrate_catalog_index_010_to_020.sql"]
-        versions = [DBVersion.from_string("0.0.0"), DBVersion.from_string("0.1.0"), DBVersion.from_string("0.2.0")]
+        listdir.return_value = ["migrate_catalog_index_010_to_020.sql"]
+        versions = [DBVersion.from_string("0.1.0"), DBVersion.from_string("0.2.0")]
 
         # call
-        called_versions = self.migration_manager._read_collection_database_versions_from_scripts()
+        called_versions = self.migration_manager._read_catalog_database_versions_from_scripts()
 
         # assert
         self.assertEqual(versions, called_versions)
@@ -258,10 +264,8 @@ WHERE name = 'album_collection'"""
     def test_read_broken_collection_database_versions_from_scripts(self, listdir):
         # prepare
         listdir.return_value = ["migrate_catalog_collection_000_to_10.sql", "migrate_catalog_collection_010_to_020.sql"]
-        versions = [DBVersion.from_string("0.0.0"), DBVersion.from_string("0.1.0"), DBVersion.from_string("0.2.0")]
 
         # call & assert
-
         with self.assertRaises(ValueError):
             self.migration_manager._read_collection_database_versions_from_scripts()
 
@@ -271,6 +275,5 @@ WHERE name = 'album_collection'"""
         listdir.return_value = ["migrate_catalog_index_000_to_01s.sql",
                                 "migrate_catalog_index_010_to_020.sql"]
         # call & assert
-
         with self.assertRaises(ValueError):
             self.migration_manager._read_catalog_database_versions_from_scripts()

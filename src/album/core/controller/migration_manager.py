@@ -49,19 +49,12 @@ class MigrationManager(IMigrationManager):
         """Loads current index on disk and migrates if necessary"""
         catalog.load_index()
         target_version = DBVersion.from_string(DefaultValues.catalog_index_db_version.value)
-        tmp_list= []
-        for i in self.catalog_db_versions:
-            tmp_list.append(str(i))
-        print("THE VERSION LIST IN _LOAD_CATALOG_INDEX: %s" % tmp_list)
-        print("THE CURRENT VERSION IN _LOAD_CATALOG_INDEX: %s" % str(current_version))
-        print("THE TARGET VERSION IN _LOAD_CATALOG_INDEX: %s" % str(target_version))
         if not current_version == target_version:
             if current_version < target_version:
                 for vers in range(self.catalog_db_versions.index(current_version),
                                   self.catalog_db_versions.index(target_version)):
                     current_version = self.catalog_db_versions[vers]
                     next_version = self.catalog_db_versions[vers + 1]
-                    print("!!!!!!!!!Migrating catalog index from %s to %s" % (current_version, next_version))
                     self.migrate_catalog_index_db(catalog.index().get_path(), current_version, next_version)
             else:
                 raise Exception("Your catalog index database of %s is newer than the current version of your Album. "
@@ -111,7 +104,7 @@ class MigrationManager(IMigrationManager):
             catalog.update_index_cache(Path(tmp_dir))
             index_version = DBVersion.from_string(
                 get_dict_entry(get_dict_from_json(catalog.get_meta_file_path()), 'version'))
-        self._load_catalog_index(catalog, index_version)  # CatalogIndex.version)
+        self._load_catalog_index(catalog, index_version)
         self.album.catalogs().set_version(catalog)
 
     def refresh_index(self, catalog: ICatalog) -> bool:
@@ -196,7 +189,7 @@ class MigrationManager(IMigrationManager):
 
     @staticmethod
     def _read_collection_database_versions_from_scripts():
-        versions = [DBVersion.from_string("0.0.0")]
+        versions = [DBVersion.from_string("0.1.0")]
         for file in os.listdir(pkg_resources.resource_filename('album.core.schema.migrations.catalog_collection', '')):
             if ".sql" in file:
                 try:
@@ -208,7 +201,7 @@ class MigrationManager(IMigrationManager):
 
     @staticmethod
     def _read_catalog_database_versions_from_scripts():
-        versions = [DBVersion.from_string("0.0.0")]
+        versions = [DBVersion.from_string("0.1.0")]
         for file in os.listdir(pkg_resources.resource_filename('album.core.schema.migrations.catalog_index', '')):
             if ".sql" in file:
                 try:

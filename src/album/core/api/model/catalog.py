@@ -140,7 +140,3 @@ class ICatalog:
     @abstractmethod
     def get_meta_file_path(self):
         raise NotImplementedError
-
-    @abstractmethod
-    def set_meta_file_path(self, meta_file_path):
-        raise NotImplementedError

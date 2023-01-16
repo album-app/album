@@ -313,6 +313,3 @@ class Catalog(ICatalog):
 
     def get_meta_file_path(self):
         return self._meta_file_path
-
-    def set_meta_file_path(self, meta_file_path):
-        self._meta_file_path = meta_file_path

@@ -68,7 +68,6 @@ class CollectionManager(ICollectionManager):
             collection_version = collection_meta["catalog_collection_version"]
         else:
             if newly_created:
-                # collection_version = CollectionIndex.version
                 collection_version = DefaultValues.catalog_collection_db_version.value
                 self.write_version_to_json(
                     self.album.configuration().get_catalog_collection_meta_path(),
@@ -76,8 +75,6 @@ class CollectionManager(ICollectionManager):
                     collection_version,
                 )
             else:
-                print(self.album.configuration().get_catalog_collection_path())
-                print(self.album.configuration().get_catalog_collection_meta_path())
                 raise RuntimeError(
                     "Album collection database file found, but no meta file specifying the database version."
                 )
@@ -89,7 +86,6 @@ class CollectionManager(ICollectionManager):
         )
         self.album.migration_manager().migrate_collection_index(
             self.catalog_collection,
-            # initial_version=collection_version
             initial_version=DBVersion.from_string(collection_version)
         )
         if newly_created:

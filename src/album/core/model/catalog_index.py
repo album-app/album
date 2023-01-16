@@ -20,7 +20,6 @@ module_logger = album_logging.get_active_logger
 
 
 class CatalogIndex(ICatalogIndex, Database):
-    #version = "0.1.0"  # TODO: Put into default values?
 
     def __init__(self, name, path):
         """Init routine.
@@ -41,7 +40,6 @@ class CatalogIndex(ICatalogIndex, Database):
         cursor = self.get_cursor()
         cursor.executescript(data.decode("utf-8"))
 
-        #self.update_name_version(self.name, self.version, close=False)
         self.update_name_version(self.name, DefaultValues.catalog_index_db_version.value, close=False)
 
         # explicitly commit and close
