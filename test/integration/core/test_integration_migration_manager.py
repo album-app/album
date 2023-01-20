@@ -6,10 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from album.core.model.catalog import Catalog
 from album.core.model.db_version import DBVersion
-from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import get_dict_from_json
-from album.core.utils.operations.git_operations import create_bare_repository, clone_repository, \
-    add_files_commit_and_push
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
@@ -42,30 +39,6 @@ class TestIntegrationMigrationManager(TestIntegrationCoreCommon):
         cursor.close()
         conn.close()
         return result
-
-    def setup_empty_catalog(self, name, catalog_type="direct"):
-        catalog_src_path = Path(self.tmp_dir.name).joinpath("my-catalogs", name)
-        create_bare_repository(catalog_src_path)
-
-        catalog_clone_path = Path(self.tmp_dir.name).joinpath("my-catalogs-clone", name)
-
-        with clone_repository(catalog_src_path, catalog_clone_path) as repo:
-            head = repo.active_branch
-
-            self.album_controller.catalogs().create_new_metadata(
-                catalog_clone_path, name, catalog_type
-            )
-
-            add_files_commit_and_push(
-                head,
-                [catalog_clone_path],
-                "init",
-                push=True,
-                username=DefaultValues.catalog_git_user.value,
-                email=DefaultValues.catalog_git_email.value,
-            )
-
-        return catalog_src_path, catalog_clone_path
 
     def setup_outdated_temporary_collection(self):
         get_catalog_collection_meta_path = MagicMock()
