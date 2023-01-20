@@ -80,7 +80,7 @@ Use the Anaconda Command Prompt or add these to the PATH variable of your system
 - C:\\Users\USERNAME\Anaconda-dir\Library\bin
 
 ## Conda vs mamba
-Album is working with conda and mamba, which are both package managers for Python. The main difference is that, mamba is
+Album is working with conda and mamba, which are both package managers for Python. The main difference is, that mamba is
 faster than conda and can in some cases resolve environments which conda cannot. If you want to use mamba you can install
 mamba in the base environment and then create the Album environment with mamba, or you can use the micromamba installer to
 avoid conda all together.
