@@ -123,7 +123,7 @@ class CloneManager(ICloneManager):
         git_name: str = None,
     ):
         # test if target_path is a valid git repo path or a local path
-        if validators.url(target_path) or url_operations.is_git_ssh_address(target_path):
+        if validators.url(str(target_path)) or url_operations.is_git_ssh_address(str(target_path)):
             with TemporaryDirectory(
                 dir=self.album.configuration().tmp_path()
             ) as tmp_dir:
@@ -138,7 +138,7 @@ class CloneManager(ICloneManager):
             create_path_recursively(target_path)
             create_bare_repository(target_path)
             with TemporaryDirectory(
-                dir=self.album.configuration().tmp_path()
+                    dir=self.album.configuration().tmp_path()
             ) as tmp_dir:
                 tmp_clone_path = Path(tmp_dir).joinpath("clone")
                 with clone_repository(target_path, tmp_clone_path) as repo:
