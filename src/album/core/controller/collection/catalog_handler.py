@@ -70,6 +70,10 @@ class CatalogHandler(ICatalogHandler):
         catalog_meta_information = self._retrieve_catalog_meta_information(
             source, branch_name
         )
+        catalog_dict = self._get_collection_index().get_catalog_by_name(catalog_meta_information["name"])
+        if catalog_dict:
+            module_logger().warning("Cannot add catalog twice! Doing nothing...")
+            return self._as_catalog(catalog_dict)
 
         catalog = self._create_catalog_from_src(
             source, catalog_meta_information, branch_name
