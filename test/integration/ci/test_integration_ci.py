@@ -164,7 +164,7 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
             )
             self.assertIsNone(main())
 
-        self.assertEqual(4, zenodo_upload.call_count)
+        self.assertEqual(3, zenodo_upload.call_count)
         solution_dir = Path("solutions", "group", "name")
         self.assertTrue(
             str(zenodo_upload.call_args_list[0][0][1]).endswith(
