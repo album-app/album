@@ -12,7 +12,6 @@ from album.core.utils.export.changelog import (
     create_changelog_file,
     process_changelog_file,
 )
-from album.core.utils.export.docker import create_docker_file
 from album.core.utils.operations.file_operations import (
     copy,
     write_dict_to_yml,
@@ -391,7 +390,6 @@ class DeployManager(IDeployManager):
                     target = catalog_solution_local_src_path.joinpath(rel_path)
                     res.append(copy(filepath, target))
 
-        res.append(create_docker_file(active_solution, catalog_solution_local_src_path))
         res.append(
             self._create_yaml_file_in_local_src(
                 active_solution, catalog_solution_local_src_path

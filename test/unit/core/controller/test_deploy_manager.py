@@ -315,14 +315,10 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         pass
 
     @patch(
-        "album.core.controller.deploy_manager.create_docker_file",
-        return_value="dockerfile",
-    )
-    @patch(
         "album.core.controller.deploy_manager.create_changelog_file",
         return_value="changelogfile",
     )
-    def test__collect_solution_files(self, create_changelog_file, create_docker_file):
+    def test__collect_solution_files(self, create_changelog_file):
         # prepare
         catalog_src_path, _ = self.setup_empty_catalog("test_cat")
         catalog = Catalog(
