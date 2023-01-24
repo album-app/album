@@ -176,11 +176,6 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         )
         self.assertTrue(
             str(zenodo_upload.call_args_list[2][0][1]).endswith(
-                str(solution_dir.joinpath("Dockerfile"))
-            )
-        )
-        self.assertTrue(
-            str(zenodo_upload.call_args_list[3][0][1]).endswith(
                 str(solution_dir.joinpath("CHANGELOG.md"))
             )
         )
