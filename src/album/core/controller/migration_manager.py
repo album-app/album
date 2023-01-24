@@ -140,7 +140,6 @@ class MigrationManager(IMigrationManager):
             self.schema_solution_runner_0_4_2 = json.loads(data)
 
     @staticmethod
-<<<<<<< HEAD
     def _load_catalog_collection_migration_schema(curr_version, target_version):
         with open(pkg_resources.resource_filename('album.core.schema.migrations.catalog_collection',
                                                   'migrate_catalog_collection_%s_to_%s.sql' % (
@@ -179,13 +178,13 @@ class MigrationManager(IMigrationManager):
         index_dict = get_dict_from_json(catalog_index_json_path)
         index_dict["version"] = DefaultValues.catalog_index_db_version.value
         write_dict_to_json(catalog_index_json_path, index_dict)
-=======
+
+    @staticmethod
     def _convert_schema0_schema1(attrs):
         if "authors" in attrs:
             attrs["solution_creators"] = deepcopy(attrs["authors"])
             attrs.pop("authors")
         return attrs
->>>>>>> 426945e (formatting via black)
 
     @staticmethod
     def _read_collection_database_versions_from_scripts():
