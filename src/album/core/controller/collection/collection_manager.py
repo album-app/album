@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 from typing import Optional, List
 
@@ -75,9 +76,20 @@ class CollectionManager(ICollectionManager):
                     collection_version,
                 )
             else:
-                raise RuntimeError(
-                    "Album collection database file found, but no meta file specifying the database version."
-                )
+                # TODO: legacy code (if block), remove with first stable version of album
+                # needed for backwards compatibility with old album collection versions
+                if Path(self.album.configuration().get_catalog_collection_meta_path()).parent.parent.joinpath(
+                        DefaultValues.catalog_collection_json_name.value).exists():
+                    shutil.move(
+                        Path(self.album.configuration().get_catalog_collection_meta_path().parent.parent.joinpath(
+                            DefaultValues.catalog_collection_json_name.value)),
+                        Path(self.album.configuration().get_catalog_collection_meta_path()))
+                    collection_meta = self.album.configuration().get_catalog_collection_meta_dict()
+                    collection_version = collection_meta["catalog_collection_version"]
+                else:
+                    raise RuntimeError(
+                        "Album collection database file found, but no meta file specifying the database version."
+                    )
         if self.catalog_collection is not None:
             self.catalog_collection.close()
         self.catalog_collection = CollectionIndex(
@@ -102,7 +114,7 @@ class CollectionManager(ICollectionManager):
         for catalog in catalogs:
             solutions = []
             for solution in self.catalog_collection.get_solutions_by_catalog(
-                catalog["catalog_id"]
+                    catalog["catalog_id"]
             ):
                 solutions.append(
                     {"setup": solution.setup(), "internal": solution.internal()}
@@ -146,7 +158,7 @@ class CollectionManager(ICollectionManager):
         return resolve_result
 
     def resolve_and_load_catalog_coordinates(
-        self, catalog: ICatalog, coordinates: ICoordinates
+            self, catalog: ICatalog, coordinates: ICoordinates
     ) -> ICollectionSolution:
         collection_entry = self._search_in_specific_catalog(
             catalog.catalog_id(), coordinates
@@ -168,7 +180,7 @@ class CollectionManager(ICollectionManager):
         return resolve_result
 
     def resolve_and_load_coordinates(
-        self, coordinates: ICoordinates
+            self, coordinates: ICoordinates
     ) -> ICollectionSolution:
         collection_entry = self._search_by_coordinates(coordinates)
         catalog = self.album.catalogs().get_by_id(
@@ -321,7 +333,7 @@ class CollectionManager(ICollectionManager):
         return solution_entry
 
     def _search_by_coordinates(
-        self, coordinates: ICoordinates
+            self, coordinates: ICoordinates
     ) -> Optional[ICollectionIndex.ICollectionSolution]:
         solution_entry = self._search_in_local_catalog(
             coordinates
@@ -341,7 +353,7 @@ class CollectionManager(ICollectionManager):
         return solution_entry
 
     def _search_in_local_catalog(
-        self, coordinates: ICoordinates
+            self, coordinates: ICoordinates
     ) -> Optional[ICollectionIndex.ICollectionSolution]:
         """Searches in the local catalog only"""
         return self._search_in_specific_catalog(
@@ -349,7 +361,7 @@ class CollectionManager(ICollectionManager):
         )
 
     def _search_in_specific_catalog(
-        self, catalog_id, coordinates: ICoordinates
+            self, catalog_id, coordinates: ICoordinates
     ) -> Optional[ICollectionIndex.ICollectionSolution]:
         """Searches in a given catalog only"""
         return self.catalog_collection.get_solution_by_catalog_grp_name_version(
@@ -357,7 +369,7 @@ class CollectionManager(ICollectionManager):
         )
 
     def _search_in_catalogs(
-        self, coordinates: ICoordinates
+            self, coordinates: ICoordinates
     ) -> List[ICollectionIndex.ICollectionSolution]:
         """Searches the whole collection giving coordinates"""
         solution_entries = self.catalog_collection.get_solutions_by_grp_name_version(
@@ -427,7 +439,7 @@ class CollectionManager(ICollectionManager):
         return None
 
     def _handle_multiple_solution_matches(
-        self, solutions: [ICollectionIndex.ICollectionSolution]
+            self, solutions: [ICollectionIndex.ICollectionSolution]
     ):
         call_not_reproducible = "Resolving ambiguous input to %s"
         cache_id = self.catalogs().get_cache_catalog().catalog_id()
