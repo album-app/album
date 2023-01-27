@@ -144,3 +144,8 @@ class ICollectionManager:
     @abstractmethod
     def retrieve_and_load_resolve_result(self, resolve_result: ICollectionSolution):
         raise NotImplementedError
+
+    @staticmethod
+    @abstractmethod
+    def write_version_to_json(path, name, version) -> None:
+        raise NotImplementedError

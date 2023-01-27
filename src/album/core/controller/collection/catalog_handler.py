@@ -12,6 +12,7 @@ from album.core.model.catalog import Catalog, retrieve_index_files_from_src
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.catalog_updates import CatalogUpdates, SolutionChange, ChangeType
 from album.core.model.collection_index import CollectionIndex
+from album.core.model.db_version import DBVersion
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.dict_operations import str_to_dict
 from album.core.utils.operations.file_operations import (
@@ -83,10 +84,8 @@ class CatalogHandler(ICatalogHandler):
         if not catalog.is_cache():
             self.album.migration_manager().migrate_catalog_index_db(
                 catalog.index_file_path(),  # the path to the catalog
-                catalog_meta_information[
-                    "version"
-                ],  # eventually outdated remote version
-                CatalogIndex.version,  # current version in the library
+                DBVersion.from_string(catalog_meta_information["version"]),  # eventually outdated remote version
+                DBVersion.from_string(DefaultValues.catalog_index_db_version.value)
             )
 
         self._add_to_index(catalog)
@@ -172,17 +171,15 @@ class CatalogHandler(ICatalogHandler):
             local_path.mkdir(parents=True)
 
         meta_data = (
-            '{"name": "'
+            '{\"name\": \"'
             + name
-            + '", "version": "'
-            + CatalogIndex.version
-            + '", "type": "'
+            + '\", \"version\": \"'
+            + DefaultValues.catalog_index_db_version.value
+            + '\", \"type\": \"'
             + catalog_type
-            + '"}'
-        )
-        with open(
-            local_path.joinpath(DefaultValues.catalog_index_metafile_json.value), "w"
-        ) as meta:
+            + '\"}'
+            )
+        with open(local_path.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as meta:
             meta.writelines(meta_data)
 
         return str_to_dict(meta_data)
