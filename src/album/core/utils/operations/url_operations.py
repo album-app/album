@@ -94,6 +94,17 @@ def is_url(str_input: str):
     return re.match(url_regex, str_input) is not None
 
 
+def is_git_ssh_address(str_input: str):
+    """Parses a ssh address."""
+    git_regex = re.compile(
+        r"(ssh://){0,1}"  # long ssh address start
+        r"[\S]*@"  # user@
+        r"[\S]*",  # host and project
+        re.IGNORECASE,
+    )
+    return re.match(git_regex, str_input) is not None
+
+
 def download(str_input, base):
     """Downloads a solution file into a temporary file."""
     Path(base).mkdir(exist_ok=True, parents=True)
