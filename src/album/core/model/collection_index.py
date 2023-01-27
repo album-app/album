@@ -8,10 +8,10 @@ from album.core.model.database import Database
 from album.core.utils.operations.file_operations import get_dict_entry
 from album.core.utils.operations.solution_operations import get_solution_hash
 from album.runner.core.api.model.coordinates import ICoordinates
+from album.core.model.default_values import DefaultValues
 
 
 class CollectionIndex(ICollectionIndex, Database):
-    version = "0.1.0"
 
     class CollectionSolution(ICollectionIndex.ICollectionSolution):
         def __init__(self, setup: dict = None, internal: dict = None):
@@ -41,7 +41,7 @@ class CollectionIndex(ICollectionIndex, Database):
         data = pkgutil.get_data("album.core.schema", "catalog_collection_schema.sql")
         cursor = self.get_cursor()
         cursor.executescript(data.decode("utf-8"))
-        self.update_name_version(self.name, self.version, close=False)
+        self.update_name_version(self.name, DefaultValues.catalog_collection_db_version.value, close=False)
 
         self.close_current_connection()
 
@@ -213,6 +213,46 @@ class CollectionIndex(ICollectionIndex, Database):
         )
         cursor.execute(
             "DELETE FROM tag " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM collection_author " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM author " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM collection_citation " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM citation " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM collection_argument " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM argument " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM collection_custom " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM custom " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM cover " "WHERE catalog_id=:catalog_id",
+            {"catalog_id": catalog_id},
+        )
+        cursor.execute(
+            "DELETE FROM documentation " "WHERE catalog_id=:catalog_id",
             {"catalog_id": catalog_id},
         )
         cursor.execute(
@@ -875,12 +915,13 @@ class CollectionIndex(ICollectionIndex, Database):
 
         res = []
         for row in r:
-            argument = {
-                "name": row["name"],
-                "type": row["type"],
-                "description": row["description"],
-            }
-            if row["default_value"]:
+            row = dict(row)
+            argument = {"name": row["name"], "type": row["type"]}
+            if "description" in row and row["description"] is not None:
+                argument["description"] = row["description"]
+            if "required" in row and row["required"] is not None:
+                argument["required"] = bool(row["required"])
+            if "default_value" in row and row["default_value"] is not None:
                 argument["default"] = row["default_value"]
             res.append(argument)
 

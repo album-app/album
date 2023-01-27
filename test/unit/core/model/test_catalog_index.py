@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 from album.core.model.catalog_index import CatalogIndex
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.runner.core.model.coordinates import Coordinates
+from album.core.model.default_values import DefaultValues
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
@@ -81,7 +82,7 @@ class TestCatalogIndex(TestUnitCoreCommon):
         self.assertEqual("test", self.catalog_index.get_name())
 
         # call
-        self.catalog_index.update_name_version("myName", self.catalog_index.version)
+        self.catalog_index.update_name_version("myName", DefaultValues.catalog_index_db_version.value)
 
         # assert
         self.assertEqual("myName", self.catalog_index.get_name())
@@ -131,6 +132,7 @@ class TestCatalogIndex(TestUnitCoreCommon):
             "name": "myName",
             "type": "myType",
             "description": "myDescription",
+            "required": False,
             "default": "myDefaultValue",
         }
         # call
@@ -170,6 +172,26 @@ class TestCatalogIndex(TestUnitCoreCommon):
 
         # assert
         self.assertFalse(self.catalog_index.is_table_empty("documentation"))
+
+    def test__get_arguments_by_solution(self):
+        self.is_empty_or_full(empty=True)
+        self.assertTrue(self.catalog_index.is_table_empty("argument"))
+        arg = {
+            "name": "myName",
+            "type": "myType",
+            "description": "myDescription",
+            "required": False,
+            "default": "myDefaultValue",
+        }
+        arg_id = self.catalog_index._insert_argument(arg)
+        self.catalog_index.get_cursor().execute(
+            "INSERT INTO solution_argument values (?, ?, ?)",
+            (1, 1, arg_id),
+        )
+
+        # assert
+        self.assertFalse(self.catalog_index.is_table_empty("argument"))
+        self.assertEqual([arg], self.catalog_index._get_arguments_by_solution(1))
 
     def test__exists_author(self):
         self.is_empty_or_full(empty=True)

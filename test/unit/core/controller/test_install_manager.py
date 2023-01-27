@@ -263,7 +263,7 @@ class TestInstallManager(TestUnitCoreCommon):
         remove_dc.assert_called_once()
         set_cache_paths.assert_called_once()
         get_by_id_mock.assert_called_once_with(1)
-        retrieve_and_load_resolve_result.assert_called_once()
+        retrieve_and_load_resolve_result.assert_not_called()
         _clean_unfinished_installations_environment.assert_called_once()
         remove_solution.assert_called_once()
 
@@ -324,7 +324,7 @@ class TestInstallManager(TestUnitCoreCommon):
         remove_dc.assert_called_once()
         set_cache_paths.assert_called_once()
         get_by_id_mock.assert_called_once_with(1)
-        retrieve_and_load_resolve_result.assert_called_once()
+        retrieve_and_load_resolve_result.assert_not_called()
         _clean_unfinished_installations_environment.assert_not_called()
         remove_solution.assert_called_once()
 

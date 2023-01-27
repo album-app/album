@@ -14,12 +14,12 @@ from album.core.utils.operations.solution_operations import (
 )
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
+from album.core.model.default_values import DefaultValues
 
 module_logger = album_logging.get_active_logger
 
 
 class CatalogIndex(ICatalogIndex, Database):
-    version = "0.1.0"
 
     def __init__(self, name, path):
         """Init routine.
@@ -40,7 +40,7 @@ class CatalogIndex(ICatalogIndex, Database):
         cursor = self.get_cursor()
         cursor.executescript(data.decode("utf-8"))
 
-        self.update_name_version(self.name, self.version, close=False)
+        self.update_name_version(self.name, DefaultValues.catalog_index_db_version.value, close=False)
 
         # explicitly commit and close
         self.close_current_connection(commit=True)
@@ -334,7 +334,7 @@ class CatalogIndex(ICatalogIndex, Database):
                 argument_id,
                 argument["name"],
                 get_dict_entry(argument, "type"),
-                argument["description"],
+                get_dict_entry(argument, "description"),
                 get_dict_entry(argument, "default"),
                 get_dict_entry(argument, "required"),
             ),
@@ -775,7 +775,15 @@ class CatalogIndex(ICatalogIndex, Database):
 
         res = []
         for row in r:
-            res.append(dict(row))
+            row = dict(row)
+            argument = {"name": row["name"], "type": row["type"]}
+            if "description" in row and row["description"] is not None:
+                argument["description"] = row["description"]
+            if "required" in row and row["required"] is not None:
+                argument["required"] = bool(row["required"])
+            if "default_value" in row and row["default_value"] is not None:
+                argument["default"] = row["default_value"]
+            res.append(argument)
 
         if close:
             self.close_current_connection()

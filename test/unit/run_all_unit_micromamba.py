@@ -6,14 +6,13 @@ from test.unit.ci import test_ci_argument_parsing, test_ci_commandline
 from test.unit.ci.controller import test_release_manager, test_zenodo_manager
 from test.unit.ci.utils import test_continuous_integration
 from test.unit.core.controller import test_event_manager
-from test.unit.core.controller import test_mamba_manager
 from test.unit.core.controller import test_script_manager
 from test.unit.core.controller import (
     test_search_manager,
     test_install_manager,
     test_run_manager,
     test_deploy_manager,
-    test_conda_manager,
+    test_micromamba_manager,
     test_test_manager,
     test_task_manager,
     test_clone_manager,
@@ -33,6 +32,7 @@ from test.unit.core.model import (
     test_collection_index,
     test_task,
     test_database,
+    test_db_version,
 )
 from test.unit.core.utils import test_subcommand
 from test.unit.core.utils.export import test_changelog, test_docker
@@ -61,8 +61,7 @@ def main():
 
     # album core.controller
     suite.addTests(loader.loadTestsFromModule(test_clone_manager))
-    suite.addTests(loader.loadTestsFromModule(test_conda_manager))
-    suite.addTests(loader.loadTestsFromModule(test_mamba_manager))
+    suite.addTests(loader.loadTestsFromModule(test_micromamba_manager))
     suite.addTests(loader.loadTestsFromModule(test_deploy_manager))
     suite.addTests(loader.loadTestsFromModule(test_environment_manager))
     suite.addTests(loader.loadTestsFromModule(test_install_manager))

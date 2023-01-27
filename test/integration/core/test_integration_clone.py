@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from git import GitCommandError
+
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.git_operations import (
     clone_repository,
@@ -103,6 +105,20 @@ class TestIntegrationClone(TestIntegrationCoreCommon):
                 Path(repo.working_tree_dir)
                 .joinpath("album_catalog_index.json")
                 .exists()
+            )
+
+    def test_clone_catalog_template_into_non_accessible_repo(self):
+        # prepare
+        target_path = "git@valid_ssh:format.git"
+
+        # call with wrong ssh key and assert
+        with self.assertRaises(GitCommandError):
+            self.album_controller.clone_manager().clone(
+                "template:catalog",
+                target_dir=str(target_path),
+                name="my_catalog",
+                git_email=DefaultValues.catalog_git_email.value,
+                git_name=DefaultValues.catalog_git_user.value,
             )
 
     def test_clone_non_existing_solution(self):

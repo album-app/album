@@ -2,6 +2,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import git.exc
+import validators
 from git import Repo
 
 from album.core.api.controller.clone_manager import ICloneManager
@@ -121,23 +122,23 @@ class CloneManager(ICloneManager):
         git_email: str = None,
         git_name: str = None,
     ):
-        # test if target_path can already be cloned:
-
-        try:
+        # test if target_path is a valid git repo path or a local path
+        if validators.url(str(target_path)) or url_operations.is_git_ssh_address(str(target_path)):
             with TemporaryDirectory(
                 dir=self.album.configuration().tmp_path()
             ) as tmp_dir:
                 tmp_clone_path = Path(tmp_dir).joinpath("clone")
+                module_logger().info("Cloning target repository...")
                 with clone_repository(target_path, tmp_clone_path) as repo:
                     self._copy_template_into_repository(
                         repo, template_folder, catalog_name, git_email, git_name
                     )
                 force_remove(tmp_clone_path)
-        except git.GitCommandError:
+        else:
             create_path_recursively(target_path)
             create_bare_repository(target_path)
             with TemporaryDirectory(
-                dir=self.album.configuration().tmp_path()
+                    dir=self.album.configuration().tmp_path()
             ) as tmp_dir:
                 tmp_clone_path = Path(tmp_dir).joinpath("clone")
                 with clone_repository(target_path, tmp_clone_path) as repo:

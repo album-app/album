@@ -5,6 +5,7 @@ from album.core.api.model.collection_index import ICollectionIndex
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
+from album.runner.core.model.solution import Solution
 
 
 class ResolveResult(ICollectionSolution):
@@ -21,6 +22,9 @@ class ResolveResult(ICollectionSolution):
         self._collection_entry: ICollectionIndex.ICollectionSolution = collection_entry
         self._coordinates: ICoordinates = coordinates
         self._loaded_solution: ISolution = loaded_solution
+
+        if collection_entry and not loaded_solution:
+            self._load_solution_from_collection_entry()
 
     def __eq__(self, other):
         return (
@@ -55,3 +59,7 @@ class ResolveResult(ICollectionSolution):
 
     def set_database_entry(self, database_entry: ICollectionIndex.ICollectionSolution):
         self._collection_entry = database_entry
+
+    def _load_solution_from_collection_entry(self):
+        attrs = self._collection_entry.setup()
+        self.set_loaded_solution(Solution(attrs))

@@ -104,7 +104,7 @@ class TestCondaManager(TestUnitCoreCommon):
         )
         self.assertTrue(self.conda.environment_exists(self.test_environment_name))
 
-    def test__append_framework_to_yml(self):
+    def test__append_framework_to_yml_pip(self):
         output = CondaManager._append_framework_to_yml(
             yaml.safe_load(
                 """
@@ -132,6 +132,16 @@ dependencies:
             output,
         )
 
+    def test__append_framework_to_yml_conda(self):
+        output = CondaManager._append_framework_to_yml(
+            yaml.safe_load("""dependencies:\n  - python"""),
+            "0.5.1",
+        )
+        self.assertEqual(
+            {"dependencies": ["python", "conda-forge::album-runner=0.5.1"]},
+            output,
+        )
+
     def test_create_environment_from_file_invalid(self):
         # wrong file ending
         with self.assertRaises(NameError):
@@ -149,7 +159,8 @@ dependencies:
     def test_create_environment(self):
         self.assertFalse(self.conda.environment_exists(self.test_environment_name))
 
-        skip = False
+        skip = False  # The test checks if an environment error is raised when the same environment ist created two
+        # times the skip variable is used two skip the second env creation call if the first one fails
 
         try:
             self.conda.create_environment(self.test_environment_name)

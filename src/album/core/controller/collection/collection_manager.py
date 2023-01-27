@@ -11,6 +11,7 @@ from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.collection.solution_handler import SolutionHandler
 from album.core.model.collection_index import CollectionIndex
+from album.core.model.db_version import DBVersion
 from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import write_dict_to_json
@@ -67,8 +68,8 @@ class CollectionManager(ICollectionManager):
             collection_version = collection_meta["catalog_collection_version"]
         else:
             if newly_created:
-                collection_version = CollectionIndex.version
-                self.write_version_to_yml(
+                collection_version = DefaultValues.catalog_collection_db_version.value
+                self.write_version_to_json(
                     self.album.configuration().get_catalog_collection_meta_path(),
                     "my-collection",
                     collection_version,
@@ -84,7 +85,8 @@ class CollectionManager(ICollectionManager):
             path=self.album.configuration().get_catalog_collection_path(),
         )
         self.album.migration_manager().migrate_collection_index(
-            self.catalog_collection, initial_version=collection_version
+            self.catalog_collection,
+            initial_version=DBVersion.from_string(collection_version)
         )
         if newly_created:
             self.catalog_handler.add_initial_catalogs()
@@ -376,11 +378,11 @@ class CollectionManager(ICollectionManager):
         resolve_result.set_coordinates(resolve_result.loaded_solution().coordinates())
 
     @staticmethod
-    def write_version_to_yml(path, name, version) -> None:
-        write_dict_to_json(
-            path,
-            {"catalog_collection_name": name, "catalog_collection_version": version},
-        )
+    def write_version_to_json(path, name, version) -> None:
+        write_dict_to_json(path, {
+            "catalog_collection_name": name,
+            "catalog_collection_version": version
+        })
 
     def _guess(self, str_input) -> Optional[ICollectionIndex.ICollectionSolution]:
         input_parts = str_input.split(":")

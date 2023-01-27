@@ -147,7 +147,6 @@ class ReleaseManager:
         )
         zip = Path(tmp).joinpath(DefaultValues.solution_zip_default_name.value)
         zip_folder(solution_dir_in_repo, zip)
-        docker_name = solution_dir_in_repo.joinpath("Dockerfile")
         changelog_name = solution_dir_in_repo.joinpath(get_changelog_file_name())
         documentation_paths = self._get_documentation_paths(
             solution_dir_in_repo, yml_dict
@@ -156,7 +155,7 @@ class ReleaseManager:
         solution_yml = solution_dir_in_repo.joinpath(
             DefaultValues.solution_yml_default_name.value
         )
-        files = [str(solution_yml), str(zip), str(docker_name)]
+        files = [str(solution_yml), str(zip)]
         for doc in documentation_paths:
             files.append(str(doc))
         for cover in cover_paths:
