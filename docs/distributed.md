@@ -4,11 +4,11 @@ This is an early version of enhancing album with calls for batch and distributed
 
 ## Installation
 1. [Install Album](https://docs.album.solutions/en/latest/installation-instructions.html#)
-2. Activate the Album environment: <br>
+2. Activate the Album environment:
 If you installed Album with the Album installation wizard use one of the following commands to activate your 
 Album environment:
       ```
-      micromamba activate -p /~/.album/envs/album
+      micromamba activate -p ~/.album/envs/album
       ```
    If you installed Album manually use following command:
       ```

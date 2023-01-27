@@ -10,7 +10,7 @@ Have a look at your local collection.
 ```
 album index
 ```
-When running Album for the first time, the default Album catalog is added and you should see a list of template solutions in your collection. <br>
+When running Album for the first time, the default Album catalog is added and you should see a list of template solutions in your collection.
 <br>
 Please note that this local collection is unique for each user of the system. If another user runs the 
 index command the output will be different.

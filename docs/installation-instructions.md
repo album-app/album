@@ -24,7 +24,7 @@ On your Desktop you will find a link called Album which will start the Album gra
 To activate the Album environment for commandline use one of the following commands:
 
 ```
-micromamba activate -p /~/.album/envs/album
+micromamba activate -p ~/.album/envs/album
 ```
 **Uninstallation**
 
@@ -36,7 +36,7 @@ To uninstall everything, simply delete the .album directory in your home directo
 
 Prerequisites:
 
-- an Anaconda installation, i.e. [Miniconda](https://docs.conda.io/en/latest/miniconda.html) <br>
+- an Anaconda installation, i.e. [Miniconda](https://docs.conda.io/en/latest/miniconda.html)
 
 **Install the Album environment:**
 
@@ -80,13 +80,13 @@ Use the Anaconda Command Prompt or add these to the PATH variable of your system
 - C:\\Users\USERNAME\Anaconda-dir\Library\bin
 
 ## Conda vs mamba
-Album is working with conda and mamba, which are both package managers for Python. The main difference is, that mamba is
-faster than conda and can in some cases resolve environments which conda cannot. If you want to use mamba you can install
-mamba in the base environment and then create the Album environment with mamba, or you can use the micromamba installer to
-avoid conda all together.
+Album is working with conda and mamba, which are both open source package and environment management systems. 
+The main difference is, that mamba is faster than conda and can in some cases resolve environments which conda cannot. 
+If you want to use mamba you can install mamba in the base environment and then create the Album environment with mamba,
+or you can use the micromamba installer to avoid conda all together.
 
 ## Conda using mamba
-If  you are already using conda and want to profite mamba, you can install mamba in the base environment and use it to 
+If  you are already using conda and want to profit mamba, you can install mamba in the base environment and use it to 
 create environments. Conda can then still be used to activate the environments.
 
 ```
