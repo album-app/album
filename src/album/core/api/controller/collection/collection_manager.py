@@ -146,5 +146,6 @@ class ICollectionManager:
         raise NotImplementedError
 
     @abstractmethod
-    def write_version_to_json(self, path, name, version) -> None:
+    @staticmethod
+    def write_version_to_json(path, name, version) -> None:
         raise NotImplementedError

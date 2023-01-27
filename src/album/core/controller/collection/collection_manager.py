@@ -377,7 +377,8 @@ class CollectionManager(ICollectionManager):
         )
         resolve_result.set_coordinates(resolve_result.loaded_solution().coordinates())
 
-    def write_version_to_json(self, path, name, version) -> None:
+    @staticmethod
+    def write_version_to_json(path, name, version) -> None:
         write_dict_to_json(path, {
             "catalog_collection_name": name,
             "catalog_collection_version": version
