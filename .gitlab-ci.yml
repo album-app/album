@@ -318,6 +318,7 @@
     - bash $tmpdir/miniconda.sh -b -p $tmpdir/miniconda
     - export PATH=$PATH:$tmpdir/miniconda/bin/
     - echo $PATH
+    - conda install -y mamba -c conda-forge
     - conda create -y --channel=conda-forge -n album python=3.9 pip git
     - source $tmpdir/miniconda/bin/activate
     - conda activate album
