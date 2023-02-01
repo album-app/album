@@ -437,13 +437,13 @@ unit tests linux micromamba:
     paths:
       - unit.coverage
 
-unit tests linux conda:
+.unit tests linux conda:
   extends: .linux_base_template_conda
   stage: test
   script:
     - python -m unittest test/unit/run_all_unit_conda.py
 
-unit tests linux conda with mamba:
+.unit tests linux conda with mamba:
   extends: .linux_base_template_conda_with_mamba
   stage: test
   script:
@@ -456,18 +456,21 @@ integration tests linux micromamba:
     - $CI_PROJECT_DIR/bin/micromamba run -n album python -m unittest test/integration/run_all_integration_micromamba.py
     - coverage run --omit './test/*' -m unittest test/integration/run_all_integration_micromamba.py
     - coverage report
-    - mv .coverage integration.coverage
+    - coverage xml
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
-    paths:
-      - integration.coverage
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
 
-integration tests linux conda:
+.integration tests linux conda:
   extends: .linux_base_template_conda
   stage: test
   script:
     - python -m unittest test/integration/run_integration_conda.py
 
-integration tests linux conda with mamba:
+.integration tests linux conda with mamba:
   extends: .linux_base_template_conda_with_mamba
   stage: test
   script:
@@ -480,17 +483,44 @@ unit tests macos micromamba:
   stage: test
   script:
     - $MICROMAMBA_EXECUTABLE run -n album python -m unittest test/unit/run_all_unit_micromamba.py
+    - python -m unittest test/unit/run_all_unit_micromamba.py
+
+.unit tests macos conda:
+  extends: .macos_base_template_conda
+  stage: test
+  script:
+    - python -m unittest test/unit/run_all_unit_conda.py
+
+.unit tests macos conda with mamba:
+  extends: .macos_base_template_conda_with_mamba
+  stage: test
+  script:
+    - python -m unittest test/unit/run_all_unit_conda_with_mamba.py
 
 
-integration tests macos micromamba:
+.integration tests macos micromamba:
   extends: .macos_base_template_micromamba
   stage: test
   script:
     - $MICROMAMBA_EXECUTABLE run -n album python -m unittest test/integration/run_all_integration_micromamba.py
+    - python -m unittest test/integration/run_all_integration_micromamba.py
+
+.integration tests macos conda:
+  extends: .macos_base_template_conda
+  stage: test
+  script:
+    - python -m unittest test/integration/run_integration_conda.py
+
+
+.integration tests macos conda with mamba:
+  extends: .macos_base_template_conda_with_mamba
+  stage: test
+  script:
+    - python -m unittest test/integration/run_integration_conda.py
 
 # Windows Tests
 
-unit tests windows micromamba:
+.unit tests windows micromamba:
   extends: .windows_base_template_micromamba
   stage: test
   script:
@@ -500,21 +530,21 @@ unit tests windows micromamba:
     paths:
       - unit.coverage
 
-unit tests windows conda:
+.unit tests windows conda:
   extends: .windows_base_template_conda
   stage: test
   script:
     - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit_conda.py 2>&1 | Write-Host; exit($lastexitcode)}
 
 
-unit tests windows conda with mamba:
+.unit tests windows conda with mamba:
   extends: .windows_base_template_conda_with_mamba
   stage: test
   script:
     - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit_conda_with_mamba.py 2>&1 | Write-Host; exit($lastexitcode)}
 
 
-integration tests windows conda with mamba:
+.integration tests windows conda with mamba:
   extends: .windows_base_template_conda_with_mamba
   stage: test
   script:
@@ -522,7 +552,7 @@ integration tests windows conda with mamba:
     - .\micromamba_installation\Library\bin\micromamba.exe run -n album python -m unittest .\test\unit\run_all_unit_micromamba.py
 
 
-integration tests windows micromamba:
+.integration tests windows micromamba:
   extends: .windows_base_template_micromamba
   stage: test
   script:
