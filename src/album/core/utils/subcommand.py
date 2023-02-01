@@ -1,4 +1,5 @@
 import io
+import platform
 import re
 import subprocess
 import sys
@@ -202,13 +203,22 @@ class SubProcessError(RuntimeError):
 
 def _run_process(command, log: LogProcessing, pipe_output):
     if pipe_output:
-        process = subprocess.Popen(
-            command,
-            shell=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
+        if platform.system() == "Windows":
+            process = subprocess.Popen(
+                command,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
+        else:
+            process = subprocess.Popen(
+                command,
+                shell=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
         while True:
             output = process.stdout.readline()
             if process.poll() is not None:

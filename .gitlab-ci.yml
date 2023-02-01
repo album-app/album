@@ -32,9 +32,17 @@
     - '& $7ZIP_EXE x micromamba.tar.bz2 -aoa'
     - '& $7ZIP_EXE x micromamba.tar -ttar -aoa -r Library\bin\micromamba.exe $("-o" + $Env:MAMBA_ROOT_PREFIX)'
     - '$progressPreference = $oldProgressPreference'
-    - '.\micromamba\Library\bin\micromamba.exe create -y -n album album -c conda-forge python=3.10'
+    - '.\micromamba\Library\bin\micromamba.exe create -y -n album -c conda-forge python=3.10'
     - '.\micromamba\Library\bin\micromamba.exe run -n album pip uninstall -y album'
-    - '.\micromamba\Library\bin\micromamba.exe run -n album pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip'
+#    - '.\micromamba\Library\bin\micromamba.exe run -n album pip install album-runner'
+#    - '.\micromamba\Library\bin\micromamba.exe run -n album pip install -e $CI_PROJECT_DIR'
+#    - '.\micromamba\Library\bin\micromamba.exe run -n album pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME'
+#    - '.\micromamba\Library\bin\micromamba.exe run -n album pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip'
+#    - 'git clone https://gitlab.com/album-app/album.git album'
+#    - 'cd album'
+#    - 'git checkout $CI_COMMIT_SHA'
+    - '.\micromamba\Library\bin\micromamba.exe run -n album pip install -e .'
+    - '.\micromamba\Library\bin\micromamba.exe run -n album pip install coverage'
     - '.\micromamba\Library\bin\micromamba.exe shell init -s powershell -p $Env:MAMBA_ROOT_PREFIX '
 
   tags:
@@ -130,8 +138,11 @@
   image: ubuntu:latest
   tags:
     - docker
+    - vm
   before_script:
+    - df
     - apt update
+    - apt install git -y
     - apt install -y curl
     - apt install -y bzip2
     - export MAMBA_ROOT_PREFIX=$CI_PROJECT_DIR/micromamba
@@ -139,10 +150,13 @@
     - mkdir -p $CI_PROJECT_DIR/bin/
     - curl -Ls https://gitlab.com/album-app/plugins/album-package/-/raw/micromamba_installer/micromamba-1.0.0_LINUX_X86_64.tar.bz2?inline=false | tar -xvj -C $CI_PROJECT_DIR/bin/ --strip-components=1 bin/micromamba
     - eval "$($CI_PROJECT_DIR/bin/micromamba shell hook -s posix)"
-    - micromamba create -y -n album album -c conda-forge python=3.10
+    - micromamba create -y -n album -c conda-forge python=3.10
     - micromamba activate album
     - pip uninstall -y album
-    - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
+#    - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
+    - pwd
+    - ls -la
+    - pip install -e .
     - python -V
     - pip install coverage
     - pip list
@@ -169,6 +183,8 @@
   tags:
     - docker
   before_script:
+    - apt update
+    - apt install git -y
     - python -V  # Print out python version for debugging
     - pwd
     - which python
@@ -176,7 +192,8 @@
     - conda init bash
     - source ~/.bashrc
     - conda activate album
-    - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
+#    - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
+    - pip install -e .
     - which python
     - pwd
     - ls ${CONDA_PREFIX}
@@ -206,6 +223,8 @@
   tags:
     - docker
   before_script:
+    - apt update
+    - apt install git -y
     - python -V  # Print out python version for debugging
     - pwd
     - which python
@@ -214,7 +233,8 @@
     - source ~/.bashrc
     - conda install -y mamba -c conda-forge
     - conda activate album
-    - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
+#    - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
+    - pip install -e .
     - which python
     - pwd
     - ls ${CONDA_PREFIX}
@@ -482,7 +502,7 @@ docker deploy:
 
 # Linux Tests
 
-cmdline linux:
+.cmdline linux:
   extends: .linux_base_template_micromamba
   stage: build
   script:
@@ -502,15 +522,13 @@ unit tests linux micromamba:
   extends: .linux_base_template_micromamba
   stage: test
   script:
-    - coverage run -m unittest test/unit/run_all_unit_micromamba.py
+    #- coverage run --data-file=unit.coverage --omit .\test\* -m unittest test/unit/run_all_unit_micromamba.py
+    - coverage run --omit './test/*' -m unittest test/unit/run_all_unit_micromamba.py
     - coverage report
-    - coverage xml
-  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+    - mv .coverage unit.coverage
   artifacts:
-    reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: coverage.xml
+    paths:
+      - unit.coverage
 
 .unit tests linux conda:
   extends: .linux_base_template_conda
@@ -528,15 +546,13 @@ integration tests linux micromamba:
   extends: .linux_base_template_micromamba
   stage: test
   script:
-    - coverage run -m unittest test/integration/run_all_integration_micromamba.py
+    #- coverage run --data-file=integration.coverage --omit .\test\* -m unittest test/integration/run_all_integration_micromamba.py
+    - coverage run --omit './test/*' -m unittest test/integration/run_all_integration_micromamba.py
     - coverage report
-    - coverage xml
-  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+    - mv .coverage integration.coverage
   artifacts:
-    reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: coverage.xml
+    paths:
+      - integration.coverage
 
 .integration tests linux conda:
   extends: .linux_base_template_conda
@@ -552,7 +568,7 @@ integration tests linux micromamba:
 
 # MacOs Tests
 
-unit tests macos micromamba:
+.unit tests macos micromamba:
   extends: .macos_base_template_micromamba
   stage: test
   script:
@@ -592,12 +608,14 @@ unit tests macos micromamba:
 
 # Windows Tests
 
-.unit tests windows micromamba:
+unit tests windows micromamba:
   extends: .windows_base_template_micromamba
   stage: test
   script:
-    - $cmnd = powershell.exe -command {micromamba activate album 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit_micromamba.py 2>&1 | Write-Host; exit($lastexitcode)}
-
+    - $cmnd = powershell.exe -command {micromamba activate album 2>&1 | Write-Host; coverage run --omit .\test\* -m unittest test\unit\run_all_unit_micromamba.py 2>&1 | Write-Host; if ($lastexitcode -ne 0) {exit(1)} else {coverage report 2>&1| Write-Host; coverage xml 2>&1| Write-Host; Rename-Item -Path ".coverage" -NewName "unit.coverage" 2>&1 | Write-Host; Rename-Item -Path "coverage.xml" -NewName "unit_coverage.xml" 2>&1 | Write-Host;} exit($lastexitcode)}
+  artifacts:
+    paths:
+      - unit.coverage
 
 .unit tests windows conda:
   extends: .windows_base_template_conda
@@ -613,21 +631,23 @@ unit tests macos micromamba:
     - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit_conda_with_mamba.py 2>&1 | Write-Host; exit($lastexitcode)}
 
 
-.integration tests windows conda with mamba:
+integration tests windows conda with mamba:
   extends: .windows_base_template_conda_with_mamba
   stage: test
   script:
     - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\integration\run_integration_conda.py 2>&1 | Write-Host; exit($lastexitcode)}
 
 
-.integration tests windows micromamba:
+integration tests windows micromamba:
   extends: .windows_base_template_micromamba
   stage: test
   script:
-    - $cmnd = powershell.exe -command {micromamba activate album 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration_micromamba.py 2>&1 | Write-Host; exit($lastexitcode)}
+    - $cmnd = powershell.exe -command {micromamba activate album 2>&1 | Write-Host; coverage run --omit .\test\* -m unittest test\integration\run_all_integration_micromamba.py 2>&1 | Write-Host; if ($lastexitcode -ne 0) {exit(1)} else {coverage report 2>&1| Write-Host; coverage xml 2>&1| Write-Host; Rename-Item -Path ".coverage" -NewName "integration.coverage" 2>&1 | Write-Host; Rename-Item -Path "coverage.xml" -NewName "integration_coverage.xml" 2>&1 | Write-Host;} exit($lastexitcode)}
+  artifacts:
+    paths:
+      - integration.coverage
 
-
-integration tests windows conda:
+.integration tests windows conda:
   extends: .windows_base_template_conda
   stage: test
   script:
@@ -661,3 +681,42 @@ release tests linux:
       changes:
         - setup.cfg
 
+# Create combined coverage reports
+
+create combined coverage for linux:
+  extends: .linux_base_template_micromamba
+  stage: test
+  dependencies:
+    - unit tests linux micromamba
+    - integration tests linux micromamba
+  needs:
+    - unit tests linux micromamba
+    - integration tests linux micromamba
+  script:
+    - coverage combine unit.coverage integration.coverage
+    - coverage report
+    - coverage xml
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+
+create combined coverage for windows:
+  extends: .windows_base_template_micromamba
+  stage: test
+  dependencies:
+    - unit tests windows micromamba
+    - integration tests windows micromamba
+  needs:
+    - unit tests windows micromamba
+    - integration tests windows micromamba
+  script:
+    - $cmnd = powershell.exe -command {micromamba activate album 2>&1 | Write-Host; coverage combine unit.coverage integration.coverage 2>&1 | Write-Host; coverage report 2>&1| Write-Host; coverage xml 2>&1| Write-Host; exit($lastexitcode)}
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
