@@ -407,7 +407,7 @@ docker deploy:
 
 # Linux Tests
 
-cmdline linux:
+.cmdline linux:
   extends: .linux_base_template_micromamba
   stage: build
   script:
@@ -429,6 +429,8 @@ unit tests linux micromamba:
   extends: .linux_base_template_micromamba
   stage: test
   script:
+    #- coverage run --data-file=unit.coverage --omit .\test\* -m unittest test/unit/run_all_unit_micromamba.py
+    - coverage run --omit './test/*' -m unittest test/unit/run_all_unit_micromamba.py
     - $CI_PROJECT_DIR/bin/micromamba run -n album python -m unittest test/unit/run_all_unit_micromamba.py
     - coverage run --omit './test/*' -m unittest test/unit/run_all_unit_micromamba.py
     - coverage report
@@ -453,16 +455,15 @@ integration tests linux micromamba:
   extends: .linux_base_template_micromamba
   stage: test
   script:
+    #- coverage run --data-file=integration.coverage --omit .\test\* -m unittest test/integration/run_all_integration_micromamba.py
+    - coverage run --omit './test/*' -m unittest test/integration/run_all_integration_micromamba.py
     - $CI_PROJECT_DIR/bin/micromamba run -n album python -m unittest test/integration/run_all_integration_micromamba.py
     - coverage run --omit './test/*' -m unittest test/integration/run_all_integration_micromamba.py
     - coverage report
-    - coverage xml
-  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+    - mv .coverage integration.coverage
   artifacts:
-    reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: coverage.xml
+    paths:
+      - integration.coverage
 
 .integration tests linux conda:
   extends: .linux_base_template_conda
@@ -478,7 +479,7 @@ integration tests linux micromamba:
 
 # MacOs Tests
 
-unit tests macos micromamba:
+.unit tests macos micromamba:
   extends: .macos_base_template_micromamba
   stage: test
   script:
@@ -520,12 +521,11 @@ unit tests macos micromamba:
 
 # Windows Tests
 
-.unit tests windows micromamba:
+unit tests windows micromamba:
   extends: .windows_base_template_micromamba
   stage: test
   script:
     - $cmnd = powershell.exe -command {micromamba activate album 2>&1 | Write-Host; coverage run --omit .\test\* -m unittest test\unit\run_all_unit_micromamba.py 2>&1 | Write-Host; if ($lastexitcode -ne 0) {exit(1)} else {coverage report 2>&1| Write-Host; coverage xml 2>&1| Write-Host; Rename-Item -Path ".coverage" -NewName "unit.coverage" 2>&1 | Write-Host; Rename-Item -Path "coverage.xml" -NewName "unit_coverage.xml" 2>&1 | Write-Host;} exit($lastexitcode)}
-    - $cmnd_cleanup = powershell.exe -command {Remove-Item -path C:\Windows\System32\config\systemprofile\Documents -recurse 2>&1 | Write-Host; Remove-Item -path C:\Windows\System32\config\systemprofile\.conda -recurse 2>&1 | Write-Host; Remove-Item -path C:\Windows\System32\config\systemprofile\.mamba -recurse 2>&1 | Write-Host; Remove-Item -path C:\Windows\System32\config\systemprofile\.condarc -recurse 2>&1 | Write-Host; exit($lastexitcode)} # Used to cleanup after outbreaking micromamba
   artifacts:
     paths:
       - unit.coverage
@@ -544,7 +544,7 @@ unit tests macos micromamba:
     - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit_conda_with_mamba.py 2>&1 | Write-Host; exit($lastexitcode)}
 
 
-.integration tests windows conda with mamba:
+integration tests windows conda with mamba:
   extends: .windows_base_template_conda_with_mamba
   stage: test
   script:
@@ -552,19 +552,16 @@ unit tests macos micromamba:
     - .\micromamba_installation\Library\bin\micromamba.exe run -n album python -m unittest .\test\unit\run_all_unit_micromamba.py
 
 
-.integration tests windows micromamba:
+integration tests windows micromamba:
   extends: .windows_base_template_micromamba
   stage: test
   script:
-    - .\micromamba_installation\Library\bin\micromamba.exe run -n album python -m unittest .\test\integration\run_all_integration_micromamba.py
-    - $cmnd_cleanup = powershell.exe -command {Remove-Item -path C:\Windows\System32\config\systemprofile\Documents -recurse 2>&1 | Write-Host; Remove-Item -path C:\Windows\System32\config\systemprofile\.conda -recurse 2>&1 | Write-Host; Remove-Item -path C:\Windows\System32\config\systemprofile\.mamba -recurse 2>&1 | Write-Host; Remove-Item -path C:\Windows\System32\config\systemprofile\.condarc -recurse 2>&1 | Write-Host; exit($lastexitcode)} # Used to cleanup after outbreaking micromamba
     - $cmnd = powershell.exe -command {micromamba activate album 2>&1 | Write-Host; coverage run --omit .\test\* -m unittest test\integration\run_all_integration_micromamba.py 2>&1 | Write-Host; if ($lastexitcode -ne 0) {exit(1)} else {coverage report 2>&1| Write-Host; coverage xml 2>&1| Write-Host; Rename-Item -Path ".coverage" -NewName "integration.coverage" 2>&1 | Write-Host; Rename-Item -Path "coverage.xml" -NewName "integration_coverage.xml" 2>&1 | Write-Host;} exit($lastexitcode)}
-    - $cmnd_cleanup = powershell.exe -command {Remove-Item -path C:\Windows\System32\config\systemprofile\Documents -recurse 2>&1 | Write-Host; Remove-Item -path C:\Windows\System32\config\systemprofile\.conda -recurse 2>&1 | Write-Host; Remove-Item -path C:\Windows\System32\config\systemprofile\.mamba -recurse 2>&1 | Write-Host; Remove-Item -path C:\Windows\System32\config\systemprofile\.condarc -recurse 2>&1 | Write-Host; exit($lastexitcode)} # Used to cleanup after outbreaking micromamba
   artifacts:
     paths:
       - integration.coverage
 
-integration tests windows conda:
+.integration tests windows conda:
   extends: .windows_base_template_conda
   stage: test
   script:
