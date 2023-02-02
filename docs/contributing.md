@@ -1,4 +1,4 @@
-# Contributing to album
+# Contributing to Album
 
 We encourage everyone who is interested to join the project to reach out to us via [image.sc](https://image.sc) or [album@kyleharrington.com](mailto:album@kyleharrington.com)! 
 We welcome issues and merge requests to [gitlab.com/album-app/album](https://gitlab.com/album-app/album). 

@@ -3,7 +3,7 @@
 Catalogs hold the solutions to a specific problem.
 Before solutions are usable from the catalog they need to be registered to it. That process is called `deployed`.
 
-The album framework offers a suit of commands to handle the deployment requests to a catalog, provided the catalog is 
+The Album framework offers a suit of commands to handle the deployment requests to a catalog, provided the catalog is 
 a git repository living in [gitlab](https://gitlab.com/).
 
 You can use this suite to administrate your catalog.  It basically works as a git extension. When a solution gets 
@@ -127,7 +127,7 @@ stages:
 # Linux base template
 #
 # Uses a docker image where conda is already installed.
-# Creates a album environment.
+# Creates an Album environment.
 #
 .linux_base_template:
   image: continuumio/miniconda3:4.9.2
@@ -148,7 +148,7 @@ stages:
     - ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
     - chmod 644 ~/.ssh/known_hosts
 
-    # setup conda & album
+    # setup conda & Album
     - python -V  # Print out python version for debugging
     - pwd
     - which python
