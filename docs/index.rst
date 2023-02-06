@@ -32,4 +32,7 @@ Java, Kotlin, and more.
    catalog-development
    server
    python-api
+   package
+   docker
+   distributed
    contributing

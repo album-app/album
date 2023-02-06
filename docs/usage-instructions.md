@@ -2,15 +2,18 @@
 
 For installation instructions, see [installation-instructions](/installation-instructions).
 
-Once album is installed, list all available commands: 
+Once Album is installed, list all available commands: 
 ```
 album -h
 ```
-Have a look at your local collection. 
+Have a look at your local collection.
 ```
 album index
 ```
-When running album for the first time, the default album catalog is added and you should see a list of template solutions in your collection.
+When running Album for the first time, the default Album catalog is added and you should see a list of template solutions in your collection.
+<br>
+Please note that this local collection is unique for each user of the system. If another user runs the 
+index command the output will be different.
 
 ## What is a solution?
 A solution holds all information to solve a specific problem. Ideally, this includes:
@@ -69,7 +72,7 @@ A catalog can be identified..
 In this guide, we will use the `https://gitlab.com/album-app/catalogs/capture-knowledge` catalog as an example, please replace this URL with the target catalog identifier.
 
 ## How to use catalogs
-In order to use an existing catalog, you need to add it to your local album collection:
+In order to use an existing catalog, you need to add it to your local Album collection:
 ```
 album add-catalog https://gitlab.com/album-app/catalogs/capture-knowledge
 ```

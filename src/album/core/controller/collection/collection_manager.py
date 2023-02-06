@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 from typing import Optional, List
 
@@ -11,6 +12,7 @@ from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.collection.solution_handler import SolutionHandler
 from album.core.model.collection_index import CollectionIndex
+from album.core.model.db_version import DBVersion
 from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import write_dict_to_json
@@ -67,16 +69,27 @@ class CollectionManager(ICollectionManager):
             collection_version = collection_meta["catalog_collection_version"]
         else:
             if newly_created:
-                collection_version = CollectionIndex.version
-                self.write_version_to_yml(
+                collection_version = DefaultValues.catalog_collection_db_version.value
+                self.write_version_to_json(
                     self.album.configuration().get_catalog_collection_meta_path(),
                     "my-collection",
                     collection_version,
                 )
             else:
-                raise RuntimeError(
-                    "Album collection database file found, but no meta file specifying the database version."
-                )
+                # TODO: legacy code (if block), remove with first stable version of album
+                # needed for backwards compatibility with old album collection versions
+                if Path(self.album.configuration().get_catalog_collection_meta_path()).parent.parent.joinpath(
+                        DefaultValues.catalog_collection_json_name.value).exists():
+                    shutil.move(
+                        Path(self.album.configuration().get_catalog_collection_meta_path().parent.parent.joinpath(
+                            DefaultValues.catalog_collection_json_name.value)),
+                        Path(self.album.configuration().get_catalog_collection_meta_path()))
+                    collection_meta = self.album.configuration().get_catalog_collection_meta_dict()
+                    collection_version = collection_meta["catalog_collection_version"]
+                else:
+                    raise RuntimeError(
+                        "Album collection database file found, but no meta file specifying the database version."
+                    )
         if self.catalog_collection is not None:
             self.catalog_collection.close()
         self.catalog_collection = CollectionIndex(
@@ -84,7 +97,8 @@ class CollectionManager(ICollectionManager):
             path=self.album.configuration().get_catalog_collection_path(),
         )
         self.album.migration_manager().migrate_collection_index(
-            self.catalog_collection, initial_version=collection_version
+            self.catalog_collection,
+            initial_version=DBVersion.from_string(collection_version)
         )
         if newly_created:
             self.catalog_handler.add_initial_catalogs()
@@ -100,7 +114,7 @@ class CollectionManager(ICollectionManager):
         for catalog in catalogs:
             solutions = []
             for solution in self.catalog_collection.get_solutions_by_catalog(
-                catalog["catalog_id"]
+                    catalog["catalog_id"]
             ):
                 solutions.append(
                     {"setup": solution.setup(), "internal": solution.internal()}
@@ -144,7 +158,7 @@ class CollectionManager(ICollectionManager):
         return resolve_result
 
     def resolve_and_load_catalog_coordinates(
-        self, catalog: ICatalog, coordinates: ICoordinates
+            self, catalog: ICatalog, coordinates: ICoordinates
     ) -> ICollectionSolution:
         collection_entry = self._search_in_specific_catalog(
             catalog.catalog_id(), coordinates
@@ -166,7 +180,7 @@ class CollectionManager(ICollectionManager):
         return resolve_result
 
     def resolve_and_load_coordinates(
-        self, coordinates: ICoordinates
+            self, coordinates: ICoordinates
     ) -> ICollectionSolution:
         collection_entry = self._search_by_coordinates(coordinates)
         catalog = self.album.catalogs().get_by_id(
@@ -319,7 +333,7 @@ class CollectionManager(ICollectionManager):
         return solution_entry
 
     def _search_by_coordinates(
-        self, coordinates: ICoordinates
+            self, coordinates: ICoordinates
     ) -> Optional[ICollectionIndex.ICollectionSolution]:
         solution_entry = self._search_in_local_catalog(
             coordinates
@@ -339,7 +353,7 @@ class CollectionManager(ICollectionManager):
         return solution_entry
 
     def _search_in_local_catalog(
-        self, coordinates: ICoordinates
+            self, coordinates: ICoordinates
     ) -> Optional[ICollectionIndex.ICollectionSolution]:
         """Searches in the local catalog only"""
         return self._search_in_specific_catalog(
@@ -347,7 +361,7 @@ class CollectionManager(ICollectionManager):
         )
 
     def _search_in_specific_catalog(
-        self, catalog_id, coordinates: ICoordinates
+            self, catalog_id, coordinates: ICoordinates
     ) -> Optional[ICollectionIndex.ICollectionSolution]:
         """Searches in a given catalog only"""
         return self.catalog_collection.get_solution_by_catalog_grp_name_version(
@@ -355,7 +369,7 @@ class CollectionManager(ICollectionManager):
         )
 
     def _search_in_catalogs(
-        self, coordinates: ICoordinates
+            self, coordinates: ICoordinates
     ) -> List[ICollectionIndex.ICollectionSolution]:
         """Searches the whole collection giving coordinates"""
         solution_entries = self.catalog_collection.get_solutions_by_grp_name_version(
@@ -376,11 +390,11 @@ class CollectionManager(ICollectionManager):
         resolve_result.set_coordinates(resolve_result.loaded_solution().coordinates())
 
     @staticmethod
-    def write_version_to_yml(path, name, version) -> None:
-        write_dict_to_json(
-            path,
-            {"catalog_collection_name": name, "catalog_collection_version": version},
-        )
+    def write_version_to_json(path, name, version) -> None:
+        write_dict_to_json(path, {
+            "catalog_collection_name": name,
+            "catalog_collection_version": version
+        })
 
     def _guess(self, str_input) -> Optional[ICollectionIndex.ICollectionSolution]:
         input_parts = str_input.split(":")
@@ -425,7 +439,7 @@ class CollectionManager(ICollectionManager):
         return None
 
     def _handle_multiple_solution_matches(
-        self, solutions: [ICollectionIndex.ICollectionSolution]
+            self, solutions: [ICollectionIndex.ICollectionSolution]
     ):
         call_not_reproducible = "Resolving ambiguous input to %s"
         cache_id = self.catalogs().get_cache_catalog().catalog_id()

@@ -25,6 +25,6 @@ album.run(solution1, ['', '--output_image_path', image_path])
 album.run(solution2, ['', '--input_image_path', image_path])
 ```
 
-This makes it possible to script album workflows, also directly from an album solution. Check out the [album template solution](https://gitlab.com/album-app/catalogs/default-dev/-/tree/main/template-album).
+This makes it possible to script album workflows, also directly from an album solution. Check out the [Album template solution](https://gitlab.com/album-app/catalogs/default-dev/-/tree/main/template-album).
 
 We will provide a full API documentation shortly.

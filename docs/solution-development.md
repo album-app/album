@@ -183,7 +183,7 @@ setup(
 ```
 
 Solutions can inherit from each other. They should live in the same catalog or should be identified via DOI to be findable. 
-If applicable it is recommended to use solutions from our [default catalog repo](https://gitlab.com/album-app/catalogs/default) as parents - they are present in all album installations by default and reusing these environments will save disk space and installation time.
+If applicable it is recommended to use solutions from our [default catalog repo](https://gitlab.com/album-app/catalogs/default) as parents - they are present in all Album installations by default and reusing these environments will save disk space and installation time.
 
 This solution will use the environment of `album:template-python:0.1.0`:
 ```python
@@ -221,11 +221,11 @@ The setup parameters are derived from the [bioimage.io](https://bioimage.io) spe
 * `group`: The group/organization associated with the specific solution.
 * `name`: The name of the solution itself
 * `version`: The version of the solution. Note that the `-SNAPSHOT` convention is used to indicate a version is not yet final.
-* `album_api_version`: The required version of the album API to run this solution (= `album-runner` module version).
+* `album_api_version`: The required version of the Album API to run this solution (= `album-runner` module version).
 
 ### Executable methods of a solution (optional)
 **-- NOTE: IMPORT HANDLING --** When writing solution methods, make sure to add the imports specific to the solution target environment at the beginning of the method, not the top of the file.
-The solution is initially executed from the album environment while the following parameters are only called from the solution target environment.
+The solution is initially executed from the Album environment while the following parameters are only called from the solution target environment.
 
 * `run`: This method is called during `album run your-solution` and during `album test your-solution`.
 * `install`: If defined, this method is called during `album install your-solution`, after the target environment was created. 

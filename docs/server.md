@@ -1,17 +1,17 @@
 # REST API
 
-album can launch a server which provides a REST API for all command line calls. 
+Album can launch a server which provides a REST API for all command line calls. 
 Please be cautious since this enables others with access to the API to run arbitrary scripts on the system.
 
 ## Installing the server functionality
 
-Activate the album environment and run this command:
+Activate the Album environment and run this command:
 ```
 pip install album-server
 ```
 
 ## Launching the server
-Activate the album environment and run this command:
+Activate the Album environment and run this command:
 ```
 album server --port 1234
 ```
@@ -22,23 +22,23 @@ album server --port 1234
   ```
   http://192.0.0.1:1234/
   ```
-- Get configuration parameters of the album installation the server is running on:
+- Get configuration parameters of the Album installation the server is running on:
   ```
   http://192.0.0.1:1234/config
   ```
-- Add a catalog to the album installation the server is running on (the src can be a local folder or a URL - make sure to encode it, for example using [this tool](https://www.urlencoder.org/):
+- Add a catalog to the Album installation the server is running on (the src can be a local folder or a URL - make sure to encode it, for example using [this tool](https://www.urlencoder.org/):
   ```
   http://192.0.0.1:1234/add-catalog?src=URL_OR_PATH_ENCODED
   ```
-- Remove a catalog from the album installation the server is running on:
+- Remove a catalog from the Album installation the server is running on:
   ```
   http://192.0.0.1:1234/remove-catalog?src=URL_OR_PATH_ENCODED
   ```
-- Update the local album installation cache of a catalog index (in case src is missing, all catalogs will be updated):
+- Update the local Album installation cache of a catalog index (in case src is missing, all catalogs will be updated):
   ```
   http://192.0.0.1:1234/update?src=CATALOG_URL_OR_PATH_ENCODED
   ```
-- Upgrade the local album installation collection of solutions by updating all entries regarding a specific catalog index (if src is provided) or for all catalogs:
+- Upgrade the local Album installation collection of solutions by updating all entries regarding a specific catalog index (if src is provided) or for all catalogs:
   ```
   http://192.0.0.1:1234/upgrade?src=CATALOG_URL_OR_PATH_ENCODED
   ```

@@ -73,6 +73,7 @@
     - '$progressPreference = $oldProgressPreference'
   tags:
     - windows
+    - mdc
   variables:
     PIP_CACHE_DIR: $CI_PROJECT_DIR\.cache\pip
     ErrorActionPreference: Continue  # not working properly
@@ -305,6 +306,8 @@
   tags:
     - macos
     - shell
+    - mdc
+    - mitte
   before_script:
     - echo "$(uname)"
     - sw_vers
@@ -315,9 +318,9 @@
     - bash $tmpdir/miniconda.sh -b -p $tmpdir/miniconda
     - export PATH=$PATH:$tmpdir/miniconda/bin/
     - echo $PATH
+    - conda install -y mamba -c conda-forge
     - conda create -y --channel=conda-forge -n album python=3.9 pip git
     - source $tmpdir/miniconda/bin/activate
-    - conda install -y mamba -c conda-forge
     - conda activate album
     - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
     - python -V
@@ -325,8 +328,6 @@
     - tmpdir=$(</tmp/tmpdir)
     - echo $tmpdir
     - rm -rf $tmpdir
-
-
 
 
 #----------------------------

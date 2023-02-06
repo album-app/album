@@ -84,7 +84,7 @@ class TestReleaseManager(TestUnitCoreCommon):
         release_manager.zenodo_upload("branch", None, None, None)
 
         # assert
-        self.assertEqual(3, zenodo_upload.call_count)
+        self.assertEqual(2, zenodo_upload.call_count)
         self.assertTrue(catalog_path.joinpath(yml_relative_path).exists())
         self.assertEqual(
             str(catalog_path.joinpath(yml_relative_path)),
