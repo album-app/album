@@ -170,7 +170,7 @@ def get_search_result_as_string(args, search_result):
 
 
 def get_logging_formatter(fmt=None, time=None):
-    if not fmt:
+    if not fmt.value:
         fmt = "%(log_color)s%(asctime)s %(levelname)-7s %(shortened_name)s%(message)s"
     if not time:
         time = "%H:%M:%S"
