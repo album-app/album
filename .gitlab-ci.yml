@@ -346,6 +346,11 @@ stages:
 # jobs
 #----------------------------
 
+rebuild_album_installer:
+  stage: build
+  trigger:
+    project: album-app/plugins/album-package
+
 prepare release:
   stage: release
   image: registry.gitlab.com/gitlab-org/release-cli:latest
