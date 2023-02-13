@@ -89,7 +89,7 @@ setup(
         },
         {
             "name": "boolean_arg1",
-            "default": "DefaultBooleanValue.txt",
+            "default": True,
             "description": "MyBooleanValue",
             "type": "boolean",
         },
