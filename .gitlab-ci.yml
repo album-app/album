@@ -340,6 +340,7 @@ stages:
   - release-test
   - release
   - deploy
+  - post-deploy
 
 
 #----------------------------
@@ -347,7 +348,7 @@ stages:
 #----------------------------
 
 rebuild_album_installer:
-  stage: release
+  stage: post-deploy
   trigger:
     project: album-app/plugins/album-package
   rules:
