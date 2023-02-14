@@ -340,11 +340,23 @@ stages:
   - release-test
   - release
   - deploy
+  - post-deploy
 
 
 #----------------------------
 # jobs
 #----------------------------
+
+rebuild_album_installer:
+  stage: post-deploy
+  trigger:
+    project: album-app/plugins/album-package
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - setup.cfg
 
 prepare release:
   stage: release
