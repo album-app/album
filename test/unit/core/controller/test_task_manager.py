@@ -1,3 +1,4 @@
+import platform
 import sys
 import threading
 import unittest.mock
@@ -88,7 +89,10 @@ class TestTaskManager(TestUnitCoreCommon):
 
     @staticmethod
     def _log_to_active_logger_via_subcommand():
-        subcommand.run(["echo", "test"])
+        if platform.system() == "Windows":
+            subcommand.run(["cmd", "/c", "echo test"])
+        else:
+            subcommand.run(["echo", "test"])
 
     @staticmethod
     def _log_to_active_logger():

@@ -34,13 +34,6 @@
     - '$progressPreference = $oldProgressPreference'
     - '.\micromamba\Library\bin\micromamba.exe create -y -n album -c conda-forge python=3.10'
     - '.\micromamba\Library\bin\micromamba.exe run -n album pip uninstall -y album'
-#    - '.\micromamba\Library\bin\micromamba.exe run -n album pip install album-runner'
-#    - '.\micromamba\Library\bin\micromamba.exe run -n album pip install -e $CI_PROJECT_DIR'
-#    - '.\micromamba\Library\bin\micromamba.exe run -n album pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME'
-#    - '.\micromamba\Library\bin\micromamba.exe run -n album pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip'
-#    - 'git clone https://gitlab.com/album-app/album.git album'
-#    - 'cd album'
-#    - 'git checkout $CI_COMMIT_SHA'
     - '.\micromamba\Library\bin\micromamba.exe run -n album pip install -e .'
     - '.\micromamba\Library\bin\micromamba.exe run -n album pip install coverage'
     - '.\micromamba\Library\bin\micromamba.exe shell init -s powershell -p $Env:MAMBA_ROOT_PREFIX '
@@ -140,7 +133,7 @@
     - docker
     - vm
   before_script:
-    - df
+    - df -h
     - apt update
     - apt install git -y
     - apt install -y curl
@@ -153,9 +146,6 @@
     - micromamba create -y -n album -c conda-forge python=3.10
     - micromamba activate album
     - pip uninstall -y album
-#    - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
-    - pwd
-    - ls -la
     - pip install -e .
     - python -V
     - pip install coverage
@@ -186,18 +176,13 @@
     - apt update
     - apt install git -y
     - python -V  # Print out python version for debugging
-    - pwd
     - which python
     - conda create -y --channel=conda-forge -n album python=3.9 pip git
     - conda init bash
     - source ~/.bashrc
     - conda activate album
-#    - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
     - pip install -e .
     - which python
-    - pwd
-    - ls ${CONDA_PREFIX}
-    - ls /opt
     - conda activate album
     - python -V
     - pip list
@@ -226,19 +211,14 @@
     - apt update
     - apt install git -y
     - python -V  # Print out python version for debugging
-    - pwd
     - which python
     - conda create -y --channel=conda-forge -n album python=3.9 pip git
     - conda init bash
     - source ~/.bashrc
     - conda install -y mamba -c conda-forge
     - conda activate album
-#    - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
     - pip install -e .
     - which python
-    - pwd
-    - ls ${CONDA_PREFIX}
-    - ls /opt
     - conda activate album
     - python -V
     - pip list
@@ -522,7 +502,6 @@ unit tests linux micromamba:
   extends: .linux_base_template_micromamba
   stage: test
   script:
-    #- coverage run --data-file=unit.coverage --omit .\test\* -m unittest test/unit/run_all_unit_micromamba.py
     - coverage run --omit './test/*' -m unittest test/unit/run_all_unit_micromamba.py
     - coverage report
     - mv .coverage unit.coverage
@@ -546,7 +525,6 @@ integration tests linux micromamba:
   extends: .linux_base_template_micromamba
   stage: test
   script:
-    #- coverage run --data-file=integration.coverage --omit .\test\* -m unittest test/integration/run_all_integration_micromamba.py
     - coverage run --omit './test/*' -m unittest test/integration/run_all_integration_micromamba.py
     - coverage report
     - mv .coverage integration.coverage
