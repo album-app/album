@@ -74,9 +74,14 @@ class TestTaskManager(TestUnitCoreCommon):
         for record in task.log_handler().records():
             print(record.msg)
         self.assertTrue(len(task.log_handler().records()) > 1)
-        self.assertEqual(
-            "Running command: echo test...", task.log_handler().records()[0].msg
-        )
+        if platform.system() == "Windows":
+            self.assertEqual(
+                "Running command: cmd /c echo test...", task.log_handler().records()[0].msg
+            )
+        else:
+            self.assertEqual(
+                "Running command: echo test...", task.log_handler().records()[0].msg
+            )
         self.assertEqual("test", task.log_handler().records()[1].msg)
 
     def _log_to_active_logger_via_thread(self):
