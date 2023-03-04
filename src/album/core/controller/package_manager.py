@@ -7,18 +7,14 @@ from pathlib import Path
 import yaml
 from packaging import version
 
-from album.core.api.model.configuration import IConfiguration
 from album.core.api.model.environment import IEnvironment
 from album.core.model.default_values import DefaultValues
-from album.core.model.link import Link
 from album.core.utils import subcommand
 from album.core.utils.operations.file_operations import (
-    construct_cache_link_target,
     remove_link, force_remove,
 )
 from album.core.utils.subcommand import SubProcessError
 from album.runner import album_logging
-from album.runner.album_logging import debug_settings
 
 module_logger = album_logging.get_active_logger
 
@@ -28,23 +24,9 @@ class PackageManager:
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, configuration: IConfiguration):
-        super().__init__()
-        self._install_env_executable = None
-        self._package_manager = None
-        self._configuration = configuration
-        self._set_installed_environment_manager_executable()
-
-    def _set_installed_environment_manager_executable(self):
-        if self._configuration.micromamba_executable():
-            self._install_env_executable = self._configuration.micromamba_executable()
-            self._package_manager = "micromamba"
-        elif self._configuration.mamba_executable():
-            self._install_env_executable = self._configuration.mamba_executable()
-            self._package_manager = "mamba"
-        else:
-            self._install_env_executable = self._configuration.conda_executable()
-            self._package_manager = "conda" # this cannot be put into subprocess args directly since conda-lock need a full path to the conda executable so if conda is used, there will nothing be appended to the args
+    def __init__(self, install_executable, package_manager):
+        self._install_env_executable = install_executable
+        self._package_manager = package_manager
 
     def get_install_environment_executable(self):
         return self._install_env_executable
@@ -103,95 +85,56 @@ class PackageManager:
             DefaultValues.lnk_env_prefix.value
         )
 
-    def environment_exists(self, environment_name):
+    def environment_exists(self, environment_path):
         """Checks whether an environment already exists or not.
 
         Args:
-            environment_name:
-                The name of the environment in which a solution will run.
+            environment_path:
+                The path of an environment.
 
         Returns:
             True when environment exists else false.
         """
         environment_list = self.get_environment_list()
-        path_expected = self._environment_name_to_path(environment_name, create=False)
 
         return (
             True
             if (
-                    path_expected
-                    and path_expected.resolve() in environment_list
-                    and os.listdir(path_expected)
+                environment_path
+                and environment_path.resolve() in environment_list
+                and os.listdir(environment_path)
             )
             else False
         )
 
-    def _environment_name_to_path(self, environment_name, create=True):
-        """Converts an environment name to a path."""
-        path = os.path.normpath(
-            self._configuration.environments_path().joinpath(environment_name)
-        )
-        target = construct_cache_link_target(
-            self._configuration.lnk_path(),
-            point_from=path,
-            point_to=DefaultValues.lnk_env_prefix.value,
-            create=create,
-        )
-        if target:
-            return Link(target).set_link(path)
-        else:
-            return None
-
-    def get_environment_path(self, environment_name: str, create: bool = True) -> Link:
-        """Gets the environment path for a given environment
+    def remove_environment(self, environment_path) -> bool:
+        """Removes an environment given its path. Does nothing when environment does not exist.
 
         Args:
-            environment_name:
-                The environment to get the path for.
-            create:
-
-
-
-        Returns:
-            None or the path
-        """
-        environment_list = self.get_environment_list()
-        path_expected = self._environment_name_to_path(environment_name, create)
-
-        if path_expected.resolve() in environment_list:
-            return path_expected
-        raise LookupError("Could not find environment %s." % environment_name)
-
-    def remove_environment(self, environment_name) -> bool:
-        """Removes an environment given its name. Does nothing when environment does not exist.
-
-        Args:
-            environment_name:
-                The name of the environment to remove
+            environment_path:
+                The path of the environment to remove
 
         Returns:
             True, when removal succeeded, else False
 
         """
-        if self.get_active_environment_name() == environment_name:
+        if self.get_active_environment_path() == environment_path:
             module_logger().warning("Cannot remove active environment! Skipping...")
             return False
 
-        if not self.environment_exists(environment_name):
+        if not self.environment_exists(environment_path):
             module_logger().warning("Environment does not exist! Skipping...")
             return False
 
-        path = self.get_environment_path(environment_name, create=False)
-
         try:
-            subprocess_args = self._get_remove_env_args(path)
+            subprocess_args = self._get_remove_env_args(environment_path)
             subcommand.run(subprocess_args, log_output=False)
         except SubProcessError:
             module_logger().debug(
                 "Can't delete environment via command line call, deleting the folder next..."
             )
         # try to remove file content if any but don't fail:
-        remove_link(path)
+        remove_link(environment_path)
         return True
 
     def get_info(self):
@@ -225,15 +168,15 @@ class PackageManager:
         return json.loads(output)
 
     def create_environment_from_file(
-            self, yaml_path, environment_name, album_api_version=None
+            self, yaml_path, environment_path, album_api_version=None
     ):
-        """Creates a conda environment given a path to a yaml file and its name.
+        """Creates a conda environment given a path to a yaml file and its path.
 
         Args:
             yaml_path:
                 The path to the file.
-            environment_name:
-                The name of the environment. Must be the same as specified in the yml file.
+            environment_path:
+                The path of the environment.
             album_api_version:
                 The api version (runner version) in the environment.
 
@@ -246,8 +189,8 @@ class PackageManager:
                 When the environment could not be created due to whatever reasons.
 
         """
-        if self.environment_exists(environment_name):
-            self.remove_environment(environment_name)
+        if self.environment_exists(environment_path):
+            self.remove_environment(environment_path)
 
         if not (str(yaml_path).endswith(".yml") or str(yaml_path).endswith(".yaml")):
             raise NameError("File needs to be a yml or yaml file!")
@@ -260,7 +203,7 @@ class PackageManager:
         with open(yaml_path, "r") as f:
             content = yaml.safe_load(f)
 
-        self._append_runner_and_install(album_api_version, environment_name, content)
+        self._append_runner_and_install(album_api_version, environment_path, content)
 
     @staticmethod
     def append_framework_to_yml(content, album_api_version):
@@ -315,12 +258,12 @@ class PackageManager:
         pip_dict["pip"].append(framework)
         return content
 
-    def create_environment(self, environment_name, album_api_version=None, force=False):
+    def create_environment(self, environment_path, album_api_version=None, force=False):
         """Creates a conda environment with python (latest version) installed.
 
         Args:
-            environment_name:
-                The desired environment name.
+            environment_path:
+                The desired environment path.
             force:
                 If True, force creates the environment by deleting the old one.
             album_api_version:
@@ -331,20 +274,20 @@ class PackageManager:
                 When the environment could not be created due to whatever reasons.
 
         """
-        env_exists = self.environment_exists(environment_name)
+        env_exists = self.environment_exists(environment_path)
         if force and env_exists:
-            self.remove_environment(environment_name)
+            self.remove_environment(environment_path)
         else:
             if env_exists:
                 raise EnvironmentError(
-                    "Environment with name %s already exists!" % environment_name
+                    "Environment with name %s already exists!" % environment_path
                 )
 
         self._append_runner_and_install(
-            album_api_version, environment_name, DefaultValues.default_solution_env_content.value
+            album_api_version, environment_path, DefaultValues.default_solution_env_content.value
         )
 
-    def _append_runner_and_install(self, album_api_version, environment_name, environment_content):
+    def _append_runner_and_install(self, album_api_version, environment_path, environment_content):
         """Appends the album runner to the yml file and installs the solution environment."""
         if not album_api_version:
             album_api_version = DefaultValues.runner_api_packet_version.value
@@ -352,7 +295,7 @@ class PackageManager:
         environment_content = self.append_framework_to_yml(
             environment_content, album_api_version
         )
-        env_prefix = os.path.normpath(self._environment_name_to_path(environment_name))
+        env_prefix = os.path.normpath(environment_path)
         force_remove(env_prefix)
         with tempfile.NamedTemporaryFile(
                 mode="w", delete=False, suffix=".yml"
@@ -364,9 +307,9 @@ class PackageManager:
             subcommand.run(subprocess_args, log_output=True)
         except RuntimeError as e:
             # cleanup after failed installation
-            if self.environment_exists(environment_name):
+            if self.environment_exists(environment_path):
                 module_logger().debug("Cleanup failed environment creation...")
-                self.remove_environment(environment_name)
+                self.remove_environment(environment_path)
             raise RuntimeError("Command failed due to reasons above!") from e
         finally:
             os.remove(env_file.name)
@@ -408,12 +351,6 @@ class PackageManager:
             subprocess_args, pipe_output=pipe_output, env=environment_variables
         )
 
-    def set_environment_path(self, environment: IEnvironment):
-        """Sets the environment path for the given environment."""
-        path = self.get_environment_path(environment.name())
-        module_logger().debug("Set environment path to %s..." % path)
-        environment.set_path(path)
-
     def is_installed(self, environment_path: str, package_name, min_package_version=None):
         """Checks if package is installed in a certain version."""
         conda_list = self.list_environment(environment_path)
@@ -448,69 +385,6 @@ class PackageManager:
 
         return False
 
-    def run_scripts(self, environment: IEnvironment, scripts, pipe_output=True):
-        """Runs the solution in the target environment
-
-        Args:
-            scripts:
-                List of he scripts calling the solution(s)
-            environment:
-                The virtual environment used to run the scripts
-            pipe_output:
-                Indicates whether to pipe the output of the subprocess or just return it as is.
-        """
-        if not environment.path():
-            raise EnvironmentError(
-                "Could not find environment %s. Is the solution installed?"
-                % environment.name()
-            )
-
-        module_logger().debug("run_in_environment: %s..." % str(environment.path()))
-
-        # first write scripts to disc, create meta-script to execute them in the order of the list
-        if len(scripts) > 1:
-            script = ""
-            for s in scripts:
-                fp_step = tempfile.NamedTemporaryFile(mode="w+", delete=False)
-                fp_step.write(s)
-                fp_step.flush()
-                os.fsync(fp_step)
-                script += "\nexec(open(r'%s').read())\n" % fp_step.name
-                fp_step.close()
-        else:
-            script = scripts[0]
-
-        self.write_and_run_script(environment, script, pipe_output=pipe_output)
-
-    def write_and_run_script(self, environment, script, pipe_output):
-        """Use an environment path and a temporary file to store the script
-        Args:
-
-            environment:
-                The virtual environment used to run the scripts
-            script:
-                The virtual environment used to run the scripts
-            pipe_output:
-                Indicates whether to pipe the output of the subprocess or just return it as is.
-        """
-        if debug_settings():
-            fp = open(
-                str(self._configuration.tmp_path().joinpath("album_test.py")), "w"
-            )
-            module_logger().debug(
-                "Executable file in: %s..."
-                % str(self._configuration.tmp_path().joinpath("album_test.py"))
-            )
-        else:
-            fp = tempfile.NamedTemporaryFile(mode="w+", delete=False)
-            module_logger().debug("Executable file in: %s..." % fp.name)
-        fp.write(script)
-        fp.flush()
-        os.fsync(fp)
-        fp.close()
-        self.run_script(environment.path(), fp.name, pipe_output=pipe_output)
-        Path(fp.name).unlink()
-
     def create_or_update_env(self, environment: IEnvironment, album_api_version: str = None,
                              conda_lock_file: Path = None):
         """Creates or updates the environment"""
@@ -539,4 +413,3 @@ class PackageManager:
     def install(self, environment: IEnvironment, album_api_version: str = None, conda_lock_file=None):
         """Creates or updates an an environment."""
         self.create_or_update_env(environment, album_api_version, conda_lock_file)
-        self.set_environment_path(environment)

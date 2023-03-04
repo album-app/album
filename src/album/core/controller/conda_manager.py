@@ -2,13 +2,7 @@ import os
 import sys
 from pathlib import Path
 
-from album.core.api.model.configuration import IConfiguration
 from album.core.controller.package_manager import PackageManager
-from album.core.model.default_values import DefaultValues
-from album.core.model.link import Link
-from album.core.utils.operations.file_operations import (
-    construct_cache_link_target,
-)
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
@@ -25,8 +19,8 @@ class CondaManager(PackageManager):
 
     """
 
-    def __init__(self, configuration: IConfiguration):
-        super().__init__(configuration)
+    def __init__(self, install_executable, package_manager="conda"):
+        super().__init__(install_executable, package_manager)
 
     def get_active_environment_name(self):
         """Returns the environment from the active album."""
@@ -36,17 +30,7 @@ class CondaManager(PackageManager):
     def get_active_environment_path(self):
         """Returns the environment form the active album."""
         environment_info = self.get_info()
-        path = environment_info["active_prefix"]
-        link = construct_cache_link_target(
-            self._configuration.lnk_path(),
-            point_from=path,
-            point_to=DefaultValues.lnk_env_prefix.value,
-            create=False,
-        )
-        if link:
-            return link
-        else:
-            return Link(path)
+        return environment_info["active_prefix"]
 
     def _get_env_create_args(self, env_file, env_prefix):
         subprocess_args = [
