@@ -1,16 +1,8 @@
-from album.core.controller.package_manager import PackageManager
-from album.runner import album_logging
-
-module_logger = album_logging.get_active_logger
 import os
 import sys
 from pathlib import Path
 
-from album.core.model.default_values import DefaultValues
-from album.core.model.link import Link
-from album.core.utils.operations.file_operations import (
-    construct_cache_link_target,
-)
+from album.core.controller.package_manager import PackageManager
 
 
 # TODO: Still has the conda executable of the CondaManager parent class. I don' like that, maybe create an extra package
@@ -28,31 +20,21 @@ class MicromambaManager(PackageManager):
 
     """
 
-    def __init__(self, micromamba_executable, base_env_path):
-        super().__init__(None, base_env_path)
-        self._micromamba_executable = micromamba_executable
+    def __init__(self, micromamba_executable):
+        super().__init__(micromamba_executable, "micromamba")
 
     def get_active_environment_name(self):
-        """Returns the environment from the active album."""
+        """Returns the environment from the active environment."""
         environment_info = self.get_info()
         env_name = environment_info["environment"]
         env_name = env_name.rstrip(" (active)")
         return env_name
 
     def get_active_environment_path(self):
-        """Returns the environment for the active album."""
+        """Returns the environment for the active environment."""
         environment_info = self.get_info()
         path = environment_info["env location"]
-        link = construct_cache_link_target(
-            self._configuration.lnk_path(),
-            point_from=path,
-            point_to=DefaultValues.lnk_env_prefix.value,
-            create=False,
-        )
-        if link:
-            return link
-        else:
-            return Link(path)
+        return path
 
     def _get_env_create_args(self, env_file, env_prefix):
         subprocess_args = [
