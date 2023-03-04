@@ -1,3 +1,8 @@
+from io import StringIO
+from pathlib import Path
+
+import validators
+
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.environment_manager import IEnvironmentManager
 from album.core.api.model.catalog import ICatalog
@@ -8,9 +13,16 @@ from album.core.controller.conda_manager import CondaManager
 from album.core.controller.mamba_manager import MambaManager
 from album.core.controller.micromamba_manager import MicromambaManager
 from album.core.model.environment import Environment
-from album.core.utils.operations.file_operations import remove_link
+from album.core.utils.operations.file_operations import (
+    remove_link,
+    copy,
+    get_dict_from_yml,
+    write_dict_to_yml,
+    create_path_recursively,
+)
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.core.utils.operations.solution_operations import set_environment_paths
+from album.core.utils.operations.url_operations import download_resource
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 
@@ -31,22 +43,25 @@ class EnvironmentManager(IEnvironmentManager):
         self._album = album
         self._conda_lock_manager = CondaLockManager(album.configuration())
 
-    def install_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
-        # If there is a lock file for the solution environment it will be used to install the environment preferably
-        solution_lock_file = \
-            collection_solution.loaded_solution().installation().package_path().joinpath('solution.conda-lock.yml')
-        environment = Environment(collection_solution.loaded_solution().setup().dependencies,
-                                  self.get_environment_name(collection_solution.coordinates(),
-                                                            collection_solution.catalog()),
-                                  collection_solution.loaded_solution().installation().internal_cache_path(),
-                                  )
+    def install_environment(
+        self, collection_solution: ICollectionSolution
+    ) -> IEnvironment:
+        env_name = self.get_environment_name(
+            collection_solution.coordinates(), collection_solution.catalog()
+        )
+        env_file = self._prepare_env_file(
+            env_name,
+            collection_solution.loaded_solution().setup().dependencies,
+            collection_solution.loaded_solution().installation().internal_cache_path(),
+        )
+        environment = Environment(env_file, env_name)
+        solution_lock_file = collection_solution.loaded_solution().installation().package_path().joinpath('solution.conda-lock.yml')
         if solution_lock_file.is_file():
             module_logger().debug("Creating solution environment from lock file.")
             self._conda_lock_manager.install(
                 environment, collection_solution.loaded_solution().setup().album_api_version, solution_lock_file
             )
         else:
-            module_logger().debug("Creating solution environment from setup dependency.")
             self._env_install_manager.install(
                 environment, collection_solution.loaded_solution().setup().album_api_version
             )
@@ -56,17 +71,15 @@ class EnvironmentManager(IEnvironmentManager):
     def set_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
         parent = collection_solution.database_entry().internal()["parent"]
         # solution runs in its own environment
+        cache_path = (
+            collection_solution.loaded_solution().installation().internal_cache_path()
+        )
         if not parent:
-
-            environment = Environment(
-                dependencies_dict=None,
-                environment_name=self.get_environment_name(
-                    collection_solution.coordinates(), collection_solution.catalog()
-                ),
-                cache_path=collection_solution.loaded_solution()
-                    .installation()
-                    .internal_cache_path(),
+            env_name = self.get_environment_name(
+                collection_solution.coordinates(), collection_solution.catalog()
             )
+            yaml_file = self._prepare_env_file(None, cache_path, env_name)
+            environment = Environment(yaml_file=yaml_file, environment_name=env_name)
             self._package_manager.set_environment_path(environment)
 
         # solution runs in the parents environment - we need to resolve first to get info about parents environment
@@ -74,13 +87,9 @@ class EnvironmentManager(IEnvironmentManager):
             coordinates = dict_to_coordinates(parent.setup())
             catalog = self._album.catalogs().get_by_id(parent.internal()["catalog_id"])
 
-            environment = Environment(
-                None,
-                self.get_environment_name(coordinates, catalog),
-                collection_solution.loaded_solution()
-                    .installation()
-                    .internal_cache_path(),
-            )
+            env_name = self.get_environment_name(coordinates, catalog)
+            yaml_file = self._prepare_env_file(None, cache_path, env_name)
+            environment = Environment(yaml_file, env_name)
             self._package_manager.set_environment_path(environment)
 
         set_environment_paths(collection_solution.loaded_solution(), environment)
@@ -131,4 +140,63 @@ class EnvironmentManager(IEnvironmentManager):
     @staticmethod
     def remove_disc_content_from_environment(environment: IEnvironment):
         remove_link(environment.path())
-        remove_link(environment.cache_path())
+
+    @staticmethod
+    def _prepare_env_file(dependencies_dict, cache_path, env_name):
+        """Checks how to set up an environment. Returns a path to a valid yaml file. Environment name in that file
+        will be overwritten!
+
+        Args:
+            dependencies_dict:
+                Dictionary holding the "environment_file" key. Environment file can be:
+                    - url
+                    - path
+                    - stream object
+
+        Returns:
+            Path to a valid yaml file where environment name has been replaced!
+
+        """
+        if dependencies_dict:
+            if "environment_file" in dependencies_dict:
+                env_file = dependencies_dict["environment_file"]
+
+                yaml_path = cache_path.joinpath("%s%s" % (env_name, ".yml"))
+                create_path_recursively(yaml_path.parent)
+
+                if isinstance(env_file, str):
+                    # case valid url
+                    if validators.url(env_file):
+                        yaml_path = download_resource(env_file, yaml_path)
+                    # case file content
+                    elif "dependencies:" in env_file and "\n" in env_file:
+                        with open(str(yaml_path), "w+") as f:
+                            f.writelines(env_file)
+                        yaml_path = yaml_path
+                    # case Path
+                    elif Path(env_file).is_file() and Path(env_file).stat().st_size > 0:
+                        yaml_path = copy(env_file, yaml_path)
+                    else:
+                        raise TypeError(
+                            "environment_file must either contain the content of the environment file, "
+                            "contain the url to a valid file or point to a file on the disk!"
+                        )
+                # case String stream
+                elif isinstance(env_file, StringIO):
+                    with open(str(yaml_path), "w+") as f:
+                        env_file.seek(0)  # make sure we start from the beginning
+                        f.writelines(env_file.readlines())
+                    yaml_path = yaml_path
+                else:
+                    raise RuntimeError(
+                        "Environment file specified, but format is unknown!"
+                        " Don't know where to run solution!"
+                    )
+
+                yaml_dict = get_dict_from_yml(yaml_path)
+                yaml_dict["name"] = env_name
+                write_dict_to_yml(yaml_path, yaml_dict)
+
+                return yaml_path
+            return None
+        return None
