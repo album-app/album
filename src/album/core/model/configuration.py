@@ -21,8 +21,6 @@ class Configuration(IConfiguration):
         self._is_setup = False
         self._base_cache_path = None
         self._conda_executable = None
-        self._mamba_executable = None
-        self._micromamba_executable = None
         self._tmp_path = None
         self._cache_path_envs = None
         self._catalog_collection_path = None
@@ -32,15 +30,6 @@ class Configuration(IConfiguration):
 
     def base_cache_path(self):
         return self._base_cache_path
-
-    def conda_executable(self):
-        return self._conda_executable
-
-    def mamba_executable(self):
-        return self._mamba_executable
-
-    def micromamba_executable(self):
-        return self._micromamba_executable
 
     def installation_path(self):
         return self._installation_path
@@ -72,13 +61,6 @@ class Configuration(IConfiguration):
         if base_cache_path:
             self._base_cache_path = Path(base_cache_path)
 
-        # explicitly defined package manager
-        if DefaultValues.micromamba_path.value is not None:
-            self._micromamba_executable = DefaultValues.micromamba_path.value
-            module_logger().debug("Using micromamba executable: %s", self._micromamba_executable)
-        elif DefaultValues.conda_path.value is not None:
-            self._conda_executable = DefaultValues.conda_path.value
-
         self._cache_path_download = self._base_cache_path.joinpath(
             DefaultValues.cache_path_download_prefix.value
         )
@@ -107,14 +89,6 @@ class Configuration(IConfiguration):
                 self._installation_path,
             ]
         )
-
-    @staticmethod
-    def _build_conda_executable(conda_path):
-        operation_system = sys.platform
-        if operation_system == "linux" or operation_system == "darwin":
-            return str(Path(conda_path).joinpath("bin", "conda"))
-        else:
-            return str(Path(conda_path).joinpath("Scripts", "conda.exe"))
 
     def get_solution_path_suffix(self, coordinates: Coordinates) -> Path:
         return Path("").joinpath(
@@ -171,4 +145,3 @@ class Configuration(IConfiguration):
         # force_remove(self._cache_path_tmp_user)
         # force_remove(self._cache_path_tmp_internal)
         force_remove(self._tmp_path)
-
