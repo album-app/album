@@ -6,7 +6,6 @@ import os
 import sys
 from pathlib import Path
 
-from album.core.api.model.configuration import IConfiguration
 from album.core.model.default_values import DefaultValues
 from album.core.model.link import Link
 from album.core.utils.operations.file_operations import (
@@ -29,9 +28,9 @@ class MicromambaManager(PackageManager):
 
     """
 
-    def __init__(self, configuration: IConfiguration):
-        super().__init__(configuration)
-        self._micromamba_executable = self._configuration.micromamba_executable()
+    def __init__(self, micromamba_executable, base_env_path):
+        super().__init__(None, base_env_path)
+        self._micromamba_executable = micromamba_executable
 
     def get_active_environment_name(self):
         """Returns the environment from the active album."""
