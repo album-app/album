@@ -18,10 +18,6 @@ class IEnvironment:
         raise NotImplementedError
 
     @abstractmethod
-    def cache_path(self):
-        raise NotImplementedError
-
-    @abstractmethod
     def yaml_file(self):
         raise NotImplementedError
 
