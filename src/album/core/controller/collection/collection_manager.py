@@ -435,15 +435,39 @@ class CollectionManager(ICollectionManager):
             for solution in solutions
             if solution.internal()["catalog_id"] == cache_id
         ]
+        non_cache_matches = [solution for solution in solutions if solution.internal()["catalog_id"] != cache_id]
         if len(cache_matches) == 1:
             module_logger().warn(
                 call_not_reproducible % dict_to_coordinates(cache_matches[0].setup())
             )
             return cache_matches[0]
-        solutions_ambiguous_str = (
-            "Input is ambiguous - choose between one of these solutions:\n%s"
-        )
-        raise RuntimeError(solutions_ambiguous_str % self._solutions_as_list(solutions))
+        elif len(cache_matches) > 1:
+            newest_installed_solution = self._get_newest_installed_solution(cache_matches)
+            if newest_installed_solution:
+                module_logger().warn(
+                    call_not_reproducible % dict_to_coordinates(newest_installed_solution.setup())
+                )
+            return newest_installed_solution
+        elif len(non_cache_matches) > 0:
+            newest_installed_solution = self._get_newest_installed_solution(non_cache_matches)
+            if newest_installed_solution:
+                module_logger().warn(
+                    call_not_reproducible % dict_to_coordinates(newest_installed_solution.setup())
+                )
+                return newest_installed_solution
+            else:
+                newest_solution = self._get_newest_solution(non_cache_matches)
+                if newest_solution:
+                    module_logger().warn(
+                        call_not_reproducible % dict_to_coordinates(newest_solution.setup())
+                    )
+                    return newest_solution
+        else:
+            return None
+        #solutions_ambiguous_str = (
+        #    "Input is ambiguous - choose between one of these solutions:\n%s"
+        #)
+        #raise RuntimeError(solutions_ambiguous_str % self._solutions_as_list(solutions))
 
     def _solutions_as_list(self, solutions: [ICollectionIndex.ICollectionSolution]):
         solutions_str = ""
@@ -456,3 +480,25 @@ class CollectionManager(ICollectionManager):
                 dict_to_coordinates(solution.setup()),
             )
         return solutions_str
+
+    @staticmethod
+    def _get_newest_installed_solution(solutions: [ICollectionIndex.ICollectionSolution]):
+        installed_solutions = [solution for solution in solutions if solution.internal()["installed"] == 1]
+        if installed_solutions:
+            newest_installed_solution = installed_solutions[0]
+            for solution in installed_solutions:
+                if DBVersion.from_string(solution.setup()["version"]) > \
+                        DBVersion.from_string(newest_installed_solution.setup()["version"]) and \
+                        solution.internal()["installed"] == 1:
+                    newest_installed_solution = solution
+            return newest_installed_solution
+
+    @staticmethod
+    def _get_newest_solution(solutions: [ICollectionIndex.ICollectionSolution]):
+        newest_solution = solutions[0]
+        for solution in solutions:
+            if DBVersion.from_string(solution.setup()["version"]) > \
+                    DBVersion.from_string(newest_solution.setup()["version"]):
+                newest_solution = solution
+        return newest_solution
+
