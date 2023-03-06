@@ -103,7 +103,7 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
     @patch("album.core.controller.collection.collection_manager.check_file_or_url")
     @patch("album.core.controller.state_manager.StateManager.load")
     def test_resolve_require_installation_and_load(
-        self, load_mock, check_file_or_url_mock
+            self, load_mock, check_file_or_url_mock
     ):
         # mocks
         search_mock = MagicMock(
@@ -315,8 +315,8 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         expected_result = ResolveResult(
             path=Path(f.name),
             catalog=self.album_controller.collection_manager()
-            .catalogs()
-            .get_cache_catalog(),
+                .catalogs()
+                .get_cache_catalog(),
             coordinates=None,
             collection_entry=None,
         )
@@ -360,8 +360,8 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         expected_result = ResolveResult(
             path=Path(f.name),
             catalog=self.album_controller.collection_manager()
-            .catalogs()
-            .get_cache_catalog(),
+                .catalogs()
+                .get_cache_catalog(),
             coordinates=None,
             collection_entry=None,
         )
@@ -435,9 +435,9 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         self.assertEqual(search_mock.return_value, res)
         search_mock.assert_called_once_with(
             self.album_controller.collection_manager()
-            .catalogs()
-            .get_cache_catalog()
-            .catalog_id(),
+                .catalogs()
+                .get_cache_catalog()
+                .catalog_id(),
             coordinates,
         )
 
@@ -451,6 +451,179 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         # todo: implement
         pass
 
+    @unittest.skip("Needs to be implemented!")
     def test_retrieve_and_load_resolve_result(self):
         # todo: implement
         pass
+
+    @staticmethod
+    def _get_expected_attrs_internal(attrs, installed=False):
+        d = dict()
+        d["collection_id"] = attrs["collection_id"]
+        d["solution_id"] = attrs["solution_id"]
+        d["catalog_id"] = attrs["catalog_id"]
+        d["changelog"] = None
+        d["last_execution"] = None
+        d["parent"] = None
+        d["children"] = []
+        if installed:
+            d["installed"] = 1
+        else:
+            d["installed"] = 0
+        return d
+
+    def _get_expected_attrs_setup(self, attrs):
+        d = self.get_solution_dict()
+        d["group"] = attrs["group"]
+        d["name"] = attrs["name"]
+        d["version"] = attrs["version"]
+        d["doi"] = attrs.get("doi", None)
+        return d
+
+    def test__get_newest_installed_solution(self):
+        # prepare
+        Solution_010 = CollectionIndex.CollectionSolution(setup=self._get_expected_attrs_setup({"group": "grp3",
+                                                                                                "name": "name3",
+                                                                                                "version": "0.1.0",
+                                                                                                }),
+                                                          internal=self._get_expected_attrs_internal(
+                                                              {"collection_id": "collection_id",
+                                                               "solution_id": "solution_id",
+                                                               "catalog_id": "catalog_id"}, installed=True))
+
+        Solution_020 = CollectionIndex.CollectionSolution(setup=self._get_expected_attrs_setup({"group": "grp3",
+                                                                                                "name": "name3",
+                                                                                                "version": "0.2.0",
+                                                                                                }),
+                                                          internal=self._get_expected_attrs_internal(
+                                                              {"collection_id": "collection_id",
+                                                               "solution_id": "solution_id",
+                                                               "catalog_id": "catalog_id"}, installed=True))
+
+        Solution_030 = CollectionIndex.CollectionSolution(setup=self._get_expected_attrs_setup({"group": "grp3",
+                                                                                                "name": "name3",
+                                                                                                "version": "0.3.0",
+                                                                                                }),
+                                                          internal=self._get_expected_attrs_internal(
+                                                              {"collection_id": "collection_id",
+                                                               "solution_id": "solution_id",
+                                                               "catalog_id": "catalog_id"}, installed=False))
+        solution_list = [Solution_010, Solution_020, Solution_030]
+
+        # call
+        newest_installed_solution = self.album_controller.collection_manager()._get_newest_installed_solution(
+            solution_list)
+        newest_solution = self.album_controller.collection_manager()._get_newest_solution(solution_list)
+
+        # assert
+        self.assertEqual(newest_installed_solution, Solution_020)
+        self.assertEqual(newest_solution, Solution_030)
+
+    def test__get_newest_solution(self):
+        # prepare
+        Solution_010 = CollectionIndex.CollectionSolution(setup=self._get_expected_attrs_setup({"group": "grp3",
+                                                                                                "name": "name3",
+                                                                                                "version": "0.1.0",
+                                                                                                }),
+                                                          internal=self._get_expected_attrs_internal(
+                                                              {"collection_id": "collection_id",
+                                                               "solution_id": "solution_id",
+                                                               "catalog_id": "catalog_id"}, installed=True))
+
+        Solution_020 = CollectionIndex.CollectionSolution(setup=self._get_expected_attrs_setup({"group": "grp3",
+                                                                                                "name": "name3",
+                                                                                                "version": "0.2.0",
+                                                                                                }),
+                                                          internal=self._get_expected_attrs_internal(
+                                                              {"collection_id": "collection_id",
+                                                               "solution_id": "solution_id",
+                                                               "catalog_id": "catalog_id"}, installed=True))
+
+        Solution_030 = CollectionIndex.CollectionSolution(setup=self._get_expected_attrs_setup({"group": "grp3",
+                                                                                                "name": "name3",
+                                                                                                "version": "0.3.0",
+                                                                                                }),
+                                                          internal=self._get_expected_attrs_internal(
+                                                              {"collection_id": "collection_id",
+                                                               "solution_id": "solution_id",
+                                                               "catalog_id": "catalog_id"}, installed=False))
+        solution_list = [Solution_010, Solution_020, Solution_030]
+
+        # call
+        newest_solution = self.album_controller.collection_manager()._get_newest_solution(solution_list)
+
+        # assert
+        self.assertEqual(newest_solution, Solution_030)
+
+    def test__handle_multiple_solution_matches(self):
+        # prepare
+        solution_010 = CollectionIndex.CollectionSolution(setup=self._get_expected_attrs_setup({"group": "grp3",
+                                                                                                "name": "name3",
+                                                                                                "version": "0.1.0",
+                                                                                                }),
+                                                          internal=self._get_expected_attrs_internal(
+                                                              {"collection_id": "collection_id",
+                                                               "solution_id": "solution_id",
+                                                               "catalog_id": "catalog_id"}, installed=True))
+
+        solution_020 = CollectionIndex.CollectionSolution(setup=self._get_expected_attrs_setup({"group": "grp3",
+                                                                                                "name": "name3",
+                                                                                                "version": "0.2.0",
+                                                                                                }),
+                                                          internal=self._get_expected_attrs_internal(
+                                                              {"collection_id": "collection_id",
+                                                               "solution_id": "solution_id",
+                                                               "catalog_id": "catalog_id"}, installed=True))
+
+        solution_030 = CollectionIndex.CollectionSolution(setup=self._get_expected_attrs_setup({"group": "grp3",
+                                                                                                "name": "name3",
+                                                                                                "version": "0.3.0",
+                                                                                                }),
+                                                          internal=self._get_expected_attrs_internal(
+                                                              {"collection_id": "collection_id",
+                                                               "solution_id": "solution_id",
+                                                               "catalog_id": "catalog_id"}, installed=False))
+        solution_040 = CollectionIndex.CollectionSolution(setup=self._get_expected_attrs_setup({"group": "grp3",
+                                                                                                "name": "name3",
+                                                                                                "version": "0.4.0",
+                                                                                                }),
+                                                          internal=self._get_expected_attrs_internal(
+                                                              {"collection_id": "collection_id",
+                                                               "solution_id": "solution_id",
+                                                               "catalog_id": "1"}, installed=True))
+        solution_030_cache = CollectionIndex.CollectionSolution(
+            setup=self._get_expected_attrs_setup({"group": "grp3",
+                                                  "name": "name3",
+                                                  "version": "0.3.0",
+                                                  }),
+            internal=self._get_expected_attrs_internal(
+                {"collection_id": "collection_id",
+                 "solution_id": "solution_id",
+                 "catalog_id": "1"}, installed=False))
+
+        solution_050_cache = CollectionIndex.CollectionSolution(
+            setup=self._get_expected_attrs_setup({"group": "grp3",
+                                                  "name": "name3",
+                                                  "version": "0.5.0",
+                                                  }),
+            internal=self._get_expected_attrs_internal(
+                {"collection_id": "collection_id",
+                 "solution_id": "solution_id",
+                 "catalog_id": "1"}, installed=True))
+
+        solution_list_no_cache = [solution_010, solution_020, solution_030]
+        solution_list_one_cache = [solution_010, solution_020, solution_030, solution_040, solution_030_cache]
+        solution_list_two_cache = [solution_010, solution_020, solution_030, solution_040, solution_050_cache]
+
+        # call
+        newest_solution_no_cache = self.album_controller.collection_manager()._handle_multiple_solution_matches(
+            solution_list_no_cache)
+        newest_solution_one_cache = self.album_controller.collection_manager()._handle_multiple_solution_matches(
+            solution_list_one_cache)
+        newest_solution_two_cache = self.album_controller.collection_manager()._handle_multiple_solution_matches(
+            solution_list_two_cache)
+
+        # assert
+        self.assertEqual(newest_solution_no_cache, solution_020)
+        self.assertEqual(newest_solution_one_cache, solution_040)
+        self.assertEqual(newest_solution_two_cache, solution_050_cache)
