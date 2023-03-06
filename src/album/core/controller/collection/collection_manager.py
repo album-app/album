@@ -12,7 +12,7 @@ from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.collection.solution_handler import SolutionHandler
 from album.core.model.collection_index import CollectionIndex
-from album.core.model.db_version import DBVersion
+from album.core.model.mmversion import MMVersion
 from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import write_dict_to_json
@@ -98,7 +98,7 @@ class CollectionManager(ICollectionManager):
         )
         self.album.migration_manager().migrate_collection_index(
             self.catalog_collection,
-            initial_version=DBVersion.from_string(collection_version)
+            initial_version=MMVersion.from_string(collection_version)
         )
         if newly_created:
             self.catalog_handler.add_initial_catalogs()
@@ -487,8 +487,8 @@ class CollectionManager(ICollectionManager):
         if installed_solutions:
             newest_installed_solution = installed_solutions[0]
             for solution in installed_solutions:
-                if DBVersion.from_string(solution.setup()["version"]) > \
-                        DBVersion.from_string(newest_installed_solution.setup()["version"]) and \
+                if MMVersion.from_string(solution.setup()["version"]) > \
+                        MMVersion.from_string(newest_installed_solution.setup()["version"]) and \
                         solution.internal()["installed"] == 1:
                     newest_installed_solution = solution
             return newest_installed_solution
@@ -497,8 +497,8 @@ class CollectionManager(ICollectionManager):
     def _get_newest_solution(solutions: [ICollectionIndex.ICollectionSolution]):
         newest_solution = solutions[0]
         for solution in solutions:
-            if DBVersion.from_string(solution.setup()["version"]) > \
-                    DBVersion.from_string(newest_solution.setup()["version"]):
+            if MMVersion.from_string(solution.setup()["version"]) > \
+                    MMVersion.from_string(newest_solution.setup()["version"]):
                 newest_solution = solution
         return newest_solution
 

@@ -15,7 +15,7 @@ from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.migration_manager import IMigrationManager
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
-from album.core.model.db_version import IDBVersion, DBVersion
+from album.core.model.mmversion import IMMVersion, MMVersion
 from album.runner import album_logging
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import write_dict_to_json, get_dict_from_json, get_dict_entry
@@ -31,9 +31,9 @@ class MigrationManager(IMigrationManager):
         self.collection_db_versions = self._read_collection_database_versions_from_scripts()
         self.catalog_db_versions = self._read_catalog_database_versions_from_scripts()
 
-    def migrate_collection_index(self, collection_index: ICollectionIndex, initial_version: IDBVersion):
+    def migrate_collection_index(self, collection_index: ICollectionIndex, initial_version: IMMVersion):
         current_version = initial_version
-        target_version = DBVersion.from_string(DefaultValues.catalog_collection_db_version.value)
+        target_version = MMVersion.from_string(DefaultValues.catalog_collection_db_version.value)
         if not current_version == target_version:
             if current_version < target_version:
                 for vers in range(self.collection_db_versions.index(current_version),
@@ -45,10 +45,10 @@ class MigrationManager(IMigrationManager):
                 raise Exception("Your catalog collection database is newer than the current version of your Album. "
                                 "Please Update your Album.")
 
-    def _load_catalog_index(self, catalog: ICatalog, current_version: IDBVersion) -> None:
+    def _load_catalog_index(self, catalog: ICatalog, current_version: IMMVersion) -> None:
         """Loads current index on disk and migrates if necessary"""
         catalog.load_index()
-        target_version = DBVersion.from_string(DefaultValues.catalog_index_db_version.value)
+        target_version = MMVersion.from_string(DefaultValues.catalog_index_db_version.value)
         if not current_version == target_version:
             if current_version < target_version:
                 for vers in range(self.catalog_db_versions.index(current_version),
@@ -102,7 +102,7 @@ class MigrationManager(IMigrationManager):
     def load_index(self, catalog: ICatalog):
         with TemporaryDirectory(dir=self.album.configuration().tmp_path()) as tmp_dir:
             catalog.update_index_cache(Path(tmp_dir))
-            index_version = DBVersion.from_string(
+            index_version = MMVersion.from_string(
                 get_dict_entry(get_dict_from_json(catalog.get_meta_file_path()), 'version'))
         self._load_catalog_index(catalog, index_version)
         self.album.catalogs().set_version(catalog)
@@ -110,7 +110,7 @@ class MigrationManager(IMigrationManager):
     def refresh_index(self, catalog: ICatalog) -> bool:
         with TemporaryDirectory(dir=self.album.configuration().tmp_path()) as tmp_dir:
             if catalog.update_index_cache_if_possible(tmp_dir):
-                index_version = DBVersion.from_string(
+                index_version = MMVersion.from_string(
                     get_dict_entry(get_dict_from_json(catalog.get_meta_file_path()), 'version'))
                 self._load_catalog_index(catalog, index_version)
                 return True
@@ -188,11 +188,11 @@ class MigrationManager(IMigrationManager):
 
     @staticmethod
     def _read_collection_database_versions_from_scripts():
-        versions = [DBVersion.from_string("0.1.0")]
+        versions = [MMVersion.from_string("0.1.0")]
         for file in os.listdir(pkg_resources.resource_filename('album.core.schema.migrations.catalog_collection', '')):
             if ".sql" in file:
                 try:
-                    versions.append(DBVersion.from_string(file.split("_")[-1].split(".")[0]))
+                    versions.append(MMVersion.from_string(file.split("_")[-1].split(".")[0]))
                 except (ValueError, IndexError):
                     raise ValueError("Could not parse version from file name: %s" % file)
         versions.sort()
@@ -200,11 +200,11 @@ class MigrationManager(IMigrationManager):
 
     @staticmethod
     def _read_catalog_database_versions_from_scripts():
-        versions = [DBVersion.from_string("0.1.0")]
+        versions = [MMVersion.from_string("0.1.0")]
         for file in os.listdir(pkg_resources.resource_filename('album.core.schema.migrations.catalog_index', '')):
             if ".sql" in file:
                 try:
-                    versions.append(DBVersion.from_string(file.split("_")[-1].split(".")[0]))
+                    versions.append(MMVersion.from_string(file.split("_")[-1].split(".")[0]))
                 except (ValueError, IndexError):
                     raise ValueError("Could not parse version from file name: %s" % file)
         versions.sort()
