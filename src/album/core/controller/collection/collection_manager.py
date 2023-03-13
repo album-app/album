@@ -464,10 +464,6 @@ class CollectionManager(ICollectionManager):
                     return newest_solution
         else:
             return None
-        #solutions_ambiguous_str = (
-        #    "Input is ambiguous - choose between one of these solutions:\n%s"
-        #)
-        #raise RuntimeError(solutions_ambiguous_str % self._solutions_as_list(solutions))
 
     def _solutions_as_list(self, solutions: [ICollectionIndex.ICollectionSolution]):
         solutions_str = ""

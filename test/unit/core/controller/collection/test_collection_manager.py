@@ -627,3 +627,42 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         self.assertEqual(newest_solution_no_cache, solution_020)
         self.assertEqual(newest_solution_one_cache, solution_040)
         self.assertEqual(newest_solution_two_cache, solution_050_cache)
+
+    def test__solutions_as_list(self):
+        # prepare
+        solution_010 = CollectionIndex.CollectionSolution(setup=self._get_expected_attrs_setup({"group": "grp3",
+                                                                                                "name": "name3",
+                                                                                                "version": "0.1.0",
+                                                                                                }),
+                                                          internal=self._get_expected_attrs_internal(
+                                                              {"collection_id": "collection_id",
+                                                               "solution_id": "solution_id",
+                                                               "catalog_id": "1"}, installed=True))
+
+        solution_020 = CollectionIndex.CollectionSolution(setup=self._get_expected_attrs_setup({"group": "grp3",
+                                                                                                "name": "name3",
+                                                                                                "version": "0.2.0",
+                                                                                                }),
+                                                          internal=self._get_expected_attrs_internal(
+                                                              {"collection_id": "collection_id",
+                                                               "solution_id": "solution_id",
+                                                               "catalog_id": "1"}, installed=True))
+
+        solution_030 = CollectionIndex.CollectionSolution(setup=self._get_expected_attrs_setup({"group": "grp3",
+                                                                                                "name": "name3",
+                                                                                                "version": "0.3.0",
+                                                                                                }),
+                                                          internal=self._get_expected_attrs_internal(
+                                                              {"collection_id": "collection_id",
+                                                               "solution_id": "solution_id",
+                                                               "catalog_id": "1"}, installed=False))
+
+        solution_list_no_cache = [solution_010, solution_020, solution_030]
+        expected_solution_list_str = \
+            '- cache_catalog:grp3:name3:0.1.0\n- cache_catalog:grp3:name3:0.2.0\n- cache_catalog:grp3:name3:0.3.0\n'
+
+        # call
+        returned_solution_list_str = self.album_controller.collection_manager()._solutions_as_list(solution_list_no_cache)
+
+        # assert
+        self.assertEqual(expected_solution_list_str, returned_solution_list_str, "The solution list printout is not correct")
