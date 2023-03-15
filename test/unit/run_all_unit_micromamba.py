@@ -32,7 +32,7 @@ from test.unit.core.model import (
     test_collection_index,
     test_task,
     test_database,
-    test_db_version,
+    test_mmversion,
 )
 from test.unit.core.utils import test_subcommand
 from test.unit.core.utils.export import test_changelog, test_docker
@@ -80,6 +80,7 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_configuration))
     suite.addTests(loader.loadTestsFromModule(test_environment))
     suite.addTests(loader.loadTestsFromModule(test_task))
+    suite.addTests(loader.loadTestsFromModule(test_mmversion))
 
     # album.core.concept
     suite.addTests(loader.loadTestsFromModule(test_database))

@@ -60,3 +60,8 @@ into the .album directory in your home directory. If you passed a solution when 
 will also be installed. In the .album directory there will also be directory containing the
 micromamba installation. After the installation is finished there will be a shortcut for the Album UI on your Desktop 
 which allows you to use Album and execute solutions.
+
+**Windows disclaimer:** On some windows systems guarded by a institute controlled antivirus software, it can happen that 
+the antivirus software blocks the correct build of an executable. Created installers will not work correctly and will
+not install Album. If you encounter this problem, please disable your antivirus software if possible and try again or 
+request admin rights from your institute IT department.

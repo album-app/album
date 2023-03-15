@@ -1,7 +1,7 @@
-from album.core.api.model.db_version import IDBVersion
+from album.core.api.model.mmversion import IMMVersion
 
 
-class DBVersion(IDBVersion):
+class MMVersion(IMMVersion):
 
     def __init__(self, version, major, minor):
         self.version = version

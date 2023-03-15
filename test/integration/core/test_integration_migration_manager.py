@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from album.core.model.catalog import Catalog
-from album.core.model.db_version import DBVersion
+from album.core.model.mmversion import MMVersion
 from album.core.utils.operations.file_operations import get_dict_from_json
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
@@ -20,10 +20,10 @@ class TestIntegrationMigrationManager(TestIntegrationCoreCommon):
         self.setup_outdated_temporary_collection()
         self.migration_manager = self.album_controller._migration_manager
         self.migration_manager.load_index(self.catalog)
-        self.migration_manager.catalog_db_versions = [DBVersion.from_string('0.0.0'), DBVersion.from_string('0.0.1'),
-                                                      DBVersion.from_string('0.1.0')]
-        self.migration_manager.collection_db_versions = [DBVersion.from_string('0.0.0'), DBVersion.from_string('0.0.1'),
-                                                         DBVersion.from_string('0.1.0')]
+        self.migration_manager.catalog_db_versions = [MMVersion.from_string('0.0.0'), MMVersion.from_string('0.0.1'),
+                                                      MMVersion.from_string('0.1.0')]
+        self.migration_manager.collection_db_versions = [MMVersion.from_string('0.0.0'), MMVersion.from_string('0.0.1'),
+                                                         MMVersion.from_string('0.1.0')]
         self.collection_manager = self.album_controller._collection_manager
 
     def tearDown(self) -> None:
@@ -77,8 +77,8 @@ class TestIntegrationMigrationManager(TestIntegrationCoreCommon):
             "catalog_index",
             "migrate_catalog_index_001_to_010.sql")
         # prepare
-        current_version = DBVersion.from_string("0.0.1")
-        target_version = DBVersion.from_string("0.1.0")
+        current_version = MMVersion.from_string("0.0.1")
+        target_version = MMVersion.from_string("0.1.0")
         check_script = """SELECT name FROM sqlite_master WHERE type='table' AND name='test_table2';"""
 
         # call
@@ -109,8 +109,8 @@ class TestIntegrationMigrationManager(TestIntegrationCoreCommon):
                 "catalog_index",
                 "migrate_catalog_index_001_to_010.sql")]
         # prepare
-        current_version = DBVersion.from_string("0.0.0")
-        target_version = DBVersion.from_string("0.1.0")
+        current_version = MMVersion.from_string("0.0.0")
+        target_version = MMVersion.from_string("0.1.0")
         check_script = """SELECT name FROM sqlite_master WHERE type='table' AND name='test_table2' OR name='test_table';"""
 
         # call
@@ -137,8 +137,8 @@ class TestIntegrationMigrationManager(TestIntegrationCoreCommon):
             "catalog_collection",
             "migrate_catalog_collection_001_to_010.sql")
         # prepare
-        current_version = DBVersion.from_string("0.0.1")
-        target_version = DBVersion.from_string("0.1.0")
+        current_version = MMVersion.from_string("0.0.1")
+        target_version = MMVersion.from_string("0.1.0")
         check_script = """SELECT name FROM sqlite_master WHERE type='table' AND name='test_table2';"""
 
         collection_path = MagicMock()
@@ -172,8 +172,8 @@ class TestIntegrationMigrationManager(TestIntegrationCoreCommon):
                 "catalog_collection",
                 "migrate_catalog_collection_001_to_010.sql")]
         # prepare
-        current_version = DBVersion.from_string("0.0.0")
-        target_version = DBVersion.from_string("0.1.0")
+        current_version = MMVersion.from_string("0.0.0")
+        target_version = MMVersion.from_string("0.1.0")
         check_script = """SELECT name FROM sqlite_master WHERE type='table' AND name='test_table2' OR name='test_table';"""
 
         collection_path = MagicMock()

@@ -19,6 +19,13 @@ The installation wizards will create a new directory called .album inside your h
 Into this directory the installer installs Micromamba version 1.0.0 and creates the Album environment for you.
 On your Desktop you will find a link called Album which will start the Album graphical user interface.
 
+**Windows disclaimer:** On some windows systems, especially virtual maschines, the installer will trigger a request 
+for admin rights. This is because the installer of micromamba needs to edit the powershell profile. 
+The installer will only edit the profile of the current user and not the system profile. 
+The installer will not install anything on your system without your permission. If you deny the request for
+admin rights the installer will install album in a GUI only mode. This means that you can only use Album in the graphical
+user interface and not in the commandline/powershell since they cannot be initialised without admin rights.
+
 **Manually activating the environment for commandline usage**
 
 To activate the Album environment for commandline use one of the following commands:
