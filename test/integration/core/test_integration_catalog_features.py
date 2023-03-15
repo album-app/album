@@ -355,6 +355,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
             self.get_test_solution_path("solution11_minimal.py"),
             create_environment=False,
         )
+
         res = self.album_controller.collection_manager()._search(
             "cache_catalog:group:name:0.1.0"
         )
@@ -388,13 +389,17 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
             create_environment=False,
         )
 
-        with self.assertRaises(RuntimeError) as e:
-            self.album_controller.collection_manager()._search("name")
-        self.assertIn("Input is ambiguous", str(e.exception))
+        res = self.album_controller.collection_manager()._search("name")
+        self.assertIsNotNone(res)
+        self.assertEqual("group", res.setup()["group"])
+        self.assertEqual("name", res.setup()["name"])
+        self.assertEqual("0.2.0", res.setup()["version"])
 
-        with self.assertRaises(RuntimeError) as e:
-            self.album_controller.collection_manager()._search("group:name")
-        self.assertIn("Input is ambiguous", str(e.exception))
+        res = self.album_controller.collection_manager()._search("group:name")
+        self.assertIsNotNone(res)
+        self.assertEqual("group", res.setup()["group"])
+        self.assertEqual("name", res.setup()["name"])
+        self.assertEqual("0.2.0", res.setup()["version"])
 
         res = self.album_controller.collection_manager()._search("name:0.1.0")
         self.assertIsNotNone(res)
@@ -407,12 +412,20 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
             create_environment=False,
         )
 
-        with self.assertRaises(RuntimeError) as e:
-            self.album_controller.collection_manager()._search("name:0.2.0")
-        self.assertIn("Input is ambiguous", str(e.exception))
+        res = self.album_controller.collection_manager()._search("name:0.2.0")
+        self.assertIsNotNone(res)
+        self.assertEqual("group", res.setup()["group"])
+        self.assertEqual("name", res.setup()["name"])
+        self.assertEqual("0.2.0", res.setup()["version"])
 
         res = self.album_controller.collection_manager()._search("group:name:0.2.0")
         self.assertIsNotNone(res)
         self.assertEqual("group", res.setup()["group"])
         self.assertEqual("name", res.setup()["name"])
         self.assertEqual("0.2.0", res.setup()["version"])
+
+        with self.assertRaises(LookupError) as e:
+            self.album_controller.collection_manager()._resolve("ame")
+        self.assertIn("Cannot find solution ame! Try <doi>:<prefix>/<suffix> or <prefix>/<suffix> "
+                        "or <group>:<name>:<version> or <catalog>:<group>:<name>:<version> "
+                        "or point to a valid file or folder! Aborting...", str(e.exception))

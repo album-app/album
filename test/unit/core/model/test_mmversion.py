@@ -1,8 +1,8 @@
-from album.core.model.db_version import DBVersion
+from album.core.model.mmversion import MMVersion
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
-class TestDBVersion(TestUnitCoreCommon):
+class TestMMVersion(TestUnitCoreCommon):
 
     def setUp(self):
         super().setUp()
@@ -11,7 +11,7 @@ class TestDBVersion(TestUnitCoreCommon):
         super().tearDown()
 
     def test_init(self):
-        db_v_test = DBVersion(0, 1, 0)
+        db_v_test = MMVersion(0, 1, 0)
 
         self.assertEqual(0, db_v_test.version)
         self.assertEqual(1, db_v_test.major)
@@ -19,11 +19,11 @@ class TestDBVersion(TestUnitCoreCommon):
 
     def test_operators(self):
         # build input
-        db_v_test_1 = DBVersion(0, 1, 0)
-        db_v_test_2 = DBVersion(0, 1, 0)
-        db_v_test_3 = DBVersion(0, 2, 0)
-        db_v_test_4 = DBVersion(0, 1, 1)
-        db_v_test_5 = DBVersion(1, 0, 0)
+        db_v_test_1 = MMVersion(0, 1, 0)
+        db_v_test_2 = MMVersion(0, 1, 0)
+        db_v_test_3 = MMVersion(0, 2, 0)
+        db_v_test_4 = MMVersion(0, 1, 1)
+        db_v_test_5 = MMVersion(1, 0, 0)
 
         # asserts and calls
         self.assertTrue(db_v_test_1 == db_v_test_2, "Two equal versions where not declared as equal!")
@@ -44,7 +44,7 @@ class TestDBVersion(TestUnitCoreCommon):
     def test_to_string(self):
         # build input
         v_string = "0.1.0"
-        db_v_test_1 = DBVersion(0, 1, 0)
+        db_v_test_1 = MMVersion(0, 1, 0)
 
         # assert and call
         self.assertEqual(v_string, str(db_v_test_1), "Error in string cast!")
@@ -54,7 +54,7 @@ class TestDBVersion(TestUnitCoreCommon):
         v_string = "0.1.0"
 
         # call
-        db_v_test_1 = DBVersion.from_string(v_string)
+        db_v_test_1 = MMVersion.from_string(v_string)
 
         # asserts
         self.assertEqual(db_v_test_1.version, 0, "Error in the version of db_version object when created from string")

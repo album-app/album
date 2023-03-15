@@ -1,9 +1,9 @@
 from abc import ABCMeta, abstractmethod
 
 
-class IDBVersion:
+class IMMVersion:
 
-    """Class to make database versions comparable
+    """Class to make versions (with mayor and minor versions) comparable
         transforms the \"x.x.x\" version strings used in album into comparable integers
     """
 
@@ -28,7 +28,7 @@ class IDBVersion:
 
     @classmethod
     def from_string(cls, version_string):
-        """Create a DBVersion object from a string"""
+        """Create a MMVersion object from a string"""
         raise NotImplementedError
 
     @classmethod

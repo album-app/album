@@ -12,7 +12,7 @@ from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.controller.collection.solution_handler import SolutionHandler
 from album.core.model.collection_index import CollectionIndex
-from album.core.model.db_version import DBVersion
+from album.core.model.mmversion import MMVersion
 from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import write_dict_to_json
@@ -98,7 +98,7 @@ class CollectionManager(ICollectionManager):
         )
         self.album.migration_manager().migrate_collection_index(
             self.catalog_collection,
-            initial_version=DBVersion.from_string(collection_version)
+            initial_version=MMVersion.from_string(collection_version)
         )
         if newly_created:
             self.catalog_handler.add_initial_catalogs()
@@ -157,9 +157,7 @@ class CollectionManager(ICollectionManager):
 
         return resolve_result
 
-    def resolve_and_load_catalog_coordinates(
-            self, catalog: ICatalog, coordinates: ICoordinates
-    ) -> ICollectionSolution:
+    def resolve_and_load_catalog_coordinates(self, catalog: ICatalog, coordinates: ICoordinates) -> ICollectionSolution:
         collection_entry = self._search_in_specific_catalog(
             catalog.catalog_id(), coordinates
         )
@@ -179,9 +177,7 @@ class CollectionManager(ICollectionManager):
 
         return resolve_result
 
-    def resolve_and_load_coordinates(
-            self, coordinates: ICoordinates
-    ) -> ICollectionSolution:
+    def resolve_and_load_coordinates(self, coordinates: ICoordinates) -> ICollectionSolution:
         collection_entry = self._search_by_coordinates(coordinates)
         catalog = self.album.catalogs().get_by_id(
             collection_entry.internal()["catalog_id"]
@@ -332,9 +328,7 @@ class CollectionManager(ICollectionManager):
                         solution_entry = solution_entries[0]
         return solution_entry
 
-    def _search_by_coordinates(
-            self, coordinates: ICoordinates
-    ) -> Optional[ICollectionIndex.ICollectionSolution]:
+    def _search_by_coordinates(self, coordinates: ICoordinates) -> Optional[ICollectionIndex.ICollectionSolution]:
         solution_entry = self._search_in_local_catalog(
             coordinates
         )  # resolve in local catalog first!
@@ -352,25 +346,20 @@ class CollectionManager(ICollectionManager):
 
         return solution_entry
 
-    def _search_in_local_catalog(
-            self, coordinates: ICoordinates
-    ) -> Optional[ICollectionIndex.ICollectionSolution]:
+    def _search_in_local_catalog(self, coordinates: ICoordinates) -> Optional[ICollectionIndex.ICollectionSolution]:
         """Searches in the local catalog only"""
         return self._search_in_specific_catalog(
             self.album.catalogs().get_cache_catalog().catalog_id(), coordinates
         )
 
-    def _search_in_specific_catalog(
-            self, catalog_id, coordinates: ICoordinates
-    ) -> Optional[ICollectionIndex.ICollectionSolution]:
+    def _search_in_specific_catalog(self, catalog_id, coordinates: ICoordinates) -> \
+            Optional[ICollectionIndex.ICollectionSolution]:
         """Searches in a given catalog only"""
         return self.catalog_collection.get_solution_by_catalog_grp_name_version(
             catalog_id, coordinates
         )
 
-    def _search_in_catalogs(
-            self, coordinates: ICoordinates
-    ) -> List[ICollectionIndex.ICollectionSolution]:
+    def _search_in_catalogs(self, coordinates: ICoordinates) -> List[ICollectionIndex.ICollectionSolution]:
         """Searches the whole collection giving coordinates"""
         solution_entries = self.catalog_collection.get_solutions_by_grp_name_version(
             coordinates
@@ -438,9 +427,7 @@ class CollectionManager(ICollectionManager):
                     return self._handle_multiple_solution_matches(solutions)
         return None
 
-    def _handle_multiple_solution_matches(
-            self, solutions: [ICollectionIndex.ICollectionSolution]
-    ):
+    def _handle_multiple_solution_matches(self, solutions: [ICollectionIndex.ICollectionSolution]):
         call_not_reproducible = "Resolving ambiguous input to %s"
         cache_id = self.catalogs().get_cache_catalog().catalog_id()
         cache_matches = [
@@ -448,15 +435,35 @@ class CollectionManager(ICollectionManager):
             for solution in solutions
             if solution.internal()["catalog_id"] == cache_id
         ]
+        non_cache_matches = [solution for solution in solutions if solution.internal()["catalog_id"] != cache_id]
         if len(cache_matches) == 1:
             module_logger().warn(
                 call_not_reproducible % dict_to_coordinates(cache_matches[0].setup())
             )
             return cache_matches[0]
-        solutions_ambiguous_str = (
-            "Input is ambiguous - choose between one of these solutions:\n%s"
-        )
-        raise RuntimeError(solutions_ambiguous_str % self._solutions_as_list(solutions))
+        elif len(cache_matches) > 1:
+            latest_installed_solution = self._get_latest_installed_solution(cache_matches)
+            if latest_installed_solution:
+                module_logger().warn(
+                    call_not_reproducible % dict_to_coordinates(latest_installed_solution.setup())
+                )
+            return latest_installed_solution
+        elif len(non_cache_matches) > 0:
+            latest_installed_solution = self._get_latest_installed_solution(non_cache_matches)
+            if latest_installed_solution:
+                module_logger().warn(
+                    call_not_reproducible % dict_to_coordinates(latest_installed_solution.setup())
+                )
+                return latest_installed_solution
+            else:
+                latest_solution = self._get_latest_solution(non_cache_matches)
+                if latest_solution:
+                    module_logger().warn(
+                        call_not_reproducible % dict_to_coordinates(latest_solution.setup())
+                    )
+                    return latest_solution
+        else:
+            return None
 
     def _solutions_as_list(self, solutions: [ICollectionIndex.ICollectionSolution]):
         solutions_str = ""
@@ -466,6 +473,21 @@ class CollectionManager(ICollectionManager):
             )
             solutions_str += "- %s:%s\n" % (
                 catalog_name,
-                dict_to_coordinates(solutions[0].setup()),
+                dict_to_coordinates(solution.setup()),
             )
         return solutions_str
+
+    @staticmethod
+    def _get_latest_installed_solution(solutions: [ICollectionIndex.ICollectionSolution]):
+        installed_solutions = [solution for solution in solutions if solution.internal()["installed"] == 1]
+        return CollectionManager._get_latest_solution(installed_solutions)
+
+    @staticmethod
+    def _get_latest_solution(solutions: [ICollectionIndex.ICollectionSolution]):
+        latest_solution = solutions[0]
+        for solution in solutions:
+            if MMVersion.from_string(solution.setup()["version"]) > \
+                    MMVersion.from_string(latest_solution.setup()["version"]):
+                latest_solution = solution
+        return latest_solution
+
