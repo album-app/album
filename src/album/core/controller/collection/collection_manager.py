@@ -442,26 +442,26 @@ class CollectionManager(ICollectionManager):
             )
             return cache_matches[0]
         elif len(cache_matches) > 1:
-            newest_installed_solution = self._get_newest_installed_solution(cache_matches)
-            if newest_installed_solution:
+            latest_installed_solution = self._get_latest_installed_solution(cache_matches)
+            if latest_installed_solution:
                 module_logger().warn(
-                    call_not_reproducible % dict_to_coordinates(newest_installed_solution.setup())
+                    call_not_reproducible % dict_to_coordinates(latest_installed_solution.setup())
                 )
-            return newest_installed_solution
+            return latest_installed_solution
         elif len(non_cache_matches) > 0:
-            newest_installed_solution = self._get_newest_installed_solution(non_cache_matches)
-            if newest_installed_solution:
+            latest_installed_solution = self._get_latest_installed_solution(non_cache_matches)
+            if latest_installed_solution:
                 module_logger().warn(
-                    call_not_reproducible % dict_to_coordinates(newest_installed_solution.setup())
+                    call_not_reproducible % dict_to_coordinates(latest_installed_solution.setup())
                 )
-                return newest_installed_solution
+                return latest_installed_solution
             else:
-                newest_solution = self._get_newest_solution(non_cache_matches)
-                if newest_solution:
+                latest_solution = self._get_latest_solution(non_cache_matches)
+                if latest_solution:
                     module_logger().warn(
-                        call_not_reproducible % dict_to_coordinates(newest_solution.setup())
+                        call_not_reproducible % dict_to_coordinates(latest_solution.setup())
                     )
-                    return newest_solution
+                    return latest_solution
         else:
             return None
 
@@ -478,23 +478,16 @@ class CollectionManager(ICollectionManager):
         return solutions_str
 
     @staticmethod
-    def _get_newest_installed_solution(solutions: [ICollectionIndex.ICollectionSolution]):
+    def _get_latest_installed_solution(solutions: [ICollectionIndex.ICollectionSolution]):
         installed_solutions = [solution for solution in solutions if solution.internal()["installed"] == 1]
-        if installed_solutions:
-            newest_installed_solution = installed_solutions[0]
-            for solution in installed_solutions:
-                if MMVersion.from_string(solution.setup()["version"]) > \
-                        MMVersion.from_string(newest_installed_solution.setup()["version"]) and \
-                        solution.internal()["installed"] == 1:
-                    newest_installed_solution = solution
-            return newest_installed_solution
+        return CollectionManager._get_latest_solution(installed_solutions)
 
     @staticmethod
-    def _get_newest_solution(solutions: [ICollectionIndex.ICollectionSolution]):
-        newest_solution = solutions[0]
+    def _get_latest_solution(solutions: [ICollectionIndex.ICollectionSolution]):
+        latest_solution = solutions[0]
         for solution in solutions:
             if MMVersion.from_string(solution.setup()["version"]) > \
-                    MMVersion.from_string(newest_solution.setup()["version"]):
-                newest_solution = solution
-        return newest_solution
+                    MMVersion.from_string(latest_solution.setup()["version"]):
+                latest_solution = solution
+        return latest_solution
 

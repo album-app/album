@@ -4,6 +4,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.model.catalog import Catalog
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.resolve_result import ResolveResult
@@ -480,7 +481,42 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         d["doi"] = attrs.get("doi", None)
         return d
 
-    def test__get_newest_installed_solution(self):
+    @patch('album.core.controller.collection.collection_manager.CollectionManager._get_latest_solution')
+    def test__get_latest_installed_solution(self, _get_latest_solution_mock):
+        # prepare
+        Solution_010 = CollectionIndex.CollectionSolution(setup=self._get_expected_attrs_setup({"group": "grp3",
+                                                                                                "name": "name3",
+                                                                                                "version": "0.1.0",
+                                                                                                }),
+                                                          internal=self._get_expected_attrs_internal(
+                                                              {"collection_id": "collection_id",
+                                                               "solution_id": "solution_id",
+                                                               "catalog_id": "catalog_id"}, installed=True))
+
+        Solution_020 = CollectionIndex.CollectionSolution(setup=self._get_expected_attrs_setup({"group": "grp3",
+                                                                                                "name": "name3",
+                                                                                                "version": "0.2.0",
+                                                                                                }),
+                                                          internal=self._get_expected_attrs_internal(
+                                                              {"collection_id": "collection_id",
+                                                               "solution_id": "solution_id",
+                                                               "catalog_id": "catalog_id"}, installed=True))
+
+        Solution_030 = CollectionIndex.CollectionSolution(setup=self._get_expected_attrs_setup({"group": "grp3",
+                                                                                                "name": "name3",
+                                                                                                "version": "0.3.0",
+                                                                                                }),
+                                                          internal=self._get_expected_attrs_internal(
+                                                              {"collection_id": "collection_id",
+                                                               "solution_id": "solution_id",
+                                                               "catalog_id": "catalog_id"}, installed=False))
+        solution_list = [Solution_010, Solution_020]
+
+        # call & assert
+        self.album_controller.collection_manager()._get_latest_installed_solution(solution_list + [Solution_030])
+        _get_latest_solution_mock.assert_called_once_with(solution_list)
+
+    def test__get_latest_solution(self):
         # prepare
         Solution_010 = CollectionIndex.CollectionSolution(setup=self._get_expected_attrs_setup({"group": "grp3",
                                                                                                 "name": "name3",
@@ -511,49 +547,10 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         solution_list = [Solution_010, Solution_020, Solution_030]
 
         # call
-        newest_installed_solution = self.album_controller.collection_manager()._get_newest_installed_solution(
-            solution_list)
-        newest_solution = self.album_controller.collection_manager()._get_newest_solution(solution_list)
+        latest_solution = self.album_controller.collection_manager()._get_latest_solution(solution_list)
 
         # assert
-        self.assertEqual(newest_installed_solution, Solution_020)
-        self.assertEqual(newest_solution, Solution_030)
-
-    def test__get_newest_solution(self):
-        # prepare
-        Solution_010 = CollectionIndex.CollectionSolution(setup=self._get_expected_attrs_setup({"group": "grp3",
-                                                                                                "name": "name3",
-                                                                                                "version": "0.1.0",
-                                                                                                }),
-                                                          internal=self._get_expected_attrs_internal(
-                                                              {"collection_id": "collection_id",
-                                                               "solution_id": "solution_id",
-                                                               "catalog_id": "catalog_id"}, installed=True))
-
-        Solution_020 = CollectionIndex.CollectionSolution(setup=self._get_expected_attrs_setup({"group": "grp3",
-                                                                                                "name": "name3",
-                                                                                                "version": "0.2.0",
-                                                                                                }),
-                                                          internal=self._get_expected_attrs_internal(
-                                                              {"collection_id": "collection_id",
-                                                               "solution_id": "solution_id",
-                                                               "catalog_id": "catalog_id"}, installed=True))
-
-        Solution_030 = CollectionIndex.CollectionSolution(setup=self._get_expected_attrs_setup({"group": "grp3",
-                                                                                                "name": "name3",
-                                                                                                "version": "0.3.0",
-                                                                                                }),
-                                                          internal=self._get_expected_attrs_internal(
-                                                              {"collection_id": "collection_id",
-                                                               "solution_id": "solution_id",
-                                                               "catalog_id": "catalog_id"}, installed=False))
-        solution_list = [Solution_010, Solution_020, Solution_030]
-
-        # call
-        newest_solution = self.album_controller.collection_manager()._get_newest_solution(solution_list)
-
-        # assert
-        self.assertEqual(newest_solution, Solution_030)
+        self.assertEqual(latest_solution, Solution_030)
 
     def test__handle_multiple_solution_matches(self):
         # prepare
@@ -613,20 +610,20 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
 
         solution_list_no_cache = [solution_010, solution_020, solution_030]
         solution_list_one_cache = [solution_010, solution_020, solution_030, solution_040, solution_030_cache]
-        solution_list_two_cache = [solution_010, solution_020, solution_030, solution_040, solution_050_cache]
+        solution_list_two_cache = [solution_010, solution_020, solution_030_cache, solution_040, solution_050_cache]
 
         # call
-        newest_solution_no_cache = self.album_controller.collection_manager()._handle_multiple_solution_matches(
+        latest_solution_no_cache = self.album_controller.collection_manager()._handle_multiple_solution_matches(
             solution_list_no_cache)
-        newest_solution_one_cache = self.album_controller.collection_manager()._handle_multiple_solution_matches(
+        latest_solution_one_cache = self.album_controller.collection_manager()._handle_multiple_solution_matches(
             solution_list_one_cache)
-        newest_solution_two_cache = self.album_controller.collection_manager()._handle_multiple_solution_matches(
+        latest_solution_two_cache = self.album_controller.collection_manager()._handle_multiple_solution_matches(
             solution_list_two_cache)
 
         # assert
-        self.assertEqual(newest_solution_no_cache, solution_020)
-        self.assertEqual(newest_solution_one_cache, solution_040)
-        self.assertEqual(newest_solution_two_cache, solution_050_cache)
+        self.assertEqual(latest_solution_no_cache, solution_020)
+        self.assertEqual(latest_solution_one_cache, solution_040)
+        self.assertEqual(latest_solution_two_cache, solution_050_cache)
 
     def test__solutions_as_list(self):
         # prepare
