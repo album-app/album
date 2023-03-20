@@ -6,13 +6,13 @@ Album can be installed in two different ways:
 
 You can install Album by simply downloading the installation wizard for your operating system and executing it.
 
-- [Windows install wizard](https://gitlab.com/album-app/plugins/album-package/-/jobs/3783435114/artifacts/raw/installer/album_installer.exe?inline=false)
+- [Windows install wizard](https://gitlab.com/album-app/plugins/album-package/-/jobs/3941084419/artifacts/raw/installer/album_installer.exe?inline=false)
 
 
-- [MacOS install wizard](https://gitlab.com/album-app/plugins/album-package/-/jobs/3783435110/artifacts/raw/installer/album_installer?inline=false)
+- [MacOS install wizard](https://gitlab.com/album-app/plugins/album-package/-/jobs/3941084416/artifacts/raw/installer/album_installer?inline=false)
 
 
-- [Linux install wizard](https://gitlab.com/album-app/plugins/album-package/-/jobs/3783435108/artifacts/raw/installer/album_installer?inline=false)
+- [Linux install wizard](https://gitlab.com/album-app/plugins/album-package/-/jobs/3941084414/artifacts/raw/installer/album_installer?inline=false)
 
 
 The installation wizards will create a new directory called .album inside your home directory.
