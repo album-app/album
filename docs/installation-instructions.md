@@ -14,17 +14,37 @@ You can install Album by simply downloading the installation wizard for your ope
 
 - [Linux install wizard](https://gitlab.com/album-app/plugins/album-package/-/jobs/3941084414/artifacts/raw/installer/album_installer?inline=false)
 
+On Windows the installer can be started by double-clicking on the installer file. 
+On Linux and macOS you need to make the installer executable by running the following command in the directory where the installer is located:
+
+On Linux:
+```
+chmod +x album_installer
+```
+On macOS:
+```
+chmod +x album_installer.app
+```
+After that you can start the installer on macOS by double-clicking it or by running the following command:
+```
+./album_installer.app
+```
+
+On Linux you can start the installer by double-clicking it or by running the following command:
+```
+./album_installer
+```
+Note when you double-click the file on Linux systems there will possibly be no graphical output indicating the status of the installation, 
+the execution via commandline will show the status of the installation and should be preferred.
 
 The installation wizards will create a new directory called .album inside your home directory.
 Into this directory the installer installs Micromamba version 1.0.0 and creates the Album environment for you.
-On your Desktop you will find a link called Album which will start the Album graphical user interface.
+On your Desktop you will find a link called Album which will start the Album graphical user interface. 
+If you ever want to uninstall album simply delete the .album directory and the Album link on your Desktop.
 
-**Windows disclaimer:** On some windows systems, especially virtual maschines, the installer will trigger a request 
-for admin rights. This is because the installer of micromamba needs to edit the powershell profile. 
-The installer will only edit the profile of the current user and not the system profile. 
-The installer will not install anything on your system without your permission. If you deny the request for
-admin rights the installer will install album in a GUI only mode. This means that you can only use Album in the graphical
-user interface and not in the commandline/powershell since they cannot be initialised without admin rights.
+If you face any trouble with the installation, please refer to this [troubleshooting page](https://docs.album.solutions/en/latest/troubleshooting.html) 
+or open an issue on the [Album issue tracker](https://gitlab.com/album-app/album/-/issues).
+
 
 **Manually activating the environment for commandline usage**
 
