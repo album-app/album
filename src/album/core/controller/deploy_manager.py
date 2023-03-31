@@ -1,17 +1,22 @@
 import os
 from datetime import datetime
+from io import StringIO
 from pathlib import Path
 
+import validators
+import yaml
 from git import Repo
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.deploy_manager import IDeployManager
 from album.core.api.model.catalog import ICatalog
+from album.core.controller.conda_manager import CondaManager
 from album.core.model.default_values import DefaultValues
 from album.core.utils.export.changelog import (
     create_changelog_file,
     process_changelog_file,
 )
+from album.core.utils.export.conda_lock import create_conda_lock_file
 from album.core.utils.operations.file_operations import (
     copy,
     write_dict_to_yml,
@@ -37,6 +42,7 @@ from album.core.utils.operations.resolve_operations import (
     as_tag,
 )
 from album.core.utils.operations.solution_operations import get_deploy_dict
+from album.core.utils.operations.url_operations import download_resource
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
@@ -401,6 +407,12 @@ class DeployManager(IDeployManager):
             )
         )
 
+        res.append(
+            create_conda_lock_file(self.write_solution_environment_file(active_solution,
+                                                                        catalog_solution_local_src_path),
+                                   self.album.configuration().conda_lock_executable())
+        )
+        # res append neu gesschriebene environment.yml files
         return res
 
     def _get_tmp_dir(self):
@@ -682,3 +694,47 @@ class DeployManager(IDeployManager):
                 clean_repository(repo)
             finally:
                 raise e
+
+    def write_solution_environment_file(self, solution: ISolution, solution_home: Path):
+        #yml_path = solution.installation().package_path().joinpath('environment.yml')
+        #yml_path = self.album.configuration().tmp_path().joinpath('environment.yml')
+        yml_path = solution_home.joinpath('environment.yml')
+        env_file = solution.setup()["dependencies"]["environment_file"]
+        if env_file:
+            if isinstance(env_file, str):
+                # 1 Link
+                if validators.url(env_file):
+                    download_resource(env_file, yml_path)
+
+                # 2 string aus solution file
+                elif "dependencies:" in env_file and "\n" in env_file:
+                    with open(str(yml_path), "w+") as yml_file:
+                        yml_file.writelines(env_file)
+                # 3 existing env.yml
+                elif Path(env_file).is_file() and Path(env_file).stat().st_size > 0:
+                    copy(env_file, yml_path)
+                else:
+                    raise TypeError(
+                        "environment_file must either contain the content of the environment file, "
+                        "contain the url to a valid file or point to a file on the disk!"
+                    )
+            # String stream
+            elif isinstance(env_file, StringIO):
+                with open(str(yml_path), "w+") as f:
+                    env_file.seek(0)  # make sure we start from the beginning
+                    f.writelines(env_file.readlines())
+            else:
+                raise RuntimeError(
+                    "Environment file specified, but format is unknown!"
+                    " Don't know where to run solution!"
+                )
+        else:
+            # No env file specified, build default solution env file
+            write_dict_to_yml(yml_path, DefaultValues.default_solution_env_content.value)
+
+        yml_dict = yaml.load(open(yml_path, "r"), Loader=yaml.FullLoader)
+        yml_dict = CondaManager.append_framework_to_yml(yml_dict, solution.setup()['album_api_version'])
+        write_dict_to_yml(yml_path, yml_dict)
+
+        return yml_path
+        #solution.installation().set_env_file_path(yml_path)

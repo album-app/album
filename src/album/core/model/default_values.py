@@ -1,4 +1,5 @@
 import os
+import platform
 from enum import Enum
 from pathlib import Path
 
@@ -52,47 +53,24 @@ class DefaultValues(Enum):
         "ALBUM_DEFAULT_CATALOG", _catalog_url
     )  # default catalog, either catalog_url or env. variable
     default_catalog_src_branch = os.getenv(
-        "ALBUM_DEFAULT_CATALOG_BRANCH", _catalog_branch
-    )  # default catalog branch either _catalog_branch or env. variable
-    default_catalog_name = (
-        "default"  # default catalog, either catalog_url or env. variable
-    )
-    catalog_collection_name = "album_collection"  # the default name of the Collection
-    catalog_collection_db_name = (
-        "catalog_collection.db"  # the default name of the Collection DB
-    )
-    catalog_collection_json_name = (
-        "catalog_collection.json"  # the default name of the Collection JSON
-    )
-    catalog_collection_db_version = (
-        "0.1.0"  # the version of the collection database created by this album version
-    )
-    catalog_index_file_name = (
-        "album_catalog_index.db"  # the default index file name of the catalog_index
-    )
-    catalog_index_metafile_json = (
-        "album_catalog_index.json"  # the default meta file name of the catalog_index
-    )
-    catalog_index_db_version = (
-        "0.1.0"  # the version of the catalog database created by this album version
-    )
-    catalog_solution_list_file_name = "album_solution_list.json"  # the default file name for exporting the list of solutions of a catalog
-    catalog_folder_prefix = (
-        "catalogs"  # base folder prefix where all not local catalogs live
-    )
-    installation_folder_prefix = (
-        "installations"  # base folder prefix where installations live
-    )
-    cache_path_tmp_prefix = "tmp"  # base folder prefix where solution unspecific internal temporary files live
-    link_folder_prefix = (
-        "lnk"  # base folder prefix where all internal link destinations live
-    )
-    catalog_solutions_prefix = "solutions"  # base folder prefix where solutions live
-    cache_path_download_prefix = "downloads"  # base folder prefix where downloads live
-    cache_path_envs_prefix = "envs"  # base folder prefix where environments live in
-    micromamba_base_path = (
-        "micromamba"  # base folder prefix where micromamba is installed into
-    )
+        'ALBUM_DEFAULT_CATALOG_BRANCH', _catalog_branch
+    )                                                                      # default catalog branch either _catalog_branch or env. variable
+    default_catalog_name = "default"                                       # default catalog, either catalog_url or env. variable
+    catalog_collection_name = 'album_collection'                           # the default name of the Collection
+    catalog_collection_db_name = 'catalog_collection.db'                   # the default name of the Collection DB
+    catalog_collection_json_name = 'catalog_collection.json'               # the default name of the Collection JSON
+    catalog_collection_db_version = '0.1.0'                                # the version of the collection database created by this album version
+    catalog_index_file_name = 'album_catalog_index.db'                     # the default index file name of the catalog_index
+    catalog_index_metafile_json = 'album_catalog_index.json'               # the default meta file name of the catalog_index
+    catalog_index_db_version = '0.1.0'                                     # the version of the catalog database created by this album version
+    catalog_solution_list_file_name = 'album_solution_list.json'           # the default file name for exporting the list of solutions of a catalog
+    catalog_folder_prefix = 'catalogs'                                     # base folder prefix where all not local catalogs live
+    installation_folder_prefix = "installations"                           # base folder prefix where installations live
+    cache_path_tmp_prefix = "tmp"                                          # base folder prefix where solution unspecific internal temporary files live
+    link_folder_prefix = 'lnk'                                             # base folder prefix where all internal link destinations live
+    catalog_solutions_prefix = "solutions"                                 # base folder prefix where solutions live
+    cache_path_download_prefix = "downloads"                               # base folder prefix where downloads live
+    cache_path_envs_prefix = "envs"                                        # base folder prefix where environments live in
 
     # solutions
     solution_default_name = (
@@ -101,6 +79,12 @@ class DefaultValues(Enum):
     solution_yml_default_name = "solution.yml"  # default name of the solution.yml file
     solution_zip_default_name = "solution.zip"  # default name of the solution.zip file
     changelog_default_name = "CHANGELOG.md"  # default name of the changelog file
+    default_solution_env_content = {
+        "channels": ["defaults"],
+        "dependencies": [
+            "python=%s" % default_solution_python_version
+        ]
+    }
 
     # lnk folder prefixes
     lnk_package_prefix = (
@@ -130,6 +114,25 @@ class DefaultValues(Enum):
 
     # album
     app_data_dir = Path.home().joinpath(".album")  # base data path
+
+    # conda
+    conda_default_executable = "conda"  # default conda executable
+    conda_path = os.getenv(
+        "ALBUM_CONDA_PATH", conda_default_executable
+    )  # default conda path, either env. var or conda
+
+    # micromamba
+    # These default executable cannot be used for environment activation!
+    micromamba_default_windows_executable = str(
+        Path(str(app_data_dir)).joinpath("micromamba", "Library", "bin",
+                                         "micromamba.exe"))  # default micromamba executable on windows
+    micromamba_default_unix_executable = str(
+        Path(str(app_data_dir)).joinpath("micromamba", "bin",
+                                         "micromamba"))  # default micromamba executable on windows
+    if platform.system() == "Windows":
+        micromamba_path = os.getenv("ALBUM_CONDA_PATH", micromamba_default_windows_executable)
+    else:
+        micromamba_path = os.getenv("ALBUM_CONDA_PATH", micromamba_default_unix_executable)
 
     # events
     before_run_event_name = "before-run"
