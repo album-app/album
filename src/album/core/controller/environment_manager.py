@@ -3,6 +3,7 @@ from album.core.api.controller.environment_manager import IEnvironmentManager
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.api.model.environment import IEnvironment
+from album.core.controller.conda_lock_manager import CondaLockManager
 from album.core.controller.conda_manager import CondaManager
 from album.core.controller.mamba_manager import MambaManager
 from album.core.controller.micromamba_manager import MicromambaManager
@@ -28,20 +29,27 @@ class EnvironmentManager(IEnvironmentManager):
             else:
                 self._env_install_manager = self._package_manager
         self._album = album
+        self._conda_lock_manager = CondaLockManager(album.configuration())
 
-    def install_environment(
-        self, collection_solution: ICollectionSolution
-    ) -> IEnvironment:
-        environment = Environment(
-            collection_solution.loaded_solution().setup().dependencies,
-            self.get_environment_name(
-                collection_solution.coordinates(), collection_solution.catalog()
-            ),
-            collection_solution.loaded_solution().installation().internal_cache_path(),
-        )
-        self._env_install_manager.install(
-            environment, collection_solution.loaded_solution().setup().album_api_version
-        )
+    def install_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
+        # If there is a lock file for the solution environment it will be used to install the environment preferably
+        solution_lock_file = \
+            collection_solution.loaded_solution().installation().package_path().joinpath('solution.conda-lock.yml')
+        environment = Environment(collection_solution.loaded_solution().setup().dependencies,
+                                  self.get_environment_name(collection_solution.coordinates(),
+                                                            collection_solution.catalog()),
+                                  collection_solution.loaded_solution().installation().internal_cache_path(),
+                                  )
+        if solution_lock_file.is_file():
+            module_logger().debug("Creating solution environment from lock file.")
+            self._conda_lock_manager.install(
+                environment, collection_solution.loaded_solution().setup().album_api_version, solution_lock_file
+            )
+        else:
+            module_logger().debug("Creating solution environment from setup dependency.")
+            self._env_install_manager.install(
+                environment, collection_solution.loaded_solution().setup().album_api_version
+            )
         set_environment_paths(collection_solution.loaded_solution(), environment)
         return environment
 
@@ -56,8 +64,8 @@ class EnvironmentManager(IEnvironmentManager):
                     collection_solution.coordinates(), collection_solution.catalog()
                 ),
                 cache_path=collection_solution.loaded_solution()
-                .installation()
-                .internal_cache_path(),
+                    .installation()
+                    .internal_cache_path(),
             )
             self._package_manager.set_environment_path(environment)
 
@@ -70,8 +78,8 @@ class EnvironmentManager(IEnvironmentManager):
                 None,
                 self.get_environment_name(coordinates, catalog),
                 collection_solution.loaded_solution()
-                .installation()
-                .internal_cache_path(),
+                    .installation()
+                    .internal_cache_path(),
             )
             self._package_manager.set_environment_path(environment)
 

@@ -65,6 +65,12 @@ class DefaultValues(Enum):
     solution_yml_default_name = "solution.yml"  # default name of the solution.yml file
     solution_zip_default_name = "solution.zip"  # default name of the solution.zip file
     changelog_default_name = "CHANGELOG.md"  # default name of the changelog file
+    default_solution_env_content = {
+        "channels": ["defaults"],
+        "dependencies": [
+            "python=%s" % default_solution_python_version
+        ]
+    }
 
     # lnk folder prefixes
     lnk_package_prefix = (
@@ -113,6 +119,12 @@ class DefaultValues(Enum):
         micromamba_path = os.getenv("ALBUM_CONDA_PATH", micromamba_default_windows_executable)
     else:
         micromamba_path = os.getenv("ALBUM_CONDA_PATH", micromamba_default_unix_executable)
+
+    # conda-lock
+    conda_lock_default_executable = "conda-lock"  # default conda-lock executable
+    conda_lock_path = os.getenv(
+        "ALBUM_CONDA_LOCK_PATH", conda_lock_default_executable
+    )  # default conda lock path, either env. var or conda-lock
 
     # events
     before_run_event_name = "before-run"

@@ -104,7 +104,7 @@ class TestMicromambaManager(TestUnitCoreCommon):
         self.assertIsNotNone(r)
 
     def test__append_framework_to_yml_conda(self):
-        output = MicromambaManager._append_framework_to_yml(
+        output = MicromambaManager.append_framework_to_yml(
             yaml.safe_load("""dependencies:\n  - python"""),
             "0.5.1",
         )

@@ -9,5 +9,5 @@ class MambaManager(CondaManager):
         super().__init__(configuration)
         self._mamba_executable = self._configuration.mamba_executable()
 
-    def _get_install_environment_executable(self):
+    def get_install_environment_executable(self):
         return self._mamba_executable
