@@ -103,6 +103,9 @@ class EnvironmentManager(IEnvironmentManager):
     def get_package_manager(self):
         return self._package_manager
 
+    def get_conda_lock_manager(self):
+        return self._conda_lock_manager
+
     @staticmethod
     def get_environment_name(coordinates: ICoordinates, catalog: ICatalog) -> str:
         return "_".join(

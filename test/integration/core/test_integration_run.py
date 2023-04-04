@@ -22,7 +22,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         # assert
         self.assertNotIn("ERROR", self.captured_output.getvalue())
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
+    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
     def test_run_arguments(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
@@ -41,7 +41,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
             self.captured_output.getvalue(),
         )
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
+    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
     def test_run_arguments_given(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
@@ -67,7 +67,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         # run
         self.album_controller.run_manager().run(p, argv=argv)
 
-        print(self.captured_output.getvalue())
+        #print(self.captured_output.getvalue())
         self.assertNotIn("ERROR", self.captured_output.getvalue())
 
         log = self.captured_output.getvalue()
@@ -81,7 +81,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         self.assertIn("lambda_arg1: <class 'str'> myFile.txt", log)
         self.assertIn("lambda_arg2: <class 'NoneType'> None", log)
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
+    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
     def test_run_with_group_name_version(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
@@ -106,7 +106,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         # assert
         self.assertNotIn("ERROR", self.captured_output.getvalue())
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
+    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
     def test_run_minimal_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
@@ -133,7 +133,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
             'No "run" routine configured for solution', self.captured_output.getvalue()
         )
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
+    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
     def test_run_with_parent(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
@@ -171,7 +171,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
             self.assertEqual("solution1_app1_run", log[0])
             self.assertEqual("solution1_app1_close", log[1])
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
+    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
     def test_run_with_steps(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
@@ -231,7 +231,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
             self.assertEqual("solution3_noparent_run", log[10])
             self.assertEqual("solution3_noparent_close", log[11])
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
+    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
     def test_run_with_grouped_steps(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
@@ -303,7 +303,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
             self.assertEqual("solution3_noparent_run", log[16])
             self.assertEqual("solution3_noparent_close", log[17])
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
+    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
     def test_run_throwing_error_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
@@ -355,5 +355,5 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
 
         # run
         self.album_controller.run_manager().run(path)
-        print(self.captured_output.getvalue())
+        #print(self.captured_output.getvalue())
         self.assertIn("INFO ~ ['Me']", self.captured_output.getvalue())

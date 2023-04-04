@@ -3,6 +3,7 @@ import os
 import sys
 from pathlib import Path
 from shutil import copy
+from unittest.mock import patch
 
 from album.core.api.model.catalog_updates import ChangeType
 
@@ -18,11 +19,12 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
     def tearDown(self) -> None:
         super().tearDown()
 
-    def test_deploy_dry_run(self):
+    @patch("album.core.controller.resource_manager.create_conda_lock_file")
+    def test_deploy_dry_run(self, conda_lock_mock):
         # prepare
         path, _ = self.setup_empty_catalog("test_catalog")
         catalog = self.album_controller.collection_manager().catalogs().add_by_src(path)
-
+        conda_lock_mock.return_value = None
         # call
         self.album_controller.deploy_manager().deploy(
             str(self.get_test_solution_path()),
@@ -45,10 +47,12 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         self.assertIn("test_catalog", updates)
         self.assertEqual(0, len(updates["test_catalog"].solution_changes()))
 
-    def test_deploy_undeploy_file(self):
+    @patch("album.core.controller.resource_manager.create_conda_lock_file")
+    def test_deploy_undeploy_file(self,conda_lock_mock):
+
         path, _ = self.setup_empty_catalog("test_catalog")
         catalog = self.album_controller.collection_manager().catalogs().add_by_src(path)
-
+        conda_lock_mock.return_value = None
         # call
         self.album_controller.deploy_manager().deploy(
             str(self.get_test_solution_path("solution11_minimal.py")),
@@ -229,11 +233,12 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         self.assertNotIn("WARNING", self.captured_output.getvalue())
         self.assertNotIn("ERROR", self.captured_output.getvalue())
 
-    def test_deploy_folder_remove_file(self):
+    @patch("album.core.controller.resource_manager.create_conda_lock_file")
+    def test_deploy_folder_remove_file(self, conda_lock_mock):
         # prepare
         path, _ = self.setup_empty_catalog("test_catalog")
         catalog = self.album_controller.collection_manager().catalogs().add_by_src(path)
-
+        conda_lock_mock.return_value = None
         coordinates = Coordinates("group", "name", "0.1.0")
 
         # copy solution and changelog file into new folder
@@ -312,10 +317,12 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
                 .exists()
             )
 
-    def test_deploy_file_no_changelog(self):
+    @patch("album.core.controller.resource_manager.create_conda_lock_file")
+    def test_deploy_file_no_changelog(self, conda_lock_mock):
         # prepare
         path, _ = self.setup_empty_catalog("test_catalog")
         catalog = self.album_controller.collection_manager().catalogs().add_by_src(path)
+        conda_lock_mock.return_value = None
 
         path = str(self.get_test_solution_path())
         coordinates = Coordinates("group", "name", "0.1.0")
@@ -353,10 +360,12 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         self.assertIsNotNone(solution)
         self.assertEqual(None, solution.setup()["changelog"])
 
-    def test_deploy_file_changelog_parameter(self):
+    @patch("album.core.controller.resource_manager.create_conda_lock_file")
+    def test_deploy_file_changelog_parameter(self, conda_lock_mock):
         # prepare
         path, _ = self.setup_empty_catalog("test_catalog")
         catalog = self.album_controller.collection_manager().catalogs().add_by_src(path)
+        conda_lock_mock.return_value = None
 
         path = str(self.get_test_solution_path())
         coordinates = Coordinates("group", "name", "0.1.0")
@@ -389,10 +398,12 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         self.assertIsNotNone(solution.setup()["timestamp"])
         self.assertEqual("something changed", solution.setup()["changelog"])
 
-    def test_deploy_folder_changelog_file(self):
+    @patch("album.core.controller.resource_manager.create_conda_lock_file")
+    def test_deploy_folder_changelog_file(self, conda_lock_mock):
         # prepare
         path, _ = self.setup_empty_catalog("test_catalog")
         catalog = self.album_controller.collection_manager().catalogs().add_by_src(path)
+        conda_lock_mock.return_value = None
 
         coordinates = Coordinates("group", "name", "0.1.0")
 

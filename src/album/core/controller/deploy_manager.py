@@ -1,24 +1,17 @@
-import os
 from datetime import datetime
-from io import StringIO
 from pathlib import Path
 
-import validators
-import yaml
 from git import Repo
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.deploy_manager import IDeployManager
+from album.core.api.controller.resource_manager import IResourceManager
 from album.core.api.model.catalog import ICatalog
-from album.core.controller.conda_manager import CondaManager
 from album.core.model.default_values import DefaultValues
 from album.core.utils.export.changelog import (
-    create_changelog_file,
     process_changelog_file,
 )
-from album.core.utils.export.conda_lock import create_conda_lock_file
 from album.core.utils.operations.file_operations import (
-    copy,
     write_dict_to_yml,
     force_remove,
     folder_empty,
@@ -42,7 +35,6 @@ from album.core.utils.operations.resolve_operations import (
     as_tag,
 )
 from album.core.utils.operations.solution_operations import get_deploy_dict
-from album.core.utils.operations.url_operations import download_resource
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
@@ -55,15 +47,15 @@ class DeployManager(IDeployManager):
         self.album = album
 
     def deploy(
-        self,
-        deploy_path,
-        catalog_name: str,
-        dry_run: bool,
-        push_options=None,
-        git_email: str = None,
-        git_name: str = None,
-        force_deploy: bool = False,
-        changelog: str = None,
+            self,
+            deploy_path,
+            catalog_name: str,
+            dry_run: bool,
+            push_options=None,
+            git_email: str = None,
+            git_name: str = None,
+            force_deploy: bool = False,
+            changelog: str = None,
     ):
         if dry_run:
             module_logger().info(
@@ -105,13 +97,13 @@ class DeployManager(IDeployManager):
             )
 
     def undeploy(
-        self,
-        solution_to_resolve,
-        catalog_name: str,
-        dry_run: bool,
-        push_options=None,
-        git_email: str = None,
-        git_name: str = None,
+            self,
+            solution_to_resolve,
+            catalog_name: str,
+            dry_run: bool,
+            push_options=None,
+            git_email: str = None,
+            git_name: str = None,
     ):
 
         exit_msg = (
@@ -132,7 +124,7 @@ class DeployManager(IDeployManager):
             )
 
         with catalog.retrieve_catalog(
-            self.get_download_path(catalog), force_retrieve=True
+                self.get_download_path(catalog), force_retrieve=True
         ) as repo:
             # load index
             catalog.set_index_path(
@@ -194,15 +186,15 @@ class DeployManager(IDeployManager):
         module_logger().info(exit_msg % (solution_to_resolve, catalog_name))
 
     def _deploy(
-        self,
-        catalog: ICatalog,
-        active_solution: ISolution,
-        deploy_path: Path,
-        dry_run: bool,
-        force_deploy: bool,
-        push_options: list,
-        git_email=None,
-        git_name=None,
+            self,
+            catalog: ICatalog,
+            active_solution: ISolution,
+            deploy_path: Path,
+            dry_run: bool,
+            force_deploy: bool,
+            push_options: list,
+            git_email=None,
+            git_name=None,
     ):
         # check for cache catalog only
         if catalog.is_cache():
@@ -252,16 +244,16 @@ class DeployManager(IDeployManager):
                 raise NotImplementedError("type %s not supported!" % catalog.type())
 
     def _deploy_to_direct_catalog(
-        self,
-        repo: Repo,
-        catalog: ICatalog,
-        active_solution: ISolution,
-        deploy_path: Path,
-        dry_run: bool,
-        force_deploy: bool,
-        push_options: list,
-        git_email=None,
-        git_name=None,
+            self,
+            repo: Repo,
+            catalog: ICatalog,
+            active_solution: ISolution,
+            deploy_path: Path,
+            dry_run: bool,
+            force_deploy: bool,
+            push_options: list,
+            git_email=None,
+            git_name=None,
     ):
         """Routine to deploy to a direct catalog"""
         # adding solutions in the SQL databse for catalog type "direct" done on user side, hence the timestamp
@@ -315,15 +307,15 @@ class DeployManager(IDeployManager):
             module_logger().info("Would refresh the index from src")
 
     def _deploy_to_request_catalog(
-        self,
-        repo: Repo,
-        catalog: ICatalog,
-        active_solution: ISolution,
-        deploy_path: Path,
-        dry_run: bool,
-        push_options: list,
-        git_email=None,
-        git_name=None,
+            self,
+            repo: Repo,
+            catalog: ICatalog,
+            active_solution: ISolution,
+            deploy_path: Path,
+            dry_run: bool,
+            push_options: list,
+            git_email=None,
+            git_name=None,
     ):
         """Routine to deploy to a request catalog."""
 
@@ -346,11 +338,11 @@ class DeployManager(IDeployManager):
         )
 
     def _deploy_routine_in_local_src(
-        self,
-        catalog: ICatalog,
-        repo: Repo,
-        active_solution: ISolution,
-        deploy_path: Path,
+            self,
+            catalog: ICatalog,
+            repo: Repo,
+            active_solution: ISolution,
+            deploy_path: Path,
     ):
         """Performs all routines a deploy process needs to do locally.
 
@@ -358,7 +350,7 @@ class DeployManager(IDeployManager):
             solution zip file and additional attachments.
 
         """
-        solution_files = self._collect_solution_files(
+        solution_files = self.album.resource_manager().write_solution_files(
             catalog, repo.working_tree_dir, active_solution, deploy_path
         )
 
@@ -368,52 +360,6 @@ class DeployManager(IDeployManager):
         return Path(self.album.configuration().cache_path_download()).joinpath(
             catalog.name()
         )
-
-    def _collect_solution_files(
-        self,
-        catalog: ICatalog,
-        catalog_local_src: str,
-        active_solution: ISolution,
-        deploy_path: Path,
-    ):
-        coordinates = active_solution.coordinates()
-
-        catalog_solution_local_src_path = Path(catalog_local_src).joinpath(
-            self.album.configuration().get_solution_path_suffix_unversioned(coordinates)
-        )
-
-        res = []
-        if deploy_path.is_file():
-            solution_path = catalog_solution_local_src_path.joinpath(
-                DefaultValues.solution_default_name.value
-            )
-            res.append(copy(deploy_path, solution_path))
-        else:
-            for subdir, dirs, files in os.walk(deploy_path):
-                for file in files:
-                    filepath = subdir + os.sep + file
-                    rel_path = os.path.relpath(filepath, deploy_path)
-                    target = catalog_solution_local_src_path.joinpath(rel_path)
-                    res.append(copy(filepath, target))
-
-        res.append(
-            self._create_yaml_file_in_local_src(
-                active_solution, catalog_solution_local_src_path
-            )
-        )
-        res.append(
-            create_changelog_file(
-                active_solution, catalog, catalog_solution_local_src_path
-            )
-        )
-
-        res.append(
-            create_conda_lock_file(self.write_solution_environment_file(active_solution,
-                                                                        catalog_solution_local_src_path),
-                                   self.album.configuration().conda_lock_executable())
-        )
-        # res append neu gesschriebene environment.yml files
-        return res
 
     def _get_tmp_dir(self):
         return self.album.configuration().tmp_path()
@@ -426,7 +372,7 @@ class DeployManager(IDeployManager):
 
     @staticmethod
     def _add_to_downloaded_catalog(
-        catalog: ICatalog, active_solution: ISolution, dry_run: bool, force_deploy: bool
+            catalog: ICatalog, active_solution: ISolution, dry_run: bool, force_deploy: bool
     ):
         """Updates the index in the downloaded repository!"""
         if not dry_run:
@@ -439,7 +385,7 @@ class DeployManager(IDeployManager):
 
     @staticmethod
     def _remove_from_downloaded_catalog(
-        catalog: ICatalog, coordinates: ICoordinates, dry_run: bool
+            catalog: ICatalog, coordinates: ICoordinates, dry_run: bool
     ):
         """Updates the index in the downloaded repository!"""
         if not dry_run:
@@ -483,13 +429,13 @@ class DeployManager(IDeployManager):
 
     @staticmethod
     def _create_merge_request(
-        coordinates: ICoordinates,
-        repo: Repo,
-        file_paths,
-        dry_run=False,
-        push_option=None,
-        email=None,
-        username=None,
+            coordinates: ICoordinates,
+            repo: Repo,
+            file_paths,
+            dry_run=False,
+            push_option=None,
+            email=None,
+            username=None,
     ):
         """Creates a merge request to the catalog repository for the album object.
 
@@ -536,14 +482,14 @@ class DeployManager(IDeployManager):
 
     @staticmethod
     def _push_directly(
-        coordinates: ICoordinates,
-        repo: Repo,
-        files_to_remove: list,
-        files_to_add: list,
-        dry_run=False,
-        push_option=None,
-        email=None,
-        username=None,
+            coordinates: ICoordinates,
+            repo: Repo,
+            files_to_remove: list,
+            files_to_add: list,
+            dry_run=False,
+            push_option=None,
+            email=None,
+            username=None,
     ):
         if push_option is None:
             push_option = []
@@ -567,25 +513,10 @@ class DeployManager(IDeployManager):
             force=False,
         )
 
-    @staticmethod
-    def _create_yaml_file_in_local_src(active_solution: ISolution, solution_home: Path):
-        """Creates a yaml file in the given repo for the given solution.
 
-        Returns:
-            The Path to the created markdown file.
-
-        """
-        yaml_path = solution_home.joinpath(
-            DefaultValues.solution_yml_default_name.value
-        )
-
-        module_logger().debug("Writing yaml file to: %s..." % yaml_path)
-        write_dict_to_yml(yaml_path, get_deploy_dict(active_solution))
-
-        return yaml_path
 
     def _remove_db_entry_and_files(
-        self, repo, coordinates, dry_run, push_options, git_email, git_name
+            self, repo, coordinates, dry_run, push_options, git_email, git_name
     ):
 
         solution_root = str(
@@ -612,14 +543,14 @@ class DeployManager(IDeployManager):
             )
 
     def _remove_db_entry_and_revert_files(
-        self,
-        repo,
-        coordinates,
-        previous_version_tag,
-        dry_run,
-        push_options,
-        git_email,
-        git_name,
+            self,
+            repo,
+            coordinates,
+            previous_version_tag,
+            dry_run,
+            push_options,
+            git_email,
+            git_name,
     ):
 
         solution_root = str(
@@ -641,7 +572,7 @@ class DeployManager(IDeployManager):
             )
 
     def _remove_db_entry_and_tag(
-        self, repo, coordinates, dry_run, push_options, git_email, git_name
+            self, repo, coordinates, dry_run, push_options, git_email, git_name
     ):
         db_index = DefaultValues.catalog_index_file_name.value
 
@@ -654,14 +585,14 @@ class DeployManager(IDeployManager):
             )
 
     def _try_push_remove_tag(
-        self,
-        coordinates,
-        repo,
-        files_to_remove,
-        files_to_add,
-        push_options,
-        git_email,
-        git_name,
+            self,
+            coordinates,
+            repo,
+            files_to_remove,
+            files_to_add,
+            push_options,
+            git_email,
+            git_name,
     ):
         try:
             if push_options is None:
@@ -694,47 +625,3 @@ class DeployManager(IDeployManager):
                 clean_repository(repo)
             finally:
                 raise e
-
-    def write_solution_environment_file(self, solution: ISolution, solution_home: Path):
-        #yml_path = solution.installation().package_path().joinpath('environment.yml')
-        #yml_path = self.album.configuration().tmp_path().joinpath('environment.yml')
-        yml_path = solution_home.joinpath('environment.yml')
-        env_file = solution.setup()["dependencies"]["environment_file"]
-        if env_file:
-            if isinstance(env_file, str):
-                # 1 Link
-                if validators.url(env_file):
-                    download_resource(env_file, yml_path)
-
-                # 2 string aus solution file
-                elif "dependencies:" in env_file and "\n" in env_file:
-                    with open(str(yml_path), "w+") as yml_file:
-                        yml_file.writelines(env_file)
-                # 3 existing env.yml
-                elif Path(env_file).is_file() and Path(env_file).stat().st_size > 0:
-                    copy(env_file, yml_path)
-                else:
-                    raise TypeError(
-                        "environment_file must either contain the content of the environment file, "
-                        "contain the url to a valid file or point to a file on the disk!"
-                    )
-            # String stream
-            elif isinstance(env_file, StringIO):
-                with open(str(yml_path), "w+") as f:
-                    env_file.seek(0)  # make sure we start from the beginning
-                    f.writelines(env_file.readlines())
-            else:
-                raise RuntimeError(
-                    "Environment file specified, but format is unknown!"
-                    " Don't know where to run solution!"
-                )
-        else:
-            # No env file specified, build default solution env file
-            write_dict_to_yml(yml_path, DefaultValues.default_solution_env_content.value)
-
-        yml_dict = yaml.load(open(yml_path, "r"), Loader=yaml.FullLoader)
-        yml_dict = CondaManager.append_framework_to_yml(yml_dict, solution.setup()['album_api_version'])
-        write_dict_to_yml(yml_path, yml_dict)
-
-        return yml_path
-        #solution.installation().set_env_file_path(yml_path)

@@ -84,6 +84,24 @@ class TestConfiguration(TestUnitCoreCommon):
         expected = Path("myPathToConda").joinpath("bin", "conda")
         self.assertEqual(r, str(expected))
 
+    @unittest.skipUnless(sys.platform.startswith("win"), "requires Windoofs")
+    def test__build_conda_lock_executable_windows(self):
+        conf = Configuration()
+        r = conf._build_conda_lock_executable("myPathToConda")
+
+        expected = Path("myPathToConda").joinpath("Scripts", "conda-lock.exe")
+        self.assertEqual(r, str(expected))
+
+    @unittest.skipUnless(
+        sys.platform == "linux" or sys.platform == "darwin", "requires a proper OS"
+    )
+    def test__build_conda_lock_executable_linux(self):
+        conf = Configuration()
+        r = conf._build_conda_lock_executable("myPathToConda")
+
+        expected = Path("myPathToConda").joinpath("bin", "conda-lock")
+        self.assertEqual(r, str(expected))
+
     @unittest.skip("Needs to be implemented!")
     def test_get_catalog_collection_path(self):
         # todo: implement

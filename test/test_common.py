@@ -138,15 +138,15 @@ class TestCommon(unittest.TestCase):
     def teardown_tmp_resources(self):
         # garbage collector
         gc.collect()
-
         try:
             Path(self.closed_tmp_file.name).unlink()
             self.tmp_dir.cleanup()
-        except PermissionError:
+        except (PermissionError, NotADirectoryError):
             try:
                 force_remove(self.tmp_dir.name)
-            except PermissionError:
+            except (PermissionError, NotADirectoryError):
                 if sys.platform == "win32" or sys.platform == "cygwin":
+                    get_active_logger().warning("Could not remove tmp dir! Cleanup failed!!")
                     pass
                 else:
                     raise
