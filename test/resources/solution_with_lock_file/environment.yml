@@ -1,0 +1,8 @@
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - pip
+  - conda-forge::album-runner=0.5.1
+  - conda-forge::setuptools>=59.7.0

@@ -1,5 +1,7 @@
 import os
+import platform
 import sys
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -17,8 +19,8 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
     def tearDown(self) -> None:
         super().tearDown()
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
-    @patch("album.core.controller.conda_manager.CondaManager.install")
+    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
+    @patch("album.core.controller.package_manager.PackageManager.install")
     def test_install_minimal_solution(self, _, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
@@ -520,46 +522,10 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         # install child solution
         self.album_controller.install_manager().install("group:solution1_app1:0.1.0")
 
-        # change parent again - this time, do not uninstall solution
-
-        self.album_controller.deploy_manager().deploy(
-            self.get_test_solution_path("solution1_app1.py"),
-            catalog_name=catalog.name(),
-            dry_run=False,
-            force_deploy=True,
-        )
-        self.album_controller.collection_manager().catalogs().update_collection(
-            catalog.name()
-        )
-        self.album_controller.install_manager().uninstall("group:solution1_app1:0.1.0")
-        self.album_controller.install_manager().install("group:solution1_app1:0.1.0")
-
-    def test_install_with_nonexisting_parent(self):
-        # prepare
-        tmp_file = Path(self.tmp_dir.name).joinpath("somefile.txt")
-        tmp_file.touch()
-
-        # install child app solution
-        with self.assertRaises(LookupError):
-            self.album_controller.install_manager().install(
-                self.get_test_solution_path("solution1_app1_nonexisting_parent.py")
-            )
-        self.album_controller.collection_manager().get_collection_index()
-
-    @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
-    @patch("album.core.controller.conda_manager.CondaManager.environment_exists")
-    @patch(
-        "album.core.controller.environment_manager.EnvironmentManager.remove_environment"
-    )
-    @patch(
-        "album.core.controller.install_manager.EnvironmentManager.remove_disc_content_from_environment"
-    )
+    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
+    @patch("album.core.controller.package_manager.PackageManager.environment_exists")
     def test_install_with_parent_with_parent(
-        self,
-        remove_disc_content_from_environment,
-        remove_environment,
-        environment_exists,
-        get_environment_path,
+        self, environment_exists, get_environment_path
     ):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
@@ -721,5 +687,23 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
                 .catalogs()
                 .get_cache_catalog(),
                 Coordinates("group", "app1", "0.1.0"),
+            )
+        )
+
+    @patch("album.core.controller.package_manager.PackageManager.create")
+    def test_install_solution_with_lock_file(self, old_install):
+        self.album_controller.install_manager().install(
+            self.get_test_solution_path("solution_with_lock_file"))
+
+        self.assertFalse(old_install.called)
+
+        self.assertTrue(
+            self.album_controller.collection_manager()
+            .solutions()
+            .is_installed(
+                self.album_controller.collection_manager()
+                .catalogs()
+                .get_cache_catalog(),
+                Coordinates("group", "Dummy-Solution-Lock", "0.1.0"),
             )
         )

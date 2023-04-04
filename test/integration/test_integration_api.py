@@ -1,6 +1,7 @@
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove
@@ -19,7 +20,9 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
     def tearDown(self) -> None:
         super().tearDown()
 
-    def test_api(self):
+    @patch("album.core.controller.resource_manager.create_conda_lock_file")
+    def test_api(self, conda_lock_mock):
+        conda_lock_mock.return_value = None
 
         album_logging.set_loglevel(LogLevel.INFO)
         logger = album_logging.get_active_logger()

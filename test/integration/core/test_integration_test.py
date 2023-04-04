@@ -27,7 +27,7 @@ class TestIntegrationTest(TestIntegrationCoreCommon):
             self.captured_output.getvalue(),
         )
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
+    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
     def test_test(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()

@@ -4,6 +4,7 @@ from album.core.api.model.configuration import IConfiguration
 from album.core.api.model.environment import IEnvironment
 from album.core.controller.package_manager import PackageManager
 from album.core.utils import subcommand
+from album.core.utils.operations.file_operations import force_remove
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
@@ -25,6 +26,7 @@ class CondaLockManager(PackageManager):
             self.remove_environment(environment_name)
 
         env_prefix = self._environment_name_to_path(environment_name)
+        force_remove(env_prefix)  # Force remove is needed since the env location need to be created to create the link to it but for micromamba the env location has to be created by micromamba itself or an error is raised
 
         if not (str(conda_lock_file).endswith(".yml") or str(conda_lock_file).endswith(".yaml")):
             raise NameError("Conda lock file needs to be a yml or yaml file!")

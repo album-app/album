@@ -50,3 +50,7 @@ class IEnvironmentManager:
     @abstractmethod
     def get_package_manager(self):
         raise NotImplementedError
+
+    @abstractmethod
+    def get_conda_lock_manager(self):
+        raise NotImplementedError
