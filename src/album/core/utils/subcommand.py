@@ -209,6 +209,7 @@ def _run_process(command, log: LogProcessing, pipe_output):
                 shell=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
+                encoding=sys.getdefaultencoding(),
                 text=True,
             )
         else:
@@ -217,9 +218,9 @@ def _run_process(command, log: LogProcessing, pipe_output):
                 shell=False,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
+                encoding=sys.getdefaultencoding(),
                 text=True,
             )
-            encoding=sys.getdefaultencoding(),
         while True:
             output = process.stdout.readline()
             if process.poll() is not None:
