@@ -56,6 +56,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
             None,
             None,
             None,
+            False
         )
 
     @patch(
@@ -188,7 +189,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
             catalog, self.active_solution, False, True
         )
         _deploy_routine_in_local_src.assert_called_once_with(
-            catalog, repo, self.active_solution, "deployPath"
+            catalog, repo, self.active_solution, "deployPath", False
         )
         _push_directly.assert_called_once_with(
             self.active_solution.coordinates(),
@@ -235,7 +236,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
 
         # assert
         _deploy_routine_in_local_src.assert_called_once_with(
-            catalog, repo, self.active_solution, "deployPath"
+            catalog, repo, self.active_solution, "deployPath", False
         )
         retrieve_default_mr_push_options.assert_called_once_with("mySrc")
         _create_merge_request.assert_called_once_with(
@@ -261,7 +262,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
 
         # call
         r = self.deploy_manager._deploy_routine_in_local_src(
-            catalog, repo, self.active_solution, "deployPath"
+            catalog, repo, self.active_solution, "deployPath", False
         )
 
         # assert
