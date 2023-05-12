@@ -269,6 +269,12 @@ def create_deploy_parser(parser):
         default=None,
     )
 
+    p.add_argument(
+        "--no-conda-lock",
+        required=False,
+        help="When specified, the conda.lock file will not be created.",
+        action="store_true",
+    )
 
 def create_undeploy_parser(parser):
     p = parser.create_file_command_parser(

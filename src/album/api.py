@@ -137,6 +137,7 @@ class Album:
         git_name: str = None,
         force_deploy: bool = False,
         changelog: str = "",
+        no_conda_lock: bool = False,
     ):
         """Function corresponding to the `deploy` subcommand of `album`.
 
@@ -174,6 +175,7 @@ class Album:
             git_name=git_name,
             force_deploy=force_deploy,
             changelog=changelog,
+            no_conda_lock=no_conda_lock,
         )
 
     def undeploy(
