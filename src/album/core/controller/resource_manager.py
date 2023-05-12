@@ -1,6 +1,8 @@
 import os
+import subprocess
 from io import StringIO
 from pathlib import Path
+from subprocess import SubprocessError
 
 import validators
 import yaml
@@ -21,6 +23,7 @@ from album.core.utils.operations.file_operations import (
 )
 from album.core.utils.operations.solution_operations import get_deploy_dict
 from album.core.utils.operations.url_operations import download_resource
+from album.core.utils.subcommand import SubProcessError
 from album.runner import album_logging
 from album.runner.core.api.model.solution import ISolution
 
@@ -38,6 +41,7 @@ class ResourceManager(IResourceManager):
         catalog_local_src: str,
         active_solution: ISolution,
         deploy_path: Path,
+        no_conda_lock: bool,
     ):
         coordinates = active_solution.coordinates()
 
@@ -70,11 +74,19 @@ class ResourceManager(IResourceManager):
             )
         )
 
-        res.append(
-            create_conda_lock_file(self.write_solution_environment_file(active_solution,
-                                                                        catalog_solution_local_src_path),
-                                   self.album.configuration().conda_lock_executable())
-        )
+        if not no_conda_lock:
+            try:
+                res.append(
+                    create_conda_lock_file(self.write_solution_environment_file(active_solution,
+                                                                                catalog_solution_local_src_path),
+                                           self.album.configuration().conda_lock_executable())
+                )
+            except SubProcessError as e:
+                module_logger().error("Error creating conda lock file. This is most likely the case, "
+                                      "because on of your dependency is not available for every platform album "
+                                      "demands. Try using the --no-conda-lock flag for skipping the conda lock file "
+                                      "creation.")
+                raise e
         return res
 
     def write_solution_environment_file(self, solution: ISolution, solution_home: Path):

@@ -13,7 +13,7 @@ class IResourceManager:
 
     @abstractmethod
     def write_solution_files(self, catalog: ICatalog, catalog_local_src: str,
-                             active_solution: ISolution, deploy_path: Path):
+                             active_solution: ISolution, deploy_path: Path, no_conda_lock: bool):
         raise NotImplementedError
 
     @abstractmethod

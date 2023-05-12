@@ -57,6 +57,7 @@ def deploy(album_instance: Album, args):
         args.git_name,
         args.force_deploy,
         args.changelog,
+        args.no_conda_lock,
     )
 
 

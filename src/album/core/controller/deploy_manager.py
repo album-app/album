@@ -56,6 +56,7 @@ class DeployManager(IDeployManager):
             git_name: str = None,
             force_deploy: bool = False,
             changelog: str = None,
+            no_conda_lock: bool = False,
     ):
         if dry_run:
             module_logger().info(
@@ -84,6 +85,7 @@ class DeployManager(IDeployManager):
             push_options,
             git_email,
             git_name,
+            no_conda_lock
         )
 
         if dry_run:
@@ -195,6 +197,7 @@ class DeployManager(IDeployManager):
             push_options: list,
             git_email=None,
             git_name=None,
+            no_conda_lock: bool = False,
     ):
         # check for cache catalog only
         if catalog.is_cache():
@@ -228,6 +231,7 @@ class DeployManager(IDeployManager):
                     push_options,
                     git_email,
                     git_name,
+                    no_conda_lock,
                 )
             elif catalog.type() == "request":
                 self._deploy_to_request_catalog(
@@ -239,6 +243,7 @@ class DeployManager(IDeployManager):
                     push_options,
                     git_email,
                     git_name,
+                    no_conda_lock
                 )
             else:
                 raise NotImplementedError("type %s not supported!" % catalog.type())
@@ -254,6 +259,7 @@ class DeployManager(IDeployManager):
             push_options: list,
             git_email=None,
             git_name=None,
+            no_conda_lock: bool = False,
     ):
         """Routine to deploy to a direct catalog"""
         # adding solutions in the SQL databse for catalog type "direct" done on user side, hence the timestamp
@@ -264,7 +270,7 @@ class DeployManager(IDeployManager):
         self._add_to_downloaded_catalog(catalog, active_solution, dry_run, force_deploy)
 
         solution_files = self._deploy_routine_in_local_src(
-            catalog, repo, active_solution, deploy_path
+            catalog, repo, active_solution, deploy_path, no_conda_lock
         )
         commit_files = solution_files + [catalog.index_file_path()]
         solution_root = str(
@@ -316,12 +322,13 @@ class DeployManager(IDeployManager):
             push_options: list,
             git_email=None,
             git_name=None,
+            no_conda_lock: bool = False,
     ):
         """Routine to deploy to a request catalog."""
 
         # include files/folders in catalog
         mr_files = self._deploy_routine_in_local_src(
-            catalog, repo, active_solution, deploy_path
+            catalog, repo, active_solution, deploy_path, no_conda_lock
         )
 
         if not push_options:
@@ -343,6 +350,7 @@ class DeployManager(IDeployManager):
             repo: Repo,
             active_solution: ISolution,
             deploy_path: Path,
+            no_conda_lock: bool
     ):
         """Performs all routines a deploy process needs to do locally.
 
@@ -351,7 +359,7 @@ class DeployManager(IDeployManager):
 
         """
         solution_files = self.album.resource_manager().write_solution_files(
-            catalog, repo.working_tree_dir, active_solution, deploy_path
+            catalog, repo.working_tree_dir, active_solution, deploy_path, no_conda_lock
         )
 
         return solution_files
