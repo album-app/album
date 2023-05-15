@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Optional
 
+from album.core.api.controller.resource_manager import IResourceManager
 from album.core.api.controller.collection.catalog_handler import ICatalogHandler
 from album.core.api.controller.collection.solution_handler import ISolutionHandler
 from album.core.api.controller.controller import IAlbumController
@@ -10,6 +11,7 @@ from album.core.api.controller.migration_manager import IMigrationManager
 from album.core.api.controller.script_manager import IScriptManager
 from album.core.api.controller.task_manager import ITaskManager
 from album.core.api.model.configuration import IConfiguration
+from album.core.controller.resource_manager import ResourceManager
 from album.core.controller.clone_manager import CloneManager
 from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.controller.deploy_manager import DeployManager
@@ -43,6 +45,7 @@ class AlbumController(IAlbumController):
         self._event_manager = None
         self._task_manager = None
         self._configuration = None
+        self._resource_manager = None
 
     def catalogs(self) -> ICatalogHandler:
         return self.collection_manager().catalogs()
@@ -124,3 +127,8 @@ class AlbumController(IAlbumController):
     def close(self):
         if self._collection_manager:
             self._collection_manager.close()
+
+    def resource_manager(self) -> IResourceManager:
+        if not self._resource_manager:
+            self._resource_manager = ResourceManager(self)
+        return self._resource_manager

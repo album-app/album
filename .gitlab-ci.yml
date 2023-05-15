@@ -22,8 +22,9 @@
     - '$7ZIP_INSTALLER=(Join-Path downloads -ChildPath 7z.exe)'
     - '$Env:MAMBA_ROOT_PREFIX=(Join-Path -Path (Get-Location) -ChildPath micromamba)'
     - '$Env:MAMBA_EXE=(Join-Path -Path (Get-Location) -ChildPath micromamba\Library\bin\micromamba.exe)'
-    - '$Env:USERPROFILE=$pwd'
+    #- '$Env:USERPROFILE=$pwd'
     - '$Env:ALBUM_CONDA_PATH=(Join-Path -Path ($CI_PROJECT_DIR) -ChildPath micromamba\Library\bin\micromamba.exe)'
+    - '$Env:micromamba=(Join-Path -Path ($CI_PROJECT_DIR) -ChildPath micromamba\Library\bin\micromamba.exe)'
     - '$oldProgressPreference = $progressPreference; $progressPreference = "SilentlyContinue";'
     - '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12'                                                                                                                                                                                                                                                                                          # set Security download protocol to avoid https errors
     - 'if(-Not (Test-Path $7ZIP_EXE)) {if(-Not (Test-Path $7ZIP_INSTALLER)){Invoke-Webrequest -URI https://www.7-zip.org/a/7z2201-x64.exe -OutFile $7ZIP_INSTALLER}}'
@@ -64,6 +65,7 @@
     - '$env:PATH += ";$pwd\miniconda\condabin"'     # set path information
     - '$env:PATH += ";$pwd\miniconda\Scripts"'
     - '$env:PATH += ";$pwd\miniconda\Library\bin"'
+    - 'ls env:'
     - '$conda_available = try {Get-Command "Get-CondaEnvironment" -errorAction Stop} catch {$null}'                                                                                                                                                                                                                                                                              # check if conda cmnd already available
     - 'if($force_install -eq "true") {$conda_available = $null}'                                                                                                                                                                                                                                                                                                                 # mark conda reinstall
     - 'if($conda_available -eq $null) {echo "conda cmnd not available! Will install in $pwd\miniconda..."; Start-Process .\download\miniconda3.exe -argumentlist "/InstallationType=JustMe /S /D=$pwd\miniconda" -wait} else {echo "Skip downloading!..."}'
@@ -591,6 +593,7 @@ unit tests windows micromamba:
   stage: test
   script:
     - $cmnd = powershell.exe -command {micromamba activate album 2>&1 | Write-Host; coverage run --omit .\test\* -m unittest test\unit\run_all_unit_micromamba.py 2>&1 | Write-Host; if ($lastexitcode -ne 0) {exit(1)} else {coverage report 2>&1| Write-Host; coverage xml 2>&1| Write-Host; Rename-Item -Path ".coverage" -NewName "unit.coverage" 2>&1 | Write-Host; Rename-Item -Path "coverage.xml" -NewName "unit_coverage.xml" 2>&1 | Write-Host;} exit($lastexitcode)}
+    - $cmnd_cleanup = powershell.exe -command {Remove-Item -path C:\Windows\System32\config\systemprofile\Documents -recurse 2>&1 | Write-Host; Remove-Item -path C:\Windows\System32\config\systemprofile\.conda -recurse 2>&1 | Write-Host; Remove-Item -path C:\Windows\System32\config\systemprofile\.mamba -recurse 2>&1 | Write-Host; Remove-Item -path C:\Windows\System32\config\systemprofile\.condarc -recurse 2>&1 | Write-Host; exit($lastexitcode)} # Used to cleanup after outbreaking micromamba
   artifacts:
     paths:
       - unit.coverage
@@ -621,6 +624,7 @@ integration tests windows micromamba:
   stage: test
   script:
     - $cmnd = powershell.exe -command {micromamba activate album 2>&1 | Write-Host; coverage run --omit .\test\* -m unittest test\integration\run_all_integration_micromamba.py 2>&1 | Write-Host; if ($lastexitcode -ne 0) {exit(1)} else {coverage report 2>&1| Write-Host; coverage xml 2>&1| Write-Host; Rename-Item -Path ".coverage" -NewName "integration.coverage" 2>&1 | Write-Host; Rename-Item -Path "coverage.xml" -NewName "integration_coverage.xml" 2>&1 | Write-Host;} exit($lastexitcode)}
+    - $cmnd_cleanup = powershell.exe -command {Remove-Item -path C:\Windows\System32\config\systemprofile\Documents -recurse 2>&1 | Write-Host; Remove-Item -path C:\Windows\System32\config\systemprofile\.conda -recurse 2>&1 | Write-Host; Remove-Item -path C:\Windows\System32\config\systemprofile\.mamba -recurse 2>&1 | Write-Host; Remove-Item -path C:\Windows\System32\config\systemprofile\.condarc -recurse 2>&1 | Write-Host; exit($lastexitcode)} # Used to cleanup after outbreaking micromamba
   artifacts:
     paths:
       - integration.coverage

@@ -38,12 +38,12 @@ class TestMambaManager(TestUnitCoreCommon):
 
         self.assertListEqual(expected, res)
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_info")
+    @patch("album.core.controller.package_manager.PackageManager.get_info")
     def test_get_active_environment_name(self, ginfo_mock):
         ginfo_mock.return_value = {"active_prefix_name": "envName1"}
         self.assertEqual("envName1", self.mamba.get_active_environment_name())
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_info")
+    @patch("album.core.controller.package_manager.PackageManager.get_info")
     def test_get_active_environment_path(self, ginfo_mock):
         ginfo_mock.return_value = {"active_prefix": "aEnvPath"}
         self.assertEqual("aEnvPath", str(self.mamba.get_active_environment_path()))
@@ -141,7 +141,7 @@ class TestMambaManager(TestUnitCoreCommon):
         with self.assertRaises(LookupError):
             self.mamba.set_environment_path(environment)
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
+    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
     def test_set_environment_path(self, gep_mock):
         p = str(
             self.mamba._configuration.environments_path().joinpath(
@@ -152,7 +152,7 @@ class TestMambaManager(TestUnitCoreCommon):
         environment = Environment(None, self.test_environment_name, "aPath")
         self.assertIsNone(self.mamba.set_environment_path(environment))
 
-    @patch("album.core.controller.conda_manager.CondaManager.list_environment")
+    @patch("album.core.controller.package_manager.PackageManager.list_environment")
     def test_is_installed(self, list_environment_mock):
         list_environment_mock.return_value = json.loads(
             """[
@@ -183,12 +183,12 @@ class TestMambaManager(TestUnitCoreCommon):
 
         self.mamba.create_or_update_env(environment)
 
-        create_mock.assert_called_once_with(environment, None)
+        create_mock.assert_called_once_with(environment, None, None)
         update_mock.assert_not_called()
 
-    @patch("album.core.controller.conda_manager.CondaManager.create")
-    @patch("album.core.controller.conda_manager.CondaManager.update")
-    @patch("album.core.controller.conda_manager.CondaManager.environment_exists")
+    @patch("album.core.controller.package_manager.PackageManager.create")
+    @patch("album.core.controller.package_manager.PackageManager.update")
+    @patch("album.core.controller.package_manager.PackageManager.environment_exists")
     def test_create_or_update_env_env_present(
         self, ex_env_mock, update_mock, create_mock
     ):
@@ -206,9 +206,9 @@ class TestMambaManager(TestUnitCoreCommon):
         # ToDo: implement
         pass
 
-    @patch("album.core.controller.conda_manager.CondaManager.create_environment")
+    @patch("album.core.controller.package_manager.PackageManager.create_environment")
     @patch(
-        "album.core.controller.conda_manager.CondaManager.create_environment_from_file"
+        "album.core.controller.package_manager.PackageManager.create_environment_from_file"
     )
     def test_create_valid_yaml(
         self, create_environment_from_file_mock, create_environment_mock
@@ -223,9 +223,9 @@ class TestMambaManager(TestUnitCoreCommon):
         )
         create_environment_mock.assert_not_called()
 
-    @patch("album.core.controller.conda_manager.CondaManager.create_environment")
+    @patch("album.core.controller.package_manager.PackageManager.create_environment")
     @patch(
-        "album.core.controller.conda_manager.CondaManager.create_environment_from_file"
+        "album.core.controller.package_manager.PackageManager.create_environment_from_file"
     )
     def test_create_no_yaml(
         self, create_environment_from_file_mock, create_environment_mock
@@ -237,11 +237,11 @@ class TestMambaManager(TestUnitCoreCommon):
         create_environment_from_file_mock.assert_not_called()
 
     @patch(
-        "album.core.controller.conda_manager.CondaManager.create_or_update_env",
+        "album.core.controller.package_manager.PackageManager.create_or_update_env",
         return_value="Called",
     )
     @patch(
-        "album.core.controller.conda_manager.CondaManager.get_environment_path",
+        "album.core.controller.package_manager.PackageManager.get_environment_path",
         return_value="Called",
     )
     def test_install(self, get_env_path_mock, create_mock):

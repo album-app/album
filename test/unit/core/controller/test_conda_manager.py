@@ -8,6 +8,7 @@ from unittest.mock import patch, MagicMock
 import yaml
 
 from album.core.controller.conda_manager import CondaManager
+from album.core.controller.package_manager import PackageManager
 from album.core.model.environment import Environment
 from album.core.utils.operations.file_operations import _create_shortcut
 from test.unit.test_unit_core_common import TestUnitCoreCommon
@@ -40,24 +41,33 @@ class TestCondaManager(TestUnitCoreCommon):
         res = self.conda.get_environment_list()
 
         self.assertListEqual(expected, res)
-
-    @patch("album.core.controller.conda_manager.CondaManager.get_environment_list")
+    @unittest.skipIf(platform.system() == "Windows", "This is a unittest which uses unix style links (symlinks)")
+    @patch("album.core.controller.package_manager.PackageManager.get_environment_list")
     def test_environment_exists(self, ged_mock):
         p = str(self.conda._configuration.environments_path().joinpath("envName1"))
         target = self.conda._configuration.lnk_path().joinpath("0")
         Path(target).joinpath("whatever").mkdir(parents=True)
-        operation_system = platform.system().lower()
-        if "windows" in operation_system:
-            _create_shortcut(p + ".lnk", target)
-        else:
-            os.symlink(target.resolve(), p)
+        os.symlink(target.resolve(), p)
 
         ged_mock.return_value = [target.resolve()]
 
         self.assertTrue(self.conda.environment_exists("envName1"))
         self.assertFalse(self.conda.environment_exists("notExitendEnvs"))
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_environment_list")
+    @unittest.skipIf(platform.system() != "Windows", "This is a unittest which uses windows style links (.lnk)")
+    @patch("album.core.controller.package_manager.PackageManager.get_environment_list")
+    def test_environment_exists(self, ged_mock):
+        p = str(self.conda._configuration.environments_path().joinpath("envName1"))
+        target = self.conda._configuration.lnk_path().joinpath("0")
+        Path(target).joinpath("whatever").mkdir(parents=True)
+        _create_shortcut(p + ".lnk", target)
+
+        ged_mock.return_value = [target.resolve()]
+
+        self.assertTrue(self.conda.environment_exists("envName1"))
+        self.assertFalse(self.conda.environment_exists("notExitendEnvs"))
+
+    @patch("album.core.controller.package_manager.PackageManager.get_environment_list")
     def test_get_environment_path(self, ged_mock):
         link1 = self.conda._configuration.lnk_path().joinpath("env", "%s" % 0).resolve()
         ged_mock.return_value = [link1]
@@ -69,12 +79,12 @@ class TestCondaManager(TestUnitCoreCommon):
         with self.assertRaises(LookupError):
             self.conda.get_environment_path(name)
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_info")
+    @patch("album.core.controller.package_manager.PackageManager.get_info")
     def test_get_active_environment_name(self, ginfo_mock):
         ginfo_mock.return_value = {"active_prefix_name": "envName1"}
         self.assertEqual("envName1", self.conda.get_active_environment_name())
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_info")
+    @patch("album.core.controller.package_manager.PackageManager.get_info")
     def test_get_active_environment_path(self, ginfo_mock):
         ginfo_mock.return_value = {"active_prefix": "aEnvPath"}
         self.assertEqual("aEnvPath", str(self.conda.get_active_environment_path()))
@@ -105,7 +115,7 @@ class TestCondaManager(TestUnitCoreCommon):
         self.assertTrue(self.conda.environment_exists(self.test_environment_name))
 
     def test__append_framework_to_yml_pip(self):
-        output = CondaManager._append_framework_to_yml(
+        output = PackageManager.append_framework_to_yml(
             yaml.safe_load(
                 """
 dependencies:
@@ -121,7 +131,7 @@ dependencies:
             {"dependencies": ["pip", {"pip": ["bla", "blub", "album-runner==0.3.0"]}]},
             output,
         )
-        output = CondaManager._append_framework_to_yml(
+        output = PackageManager.append_framework_to_yml(
             yaml.safe_load("""name: test"""), "0.3.0"
         )
         self.assertEqual(
@@ -133,7 +143,7 @@ dependencies:
         )
 
     def test__append_framework_to_yml_conda(self):
-        output = CondaManager._append_framework_to_yml(
+        output = CondaManager.append_framework_to_yml(
             yaml.safe_load("""dependencies:\n  - python"""),
             "0.5.1",
         )
@@ -225,7 +235,7 @@ dependencies:
         with self.assertRaises(LookupError):
             self.conda.set_environment_path(environment)
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
+    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
     def test_set_environment_path(self, gep_mock):
         p = str(
             self.conda._configuration.environments_path().joinpath(
@@ -236,7 +246,7 @@ dependencies:
         environment = Environment(None, self.test_environment_name, "aPath")
         self.assertIsNone(self.conda.set_environment_path(environment))
 
-    @patch("album.core.controller.conda_manager.CondaManager.list_environment")
+    @patch("album.core.controller.package_manager.PackageManager.list_environment")
     def test_is_installed(self, list_environment_mock):
         list_environment_mock.return_value = json.loads(
             """[
@@ -259,7 +269,7 @@ dependencies:
         self.assertTrue(self.conda.is_installed(environment.path(), "python", "2.7"))
 
     @patch(
-        "album.core.controller.conda_manager.CondaManager.run_script",
+        "album.core.controller.package_manager.PackageManager.run_script",
         return_value="ranScript",
     )
     def test_run_scripts(self, conda_run_mock):
@@ -271,7 +281,7 @@ dependencies:
         conda_run_mock.assert_called_once()
 
     @patch(
-        "album.core.controller.conda_manager.CondaManager.run_script",
+        "album.core.controller.package_manager.PackageManager.run_script",
         return_value="ranScript",
     )
     def test_run_scripts_no_path(self, conda_run_mock):
@@ -292,12 +302,12 @@ dependencies:
 
         self.conda.create_or_update_env(environment)
 
-        create_mock.assert_called_once_with(environment, None)
+        create_mock.assert_called_once_with(environment, None, None)
         update_mock.assert_not_called()
 
-    @patch("album.core.controller.conda_manager.CondaManager.create")
-    @patch("album.core.controller.conda_manager.CondaManager.update")
-    @patch("album.core.controller.conda_manager.CondaManager.environment_exists")
+    @patch("album.core.controller.package_manager.PackageManager.create")
+    @patch("album.core.controller.package_manager.PackageManager.update")
+    @patch("album.core.controller.package_manager.PackageManager.environment_exists")
     def test_create_or_update_env_env_present(
         self, ex_env_mock, update_mock, create_mock
     ):
@@ -315,9 +325,9 @@ dependencies:
         # ToDo: implement
         pass
 
-    @patch("album.core.controller.conda_manager.CondaManager.create_environment")
+    @patch("album.core.controller.package_manager.PackageManager.create_environment")
     @patch(
-        "album.core.controller.conda_manager.CondaManager.create_environment_from_file"
+        "album.core.controller.package_manager.PackageManager.create_environment_from_file"
     )
     def test_create_valid_yaml(
         self, create_environment_from_file_mock, create_environment_mock
@@ -332,9 +342,9 @@ dependencies:
         )
         create_environment_mock.assert_not_called()
 
-    @patch("album.core.controller.conda_manager.CondaManager.create_environment")
+    @patch("album.core.controller.package_manager.PackageManager.create_environment")
     @patch(
-        "album.core.controller.conda_manager.CondaManager.create_environment_from_file"
+        "album.core.controller.package_manager.PackageManager.create_environment_from_file"
     )
     def test_create_no_yaml(
         self, create_environment_from_file_mock, create_environment_mock
@@ -346,11 +356,11 @@ dependencies:
         create_environment_from_file_mock.assert_not_called()
 
     @patch(
-        "album.core.controller.conda_manager.CondaManager.create_or_update_env",
+        "album.core.controller.package_manager.PackageManager.create_or_update_env",
         return_value="Called",
     )
     @patch(
-        "album.core.controller.conda_manager.CondaManager.get_environment_path",
+        "album.core.controller.package_manager.PackageManager.get_environment_path",
         return_value="Called",
     )
     def test_install(self, get_env_path_mock, create_mock):
@@ -358,7 +368,7 @@ dependencies:
 
         self.conda.install(environment, "TestVersion")
 
-        create_mock.assert_called_once_with(environment, "TestVersion")
+        create_mock.assert_called_once_with(environment, "TestVersion", None)
         get_env_path_mock.assert_called_once()
 
 

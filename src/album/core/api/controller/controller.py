@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
 
+from album.core.api.controller.resource_manager import IResourceManager
 from album.core.api.controller.clone_manager import ICloneManager
 from album.core.api.controller.collection.catalog_handler import ICatalogHandler
 from album.core.api.controller.collection.collection_manager import ICollectionManager
@@ -86,4 +87,8 @@ class IAlbumController:
 
     @abstractmethod
     def close(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def resource_manager(self) -> IResourceManager:
         raise NotImplementedError

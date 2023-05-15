@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 from pathlib import Path
 
@@ -6,14 +5,13 @@ from git import Repo
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.deploy_manager import IDeployManager
+from album.core.api.controller.resource_manager import IResourceManager
 from album.core.api.model.catalog import ICatalog
 from album.core.model.default_values import DefaultValues
 from album.core.utils.export.changelog import (
-    create_changelog_file,
     process_changelog_file,
 )
 from album.core.utils.operations.file_operations import (
-    copy,
     write_dict_to_yml,
     force_remove,
     folder_empty,
@@ -49,15 +47,16 @@ class DeployManager(IDeployManager):
         self.album = album
 
     def deploy(
-        self,
-        deploy_path,
-        catalog_name: str,
-        dry_run: bool,
-        push_options=None,
-        git_email: str = None,
-        git_name: str = None,
-        force_deploy: bool = False,
-        changelog: str = None,
+            self,
+            deploy_path,
+            catalog_name: str,
+            dry_run: bool,
+            push_options=None,
+            git_email: str = None,
+            git_name: str = None,
+            force_deploy: bool = False,
+            changelog: str = None,
+            no_conda_lock: bool = False,
     ):
         if dry_run:
             module_logger().info(
@@ -86,6 +85,7 @@ class DeployManager(IDeployManager):
             push_options,
             git_email,
             git_name,
+            no_conda_lock
         )
 
         if dry_run:
@@ -99,13 +99,13 @@ class DeployManager(IDeployManager):
             )
 
     def undeploy(
-        self,
-        solution_to_resolve,
-        catalog_name: str,
-        dry_run: bool,
-        push_options=None,
-        git_email: str = None,
-        git_name: str = None,
+            self,
+            solution_to_resolve,
+            catalog_name: str,
+            dry_run: bool,
+            push_options=None,
+            git_email: str = None,
+            git_name: str = None,
     ):
 
         exit_msg = (
@@ -126,7 +126,7 @@ class DeployManager(IDeployManager):
             )
 
         with catalog.retrieve_catalog(
-            self.get_download_path(catalog), force_retrieve=True
+                self.get_download_path(catalog), force_retrieve=True
         ) as repo:
             # load index
             catalog.set_index_path(
@@ -188,15 +188,16 @@ class DeployManager(IDeployManager):
         module_logger().info(exit_msg % (solution_to_resolve, catalog_name))
 
     def _deploy(
-        self,
-        catalog: ICatalog,
-        active_solution: ISolution,
-        deploy_path: Path,
-        dry_run: bool,
-        force_deploy: bool,
-        push_options: list,
-        git_email=None,
-        git_name=None,
+            self,
+            catalog: ICatalog,
+            active_solution: ISolution,
+            deploy_path: Path,
+            dry_run: bool,
+            force_deploy: bool,
+            push_options: list,
+            git_email=None,
+            git_name=None,
+            no_conda_lock: bool = False,
     ):
         # check for cache catalog only
         if catalog.is_cache():
@@ -230,6 +231,7 @@ class DeployManager(IDeployManager):
                     push_options,
                     git_email,
                     git_name,
+                    no_conda_lock,
                 )
             elif catalog.type() == "request":
                 self._deploy_to_request_catalog(
@@ -241,21 +243,23 @@ class DeployManager(IDeployManager):
                     push_options,
                     git_email,
                     git_name,
+                    no_conda_lock
                 )
             else:
                 raise NotImplementedError("type %s not supported!" % catalog.type())
 
     def _deploy_to_direct_catalog(
-        self,
-        repo: Repo,
-        catalog: ICatalog,
-        active_solution: ISolution,
-        deploy_path: Path,
-        dry_run: bool,
-        force_deploy: bool,
-        push_options: list,
-        git_email=None,
-        git_name=None,
+            self,
+            repo: Repo,
+            catalog: ICatalog,
+            active_solution: ISolution,
+            deploy_path: Path,
+            dry_run: bool,
+            force_deploy: bool,
+            push_options: list,
+            git_email=None,
+            git_name=None,
+            no_conda_lock: bool = False,
     ):
         """Routine to deploy to a direct catalog"""
         # adding solutions in the SQL databse for catalog type "direct" done on user side, hence the timestamp
@@ -266,7 +270,7 @@ class DeployManager(IDeployManager):
         self._add_to_downloaded_catalog(catalog, active_solution, dry_run, force_deploy)
 
         solution_files = self._deploy_routine_in_local_src(
-            catalog, repo, active_solution, deploy_path
+            catalog, repo, active_solution, deploy_path, no_conda_lock
         )
         commit_files = solution_files + [catalog.index_file_path()]
         solution_root = str(
@@ -309,21 +313,22 @@ class DeployManager(IDeployManager):
             module_logger().info("Would refresh the index from src")
 
     def _deploy_to_request_catalog(
-        self,
-        repo: Repo,
-        catalog: ICatalog,
-        active_solution: ISolution,
-        deploy_path: Path,
-        dry_run: bool,
-        push_options: list,
-        git_email=None,
-        git_name=None,
+            self,
+            repo: Repo,
+            catalog: ICatalog,
+            active_solution: ISolution,
+            deploy_path: Path,
+            dry_run: bool,
+            push_options: list,
+            git_email=None,
+            git_name=None,
+            no_conda_lock: bool = False,
     ):
         """Routine to deploy to a request catalog."""
 
         # include files/folders in catalog
         mr_files = self._deploy_routine_in_local_src(
-            catalog, repo, active_solution, deploy_path
+            catalog, repo, active_solution, deploy_path, no_conda_lock
         )
 
         if not push_options:
@@ -340,11 +345,12 @@ class DeployManager(IDeployManager):
         )
 
     def _deploy_routine_in_local_src(
-        self,
-        catalog: ICatalog,
-        repo: Repo,
-        active_solution: ISolution,
-        deploy_path: Path,
+            self,
+            catalog: ICatalog,
+            repo: Repo,
+            active_solution: ISolution,
+            deploy_path: Path,
+            no_conda_lock: bool
     ):
         """Performs all routines a deploy process needs to do locally.
 
@@ -352,8 +358,8 @@ class DeployManager(IDeployManager):
             solution zip file and additional attachments.
 
         """
-        solution_files = self._collect_solution_files(
-            catalog, repo.working_tree_dir, active_solution, deploy_path
+        solution_files = self.album.resource_manager().write_solution_files(
+            catalog, repo.working_tree_dir, active_solution, deploy_path, no_conda_lock
         )
 
         return solution_files
@@ -362,46 +368,6 @@ class DeployManager(IDeployManager):
         return Path(self.album.configuration().cache_path_download()).joinpath(
             catalog.name()
         )
-
-    def _collect_solution_files(
-        self,
-        catalog: ICatalog,
-        catalog_local_src: str,
-        active_solution: ISolution,
-        deploy_path: Path,
-    ):
-        coordinates = active_solution.coordinates()
-
-        catalog_solution_local_src_path = Path(catalog_local_src).joinpath(
-            self.album.configuration().get_solution_path_suffix_unversioned(coordinates)
-        )
-
-        res = []
-        if deploy_path.is_file():
-            solution_path = catalog_solution_local_src_path.joinpath(
-                DefaultValues.solution_default_name.value
-            )
-            res.append(copy(deploy_path, solution_path))
-        else:
-            for subdir, dirs, files in os.walk(deploy_path):
-                for file in files:
-                    filepath = subdir + os.sep + file
-                    rel_path = os.path.relpath(filepath, deploy_path)
-                    target = catalog_solution_local_src_path.joinpath(rel_path)
-                    res.append(copy(filepath, target))
-
-        res.append(
-            self._create_yaml_file_in_local_src(
-                active_solution, catalog_solution_local_src_path
-            )
-        )
-        res.append(
-            create_changelog_file(
-                active_solution, catalog, catalog_solution_local_src_path
-            )
-        )
-
-        return res
 
     def _get_tmp_dir(self):
         return self.album.configuration().tmp_path()
@@ -414,7 +380,7 @@ class DeployManager(IDeployManager):
 
     @staticmethod
     def _add_to_downloaded_catalog(
-        catalog: ICatalog, active_solution: ISolution, dry_run: bool, force_deploy: bool
+            catalog: ICatalog, active_solution: ISolution, dry_run: bool, force_deploy: bool
     ):
         """Updates the index in the downloaded repository!"""
         if not dry_run:
@@ -427,7 +393,7 @@ class DeployManager(IDeployManager):
 
     @staticmethod
     def _remove_from_downloaded_catalog(
-        catalog: ICatalog, coordinates: ICoordinates, dry_run: bool
+            catalog: ICatalog, coordinates: ICoordinates, dry_run: bool
     ):
         """Updates the index in the downloaded repository!"""
         if not dry_run:
@@ -471,13 +437,13 @@ class DeployManager(IDeployManager):
 
     @staticmethod
     def _create_merge_request(
-        coordinates: ICoordinates,
-        repo: Repo,
-        file_paths,
-        dry_run=False,
-        push_option=None,
-        email=None,
-        username=None,
+            coordinates: ICoordinates,
+            repo: Repo,
+            file_paths,
+            dry_run=False,
+            push_option=None,
+            email=None,
+            username=None,
     ):
         """Creates a merge request to the catalog repository for the album object.
 
@@ -524,14 +490,14 @@ class DeployManager(IDeployManager):
 
     @staticmethod
     def _push_directly(
-        coordinates: ICoordinates,
-        repo: Repo,
-        files_to_remove: list,
-        files_to_add: list,
-        dry_run=False,
-        push_option=None,
-        email=None,
-        username=None,
+            coordinates: ICoordinates,
+            repo: Repo,
+            files_to_remove: list,
+            files_to_add: list,
+            dry_run=False,
+            push_option=None,
+            email=None,
+            username=None,
     ):
         if push_option is None:
             push_option = []
@@ -555,25 +521,10 @@ class DeployManager(IDeployManager):
             force=False,
         )
 
-    @staticmethod
-    def _create_yaml_file_in_local_src(active_solution: ISolution, solution_home: Path):
-        """Creates a yaml file in the given repo for the given solution.
 
-        Returns:
-            The Path to the created markdown file.
-
-        """
-        yaml_path = solution_home.joinpath(
-            DefaultValues.solution_yml_default_name.value
-        )
-
-        module_logger().debug("Writing yaml file to: %s..." % yaml_path)
-        write_dict_to_yml(yaml_path, get_deploy_dict(active_solution))
-
-        return yaml_path
 
     def _remove_db_entry_and_files(
-        self, repo, coordinates, dry_run, push_options, git_email, git_name
+            self, repo, coordinates, dry_run, push_options, git_email, git_name
     ):
 
         solution_root = str(
@@ -600,14 +551,14 @@ class DeployManager(IDeployManager):
             )
 
     def _remove_db_entry_and_revert_files(
-        self,
-        repo,
-        coordinates,
-        previous_version_tag,
-        dry_run,
-        push_options,
-        git_email,
-        git_name,
+            self,
+            repo,
+            coordinates,
+            previous_version_tag,
+            dry_run,
+            push_options,
+            git_email,
+            git_name,
     ):
 
         solution_root = str(
@@ -629,7 +580,7 @@ class DeployManager(IDeployManager):
             )
 
     def _remove_db_entry_and_tag(
-        self, repo, coordinates, dry_run, push_options, git_email, git_name
+            self, repo, coordinates, dry_run, push_options, git_email, git_name
     ):
         db_index = DefaultValues.catalog_index_file_name.value
 
@@ -642,14 +593,14 @@ class DeployManager(IDeployManager):
             )
 
     def _try_push_remove_tag(
-        self,
-        coordinates,
-        repo,
-        files_to_remove,
-        files_to_add,
-        push_options,
-        git_email,
-        git_name,
+            self,
+            coordinates,
+            repo,
+            files_to_remove,
+            files_to_add,
+            push_options,
+            git_email,
+            git_name,
     ):
         try:
             if push_options is None:

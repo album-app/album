@@ -1,12 +1,15 @@
 import os
 from pathlib import Path
 from typing import Optional
+from unittest.mock import MagicMock
 
 from album.core.model.default_values import DefaultValues
 from album.core.model.environment import Environment
 from album.core.utils.operations.file_operations import copy
 from album.runner.core.model.solution import Solution
 from test.test_common import TestCommon
+from album.core.utils.export.conda_lock import create_conda_lock_file
+import importlib.resources as resources
 
 
 class TestIntegrationCoreCommon(TestCommon):
@@ -108,3 +111,12 @@ class TestIntegrationCoreCommon(TestCommon):
             ),
         )
         return loaded_solution
+
+    def mock_conda_lock(self):
+        conda_lock_mock = MagicMock()
+        self.album_controller.resource_manager().create_conda_lock_file = conda_lock_mock
+        #album.core.controller.resource_manager.create_conda_lock_file = conda_lock_mock
+        conda_lock_mock.return_value = Path(__file__).parent.parent.joinpath('resources',
+                                                                                    'solution_with_lock_file',
+                                                                                    'solution.conda-lock.yml')
+        return create_conda_lock_file

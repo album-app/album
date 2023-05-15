@@ -28,6 +28,7 @@ class IDeployManager:
         git_name: str = None,
         force_deploy: bool = False,
         changelog: str = "",
+        no_conda_lock: bool = False,
     ):
         """Function corresponding to the `deploy` subcommand of `album`.
 

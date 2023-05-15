@@ -27,6 +27,7 @@ class Configuration(IConfiguration):
         self._conda_executable = None
         self._mamba_executable = None
         self._micromamba_executable = None
+        self._conda_lock_executable = None
         self._tmp_path = None
         self._cache_path_envs = None
         self._catalog_collection_path = None
@@ -44,6 +45,9 @@ class Configuration(IConfiguration):
 
     def micromamba_executable(self):
         return self._micromamba_executable
+
+    def conda_lock_executable(self):
+        return self._conda_lock_executable
 
     def installation_path(self):
         return self._installation_path
@@ -77,7 +81,7 @@ class Configuration(IConfiguration):
             self._base_cache_path = Path(base_cache_path)
 
         # get installed package manager
-        if self.get_installed_package_manager() == "micromamba":
+        if Path(DefaultValues.micromamba_path.value).is_file():
             self._micromamba_executable = DefaultValues.micromamba_path.value
         else:
             # conda executable
@@ -89,6 +93,15 @@ class Configuration(IConfiguration):
                 if platform.system() == "Windows":
                     self._conda_executable = shutil.which(self._conda_executable)
             self._mamba_executable = shutil.which("mamba")
+
+        # conda-lock executable
+        conda_lock_path = DefaultValues.conda_lock_path.value
+        if conda_lock_path is not DefaultValues.conda_lock_default_executable.value:
+            self._conda_lock_executable = self._build_conda_lock_executable(conda_lock_path)
+        else:
+            self._conda_lock_executable = conda_lock_path
+            if platform.system() == "Windows":
+                self._conda_lock_executable = shutil.which(self._conda_lock_executable)
 
         self._cache_path_download = self._base_cache_path.joinpath(
             DefaultValues.cache_path_download_prefix.value
@@ -126,6 +139,14 @@ class Configuration(IConfiguration):
             return str(Path(conda_path).joinpath("bin", "conda"))
         else:
             return str(Path(conda_path).joinpath("Scripts", "conda.exe"))
+
+    @staticmethod
+    def _build_conda_lock_executable(conda_lock_path):
+        operation_system = sys.platform
+        if operation_system == "linux" or operation_system == "darwin":
+            return str(Path(conda_lock_path).joinpath("bin", "conda-lock"))
+        else:
+            return str(Path(conda_lock_path).joinpath("Scripts", "conda-lock.exe"))
 
     def get_solution_path_suffix(self, coordinates: Coordinates) -> Path:
         return Path("").joinpath(
@@ -183,10 +204,3 @@ class Configuration(IConfiguration):
         # force_remove(self._cache_path_tmp_internal)
         force_remove(self._tmp_path)
 
-    def get_installed_package_manager(self):
-        """Check which package manager is installed. Micromamba, conda using mamba or just conda. Picks them in this
-        order."""
-        if MicromambaManager.check_for_executable():
-            return "micromamba"
-        elif CondaManager.check_for_executable():
-            return "conda"

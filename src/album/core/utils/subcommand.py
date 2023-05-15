@@ -203,26 +203,38 @@ class SubProcessError(RuntimeError):
 
 def _run_process(command, log: LogProcessing, pipe_output):
     if pipe_output:
-        process = subprocess.Popen(
-            command,
-            shell=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
+        if platform.system() == "Windows":
+            process = subprocess.Popen(
+                command,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                encoding=sys.getdefaultencoding(),
+                text=True,
+            )
+        else:
+            process = subprocess.Popen(
+                command,
+                shell=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                encoding=sys.getdefaultencoding(),
+                text=True,
+            )
         while True:
             output = process.stdout.readline()
             if process.poll() is not None:
                 break
             if output:
+                # FIXME: Not sure if this is intended but the output doesn't get logged at all.
                 log.log_info(output.rstrip())
         sys.stdout.flush()
         rc = process.poll()
         if rc != 0:
-            raise SubProcessError(rc, "ERROR while running %s" % " ".join(command))
+            raise SubProcessError(rc, "ERROR while running %s " % " ".join(command))
         return rc
     else:
-        return subprocess.run(command)
+        return subprocess.run(command, encoding=sys.getdefaultencoding())
 
 
 def check_output(command):

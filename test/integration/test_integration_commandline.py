@@ -250,7 +250,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
         self.assertIsNotNone(index_dict["catalogs"])
         self.assertEqual(1, len(index_dict["catalogs"]))
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
+    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
     def test_run_sad_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album._controller.environment_manager()
@@ -266,7 +266,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
             main()
         self.assertEquals(1, e.exception.code)
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
+    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
     def test_run_album_throwing_error_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album._controller.environment_manager()

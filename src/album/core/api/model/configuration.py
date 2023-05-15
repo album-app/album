@@ -33,6 +33,11 @@ class IConfiguration:
         raise NotImplementedError
 
     @abstractmethod
+    def conda_lock_executable(self):
+        """The conda-lock executable. Either a full path to a conda-lock executable/binary or a command"""
+        raise NotImplementedError
+
+    @abstractmethod
     def cache_path_download(self):
         """Path for solution unspecific downloads."""
         raise NotImplementedError
@@ -112,8 +117,3 @@ class IConfiguration:
         """Returns the default catalogs branches to use."""
         raise NotImplementedError
 
-    @abstractmethod
-    def get_installed_package_manager(self):
-        """Check which package manager is installed. Micromamba, conda using mamba or just conda. Picks them in this
-        order."""
-        raise NotImplementedError
