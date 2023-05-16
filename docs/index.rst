@@ -35,4 +35,5 @@ Java, Kotlin, and more.
    package
    docker
    distributed
+   troubleshooting
    contributing
