@@ -23,7 +23,7 @@
     - '$Env:MAMBA_ROOT_PREFIX=(Join-Path -Path (Get-Location) -ChildPath micromamba)'
     - '$Env:MAMBA_EXE=(Join-Path -Path (Get-Location) -ChildPath micromamba\Library\bin\micromamba.exe)'
     #- '$Env:USERPROFILE=$pwd'
-    - '$Env:ALBUM_CONDA_PATH=(Join-Path -Path ($CI_PROJECT_DIR) -ChildPath micromamba\Library\bin\micromamba.exe)'
+    - '$Env:ALBUM_MICROMAMBA_PATH=(Join-Path -Path ($CI_PROJECT_DIR) -ChildPath micromamba\Library\bin\micromamba.exe)'
     - '$Env:micromamba=(Join-Path -Path ($CI_PROJECT_DIR) -ChildPath micromamba\Library\bin\micromamba.exe)'
     - '$oldProgressPreference = $progressPreference; $progressPreference = "SilentlyContinue";'
     - '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12'                                                                                                                                                                                                                                                                                          # set Security download protocol to avoid https errors
@@ -126,7 +126,7 @@
 # Linux base template for running tests with micromamba as package manager
 #
 # Uses a docker image where micromamba will be installed.
-# Creates a album environment.
+# Creates an album environment.
 #
 
 .linux_base_template_micromamba:
@@ -141,7 +141,7 @@
     - apt install -y curl
     - apt install -y bzip2
     - export MAMBA_ROOT_PREFIX=$CI_PROJECT_DIR/micromamba
-    - export ALBUM_CONDA_PATH=$CI_PROJECT_DIR/bin/micromamba
+    - export ALBUM_MICROMAMBA_PATH=$CI_PROJECT_DIR/bin/micromamba
     - mkdir -p $CI_PROJECT_DIR/bin/
     - curl -Ls https://gitlab.com/album-app/plugins/album-package/-/raw/micromamba_installer/micromamba-1.0.0_LINUX_X86_64.tar.bz2?inline=false | tar -xvj -C $CI_PROJECT_DIR/bin/ --strip-components=1 bin/micromamba
     - eval "$($CI_PROJECT_DIR/bin/micromamba shell hook -s posix)"
@@ -150,6 +150,7 @@
     - pip uninstall -y album
     - pip install -e .
     - python -V
+    - python -c "import shutil; print(shutil.which(\"micromamba\"))"
     - pip install coverage
     - pip list
   variables:
@@ -168,7 +169,7 @@
 # Linux base template for running test with conda as package manager
 #
 # Uses a docker image where conda is already installed.
-# Creates a album environment.
+# Creates an album environment.
 #
 .linux_base_template_conda:
   image: continuumio/miniconda3:latest
@@ -187,6 +188,7 @@
     - which python
     - conda activate album
     - python -V
+    - python -c "import shutil; print(shutil.which(\"conda\"))"
     - pip list
   variables:
     PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
@@ -203,7 +205,7 @@
 # Linux base template for running test with conda with mamba as package manager
 #
 # Uses a docker image where conda is already installed.
-# Creates a album environment.
+# Creates an album environment.
 #
 .linux_base_template_conda_with_mamba:
   image: continuumio/miniconda3:latest
@@ -223,6 +225,7 @@
     - which python
     - conda activate album
     - python -V
+    - python -c "import shutil; print(shutil.which(\"mamba\"))"
     - pip list
   variables:
     PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
@@ -254,15 +257,17 @@
     - echo $tmpdir
     - echo $tmpdir > /tmp/tmpdir
     - export MAMBA_ROOT_PREFIX=$tmpdir/micromamba
-    - export ALBUM_CONDA_PATH=$tmpdir/bin/micromamba
+    - export ALBUM_MICROMAMBA_PATH=$tmpdir/bin/micromamba
     - mkdir -p $tmpdir/bin/
     - curl -Ls https://gitlab.com/album-app/plugins/album-package/-/raw/micromamba_installer/micromamba-1.0.0_MACOS_X86_64.tar.bz2?inline=false | tar -xvj -C $tmpdir/bin/ --strip-components=1 bin/micromamba
     - eval "$($tmpdir/bin/micromamba shell hook -s posix)"
+    - whereis micromamba
     - micromamba create -y -n album album -c conda-forge python=3.10
     - micromamba activate album
     - pip uninstall -y album
     - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
     - python -V
+    - python -c "import shutil; print(shutil.which(\"micromamba\"))"
     - pip list
   after_script:
     - tmpdir=$(</tmp/tmpdir)
@@ -287,12 +292,15 @@
     - curl https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh --output $tmpdir/miniconda.sh
     - bash $tmpdir/miniconda.sh -b -p $tmpdir/miniconda
     - export PATH=$PATH:$tmpdir/miniconda/bin/
+    - export ALBUM_CONDA_PATH=$tmpdir/miniconda/bin/conda
     - echo $PATH
-    - conda create -y --channel=conda-forge -n album python=3.9 pip git
     - source $tmpdir/miniconda/bin/activate
+    - conda env list
+    - conda create -y --channel=conda-forge -n album python=3.9 pip git
     - conda activate album
     - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
     - python -V
+    - python -c "import shutil; print(shutil.which(\"conda\"))"
   after_script:
     - tmpdir=$(</tmp/tmpdir)
     - echo $tmpdir
@@ -320,13 +328,17 @@
     - curl https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh --output $tmpdir/miniconda.sh
     - bash $tmpdir/miniconda.sh -b -p $tmpdir/miniconda
     - export PATH=$PATH:$tmpdir/miniconda/bin/
+    - export ALBUM_CONDA_PATH=$tmpdir/miniconda/bin/conda
     - echo $PATH
-    - conda install -y mamba -c conda-forge
-    - conda create -y --channel=conda-forge -n album python=3.9 pip git
     - source $tmpdir/miniconda/bin/activate
+    - conda env list
+    - conda install -y mamba -c conda-forge
+    - export ALBUM_MAMBA_PATH=$tmpdir/miniconda/bin/mamba
+    - conda create -y --channel=conda-forge -n album python=3.9 pip git
     - conda activate album
     - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
     - python -V
+    - python -c "import shutil; print(shutil.which(\"mamba\"))"
   after_script:
     - tmpdir=$(</tmp/tmpdir)
     - echo $tmpdir

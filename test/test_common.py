@@ -1,6 +1,7 @@
 import gc
 import logging
 import sys
+import os
 import tempfile
 import unittest
 from io import StringIO
@@ -22,7 +23,7 @@ from album.core.utils.operations.view_operations import (
     get_logger_name_minimizer_filter,
     get_logging_formatter,
 )
-from album.runner.album_logging import get_active_logger
+from album.runner.album_logging import get_active_logger, LogLevel
 from test.global_exception_watcher import GlobalExceptionWatcher
 
 
@@ -31,8 +32,19 @@ class TestCommon(unittest.TestCase):
         super().setUp()
         self.setup_tmp_resources()
         self.setup_silent_test_logging()
+        self.enable_test_logging()
         self.album: Optional[Album] = None
         self.album_controller: Optional[AlbumController] = None
+
+    def enable_test_logging(self):
+        if os.getenv("ALBUM_TEST_LOGGING", "False") == "True":
+            handler = logging.StreamHandler(sys.stdout)
+            handler.setLevel("DEBUG")
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(message)s')
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
+            self.logger.setLevel("DEBUG")
+            self.logger.debug("Test logging enabled!")
 
     def tearDown(self) -> None:
         if self.album:
