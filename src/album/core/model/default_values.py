@@ -113,26 +113,32 @@ class DefaultValues(Enum):
     )
 
     # album
-    app_data_dir = Path.home().joinpath(".album")  # base data path
-
-    # conda
-    conda_default_executable = "conda"  # default conda executable
-    conda_path = os.getenv(
-        "ALBUM_CONDA_PATH", conda_default_executable
-    )  # default conda path, either env. var or conda
+    app_data_dir = os.getenv("ALBUM_BASE_CACHE_PATH", Path.home().joinpath(".album"))  # base data path
 
     # micromamba
-    # These default executable cannot be used for environment activation!
-    micromamba_default_windows_executable = str(
-        Path(str(app_data_dir)).joinpath("micromamba", "Library", "bin",
-                                         "micromamba.exe"))  # default micromamba executable on windows
-    micromamba_default_unix_executable = str(
-        Path(str(app_data_dir)).joinpath("micromamba", "bin",
-                                         "micromamba"))  # default micromamba executable on windows
+    micromamba_default_command = "micromamba"
+    micromamba_path = os.getenv("ALBUM_MICROMAMBA_PATH")
+
+    # micro mamba default location
     if platform.system() == "Windows":
-        micromamba_path = os.getenv("ALBUM_CONDA_PATH", micromamba_default_windows_executable)
+        default_micromamba_path = str(
+            Path(str(app_data_dir)).joinpath("micromamba", "Library", "bin", "micromamba.exe"))
     else:
-        micromamba_path = os.getenv("ALBUM_CONDA_PATH", micromamba_default_unix_executable)
+        default_micromamba_path = str(
+        Path(str(app_data_dir)).joinpath("micromamba", "bin", "micromamba")
+    )
+
+    # mamba
+    mamba_default_command = "mamba"
+    mamba_path = os.getenv("ALBUM_MAMBA_PATH")
+
+    # conda
+    conda_default_command = "conda"  # default conda executable
+    conda_path = os.getenv("ALBUM_CONDA_PATH")
+
+    # conda-lock
+    conda_lock_default_command = "conda-lock"  # default conda-lock executable
+    conda_lock_path = os.getenv("ALBUM_CONDA_LOCK_PATH")
 
     # events
     before_run_event_name = "before-run"

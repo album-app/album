@@ -122,7 +122,7 @@
 # Linux base template for running tests with micromamba as package manager
 #
 # Uses a docker image where micromamba will be installed.
-# Creates a album environment.
+# Creates an album environment.
 #
 
 .linux_base_template_micromamba:
@@ -156,7 +156,7 @@
 # Linux base template for running test with conda as package manager
 #
 # Uses a docker image where conda is already installed.
-# Creates a album environment.
+# Creates an album environment.
 #
 .linux_base_template_conda:
   image: continuumio/miniconda3:latest
@@ -175,6 +175,7 @@
     - which python
     - conda activate album
     - python -V
+    - python -c "import shutil; print(shutil.which(\"conda\"))"
     - pip list
   variables:
     PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
@@ -191,7 +192,7 @@
 # Linux base template for running test with conda with mamba as package manager
 #
 # Uses a docker image where conda is already installed.
-# Creates a album environment.
+# Creates an album environment.
 #
 .linux_base_template_conda_with_mamba:
   image: continuumio/miniconda3:latest
@@ -211,6 +212,7 @@
     - which python
     - conda activate album
     - python -V
+    - python -c "import shutil; print(shutil.which(\"mamba\"))"
     - pip list
   variables:
     PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip

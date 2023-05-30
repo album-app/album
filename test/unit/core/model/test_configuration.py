@@ -32,6 +32,8 @@ class TestConfiguration(TestUnitCoreCommon):
         conf.setup(base_cache_path=base_path)
 
         # assert
+        # todo: check if the paths are correct
+        # todo: check if package manager is correct
         self.assertFalse(leftover_file.exists())
         self.assertEqual(base_path, conf.base_cache_path())
 
