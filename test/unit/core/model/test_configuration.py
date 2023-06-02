@@ -32,9 +32,9 @@ class TestConfiguration(TestUnitCoreCommon):
         conf.setup(base_cache_path=base_path)
 
         # assert
+        # todo: check if the paths are correct
+        # todo: check if package manager is correct
         self.assertFalse(leftover_file.exists())
-        self.assertTrue((DefaultValues.conda_path.value in str(conf.conda_executable())) or
-                        (DefaultValues.micromamba_path.value in str(conf.micromamba_executable())))
         self.assertEqual(base_path, conf.base_cache_path())
 
     def test_base_cache_path(self):

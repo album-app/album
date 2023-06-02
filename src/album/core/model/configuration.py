@@ -1,13 +1,9 @@
-import os
 import platform
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
 from album.core.api.model.configuration import IConfiguration
-from album.core.controller.conda_manager import CondaManager
-from album.core.controller.micromamba_manager import MicromambaManager
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import (
     create_paths_recursively,
@@ -32,6 +28,7 @@ class Configuration(IConfiguration):
         self._cache_path_envs = None
         self._catalog_collection_path = None
         self._installation_path = None
+        self._cache_path_download = None
         self._lnk_path = None
 
     def base_cache_path(self):
@@ -73,35 +70,34 @@ class Configuration(IConfiguration):
                 "Configuration::setup was already called and should not be called twice."
             )
         self._is_setup = True
+
         # base root path where everything lives
-        self._base_cache_path = Path(
-            os.getenv("ALBUM_BASE_CACHE_PATH", DefaultValues.app_data_dir.value)
-        )
+        self._base_cache_path = Path(DefaultValues.app_data_dir.value)
         if base_cache_path:
             self._base_cache_path = Path(base_cache_path)
 
-        # get installed package manager
-        if Path(DefaultValues.micromamba_path.value).is_file():
+        # explicitly defined package manager
+        if DefaultValues.micromamba_path.value is not None:
             self._micromamba_executable = DefaultValues.micromamba_path.value
-        else:
-            # conda executable
-            conda_path = DefaultValues.conda_path.value
-            if conda_path is not DefaultValues.conda_default_executable.value:
-                self._conda_executable = self._build_conda_executable(conda_path)
-            else:
-                self._conda_executable = conda_path
-                if platform.system() == "Windows":
-                    self._conda_executable = shutil.which(self._conda_executable)
-            self._mamba_executable = shutil.which("mamba")
+            module_logger().debug("Using micromamba executable: %s", self._micromamba_executable)
+        elif DefaultValues.conda_path.value is not None:
+            self._conda_executable = DefaultValues.conda_path.value
 
-        # conda-lock executable
-        conda_lock_path = DefaultValues.conda_lock_path.value
-        if conda_lock_path is not DefaultValues.conda_lock_default_executable.value:
-            self._conda_lock_executable = self._build_conda_lock_executable(conda_lock_path)
-        else:
-            self._conda_lock_executable = conda_lock_path
-            if platform.system() == "Windows":
-                self._conda_lock_executable = shutil.which(self._conda_lock_executable)
+            # check if mamba is available and favor it over conda
+            if DefaultValues.mamba_path.value is not None:
+                self._mamba_executable = DefaultValues.mamba_path.value
+                module_logger().debug("Using mamba executable: %s", self._mamba_executable)
+            else:
+                module_logger().debug("Using conda executable: %s", self._conda_executable)
+        elif DefaultValues.mamba_path.value is not None:
+            self._mamba_executable = DefaultValues.mamba_path.value
+            module_logger().debug("Using mamba executable: %s", self._mamba_executable)
+        else:  # search for a package manager with default values
+            self.search_package_manager()
+
+        # check for conda-lock
+        if DefaultValues.conda_lock_path.value is None:
+            self.search_lock_manager()
 
         self._cache_path_download = self._base_cache_path.joinpath(
             DefaultValues.cache_path_download_prefix.value
@@ -131,6 +127,36 @@ class Configuration(IConfiguration):
                 self._installation_path,
             ]
         )
+
+    def search_lock_manager(self):
+        self._conda_lock_executable = shutil.which(DefaultValues.conda_lock_default_command.value)
+        if self._conda_lock_executable:
+            module_logger().debug("Using conda-lock executable: %s", self._conda_lock_executable)
+        else:
+            module_logger().debug("No conda-lock executable found! Cannot lock environments during deployment!")
+
+    def search_package_manager(self):
+        if Path(DefaultValues.default_micromamba_path.value).is_file():  # look in default micromamba location
+            # points to the executable, e.g. /path/bin/micromamba
+            self._micromamba_executable = DefaultValues.default_micromamba_path.value
+            module_logger().debug("Using micromamba executable: %s", self._micromamba_executable)
+        else:
+            # search for micromamba
+            self._micromamba_executable = shutil.which(DefaultValues.micromamba_default_command.value)
+            if self._micromamba_executable is not None:
+                module_logger().debug("Using micromamba executable: %s", self._micromamba_executable)
+            else:
+                # search for conda
+                self._conda_executable = shutil.which(DefaultValues.conda_default_command.value)
+                if self._conda_executable is not None:
+                    # additionally search for mamba
+                    self._mamba_executable = shutil.which(DefaultValues.mamba_default_command.value)
+                    if self._mamba_executable is not None:
+                        module_logger().debug("Using mamba executable: %s", self._mamba_executable)
+                    else:
+                        module_logger().debug("Using conda executable: %s", self._conda_executable)
+                else:
+                    raise RuntimeError("No package manager found!")
 
     @staticmethod
     def _build_conda_executable(conda_path):
