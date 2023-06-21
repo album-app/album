@@ -5,6 +5,8 @@ from album.core.utils.operations.file_operations import force_remove
 
 
 def create_conda_lock_file(solution_yml: Path, conda_lock_executable: Path):
+    if conda_lock_executable is None:
+        raise RuntimeError("No conda-lock executable found! Cannot lock environments!")
     solution_lock_path = solution_yml.parent.joinpath("solution.conda-lock.yml")
     if solution_lock_path.exists():
         force_remove(solution_lock_path)

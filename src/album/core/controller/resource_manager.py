@@ -36,12 +36,12 @@ class ResourceManager(IResourceManager):
         self.album = album
 
     def write_solution_files(
-        self,
-        catalog: ICatalog,
-        catalog_local_src: str,
-        active_solution: ISolution,
-        deploy_path: Path,
-        no_conda_lock: bool,
+            self,
+            catalog: ICatalog,
+            catalog_local_src: str,
+            active_solution: ISolution,
+            deploy_path: Path,
+            no_conda_lock: bool,
     ):
         coordinates = active_solution.coordinates()
 
@@ -56,6 +56,7 @@ class ResourceManager(IResourceManager):
             )
             res.append(copy(deploy_path, solution_path))
         else:
+            # todo: replace me with copy_folder function
             for subdir, dirs, files in os.walk(deploy_path):
                 for file in files:
                     filepath = subdir + os.sep + file
@@ -76,16 +77,20 @@ class ResourceManager(IResourceManager):
 
         if not no_conda_lock:
             try:
-                res.append(
-                    create_conda_lock_file(self.write_solution_environment_file(active_solution,
-                                                                                catalog_solution_local_src_path),
-                                           self.album.configuration().conda_lock_executable())
+                lock_path = create_conda_lock_file(
+                    self.write_solution_environment_file(active_solution, catalog_solution_local_src_path),
+                    self.album.configuration().conda_lock_executable()
                 )
+                res.append(lock_path)
             except SubProcessError as e:
                 module_logger().error("Error creating conda lock file. This is most likely the case, "
                                       "because on of your dependency is not available for every platform album "
                                       "demands. Try using the --no-conda-lock flag for skipping the conda lock file "
                                       "creation.")
+                raise e
+            except RuntimeError as e:
+                module_logger().error("Cannot create conda lock file. No conda lock executable found. "
+                                      "Consider deploying without conda lock or install conda-lock!")
                 raise e
         return res
 
@@ -102,7 +107,7 @@ class ResourceManager(IResourceManager):
                 if validators.url(env_file):
                     download_resource(env_file, yml_path)
 
-                # 2 string aus solution file
+                # 2 string from solution file
                 elif "dependencies:" in env_file and "\n" in env_file:
                     with open(str(yml_path), "w+") as yml_file:
                         yml_file.writelines(env_file)
@@ -162,4 +167,3 @@ class ResourceManager(IResourceManager):
         if not 'setuptools' in content["dependencies"]:
             content["dependencies"].append(dependencies)
         return content
-
