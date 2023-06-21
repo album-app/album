@@ -44,6 +44,7 @@ from test.unit.core.utils.operations import (
     test_resolve_operations,
     test_solution_operations,
 )
+from test.unit.core.utils.export import test_conda_lock
 
 
 def main():
@@ -99,6 +100,7 @@ def main():
     # album.core.utils.export
     suite.addTests(loader.loadTestsFromModule(test_docker))
     suite.addTests(loader.loadTestsFromModule(test_changelog))
+    suite.addTests(loader.loadTestsFromModule(test_conda_lock))
 
     # album.ci
     suite.addTests(loader.loadTestsFromModule(test_ci_argument_parsing))
