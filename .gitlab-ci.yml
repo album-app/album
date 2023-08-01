@@ -50,79 +50,6 @@
       - downloads
       - .cache\pip
 
-.windows_base_template_conda_with_mamba:
-  before_script:
-    - 'echo "We are in path: $pwd "'
-    - 'echo "conda URL:  $env:MINICONDA_URL "'
-    - '$oldProgressPreference = $progressPreference; $progressPreference = "SilentlyContinue";'
-    - 'if(-Not (Test-Path .\download)) {echo "Cache download not found! Creating..."; New-Item -ItemType Directory -Force -Path .\download} else { echo ".\download cache found! with content:"; Get-ChildItem -Path .\download}'                                                                                                                                                # create cache dir
-    - '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12'                                                                                                                                                                                                                                                                                          # set Security download protocol to avoid https errors
-    - 'if(Test-Path .\download\miniconda_url.txt) {echo "found previous miniconda url information. Extracting information..."; $miniconda_cache_url = try {Get-Content -Path .\download\miniconda_url.txt -errorAction Stop} catch {echo "None"}; echo "Cached minconda executable: $miniconda_cache_url"} else { echo ".\download\miniconda_url.txt does not exist!"}'          # read url from cache
-    - 'if($miniconda_cache_url -ne $env:MINICONDA_URL) {echo "Cached URL not equal to given URL. Removing executable..."; Remove-Item -Path .\download\miniconda3.exe -Force; $force_install = "true"; echo "Force installation triggered!"} else { echo "No force installation necessary!"}'                                                                                    # check if url changed - if yes, remove cache and mark conda reinstall
-    - 'if(-Not (Test-Path .\download\miniconda3.exe)) {echo "Downloading miniconda executable..."; Invoke-WebRequest -UseBasicParsing -Uri $env:MINICONDA_URL -OutFile .\download\miniconda3.exe} else {echo "Executable found in .\download\miniconda3.exe. Reusing..."}'                                                                                                       # download the miniconda windows executable
-    - 'echo $env:MINICONDA_URL | Out-File -FilePath .\download\miniconda_url.txt'                                                                                                                                                                                                                                                                                                # cache version information
-    - 'Get-ChildItem -Path .\download'                                                                                                                                                                                                                                                                                                                                           # show download folder content
-    - '$env:PATH += ";$pwd\miniconda\condabin"'     # set path information
-    - '$env:PATH += ";$pwd\miniconda\Scripts"'
-    - '$env:PATH += ";$pwd\miniconda\Library\bin"'
-    - 'ls env:'
-    - '$conda_available = try {Get-Command "Get-CondaEnvironment" -errorAction Stop} catch {$null}'                                                                                                                                                                                                                                                                              # check if conda cmnd already available
-    - 'if($force_install -eq "true") {$conda_available = $null}'                                                                                                                                                                                                                                                                                                                 # mark conda reinstall
-    - 'if($conda_available -eq $null) {echo "conda cmnd not available! Will install in $pwd\miniconda..."; Start-Process .\download\miniconda3.exe -argumentlist "/InstallationType=JustMe /S /D=$pwd\miniconda" -wait} else {echo "Skip downloading!..."}'
-    - 'echo "Environment path: $env:PATH"'
-    - 'conda init'
-    - 'conda config --set notify_outdated_conda false'
-    - 'conda install -y mamba -c conda-forge'
-    - '$progressPreference = $oldProgressPreference'
-  tags:
-    - windows
-    - mdc
-  variables:
-    PIP_CACHE_DIR: $CI_PROJECT_DIR\.cache\pip
-    ErrorActionPreference: Continue  # not working properly
-    MINICONDA_URL: https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe
-  cache:
-    key: one-key-to-rule-them-all-windows-conda-with-mamba
-    paths:
-      - .\download
-      - .cache\pip
-
-
-.windows_base_template_conda:
-  before_script:
-    - 'echo "We are in path: $pwd "'
-    - 'echo "conda URL:  $env:MINICONDA_URL "'
-    - '$oldProgressPreference = $progressPreference; $progressPreference = "SilentlyContinue";'
-    - 'if(-Not (Test-Path .\download)) {echo "Cache download not found! Creating..."; New-Item -ItemType Directory -Force -Path .\download} else { echo ".\download cache found! with content:"; Get-ChildItem -Path .\download}'                                                                                                                                                # create cache dir
-    - '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12'                                                                                                                                                                                                                                                                                          # set Security download protocol to avoid https errors
-    - 'if(Test-Path .\download\miniconda_url.txt) {echo "found previous miniconda url information. Extracting information..."; $miniconda_cache_url = try {Get-Content -Path .\download\miniconda_url.txt -errorAction Stop} catch {echo "None"}; echo "Cached minconda executable: $miniconda_cache_url"} else { echo ".\download\miniconda_url.txt does not exist!"}'          # read url from cache
-    - 'if($miniconda_cache_url -ne $env:MINICONDA_URL) {echo "Cached URL not equal to given URL. Removing executable..."; Remove-Item -Path .\download\miniconda3.exe -Force; $force_install = "true"; echo "Force installation triggered!"} else { echo "No force installation necessary!"}'                                                                                    # check if url changed - if yes, remove cache and mark conda reinstall
-    - 'if(-Not (Test-Path .\download\miniconda3.exe)) {echo "Downloading miniconda executable..."; Invoke-WebRequest -UseBasicParsing -Uri $env:MINICONDA_URL -OutFile .\download\miniconda3.exe} else {echo "Executable found in .\download\miniconda3.exe. Reusing..."}'                                                                                                       # download the miniconda windows executable
-    - 'echo $env:MINICONDA_URL | Out-File -FilePath .\download\miniconda_url.txt'                                                                                                                                                                                                                                                                                                # cache version information
-    - 'Get-ChildItem -Path .\download'                                                                                                                                                                                                                                                                                                                                           # show download folder content
-    - '$env:PATH += ";$pwd\miniconda\condabin"'     # set path information
-    - '$env:PATH += ";$pwd\miniconda\Scripts"'
-    - '$env:PATH += ";$pwd\miniconda\Library\bin"'
-    - '$conda_available = try {Get-Command "Get-CondaEnvironment" -errorAction Stop} catch {$null}'                                                                                                                                                                                                                                                                              # check if conda cmnd already available
-    - 'if($force_install -eq "true") {$conda_available = $null}'                                                                                                                                                                                                                                                                                                                 # mark conda reinstall
-    - 'if($conda_available -eq $null) {echo "conda cmnd not available! Will install in $pwd\miniconda..."; Start-Process .\download\miniconda3.exe -argumentlist "/InstallationType=JustMe /S /D=$pwd\miniconda" -wait} else {echo "Skip downloading!..."}'
-    - 'echo "Environment path: $env:PATH"'
-    - 'conda init'
-    - 'conda config --set notify_outdated_conda false'
-    - '$progressPreference = $oldProgressPreference'
-  tags:
-    - windows
-  variables:
-    PIP_CACHE_DIR: $CI_PROJECT_DIR\.cache\pip
-    ErrorActionPreference: Continue  # not working properly
-    MINICONDA_URL: https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe
-  cache:
-    key: one-key-to-rule-them-all-windows-conda
-    paths:
-      - .\download
-      - .cache\pip
-
-
 # Linux base template for running tests with micromamba as package manager
 #
 # Uses a docker image where micromamba will be installed.
@@ -165,82 +92,6 @@
       - ${CONDA_PREFIX}/pkgs/urls.txt
       - .cache/pip
 
-
-# Linux base template for running test with conda as package manager
-#
-# Uses a docker image where conda is already installed.
-# Creates an album environment.
-#
-.linux_base_template_conda:
-  image: continuumio/miniconda3:latest
-  tags:
-    - docker
-  before_script:
-    - apt update
-    - apt install git -y
-    - python -V  # Print out python version for debugging
-    - which python
-    - conda create -y --channel=conda-forge -n album python=3.9 pip git
-    - conda init bash
-    - source ~/.bashrc
-    - conda activate album
-    - pip install -e .
-    - which python
-    - conda activate album
-    - python -V
-    - python -c "import shutil; print(shutil.which(\"conda\"))"
-    - pip list
-  variables:
-    PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
-    CONDA_ENV_NAME: album
-    CONDA_PREFIX: /opt/conda
-    PREFIX: $CONDA_PREFIX/envs/$CONDA_ENV_NAME
-  cache:
-    key: one-key-to-rule-them-all-linux
-    paths:
-      - ${CONDA_PREFIX}/pkgs/*.tar.bz2
-      - ${CONDA_PREFIX}/pkgs/urls.txt
-      - .cache/pip
-
-# Linux base template for running test with conda with mamba as package manager
-#
-# Uses a docker image where conda is already installed.
-# Creates an album environment.
-#
-.linux_base_template_conda_with_mamba:
-  image: continuumio/miniconda3:latest
-  tags:
-    - docker
-  before_script:
-    - apt update
-    - apt install git -y
-    - python -V  # Print out python version for debugging
-    - which python
-    - conda create -y --channel=conda-forge -n album python=3.9 pip git
-    - conda init bash
-    - source ~/.bashrc
-    - conda install -y mamba -c conda-forge
-    - conda activate album
-    - pip install -e .
-    - which python
-    - conda activate album
-    - python -V
-    - python -c "import shutil; print(shutil.which(\"mamba\"))"
-    - pip list
-  variables:
-    PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
-    CONDA_ENV_NAME: album
-    CONDA_PREFIX: /opt/conda
-    PREFIX: $CONDA_PREFIX/envs/$CONDA_ENV_NAME
-  cache:
-    key: one-key-to-rule-them-all-linux
-    paths:
-      - ${CONDA_PREFIX}/pkgs/*.tar.bz2
-      - ${CONDA_PREFIX}/pkgs/urls.txt
-      - .cache/pip
-
-
-
 # Macos base template for running tests with micromamba as package manager
 #
 # Installs micromamba in a fresh tmp directory and activates it.
@@ -273,77 +124,6 @@
     - tmpdir=$(</tmp/tmpdir)
     - echo $tmpdir
     - rm -rf $tmpdir
-
-# Macos base template for running tests with conda with mamba as package manager
-#
-# Installs miniconda in a fresh tmp directory and activates it.
-# DO NOT ALLOW JOBS TO BE RUN IN PARALLEL!
-#
-.macos_base_template_conda:
-  tags:
-    - macos
-    - shell
-  before_script:
-    - echo "$(uname)"
-    - sw_vers
-    - tmpdir=$(mktemp -d /tmp/album-test.XXXXXX)
-    - echo $tmpdir
-    - echo $tmpdir > /tmp/tmpdir
-    - curl https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh --output $tmpdir/miniconda.sh
-    - bash $tmpdir/miniconda.sh -b -p $tmpdir/miniconda
-    - export PATH=$PATH:$tmpdir/miniconda/bin/
-    - export ALBUM_CONDA_PATH=$tmpdir/miniconda/bin/conda
-    - echo $PATH
-    - source $tmpdir/miniconda/bin/activate
-    - conda env list
-    - conda create -y --channel=conda-forge -n album python=3.9 pip git
-    - conda activate album
-    - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
-    - python -V
-    - python -c "import shutil; print(shutil.which(\"conda\"))"
-  after_script:
-    - tmpdir=$(</tmp/tmpdir)
-    - echo $tmpdir
-    - rm -rf $tmpdir
-
-
-# Macos base template for running tests with conda as package manager
-#
-# Installs miniconda in a fresh tmp directory and activates it.
-# DO NOT ALLOW JOBS TO BE RUN IN PARALLEL!
-#
-
-.macos_base_template_conda_with_mamba:
-  tags:
-    - macos
-    - shell
-    - mdc
-    - mitte
-  before_script:
-    - echo "$(uname)"
-    - sw_vers
-    - tmpdir=$(mktemp -d /tmp/album-test.XXXXXX)
-    - echo $tmpdir
-    - echo $tmpdir > /tmp/tmpdir
-    - curl https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh --output $tmpdir/miniconda.sh
-    - bash $tmpdir/miniconda.sh -b -p $tmpdir/miniconda
-    - export PATH=$PATH:$tmpdir/miniconda/bin/
-    - export ALBUM_CONDA_PATH=$tmpdir/miniconda/bin/conda
-    - echo $PATH
-    - source $tmpdir/miniconda/bin/activate
-    - conda env list
-    - conda install -y mamba -c conda-forge
-    - export ALBUM_MAMBA_PATH=$tmpdir/miniconda/bin/mamba
-    - conda create -y --channel=conda-forge -n album python=3.9 pip git
-    - conda activate album
-    - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
-    - python -V
-    - python -c "import shutil; print(shutil.which(\"mamba\"))"
-  after_script:
-    - tmpdir=$(</tmp/tmpdir)
-    - echo $tmpdir
-    - rm -rf $tmpdir
-
 
 #----------------------------
 # stages
@@ -523,18 +303,6 @@ unit tests linux micromamba:
     paths:
       - unit.coverage
 
-unit tests linux conda:
-  extends: .linux_base_template_conda
-  stage: test
-  script:
-    - python -m unittest test/unit/run_all_unit_conda.py
-
-unit tests linux conda with mamba:
-  extends: .linux_base_template_conda_with_mamba
-  stage: test
-  script:
-    - python -m unittest test/unit/run_all_unit_conda_with_mamba.py
-
 integration tests linux micromamba:
   extends: .linux_base_template_micromamba
   stage: test
@@ -546,18 +314,6 @@ integration tests linux micromamba:
     paths:
       - integration.coverage
 
-integration tests linux conda:
-  extends: .linux_base_template_conda
-  stage: test
-  script:
-    - python -m unittest test/integration/run_integration_conda.py
-
-integration tests linux conda with mamba:
-  extends: .linux_base_template_conda_with_mamba
-  stage: test
-  script:
-    - python -m unittest test/integration/run_integration_conda.py
-
 # MacOs Tests
 
 unit tests macos micromamba:
@@ -566,37 +322,12 @@ unit tests macos micromamba:
   script:
     - python -m unittest test/unit/run_all_unit_micromamba.py
 
-unit tests macos conda:
-  extends: .macos_base_template_conda
-  stage: test
-  script:
-    - python -m unittest test/unit/run_all_unit_conda.py
-
-unit tests macos conda with mamba:
-  extends: .macos_base_template_conda_with_mamba
-  stage: test
-  script:
-    - python -m unittest test/unit/run_all_unit_conda_with_mamba.py
-
 
 integration tests macos micromamba:
   extends: .macos_base_template_micromamba
   stage: test
   script:
     - python -m unittest test/integration/run_all_integration_micromamba.py
-
-integration tests macos conda:
-  extends: .macos_base_template_conda
-  stage: test
-  script:
-    - python -m unittest test/integration/run_integration_conda.py
-
-
-integration tests macos conda with mamba:
-  extends: .macos_base_template_conda_with_mamba
-  stage: test
-  script:
-    - python -m unittest test/integration/run_integration_conda.py
 
 # Windows Tests
 
@@ -610,27 +341,6 @@ unit tests windows micromamba:
     paths:
       - unit.coverage
 
-unit tests windows conda:
-  extends: .windows_base_template_conda
-  stage: test
-  script:
-    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit_conda.py 2>&1 | Write-Host; exit($lastexitcode)}
-
-
-unit tests windows conda with mamba:
-  extends: .windows_base_template_conda_with_mamba
-  stage: test
-  script:
-    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit_conda_with_mamba.py 2>&1 | Write-Host; exit($lastexitcode)}
-
-
-integration tests windows conda with mamba:
-  extends: .windows_base_template_conda_with_mamba
-  stage: test
-  script:
-    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\integration\run_integration_conda.py 2>&1 | Write-Host; exit($lastexitcode)}
-
-
 integration tests windows micromamba:
   extends: .windows_base_template_micromamba
   stage: test
@@ -640,40 +350,6 @@ integration tests windows micromamba:
   artifacts:
     paths:
       - integration.coverage
-
-integration tests windows conda:
-  extends: .windows_base_template_conda
-  stage: test
-  script:
-    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\integration\run_integration_conda.py 2>&1 | Write-Host; exit($lastexitcode)}
-
-
-release tests linux:
-  extends: .linux_base_template_micromamba
-  stage: release-test
-  script:
-    # install system requirements
-    - apt-get -y update
-    - apt-get install -y libgl1-mesa-dev
-    # install templates in default catalog
-    # - album install album:template-python:0.1.0-SNAPSHOT
-    # - album install album:template-java:0.1.0-SNAPSHOT
-    # - album install album:template-r:0.1.0-SNAPSHOT
-    # - album install album:template-scijava:0.1.0-SNAPSHOT
-    # - album install album:template-imagej:0.1.0-SNAPSHOT
-    # - album install album:template-imagej2:0.1.0-SNAPSHOT
-    # - album install album:template-bdv:0.1.0-SNAPSHOT
-    # - album install album:template-napari:0.1.0-SNAPSHOT
-    # - album install album:template-minimal:0.1.0-SNAPSHOT
-    # run non-interactive templates
-    # - album run album:template-minimal:0.1.0-SNAPSHOT
-    # - album run album:template-python:0.1.0-SNAPSHOT
-    # - album run album:template-java:0.1.0-SNAPSHOT
-    # - album run album:template-r:0.1.0-SNAPSHOT
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      changes:
-        - setup.cfg
 
 # Create combined coverage reports
 
