@@ -60,7 +60,6 @@
   image: ubuntu:latest
   tags:
     - docker
-    - vm
   before_script:
     - df -h
     - apt update
