@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import List, Optional, Dict
@@ -9,18 +8,17 @@ from album.core.api.controller.collection.catalog_handler import ICatalogHandler
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.model.catalog import ICatalog
 from album.core.model.catalog import Catalog, retrieve_index_files_from_src
-from album.core.model.catalog_index import CatalogIndex
 from album.core.model.catalog_updates import CatalogUpdates, SolutionChange, ChangeType
 from album.core.model.collection_index import CollectionIndex
-from album.core.model.mmversion import MMVersion
 from album.core.model.default_values import DefaultValues
+from album.core.model.mmversion import MMVersion
 from album.core.utils.operations.dict_operations import str_to_dict
 from album.core.utils.operations.file_operations import (
     force_remove,
-    copy,
     get_dict_from_json,
 )
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
+from album.environments.utils.file_operations import copy
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
@@ -71,7 +69,9 @@ class CatalogHandler(ICatalogHandler):
         catalog_meta_information = self._retrieve_catalog_meta_information(
             source, branch_name
         )
-        catalog_dict = self._get_collection_index().get_catalog_by_name(catalog_meta_information["name"])
+        catalog_dict = self._get_collection_index().get_catalog_by_name(
+            catalog_meta_information["name"]
+        )
         if catalog_dict:
             module_logger().warning("Cannot add catalog twice! Doing nothing...")
             return self._as_catalog(catalog_dict)
@@ -84,8 +84,10 @@ class CatalogHandler(ICatalogHandler):
         if not catalog.is_cache():
             self.album.migration_manager().migrate_catalog_index_db(
                 catalog.index_file_path(),  # the path to the catalog
-                MMVersion.from_string(catalog_meta_information["version"]),  # eventually outdated remote version
-                MMVersion.from_string(DefaultValues.catalog_index_db_version.value)
+                MMVersion.from_string(
+                    catalog_meta_information["version"]
+                ),  # eventually outdated remote version
+                MMVersion.from_string(DefaultValues.catalog_index_db_version.value),
             )
 
         self._add_to_index(catalog)
@@ -171,15 +173,17 @@ class CatalogHandler(ICatalogHandler):
             local_path.mkdir(parents=True)
 
         meta_data = (
-            '{\"name\": \"'
+            '{"name": "'
             + name
-            + '\", \"version\": \"'
+            + '", "version": "'
             + DefaultValues.catalog_index_db_version.value
-            + '\", \"type\": \"'
+            + '", "type": "'
             + catalog_type
-            + '\"}'
-            )
-        with open(local_path.joinpath(DefaultValues.catalog_index_metafile_json.value), 'w') as meta:
+            + '"}'
+        )
+        with open(
+            local_path.joinpath(DefaultValues.catalog_index_metafile_json.value), "w"
+        ) as meta:
             meta.writelines(meta_data)
 
         return str_to_dict(meta_data)

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from album.core.api.model.environment import IEnvironment
+from album.environments.api.model.environment import IEnvironment
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
 

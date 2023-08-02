@@ -1,5 +1,7 @@
 from abc import ABCMeta, abstractmethod
 
+from album.runner.core.api.model.solution import ISolution
+
 
 class IInstallManager:
     """Interface handling the installation and uninstallation process of a solution."""
@@ -12,7 +14,7 @@ class IInstallManager:
         raise NotImplementedError
 
     @abstractmethod
-    def install(self, solution_to_resolve: str, argv=None):
+    def install(self, solution_to_resolve: str, argv=None) -> ISolution:
         """Function corresponding to the `install` subcommand of `album`."""
         raise NotImplementedError
 

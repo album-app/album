@@ -62,7 +62,7 @@ dependencies:
         self.assertEqual(["group: tsg\n", "name: tsn\n", "version: tsv\n"], f_content)
 
     @patch("album.core.controller.resource_manager.create_changelog_file", return_value="changelogfile")
-    @patch("album.core.controller.resource_manager.create_conda_lock_file", return_value="lockfile")
+    @patch("album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file", return_value="lockfile")
     def test_build_solution_files(self, create_changelog_file, create_conda_lock_file):
         # prepare
         catalog_src_path, _ = self.setup_empty_catalog("test_cat")

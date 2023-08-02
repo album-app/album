@@ -1,7 +1,7 @@
 from pathlib import Path
 from unittest.mock import patch
 
-from album.core.utils.subcommand import SubProcessError
+from album.environments.utils.subcommand import SubProcessError
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
@@ -22,10 +22,11 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         # assert
         self.assertNotIn("ERROR", self.captured_output.getvalue())
 
-    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
+    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
     def test_run_arguments(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
+            .get_environment_handler()
             .get_package_manager()
             .get_active_environment_path()
         )
@@ -41,10 +42,11 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
             self.captured_output.getvalue(),
         )
 
-    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
+    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
     def test_run_arguments_given(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
+            .get_environment_handler()
             .get_package_manager()
             .get_active_environment_path()
         )
@@ -81,10 +83,11 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         self.assertIn("lambda_arg1: <class 'str'> myFile.txt", log)
         self.assertIn("lambda_arg2: <class 'NoneType'> None", log)
 
-    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
+    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
     def test_run_with_group_name_version(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
+            .get_environment_handler()
             .get_package_manager()
             .get_active_environment_path()
         )
@@ -106,10 +109,11 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         # assert
         self.assertNotIn("ERROR", self.captured_output.getvalue())
 
-    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
+    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
     def test_run_minimal_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
+            .get_environment_handler()
             .get_package_manager()
             .get_active_environment_path()
         )
@@ -133,10 +137,11 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
             'No "run" routine configured for solution', self.captured_output.getvalue()
         )
 
-    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
+    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
     def test_run_with_parent(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
+            .get_environment_handler()
             .get_package_manager()
             .get_active_environment_path()
         )
@@ -171,10 +176,11 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
             self.assertEqual("solution1_app1_run", log[0])
             self.assertEqual("solution1_app1_close", log[1])
 
-    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
+    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
     def test_run_throwing_error_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
+            .get_environment_handler()
             .get_package_manager()
             .get_active_environment_path()
         )

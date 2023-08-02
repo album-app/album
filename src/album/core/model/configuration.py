@@ -1,15 +1,12 @@
-import platform
-import shutil
-import sys
 from pathlib import Path
 
 from album.core.api.model.configuration import IConfiguration
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import (
     create_paths_recursively,
-    force_remove,
     get_dict_from_json,
 )
+from album.environments.utils.file_operations import force_remove
 from album.runner import album_logging
 from album.runner.core.model.coordinates import Coordinates
 

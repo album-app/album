@@ -13,8 +13,6 @@ from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.model.link import Link
 from album.core.utils.operations.file_operations import (
-    copy_folder,
-    copy,
     construct_cache_link_target,
     force_remove,
 )
@@ -28,6 +26,7 @@ from album.core.utils.operations.resolve_operations import (
     as_tag,
 )
 from album.core.utils.operations.solution_operations import get_deploy_dict
+from album.environments.utils.file_operations import copy, copy_folder
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
@@ -60,7 +59,7 @@ class SolutionHandler(ISolutionHandler):
                 install_location.joinpath(DefaultValues.solution_default_name.value),
             )
         else:
-            copy_folder(solution.path(), install_location, copy_root_folder=False)
+            copy_folder(Path(solution.path()).parent, install_location, copy_root_folder=False)
 
     def add_to_cache_catalog(self, solution: ICollectionSolution):
         self.add_or_replace(self.album.catalogs().get_cache_catalog(), solution)

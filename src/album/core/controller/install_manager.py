@@ -4,7 +4,6 @@ from typing import Optional
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.install_manager import IInstallManager
 from album.core.api.model.collection_solution import ICollectionSolution
-from album.core.api.model.environment import IEnvironment
 from album.core.controller.environment_manager import EnvironmentManager
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import remove_link
@@ -17,6 +16,7 @@ from album.core.utils.operations.solution_operations import (
     get_deploy_dict,
     get_parent_dict,
 )
+from album.environments.api.model.environment import IEnvironment
 from album.runner import album_logging
 from album.runner.core.api.model.solution import ISolution
 from album.runner.core.default_values_runner import DefaultValuesRunner
@@ -28,7 +28,7 @@ class InstallManager(IInstallManager):
     def __init__(self, album: IAlbumController):
         self.album = album
 
-    def install(self, solution_to_resolve: str, argv=None):
+    def install(self, solution_to_resolve: str, argv=None) -> ISolution:
         # this needs to happen before any (potentially not completely installed) solution is resolved
         self.clean_unfinished_installations()
 
@@ -36,6 +36,7 @@ class InstallManager(IInstallManager):
             solution_to_resolve
         )
         self._install_resolve_result(resolve_result, argv, parent=False)
+        return resolve_result.loaded_solution()
 
     def _resolve_result_is_installed(self, resolve_result: ICollectionSolution) -> bool:
         """Checks whether a resolve_result is already installed."""

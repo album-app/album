@@ -7,16 +7,12 @@ import unittest.mock
 from pathlib import Path
 
 from album.core.utils.operations.file_operations import (
-    get_dict_from_yml,
-    write_dict_to_yml,
     create_empty_file_recursively,
     create_path_recursively,
     write_dict_to_json,
     force_remove,
     zip_folder,
     unzip_archive,
-    copy,
-    copy_folder,
     zip_paths,
     rand_folder_name,
     folder_empty,
@@ -43,43 +39,6 @@ class TestFileOperations(TestUnitCoreCommon):
                 "..", "..", "..", "..", "resources", "solution0_dummy.py"
             )
         )
-
-    def test_get_dict_from_yml(self):
-        tmp_folder = pathlib.Path(self.tmp_dir.name)
-
-        tmp_yml_file = tmp_folder.joinpath("test_yaml")
-        with open(tmp_yml_file, "w+") as f:
-            f.write("test: [1, 2, 3]")
-
-        d = get_dict_from_yml(tmp_yml_file)
-        self.assertEqual(d, {"test": [1, 2, 3]})
-
-    def test_get_dict_from_yml_string_only(self):
-        tmp_folder = pathlib.Path(self.tmp_dir.name)
-
-        tmp_yml_file = tmp_folder.joinpath("test_yaml")
-        with open(tmp_yml_file, "w+") as f:
-            f.write("iAmOnlyAString")
-
-        with self.assertRaises(TypeError):
-            get_dict_from_yml(tmp_yml_file)
-
-    def test_get_dict_from_yml_empty(self):
-        tmp_folder = pathlib.Path(self.tmp_dir.name)
-
-        tmp_yml_file = tmp_folder.joinpath("test_yaml")
-        tmp_yml_file.touch()
-
-        with self.assertRaises(TypeError):
-            get_dict_from_yml(tmp_yml_file)
-
-    def test_write_dict_to_yml(self):
-        tmp_yml_file = pathlib.Path(self.tmp_dir.name).joinpath("test_yaml")
-        tmp_yml_file.touch()
-        self.assertEqual(tmp_yml_file.stat().st_size, 0)
-        d = {"test": [1, 2, 3]}
-        write_dict_to_yml(tmp_yml_file, d)
-        self.assertTrue(tmp_yml_file.stat().st_size > 0)
 
     def test_write_dict_to_json(self):
         # named "yaml" here because tearDown() deletes it automatically, but that does not matter here
@@ -137,64 +96,6 @@ class TestFileOperations(TestUnitCoreCommon):
         create_path_recursively(tmp_folder)
 
         self.assertTrue(tmp_folder.is_dir())
-
-    def test_copy_folder(self):
-        tmp_dir = pathlib.Path(self.tmp_dir.name)
-
-        # source
-        source_copy = tmp_dir.joinpath("test_to_copy_folder")
-        create_path_recursively(source_copy)
-
-        source_copy_file_a = source_copy.joinpath("aFile.txt")
-        source_copy_file_a.touch()
-
-        source_copy_folder_inside = source_copy.joinpath("a_new_folder")
-        create_path_recursively(source_copy_folder_inside)
-
-        source_copy_file_b = source_copy_folder_inside.joinpath("bFile.txt")
-        source_copy_file_b.touch()
-
-        # target
-        target_copy = tmp_dir.joinpath("test_copy_target_folder")
-
-        # copy without root
-        copy_folder(source_copy, target_copy, copy_root_folder=False)
-
-        self.assertTrue(target_copy.joinpath("a_new_folder", "bFile.txt").exists())
-        self.assertTrue(target_copy.joinpath("aFile.txt").exists())
-
-        # copy with root
-        target_copy = tmp_dir.joinpath("test_copy_target_folder_with_root")
-
-        copy_folder(source_copy, target_copy, copy_root_folder=True)
-
-        self.assertTrue(
-            target_copy.joinpath(source_copy.name, "a_new_folder", "bFile.txt").exists()
-        )
-        self.assertTrue(target_copy.joinpath(source_copy.name, "aFile.txt").exists())
-
-    def test_copy(self):
-        tmp_dir = pathlib.Path(self.tmp_dir.name)
-
-        # source
-        source_copy = tmp_dir.joinpath("test_to_copy_folder")
-        create_path_recursively(source_copy)
-        source_copy_file = source_copy.joinpath("aFile.txt")
-        source_copy_file.touch()
-
-        # target
-        target_copy = tmp_dir.joinpath("test_unzip_target_folder")
-        create_path_recursively(target_copy)
-
-        # copy
-        copy(source_copy_file, target_copy)  # to new target folder
-        copy(
-            source_copy_file, target_copy.joinpath("newname.txt")
-        )  # to new target folder with new name
-
-        # assert
-        self.assertTrue(target_copy.joinpath("aFile.txt").exists())
-        self.assertTrue(target_copy.joinpath("newname.txt").exists())
 
     def test_zip_folder(self):
         tmp_dir = pathlib.Path(self.tmp_dir.name)

@@ -1,8 +1,7 @@
 from pathlib import Path
 from urllib.parse import urlparse
 
-from album.core.utils.operations.file_operations import write_dict_to_yml
-
+from album.environments.utils.file_operations import write_dict_to_yml
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger

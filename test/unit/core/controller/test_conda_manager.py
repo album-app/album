@@ -243,7 +243,7 @@ dependencies:
         with self.assertRaises(LookupError):
             self.conda.set_environment_path(environment)
 
-    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
+    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
     def test_set_environment_path(self, gep_mock):
         p = str(
             self.conda._configuration.environments_path().joinpath(

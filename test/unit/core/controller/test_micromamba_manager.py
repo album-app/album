@@ -218,7 +218,7 @@ class TestMicromambaManager(TestUnitCoreCommon):
         with self.assertRaises(LookupError):
             self.micromamba.set_environment_path(environment)
 
-    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
+    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
     def test_set_environment_path(self, gep_mock):
         p = str(
             self.micromamba._configuration.environments_path().joinpath(

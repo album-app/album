@@ -12,7 +12,6 @@ from test.unit.core.controller import (
     test_install_manager,
     test_run_manager,
     test_deploy_manager,
-    test_micromamba_manager,
     test_test_manager,
     test_task_manager,
     test_clone_manager,
@@ -27,14 +26,12 @@ from test.unit.core.controller.collection import (
 from test.unit.core.model import (
     test_catalog,
     test_configuration,
-    test_environment,
     test_catalog_index,
     test_collection_index,
     test_task,
     test_database,
     test_mmversion,
 )
-from test.unit.core.utils import test_subcommand
 from test.unit.core.utils.export import test_changelog, test_docker
 from test.unit.core.utils.operations import test_dict_operations
 from test.unit.core.utils.operations import (
@@ -44,7 +41,6 @@ from test.unit.core.utils.operations import (
     test_resolve_operations,
     test_solution_operations,
 )
-from test.unit.core.utils.export import test_conda_lock
 
 
 def main():
@@ -62,7 +58,6 @@ def main():
 
     # album core.controller
     suite.addTests(loader.loadTestsFromModule(test_clone_manager))
-    suite.addTests(loader.loadTestsFromModule(test_micromamba_manager))
     suite.addTests(loader.loadTestsFromModule(test_deploy_manager))
     suite.addTests(loader.loadTestsFromModule(test_environment_manager))
     suite.addTests(loader.loadTestsFromModule(test_install_manager))
@@ -79,15 +74,11 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_catalog_index))
     suite.addTests(loader.loadTestsFromModule(test_collection_index))
     suite.addTests(loader.loadTestsFromModule(test_configuration))
-    suite.addTests(loader.loadTestsFromModule(test_environment))
     suite.addTests(loader.loadTestsFromModule(test_task))
     suite.addTests(loader.loadTestsFromModule(test_mmversion))
 
     # album.core.concept
     suite.addTests(loader.loadTestsFromModule(test_database))
-
-    # album.core.utils
-    suite.addTests(loader.loadTestsFromModule(test_subcommand))
 
     # album.core.utils.operations
     suite.addTests(loader.loadTestsFromModule(test_file_operations))
@@ -100,7 +91,6 @@ def main():
     # album.core.utils.export
     suite.addTests(loader.loadTestsFromModule(test_docker))
     suite.addTests(loader.loadTestsFromModule(test_changelog))
-    suite.addTests(loader.loadTestsFromModule(test_conda_lock))
 
     # album.ci
     suite.addTests(loader.loadTestsFromModule(test_ci_argument_parsing))

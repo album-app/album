@@ -3,10 +3,11 @@ import sys
 import threading
 import unittest.mock
 from threading import Thread
+from time import sleep
 
 from album.core.controller.task_manager import TaskManager
 from album.core.model.task import Task
-from album.core.utils import subcommand
+from album.environments.utils import subcommand
 from album.runner import album_logging
 from album.runner.album_logging import LogLevel
 from test.unit.test_unit_core_common import TestUnitCoreCommon
@@ -76,7 +77,8 @@ class TestTaskManager(TestUnitCoreCommon):
         self.assertTrue(len(task.log_handler().records()) > 1)
         if platform.system() == "Windows":
             self.assertEqual(
-                "Running command: cmd /c echo test...", task.log_handler().records()[0].msg
+                "Running command: cmd /c echo test...",
+                task.log_handler().records()[0].msg,
             )
         else:
             self.assertEqual(
@@ -98,6 +100,7 @@ class TestTaskManager(TestUnitCoreCommon):
             subcommand.run(["cmd", "/c", "echo test"])
         else:
             subcommand.run(["echo", "test"])
+        sleep(0.1)
 
     @staticmethod
     def _log_to_active_logger():

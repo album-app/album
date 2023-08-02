@@ -20,7 +20,7 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
     def tearDown(self) -> None:
         super().tearDown()
 
-    @patch("album.core.controller.resource_manager.create_conda_lock_file")
+    @patch("album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file")
     def test_api(self, conda_lock_mock):
         conda_lock_mock.return_value = None
 

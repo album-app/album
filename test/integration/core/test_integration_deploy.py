@@ -8,7 +8,7 @@ from unittest.mock import patch
 from album.core.api.model.catalog_updates import ChangeType
 
 from album.core.model.default_values import DefaultValues
-from album.core.utils.subcommand import SubProcessError
+from album.environments.utils.subcommand import SubProcessError
 from album.runner.core.model.coordinates import Coordinates
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
@@ -20,7 +20,7 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
     def tearDown(self) -> None:
         super().tearDown()
 
-    @patch("album.core.controller.resource_manager.create_conda_lock_file")
+    @patch("album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file")
     def test_deploy_dry_run(self, conda_lock_mock):
         # prepare
         path, _ = self.setup_empty_catalog("test_catalog")
@@ -48,7 +48,7 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         self.assertIn("test_catalog", updates)
         self.assertEqual(0, len(updates["test_catalog"].solution_changes()))
 
-    @patch("album.core.controller.resource_manager.create_conda_lock_file")
+    @patch("album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file")
     def test_deploy_undeploy_file(self,conda_lock_mock):
 
         path, _ = self.setup_empty_catalog("test_catalog")
@@ -234,7 +234,7 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         self.assertNotIn("WARNING", self.captured_output.getvalue())
         self.assertNotIn("ERROR", self.captured_output.getvalue())
 
-    @patch("album.core.controller.resource_manager.create_conda_lock_file")
+    @patch("album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file")
     def test_deploy_folder_remove_file(self, conda_lock_mock):
         # prepare
         path, _ = self.setup_empty_catalog("test_catalog")
@@ -318,7 +318,7 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
                 .exists()
             )
 
-    @patch("album.core.controller.resource_manager.create_conda_lock_file")
+    @patch("album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file")
     def test_deploy_file_no_changelog(self, conda_lock_mock):
         # prepare
         path, _ = self.setup_empty_catalog("test_catalog")
@@ -361,7 +361,7 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         self.assertIsNotNone(solution)
         self.assertEqual(None, solution.setup()["changelog"])
 
-    @patch("album.core.controller.resource_manager.create_conda_lock_file")
+    @patch("album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file")
     def test_deploy_file_changelog_parameter(self, conda_lock_mock):
         # prepare
         path, _ = self.setup_empty_catalog("test_catalog")
@@ -399,7 +399,7 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         self.assertIsNotNone(solution.setup()["timestamp"])
         self.assertEqual("something changed", solution.setup()["changelog"])
 
-    @patch("album.core.controller.resource_manager.create_conda_lock_file")
+    @patch("album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file")
     def test_deploy_folder_changelog_file(self, conda_lock_mock):
         # prepare
         path, _ = self.setup_empty_catalog("test_catalog")
@@ -467,7 +467,8 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
                 )
                 .exists()
             )
-    @patch("album.core.controller.resource_manager.create_conda_lock_file")
+
+    @patch("album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file")
     def test_deploy_no_conda_lock(self, conda_lock_mock):
         # prepare
         path, _ = self.setup_empty_catalog("test_catalog")

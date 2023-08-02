@@ -1,29 +1,25 @@
 import os
-import subprocess
 from io import StringIO
 from pathlib import Path
-from subprocess import SubprocessError
 
 import validators
 import yaml
 
-from album.core.api.controller.resource_manager import IResourceManager
 from album.core.api.controller.controller import IAlbumController
+from album.core.api.controller.resource_manager import IResourceManager
 from album.core.api.model.catalog import ICatalog
-from album.core.controller.conda_manager import CondaManager
-from album.core.controller.package_manager import PackageManager
+from album.core.controller.environment_manager import EnvironmentManager
 from album.core.model.default_values import DefaultValues
 from album.core.utils.export.changelog import (
     create_changelog_file,
 )
-from album.core.utils.export.conda_lock import create_conda_lock_file
 from album.core.utils.operations.file_operations import (
-    copy,
-    write_dict_to_yml,
+    copy
 )
 from album.core.utils.operations.solution_operations import get_deploy_dict
-from album.core.utils.operations.url_operations import download_resource
-from album.core.utils.subcommand import SubProcessError
+from album.environments.utils.file_operations import write_dict_to_yml
+from album.environments.utils.subcommand import SubProcessError
+from album.environments.utils.url_operations import download_resource
 from album.runner import album_logging
 from album.runner.core.api.model.solution import ISolution
 
@@ -77,9 +73,9 @@ class ResourceManager(IResourceManager):
 
         if not no_conda_lock:
             try:
-                lock_path = create_conda_lock_file(
+                lock_path = self.album.environment_manager().get_environment_handler().get_conda_lock_manager().create_conda_lock_file(
                     self.write_solution_environment_file(active_solution, catalog_solution_local_src_path),
-                    self.album.configuration().conda_lock_executable()
+                    self.album.environment_manager().get_environment_handler().get_conda_lock_manager().conda_lock_executable()
                 )
                 res.append(lock_path)
             except SubProcessError as e:
@@ -134,7 +130,7 @@ class ResourceManager(IResourceManager):
             write_dict_to_yml(yml_path, DefaultValues.default_solution_env_content.value)
 
         yml_dict = yaml.load(open(yml_path, "r"), Loader=yaml.FullLoader)
-        yml_dict = PackageManager.append_framework_to_yml(yml_dict, solution.setup()['album_api_version'])
+        yml_dict = EnvironmentManager._append_framework_to_dependencies(yml_dict, solution.setup()['album_api_version'])
         yml_dict = self._append_setuptools_to_yml(yml_dict)
         write_dict_to_yml(yml_path, yml_dict)
 

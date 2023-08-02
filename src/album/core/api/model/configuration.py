@@ -18,16 +18,6 @@ class IConfiguration:
         raise NotImplementedError
 
     @abstractmethod
-    def micromamba_base_path(self):
-        """The micromamba base path."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def conda_lock_executable(self):
-        """The conda-lock executable. Either a full path to a conda-lock executable/binary or a command"""
-        raise NotImplementedError
-
-    @abstractmethod
     def cache_path_download(self):
         """Path for solution unspecific downloads."""
         raise NotImplementedError

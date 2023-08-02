@@ -4,22 +4,22 @@ from pathlib import Path
 from typing import Optional, Tuple, List, Generator
 
 import validators
-from album.runner.core.api.model.coordinates import ICoordinates
 from git import Repo, GitCommandError
 
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.catalog_index import ICatalogIndex
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import copy, force_remove
+from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.git_operations import (
     download_repository,
     clone_repository_sparse,
     checkout_files,
 )
-from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.core.utils.operations.solution_operations import get_deploy_dict
+from album.environments.utils.file_operations import copy
 from album.runner import album_logging
+from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
 from album.runner.core.model.solution import Solution
 
@@ -37,7 +37,9 @@ def retrieve_index_files_from_src(
             checkout_files(repo, [DefaultValues.catalog_index_metafile_json.value])
         except GitCommandError as e:
             raise FileNotFoundError("Could not retrieve meta file from source.") from e
-            raise FileNotFoundError("Could not retrieve meta file from source.") from e  # todo: own exception class
+            raise FileNotFoundError(
+                "Could not retrieve meta file from source."
+            ) from e  # todo: own exception class
         try:
             # db file - optional
             checkout_files(repo, [DefaultValues.catalog_index_file_name.value])
