@@ -1,15 +1,12 @@
 import os
 from pathlib import Path
 from typing import Optional
-from unittest.mock import MagicMock
 
-from album.core.model.environment import Environment
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import copy
+from album.environments.model.environment import Environment
 from album.runner.core.model.solution import Solution
 from test.test_common import TestCommon
-from album.core.utils.export.conda_lock import create_conda_lock_file
-import importlib.resources as resources
 
 
 class TestIntegrationCoreCommon(TestCommon):
@@ -50,10 +47,11 @@ class TestIntegrationCoreCommon(TestCommon):
         for e in env_names:
             if (
                 self.album_controller.environment_manager()
+                .get_environment_handler()
                 .get_package_manager()
                 .environment_exists(e)
             ):
-                self.album_controller.environment_manager().get_package_manager().remove_environment(
+                self.album_controller.environment_manager().get_environment_handler().get_package_manager().remove_environment(
                     e
                 )
 
@@ -74,7 +72,7 @@ class TestIntegrationCoreCommon(TestCommon):
             env_name = "_".join(
                 [cache_catalog.name(), loaded_solution.get_identifier()]
             )
-            self.album_controller.environment_manager().get_package_manager().install(
+            self.album_controller.environment_manager().get_environment_handler().get_package_manager().install(
                 Environment(None, env_name, Path("unusedCachePath"))
             )
 
@@ -113,12 +111,3 @@ class TestIntegrationCoreCommon(TestCommon):
             ),
         )
         return loaded_solution
-
-    def mock_conda_lock(self):
-        conda_lock_mock = MagicMock()
-        self.album_controller.resource_manager().create_conda_lock_file = conda_lock_mock
-        #album.core.controller.resource_manager.create_conda_lock_file = conda_lock_mock
-        conda_lock_mock.return_value = Path(__file__).parent.parent.joinpath('resources',
-                                                                                    'solution_with_lock_file',
-                                                                                    'solution.conda-lock.yml')
-        return create_conda_lock_file

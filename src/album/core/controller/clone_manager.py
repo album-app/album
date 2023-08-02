@@ -1,7 +1,6 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-import git.exc
 import validators
 from git import Repo
 
@@ -14,9 +13,7 @@ from album.core.utils.operations.file_operations import (
     get_dict_from_json,
     list_files_recursively,
     force_remove,
-    copy_folder,
     unzip_archive,
-    copy,
 )
 from album.core.utils.operations.git_operations import (
     create_bare_repository,
@@ -24,9 +21,9 @@ from album.core.utils.operations.git_operations import (
     add_files_commit_and_push,
     checkout_main,
 )
-from album.runner import album_logging
-
-module_logger = album_logging.get_active_logger
+from album.environments.utils.file_operations import copy, copy_folder
+from album.environments.utils.url_operations import is_downloadable, download_resource
+from album.runner.album_logging import get_active_logger
 
 
 class CloneManager(ICloneManager):
@@ -69,7 +66,7 @@ class CloneManager(ICloneManager):
                 resolve_result.path().parent, target_path, copy_root_folder=False
             )
 
-        module_logger().info(
+        get_active_logger().info(
             "Copied solution %s to %s!" % (resolve_result.path(), target_path)
         )
 
@@ -87,7 +84,7 @@ class CloneManager(ICloneManager):
             template_name,
             template_name,
         )
-        if url_operations.is_downloadable(template_url):
+        if is_downloadable(template_url):
             download_zip_target = (
                 self.album.configuration()
                 .cache_path_download()
@@ -97,8 +94,8 @@ class CloneManager(ICloneManager):
                 self.album.configuration().cache_path_download().joinpath(template_name)
             )
 
-            url_operations.download_resource(template_url, download_zip_target)
-            module_logger().debug(
+            download_resource(template_url, download_zip_target)
+            get_active_logger().debug(
                 "Downloaded template from %s to %s!"
                 % (template_url, download_zip_target)
             )
@@ -116,7 +113,7 @@ class CloneManager(ICloneManager):
                 git_name,
             )
 
-            module_logger().info(
+            get_active_logger().info(
                 'Initialized new catalog "%s" from template "%s" in %s!'
                 % (catalog_name, template_name, target_path)
             )
@@ -132,12 +129,14 @@ class CloneManager(ICloneManager):
         git_name: str = None,
     ):
         # test if target_path is a valid git repo path or a local path
-        if validators.url(str(target_path)) or url_operations.is_git_ssh_address(str(target_path)):
+        if validators.url(str(target_path)) or url_operations.is_git_ssh_address(
+            str(target_path)
+        ):
             with TemporaryDirectory(
                 dir=self.album.configuration().tmp_path()
             ) as tmp_dir:
                 tmp_clone_path = Path(tmp_dir).joinpath("clone")
-                module_logger().info("Cloning target repository...")
+                get_active_logger().info("Cloning target repository...")
                 with clone_repository(target_path, tmp_clone_path) as repo:
                     self._copy_template_into_repository(
                         repo, template_folder, catalog_name, git_email, git_name
@@ -147,7 +146,7 @@ class CloneManager(ICloneManager):
             create_path_recursively(target_path)
             create_bare_repository(target_path)
             with TemporaryDirectory(
-                    dir=self.album.configuration().tmp_path()
+                dir=self.album.configuration().tmp_path()
             ) as tmp_dir:
                 tmp_clone_path = Path(tmp_dir).joinpath("clone")
                 with clone_repository(target_path, tmp_clone_path) as repo:

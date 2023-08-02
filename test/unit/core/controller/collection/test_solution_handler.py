@@ -51,7 +51,7 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
 
         catalog = EmptyTestClass()
         catalog.catalog_id = lambda: 5
-        solution = ResolveResult("path", catalog, None, None)
+        solution = ResolveResult(Path("path").joinpath("solution.py"), catalog, None, None)
 
         # mock
         add_or_replace_solution = MagicMock()
@@ -73,7 +73,7 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
             catalog, Coordinates("tsg", "tsn", "tsv")
         )
         copy_folder_mock.assert_called_once_with(
-            "path", Path("myCopyPath"), copy_root_folder=False
+            Path("path"), Path("myCopyPath"), copy_root_folder=False
         )
         copy_mock.assert_not_called()
 

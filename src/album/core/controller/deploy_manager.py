@@ -5,17 +5,12 @@ from git import Repo
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.deploy_manager import IDeployManager
-from album.core.api.controller.resource_manager import IResourceManager
 from album.core.api.model.catalog import ICatalog
 from album.core.model.default_values import DefaultValues
 from album.core.utils.export.changelog import (
     process_changelog_file,
 )
-from album.core.utils.operations.file_operations import (
-    write_dict_to_yml,
-    force_remove,
-    folder_empty,
-)
+from album.core.utils.operations.file_operations import folder_empty
 from album.core.utils.operations.git_operations import (
     create_new_head,
     add_files_commit_and_push,
@@ -34,7 +29,7 @@ from album.core.utils.operations.resolve_operations import (
     as_tag_unversioned,
     as_tag,
 )
-from album.core.utils.operations.solution_operations import get_deploy_dict
+from album.environments.utils.file_operations import force_remove
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution

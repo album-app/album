@@ -19,11 +19,12 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
     def tearDown(self) -> None:
         super().tearDown()
 
-    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
-    @patch("album.core.controller.package_manager.PackageManager.install")
+    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
+    @patch("album.environments.controller.package_manager.PackageManager.install")
     def test_install_minimal_solution(self, _, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
+            .get_environment_handler()
             .get_package_manager()
             .get_active_environment_path()
         )
@@ -110,7 +111,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
             .exists()
         )
 
-    @patch("album.core.controller.resource_manager.create_conda_lock_file")
+    @patch("album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file")
     def test_install_lambda_breaks(self, conda_lock_mock):
         conda_lock_mock.return_value = None
 
@@ -157,8 +158,9 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         leftover_env_name = local_catalog_name + "_group_faultySolution_0.1.0"
         self.assertTrue(
             self.album_controller.environment_manager()
+            .get_environment_handler()
             .get_package_manager()
-            .environment_exists(leftover_env_name)
+            .environment_exists(self.album_controller.configuration().environments_path().joinpath(leftover_env_name))
         )
 
         # check file is copied
@@ -191,6 +193,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         # check cleaned up
         self.assertFalse(
             self.album_controller.environment_manager()
+            .get_environment_handler()
             .get_package_manager()
             .environment_exists(leftover_env_name)
         )
@@ -219,6 +222,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         leftover_env_name = local_catalog_name + "_solution14_faulty_environment_0.1.0"
         self.assertFalse(
             self.album_controller.environment_manager()
+            .get_environment_handler()
             .get_package_manager()
             .environment_exists(leftover_env_name)
         )
@@ -444,7 +448,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
                 self.get_test_solution_path("solution1_app1.py")
             )
 
-    @patch("album.core.controller.resource_manager.create_conda_lock_file")
+    @patch("album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file")
     def test_install_with_parent_from_catalog(self, conda_lock_mock):
         # prepare
         tmp_file = Path(self.tmp_dir.name).joinpath("somefile.txt")
@@ -518,13 +522,14 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         # install child solution
         self.album_controller.install_manager().install("group:solution1_app1:0.1.0")
 
-    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
-    @patch("album.core.controller.package_manager.PackageManager.environment_exists")
+    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
+    @patch("album.environments.controller.package_manager.PackageManager.environment_exists")
     def test_install_with_parent_with_parent(
         self, environment_exists, get_environment_path
     ):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
+            .get_environment_handler()
             .get_package_manager()
             .get_active_environment_path()
         )
@@ -686,7 +691,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
             )
         )
 
-    @patch("album.core.controller.package_manager.PackageManager.create")
+    @patch("album.environments.controller.package_manager.PackageManager.create")
     def test_install_solution_with_lock_file(self, old_install):
         self.album_controller.install_manager().install(
             self.get_test_solution_path("solution_with_lock_file"))

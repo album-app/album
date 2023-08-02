@@ -1,7 +1,8 @@
 from abc import ABCMeta, abstractmethod
 
 from album.core.api.model.collection_solution import ICollectionSolution
-from album.core.api.model.environment import IEnvironment
+from album.environments.api.controller.environment_handler import IEnvironmentHandler
+from album.environments.api.model.environment import IEnvironment
 
 
 class IEnvironmentManager:
@@ -55,9 +56,5 @@ class IEnvironmentManager:
         raise NotImplementedError
 
     @abstractmethod
-    def get_package_manager(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_conda_lock_manager(self):
+    def get_environment_handler(self) -> IEnvironmentHandler:
         raise NotImplementedError

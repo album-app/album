@@ -1,36 +1,31 @@
 import os
-import shutil
-import subprocess
-import sys
 from io import StringIO
 from pathlib import Path
 
 import validators
+from album.core.model.link import Link
 from packaging import version
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.environment_manager import IEnvironmentManager
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_solution import ICollectionSolution
-from album.core.api.model.environment import IEnvironment
-from album.core.controller.conda_lock_manager import CondaLockManager
-from album.core.controller.conda_manager import CondaManager
-from album.core.controller.mamba_manager import MambaManager
-from album.core.controller.micromamba_manager import MicromambaManager
 from album.core.model.default_values import DefaultValues
-from album.core.model.environment import Environment
-from album.core.model.link import Link
 from album.core.utils.operations.file_operations import (
     remove_link,
-    copy,
-    get_dict_from_yml,
-    write_dict_to_yml,
-    create_path_recursively,
-    construct_cache_link_target,
+    create_path_recursively, construct_cache_link_target,
 )
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.core.utils.operations.solution_operations import set_environment_paths
-from album.core.utils.operations.url_operations import download_resource
+from album.environments.api.model.environment import IEnvironment
+from album.environments.initialization import init_environment_handler
+from album.environments.model.environment import Environment
+from album.environments.utils.file_operations import (
+    get_dict_from_yml,
+    write_dict_to_yml,
+    copy,
+)
+from album.environments.utils.url_operations import download_resource
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 
@@ -40,129 +35,75 @@ module_logger = album_logging.get_active_logger
 class EnvironmentManager(IEnvironmentManager):
     def __init__(self, album: IAlbumController):
         # get installed package manager
-        env_base_path = self._get_base_envs_path(album)
-        self._conda_executable = None
-        self._mamba_executable = None
-        self._micromamba_executable = None
-        self._conda_lock_executable = None
-
-        # explicitly defined package manager
-        if DefaultValues.micromamba_path.value is not None:
-            self._micromamba_executable = DefaultValues.micromamba_path.value
-            module_logger().debug("Using micromamba executable: %s", self._micromamba_executable)
-        elif DefaultValues.conda_path.value is not None:
-            self._conda_executable = DefaultValues.conda_path.value
-
-            # check if mamba is available and favor it over conda
-            if DefaultValues.mamba_path.value is not None:
-                self._mamba_executable = DefaultValues.mamba_path.value
-                module_logger().debug("Using mamba executable: %s", self._mamba_executable)
-            else:
-                module_logger().debug("Using conda executable: %s", self._conda_executable)
-        elif DefaultValues.mamba_path.value is not None:
-            self._mamba_executable = DefaultValues.mamba_path.value
-            module_logger().debug("Using mamba executable: %s", self._mamba_executable)
-        else:  # search for a package manager with default values
-            self.search_package_manager()
-
-        # check for conda-lock
-        if DefaultValues.conda_lock_path.value is None:
-            self.search_lock_manager()
+        self.env_base_path = self._get_base_envs_path(album)
         self._album = album
 
-        if self.micromamba_executable():
-            self._package_manager = MicromambaManager(self.micromamba_executable())
-        elif self.mamba_executable():
-            self._package_manager = MambaManager(self.mamba_executable())
-        else:
-            self._package_manager = CondaManager(self.conda_executable())
-        self._conda_lock_manager = CondaLockManager(self.conda_lock_executable(), self._package_manager)
+        micromamba_path = DefaultValues.micromamba_path.value
+        mamba_path = DefaultValues.mamba_path.value
+        conda_path = DefaultValues.conda_path.value
+        conda_lock_path = DefaultValues.conda_lock_path.value
 
-    def search_lock_manager(self):
-        self._conda_lock_executable = shutil.which(DefaultValues.conda_lock_default_command.value)
-        if self._conda_lock_executable:
-            module_logger().debug("Using conda-lock executable: %s", self._conda_lock_executable)
-        else:
-            module_logger().debug("No conda-lock executable found! Cannot lock environments during deployment!")
-
-    def search_package_manager(self):
-        if Path(DefaultValues.default_micromamba_path.value).is_file():  # look in default micromamba location
-            # points to the executable, e.g. /path/bin/micromamba
-            self._micromamba_executable = DefaultValues.default_micromamba_path.value
-            module_logger().debug("Using micromamba executable: %s", self._micromamba_executable)
-        else:
-            # search for micromamba
-            self._micromamba_executable = shutil.which(DefaultValues.micromamba_default_command.value)
-            if self._micromamba_executable is not None:
-                module_logger().debug("Using micromamba executable: %s", self._micromamba_executable)
-            else:
-                # search for conda
-                self._conda_executable = shutil.which(DefaultValues.conda_default_command.value)
-                if self._conda_executable is not None:
-                    # additionally search for mamba
-                    self._mamba_executable = shutil.which(DefaultValues.mamba_default_command.value)
-                    if self._mamba_executable is not None:
-                        module_logger().debug("Using mamba executable: %s", self._mamba_executable)
-                    else:
-                        module_logger().debug("Using conda executable: %s", self._conda_executable)
-                else:
-                    raise RuntimeError("No package manager found!")
-
-    @staticmethod
-    def _build_conda_executable(conda_path):
-        operation_system = sys.platform
-        if operation_system == "linux" or operation_system == "darwin":
-            return str(Path(conda_path).joinpath("bin", "conda"))
-        else:
-            return str(Path(conda_path).joinpath("Scripts", "conda.exe"))
-
-    @staticmethod
-    def _build_conda_lock_executable(conda_lock_path):
-        operation_system = sys.platform
-        if operation_system == "linux" or operation_system == "darwin":
-            return str(Path(conda_lock_path).joinpath("bin", "conda-lock"))
-        else:
-            return str(Path(conda_lock_path).joinpath("Scripts", "conda-lock.exe"))
-
-    @staticmethod
-    def check_for_conda_executable():
-        try:
-            subprocess.run([DefaultValues.conda_path.value], capture_output=True)
-            return True
-        except FileNotFoundError:
-            return False
-
-    @staticmethod
-    def check_for_micromamba_executable():
-        if Path(DefaultValues.micromamba_path.value).is_file():
-            return True
-        else:
-            return False
+        self.environment_handler = init_environment_handler(self.env_base_path, micromamba_path=micromamba_path, mamba_path=mamba_path, conda_path=conda_path, conda_lock_path=conda_lock_path)
 
     def _get_base_envs_path(self, album):
         return Path(album.configuration().lnk_path()).joinpath(
             DefaultValues.lnk_env_prefix.value
         )
 
-    def get_environment_path(self, environment_name: str, create: bool = True) -> Link:
-        """Gets the environment path for a given environment
+    def install_environment(
+        self, collection_solution: ICollectionSolution
+    ) -> IEnvironment:
+        environment = self._create_environment_for_solution(collection_solution)
+        set_environment_paths(collection_solution.loaded_solution(), environment)
+        return environment
 
-        Args:
-            environment_name:
-                The environment to get the path for.
-            create:
+    def _create_environment_for_solution(self, collection_solution):
+        env_name = self.get_environment_name(
+            collection_solution.coordinates(), collection_solution.catalog()
+        )
+        dependencies = collection_solution.loaded_solution().setup().dependencies
+        cache = (
+            collection_solution.loaded_solution().installation().internal_cache_path()
+        )
+        album_api_version = (
+            collection_solution.loaded_solution().setup().album_api_version
+        )
+        solution_package_path = collection_solution.loaded_solution().installation().package_path()
+        environment = self.create_environment(cache, dependencies, env_name, album_api_version, solution_package_path)
+        set_environment_paths(collection_solution.loaded_solution(), environment)
+        return environment
 
+    def create_environment(self, cache, dependencies, env_name, album_api_version, solution_package_path):
+        env_file = self._prepare_env_file(dependencies, cache, env_name, album_api_version)
+        env_path = self.get_environment_path(env_name, create=True).absolute()
+        environment = Environment(env_file, env_name, env_path)
+        solution_lock_file = solution_package_path.joinpath('solution.conda-lock.yml')
+        self.environment_handler.create_environment_prefer_lock_file(environment, str(solution_lock_file.absolute()))
+        return environment
 
+    def set_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
+        parent = collection_solution.database_entry().internal()["parent"]
+        # solution runs in its own environment
+        cache_path = (
+            collection_solution.loaded_solution().installation().internal_cache_path()
+        )
+        if not parent:
+            env_name = self.get_environment_name(
+                collection_solution.coordinates(), collection_solution.catalog()
+            )
+            environment = Environment(None, env_name, None)
+            self.set_environment_path(environment)
 
-        Returns:
-            None or the path
-        """
-        environment_list = self._package_manager.get_environment_list()
-        path_expected = self._environment_name_to_path(environment_name, create)
+        # solution runs in the parents environment - we need to resolve first to get info about parents environment
+        else:
+            coordinates = dict_to_coordinates(parent.setup())
+            catalog = self._album.catalogs().get_by_id(parent.internal()["catalog_id"])
+            env_name = self.get_environment_name(coordinates, catalog)
+            environment = Environment(None, env_name, None)
+            self.set_environment_path(environment)
 
-        if path_expected.resolve() in environment_list:
-            return path_expected
-        raise LookupError("Could not find environment %s." % environment_name)
+        set_environment_paths(collection_solution.loaded_solution(), environment)
+        return environment
 
     def _environment_name_to_path(self, environment_name, create=True):
         path = os.path.normpath(
@@ -179,70 +120,25 @@ class EnvironmentManager(IEnvironmentManager):
         else:
             return None
 
-    def install_environment(
-        self, collection_solution: ICollectionSolution
-    ) -> IEnvironment:
-        environment = self.create_environment_for_solution(collection_solution)
-        self._package_manager.install(
-            environment, DefaultValues.default_solution_python_version.value
-        )
-        set_environment_paths(collection_solution.loaded_solution(), environment)
-        return environment
+    def get_environment_path(self, environment_name: str, create: bool = True) -> Link:
+        """Gets the environment path for a given environment
 
-    def create_environment_for_solution(self, collection_solution):
-        env_name = self.get_environment_name(
-            collection_solution.coordinates(), collection_solution.catalog()
-        )
-        dependencies = collection_solution.loaded_solution().setup().dependencies
-        cache = (
-            collection_solution.loaded_solution().installation().internal_cache_path()
-        )
-        album_api_version = (
-            collection_solution.loaded_solution().setup().album_api_version
-        )
-        solution_package_path = collection_solution.loaded_solution().installation().package_path()
-        environment = self.create_environment(cache, dependencies, env_name, album_api_version, solution_package_path)
-        set_environment_paths(collection_solution, environment)
-        return environment
+        Args:
+            environment_name:
+                The environment to get the path for.
+            create:
 
-    def create_environment(self, cache, dependencies, env_name, album_api_version, solution_package_path):
-        env_file = self._prepare_env_file(
-            env_name, dependencies, cache, album_api_version
-        )
-        environment = Environment(env_file, env_name)
-        solution_lock_file = solution_package_path.joinpath('solution.conda-lock.yml')
-        if solution_lock_file.is_file():
-            module_logger().debug("Creating solution environment from lock file.")
-            self._conda_lock_manager.create_environment_from_lockfile(solution_lock_file, environment.name())
-        else:
-            self._package_manager.install(environment, album_api_version)
-        return environment
 
-    def set_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
-        parent = collection_solution.database_entry().internal()["parent"]
-        # solution runs in its own environment
-        cache_path = (
-            collection_solution.loaded_solution().installation().internal_cache_path()
-        )
-        if not parent:
-            env_name = self.get_environment_name(
-                collection_solution.coordinates(), collection_solution.catalog()
-            )
-            package_path = collection_solution.loaded_solution().installation().package_path()
-            environment = self.create_environment(cache_path, None, env_name, None, package_path)
-            self.set_environment_path(environment)
 
-        # solution runs in the parents environment - we need to resolve first to get info about parents environment
-        else:
-            coordinates = dict_to_coordinates(parent.setup())
-            catalog = self._album.catalogs().get_by_id(parent.internal()["catalog_id"])
-            env_name = self.get_environment_name(coordinates, catalog)
-            package_path = self._album.solutions().get_solution_package_path(catalog, coordinates)
-            environment = self.create_environment(cache_path, None, env_name, None, package_path)
-            self.set_environment_path(environment)
+        Returns:
+            None or the path
+        """
+        path_expected = self._environment_name_to_path(environment_name, create)
+        environment_list = self.environment_handler.get_package_manager().get_environment_list()
 
-        set_environment_paths(collection_solution.loaded_solution(), environment)
-        return environment
+        if path_expected.resolve() in [env.resolve() for env in environment_list]:
+            return path_expected
+        raise LookupError("Could not find environment %s." % environment_name)
 
     def set_environment_path(self, environment: IEnvironment):
         path = self.get_environment_path(environment.name())
@@ -250,10 +146,9 @@ class EnvironmentManager(IEnvironmentManager):
         environment.set_path(path)
 
     def remove_environment(self, environment: IEnvironment) -> bool:
-        """Removes an environment."""
-        res = self._package_manager.remove_environment(environment.name())
+        self.environment_handler.remove_environment(environment)
         self.remove_disc_content_from_environment(environment)
-        return res
+        return True
 
     def run_script(
         self,
@@ -263,22 +158,9 @@ class EnvironmentManager(IEnvironmentManager):
         argv=None,
         pipe_output=True,
     ):
-        if environment:
-            self._package_manager.run_script(
-                environment,
-                script,
-                environment_variables=environment_variables,
-                argv=argv,
-                pipe_output=pipe_output,
-            )
-        else:
-            raise EnvironmentError("Environment not set! Cannot run scripts!")
-
-    def get_package_manager(self):
-        return self._package_manager
-
-    def get_conda_lock_manager(self):
-        return self._conda_lock_manager
+        self.environment_handler.run_script(
+            environment, script, environment_variables, argv, pipe_output
+        )
 
     @staticmethod
     def get_environment_name(coordinates: ICoordinates, catalog: ICatalog) -> str:
@@ -349,6 +231,8 @@ class EnvironmentManager(IEnvironmentManager):
 
                 yaml_dict = get_dict_from_yml(yaml_path)
                 yaml_dict["name"] = env_name
+                if not album_api_version:
+                    album_api_version = DefaultValues.runner_api_package_version.value
                 yaml_dict = EnvironmentManager._append_framework_to_dependencies(
                     yaml_dict, album_api_version
                 )
@@ -382,7 +266,7 @@ class EnvironmentManager(IEnvironmentManager):
     def _append_framework_via_conda_to_yml(content, album_api_version):
         if album_api_version:
             framework = "conda-forge::%s=%s" % (
-                DefaultValues.runner_api_packet_name.value,
+                DefaultValues.runner_api_package_name.value,
                 album_api_version,
             )
         else:
@@ -392,15 +276,5 @@ class EnvironmentManager(IEnvironmentManager):
         content["dependencies"].append(framework)
         return content
 
-    def conda_executable(self):
-        return self._conda_executable
-
-    def mamba_executable(self):
-        return self._mamba_executable
-
-    def micromamba_executable(self):
-        return self._micromamba_executable
-
-    def conda_lock_executable(self):
-        return self._conda_lock_executable
-
+    def get_environment_handler(self):
+        return self.environment_handler

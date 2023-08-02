@@ -23,7 +23,7 @@ from album.commandline import (
     info,
     undeploy,
 )
-from album.core.utils.subcommand import SubProcessError
+from album.environments.utils.subcommand import SubProcessError
 from album.runner.album_logging import (
     debug_settings,
     get_active_logger,

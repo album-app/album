@@ -5,8 +5,6 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from album.runner import album_logging
-
 from album.ci.utils.zenodo_api import ZenodoAPI
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
@@ -17,15 +15,14 @@ from album.core.utils.operations.file_operations import (
     rand_folder_name,
     check_zip,
     unzip_archive,
-    copy,
-    copy_folder,
 )
 from album.core.utils.operations.url_operations import (
     is_url,
     download,
     retrieve_redirect_url,
-    download_resource,
 )
+from album.environments.utils.url_operations import download_resource
+from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.model.coordinates import Coordinates
 
@@ -261,13 +258,13 @@ def prepare_path(path, tmp_cache_dir):
         if p.is_file():  # zip or file
             if check_zip(p):  # zip file
                 p = unzip_archive(p, target_folder)
-                p = p.joinpath(DefaultValues.solution_default_name.value)
+                # p = p.joinpath(DefaultValues.solution_default_name.value)
             else:  # python file
                 # do not copy specified single file anywhere
                 pass
-        elif p.is_dir():  # folder
-            # p = copy_folder(p, target_folder, copy_root_folder=False)
-            p = p.joinpath(DefaultValues.solution_default_name.value)
+        # elif p.is_dir():  # folder
+        #     # p = copy_folder(p, target_folder, copy_root_folder=False)
+        #     p = p.joinpath(DefaultValues.solution_default_name.value)
 
         return p
 
