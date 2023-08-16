@@ -67,10 +67,11 @@
     - apt install -y curl
     - apt install -y bzip2
     - export MAMBA_ROOT_PREFIX=$CI_PROJECT_DIR/micromamba
-    - export ALBUM_MICROMAMBA_PATH=$CI_PROJECT_DIR/bin/micromamba
-    - mkdir -p $CI_PROJECT_DIR/bin/
-    - curl -Ls https://gitlab.com/album-app/plugins/album-package/-/raw/micromamba_installer/micromamba-1.0.0_LINUX_X86_64.tar.bz2?inline=false | tar -xvj -C $CI_PROJECT_DIR/bin/ --strip-components=1 bin/micromamba
-    - eval "$($CI_PROJECT_DIR/bin/micromamba shell hook -s posix)"
+    - export ALBUM_MICROMAMBA_PATH=$CI_PROJECT_DIR/micromamba/bin/micromamba
+    - mkdir -p $CI_PROJECT_DIR/micromamba/
+    - mkdir -p $CI_PROJECT_DIR/micromamba/bin/
+    - curl -Ls https://gitlab.com/album-app/plugins/album-package/-/raw/micromamba_installer/micromamba-1.0.0_LINUX_X86_64.tar.bz2?inline=false | tar -xvj -C $CI_PROJECT_DIR/micromamba/bin/ --strip-components=1 bin/micromamba
+    - eval "$($CI_PROJECT_DIR/micromamba/bin/micromamba shell hook -s posix)"
     - micromamba create -y -n album -c conda-forge python=3.10
     - micromamba activate album
     - pip uninstall -y album
