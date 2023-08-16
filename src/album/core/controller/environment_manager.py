@@ -13,7 +13,8 @@ from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import (
     remove_link,
-    create_path_recursively, construct_cache_link_target,
+    create_path_recursively,
+    construct_cache_link_target,
 )
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.core.utils.operations.solution_operations import set_environment_paths
@@ -43,7 +44,13 @@ class EnvironmentManager(IEnvironmentManager):
         conda_path = DefaultValues.conda_path.value
         conda_lock_path = DefaultValues.conda_lock_path.value
 
-        self.environment_handler = init_environment_handler(self.env_base_path, micromamba_path=micromamba_path, mamba_path=mamba_path, conda_path=conda_path, conda_lock_path=conda_lock_path)
+        self.environment_handler = init_environment_handler(
+            self.env_base_path,
+            micromamba_path=micromamba_path,
+            mamba_path=mamba_path,
+            conda_path=conda_path,
+            conda_lock_path=conda_lock_path,
+        )
 
     def _get_base_envs_path(self, album):
         return Path(album.configuration().lnk_path()).joinpath(
@@ -68,17 +75,27 @@ class EnvironmentManager(IEnvironmentManager):
         album_api_version = (
             collection_solution.loaded_solution().setup().album_api_version
         )
-        solution_package_path = collection_solution.loaded_solution().installation().package_path()
-        environment = self.create_environment(cache, dependencies, env_name, album_api_version, solution_package_path)
+        solution_package_path = (
+            collection_solution.loaded_solution().installation().package_path()
+        )
+        environment = self.create_environment(
+            cache, dependencies, env_name, album_api_version, solution_package_path
+        )
         set_environment_paths(collection_solution.loaded_solution(), environment)
         return environment
 
-    def create_environment(self, cache, dependencies, env_name, album_api_version, solution_package_path):
-        env_file = self._prepare_env_file(dependencies, cache, env_name, album_api_version)
+    def create_environment(
+        self, cache, dependencies, env_name, album_api_version, solution_package_path
+    ):
+        env_file = self._prepare_env_file(
+            dependencies, cache, env_name, album_api_version
+        )
         env_path = self.get_environment_path(env_name, create=True).absolute()
         environment = Environment(env_file, env_name, env_path)
-        solution_lock_file = solution_package_path.joinpath('solution.conda-lock.yml')
-        self.environment_handler.create_environment_prefer_lock_file(environment, str(solution_lock_file.absolute()))
+        solution_lock_file = solution_package_path.joinpath("solution.conda-lock.yml")
+        self.environment_handler.create_environment_prefer_lock_file(
+            environment, str(solution_lock_file.absolute())
+        )
         return environment
 
     def set_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
@@ -134,7 +151,9 @@ class EnvironmentManager(IEnvironmentManager):
             None or the path
         """
         path_expected = self._environment_name_to_path(environment_name, create)
-        environment_list = self.environment_handler.get_package_manager().get_environment_list()
+        environment_list = (
+            self.environment_handler.get_package_manager().get_environment_list()
+        )
 
         if path_expected.resolve() in [env.resolve() for env in environment_list]:
             return path_expected
@@ -193,12 +212,12 @@ class EnvironmentManager(IEnvironmentManager):
             Path to a valid yaml file where environment name has been replaced!
 
         """
+        yaml_path = cache_path.joinpath("%s%s" % (env_name, ".yml"))
+        create_path_recursively(yaml_path.parent)
+        yaml_dict = None
         if dependencies_dict:
             if "environment_file" in dependencies_dict:
                 env_file = dependencies_dict["environment_file"]
-
-                yaml_path = cache_path.joinpath("%s%s" % (env_name, ".yml"))
-                create_path_recursively(yaml_path.parent)
 
                 if isinstance(env_file, str):
                     # case valid url
@@ -231,16 +250,19 @@ class EnvironmentManager(IEnvironmentManager):
 
                 yaml_dict = get_dict_from_yml(yaml_path)
                 yaml_dict["name"] = env_name
-                if not album_api_version:
-                    album_api_version = DefaultValues.runner_api_package_version.value
-                yaml_dict = EnvironmentManager._append_framework_to_dependencies(
-                    yaml_dict, album_api_version
-                )
-                write_dict_to_yml(yaml_path, yaml_dict)
 
-                return yaml_path
-            return None
-        return None
+        if not album_api_version:
+            album_api_version = DefaultValues.runner_api_package_version.value
+
+        if not yaml_dict:
+            yaml_dict = DefaultValues.default_solution_env_content.value
+
+        yaml_dict = EnvironmentManager._append_framework_to_dependencies(
+            yaml_dict, album_api_version
+        )
+        write_dict_to_yml(yaml_path, yaml_dict)
+
+        return yaml_path
 
     @staticmethod
     def _append_framework_to_dependencies(content, album_api_version):
