@@ -90,7 +90,7 @@ class EnvironmentManager(IEnvironmentManager):
         env_file = self._prepare_env_file(
             dependencies, cache, env_name, album_api_version
         )
-        env_path = self.get_environment_path(env_name, create=True).absolute()
+        env_path = Path(self.get_environment_path(env_name, create=True)).absolute()
         environment = Environment(env_file, env_name, env_path)
         solution_lock_file = solution_package_path.joinpath("solution.conda-lock.yml")
         self.environment_handler.create_environment_prefer_lock_file(
