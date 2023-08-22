@@ -2,10 +2,8 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import copy
-from album.environments.model.environment import Environment
-from album.runner.core.model.solution import Solution
+from album.runner.core.api.model.solution import ISolution
 from test.test_common import TestCommon
 
 
@@ -61,20 +59,15 @@ class TestIntegrationCoreCommon(TestCommon):
         path = current_path.joinpath("..", "resources", solution_file)
         return str(path.resolve())
 
-    def fake_install(self, path, create_environment=True) -> Optional[Solution]:
+    def fake_install(self, path, create_environment=True) -> Optional[ISolution]:
         # add to local catalog
-        loaded_solution = self.album_controller.state_manager().load(path)
-
+        solution = self.album_controller.collection_manager().resolve_and_load(path)
         cache_catalog = (
             self.album_controller.collection_manager().catalogs().get_cache_catalog()
         )
+
         if create_environment:
-            env_name = "_".join(
-                [cache_catalog.name(), loaded_solution.get_identifier()]
-            )
-            self.album_controller.environment_manager().get_environment_handler().get_package_manager().install(
-                Environment(None, env_name, Path("unusedCachePath"))
-            )
+            self.album_controller.environment_manager().install_environment(solution)
 
         # add to collection, assign to local catalog
         len_catalog_before = len(
@@ -83,16 +76,10 @@ class TestIntegrationCoreCommon(TestCommon):
             )
         )
         self.album_controller.collection_manager().solutions().add_to_cache_catalog(
-            ResolveResult(
-                path,
-                None,
-                None,
-                loaded_solution.coordinates(),
-                loaded_solution=loaded_solution,
-            )
+            solution
         )
         self.album_controller.collection_manager().solutions().set_installed(
-            cache_catalog, loaded_solution.coordinates()
+            cache_catalog, solution.coordinates()
         )
         self.assertEqual(
             len_catalog_before + 1,
@@ -107,7 +94,7 @@ class TestIntegrationCoreCommon(TestCommon):
         copy(
             path,
             self.album_controller.solutions().get_solution_file(
-                cache_catalog, loaded_solution.coordinates()
+                cache_catalog, solution.coordinates()
             ),
         )
-        return loaded_solution
+        return solution.loaded_solution()
