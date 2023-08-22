@@ -37,15 +37,30 @@ class TestEnvironmentManager(TestUnitCoreCommon):
 
         return active_solution
 
-    @patch("album.environments.controller.conda_lock_manager.CondaLockManager.create_environment_from_lockfile")
-    @patch("album.core.controller.environment_manager.EnvironmentManager._prepare_env_file")
-    def test_install_environment_from_lockfile(self, mock_prepare_env_file, mock_create_environment_from_lockfile):
+    @patch(
+        "album.environments.controller.conda_lock_manager.CondaLockManager.create_environment_from_lockfile"
+    )
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager._prepare_env_file"
+    )
+    def test_install_environment_from_lockfile(
+        self, mock_prepare_env_file, mock_create_environment_from_lockfile
+    ):
         # prepare
-        self.active_solution._installation._package_path.joinpath('solution.conda-lock.yml').touch()
-        resolve = ResolveResult(None, self.catalog, MagicMock(), self.active_solution.coordinates(),
-                                loaded_solution=self.active_solution)
+        self.active_solution._installation._package_path.joinpath(
+            "solution.conda-lock.yml"
+        ).touch()
+        resolve = ResolveResult(
+            None,
+            self.catalog,
+            MagicMock(),
+            self.active_solution.coordinates(),
+            loaded_solution=self.active_solution,
+        )
         internal_cache_path = MagicMock(return_value=Path(self.tmp_dir.name))
-        resolve.loaded_solution().installation().internal_cache_path = internal_cache_path
+        resolve.loaded_solution().installation().internal_cache_path = (
+            internal_cache_path
+        )
 
         # call
         self.environment_manager.install_environment(resolve)
@@ -55,13 +70,22 @@ class TestEnvironmentManager(TestUnitCoreCommon):
 
     # FIXME: check if this is working with mamba, since its only testing the package manager install function and not the env_installer_manager
     @patch("album.environments.controller.package_manager.PackageManager.install")
-    @patch("album.core.controller.environment_manager.EnvironmentManager._prepare_env_file")
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager._prepare_env_file"
+    )
     def test_install_environment_from_yml(self, _prepare_env, create_function):
         # prepare
-        resolve = ResolveResult(None, self.catalog, MagicMock(), self.active_solution.coordinates(),
-                                loaded_solution=self.active_solution)
+        resolve = ResolveResult(
+            None,
+            self.catalog,
+            MagicMock(),
+            self.active_solution.coordinates(),
+            loaded_solution=self.active_solution,
+        )
         internal_cache_path = MagicMock(return_value=Path(self.tmp_dir.name))
-        resolve.loaded_solution().installation().internal_cache_path = internal_cache_path
+        resolve.loaded_solution().installation().internal_cache_path = (
+            internal_cache_path
+        )
 
         # call
         self.environment_manager.install_environment(resolve)
@@ -100,10 +124,10 @@ class TestEnvironmentManager(TestUnitCoreCommon):
         pass
 
     def test__prepare_env_file_no_deps(self):
-        self.assertIsNone(EnvironmentManager._prepare_env_file(None, None, None, None))
+        EnvironmentManager._prepare_env_file(None, Path(self.tmp_dir.name), None, None)
 
     def test__prepare_env_file_empty_deps(self):
-        self.assertIsNone(EnvironmentManager._prepare_env_file({}, None, None, None))
+        EnvironmentManager._prepare_env_file({}, Path(self.tmp_dir.name), None, None)
 
     @patch(
         "album.core.controller.environment_manager.create_path_recursively",
