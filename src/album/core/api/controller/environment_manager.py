@@ -58,3 +58,6 @@ class IEnvironmentManager:
     @abstractmethod
     def get_environment_handler(self) -> IEnvironmentHandler:
         raise NotImplementedError
+
+    def get_environment_path(self, environment_name: str, create: bool):
+        raise NotImplementedError
