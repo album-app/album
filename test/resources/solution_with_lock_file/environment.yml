@@ -4,5 +4,5 @@ channels:
 dependencies:
   - python=3.8
   - pip
-  - conda-forge::album-runner=0.5.1
+  - conda-forge::album-solution-api=0.6.0
   - conda-forge::setuptools>=59.7.0

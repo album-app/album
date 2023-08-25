@@ -2,6 +2,7 @@ import sys
 import unittest
 from unittest.mock import patch
 
+from album.environments.utils.subcommand import SubProcessError
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
@@ -27,10 +28,11 @@ class TestIntegrationTest(TestIntegrationCoreCommon):
             self.captured_output.getvalue(),
         )
 
-    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
+    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
     def test_test(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
+            .get_environment_handler()
             .get_package_manager()
             .get_active_environment_path()
         )

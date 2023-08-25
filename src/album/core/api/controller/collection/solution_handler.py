@@ -3,6 +3,7 @@ from abc import ABCMeta, abstractmethod
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.catalog_updates import ISolutionChange
 from album.core.api.model.collection_index import ICollectionIndex
+from album.core.api.model.collection_solution import ICollectionSolution
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
 
@@ -11,7 +12,7 @@ class ISolutionHandler:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def add_to_cache_catalog(self, active_solution: ISolution, path):
+    def add_to_cache_catalog(self, solution: ICollectionSolution):
         """Force adds the installation to the local catalog to be cached for running"""
         raise NotImplementedError
 

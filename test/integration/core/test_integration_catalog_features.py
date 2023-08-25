@@ -243,7 +243,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
 
         catalog.dispose()
 
-    @patch("album.core.controller.resource_manager.create_conda_lock_file")
+    @patch("album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file")
     def test_update_upgrade_override(self, conda_lock_mock):
         conda_lock_mock.return_value = None
         initial_len = len(
@@ -346,10 +346,11 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         )
         self.assertEqual("app1", parent.setup()["name"])
 
-    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
+    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
     def test_resolve(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
+            .get_environment_handler()
             .get_package_manager()
             .get_active_environment_path()
         )

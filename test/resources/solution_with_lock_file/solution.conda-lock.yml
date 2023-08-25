@@ -268,13 +268,13 @@ package:
   dependencies:
     python: '>=3.6'
   hash:
-    md5: 7d38ae6b358808e4856feca590acbf81
-    sha256: 362bcc4a909e7e2128f41f1c010829094a78e3a0a6e463dc9b33f52ea5d50a87
+    md5: a42daeac01e0a806b2c4025066699eee
+    sha256: 4ed1fb23b42f0ec5a330a1161f4421df78b24bb34105df75e3854ba7c7140657
   manager: conda
-  name: album-runner
+  name: album-solution-api
   optional: false
   platform: linux-64
-  url: https://conda.anaconda.org/conda-forge/noarch/album-runner-0.5.1-pyhd8ed1ab_0.tar.bz2
+  url: https://conda.anaconda.org/conda-forge/noarch/album-solution-api-0.6.0-pyhd8ed1ab_0.conda
   version: 0.5.1
 - category: main
   dependencies:
@@ -535,13 +535,13 @@ package:
   dependencies:
     python: '>=3.6'
   hash:
-    md5: 7d38ae6b358808e4856feca590acbf81
-    sha256: 362bcc4a909e7e2128f41f1c010829094a78e3a0a6e463dc9b33f52ea5d50a87
+    md5: a42daeac01e0a806b2c4025066699eee
+    sha256: 4ed1fb23b42f0ec5a330a1161f4421df78b24bb34105df75e3854ba7c7140657
   manager: conda
-  name: album-runner
+  name: album-solution-api
   optional: false
   platform: linux-aarch64
-  url: https://conda.anaconda.org/conda-forge/noarch/album-runner-0.5.1-pyhd8ed1ab_0.tar.bz2
+  url: https://conda.anaconda.org/conda-forge/noarch/album-solution-api-0.6.0-pyhd8ed1ab_0.conda
   version: 0.5.1
 - category: main
   dependencies:
@@ -816,13 +816,13 @@ package:
   dependencies:
     python: '>=3.6'
   hash:
-    md5: 7d38ae6b358808e4856feca590acbf81
-    sha256: 362bcc4a909e7e2128f41f1c010829094a78e3a0a6e463dc9b33f52ea5d50a87
+    md5: a42daeac01e0a806b2c4025066699eee
+    sha256: 4ed1fb23b42f0ec5a330a1161f4421df78b24bb34105df75e3854ba7c7140657
   manager: conda
-  name: album-runner
+  name: album-solution-api
   optional: false
   platform: linux-ppc64le
-  url: https://conda.anaconda.org/conda-forge/noarch/album-runner-0.5.1-pyhd8ed1ab_0.tar.bz2
+  url: https://conda.anaconda.org/conda-forge/noarch/album-solution-api-0.6.0-pyhd8ed1ab_0.conda
   version: 0.5.1
 - category: main
   dependencies:
@@ -1000,13 +1000,13 @@ package:
   dependencies:
     python: '>=3.6'
   hash:
-    md5: 7d38ae6b358808e4856feca590acbf81
-    sha256: 362bcc4a909e7e2128f41f1c010829094a78e3a0a6e463dc9b33f52ea5d50a87
+    md5: a42daeac01e0a806b2c4025066699eee
+    sha256: 4ed1fb23b42f0ec5a330a1161f4421df78b24bb34105df75e3854ba7c7140657
   manager: conda
-  name: album-runner
+  name: album-solution-api
   optional: false
   platform: osx-64
-  url: https://conda.anaconda.org/conda-forge/noarch/album-runner-0.5.1-pyhd8ed1ab_0.tar.bz2
+  url: https://conda.anaconda.org/conda-forge/noarch/album-solution-api-0.6.0-pyhd8ed1ab_0.conda
   version: 0.5.1
 - category: main
   dependencies:
@@ -1184,13 +1184,13 @@ package:
   dependencies:
     python: '>=3.6'
   hash:
-    md5: 7d38ae6b358808e4856feca590acbf81
-    sha256: 362bcc4a909e7e2128f41f1c010829094a78e3a0a6e463dc9b33f52ea5d50a87
+    md5: a42daeac01e0a806b2c4025066699eee
+    sha256: 4ed1fb23b42f0ec5a330a1161f4421df78b24bb34105df75e3854ba7c7140657
   manager: conda
-  name: album-runner
+  name: album-solution-api
   optional: false
   platform: osx-arm64
-  url: https://conda.anaconda.org/conda-forge/noarch/album-runner-0.5.1-pyhd8ed1ab_0.tar.bz2
+  url: https://conda.anaconda.org/conda-forge/noarch/album-solution-api-0.6.0-pyhd8ed1ab_0.conda
   version: 0.5.1
 - category: main
   dependencies:
@@ -1395,13 +1395,13 @@ package:
   dependencies:
     python: '>=3.6'
   hash:
-    md5: 7d38ae6b358808e4856feca590acbf81
-    sha256: 362bcc4a909e7e2128f41f1c010829094a78e3a0a6e463dc9b33f52ea5d50a87
+    md5: a42daeac01e0a806b2c4025066699eee
+    sha256: 4ed1fb23b42f0ec5a330a1161f4421df78b24bb34105df75e3854ba7c7140657
   manager: conda
-  name: album-runner
+  name: album-solution-api
   optional: false
   platform: win-64
-  url: https://conda.anaconda.org/conda-forge/noarch/album-runner-0.5.1-pyhd8ed1ab_0.tar.bz2
+  url: https://conda.anaconda.org/conda-forge/noarch/album-solution-api-0.6.0-pyhd8ed1ab_0.conda
   version: 0.5.1
 - category: main
   dependencies:

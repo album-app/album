@@ -20,7 +20,7 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
     def tearDown(self) -> None:
         super().tearDown()
 
-    @patch("album.core.controller.resource_manager.create_conda_lock_file")
+    @patch("album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file")
     def test_api(self, conda_lock_mock):
         conda_lock_mock.return_value = None
 
@@ -38,7 +38,6 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
         logger.info(serialize_json(catalogs_as_dict))
 
         # list configuration
-        logger.info(f"conda executable: {album.configuration().conda_executable()}")
         logger.info(f"album cache base: {album.configuration().base_cache_path()}")
 
         # add remote catalog

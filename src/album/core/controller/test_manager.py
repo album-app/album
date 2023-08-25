@@ -3,7 +3,7 @@ from queue import Queue
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.test_manager import ITestManager
 from album.runner import album_logging
-from album.runner.core.model.script_creator import ScriptCreatorTest
+from album.runner.core.api.model.solution import ISolution
 
 module_logger = album_logging.get_active_logger
 
@@ -32,11 +32,10 @@ class TestManager(ITestManager):
             and callable(solution.setup().test)
         ):
             queue = Queue()
-            script_test_creator = ScriptCreatorTest()
 
             # do not run queue immediately
             self.album.script_manager().build_queue(
-                resolve_result, queue, script_test_creator, False, args
+                resolve_result, queue, ISolution.Action.TEST, False, args
             )
 
             # runs the queue

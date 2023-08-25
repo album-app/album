@@ -18,26 +18,6 @@ class IConfiguration:
         raise NotImplementedError
 
     @abstractmethod
-    def conda_executable(self):
-        """The conda executable. Either a full path to a conda executable/binary or a command"""
-        raise NotImplementedError
-
-    @abstractmethod
-    def mamba_executable(self):
-        """The mamba executable. Either a full path to a mamba executable/binary or a command"""
-        raise NotImplementedError
-
-    @abstractmethod
-    def micromamba_executable(self):
-        """The micromamba executable. Either a full path to a mamba executable/binary or a command"""
-        raise NotImplementedError
-
-    @abstractmethod
-    def conda_lock_executable(self):
-        """The conda-lock executable. Either a full path to a conda-lock executable/binary or a command"""
-        raise NotImplementedError
-
-    @abstractmethod
     def cache_path_download(self):
         """Path for solution unspecific downloads."""
         raise NotImplementedError

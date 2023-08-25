@@ -5,6 +5,7 @@ import sys
 from unittest.mock import patch
 
 from album.argument_parsing import main
+from album.core.model.resolve_result import ResolveResult
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
@@ -69,7 +70,13 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
             self.album._controller.collection_manager().catalogs().get_cache_catalog()
         )
         self.album._controller.collection_manager().solutions().add_to_cache_catalog(
-            h, self.get_test_solution_path()
+            ResolveResult(
+                self.get_test_solution_path(),
+                None,
+                None,
+                h.coordinates(),
+                loaded_solution=h,
+            )
         )
 
         self.assertEqual(
@@ -107,7 +114,13 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
             self.album._controller.collection_manager().catalogs().get_cache_catalog()
         )
         self.album._controller.collection_manager().solutions().add_to_cache_catalog(
-            h, self.get_test_solution_path()
+            ResolveResult(
+                self.get_test_solution_path(),
+                None,
+                None,
+                h.coordinates(),
+                loaded_solution=h,
+            )
         )
 
         self.assertEqual(
@@ -250,10 +263,11 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
         self.assertIsNotNone(index_dict["catalogs"])
         self.assertEqual(1, len(index_dict["catalogs"]))
 
-    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
+    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
     def test_run_sad_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album._controller.environment_manager()
+            .get_environment_handler()
             .get_package_manager()
             .get_active_environment_path()
         )
@@ -266,10 +280,11 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
             main()
         self.assertEquals(1, e.exception.code)
 
-    @patch("album.core.controller.package_manager.PackageManager.get_environment_path")
+    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
     def test_run_album_throwing_error_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album._controller.environment_manager()
+            .get_environment_handler()
             .get_package_manager()
             .get_active_environment_path()
         )

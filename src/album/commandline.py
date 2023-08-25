@@ -1,4 +1,7 @@
+import os
+import pkgutil
 import sys
+import tempfile
 
 from album.api import Album
 from album.core.utils.operations.solution_operations import (
@@ -12,8 +15,7 @@ from album.core.utils.operations.view_operations import (
     get_search_result_as_string,
 )
 from album.runner.album_logging import get_active_logger
-from album.runner.core.api.model.solution import ISolution
-from album.runner.core.model.script_creator import ScriptCreator
+from album.runner.core.model.solution import Solution
 
 module_logger = get_active_logger
 
@@ -125,11 +127,32 @@ def index(album_instance: Album, args):
         module_logger().info(res)
 
 
+def _merge_scripts(script1, script2_content, tmp_dir):
+    with open(script1) as fp:
+        data = fp.read()
+
+    data += "\n"
+    data += script2_content.decode("utf-8")
+
+    with tempfile.NamedTemporaryFile(
+        "w", suffix=".py", prefix="solution_repl", dir=tmp_dir, delete=False
+    ) as tmp_file:
+        tmp_file.write(data)
+    return tmp_file.name
+
+
 def repl(album_instance: Album, args):
     """Function corresponding to the `repl` subcommand of `album`."""
     # resolve the input
     resolve_result = album_instance.resolve_installed(str(args.path))
-    album_instance.run_solution_script(resolve_result, ScriptRepl())
+    solution_script = resolve_result.loaded_solution().script()
+    repl_script_content = pkgutil.get_data("album.core.utils.runner", "repl.py")
+    script = _merge_scripts(
+        solution_script, repl_script_content, album_instance.configuration().tmp_path()
+    )
+    resolve_result.loaded_solution().set_script(script)
+    album_instance.run_solution_script(resolve_result, Solution.Action.NO_ACTION)
+    os.remove(script)
     module_logger().info(
         'Ran REPL for "%s"!' % resolve_result.loaded_solution().coordinates().name()
     )
@@ -141,31 +164,3 @@ def _get_print_json(args):
 
 def _as_json(data):
     return serialize_json(data)
-
-
-class ScriptRepl(ScriptCreator):
-    def get_execution_block(self, solution_object: ISolution):
-        return """
-from code import InteractiveConsole
-try:
-    import readline
-except ImportError:
-    print("Module readline not available.")
-else:
-    import rlcompleter
-    readline.parse_and_bind("tab: complete")
-console = InteractiveConsole(locals={**globals(), **locals()})
-console.interact()
-"""
-
-    def __init__(self, pop_solution: bool = False, execution_callback=None):
-        super().__init__(append_arguments=False)
-        self.pop_solution = pop_solution
-
-        if execution_callback is not None and callable(execution_callback):
-            self.execution_callback = execution_callback
-        else:
-            self.reset_callback()
-
-    def reset_callback(self):
-        self.execution_callback = lambda: ""

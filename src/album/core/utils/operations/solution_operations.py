@@ -4,9 +4,7 @@ import json
 from datetime import date, time
 from typing import Optional
 
-from album.core.api.model.collection_solution import ICollectionSolution
-from album.core.api.model.environment import IEnvironment
-from album.core.utils.operations.file_operations import remove_link
+from album.environments.api.model.environment import IEnvironment
 from album.runner import album_logging
 from album.runner.core.api.model.solution import ISolution
 
@@ -16,7 +14,6 @@ module_logger = album_logging.get_active_logger
 def set_environment_paths(solution: ISolution, environment: IEnvironment):
     """Sets the available cache paths of the solution object, given the environment used to run it."""
     solution.installation().set_environment_path(environment.path())
-    solution.installation().set_environment_name(environment.name())
 
 
 def get_deploy_dict(solution: ISolution) -> dict:
@@ -47,10 +44,6 @@ def get_parent_dict(solution: ISolution) -> Optional[dict]:
     if solution.setup().dependencies and "parent" in solution.setup().dependencies:
         return solution.setup().dependencies["parent"]
     return None
-
-
-def get_steps_dict(solution: ISolution) -> Optional[dict]:
-    return solution.setup().steps
 
 
 def create_hash(string_representation):

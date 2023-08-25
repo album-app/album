@@ -19,13 +19,15 @@ class TestIntegrationClone(TestIntegrationCoreCommon):
 
     def test_clone_solution(self):
         input_path = self.get_test_solution_path("solution0_dummy_no_routines.py")
-        self.fake_install(input_path)
+        self.fake_install(input_path, create_environment=False)
         target_dir = Path(self.tmp_dir.name).joinpath("my_catalog")
 
         # run
         self.album_controller.clone_manager().clone(
             input_path, target_dir=str(target_dir), name="my_solution"
         )
+
+        print(self.captured_output.getvalue())
 
         # assert
         self.assertNotIn("ERROR", self.captured_output.getvalue())

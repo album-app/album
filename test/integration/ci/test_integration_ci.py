@@ -27,7 +27,7 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
             self.repo.close()
         super().tearDown()
 
-    @patch("album.core.controller.resource_manager.create_conda_lock_file")
+    @patch("album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file")
     def deploy_request(self, conda_lock_mock):
         conda_lock_mock.return_value = None
         catalog_cache_path = Path(self.tmp_dir.name).joinpath("test_catalog_cache")

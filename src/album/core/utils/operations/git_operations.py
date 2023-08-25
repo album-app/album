@@ -6,7 +6,7 @@ from typing import Generator
 from urllib.parse import urlparse
 
 import git
-from git import Repo
+from git import Repo, Head
 
 from album.core.utils.operations.file_operations import (
     force_remove,
@@ -184,7 +184,7 @@ def retrieve_files_from_head_last_commit(head, pattern, option="", number_of_fil
     return abs_path_solution_file
 
 
-def _add_files(repo, file_paths) -> bool:
+def _add_files(repo: Repo, file_paths) -> bool:
     """Add files to the repo in the branch currently checked out."""
     if repo.index.diff(None) or repo.untracked_files:
         module_logger().info("Preparing committing...")
@@ -197,7 +197,7 @@ def _add_files(repo, file_paths) -> bool:
 
 
 def add_files_commit_and_push(
-    head,
+    head: Head,
     file_paths,
     commit_message,
     push=False,
