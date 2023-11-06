@@ -520,10 +520,34 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         # install child solution
         self.album_controller.install_manager().install("group:solution1_app1:0.1.0")
 
+        # change parent again - this time, do not uninstall solution
+
+        self.album_controller.deploy_manager().deploy(
+            self.get_test_solution_path("solution1_app1.py"),
+            catalog_name=catalog.name(),
+            dry_run=False,
+            force_deploy=True,
+        )
+        self.album_controller.collection_manager().catalogs().update_collection(
+            catalog.name()
+        )
+        self.album_controller.install_manager().uninstall("group:solution1_app1:0.1.0")
+        self.album_controller.install_manager().install("group:solution1_app1:0.1.0")
+
     @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
     @patch("album.core.controller.conda_manager.CondaManager.environment_exists")
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.remove_environment"
+    )
+    @patch(
+        "album.core.controller.install_manager.EnvironmentManager.remove_disc_content_from_environment"
+    )
     def test_install_with_parent_with_parent(
-        self, environment_exists, get_environment_path
+        self,
+        remove_disc_content_from_environment,
+        remove_environment,
+        environment_exists,
+        get_environment_path,
     ):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()

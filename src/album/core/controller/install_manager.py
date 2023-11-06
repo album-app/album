@@ -272,6 +272,11 @@ class InstallManager(IInstallManager):
             if environment and not parent:
                 EnvironmentManager.remove_disc_content_from_environment(environment)
 
+        if parent:
+            self.album.collection_manager().get_collection_index().remove_parent(
+                resolve_result.database_entry().internal()["collection_id"]
+            )
+
         if resolve_result.database_entry().internal()["children"]:
             children = []
             for dependency_dict in resolve_result.database_entry().internal()[
