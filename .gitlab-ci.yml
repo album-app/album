@@ -58,6 +58,7 @@
   image: ubuntu:latest
   tags:
     - docker
+    - linux
   before_script:
     - apt update
     - apt install -y curl
