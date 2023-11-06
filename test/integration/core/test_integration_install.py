@@ -534,6 +534,18 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         self.album_controller.install_manager().uninstall("group:solution1_app1:0.1.0")
         self.album_controller.install_manager().install("group:solution1_app1:0.1.0")
 
+    def test_install_with_nonexisting_parent(self):
+        # prepare
+        tmp_file = Path(self.tmp_dir.name).joinpath("somefile.txt")
+        tmp_file.touch()
+
+        # install child app solution
+        with self.assertRaises(LookupError):
+            self.album_controller.install_manager().install(
+                self.get_test_solution_path("solution1_app1_nonexisting_parent.py")
+            )
+        self.album_controller.collection_manager().get_collection_index()
+
     @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
     @patch("album.core.controller.conda_manager.CondaManager.environment_exists")
     @patch(
