@@ -14,10 +14,10 @@ class DefaultValues(Enum):
     album_cite_url = "https://album.solutions"  # album url
 
     # runner
-    runner_api_package_version = "0.6.0"  # set to None to use with url
+    runner_api_package_version = "0.6.1"  # set to None to use with url, current api version this album version should use
     runner_api_package_name = "album-solution-api"  # can also point to zip/url like: https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip
     runner_pip_version = "pip"
-    first_album_solution_api_version = "0.6.0"
+    first_album_solution_api_version = "0.6.1"  # first version this album installation knows
     default_solution_python_version = "3.9"
 
     # micromamba

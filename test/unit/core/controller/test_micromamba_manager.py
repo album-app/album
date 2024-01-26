@@ -121,7 +121,7 @@ class TestMicromambaManager(TestUnitCoreCommon):
             "0.5.1",
         )
         self.assertEqual(
-            {"dependencies": ["python", "conda-forge::album-solution-api=0.6.0"]},
+            {"dependencies": ["python", "conda-forge::album-solution-api=0.6.1"]},
             output,
         )
 

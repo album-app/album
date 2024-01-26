@@ -136,7 +136,7 @@ dependencies:
         self.assertEqual(
             {
                 "dependencies": [
-                    "conda-forge::album-solution-api=0.6.0",
+                    "conda-forge::album-solution-api=0.6.1",
                     "pip",
                     {"pip": ["bla", "blub"]},
                 ]
@@ -149,7 +149,7 @@ dependencies:
         self.assertEqual(
             {
                 "name": "test",
-                "dependencies": ["conda-forge::album-solution-api=0.6.0"],
+                "dependencies": ["conda-forge::album-solution-api=0.6.1"],
             },
             output,
         )
@@ -164,7 +164,7 @@ dependencies:
             "0.5.1",
         )
         self.assertEqual(
-            {"dependencies": ["python", "conda-forge::album-solution-api=0.6.0"]},
+            {"dependencies": ["python", "conda-forge::album-solution-api=0.6.1"]},
             output,
         )
 

@@ -121,8 +121,10 @@ class MigrationManager(IMigrationManager):
         if "album_api_version" not in attrs:
             raise ValidationError(
                 "Your setup method is missing the 'album_api_version' keyword - the most recent "
-                "version known to this album installation is '0.5.1'."
+                "version known to this album installation is '%s'." % DefaultValues.runner_api_package_version.value
             )
+        
+        # TODO: replace hardcoded migration with a more general approach. see database migration for example
         api_version = version.parse(attrs["album_api_version"])
         if api_version >= version.parse("0.5.1"):
             validate(attrs, self.schema_solution)
