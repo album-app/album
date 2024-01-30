@@ -51,7 +51,7 @@ def to_raw_dict(changelog_path: str) -> Dict[str, dict]:
     # As URLs can be defined before actual usage, maintain a separate dict
     urls = {}
     with open(changelog_path) as change_log:
-        current_release = {}
+        current_release = {"raw": ""}
         for line in change_log:
             clean_line = line.strip(" \n")
 
@@ -62,6 +62,10 @@ def to_raw_dict(changelog_path: str) -> Dict[str, dict]:
                 urls[link_match.group(1).lower()] = link_match.group(2)
             elif clean_line:
                 current_release["raw"] = current_release.get("raw", "") + line
+                if "raw" == "":
+                    # If there is no changelog, notifiy the user
+                    raise ValueError("Changelog is empty! Please add some content to the changelog file before trying again.")
+
 
     # Add url for each version (create version if not existing)
     for version, url in urls.items():
