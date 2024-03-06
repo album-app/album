@@ -1,5 +1,6 @@
 import re
 from typing import Dict
+from warnings import warn
 from typing import Optional
 
 
@@ -64,8 +65,7 @@ def to_raw_dict(changelog_path: str) -> Dict[str, dict]:
                 current_release["raw"] = current_release.get("raw", "") + line
                 if "raw" == "":
                     # If there is no changelog, notifiy the user
-                    raise ValueError("Changelog is empty! Please add some content to the changelog file before trying again.")
-
+                    raise warn("Your changelog description is empty, so the release will state the version number without a description.")
 
     # Add url for each version (create version if not existing)
     for version, url in urls.items():
