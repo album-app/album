@@ -8,8 +8,12 @@ from pathlib import Path
 from typing import Optional
 from unittest.mock import patch
 
+from album.runner.album_logging import get_active_logger
+
 from album.api import Album
 from album.core.controller.album_controller import AlbumController
+from album.core.controller.micromamba_manager import MicromambaManager
+from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.git_operations import (
@@ -22,11 +26,28 @@ from album.core.utils.operations.view_operations import (
     get_logger_name_minimizer_filter,
     get_logging_formatter,
 )
-from album.runner.album_logging import get_active_logger
 from test.global_exception_watcher import GlobalExceptionWatcher
 
 
 class TestCommon(unittest.TestCase):
+
+    micromamba_tmp_dir = None
+    micromamba_test_base_path = None
+
+    @classmethod
+    def setUpClass(cls):
+        cls.micromamba_tmp_dir = tempfile.TemporaryDirectory()
+        config = Configuration()
+        config.setup(Path(cls.micromamba_tmp_dir.name))
+        Path(config.micromamba_base_path()).mkdir(parents=True, exist_ok=True)
+        MicromambaManager(config).install_if_missing()
+        cls.micromamba_test_base_path = config.micromamba_base_path()
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.micromamba_tmp_dir:
+            cls.micromamba_tmp_dir.cleanup()
+
     def setUp(self) -> None:
         super().setUp()
         self.setup_tmp_resources()
@@ -38,6 +59,7 @@ class TestCommon(unittest.TestCase):
         if self.album:
             self.album.close()
             self.album_patch.stop()
+            self.micromamba_patch.stop()
         self.logger.handlers.clear()
         self.teardown_tmp_resources()
         super().tearDown()
@@ -53,6 +75,12 @@ class TestCommon(unittest.TestCase):
                 "Only one instance of an AlbumController should be used!"
                 "Either use setup_album_instance or setup_album_controller!"
             )
+        self.micromamba_patch = patch.object(
+            Configuration,
+            "micromamba_base_path",
+            return_value=self.micromamba_test_base_path,
+        )
+        self.micromamba_patch.start()
         self.album_controller = AlbumController(base_cache_path=Path(self.tmp_dir.name))
 
     def setup_album_instance(self):
@@ -61,6 +89,12 @@ class TestCommon(unittest.TestCase):
                 "Only one instance of an Album should be used!"
                 "Either use setup_album_instance or setup_album_controller!"
             )
+        self.micromamba_patch = patch.object(
+            Configuration,
+            "micromamba_base_path",
+            return_value=self.micromamba_test_base_path,
+        )
+        self.micromamba_patch.start()
         with patch("album.api.configure_root_logger"):
             self.album = (
                 Album.Builder().base_cache_path(Path(self.tmp_dir.name)).build()
@@ -119,7 +153,7 @@ class TestCommon(unittest.TestCase):
     def setup_collection(self, init_catalogs=True, init_collection=True):
         if init_catalogs:
             with patch(
-                    "album.core.model.configuration.Configuration.get_initial_catalogs"
+                "album.core.model.configuration.Configuration.get_initial_catalogs"
             ) as get_initial_catalogs_mock:
                 get_initial_catalogs_mock.return_value = {}
 
@@ -127,7 +161,7 @@ class TestCommon(unittest.TestCase):
                 self.album_controller.collection_manager().load_or_create()
         elif init_collection:
             with patch(
-                    "album.core.controller.collection.catalog_handler.CatalogHandler.add_initial_catalogs"
+                "album.core.controller.collection.catalog_handler.CatalogHandler.add_initial_catalogs"
             ):
                 self.album_controller.collection_manager().load_or_create()
         # check everything is freshly initialized
@@ -169,6 +203,6 @@ class TestCommon(unittest.TestCase):
 
     @staticmethod
     def get_catalog_meta_dict(
-            name="cache_catalog", version="0.1.0", catalog_type="direct"
+        name="cache_catalog", version="0.1.0", catalog_type="direct"
     ):
         return {"name": name, "version": version, "type": catalog_type}

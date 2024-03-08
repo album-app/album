@@ -10,6 +10,10 @@ class IEnvironmentManager:
     __metaclass__ = ABCMeta
 
     @abstractmethod
+    def ensure_micromamba_is_configured(self):
+        raise NotImplementedError
+
+    @abstractmethod
     def install_environment(
         self, collection_solution: ICollectionSolution
     ) -> IEnvironment:

@@ -15,7 +15,8 @@ from album.core.model.link import Link
 from album.core.utils import subcommand
 from album.core.utils.operations.file_operations import (
     construct_cache_link_target,
-    remove_link, force_remove,
+    remove_link,
+    force_remove,
 )
 from album.core.utils.subcommand import SubProcessError
 from album.runner import album_logging
@@ -35,9 +36,9 @@ class CondaManager:
 
     """
 
-    def __init__(self, configuration: IConfiguration):
+    def __init__(self, configuration: IConfiguration, conda_executable):
         self._configuration = configuration
-        self._conda_executable = self._configuration.conda_executable()
+        self._conda_executable = conda_executable
 
     def _get_install_environment_executable(self):
         return self._conda_executable
@@ -433,7 +434,7 @@ class CondaManager:
                 Indicates whether to pipe the output of the subprocess or just return it as is.
 
         """
-        subprocess_args = self._get_run_script_args(environment_path,script_full_path)
+        subprocess_args = self._get_run_script_args(environment_path, script_full_path)
         subcommand.run(subprocess_args, pipe_output=pipe_output)
 
     def set_environment_path(self, environment: IEnvironment):

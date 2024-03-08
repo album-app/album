@@ -33,8 +33,6 @@ class TestConfiguration(TestUnitCoreCommon):
 
         # assert
         self.assertFalse(leftover_file.exists())
-        self.assertTrue((DefaultValues.conda_path.value in str(conf.conda_executable())) or
-                        (DefaultValues.micromamba_path.value in str(conf.micromamba_executable())))
         self.assertEqual(base_path, conf.base_cache_path())
 
     def test_base_cache_path(self):
@@ -65,24 +63,6 @@ class TestConfiguration(TestUnitCoreCommon):
             ),
             conf.get_catalog_collection_path(),
         )
-
-    @unittest.skipUnless(sys.platform.startswith("win"), "requires Windoofs")
-    def test__build_conda_executable_windows(self):
-        conf = Configuration()
-        r = conf._build_conda_executable("myPathToConda")
-
-        expected = Path("myPathToConda").joinpath("Scripts", "conda.exe")
-        self.assertEqual(r, str(expected))
-
-    @unittest.skipUnless(
-        sys.platform == "linux" or sys.platform == "darwin", "requires a proper OS"
-    )
-    def test__build_conda_executable_linux(self):
-        conf = Configuration()
-        r = conf._build_conda_executable("myPathToConda")
-
-        expected = Path("myPathToConda").joinpath("bin", "conda")
-        self.assertEqual(r, str(expected))
 
     @unittest.skip("Needs to be implemented!")
     def test_get_catalog_collection_path(self):

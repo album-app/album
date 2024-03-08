@@ -65,6 +65,7 @@ class Album:
         )
 
     def load_or_create_collection(self):
+        self._controller.environment_manager().ensure_micromamba_is_configured()
         self._controller.collection_manager().load_or_create()
 
     def get_index_as_dict(self):
