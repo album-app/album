@@ -27,7 +27,13 @@ class TestIntegrationTaskManager(TestIntegrationCoreCommon):
         )
         task = Task()
         task._method = self.album_controller.run_manager().run
-        task._args = [resolve_result]
+        task._args = [
+            resolve_result.coordinates().group()
+            + ":"
+            + resolve_result.coordinates().name()
+            + ":"
+            + resolve_result.coordinates().version()
+        ]
         task_manager = TaskManager()
         task_id = task_manager.register_task(task)
         self.assertEqual("0", task_id)
@@ -53,7 +59,13 @@ class TestIntegrationTaskManager(TestIntegrationCoreCommon):
         )
         task = Task()
         task.method = self.album_controller.run_manager().run
-        task.args = [resolve_result]
+        task.args = [
+            resolve_result.coordinates().group()
+            + ":"
+            + resolve_result.coordinates().name()
+            + ":"
+            + resolve_result.coordinates().version()
+        ]
         task_manager = TaskManager()
         task_manager.register_task(task)
         self._finish_taskmanager_with_timeout(task_manager, 30)
