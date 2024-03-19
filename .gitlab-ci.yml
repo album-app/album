@@ -20,22 +20,18 @@
     - 'if(-Not (Test-Path .\micromamba)) {echo "Cache micromamba not found! Creating..."; New-Item -ItemType Directory -Force -Path .\micromamba} else { echo ".\micromamba cache found! with content:"; Get-ChildItem -Path .\micromamba}'
     - '$7ZIP_EXE=(Join-Path $env:ProgramFiles -ChildPath 7-Zip\7z.exe)'
     - '$7ZIP_INSTALLER=(Join-Path downloads -ChildPath 7z.exe)'
-    - '$Env:MAMBA_ROOT_PREFIX=(Join-Path -Path (Get-Location) -ChildPath micromamba)'
-    - '$Env:MAMBA_EXE=(Join-Path -Path (Get-Location) -ChildPath micromamba\Library\bin\micromamba.exe)'
     - '$Env:USERPROFILE=$pwd'
-    - '$Env:ALBUM_CONDA_PATH=(Join-Path -Path ($CI_PROJECT_DIR) -ChildPath micromamba\Library\bin\micromamba.exe)'
     - '$oldProgressPreference = $progressPreference; $progressPreference = "SilentlyContinue";'
     - '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12'                                                                                                                                                                                                                                                                                          # set Security download protocol to avoid https errors
     - 'if(-Not (Test-Path $7ZIP_EXE)) {if(-Not (Test-Path $7ZIP_INSTALLER)){Invoke-Webrequest -URI https://www.7-zip.org/a/7z2201-x64.exe -OutFile $7ZIP_INSTALLER}}'
     - 'if(-Not (Test-Path $7ZIP_EXE)) {Start-Process -FilePath $7ZIP_INSTALLER -Args "/S" -Verb RunAs -Wait}'
-    - 'Invoke-Webrequest -URI https://gitlab.com/album-app/plugins/album-package/-/raw/micromamba_installer/micromamba-1.0.0_WINDOWS.tar.bz2?inline=false -OutFile micromamba.tar.bz2'
+    - 'Invoke-Webrequest -URI https://micro.mamba.pm/api/micromamba/win-64/1.5.6 -OutFile micromamba.tar.bz2'
     - '& $7ZIP_EXE x micromamba.tar.bz2 -aoa'
-    - '& $7ZIP_EXE x micromamba.tar -ttar -aoa -r Library\bin\micromamba.exe $("-o" + $Env:MAMBA_ROOT_PREFIX)'
+    - '& $7ZIP_EXE x micromamba.tar -ttar -aoa -r Library\bin\micromamba.exe $("-o" + (Join-Path -Path (Get-Location) -ChildPath micromamba_installation))'
     - '$progressPreference = $oldProgressPreference'
-    - '.\micromamba\Library\bin\micromamba.exe create -y -n album album -c conda-forge python=3.10'
-    - '.\micromamba\Library\bin\micromamba.exe run -n album pip uninstall -y album'
-    - '.\micromamba\Library\bin\micromamba.exe run -n album pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip'
-    - '.\micromamba\Library\bin\micromamba.exe shell init -s powershell -p $Env:MAMBA_ROOT_PREFIX '
+    - '.\micromamba_installation\Library\bin\micromamba.exe create -y -n album album -c conda-forge python=3.10'
+    - '.\micromamba_installation\Library\bin\micromamba.exe run -n album pip uninstall -y album'
+    - '.\micromamba_installation\Library\bin\micromamba.exe run -n album pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip'
 
   tags:
     - windows
@@ -63,28 +59,19 @@
     - apt update
     - apt install -y curl
     - apt install -y bzip2
-    - export MAMBA_ROOT_PREFIX=$CI_PROJECT_DIR/micromamba
-    - export ALBUM_CONDA_PATH=$CI_PROJECT_DIR/bin/micromamba
     - mkdir -p $CI_PROJECT_DIR/bin/
-    - curl -Ls https://gitlab.com/album-app/plugins/album-package/-/raw/micromamba_installer/micromamba-1.0.0_LINUX_X86_64.tar.bz2?inline=false | tar -xvj -C $CI_PROJECT_DIR/bin/ --strip-components=1 bin/micromamba
-    - eval "$($CI_PROJECT_DIR/bin/micromamba shell hook -s posix)"
-    - micromamba create -y -n album album -c conda-forge python=3.10
-    - micromamba activate album
-    - pip uninstall -y album
-    - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
-    - python -V
-    - pip list
+    - curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/1.5.6 | tar -xvj -C $CI_PROJECT_DIR/bin/ --strip-components=1 bin/micromamba
+    - $CI_PROJECT_DIR/bin/micromamba create -y -n album album -c conda-forge python=3.10
+    - $CI_PROJECT_DIR/bin/micromamba run -n album pip uninstall -y album
+    - $CI_PROJECT_DIR/bin/micromamba run -n album pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
+    - $CI_PROJECT_DIR/bin/micromamba run -n album python -V
+    - $CI_PROJECT_DIR/bin/micromamba run -n album pip list
   variables:
     PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
-    CONDA_ENV_NAME: album
-    CONDA_PREFIX: /opt/conda
-    PREFIX: $CONDA_PREFIX/envs/$CONDA_ENV_NAME
   cache:
     key: one-key-to-rule-them-all-linux
     paths:
-      - ${CONDA_PREFIX}/pkgs/*.tar.bz2
-      - ${CONDA_PREFIX}/pkgs/urls.txt
-      - .cache/pip
+      - $CI_PROJECT_DIR/.cache/pip
 
 # Macos base template for running tests with micromamba as package manager
 #
@@ -101,22 +88,20 @@
     - tmpdir=$(mktemp -d /tmp/album-test.XXXXXX)
     - echo $tmpdir
     - echo $tmpdir > /tmp/tmpdir
-    - export MAMBA_ROOT_PREFIX=$tmpdir/micromamba
-    - export ALBUM_CONDA_PATH=$tmpdir/bin/micromamba
     - mkdir -p $tmpdir/bin/
-    - curl -Ls https://gitlab.com/album-app/plugins/album-package/-/raw/micromamba_installer/micromamba-1.0.0_MACOS_X86_64.tar.bz2?inline=false | tar -xvj -C $tmpdir/bin/ --strip-components=1 bin/micromamba
-    - eval "$($tmpdir/bin/micromamba shell hook -s posix)"
-    - micromamba create -y -n album album -c conda-forge python=3.10
-    - micromamba activate album
-    - pip uninstall -y album
-    - pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
-    - python -V
-    - pip list
+    - curl -Ls https://micro.mamba.pm/api/micromamba/osx-64/1.5.6 | tar -xvj -C $tmpdir/bin/ --strip-components=1 bin/micromamba
+    - MICROMAMBA_EXECUTABLE=$tmpdir/bin/micromamba
+    - $MICROMAMBA_EXECUTABLE create -y -n album album -c conda-forge python=3.10
+    - $MICROMAMBA_EXECUTABLE run -n album pip uninstall -y album
+    - $MICROMAMBA_EXECUTABLE run -n album pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
+    - $MICROMAMBA_EXECUTABLE run -n album python -V
+    - $MICROMAMBA_EXECUTABLE run -n album pip list
   after_script:
     - tmpdir=$(</tmp/tmpdir)
     - echo $tmpdir
     - rm -rf $tmpdir
-
+  variables:
+    MICROMAMBA_EXECUTABLE: ""
 #----------------------------
 # stages
 #----------------------------
@@ -272,6 +257,8 @@ cmdline linux:
   extends: .linux_base_template_micromamba
   stage: build
   script:
+    - eval "$($CI_PROJECT_DIR/bin/micromamba shell hook -s posix)"
+    - micromamba activate album
     # album commands
     - album -h
     - album run -h
@@ -288,13 +275,13 @@ unit tests linux micromamba:
   extends: .linux_base_template_micromamba
   stage: test
   script:
-    - ALBUM_CONDA_PATH=$CI_PROJECT_DIR/bin/micromamba python -m unittest test/unit/run_all_unit_micromamba.py
+    - $CI_PROJECT_DIR/bin/micromamba run -n album python -m unittest test/unit/run_all_unit_micromamba.py
 
 integration tests linux micromamba:
   extends: .linux_base_template_micromamba
   stage: test
   script:
-    - python -m unittest test/integration/run_all_integration_micromamba.py
+    - $CI_PROJECT_DIR/bin/micromamba run -n album python -m unittest test/integration/run_all_integration_micromamba.py
 
 # MacOs Tests
 
@@ -302,14 +289,14 @@ unit tests macos micromamba:
   extends: .macos_base_template_micromamba
   stage: test
   script:
-    - python -m unittest test/unit/run_all_unit_micromamba.py
+    - $MICROMAMBA_EXECUTABLE run -n album python -m unittest test/unit/run_all_unit_micromamba.py
 
 
 integration tests macos micromamba:
   extends: .macos_base_template_micromamba
   stage: test
   script:
-    - python -m unittest test/integration/run_all_integration_micromamba.py
+    - $MICROMAMBA_EXECUTABLE run -n album python -m unittest test/integration/run_all_integration_micromamba.py
 
 # Windows Tests
 
@@ -317,11 +304,11 @@ unit tests windows micromamba:
   extends: .windows_base_template_micromamba
   stage: test
   script:
-    - $cmnd = powershell.exe -command {micromamba activate album 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit_micromamba.py 2>&1 | Write-Host; exit($lastexitcode)}
+    - .\micromamba_installation\Library\bin\micromamba.exe run -n album python -m unittest .\test\unit\run_all_unit_micromamba.py
 
 
 integration tests windows micromamba:
   extends: .windows_base_template_micromamba
   stage: test
   script:
-    - $cmnd = powershell.exe -command {micromamba activate album 2>&1 | Write-Host; python -m unittest test\integration\run_all_integration_micromamba.py 2>&1 | Write-Host; exit($lastexitcode)}
+    - .\micromamba_installation\Library\bin\micromamba.exe run -n album python -m unittest .\test\integration\run_all_integration_micromamba.py

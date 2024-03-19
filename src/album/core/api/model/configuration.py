@@ -18,18 +18,8 @@ class IConfiguration:
         raise NotImplementedError
 
     @abstractmethod
-    def conda_executable(self):
-        """The conda executable. Either a full path to a conda executable/binary or a command"""
-        raise NotImplementedError
-
-    @abstractmethod
-    def mamba_executable(self):
-        """The mamba executable. Either a full path to a mamba executable/binary or a command"""
-        raise NotImplementedError
-
-    @abstractmethod
-    def micromamba_executable(self):
-        """The micromamba executable. Either a full path to a mamba executable/binary or a command"""
+    def micromamba_base_path(self):
+        """The micromamba base path."""
         raise NotImplementedError
 
     @abstractmethod

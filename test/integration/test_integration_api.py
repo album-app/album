@@ -35,7 +35,6 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
         logger.info(serialize_json(catalogs_as_dict))
 
         # list configuration
-        logger.info(f"conda executable: {album.configuration().conda_executable()}")
         logger.info(f"album cache base: {album.configuration().base_cache_path()}")
 
         # add remote catalog

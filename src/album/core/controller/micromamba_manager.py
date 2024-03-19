@@ -1,28 +1,180 @@
-import tempfile
+import platform
+import tarfile
+import zipfile
 
-import yaml
+import requests
+from album.runner import album_logging
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 from album.core.controller.conda_manager import CondaManager
-from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
+
 import os
+import subprocess
 import sys
 from pathlib import Path
 
 from album.core.api.model.configuration import IConfiguration
 from album.core.model.default_values import DefaultValues
 from album.core.model.link import Link
-from album.core.utils import subcommand
 from album.core.utils.operations.file_operations import (
     construct_cache_link_target,
-    remove_link, force_remove,
 )
-from album.core.utils.subcommand import SubProcessError
 
 
 # TODO: Still has the conda executable of the CondaManager parent class. I don' like that, maybe create an extra package
 #  manager class from which every Manager(conda/mamba/micromamba) inherits
+def is_downloadable(url):
+    """Shows if url is a downloadable resource."""
+    with _get_session() as s:
+        h = s.head(url, allow_redirects=True)
+        header = h.headers
+        content_type = header.get("content-type")
+        if "html" in content_type.lower():
+            return False
+        return True
+
+
+def _get_session():
+    s = requests.Session()
+    retry = Retry(connect=3, backoff_factor=0.5)
+
+    adapter = HTTPAdapter(max_retries=retry)
+
+    s.mount("http://", adapter)
+    s.mount("https://", adapter)
+
+    return s
+
+
+def _request_get(url):
+    """Get a response from a request to a resource url."""
+    with _get_session() as s:
+        r = s.get(url, allow_redirects=True, stream=True)
+
+        if r.status_code != 200:
+            raise ConnectionError("Could not connect to resource %s!" % url)
+
+        return r
+
+
+def download_resource(url, path):
+    """Downloads a resource given its url."""
+    path = Path(path)
+
+    if not is_downloadable(url):
+        raise AssertionError('Resource "%s" not downloadable!' % url)
+
+    r = _request_get(url)
+    with open(path, "wb") as f:
+        for chunk in r:
+            f.write(chunk)
+
+    return path
+
+
+def check_architecture():
+    """checks the processor architecture of the system"""
+    check = subprocess.run(["uname", "-m"], capture_output=True)
+    return check.stdout.decode().rstrip()
+
+
+def _download_mamba(mamba_base_path):
+    """downloads micromamba"""
+    if platform.system() == "Windows":
+        return _download_mamba_win(Path(mamba_base_path).joinpath("micromamba.zip"))
+    elif platform.system() == "Darwin":
+        return _download_mamba_macos(Path(mamba_base_path).joinpath("micromamba.tar"))
+    elif platform.system() == "Linux":
+        return _download_mamba_linux(Path(mamba_base_path).joinpath("micromamba.tar"))
+    else:
+        raise NotImplementedError("Your operating system is currently not supported.")
+
+
+def _download_mamba_win(mamba_installer_path):
+    """downloads micromamba for windows"""
+    return download_resource(
+        DefaultValues.micromamba_url_windows.value, mamba_installer_path
+    )
+
+
+def _download_mamba_macos(mamba_installer_path):
+    """downloads micromamba for macOS depending on the processor architecture"""
+    if check_architecture().__eq__("x86_64"):
+        return download_resource(
+            DefaultValues.micromamba_url_osx_X86_64.value, mamba_installer_path
+        )
+    elif check_architecture().lower().__eq__("arm64"):
+        return download_resource(
+            DefaultValues.micromamba_url_osx_ARM64.value, mamba_installer_path
+        )
+    else:
+        raise NotImplementedError(
+            "There is no micromamba version for your processor architecture."
+        )
+
+
+def _download_mamba_linux(mamba_installer_path):
+    """downloads micromamba for linux depending on the processor architecture"""
+    if check_architecture().__eq__("x86_64"):
+        return download_resource(
+            DefaultValues.micromamba_url_linux_X86_64.value, mamba_installer_path
+        )
+    elif check_architecture().lower().__eq__("arm64"):
+        return download_resource(
+            DefaultValues.micromamba_url_linux_ARM64.value, mamba_installer_path
+        )
+    elif check_architecture().lower().__eq__("power"):
+        return download_resource(
+            DefaultValues.micromamba_url_linux_POWER.value, mamba_installer_path
+        )
+    else:
+        raise NotImplementedError(
+            "There is no micromamba version for your processor architecture."
+        )
+
+
+def _unpack_mamba_win(mamba_installer, mamba_base_path):
+    """unpacks the windows version of the micromamba archive"""
+    with zipfile.ZipFile(Path(mamba_installer)) as zip:
+        zip.extractall(Path(mamba_base_path))
+
+
+def _unpack_mamba_unix(mamba_installer, mamba_base_path):
+    """unpacks the micromamba archives for linux and macOS"""
+    with tarfile.open(mamba_installer, "r") as tar:
+        tar.extractall(mamba_base_path)
+
+
+def _set_mamba_env_vars(mamba_base_path):
+    """Sets the micromamba environment variables"""
+    os.environ["MAMBA_ROOT_PREFIX"] = str(mamba_base_path)
+    os.environ["MAMBA_EXE"] = str(get_mamba_exe(mamba_base_path))
+
+
+def get_mamba_exe(mamba_base_path) -> str:
+    """returns the path to the micromamba executable"""
+    if platform.system() == "Windows":
+        return str(Path(mamba_base_path).joinpath("Library", "bin", "micromamba.exe"))
+    else:
+        return str(Path(mamba_base_path).joinpath("bin", "micromamba"))
+
+
+def install_mamba(album_base_path, mamba_base_path):
+    """installs micormamba"""
+    if not Path(album_base_path).exists():
+        Path(album_base_path).mkdir()
+    if not Path(mamba_base_path).exists():
+        Path(mamba_base_path).mkdir()
+
+    installer = _download_mamba(mamba_base_path)
+    if platform.system() == "Windows":
+        _unpack_mamba_win(installer, mamba_base_path)
+    else:
+        _unpack_mamba_unix(installer, mamba_base_path)
+    _set_mamba_env_vars(mamba_base_path)
 
 
 class MicromambaManager(CondaManager):
@@ -37,8 +189,9 @@ class MicromambaManager(CondaManager):
     """
 
     def __init__(self, configuration: IConfiguration):
-        super().__init__(configuration)
-        self._micromamba_executable = self._configuration.micromamba_executable()
+        self._micromamba_base_path = configuration.micromamba_base_path()
+        self._micromamba_executable = get_mamba_exe(self._micromamba_base_path)
+        super().__init__(configuration, self._micromamba_executable)
 
     @staticmethod
     def check_for_executable():
@@ -118,6 +271,16 @@ class MicromambaManager(CondaManager):
             "-q",
             "-p",
             os.path.normpath(path),
-            "--all"
+            "--all",
         ]
         return subprocess_args
+
+    def install_if_missing(self):
+        micromamba_executable = Path(get_mamba_exe(self._micromamba_base_path))
+        if not micromamba_executable.exists():
+            install_mamba(
+                self._configuration.base_cache_path(), self._micromamba_base_path
+            )
+
+    def set_environment_variables(self):
+        _set_mamba_env_vars(self._micromamba_base_path)

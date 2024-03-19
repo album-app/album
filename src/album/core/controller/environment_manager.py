@@ -1,33 +1,26 @@
+from album.runner.core.api.model.coordinates import ICoordinates
+
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.environment_manager import IEnvironmentManager
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.api.model.environment import IEnvironment
-from album.core.controller.conda_manager import CondaManager
-from album.core.controller.mamba_manager import MambaManager
 from album.core.controller.micromamba_manager import MicromambaManager
 from album.core.model.environment import Environment
 from album.core.utils.operations.file_operations import remove_link
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.core.utils.operations.solution_operations import set_environment_paths
-from album.runner import album_logging
-from album.runner.core.api.model.coordinates import ICoordinates
-
-module_logger = album_logging.get_active_logger
 
 
 class EnvironmentManager(IEnvironmentManager):
     def __init__(self, album: IAlbumController):
-        if album.configuration().micromamba_executable():
-            self._package_manager = MicromambaManager(album.configuration())
-            self._env_install_manager = self._package_manager
-        else:
-            self._package_manager = CondaManager(album.configuration())
-            if album.configuration().mamba_executable():
-                self._env_install_manager = MambaManager(album.configuration())
-            else:
-                self._env_install_manager = self._package_manager
+        self._package_manager = MicromambaManager(album.configuration())
+        self._env_install_manager = self._package_manager
         self._album = album
+
+    def ensure_micromamba_is_configured(self):
+        self._package_manager.install_if_missing()
+        self._package_manager.set_environment_variables()
 
     def install_environment(
         self, collection_solution: ICollectionSolution
