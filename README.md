@@ -4,6 +4,8 @@ Introduction: [https://album.solutions/](https://album.solutions/)
 
 Documentation: [https://docs.album.solutions/](https://docs.album.solutions/)
 
+Developer documentation: [https://gitlab.com/album-app/album/-/wikis/home](https://gitlab.com/album-app/album/-/wikis/home)
+
 ## Citation
 
 Albrecht, J.P.\*, Schmidt, D.\*, and Harrington, K., 2021. Album: a
