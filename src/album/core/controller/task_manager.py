@@ -1,20 +1,23 @@
 import queue
 import threading
+from logging import LogRecord
 from threading import Thread
+from typing import Any, Callable, Dict, List, Optional, Union
+
+from album.runner import album_logging
 
 from album.core.api.controller.task_manager import ITaskManager
 from album.core.api.model.task import ITask
 from album.core.model.task import LogHandler, Task
-from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
 
 class TaskManager(ITaskManager):
-    server_queue = None
+    server_queue: queue.Queue = queue.Queue()
 
     num_fetch_threads = 3
-    tasks = {}
+    tasks: Dict[str, ITask] = {}
 
     task_count = 0
     workers_initialized = False
@@ -36,17 +39,23 @@ class TaskManager(ITaskManager):
             worker.setDaemon(True)
             worker.start()
 
-    def get_task(self, task_id):
+    def get_task(self, task_id: str):
         return self.tasks[task_id]
 
-    def get_status(self, task: ITask):
+    def get_status(self, task: ITask) -> Dict[str, Union[str, List[Dict[str, str]]]]:
+        task_name = task.status().name
+        task_log_handler = task.log_handler()
+        records = []
+        if task_log_handler is not None:
+            records = task_log_handler.records()
+
         return {
-            "status": task.status().name,
-            "records": self._records_to_json(task.log_handler().records()),
+            "status": task_name,
+            "records": self._records_to_json(records),
         }
 
     @staticmethod
-    def _records_to_json(records):
+    def _records_to_json(records: List[LogRecord]) -> List[Dict[str, Any]]:
         res = []
         for record in records:
             res.append(
@@ -63,7 +72,7 @@ class TaskManager(ITaskManager):
             )
         return res
 
-    def _finish_queue(self):
+    def _finish_queue(self) -> None:
         self.server_queue.join()
         # TODO add timeout parameter and do something like the following if timeout is set:
         # timeout = 10  # waiting for 10 seconds for queue to finish
@@ -71,7 +80,9 @@ class TaskManager(ITaskManager):
         # while self.server.task_manager.server_queue.unfinished_tasks and time() < stop:
         #     sleep(1)
 
-    def create_and_register_task(self, method, args) -> str:
+    def create_and_register_task(
+        self, method: Callable, args: Optional[List[str]]
+    ) -> str:
         task = Task(method, args)
         return self.register_task(task)
 
@@ -86,7 +97,7 @@ class TaskManager(ITaskManager):
         self.server_queue.put(task)
         return task.id()
 
-    def _run_queue_entry(self, i, parent_thread):
+    def _run_queue_entry(self, i: int, parent_thread: int) -> None:
         album_logging.configure_logging(
             "worker" + str(i), parent_thread_id=parent_thread
         )
@@ -95,7 +106,7 @@ class TaskManager(ITaskManager):
             self._handle_task(task)
             self.server_queue.task_done()
 
-    def _handle_task(self, task: ITask):
+    def _handle_task(self, task: ITask) -> None:
         module_logger().info(f"TaskManager: starting task {task.id()}...")
         logger = album_logging.configure_logging("task" + str(task.id()))
         handler = LogHandler()
@@ -112,9 +123,9 @@ class TaskManager(ITaskManager):
         album_logging.pop_active_logger()
         module_logger().info(f"TaskManager: finished task {task.id()}.")
 
-    def finish_tasks(self):
+    def finish_tasks(self) -> None:
         self.server_queue.join()
 
     @staticmethod
-    def _run_task(task: ITask):
+    def _run_task(task: ITask) -> None:
         return task.method()(*task.args())

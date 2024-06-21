@@ -1,9 +1,14 @@
 import pkgutil
 from datetime import datetime
-from typing import Optional, List
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+
+from album.runner import album_logging
+from album.runner.core.api.model.coordinates import ICoordinates
 
 from album.core.api.model.catalog_index import ICatalogIndex
 from album.core.model.database import Database
+from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import (
     get_dict_entry,
     write_dict_to_json,
@@ -12,16 +17,12 @@ from album.core.utils.operations.solution_operations import (
     get_solution_hash,
     serialize_json,
 )
-from album.runner import album_logging
-from album.runner.core.api.model.coordinates import ICoordinates
-from album.core.model.default_values import DefaultValues
 
 module_logger = album_logging.get_active_logger
 
 
 class CatalogIndex(ICatalogIndex, Database):
-
-    def __init__(self, name, path):
+    def __init__(self, name: str, path: Union[str, Path]):
         """Init routine.
 
         Args:
@@ -34,18 +35,23 @@ class CatalogIndex(ICatalogIndex, Database):
         self.name = name
         super().__init__(path)
 
-    def create(self):
+    def create(self) -> None:
         data = pkgutil.get_data("album.core.schema", "catalog_index_schema.sql")
+
+        if not data:
+            raise FileNotFoundError("Could not find catalog index schema!")
 
         cursor = self.get_cursor()
         cursor.executescript(data.decode("utf-8"))
 
-        self.update_name_version(self.name, DefaultValues.catalog_index_db_version.value, close=False)
+        self.update_name_version(
+            self.name, DefaultValues.catalog_index_db_version.value, close=False
+        )
 
         # explicitly commit and close
         self.close_current_connection(commit=True)
 
-    def is_empty(self, close=True):
+    def is_empty(self, close: bool = True) -> bool:
         cursor = self.get_cursor()
         r = cursor.execute("SELECT * FROM solution").fetchone()
 
@@ -56,10 +62,8 @@ class CatalogIndex(ICatalogIndex, Database):
 
     # ### catalog_index ###
 
-    def update_name_version(self, name, version, close=True):
-        module_logger().debug(
-            'Update index name: "%s" and version: "%s"' % (name, version)
-        )
+    def update_name_version(self, name: str, version: str, close: bool = True) -> None:
+        module_logger().debug(f'Update index name: "{name}" and version: "{version}"')
 
         curr_name = self.get_name()
 
@@ -77,7 +81,7 @@ class CatalogIndex(ICatalogIndex, Database):
         if close:
             self.close_current_connection()
 
-    def get_name(self, close=True):
+    def get_name(self, close: bool = True) -> Optional[str]:
         module_logger().debug("Get catalog name...")
 
         cursor = self.get_cursor()
@@ -90,7 +94,7 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return cur_name
 
-    def get_version(self, close=True):
+    def get_version(self, close: bool = True) -> Optional[str]:
         module_logger().debug("Get index version...")
 
         cursor = self.get_cursor()
@@ -103,11 +107,11 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return cur_version
 
-    def get_all_solutions(self, close=True):
+    def get_all_solutions(self, close: bool = True) -> List[Dict[str, Any]]:
         module_logger().debug("Retrieve all solutions...")
 
         cursor = self.get_cursor()
-        r = cursor.execute("SELECT * FROM solution", {}).fetchall()
+        r = cursor.execute("SELECT * FROM solution").fetchall()
 
         solutions = []
         if r:
@@ -122,7 +126,7 @@ class CatalogIndex(ICatalogIndex, Database):
         return solutions
 
     @staticmethod
-    def get_solution_column_keys():
+    def get_solution_column_keys() -> List[str]:
         return [
             "group",
             "name",
@@ -138,7 +142,7 @@ class CatalogIndex(ICatalogIndex, Database):
             "changelog",
         ]
 
-    def _insert_solution(self, solution_attrs, close=True) -> int:
+    def _insert_solution(self, solution_attrs: Dict[str, Any], close=True) -> int:
         hash_val = get_solution_hash(solution_attrs, self.get_solution_column_keys())
         solution_id = self.next_id("solution")
 
@@ -234,7 +238,7 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return solution_id
 
-    def _exists_author(self, author_name, close=True):
+    def _exists_author(self, author_name: str, close: bool = True) -> Optional[int]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT * FROM author WHERE name=:author_name", {"author_name": author_name}
@@ -245,7 +249,7 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return r["author_id"] if r else None
 
-    def _insert_author(self, author, close=True):
+    def _insert_author(self, author: str, close: bool = True) -> int:
         author_id = self.next_id("author")
 
         cursor = self.get_cursor()
@@ -256,7 +260,7 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return author_id
 
-    def _exists_tag(self, tag_name, close=True):
+    def _exists_tag(self, tag_name: str, close: bool = True) -> Optional[int]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT * FROM tag WHERE name=:tag_name ", {"tag_name": tag_name}
@@ -267,7 +271,7 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return r["tag_id"] if r else None
 
-    def _insert_tag(self, tag, close=True):
+    def _insert_tag(self, tag: str, close: bool = True) -> int:
         tag_id = self.next_id("tag")
 
         cursor = self.get_cursor()
@@ -278,7 +282,9 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return tag_id
 
-    def _exists_argument(self, argument, close=True):
+    def _exists_argument(
+        self, argument: Dict[str, Any], close: bool = True
+    ) -> Optional[int]:
         cursor = self.get_cursor()
 
         exc_str = "SELECT * FROM argument WHERE name=:argument_name AND description=:argument_description "
@@ -308,7 +314,9 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return r["argument_id"] if r else None
 
-    def _exists_custom_key(self, custom_key, custom_value, close=True):
+    def _exists_custom_key(
+        self, custom_key: str, custom_value: str, close: bool = True
+    ) -> Optional[int]:
         cursor = self.get_cursor()
 
         exc_str = "SELECT * FROM custom WHERE custom_key=:custom_key AND custom_value=:custom_value "
@@ -324,7 +332,7 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return r["custom_id"] if r else None
 
-    def _insert_argument(self, argument, close=True):
+    def _insert_argument(self, argument: Dict[str, Any], close: bool = True) -> int:
         argument_id = self.next_id("argument")
 
         cursor = self.get_cursor()
@@ -345,7 +353,9 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return argument_id
 
-    def _insert_custom_key(self, custom_key, custom_value, close=True):
+    def _insert_custom_key(
+        self, custom_key: str, custom_value: str, close: bool = True
+    ) -> int:
         custom_id = self.next_id("custom")
 
         cursor = self.get_cursor()
@@ -358,7 +368,9 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return custom_id
 
-    def _exists_citation(self, citation, close=True):
+    def _exists_citation(
+        self, citation: Dict[str, Any], close: bool = True
+    ) -> Optional[int]:
         cursor = self.get_cursor()
 
         exc_str = "SELECT * FROM citation WHERE text=:citation_text "
@@ -380,7 +392,7 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return r["citation_id"] if r else None
 
-    def _insert_citation(self, citation, close=True):
+    def _insert_citation(self, citation: Dict[str, Any], close: bool = True) -> int:
         citation_id = self.next_id("citation")
         cursor = self.get_cursor()
         cursor.execute(
@@ -398,7 +410,9 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return citation_id
 
-    def _exists_cover(self, cover, solution_id, close=True):
+    def _exists_cover(
+        self, cover: Dict[str, Any], solution_id: int, close: bool = True
+    ) -> Optional[int]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT * FROM cover WHERE source=:cover_source AND description=:cover_description "
@@ -415,7 +429,9 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return r["cover_id"] if r else None
 
-    def _insert_cover(self, cover, solution_id, close=True):
+    def _insert_cover(
+        self, cover: Dict[str, Any], solution_id: int, close: bool = True
+    ) -> int:
         cover_id = self.next_id("cover")
 
         cursor = self.get_cursor()
@@ -429,7 +445,9 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return cover_id
 
-    def _exists_documentation(self, documentation, solution_id, close=True):
+    def _exists_documentation(
+        self, documentation: str, solution_id: int, close: bool = True
+    ) -> Optional[int]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT * FROM main.documentation WHERE documentation=:documentation "
@@ -445,7 +463,9 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return r["documentation_id"] if r else None
 
-    def _insert_documentation(self, documentation, solution_id, close=True):
+    def _insert_documentation(
+        self, documentation: str, solution_id: int, close: bool = True
+    ) -> int:
         documentation_id = self.next_id("documentation")
         cursor = self.get_cursor()
         cursor.execute(
@@ -458,7 +478,9 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return documentation_id
 
-    def get_solution(self, solution_id, close=True) -> Optional[dict]:
+    def get_solution(
+        self, solution_id: int, close: bool = True
+    ) -> Optional[Dict[str, Any]]:
         module_logger().debug('Get solution by id: "%s"...' % solution_id)
 
         cursor = self.get_cursor()
@@ -479,8 +501,8 @@ class CatalogIndex(ICatalogIndex, Database):
         return solution
 
     def get_solution_by_coordinates(
-        self, coordinates: ICoordinates, close=True
-    ) -> Optional[dict]:
+        self, coordinates: ICoordinates, close: bool = True
+    ) -> Optional[Dict[str, Any]]:
         module_logger().debug('Get solution by coordinates: "%s"...' % str(coordinates))
 
         cursor = self.get_cursor()
@@ -504,7 +526,7 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return solution
 
-    def _append_metadata_to_solution_dict(self, solution):
+    def _append_metadata_to_solution_dict(self, solution: Dict[str, Any]) -> None:
         solution_id = solution["solution_id"]
         solution["solution_creators"] = self._get_authors_by_solution(solution_id)
         solution["covers"] = self._get_covers_by_solution(solution_id)
@@ -514,7 +536,9 @@ class CatalogIndex(ICatalogIndex, Database):
         solution["tags"] = self._get_tags_by_solution(solution_id)
         solution["custom"] = self._get_custom_by_solution(solution_id)
 
-    def get_solution_by_doi(self, doi, close=True) -> Optional[dict]:
+    def get_solution_by_doi(
+        self, doi: str, close: bool = True
+    ) -> Optional[Dict[str, Any]]:
         module_logger().debug('Get solution by doi: "%s"...' % doi)
 
         cursor = self.get_cursor()
@@ -535,11 +559,9 @@ class CatalogIndex(ICatalogIndex, Database):
         return solution
 
     def get_all_solution_versions(
-        self, group, name, close=True
-    ) -> Optional[List[dict]]:
-        module_logger().debug(
-            'Get solution by group and name: "%s:%s"...' % (group, name)
-        )
+        self, group: str, name: str, close: bool = True
+    ) -> List[Dict[str, Any]]:
+        module_logger().debug(f'Get solution by group and name: "{group}:{name}"...')
 
         cursor = self.get_cursor()
         r = cursor.execute(
@@ -561,7 +583,10 @@ class CatalogIndex(ICatalogIndex, Database):
         return solutions
 
     def _update_solution(
-        self, coordinates: ICoordinates, solution_attrs: dict, close=True
+        self,
+        coordinates: ICoordinates,
+        solution_attrs: Dict[str, Any],
+        close: bool = True,
     ) -> None:
         try:
             # it is easier to delete and insert again instead of updating all connection-tables
@@ -580,7 +605,7 @@ class CatalogIndex(ICatalogIndex, Database):
             if close:
                 self.close_current_connection()
 
-    def remove_solution(self, solution_id, close=True):
+    def remove_solution(self, solution_id: int, close: bool = True) -> None:
         cursor = self.get_cursor()
 
         cursor.execute(
@@ -658,8 +683,8 @@ class CatalogIndex(ICatalogIndex, Database):
             self.close_current_connection()
 
     def remove_solution_by_group_name_version(
-        self, coordinates: ICoordinates, close=True
-    ):
+        self, coordinates: ICoordinates, close: bool = True
+    ) -> Optional[Dict[str, Any]]:
         solution_dict = self.get_solution_by_coordinates(coordinates, close=close)
         if solution_dict:
             self.remove_solution(solution_dict["solution_id"])
@@ -668,7 +693,12 @@ class CatalogIndex(ICatalogIndex, Database):
 
     # ### catalog_features ###
 
-    def update(self, coordinates: ICoordinates, solution_attrs: dict, close=True):
+    def update(
+        self,
+        coordinates: ICoordinates,
+        solution_attrs: Dict[str, Any],
+        close: bool = True,
+    ) -> None:
         if self.get_solution_by_coordinates(coordinates, close=False):
             module_logger().debug("Update solution...")
             self._update_solution(coordinates, solution_attrs, close=close)
@@ -676,11 +706,13 @@ class CatalogIndex(ICatalogIndex, Database):
             module_logger().debug("Insert solution...")
             self._insert_solution(solution_attrs, close=close)
 
-    def save(self):
+    def save(self) -> None:
         module_logger().debug("Saving index...")
         self.get_connection().commit()
 
-    def export(self, path, export_format="JSON", close=True):
+    def export(
+        self, path: Union[str, Path], export_format: str = "JSON", close: bool = True
+    ) -> None:
         module_logger().debug("Export index...")
 
         cursor = self.get_cursor()
@@ -710,7 +742,9 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return r
 
-    def _get_authors_by_solution(self, solution_id, close=True):
+    def _get_authors_by_solution(
+        self, solution_id: int, close: bool = True
+    ) -> List[str]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT a.* FROM author a "
@@ -728,7 +762,7 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return res
 
-    def _get_tags_by_solution(self, solution_id, close=True):
+    def _get_tags_by_solution(self, solution_id: int, close: bool = True) -> List[str]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT t.* FROM tag t "
@@ -746,7 +780,9 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return res
 
-    def _get_citations_by_solution(self, solution_id, close=True):
+    def _get_citations_by_solution(
+        self, solution_id: int, close: bool = True
+    ) -> List[Dict[str, Any]]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT c.* FROM citation c "
@@ -764,7 +800,9 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return res
 
-    def _get_arguments_by_solution(self, solution_id, close=True):
+    def _get_arguments_by_solution(
+        self, solution_id: int, close: bool = True
+    ) -> List[Dict[str, Any]]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT a.* FROM argument a "
@@ -790,7 +828,9 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return res
 
-    def _get_custom_by_solution(self, solution_id, close=True):
+    def _get_custom_by_solution(
+        self, solution_id: int, close: bool = True
+    ) -> Dict[str, str]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT a.* FROM custom a "
@@ -801,7 +841,7 @@ class CatalogIndex(ICatalogIndex, Database):
 
         res = {}
         for row in r:
-            dict_row = dict(row)
+            dict(row)
             res[row["custom_key"]] = row["custom_value"]
 
         if close:
@@ -809,7 +849,9 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return res
 
-    def _get_covers_by_solution(self, solution_id, close=True):
+    def _get_covers_by_solution(
+        self, solution_id: int, close: bool = True
+    ) -> List[Dict[str, Any]]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT c.* FROM cover c " "WHERE c.solution_id=:solution_id",
@@ -825,7 +867,9 @@ class CatalogIndex(ICatalogIndex, Database):
 
         return res
 
-    def _get_documentation_by_solution(self, solution_id, close=True):
+    def _get_documentation_by_solution(
+        self, solution_id: int, close: bool = True
+    ) -> List[str]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT d.* FROM documentation d " "WHERE d.solution_id=:solution_id",

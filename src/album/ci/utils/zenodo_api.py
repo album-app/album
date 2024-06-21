@@ -1,14 +1,18 @@
+"""Zenodo API for querying Zenodo."""
+from __future__ import annotations
+
 import json
 import os
+from abc import ABC
 from enum import Enum, unique
+from typing import Any, Dict, List, Union
 
 import requests
+from requests import Response
 
 
 class InvalidResponseStatusError(BaseException):
     """Raised when the response status is not the one expected."""
-
-    pass
 
 
 @unique
@@ -96,7 +100,7 @@ class PublicationType(Enum):
     OTHER = "other"
 
 
-class ZenodoEntry(object):
+class ZenodoEntry(ABC):  # noqa: B024
     """Base class for all Zenodo API objects.
 
      The base class all Zenodo API objects inherit from.
@@ -109,8 +113,12 @@ class ZenodoEntry(object):
     """
 
     @staticmethod
-    def _get_attribute(entry_dict, key, required=False):
-        """Checks the dict for keys.
+    def _get_attribute(
+        entry_dict: Union[Dict[str, Any], str],
+        key: str,
+        required: bool = False,
+    ) -> Any:
+        """Check the dict for keys.
 
         Args:
             entry_dict:
@@ -132,8 +140,8 @@ class ZenodoEntry(object):
             raise AttributeError("Key %s not found but required" % key)
         return None
 
-    def __init__(self, entry_dict, base_url, access_token):
-        """Inits @ZenodoEntry.
+    def __init__(self, entry_dict: Dict[str, Any], base_url: str, access_token: str):
+        """Init @ZenodoEntry.
 
         Args:
             entry_dict:
@@ -147,8 +155,8 @@ class ZenodoEntry(object):
         self.base_url = base_url
         self.params = {"access_token": access_token}
 
-    def to_dict(self):
-        """Removes sensitive information from the object and gives back its dictionary representation.
+    def to_dict(self) -> Dict[str, Any]:
+        """Remove sensitive information from the object and gives back its dictionary representation.
 
         Returns:
             The dictionary ready for submission via API.
@@ -187,21 +195,22 @@ class ZenodoMetadata(ZenodoEntry):
     @classmethod
     def default_values(
         cls,
-        title,
-        creators,
-        description,
-        license,
-        version,
-        related_identifiers,
-        references,
+        title: str,
+        creators: List[str],
+        description: str,
+        license_: str,
+        version: str,
+        related_identifiers: str,
+        references: str,
     ):
+        """Get the default metadata object."""
         default_values = {
             "access_right": AccessRight.OPEN.value,
             "access_right_category": None,
             "creators": creators,
             "description": description,
             "doi": None,
-            "license": license,
+            "license": license_,
             "prereserve_doi": "true",
             "publication_date": None,
             "related_identifiers": related_identifiers,
@@ -214,7 +223,8 @@ class ZenodoMetadata(ZenodoEntry):
         }
         return cls(default_values)
 
-    def __init__(self, entry_dict):
+    def __init__(self, entry_dict: Dict[str, Any]):
+        """Init the class."""
         super().__init__(entry_dict, "", "")
         self.access_right = self._get_attribute(entry_dict, "access_right")
         self.access_right_category = self._get_attribute(
@@ -240,24 +250,28 @@ class ZenodoMetadata(ZenodoEntry):
 class IterableList(list):
     """List for accessing objects in the list by a certain attribute or by the index."""
 
-    def __init__(self, id_attr):
+    def __init__(self, id_attr: str):
+        """Init the class."""
         super().__init__()
         self._id_attr = id_attr
 
-    def __contains__(self, attr):
+    def __contains__(self, attr: str):
+        """Check if an attribute is in the list."""
         try:
             getattr(self, attr)
             return True
         except (AttributeError, TypeError):
             return False
 
-    def __getattr__(self, attr):
+    def __getattr__(self, attr: str):
+        """Get an attribute."""
         for item in self:
             if getattr(item, self._id_attr) == attr:
                 return item
         return list.__getattribute__(self, attr)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: Union[int, str]):
+        """Get item by index or by id."""
         if isinstance(index, int):
             return list.__getitem__(self, index)
 
@@ -268,21 +282,24 @@ class IterableList(list):
 
 
 class ZenodoFile(ZenodoEntry):
-    """Describes a file in a @ZenodoDeposit or a @ZenodoRecord."""
+    """Describe a file in a @ZenodoDeposit or a @ZenodoRecord."""
 
     _id_attribute_ = "filename"
 
     @classmethod
-    def list_items(cls, deposit):
+    def list_items(cls, deposit: Union[ZenodoDeposit, ZenodoRecord]):
+        """List all files of a deposit."""
         out_list = IterableList(cls._id_attribute_)
         out_list.extend(cls.iter_items(deposit))
         return out_list
 
     @classmethod
-    def iter_items(cls, deposit):
+    def iter_items(cls, deposit: Union[ZenodoDeposit, ZenodoRecord]):
+        """Iterate over the files of a deposit."""
         return (f for f in deposit._files)
 
-    def __init__(self, entry_dict):
+    def __init__(self, entry_dict: Union[Dict[str, Any], str]):
+        """Init the class."""
         super().__init__(entry_dict, "", "")
         self.checksum = self._get_attribute(entry_dict, "checksum")
         self.bucket = self._get_attribute(entry_dict, "bucket")
@@ -295,15 +312,18 @@ class ZenodoFile(ZenodoEntry):
         self.links = self._get_attribute(entry_dict, "links")
 
     # todo: write tests
-    def get_download_link(self):
+    def get_download_link(self) -> str:
+        """Get the download link of the file."""
         return self.links["self"]
 
 
 class ZenodoDeposit(ZenodoEntry):
     """The Zenodo Deposit class."""
 
-    def __init__(self, entry_dict, base_url, access_token):
-        """Inits the class.
+    def __init__(
+        self, entry_dict: Union[Dict[str, Any], str], base_url: str, access_token: str
+    ):
+        """Init the class.
 
         The dictionary usually comes from a API response. Files and metadata keys will have extra classes.
 
@@ -344,11 +364,13 @@ class ZenodoDeposit(ZenodoEntry):
         self.files = files_init
 
     @property
-    def files(self):
+    def files(self) -> List[Union[Dict[str, Any], ZenodoFile]]:
+        """Get the files of the deposit."""
         return ZenodoFile.list_items(self)
 
     @files.setter
-    def files(self, files_init):
+    def files(self, files_init: IterableList[Union[Dict[str, Any], ZenodoFile]]):
+        """Set the files of the deposit."""
         if files_init:
             files = []
             for file_entry in files_init:
@@ -362,7 +384,7 @@ class ZenodoDeposit(ZenodoEntry):
 
     # ############# Deposits attributes #############
 
-    def get_files_id_by_name(self, name):
+    def get_files_id_by_name(self, name: str) -> Union[str, None]:
         """Retrieve the id of a file given its name.
 
         Args:
@@ -390,7 +412,7 @@ class ZenodoDeposit(ZenodoEntry):
 
         return file_id
 
-    def list_files_name(self):
+    def list_files_name(self) -> List[str]:
         """Obtain a list of all filenames in the deposit.
 
         Returns:
@@ -404,8 +426,8 @@ class ZenodoDeposit(ZenodoEntry):
 
     # ############# Deposits operations #############
 
-    def reload(self):
-        """Reload the deposit. Resets all changes.
+    def reload(self) -> bool:
+        """Reload the deposit, thereby reset all changes.
 
         Returns:
              True if success.
@@ -424,8 +446,8 @@ class ZenodoDeposit(ZenodoEntry):
 
         return True
 
-    def update(self, zenodo_metadata):
-        """Updates the metadata of a deposit.
+    def update(self, zenodo_metadata: Union[ZenodoMetadata, Dict[str, Any]]) -> bool:
+        """Update the metadata of a deposit.
 
         Args:
             zenodo_metadata:
@@ -460,8 +482,8 @@ class ZenodoDeposit(ZenodoEntry):
 
         return True
 
-    def delete(self):
-        """Deletes an unpublished deposit.
+    def delete(self) -> bool:
+        """Delete an unpublished deposit.
 
         Returns:
              True if success.
@@ -469,7 +491,6 @@ class ZenodoDeposit(ZenodoEntry):
         Raises:
             InvalidResponseStatusError: If query response status other than expected.
         """
-
         # todo: check if not already published
 
         link = self.base_url + "/api/deposit/depositions/%s" % self.id
@@ -483,8 +504,8 @@ class ZenodoDeposit(ZenodoEntry):
 
     # ############# Deposits actions #############
 
-    def publish(self):
-        """Publishes an unpublished repo.
+    def publish(self) -> bool:
+        """Publish an unpublished repo.
 
         Returns:
              True if success.
@@ -492,7 +513,6 @@ class ZenodoDeposit(ZenodoEntry):
         Raises:
             InvalidResponseStatusError: If query response status other than expected.
         """
-
         # todo: check if already published
 
         link = self.base_url + "/api/deposit/depositions/%s/actions/publish" % self.id
@@ -505,8 +525,8 @@ class ZenodoDeposit(ZenodoEntry):
 
         return True
 
-    def new_version(self):
-        """Creates a new version of the deposit.
+    def new_version(self) -> List[ZenodoDeposit]:
+        """Create a new version of the deposit.
 
         Returns:
              True if success.
@@ -545,8 +565,8 @@ class ZenodoDeposit(ZenodoEntry):
 
     # ############# Deposition files #############
 
-    def get_remote_files(self):
-        """Retrieve all files listed in a deposit
+    def get_remote_files(self) -> Union[List[ZenodoFile], None]:
+        """Retrieve all files listed in a deposit.
 
         Returns:
              A list of @ZenodoFile objects.
@@ -564,12 +584,13 @@ class ZenodoDeposit(ZenodoEntry):
         for file_dict in response_dict:
             file_list.append(ZenodoFile(file_dict))
 
-        self.files = file_list if file_list else None
+        if file_list:
+            self.files = file_list
 
         return file_list
 
-    def create_file(self, file):
-        """Uploads a new file to the deposit.
+    def create_file(self, file) -> ZenodoFile:
+        """Upload a new file to the deposit.
 
         Args:
             file:
@@ -594,8 +615,8 @@ class ZenodoDeposit(ZenodoEntry):
 
         return ZenodoFile(response_dict)
 
-    def delete_file_by_id(self, file_id):
-        """Deletes the file with a certain ID in the deposit.
+    def delete_file_by_id(self, file_id: str) -> bool:
+        """Delete the file with a certain ID in the deposit.
 
         Args:
             file_id:
@@ -607,9 +628,9 @@ class ZenodoDeposit(ZenodoEntry):
         Raises:
             InvalidResponseStatusError: If query response status other than expected.
         """
-        link = self.base_url + "/api/deposit/depositions/%s/files/%s" % (
-            self.id,
-            file_id,
+        link = self.base_url + "/api/deposit/depositions/{id}/files/{file_id}".format(
+            id=self.id,
+            file_id=file_id,
         )
 
         r = requests.delete(link, params=self.params)
@@ -620,8 +641,8 @@ class ZenodoDeposit(ZenodoEntry):
 
         return True
 
-    def update_file_by_id(self, file_id, new_file):
-        """Updates a existent file with the new version.
+    def update_file_by_id(self, file_id: str, new_file: str) -> ZenodoFile:
+        """Update an existent file with the new version.
 
         Args:
             file_id:
@@ -638,8 +659,8 @@ class ZenodoDeposit(ZenodoEntry):
         self.delete_file_by_id(file_id)
         return self.create_file(new_file)
 
-    def delete_file(self, file_name):
-        """Deletes a file in a deposit given its name
+    def delete_file(self, file_name: str) -> bool:
+        """Delete a file in a deposit given its name.
 
         Args:
             file_name:
@@ -653,10 +674,12 @@ class ZenodoDeposit(ZenodoEntry):
         """
         file_id = self.get_files_id_by_name(file_name)
         if file_id:
-            self.delete_file_by_id(file_id)
+            return self.delete_file_by_id(file_id)
 
-    def update_file(self, file_name, new_file):
-        """Updates a file in a deposit given its name
+        return False
+
+    def update_file(self, file_name: str, new_file: str) -> Union[ZenodoFile, None]:
+        """Update a file in a deposit given its name.
 
         Args:
             file_name:
@@ -672,28 +695,32 @@ class ZenodoDeposit(ZenodoEntry):
         """
         file_id = self.get_files_id_by_name(file_name)
         if file_id:
-            self.update_file_by_id(file_id, new_file)
+            return self.update_file_by_id(file_id, new_file)
+
+        return None
 
 
 class ZenodoRecord(ZenodoDeposit):
     """Class for the @ZenodoRecord. Holds the statistics (@ZenodoRecordStats) of a published deposit."""
 
     def __init__(self, entry_dict, base_url, access_token):
+        """Init the class."""
         super().__init__(entry_dict, base_url, access_token)
         self.owners = self._get_attribute(entry_dict, "owners")
         self.revision = self._get_attribute(entry_dict, "revision")
         self.stats = ZenodoRecordStats(self._get_attribute(entry_dict, "stats"))
         self.updated = self._get_attribute(entry_dict, "updated")
 
-    def print_stats(self):
-        """Prints the dictionary."""
+    def print_stats(self) -> None:
+        """Print the dictionary."""
         print(self.stats.to_dict())
 
 
 class ZenodoRecordStats(ZenodoEntry):
     """Class holding the statistics of a @ZenodoRecord."""
 
-    def __init__(self, entry_dict):
+    def __init__(self, entry_dict: Dict[str, Any]):
+        """Init the class."""
         super().__init__(entry_dict, "", "")
         self.downloads = self._get_attribute(entry_dict, "downloads")
         self.unique_downloads = self._get_attribute(entry_dict, "unique_downloads")
@@ -712,17 +739,21 @@ class ZenodoRecordStats(ZenodoEntry):
 
 
 class ZenodoDefaultUrl(Enum):
+    """Default URLs for Zenodo."""
+
     sandbox_url = "https://sandbox.zenodo.org/"
     url = "https://zenodo.org/"
 
 
 class ZenodoAPI:
-    """
-    Zenodo API. Querying the ZenodoAPI.
-    """
+    """Zenodo API for querying the ZenodoAPI."""
 
-    def __init__(self, base_url=ZenodoDefaultUrl.url.value, access_token=None):
-        """Inits the object given a base_url and an access_token.
+    def __init__(
+        self,
+        base_url: str = ZenodoDefaultUrl.url.value,
+        access_token: Union[str, None] = None,
+    ):
+        """Init the object given a base_url and an access_token.
 
         Args:
             base_url:
@@ -737,8 +768,10 @@ class ZenodoAPI:
             self.params["access_token"] = access_token
 
     @staticmethod
-    def validate_response(response, expected_response_code=None):
-        """Validates the response from a request.
+    def validate_response(
+        response: Response, expected_response_code: Union[ResponseStatus, None] = None
+    ) -> Union[Dict[str, Any], str]:
+        """Validate the response from a request.
 
         Args:
             response:
@@ -791,11 +824,11 @@ class ZenodoAPI:
 
     def deposit_get(
         self,
-        deposit_id=None,
-        q="",
-        status=DepositStatus.PUBLISHED,
-        sort=SortOrder.BEST_MATCH,
-    ):
+        deposit_id: Union[str, None] = None,
+        q: str = "",
+        status: DepositStatus = DepositStatus.PUBLISHED,
+        sort: SortOrder = SortOrder.BEST_MATCH,
+    ) -> List[ZenodoDeposit]:
         """Retrieve a deposit.
 
         Args:
@@ -811,7 +844,6 @@ class ZenodoAPI:
         Returns:
             A list of @ZenodoDeposit found. Empty if none found.
         """
-
         link = self.base_url + "/api/deposit/depositions"
 
         if deposit_id:
@@ -842,13 +874,12 @@ class ZenodoAPI:
 
         return deposit_list
 
-    def deposit_create(self):
-        """Creates an empty deposit (already uploaded).
+    def deposit_create(self) -> ZenodoDeposit:
+        """Create an empty deposit (already uploaded).
 
         Returns:
             A ZenodoDeposit object.
         """
-
         link = self.base_url + "/api/deposit/depositions"
 
         r = requests.post(link, params=self.params, json={})
@@ -857,7 +888,18 @@ class ZenodoAPI:
 
         return ZenodoDeposit(response_dict, self.base_url, self.params["access_token"])
 
-    def deposit_create_with_prereserve_doi(self, metadata):
+    def deposit_create_with_prereserve_doi(
+        self, metadata: Union[ZenodoMetadata, Dict[str, Any]]
+    ) -> ZenodoDeposit:
+        """Create a deposit with pre-reserved DOI.
+
+        Args:
+            metadata:
+                The metadata of the deposit. Either as dictionary or as @ZenodoMetadata object.
+
+        Returns:
+            A ZenodoDeposit object.
+        """
         deposit = self.deposit_create()
         deposit.update(metadata)
 
@@ -868,12 +910,12 @@ class ZenodoAPI:
     # todo: write tests
     def records_get(
         self,
-        record_id=None,
-        q="",
-        status=DepositStatus.PUBLISHED,
-        sort=SortOrder.BEST_MATCH,
-        record_type=UploadType.SOFTWARE,
-    ):
+        record_id: str = "",
+        q: str = "",
+        status: DepositStatus = DepositStatus.PUBLISHED,
+        sort: SortOrder = SortOrder.BEST_MATCH,
+        record_type: UploadType = UploadType.SOFTWARE,
+    ) -> List[ZenodoRecord]:
         """Retrieve a record or searches through published records.
 
         Args:
@@ -891,7 +933,6 @@ class ZenodoAPI:
         Returns:
             Returns the @ZenodoRecord object.
         """
-
         link = self.base_url + "/api/records"
 
         if record_id:

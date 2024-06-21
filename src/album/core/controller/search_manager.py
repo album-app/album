@@ -1,8 +1,10 @@
 import operator
+from typing import Any, Dict, List, Tuple, Union
+
+from album.runner import album_logging
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.search_manager import ISearchManager
-from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
@@ -11,7 +13,7 @@ class SearchManager(ISearchManager):
     def __init__(self, album: IAlbumController):
         self.album = album
 
-    def search(self, keywords):
+    def search(self, keywords: List[str]) -> List[Tuple[Any, Any]]:
         module_logger().debug(
             "Searching with following arguments %s..." % ", ".join(keywords)
         )
@@ -19,7 +21,7 @@ class SearchManager(ISearchManager):
         search_index = (
             self.album.collection_manager().get_collection_index().get_all_solutions()
         )
-        match_score = {}
+        match_score: Dict[str, int] = {}
         for solution_entry in search_index:
             solution_attrs = solution_entry.setup()
             group, name, version = (
@@ -40,7 +42,13 @@ class SearchManager(ISearchManager):
         )
         return sorted_results
 
-    def _find_matches(self, keyword, match_score, entry, unique_id):
+    def _find_matches(
+        self,
+        keyword: str,
+        match_score: Dict[str, int],
+        entry: Union[str, List[str], Dict[str, Any]],
+        unique_id: str,
+    ) -> None:
         if isinstance(entry, str):
             solution_result = keyword in entry
             if solution_result:
@@ -49,7 +57,7 @@ class SearchManager(ISearchManager):
                 else:
                     match_score[unique_id] = 1
         if isinstance(entry, dict):
-            for name, value in entry.items():
+            for _, value in entry.items():
                 self._find_matches(keyword, match_score, value, unique_id)
         if isinstance(entry, list):
             for item in entry:

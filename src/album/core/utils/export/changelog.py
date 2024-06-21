@@ -1,22 +1,25 @@
+"""This module provides functions to create and process changelog files."""
 from datetime import datetime
 from pathlib import Path
 
-from album.core.model.default_values import DefaultValues
-
-from album.core.api.model.catalog import ICatalog
-from album.core.utils.export.keepachangelog import to_raw_dict
-from album.core.utils.operations.file_operations import create_path_recursively
 from album.runner.album_logging import get_active_logger
 from album.runner.core.api.model.solution import ISolution
 
+from album.core.api.model.catalog import ICatalog
+from album.core.model.default_values import DefaultValues
+from album.core.utils.export.keepachangelog import to_raw_dict
+from album.core.utils.operations.file_operations import create_path_recursively
 
-def get_changelog_file_name():
+
+def get_changelog_file_name() -> str:
+    """Return the default name of the changelog file."""
     return DefaultValues.changelog_default_name.value
 
 
 def get_changelog_content(
-    active_solution: ISolution, catalog: ICatalog, dummy_content: str = None
-):
+    active_solution: ISolution, catalog: ICatalog, dummy_content: str = ""
+) -> str:
+    """Return the content of the changelog file."""
     content = """# Changelog
 All notable changes to this project will be documented in this file.
 
@@ -41,18 +44,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
                     change = version.setup()["changelog"]
                 else:
                     change = ""
-            content += "\n## [%s] - %s\n%s\n" % (
-                version.setup()["version"],
-                time,
-                change,
+            content += "\n## [{v}] - {t}\n{c}\n".format(
+                v=version.setup()["version"],
+                t=time,
+                c=change,
             )
     return content
 
 
 def create_changelog_file(
     active_solution: ISolution, catalog: ICatalog, target_folder: Path
-):
-    """Creates a changelog file in the given repo for the given solution.
+) -> Path:
+    """Create a changelog file in the given repo for the given solution.
 
     Returns:
         The Path to the created markdown file.
@@ -71,8 +74,8 @@ def create_changelog_file(
 
 def process_changelog_file(
     catalog: ICatalog, active_solution: ISolution, deploy_path: Path
-):
-    """Sets the changelog of a given solution."""
+) -> None:
+    """Set the changelog of a given solution."""
     changelog_name = get_changelog_file_name()
     changelog_file = Path(deploy_path).joinpath(changelog_name)
 

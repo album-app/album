@@ -10,14 +10,16 @@ class DefaultValues(Enum):
     """Add an entry here to initialize default attributes for a album framework installation instance."""
 
     album_cite_doi = "arXiv:2110.00601"  # album DOI
-    album_cite_text = "Albrecht, Schmidt, Harrington. Album: a framework for scientific data processing with software solutions of heterogeneous tools."  # album text
+    album_cite_text = "Albrecht, Schmidt, Harrington. Album: a framework for scientific data processing with software solutions of heterogeneous tools."  # noqa: E501
     album_cite_url = "https://album.solutions"  # album url
 
     # runner
-    runner_api_package_version = "0.6.1"  # set to None to use with url, current api version this album version should use
-    runner_api_package_name = "album-solution-api"  # can also point to zip/url like: https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip
+    runner_api_package_version = "0.6.1"  # set to None to use with url, current api version this album version should use  # noqa: E501
+    runner_api_package_name = "album-solution-api"  # can also point to zip/url like: https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip  # noqa: E501
     runner_pip_version = "pip"
-    first_album_solution_api_version = "0.6.1"  # first version this album installation knows
+    first_album_solution_api_version = (
+        "0.6.1"  # first version this album installation knows
+    )
     default_solution_python_version = "3.9"
 
     # micromamba
@@ -81,9 +83,7 @@ class DefaultValues(Enum):
     changelog_default_name = "CHANGELOG.md"  # default name of the changelog file
     default_solution_env_content = {
         "channels": ["defaults"],
-        "dependencies": [
-            "python=%s" % default_solution_python_version
-        ]
+        "dependencies": ["python=%s" % default_solution_python_version],
     }
 
     # lnk folder prefixes
@@ -109,13 +109,28 @@ class DefaultValues(Enum):
     micromamba_default_command = "micromamba"
     micromamba_path = os.getenv("ALBUM_MICROMAMBA_PATH")
 
-    # micro mamba default location
-    if platform.system() == "Windows":
-        default_micromamba_path = str(
-            Path(str(app_data_dir)).joinpath("micromamba", "Library", "bin", "micromamba.exe"))
-    else:
-        default_micromamba_path = str(
-        Path(str(app_data_dir)).joinpath("micromamba", "bin", "micromamba")
+    # micro mamba default location  # todo: seems not to be used. We should remove this
+
+    default_micromamba_path_win = (
+        str(
+            Path(str(app_data_dir)).joinpath(
+                "micromamba", "Library", "bin", "micromamba.exe"
+            )
+        )
+        if platform.system() == "Windows"
+        else ""
+    )
+
+    default_micromamba_path_else = (
+        str(Path(str(app_data_dir)).joinpath("micromamba", "bin", "micromamba"))
+        if platform.system() != "Windows"
+        else ""
+    )
+
+    default_micromamba_path = (
+        default_micromamba_path_win
+        if platform.system() == "Windows"
+        else default_micromamba_path_else
     )
 
     # mamba

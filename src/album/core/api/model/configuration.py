@@ -1,5 +1,7 @@
+"""Configuration of the album framework installation instance."""
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
+from typing import Any, Dict, Optional, Union
 
 from album.runner.core.api.model.coordinates import ICoordinates
 
@@ -13,57 +15,60 @@ class IConfiguration:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def base_cache_path(self):
-        """The base path all other cache folder have as parent folder."""
+    def base_cache_path(self) -> Path:
+        """Get the base path all other cache folder have as parent folder."""
         raise NotImplementedError
 
     @abstractmethod
-    def cache_path_download(self):
-        """Path for solution unspecific downloads."""
+    def cache_path_download(self) -> Path:
+        """Get the path for solution unspecific downloads."""
         raise NotImplementedError
 
     @abstractmethod
     def tmp_path(self) -> Path:
-        """Path for solution unspecific temporary files of album."""
+        """Get the path for solution unspecific temporary files of album."""
         raise NotImplementedError
 
     @abstractmethod
     def environments_path(self) -> Path:
-        """Path for solution environments."""
+        """Get the path for solution environments."""
         raise NotImplementedError
 
     @abstractmethod
     def installation_path(self) -> Path:
-        """Path for solution installation files."""
+        """Get the path for solution installation files."""
         raise NotImplementedError
 
     @abstractmethod
     def lnk_path(self) -> Path:
-        """Path for targets of internal links, used to shorten paths (thank you Windows)."""
+        """Get the path for targets of internal links, used to shorten paths (thank you Windows)."""
         raise NotImplementedError
 
     @abstractmethod
-    def is_setup(self):
-        """If configuration was already initialized."""
+    def is_setup(self) -> bool:
+        """Check if configuration was already performed."""
         raise NotImplementedError
 
     @abstractmethod
-    def setup(self, base_cache_path=None):
+    def setup(self, base_cache_path: Union[None, str, Path] = None) -> None:
+        """Set up the configuration."""
         raise NotImplementedError
 
     @abstractmethod
     def get_solution_path_suffix(self, coordinates: ICoordinates) -> Path:
-        """Returns the suffix path for a solution giving its group, name and version"""
+        """Return the suffix path for a solution giving its group, name and version."""
         raise NotImplementedError
 
     @abstractmethod
     def get_solution_path_suffix_unversioned(self, coordinates: ICoordinates) -> Path:
-        """Returns the suffix path for a solution giving its group and name"""
+        """Return the suffix path for a solution giving its group and name."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_cache_path_catalog(self, catalog_name):
-        """Get the cache path to the catalog with a certain ID. Catalog independent!
+    def get_cache_path_catalog(self, catalog_name: str) -> Path:
+        """Get the cache path to the catalog with a certain ID.
+
+         Catalog independent cache path!
 
         Args:
             catalog_name: The ID of the album catalog
@@ -74,26 +79,26 @@ class IConfiguration:
         raise NotImplementedError
 
     @abstractmethod
-    def get_catalog_collection_path(self):
-        """Returns the path of the collection database file."""
+    def get_catalog_collection_path(self) -> Path:
+        """Return the path of the collection database file."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_catalog_collection_meta_dict(self):
-        """Returns the metadata of the collection as a dict."""
+    def get_catalog_collection_meta_dict(self) -> Optional[Dict[str, Any]]:
+        """Return the metadata of the collection as a dict."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_catalog_collection_meta_path(self):
+    def get_catalog_collection_meta_path(self) -> Path:
+        """Return the path of the collection metadata file."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_initial_catalogs(self):
-        """Returns the catalogs initially added to the collection as a dict."""
+    def get_initial_catalogs(self) -> Dict[str, str]:
+        """Return the catalogs initially added to the collection as a dict."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_initial_catalogs_branch_name(self):
-        """Returns the default catalogs branches to use."""
+    def get_initial_catalogs_branch_name(self) -> Dict[str, str]:
+        """Return the default catalogs branches to use."""
         raise NotImplementedError
-

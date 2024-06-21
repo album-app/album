@@ -1,4 +1,6 @@
+"""Implements the ITask interface."""
 from logging import LogRecord
+from typing import Callable, List, Optional
 
 from album.core.api.model.task import ILogHandler, ITask
 
@@ -16,37 +18,45 @@ class LogHandler(ILogHandler):
 
 
 class Task(ITask):
-    _id = None
-    _method = None
-    _args = tuple()
-    _log_handler: LogHandler = None
-    _status: ITask.Status = None
+    _id: Optional[str] = None
+    _method: Optional[Callable] = None
+    _args: Optional[List[str]] = None
+    _log_handler: Optional[ILogHandler] = None
+    _status: ITask.Status = ITask.Status.UNDEFINED
 
-    def __init__(self, method=None, args=None):
+    def __init__(
+        self,
+        method: Callable,
+        args: Optional[List[str]] = None,
+    ):
         self._method = method
         if args:
             self._args = args
 
-    def id(self):
+    def id(self) -> str:
+        if self._id is None:
+            raise NotImplementedError("ID not set!")
         return self._id
 
-    def method(self):
+    def method(self) -> Callable:
+        if self._method is None:
+            raise NotImplementedError("Method not set!")
         return self._method
 
-    def args(self):
+    def args(self) -> Optional[List[str]]:
         return self._args
 
-    def log_handler(self):
+    def log_handler(self) -> Optional[ILogHandler]:
         return self._log_handler
 
     def status(self) -> ITask.Status:
         return self._status
 
-    def set_status(self, status):
+    def set_status(self, status: ITask.Status) -> None:
         self._status = status
 
-    def set_log_handler(self, handler):
+    def set_log_handler(self, handler: ILogHandler) -> None:
         self._log_handler = handler
 
-    def set_id(self, new_id):
+    def set_id(self, new_id: str) -> None:
         self._id = new_id

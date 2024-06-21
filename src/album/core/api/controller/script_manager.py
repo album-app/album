@@ -1,16 +1,23 @@
+"""Interface for the script manager."""
 from abc import ABCMeta, abstractmethod
 from queue import Queue
+from typing import List, Optional
+
+from album.runner.core.api.model.solution import ISolution
 
 from album.core.api.model.collection_solution import ICollectionSolution
-from album.runner.core.api.model.solution import ISolution
 
 
 class IScriptManager:
+    """Interface for the script manager."""
+
     __metaclass__ = ABCMeta
 
     @abstractmethod
     def run_queue(self, queue: Queue):
-        """Runs the que. Queue consists of "solution_object and their scripts"-entries. Order matters!
+        """Run the que.
+
+        Queue consists of "solution_object and their scripts"-entries. Order matters!
 
         Args:
             queue:
@@ -22,13 +29,13 @@ class IScriptManager:
     @abstractmethod
     def build_queue(
         self,
-        solution: ICollectionSolution,
-        queue,
+        collection_solution: ICollectionSolution,
+        queue: Queue,
         solution_action: ISolution.Action,
-        run_immediately=False,
-        argv=None,
+        run_immediately: bool = False,
+        argv: Optional[List[str]] = None,
     ):
-        """Builds the queue of an active-album object.
+        """Build the queue of an active-album object.
 
         Args:
             solution_action:
@@ -51,4 +58,5 @@ class IScriptManager:
     def run_solution_script(
         self, resolve_result: ICollectionSolution, solution_action: ISolution.Action
     ):
+        """Run the solution script."""
         raise NotImplementedError

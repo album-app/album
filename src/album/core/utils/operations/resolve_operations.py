@@ -1,42 +1,43 @@
+"""Module for resolving solutions from different sources."""
 import errno
 import os
 import re
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional, Union
 
-from album.ci.utils.zenodo_api import ZenodoAPI
-from album.core.api.model.catalog import ICatalog
-from album.core.api.model.collection_index import ICollectionIndex
-from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import (
-    force_remove,
-    create_path_recursively,
-    rand_folder_name,
-    check_zip,
-    unzip_archive,
-)
-from album.core.utils.operations.url_operations import (
-    is_url,
-    download,
-    retrieve_redirect_url,
-)
 from album.environments.utils.url_operations import download_resource
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.model.coordinates import Coordinates
 
+from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoFile
+from album.core.api.model.catalog import ICatalog
+from album.core.api.model.collection_index import ICollectionIndex
+from album.core.utils.operations.file_operations import (
+    check_zip,
+    create_path_recursively,
+    force_remove,
+    rand_folder_name,
+    unzip_archive,
+)
+from album.core.utils.operations.url_operations import (
+    download,
+    is_url,
+    retrieve_redirect_url,
+)
+
 module_logger = album_logging.get_active_logger
 
 
-def clean_resolve_tmp(tmp_cache_dir) -> None:
-    """Cleans the temporary directory which might have been used during resolving."""
+def clean_resolve_tmp(tmp_cache_dir: Union[Path, str]) -> None:
+    """Clean the temporary directory which might have been used during resolving."""
     force_remove(tmp_cache_dir)
     create_path_recursively(tmp_cache_dir)
 
 
-def get_attributes_from_string(str_input: str) -> dict:
-    """Interprets a string input if in valid format and returns necessary attributes dictionary.
+def get_attributes_from_string(str_input: str) -> Dict[str, Any]:
+    """Interpret a string input if in valid format and returns necessary attributes dictionary.
 
     Args:
         str_input:
@@ -65,8 +66,8 @@ def get_attributes_from_string(str_input: str) -> dict:
     return attrs_dict
 
 
-def get_gnv_from_input(str_input: str):
-    """Parses Group, Name, Version from input, separated by ":"."""
+def get_gnv_from_input(str_input: str) -> Optional[Dict[str, str]]:
+    """Parse Group, Name, Version from input, separated by ":"."""
     s = re.search("^([^:]+):([^:]+):([^:]+)$", str_input)
 
     if s:
@@ -74,8 +75,8 @@ def get_gnv_from_input(str_input: str):
     return None
 
 
-def get_cgnv_from_input(str_input: str):
-    """Parses Catalog, Group, Name, Version from input, separated by ":"."""
+def get_cgnv_from_input(str_input: str) -> Optional[Dict[str, str]]:
+    """Parse Catalog, Group, Name, Version from input, separated by ":"."""
     s = re.search("^([^:]+):([^:]+):([^:]+):([^:]+)$", str_input)
 
     if s:
@@ -88,16 +89,16 @@ def get_cgnv_from_input(str_input: str):
     return None
 
 
-def get_doi_from_input(str_input: str):
-    """Parses the DOI from string input."""
-    s = re.search("^(^doi:)?([^:\/]*\/[^:\/]*)$", str_input)
+def get_doi_from_input(str_input: str) -> Optional[Dict[str, str]]:
+    """Parse the DOI from string input."""
+    s = re.search(r"^(^doi:)?([^:\/]*\/[^:\/]*)$", str_input)
     if s:
         return {"doi": s.group(2)}
     return None
 
 
 def is_pathname_valid(pathname: str) -> bool:
-    """Checks if a pathname is valid for the current OS
+    """Check if a pathname is valid for the current OS.
 
     `True` if the passed pathname is a valid pathname for the current OS;
     `False` otherwise.
@@ -172,7 +173,8 @@ def is_pathname_valid(pathname: str) -> bool:
     # (e.g., a bug). Permit this exception to unwind the call stack.
 
 
-def check_doi(doi, tmp_cache_dir):
+def check_doi(doi: str, tmp_cache_dir: Union[Path, str]) -> Optional[Path]:
+    """Check the DOI and return the path to the solution file."""
     tmp_cache_dir = Path(tmp_cache_dir).joinpath(rand_folder_name())
 
     link = "https://doi.org/" + doi  # e.g. 10.5281/zenodo.5571504
@@ -186,8 +188,9 @@ def check_doi(doi, tmp_cache_dir):
     return prepare_path(p, tmp_cache_dir)
 
 
-def parse_doi_service_url(url):
-    if re.search("https:\/\/[a-zA-Z.]*zenodo[.]org\/", url):
+def parse_doi_service_url(url: str) -> str:
+    """Parse the DOI service URL and return the download link for the zip file."""
+    if re.search(r"https:\/\/[a-zA-Z.]*zenodo[.]org\/", url):
         link = _parse_zenodo_url(url)
     else:
         raise NotImplementedError("DOI service not supported!")
@@ -195,8 +198,9 @@ def parse_doi_service_url(url):
     return link
 
 
-def _parse_zenodo_url(url):
-    g = re.search("(https:\/\/[a-zA-Z.]*zenodo[.]org\/)(record)[\/]([0-9]*)$", url)
+def _parse_zenodo_url(url: str):
+    """Parse the zenodo URL and return the download link for the zip file."""
+    g = re.search(r"(https:\/\/[a-zA-Z.]*zenodo[.]org\/)(record)[\/]([0-9]*)$", url)
 
     if g:
         record_id = g.group(3)
@@ -206,17 +210,19 @@ def _parse_zenodo_url(url):
         raise ValueError("Unknown zenodo URL format!...")
 
 
-def retrieve_zenodo_record_download_zip(record_id):
+def retrieve_zenodo_record_download_zip(record_id: str) -> str:
+    """Retrieve the download link for the zip file in the zenodo record."""
     query = ZenodoAPI()
 
     record = query.records_get(record_id)[0]
 
     file_dl = None
     for file in record.files:
-        if re.search(
-            "[.]zip$", file.key
-        ):  # there is only a single zip file in the record
-            file_dl = file.get_download_link()
+        if isinstance(file, ZenodoFile):
+            if re.search(
+                "[.]zip$", file.key
+            ):  # there is only a single zip file in the record
+                file_dl = file.get_download_link()
 
     if not file_dl:
         raise ValueError(
@@ -226,11 +232,13 @@ def retrieve_zenodo_record_download_zip(record_id):
     return file_dl
 
 
-def check_file_or_url(path, tmp_cache_dir):
-    """Resolves a path or url. Independent of catalogs."""
-    if is_url(path):
-        p = download(str(path), base=tmp_cache_dir)
-    elif is_pathname_valid(path) and (os.path.isfile(path) or os.path.isdir(path)):
+def check_file_or_url(
+    path: Union[Path, str], tmp_cache_dir: Union[Path, str]
+) -> Optional[Path]:
+    """Resolve a path or url. Independent of catalogs."""
+    if is_url(str(path)):
+        p = download(str(path), base=str(tmp_cache_dir))
+    elif is_pathname_valid(str(path)) and (os.path.isfile(path) or os.path.isdir(path)):
         p = Path(path)
     else:
         return None
@@ -238,8 +246,10 @@ def check_file_or_url(path, tmp_cache_dir):
     return prepare_path(p, tmp_cache_dir)
 
 
-def prepare_path(path, tmp_cache_dir):
-    """Prepares the path to be run in album. Returning path points to the solution file.
+def prepare_path(
+    path: Union[str, Path], tmp_cache_dir: Union[Path, str]
+) -> Optional[Path]:
+    """Prepare the path to be run in album. Returning path points to the solution file.
 
     Args:
         path:
@@ -252,9 +262,10 @@ def prepare_path(path, tmp_cache_dir):
 
     """
     p = Path(path)
+    tmp_cache_dir_ = Path(tmp_cache_dir)
     if p.exists():
         # copying to tmp-dir necessary for cloning
-        target_folder = tmp_cache_dir.joinpath(rand_folder_name())
+        target_folder = tmp_cache_dir_.joinpath(rand_folder_name())
         if p.is_file():  # zip or file
             if check_zip(p):  # zip file
                 p = unzip_archive(p, target_folder)
@@ -267,9 +278,11 @@ def prepare_path(path, tmp_cache_dir):
         #     p = p.joinpath(DefaultValues.solution_default_name.value)
 
         return p
+    return None
 
 
-def dict_to_coordinates(solution_attr) -> ICoordinates:
+def dict_to_coordinates(solution_attr: Dict[str, Any]) -> ICoordinates:
+    """Convert a dictionary to coordinates."""
     if not all([k in solution_attr.keys() for k in ["name", "version", "group"]]):
         raise ValueError(
             "Cannot resolve solution! Group, name and version must be specified!"
@@ -281,17 +294,20 @@ def dict_to_coordinates(solution_attr) -> ICoordinates:
     )
 
 
-def get_zip_name(coordinates: ICoordinates):
+def get_zip_name(coordinates: ICoordinates) -> str:
+    """Return the zip name for the solution."""
     return get_zip_name_prefix(coordinates) + ".zip"
 
 
-def get_zip_name_prefix(coordinates: ICoordinates):
+def get_zip_name_prefix(coordinates: ICoordinates) -> str:
+    """Return the zip name prefix for the solution."""
     return "_".join([coordinates.group(), coordinates.name(), coordinates.version()])
 
 
 def build_resolve_string(
-    resolve_solution_dict: dict, catalog: Optional[ICatalog] = None
-):
+    resolve_solution_dict: Dict[str, Any], catalog: Optional[ICatalog] = None
+) -> str:
+    """Build a string representation of the solution to be resolved."""
     if "doi" in resolve_solution_dict.keys():
         resolve_solution = resolve_solution_dict["doi"]
     elif all([x in resolve_solution_dict.keys() for x in ["group", "name", "version"]]):
@@ -317,7 +333,7 @@ def build_resolve_string(
 def get_parent(
     parent_collection_entry: ICollectionIndex.ICollectionSolution,
 ) -> ICollectionIndex.ICollectionSolution:
-    """Given an collection entry (aka row of the collection table) this method returns the corresponding parent"""
+    """Given a collection entry (aka row of the collection table) this method returns the corresponding parent."""
     if parent_collection_entry.internal()["parent"]:
         parent = parent_collection_entry.internal()["parent"]
         while parent.internal()["parent"]:
@@ -328,8 +344,10 @@ def get_parent(
 
 
 def as_tag(coordinates: ICoordinates) -> str:
+    """Return coordinates as tag string."""
     return "-".join([coordinates.group(), coordinates.name(), coordinates.version()])
 
 
 def as_tag_unversioned(coordinates: ICoordinates) -> str:
+    """Return coordinates as tag string without version."""
     return "-".join([coordinates.group(), coordinates.name()])

@@ -1,25 +1,24 @@
 import os
 from io import StringIO
 from pathlib import Path
+from typing import Any, Dict
 
 import validators
 import yaml
+from album.environments.utils.file_operations import write_dict_to_yml
+from album.environments.utils.subcommand import SubProcessError
+from album.environments.utils.url_operations import download_resource
+from album.runner import album_logging
+from album.runner.core.api.model.solution import ISolution
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.resource_manager import IResourceManager
 from album.core.api.model.catalog import ICatalog
 from album.core.controller.environment_manager import EnvironmentManager
 from album.core.model.default_values import DefaultValues
-from album.core.utils.export.changelog import (
-    create_changelog_file,
-)
+from album.core.utils.export.changelog import create_changelog_file
 from album.core.utils.operations.file_operations import copy
 from album.core.utils.operations.solution_operations import get_deploy_dict
-from album.environments.utils.file_operations import write_dict_to_yml
-from album.environments.utils.subcommand import SubProcessError
-from album.environments.utils.url_operations import download_resource
-from album.runner import album_logging
-from album.runner.core.api.model.solution import ISolution
 
 module_logger = album_logging.get_active_logger
 
@@ -50,7 +49,7 @@ class ResourceManager(IResourceManager):
             res.append(copy(deploy_path, solution_path))
         else:
             # todo: replace me with copy_folder function
-            for subdir, dirs, files in os.walk(deploy_path):
+            for subdir, _, files in os.walk(deploy_path):
                 for file in files:
                     filepath = subdir + os.sep + file
                     rel_path = os.path.relpath(filepath, deploy_path)
@@ -78,10 +77,12 @@ class ResourceManager(IResourceManager):
                         self.write_solution_environment_file(
                             active_solution, catalog_solution_local_src_path
                         ),
-                        self.album.environment_manager()
-                        .get_environment_handler()
-                        .get_conda_lock_manager()
-                        .conda_lock_executable(),
+                        Path(
+                            self.album.environment_manager()
+                            .get_environment_handler()
+                            .get_conda_lock_manager()
+                            .conda_lock_executable()
+                        ),
                     )
                 )
                 if lock_path:
@@ -102,8 +103,9 @@ class ResourceManager(IResourceManager):
                 raise e
         return res
 
-    def write_solution_environment_file(self, solution: ISolution, solution_home: Path):
-        """Writes the environment file for the given solution to the given path."""
+    def write_solution_environment_file(
+        self, solution: ISolution, solution_home: Path
+    ) -> Path:
         yml_path = solution_home.joinpath("environment.yml")
         try:
             env_file = solution.setup()["dependencies"]["environment_file"]
@@ -143,7 +145,7 @@ class ResourceManager(IResourceManager):
                 yml_path, DefaultValues.default_solution_env_content.value
             )
 
-        yml_dict = yaml.load(open(yml_path, "r"), Loader=yaml.FullLoader)
+        yml_dict = yaml.load(open(yml_path), Loader=yaml.FullLoader)
         yml_dict = EnvironmentManager._append_framework_to_dependencies(
             yml_dict, solution.setup()["album_api_version"]
         )
@@ -153,13 +155,9 @@ class ResourceManager(IResourceManager):
         return yml_path
 
     @staticmethod
-    def _create_yaml_file_in_local_src(active_solution: ISolution, solution_home: Path):
-        """Creates a yaml file in the given repo for the given solution.
-
-        Returns:
-            The Path to the created markdown file.
-
-        """
+    def _create_yaml_file_in_local_src(
+        active_solution: ISolution, solution_home: Path
+    ) -> Path:
         yaml_path = solution_home.joinpath(
             DefaultValues.solution_yml_default_name.value
         )
@@ -170,12 +168,12 @@ class ResourceManager(IResourceManager):
         return yaml_path
 
     @staticmethod
-    def _append_setuptools_to_yml(content):
-        """Appends setuptools as dependency to the yml file. Needed since setuptools is not functional in the solution
-        environment when conda-lock creates the solution environment."""
-        dependencies = "conda-forge::setuptools>=59.7.0"  # Decided to use this version as minimum since it's the first setuptools version which needs at least python 3.7 like album does
-        if not "dependencies" in content or not content["dependencies"]:
+    def _append_setuptools_to_yml(content: Dict[str, Any]) -> Dict[str, Any]:
+        # Decided to use this version as minimum since it's the first setuptools version which needs at least
+        # python 3.7 like album does.
+        dependencies = "conda-forge::setuptools>=59.7.0"
+        if "dependencies" not in content or not content["dependencies"]:
             content["dependencies"] = []
-        if not "setuptools" in content["dependencies"]:
+        if "setuptools" not in content["dependencies"]:
             content["dependencies"].append(dependencies)
         return content

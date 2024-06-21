@@ -1,20 +1,18 @@
 import argparse
 import os
-from queue import Queue, Empty
-from typing import List
+from queue import Empty, Queue
+from typing import Any, Dict, List, Optional, Tuple
 
 from album.runner import album_logging
+from album.runner.album_logging import get_active_logger
+from album.runner.core.api.model.solution import ISolution
+from album.runner.core.default_values_runner import DefaultValuesRunner
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.script_manager import IScriptManager
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.model.script_queue_entry import ScriptQueueEntry
-from album.core.utils.operations.solution_operations import (
-    get_parent_dict,
-)
-from album.runner.album_logging import get_active_logger
-from album.runner.core.api.model.solution import ISolution
-from album.runner.core.default_values_runner import DefaultValuesRunner
+from album.core.utils.operations.solution_operations import get_parent_dict
 
 module_logger = get_active_logger
 
@@ -26,7 +24,7 @@ class ScriptManager(IScriptManager):
     def run_solution_script(
         self, resolve_result: ICollectionSolution, solution_action: ISolution.Action
     ):
-        queue = Queue()
+        queue: Queue = Queue()
         self.build_queue(resolve_result, queue, solution_action, False, [""])
         script_queue_entry = queue.get(block=False)
 
@@ -75,11 +73,11 @@ class ScriptManager(IScriptManager):
     def build_queue(
         self,
         collection_solution: ICollectionSolution,
-        queue,
+        queue: Queue,
         solution_action: ISolution.Action,
-        run_immediately=False,
-        argv=None,
-    ):
+        run_immediately: bool = False,
+        argv: Optional[List[str]] = None,
+    ) -> None:
         if argv is None:
             argv = [""]
         solution = collection_solution.loaded_solution()
@@ -105,23 +103,9 @@ class ScriptManager(IScriptManager):
     def _create_solution_run_script_standalone(
         self,
         collection_solution: ICollectionSolution,
-        args: list,
+        args: List[str],
         solution_action: ISolution.Action,
     ) -> ScriptQueueEntry:
-        """Creates the execution script for a album object giving its arguments.
-
-        Args:
-            solution_action:
-                The action to trigger when executing the solution (i.e. run, install, or test).
-            collection_solution:
-                The collection solution object to create the executable script for.
-            args:
-                The arguments integrated in the script.
-
-        Returns:
-                The solution object and its scripts (in a list)
-
-        """
         module_logger().debug(
             'Creating standalone album script "%s"...'
             % collection_solution.coordinates().name()
@@ -151,23 +135,9 @@ class ScriptManager(IScriptManager):
     def _create_solution_run_with_parent_script_standalone(
         self,
         collection_solution: ICollectionSolution,
-        args: list,
+        args: List[str],
         solution_action: ISolution.Action,
     ) -> ScriptQueueEntry:
-        """Creates the execution script for a album object having a parent dependency giving its arguments.
-
-        Args:
-            solution_action:
-                The action to trigger when executing the solution (i.e. run, install, or test).
-            collection_solution:
-                The collection solution object to create the executable script for.
-            args:
-                The arguments integrated in the script.
-
-        Returns:
-                The solution object and its scripts (in a list).
-
-        """
         environment = self.album.environment_manager().set_environment(
             collection_solution
         )
@@ -186,15 +156,14 @@ class ScriptManager(IScriptManager):
             active_solution.installation().package_path(),
         )
 
-    def __parse_args(self, active_solution: ISolution, args: list):
-        """Parse arguments of loaded solution."""
+    def __parse_args(self, active_solution: ISolution, args: List[str]):
         parser = argparse.ArgumentParser()
 
         class FileAction(argparse.Action):
             def __init__(self, option_strings, dest, nargs=None, **kwargs):
                 if nargs is not None:
                     raise ValueError("nargs not allowed")
-                super(FileAction, self).__init__(option_strings, dest, **kwargs)
+                super().__init__(option_strings, dest, **kwargs)
 
             def __call__(self, p, namespace, values, option_string=None):
                 setattr(
@@ -215,13 +184,12 @@ class ScriptManager(IScriptManager):
         self,
         parent_solution: ISolution,
         steps_solution: List[ISolution],
-        steps: list,
-        step_solution_parsed_args: list,
+        steps: List[Dict[str, Any]],
+        step_solution_parsed_args: List[argparse.Namespace],
         args=None,
-    ):
-        """Resolves arguments of all steps and their parents."""
+    ) -> Tuple[List[str], List[List[str]]]:
         args = [] if args is None else args
-        parsed_parent_args = None
+        parsed_parent_args: List[str] = []
         parsed_steps_args_list = []
 
         module_logger().debug("Parsing arguments...")
@@ -240,9 +208,10 @@ class ScriptManager(IScriptManager):
 
             # add parent arguments to the step album object arguments
             parent_dict = get_parent_dict(step_solution)
-            if "args" in parent_dict:
-                for param in parent_dict["args"]:
-                    step_args.insert(0, f"--{param['name']}={str(param['value'])}")
+            if parent_dict:
+                if "args" in parent_dict:
+                    for param in parent_dict["args"]:
+                        step_args.insert(0, f"--{param['name']}={str(param['value'])}")
 
             # add parent arguments
             if "args" in parent_solution.setup():
@@ -277,8 +246,7 @@ class ScriptManager(IScriptManager):
 
         return parsed_parent_args, parsed_steps_args_list
 
-    def _run_in_environment(self, script_queue_entry: ScriptQueueEntry):
-        """Pushes a new logger to the stack before running the solution and pops it afterwards."""
+    def _run_in_environment(self, script_queue_entry: ScriptQueueEntry) -> None:
         module_logger().debug(
             'Running script in environment of solution "%s"...'
             % script_queue_entry.coordinates.name()
@@ -303,7 +271,7 @@ class ScriptManager(IScriptManager):
 
         self.album.environment_manager().run_script(
             script_queue_entry.environment,
-            script_queue_entry.script,
+            str(script_queue_entry.script),
             argv=script_queue_entry.args,
             environment_variables=env_variables,
         )
@@ -313,8 +281,7 @@ class ScriptManager(IScriptManager):
         )
 
     @staticmethod
-    def _get_args(step, args):
-        """Parse callable arguments belonging to a step into a list of strings"""
+    def _get_args(step: Dict[str, Any], args: argparse.Namespace) -> List[str]:
         argv = [""]
         if "args" in step:
             for param in step["args"]:
@@ -328,7 +295,7 @@ class ScriptManager(IScriptManager):
             module_logger().info(res)
 
     @staticmethod
-    def _get_credit_as_string(active_solutions: List[ISolution]):
+    def _get_credit_as_string(active_solutions: List[ISolution]) -> Optional[str]:
         res = ""
         for active_solution in active_solutions:
             if active_solution.setup().cite:

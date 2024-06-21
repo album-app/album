@@ -1,7 +1,11 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Optional
 
 import validators
+from album.environments.utils.file_operations import copy, copy_folder
+from album.environments.utils.url_operations import download_resource, is_downloadable
+from album.runner.album_logging import get_active_logger
 from git import Repo
 
 from album.core.api.controller.clone_manager import ICloneManager
@@ -10,20 +14,17 @@ from album.core.model.default_values import DefaultValues
 from album.core.utils.operations import url_operations
 from album.core.utils.operations.file_operations import (
     create_path_recursively,
+    force_remove,
     get_dict_from_json,
     list_files_recursively,
-    force_remove,
     unzip_archive,
 )
 from album.core.utils.operations.git_operations import (
-    create_bare_repository,
-    clone_repository,
     add_files_commit_and_push,
     checkout_main,
+    clone_repository,
+    create_bare_repository,
 )
-from album.environments.utils.file_operations import copy, copy_folder
-from album.environments.utils.url_operations import is_downloadable, download_resource
-from album.runner.album_logging import get_active_logger
 
 
 class CloneManager(ICloneManager):
@@ -35,13 +36,17 @@ class CloneManager(ICloneManager):
         path: str,
         target_dir: str,
         name: str,
-        git_email: str = None,
-        git_name: str = None,
+        git_email: Optional[str] = None,
+        git_name: Optional[str] = None,
     ) -> None:
         if path.startswith("template:"):
             try:
                 self._clone_catalog_template(
-                    path[len("template:") :], target_dir, name, git_email, git_name
+                    path[len("template:") :],  # noqa: E203
+                    Path(target_dir),
+                    name,
+                    git_email,
+                    git_name,
                 )
             except (LookupError, ValueError):
                 raise LookupError(
@@ -50,11 +55,10 @@ class CloneManager(ICloneManager):
                 )
         else:
             target_path = Path(target_dir).joinpath(name)
-            self._clone_solution(path, target_path)
+            self._clone_solution(Path(path), target_path)
 
-    def _clone_solution(self, path, target_path):
-        """Copies a solution (by resolving and downloading) to a given target path."""
-        resolve_result = self.album.collection_manager().resolve(path)
+    def _clone_solution(self, path: Path, target_path: Path) -> None:
+        resolve_result = self.album.collection_manager().resolve(str(path))
 
         if resolve_result.is_single_file():
             copy(
@@ -67,22 +71,20 @@ class CloneManager(ICloneManager):
             )
 
         get_active_logger().info(
-            "Copied solution %s to %s!" % (resolve_result.path(), target_path)
+            f"Copied solution {resolve_result.path()} to {target_path}!"
         )
 
     def _clone_catalog_template(
         self,
-        template_name,
-        target_path,
-        catalog_name,
-        git_email: str = None,
-        git_name: str = None,
-    ):
-        """Clones a template by looking up the template name in the template catalog"""
-        template_url = "%s/%s/-/archive/main/%s-main.zip" % (
-            DefaultValues.catalog_template_url.value,
-            template_name,
-            template_name,
+        template_name: str,
+        target_path: Path,
+        catalog_name: str,
+        git_email: Optional[str] = None,
+        git_name: Optional[str] = None,
+    ) -> bool:
+        template_url = "{c}/{n}/-/archive/main/{n}-main.zip".format(
+            c=DefaultValues.catalog_template_url.value,
+            n=template_name,
         )
         if is_downloadable(template_url):
             download_zip_target = (
@@ -122,11 +124,11 @@ class CloneManager(ICloneManager):
 
     def setup_repository_from_template(
         self,
-        target_path,
-        template_folder,
-        catalog_name,
-        git_email: str = None,
-        git_name: str = None,
+        target_path: Path,
+        template_folder: Path,
+        catalog_name: str,
+        git_email: Optional[str] = None,
+        git_name: Optional[str] = None,
     ):
         # test if target_path is a valid git repo path or a local path
         if validators.url(str(target_path)) or url_operations.is_git_ssh_address(
@@ -160,7 +162,12 @@ class CloneManager(ICloneManager):
                 force_remove(tmp_clone_path)
 
     def _copy_template_into_repository(
-        self, repo: Repo, template_folder, catalog_name: str, email=None, username=None
+        self,
+        repo: Repo,
+        template_folder: Path,
+        catalog_name: str,
+        email=None,
+        username=None,
     ):
         head = checkout_main(repo)
 
@@ -183,7 +190,7 @@ class CloneManager(ICloneManager):
         )
 
     @staticmethod
-    def _get_catalog_type_from_template(template_base_path):
+    def _get_catalog_type_from_template(template_base_path: Path) -> str:
         template_metadata_path = CloneManager._get_metadata_path_from_template(
             template_base_path
         )
@@ -198,7 +205,7 @@ class CloneManager(ICloneManager):
         return template_metadata["type"]
 
     @staticmethod
-    def _get_metadata_path_from_template(template_base_path):
+    def _get_metadata_path_from_template(template_base_path: Path) -> Path:
         template_base_path = Path(template_base_path)
         template_metadata_path = template_base_path.joinpath(
             DefaultValues.catalog_index_metafile_json.value

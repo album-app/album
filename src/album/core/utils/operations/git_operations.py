@@ -1,26 +1,28 @@
+"""Module for git operations."""
 import os
 import re
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator
+from typing import Generator, List, Union
 from urllib.parse import urlparse
 
 import git
-from git import Repo, Head
+from album.runner import album_logging
+from git import Head, Repo
+from git.refs import HEAD
 
 from album.core.utils.operations.file_operations import (
-    force_remove,
     create_path_recursively,
     folder_empty,
+    force_remove,
 )
 from album.core.utils.operations.url_operations import is_url
-from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
 
-def checkout_branch(git_repo, branch_name):
-    """Checks out a branch on a repository.
+def checkout_branch(git_repo, branch_name) -> HEAD:
+    """Check out a branch on a repository.
 
     First, local refs are taken, then refs pointing to origin.
 
@@ -64,7 +66,7 @@ def checkout_branch(git_repo, branch_name):
 
 
 def retrieve_files_from_head(head, pattern, number_of_files=1, relative=False):
-    """Extracts a file with a pattern given a branch (or head) of a repository.
+    """Extract a file with a pattern given a branch (or head) of a repository.
 
     Args:
         number_of_files:
@@ -97,7 +99,7 @@ def retrieve_files_from_head(head, pattern, number_of_files=1, relative=False):
 
     if not res:
         raise RuntimeError(
-            'Head "%s" does not hold pattern "%s"! Aborting...' % (head.name, pattern)
+            f'Head "{head.name}" does not hold pattern "{pattern}"! Aborting...'
         )
 
     if number_of_files > 0:
@@ -111,8 +113,9 @@ def retrieve_files_from_head(head, pattern, number_of_files=1, relative=False):
 
 
 def retrieve_files_from_head_last_commit(head, pattern, option="", number_of_files=1):
-    """Extracts a file with a "startswith" pattern given a branch (or head) of a repository, only factoring in
-    files that were changed in the last commit.
+    """Extract a file with a "startswith" pattern given a branch (or head) of a repository.
+
+    That only factor in files that were changed in the last commit.
 
     Args:
         number_of_files:
@@ -155,7 +158,7 @@ def retrieve_files_from_head_last_commit(head, pattern, option="", number_of_fil
         if option == "startswith":
             if path.startswith(pattern):
                 module_logger().debug(
-                    "Found file matching pattern %s: %s..." % (pattern, path)
+                    f"Found file matching pattern {pattern}: {path}..."
                 )
                 abs_path_solution_file.append(
                     os.path.join(head.repo.working_tree_dir, path)
@@ -163,7 +166,7 @@ def retrieve_files_from_head_last_commit(head, pattern, option="", number_of_fil
         else:
             if re.search(pattern, path):
                 module_logger().debug(
-                    "Found file matching pattern %s: %s..." % (pattern, path)
+                    f"Found file matching pattern {pattern}: {path}..."
                 )
                 abs_path_solution_file.append(
                     os.path.join(head.repo.working_tree_dir, path)
@@ -171,7 +174,7 @@ def retrieve_files_from_head_last_commit(head, pattern, option="", number_of_fil
 
     if not abs_path_solution_file:
         raise RuntimeError(
-            'Head "%s" does not hold pattern "%s"! Aborting...' % (head.name, pattern)
+            f'Head "{head.name}" does not hold pattern "{pattern}"! Aborting...'
         )
 
     if number_of_files > 0:
@@ -184,7 +187,7 @@ def retrieve_files_from_head_last_commit(head, pattern, option="", number_of_fil
     return abs_path_solution_file
 
 
-def _add_files(repo: Repo, file_paths) -> bool:
+def _add_files(repo: Repo, file_paths: List[Path]) -> bool:
     """Add files to the repo in the branch currently checked out."""
     if repo.index.diff(None) or repo.untracked_files:
         module_logger().info("Preparing committing...")
@@ -198,15 +201,15 @@ def _add_files(repo: Repo, file_paths) -> bool:
 
 def add_files_commit_and_push(
     head: Head,
-    file_paths,
-    commit_message,
-    push=False,
-    email=None,
-    username=None,
-    push_option_list=None,
-    force=False,
-):
-    """Adds files in a given path to a git head and commits.
+    file_paths: List[Path],
+    commit_message: str,
+    push: bool = False,
+    email: str = "",
+    username: str = "",
+    push_option_list: Union[List[str], None] = None,
+    force: bool = False,
+) -> None:
+    """Add files in a given path to a git head and commits.
 
     Args:
         push_option_list:
@@ -231,9 +234,9 @@ def add_files_commit_and_push(
 
     """
     if push_option_list is None or push_option_list == []:
-        push_options = []
+        push_options_ = []
     else:
-        push_options = ["-o %s" % o for o in push_option_list]
+        push_options_ = ["-o %s" % o for o in push_option_list]
 
     repo = head.repo
 
@@ -244,7 +247,7 @@ def add_files_commit_and_push(
 
         # build command
         cmd_option = ["--set-upstream"]
-        cmd = cmd_option + push_options
+        cmd = cmd_option + push_options_
         if force:
             cmd = cmd + ["-f"]
 
@@ -267,8 +270,8 @@ def add_files_commit_and_push(
         raise RuntimeError("Diff shows no changes to the repository. Aborting...")
 
 
-def add_tag(repo, tag):
-    """Adds a tag to the most recent commit.
+def add_tag(repo: Repo, tag: str) -> None:
+    """Add a tag to the most recent commit.
 
     Args:
         repo:
@@ -281,7 +284,8 @@ def add_tag(repo, tag):
     repo.git.push([remote_name, tag, "-f"])
 
 
-def get_remote_name(repo):
+def get_remote_name(repo: Repo) -> str:
+    """Get the name of the remote repository."""
     try:
         remote_name = repo.remote().refs.HEAD.remote_name
     except AttributeError:
@@ -289,8 +293,8 @@ def get_remote_name(repo):
     return remote_name
 
 
-def remove_files(head, file_paths):
-    """Adds files in a given path to a git head and commits.
+def remove_files(head: Head, file_paths: List[str]) -> None:
+    """Add files in a given path to a git head and commits.
 
     Args:
         head:
@@ -306,8 +310,8 @@ def remove_files(head, file_paths):
             repo.git.rm([file_path, "-r", "--ignore-unmatch", "--cached"])
 
 
-def remove_tag(repo, tag):
-    """Adds files in a given path to a git head and commits.
+def remove_tag(repo: Repo, tag: str) -> None:
+    """Add files in a given path to a git head and commits.
 
     Args:
         repo:
@@ -320,7 +324,8 @@ def remove_tag(repo, tag):
     repo.git.push("--delete", remote_name, tag)
 
 
-def get_tags(repo):
+def get_tags(repo: Repo) -> List[str]:
+    """Get all tags of a repository."""
     tags = [
         tag.name for tag in sorted(repo.tags, key=lambda t: t.commit.committed_datetime)
     ]
@@ -328,15 +333,16 @@ def get_tags(repo):
     return tags
 
 
-def revert(repo, tag, files: list):
+def revert(repo: Repo, tag: str, files: List[str]):
+    """Revert files to a given tag."""
     for file in files:
         repo.git.reset(tag, "--", file)
         repo.git.checkout("--", file)
         repo.git.clean("-fd", file)
 
 
-def configure_git(repo, email, username):
-    """Configures email and username to use for git operations for the given repo.
+def configure_git(repo: Repo, email: str, username: str) -> Repo:
+    """Configure email and username to use for git operations for the given repo.
 
     Args:
         repo:
@@ -364,9 +370,8 @@ def configure_git(repo, email, username):
 
 
 # todo: write test
-def create_new_head(repo, name):
-    """Force creates a new head of a given name in a repository and returns the head."""
-
+def create_new_head(repo: Repo, name: str) -> Head:
+    """Force create a new head of a given name in a repository and returns the head."""
     if name in repo.heads:
         git.Head.delete(repo, name, force=True)
     new_head = repo.create_head(name)
@@ -375,9 +380,12 @@ def create_new_head(repo, name):
 
 
 def download_repository(
-    repo_url, git_folder_path, force_download=True, update=True
+    repo_url: str,
+    git_folder_path: Union[str, Path],
+    force_download: bool = True,
+    update: bool = True,
 ) -> Repo:
-    """Downloads or updates the repository behind a url, returns repository object on success.
+    """Download or update the repository behind a url, returns repository object on success.
 
     If repository already cached, head is detached to origin HEAD for a clean start for new branches.
 
@@ -412,14 +420,15 @@ def download_repository(
             force_remove(git_folder_path)
 
         module_logger().info(
-            "Download repository from %s in %s..." % (repo_url, git_folder_path)
+            f"Download repository from {repo_url} in {git_folder_path}..."
         )
         repo = git.Repo.clone_from(repo_url, git_folder_path)
 
     return repo
 
 
-def checkout_files(repo, files_to_download):
+def checkout_files(repo: Repo, files_to_download: List[str]) -> None:
+    """Checkout files in a repository."""
     for file in files_to_download:
         repo.git.restore(file, staged=True)
         repo.git.checkout(file)
@@ -427,9 +436,9 @@ def checkout_files(repo, files_to_download):
 
 @contextmanager
 def clone_repository_sparse(
-    repo_url, branch_name, target_repo_path
+    repo_url: str, branch_name: str, target_repo_path: Union[str, Path]
 ) -> Generator[Repo, None, None]:
-    """Clones a repository branch to a given path.
+    """Clone a repository branch to a given path.
 
     Args:
         repo_url:
@@ -462,8 +471,10 @@ def clone_repository_sparse(
 
 
 @contextmanager
-def clone_repository(src, target_repo_path, force=False) -> Generator[Repo, None, None]:
-    """Clones the full repository
+def clone_repository(
+    src: Path, target_repo_path: Union[Path, str], force: bool = False
+) -> Generator[Repo, None, None]:
+    """Clone the full repository.
 
     Args:
         src:
@@ -472,7 +483,6 @@ def clone_repository(src, target_repo_path, force=False) -> Generator[Repo, None
             The target path on the disk.
         force:
             boolean value. If true deletes target folder first
-
 
     """
     if not folder_empty(target_repo_path):
@@ -488,8 +498,10 @@ def clone_repository(src, target_repo_path, force=False) -> Generator[Repo, None
     repo.close()
 
 
-def init_repository(path):
-    """Initializes a repository to the origin reference. Thereby discarding all changes made to the repository.
+def init_repository(path: Union[Path, str]) -> Repo:
+    """Initialize a repository to the origin reference.
+
+    Thereby discarding all changes made to the repository.
 
     Usually this means checking out the origin "main" branch, but this depends on the repository configuration.
 
@@ -520,7 +532,8 @@ def init_repository(path):
     return repo
 
 
-def create_bare_repository(target):
+def create_bare_repository(target: Path) -> None:
+    """Create a new bare repository in the given path."""
     create_path_recursively(target)
 
     repo = git.Repo.init(target, bare=True)
@@ -531,7 +544,8 @@ def create_bare_repository(target):
     repo.close()
 
 
-def create_repository(target):
+def create_repository(target: str) -> Repo:
+    """Create a new repository in the given path."""
     create_path_recursively(target)
 
     repo = git.Repo.init(target)
@@ -542,8 +556,8 @@ def create_repository(target):
     return repo
 
 
-def clean_repository(repo, target_head_name=None):
-    """Resets all changes made in the current repository"""
+def clean_repository(repo: Repo, target_head_name: str = "") -> None:
+    """Reset all changes made in the current repository."""
     if not target_head_name:
         target_head_name = get_local_remote_ref_head(repo).name
     remote_name = repo.remote().name
@@ -554,7 +568,8 @@ def clean_repository(repo, target_head_name=None):
     repo.git.clean("-fd")
 
 
-def get_local_remote_ref_head(repo):
+def get_local_remote_ref_head(repo: Repo) -> Head:
+    """Get the local remote reference head of the repository."""
     if repo.remote().refs:
         try:
             remote_head = repo.git.remote(["set-head", "origin", "-a"])
@@ -567,8 +582,11 @@ def get_local_remote_ref_head(repo):
     return head
 
 
-def checkout_main(repo, main_name=None):
-    """Checks out the main branch of the repository locally. Note: must not be called "main"!"""
+def checkout_main(repo: Repo, main_name: str = "") -> Head:
+    """Check out the main branch of the repository locally.
+
+    Note: must not be called "main"!
+    """
     if not main_name:
         head = get_local_remote_ref_head(repo)
     else:
@@ -582,8 +600,8 @@ def checkout_main(repo, main_name=None):
     return head
 
 
-def retrieve_default_mr_push_options(repo_url) -> list:
-    """Returns the default push option for the given repository host if available (e.g. gitlab, github)
+def retrieve_default_mr_push_options(repo_url: str) -> List[str]:
+    """Return the default push option for the given repository host if available (e.g. gitlab, github).
 
     Args:
         repo_url:

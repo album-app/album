@@ -1,39 +1,41 @@
+"""Module for handling a catalog as administrator."""
 import os
 import tempfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Generator
+from typing import Dict, Generator, List, Tuple
 
+from album.environments.utils.file_operations import (
+    copy,
+    get_dict_from_yml,
+    write_dict_to_yml,
+)
+from album.runner import album_logging
 from git import Repo
+from git.refs import HEAD
 
 from album.api import Album
 from album.ci.controller.zenodo_manager import ZenodoManager
-from album.ci.utils.continuous_integration import get_ssh_url, create_report
+from album.ci.utils.continuous_integration import create_report, get_ssh_url
 from album.ci.utils.zenodo_api import ZenodoMetadata
 from album.core.model.catalog import Catalog, retrieve_index_files_from_src
 from album.core.model.default_values import DefaultValues
 from album.core.utils.export.changelog import get_changelog_file_name
 from album.core.utils.operations import view_operations
 from album.core.utils.operations.file_operations import (
-    get_dict_entry,
     force_remove,
+    get_dict_entry,
     zip_folder,
 )
 from album.core.utils.operations.git_operations import (
-    checkout_branch,
     add_files_commit_and_push,
-    retrieve_files_from_head_last_commit,
-    configure_git,
     add_tag,
+    checkout_branch,
+    configure_git,
     retrieve_files_from_head,
+    retrieve_files_from_head_last_commit,
 )
-from album.core.utils.operations.resolve_operations import dict_to_coordinates, as_tag
-from album.environments.utils.file_operations import (
-    get_dict_from_yml,
-    write_dict_to_yml,
-    copy,
-)
-from album.runner import album_logging
+from album.core.utils.operations.resolve_operations import as_tag, dict_to_coordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -46,10 +48,10 @@ class ReleaseManager:
     def __init__(
         self,
         album_instance: Album,
-        catalog_name,
-        catalog_path,
-        catalog_src,
-        force_retrieve,
+        catalog_name: str,
+        catalog_path: str,
+        catalog_src: str,
+        force_retrieve: bool,
     ):
         self.catalog_name = catalog_name
         self.catalog_path = catalog_path
@@ -72,11 +74,11 @@ class ReleaseManager:
 
         return repo
 
-    def close(self):
+    def close(self) -> None:
         if self.catalog:
             self.catalog.dispose()
 
-    def configure_repo(self, user_name, user_email):
+    def configure_repo(self, user_name: str, user_email: str) -> None:
         module_logger().info(
             "Configuring repository using:\n\tusername:\t%s\n\temail:\t%s"
             % (user_name, user_email)
@@ -84,14 +86,14 @@ class ReleaseManager:
         with self._open_repo() as repo:
             configure_git(repo, user_email, user_name)
 
-    def configure_ssh(self, project_path):
+    def configure_ssh(self, project_path: str) -> None:
         module_logger().info("Configure ssh protocol for repository %s" % project_path)
         with self._open_repo() as repo:
             if not repo.remote().url.startswith("git"):
                 repo.remote().set_url(get_ssh_url(project_path, self.catalog_src))
 
     @staticmethod
-    def _get_yml_dict(head):
+    def _get_yml_dict(head: HEAD) -> Tuple[Dict[str, any], str]:
         yml_file_path = retrieve_files_from_head_last_commit(
             head, DefaultValues.solution_yml_default_name.value
         )[0]
@@ -99,7 +101,9 @@ class ReleaseManager:
 
         return [yml_dict, yml_file_path]
 
-    def zenodo_publish(self, branch_name, zenodo_base_url, zenodo_access_token):
+    def zenodo_publish(
+        self, branch_name: str, zenodo_base_url: str, zenodo_access_token: str
+    ) -> None:
         zenodo_base_url, zenodo_access_token = self._prepare_zenodo_arguments(
             zenodo_base_url, zenodo_access_token
         )
@@ -139,7 +143,12 @@ class ReleaseManager:
             "Published unpublished deposit with deposit id %s..." % deposit_id
         )
 
-    def _get_release_files(self, repo, yml_dict, tmp):
+    def _get_release_files(
+        self,
+        repo: Generator[Repo, None, None],
+        yml_dict: Dict[str, any],
+        tmp: TemporaryDirectory,
+    ) -> Tuple[List[str], List[str]]:
         coordinates = dict_to_coordinates(yml_dict)
         solution_relative_path = (
             self.configuration.get_solution_path_suffix_unversioned(coordinates)
@@ -167,8 +176,12 @@ class ReleaseManager:
         return files, [Path(file).name for file in files]
 
     def zenodo_upload(
-        self, branch_name, zenodo_base_url, zenodo_access_token, report_file
-    ):
+        self,
+        branch_name: str,
+        zenodo_base_url: str,
+        zenodo_access_token: str,
+        report_file: Path,
+    ) -> None:
         zenodo_base_url, zenodo_access_token = self._prepare_zenodo_arguments(
             zenodo_base_url, zenodo_access_token
         )
@@ -232,7 +245,9 @@ class ReleaseManager:
             module_logger().info("Created report file under %s" % str(report_file))
 
     @staticmethod
-    def _prepare_zenodo_arguments(zenodo_base_url: str, zenodo_access_token: str):
+    def _prepare_zenodo_arguments(
+        zenodo_base_url: str, zenodo_access_token: str
+    ) -> Tuple[str, str]:
         if zenodo_base_url is None or zenodo_access_token is None:
             raise RuntimeError(
                 "Zenodo base URL or Zenodo access token invalid! "
@@ -249,7 +264,7 @@ class ReleaseManager:
 
         return zenodo_base_url, zenodo_access_token
 
-    def update_index(self, branch_name, doi, deposit_id):
+    def update_index(self, branch_name: str, doi: str, deposit_id: str) -> None:
         with self._open_repo() as repo:
             head = checkout_branch(repo, branch_name)
 
@@ -298,7 +313,9 @@ class ReleaseManager:
         self.catalog.index().save()
         self.catalog.index().export(self.catalog.solution_list_path())
 
-    def commit_changes(self, branch_name, ci_user_name, ci_user_email):
+    def commit_changes(
+        self, branch_name: str, ci_user_name: str, ci_user_email: str
+    ) -> bool:
         with self._open_repo() as repo:
             head = checkout_branch(repo, branch_name)
 
@@ -332,7 +349,14 @@ class ReleaseManager:
 
         return True
 
-    def merge(self, branch_name, dry_run, push_option, ci_user_name, ci_user_email):
+    def merge(
+        self,
+        branch_name: str,
+        dry_run: bool,
+        push_option: List[str],
+        ci_user_name: str,
+        ci_user_email: str,
+    ) -> None:
         with self._open_repo() as repo:
             head = checkout_branch(repo, branch_name)
 
@@ -359,13 +383,17 @@ class ReleaseManager:
                 email=ci_user_email,
             )
 
-    def _get_zenodo_manager(self, zenodo_access_token, zenodo_base_url):
+    def _get_zenodo_manager(
+        self, zenodo_access_token: str, zenodo_base_url: str
+    ) -> ZenodoManager:
         # TODO in case one wants to reuse the zenodo manager, this needs to be smarter, but be aware that another call
         #  to this method might have different parameters
         return ZenodoManager(zenodo_base_url, zenodo_access_token)
 
     @staticmethod
-    def _get_documentation_paths(base_dir, yml_dict: dict):
+    def _get_documentation_paths(
+        base_dir: Path, yml_dict: Dict[str, any]
+    ) -> List[Path]:
         documentation_paths = []
         if "documentation" in yml_dict.keys():
             documentation_list = yml_dict["documentation"]
@@ -377,7 +405,7 @@ class ReleaseManager:
         return documentation_paths
 
     @staticmethod
-    def _get_cover_paths(base_dir, yml_dict: dict):
+    def _get_cover_paths(base_dir: str, yml_dict: Dict[str, any]) -> List[str]:
         cover_paths = []
         if "covers" in yml_dict.keys():
             cover_list = yml_dict["covers"]
@@ -389,7 +417,7 @@ class ReleaseManager:
                     cover_paths.append(base_dir.joinpath(cover["source"]))
         return cover_paths
 
-    def _get_deposit_metadata(self, solution_meta):
+    def _get_deposit_metadata(self, solution_meta: Dict[str, any]) -> ZenodoMetadata:
         if "title" in solution_meta:
             deposit_name = solution_meta["title"]
         else:

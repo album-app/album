@@ -1,12 +1,20 @@
+"""Interface for managing environments."""
+import os
 from abc import ABCMeta, abstractmethod
+from typing import List, Mapping, Optional, Union
+
+from album.environments.api.environment_api import IEnvironmentAPI
+from album.environments.api.model.environment import IEnvironment
 
 from album.core.api.model.collection_solution import ICollectionSolution
-from album.environments.api.controller.environment_handler import IEnvironmentHandler
-from album.environments.api.model.environment import IEnvironment
+from album.core.model.link import Link
 
 
 class IEnvironmentManager:
-    """Manages everything around the environment a solution lives in."""
+    """Manage everything around the environment a solution lives in.
+
+    Uses the environment API to install, remove, and run scripts in environments.
+    """
 
     __metaclass__ = ABCMeta
 
@@ -18,11 +26,12 @@ class IEnvironmentManager:
     def install_environment(
         self, collection_solution: ICollectionSolution
     ) -> IEnvironment:
+        """Install an environment for the given solution."""
         raise NotImplementedError
 
     @abstractmethod
     def set_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
-        """Resolves the environment the active solution runs in.
+        """Resolve the environment the active solution runs in.
 
         Returns the resolve result of the parent of the active solution.
 
@@ -30,20 +39,27 @@ class IEnvironmentManager:
         raise NotImplementedError
 
     @abstractmethod
-    def remove_environment(self, environment: IEnvironment):
-        """Removes an environment."""
+    def remove_environment(self, environment: IEnvironment) -> bool:
+        """Remove an environment."""
         raise NotImplementedError
 
     @abstractmethod
     def run_script(
         self,
         environment: IEnvironment,
-        script,
-        environment_variables=None,
-        argv=None,
-        pipe_output=True,
-    ):
-        """Runs the solution in the target environment
+        script: str,
+        environment_variables: Optional[
+            Union[
+                Mapping[str, str],
+                Mapping[bytes, Union[str, bytes, os.PathLike[str], os.PathLike[bytes]]],
+                Mapping[str, Union[str, bytes, os.PathLike[str], os.PathLike[bytes]]],
+                None,
+            ]
+        ] = None,
+        argv: Optional[List[str]] = None,
+        pipe_output: bool = True,
+    ) -> None:
+        """Run the solution in the target environment.
 
         Args:
             script:
@@ -60,8 +76,12 @@ class IEnvironmentManager:
         raise NotImplementedError
 
     @abstractmethod
-    def get_environment_handler(self) -> IEnvironmentHandler:
+    def get_environment_handler(self) -> IEnvironmentAPI:
+        """Get the environment handler."""
         raise NotImplementedError
 
-    def get_environment_path(self, environment_name: str, create: bool):
+    def get_environment_path(
+        self, environment_name: str, create: bool
+    ) -> Optional[Link]:
+        """Get the path of an environment."""
         raise NotImplementedError
