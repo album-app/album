@@ -1,12 +1,11 @@
-import sys
 import tempfile
 import unittest
 from pathlib import Path
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 from unittest.mock import patch
 
 from album.core.model.configuration import Configuration, DefaultValues
 from album.core.utils.operations.file_operations import create_path_recursively
-from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestConfiguration(TestUnitCoreCommon):
@@ -32,10 +31,20 @@ class TestConfiguration(TestUnitCoreCommon):
         conf.setup(base_cache_path=base_path)
 
         # assert
-        # todo: check if the paths are correct
-        # todo: check if package manager is correct
-        self.assertFalse(leftover_file.exists())
         self.assertEqual(base_path, conf.base_cache_path())
+
+        # leftovers should be removed by now
+        self.assertFalse(leftover_file.exists())
+
+        # check if all recursive paths are created
+        self.assertTrue(base_path.exists())
+        self.assertTrue(conf.base_cache_path().exists())
+        self.assertTrue(conf.cache_path_download().exists())
+        self.assertTrue(conf.get_catalog_collection_path().exists())
+        self.assertTrue(conf.installation_path().exists())
+        self.assertTrue(conf.lnk_path().exists())
+        self.assertTrue(conf.environments_path().exists())
+        self.assertTrue(conf.shared_resources_path().exists())
 
     def test_base_cache_path(self):
         new_tmp_dir = tempfile.TemporaryDirectory(dir=self.tmp_dir.name)

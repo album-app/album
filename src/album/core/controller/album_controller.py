@@ -14,6 +14,7 @@ from album.core.api.controller.migration_manager import IMigrationManager
 from album.core.api.controller.resource_manager import IResourceManager
 from album.core.api.controller.run_manager import IRunManager
 from album.core.api.controller.script_manager import IScriptManager
+from album.core.api.controller.shared_downloads_manager import IDownloadManager
 from album.core.api.controller.search_manager import ISearchManager
 from album.core.api.controller.state_manager import IStateManager
 from album.core.api.controller.task_manager import ITaskManager
@@ -30,6 +31,7 @@ from album.core.controller.resource_manager import ResourceManager
 from album.core.controller.run_manager import RunManager
 from album.core.controller.script_manager import ScriptManager
 from album.core.controller.search_manager import SearchManager
+from album.core.controller.shared_downloads_manager import DownloadManager
 from album.core.controller.state_manager import StateManager
 from album.core.controller.task_manager import TaskManager
 from album.core.controller.test_manager import TestManager
@@ -54,6 +56,7 @@ class AlbumController(IAlbumController):
         self._task_manager: Optional[ITaskManager] = None
         self._configuration: Optional[IConfiguration] = None
         self._resource_manager: Optional[IResourceManager] = None
+        self._download_manager: Optional[IDownloadManager] = None
 
     def catalogs(self) -> ICatalogHandler:
         return self.collection_manager().catalogs()
@@ -140,3 +143,8 @@ class AlbumController(IAlbumController):
     def close(self) -> None:
         if self._collection_manager:
             self._collection_manager.close()
+
+    def download_manager(self) -> IDownloadManager:
+        if not self._download_manager:
+            self._download_manager = DownloadManager(self)
+        return self._download_manager

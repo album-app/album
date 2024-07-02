@@ -74,6 +74,8 @@ class DefaultValues(Enum):
     cache_path_download_prefix = "downloads"  # base folder prefix where downloads live
     cache_path_envs_prefix = "envs"  # base folder prefix where environments live in
 
+    shared_globally_suffix = "shared_downloads"  # suffix for shared globally downloads
+
     # solutions
     solution_default_name = (
         "solution.py"  # default name how solution.py files are called

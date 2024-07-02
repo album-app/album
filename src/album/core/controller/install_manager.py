@@ -47,6 +47,9 @@ class InstallManager(IInstallManager):
         self._install_loaded_resolve_result(
             resolve_result, parent=False, allow_unsafe=allow_unsafe
         )
+
+        # TODO: run install and download in parallel.
+        self.album.download_manager().download_resources_from_yaml(resolve_result)
         return resolve_result.loaded_solution()
 
     def _resolve_result_is_installed(self, resolve_result: ICollectionSolution) -> bool:

@@ -4,7 +4,9 @@ from typing import List, Mapping, Optional, Union
 
 from album.environments.api.environment_api import IEnvironmentAPI
 from album.environments.api.model.environment import IEnvironment
+from album.runner.core.api.model.coordinates import ICoordinates
 
+from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.model.link import Link
 
@@ -77,8 +79,13 @@ class IEnvironmentManager:
         """Get the environment handler."""
         raise NotImplementedError
 
+    @abstractmethod
     def get_environment_path(
         self, environment_name: str, create: bool
     ) -> Optional[Link]:
         """Get the path of an environment."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_environment_name(self, coordinates: ICoordinates, catalog: ICatalog) -> str:
         raise NotImplementedError

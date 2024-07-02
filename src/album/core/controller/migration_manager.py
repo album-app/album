@@ -207,6 +207,7 @@ class MigrationManager(IMigrationManager):
 
     def _load_solution_schema(self):
         if not self.schema_solution:
+            # the namespace "runner" is still used here, even though the solution schema comes from album-solution-api package
             data = pkgutil.get_data("album.runner.core.schema", "solution_schema.json")
             self.schema_solution = json.loads(data)
         if not self.schema_solution_runner_0_4_2:

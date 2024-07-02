@@ -25,7 +25,8 @@
                         "name",
                         "version"
                     ]
-                }, {
+                },
+                {
                     "type": "object",
                     "properties": {
                         "resolve_solution": {
@@ -36,7 +37,8 @@
                     "required": [
                         "resolve_solution"
                     ]
-                }, {
+                },
+                {
                     "type": "object",
                     "properties": {
                         "doi": {
@@ -64,7 +66,14 @@
                 "type": {
                     "title": "type",
                     "type": "string",
-                    "enum": ["string", "file", "directory", "boolean", "integer", "float"]
+                    "enum": [
+                        "string",
+                        "file",
+                        "directory",
+                        "boolean",
+                        "integer",
+                        "float"
+                    ]
                 },
                 "default": {
                     "title": "default"

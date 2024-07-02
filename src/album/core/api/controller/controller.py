@@ -11,9 +11,11 @@ from album.core.api.controller.event_manager import IEventManager
 from album.core.api.controller.install_manager import IInstallManager
 from album.core.api.controller.migration_manager import IMigrationManager
 from album.core.api.controller.resource_manager import IResourceManager
+from album.core.api.controller.resource_manager import IResourceManager
 from album.core.api.controller.run_manager import IRunManager
 from album.core.api.controller.script_manager import IScriptManager
 from album.core.api.controller.search_manager import ISearchManager
+from album.core.api.controller.shared_downloads_manager import IDownloadManager
 from album.core.api.controller.state_manager import IStateManager
 from album.core.api.controller.task_manager import ITaskManager
 from album.core.api.controller.test_manager import ITestManager
@@ -112,4 +114,8 @@ class IAlbumController:
     @abstractmethod
     def resource_manager(self) -> IResourceManager:
         """Return the resource manager."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def download_manager(self) -> IDownloadManager:
         raise NotImplementedError

@@ -41,7 +41,12 @@ class IConfiguration:
 
     @abstractmethod
     def lnk_path(self) -> Path:
-        """Get the path for targets of internal links, used to shorten paths (thank you Windows)."""
+        """Path for targets of internal links, used to shorten paths (thank you Windows)."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def shared_resources_path(self) -> Path:
+        """Path for shared resources."""
         raise NotImplementedError
 
     @abstractmethod

@@ -27,6 +27,7 @@ class Configuration(IConfiguration):
         self._installation_path = None
         self._cache_path_download = None
         self._lnk_path = None
+        self._shared_globally_path = None
 
     def base_cache_path(self) -> Path:
         return self._base_cache_path
@@ -45,6 +46,9 @@ class Configuration(IConfiguration):
 
     def lnk_path(self) -> Path:
         return self._lnk_path
+
+    def shared_resources_path(self) -> Path:
+        return self._shared_globally_path
 
     def is_setup(self) -> bool:
         return self._is_setup
@@ -79,6 +83,10 @@ class Configuration(IConfiguration):
         self._lnk_path = self._base_cache_path.joinpath(
             DefaultValues.link_folder_prefix.value
         )
+        self._shared_globally_path = self._base_cache_path.joinpath(
+            DefaultValues.shared_globally_suffix.value
+        )
+
         self._empty_tmp()
         create_paths_recursively(
             [
@@ -87,6 +95,8 @@ class Configuration(IConfiguration):
                 self._cache_path_envs,
                 self._catalog_collection_path,
                 self._installation_path,
+                self._lnk_path,
+                self._shared_globally_path,
             ]
         )
 
