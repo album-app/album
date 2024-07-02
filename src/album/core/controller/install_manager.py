@@ -277,7 +277,7 @@ class InstallManager(IInstallManager):
         rm_dep: bool = False,
         argv: Optional[List[str]] = None,
     ) -> None:
-        resolve_result = self.album.collection_manager().resolve_installed_and_load(
+        resolve_result = self.album.collection_manager().resolve_installed(
             solution_to_resolve
         )
 
