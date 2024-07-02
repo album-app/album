@@ -277,6 +277,7 @@ class InstallManager(IInstallManager):
         rm_dep: bool = False,
         argv: Optional[List[str]] = None,
     ) -> None:
+        # DO NOT LOAD THE SOLUTION DURING UNINSTALLATION! SOLUTION MIGHT BE BROKEN (e.g. faulty imports)!
         resolve_result = self.album.collection_manager().resolve_installed(
             solution_to_resolve
         )
