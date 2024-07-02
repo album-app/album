@@ -90,7 +90,7 @@ class Catalog(ICatalog):
         """
         self._catalog_id = catalog_id
         self._name = name
-        self._src = Path(src)
+        self._src = src
         self._version = ""  # is set automatically with the index
         self._catalog_index: Optional[ICatalogIndex] = None
         self._path = Path(path)
@@ -110,7 +110,7 @@ class Catalog(ICatalog):
         self._type = catalog_type
 
         if self.is_local() and self._src:
-            self._src = Path(self._src).absolute()
+            self._src = str(Path(self._src).absolute())
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, ICatalog) and other.catalog_id() == self._catalog_id
@@ -292,7 +292,7 @@ class Catalog(ICatalog):
     def name(self) -> str:
         return self._name
 
-    def src(self) -> Path:
+    def src(self) -> str:
         return self._src
 
     def version(self) -> str:

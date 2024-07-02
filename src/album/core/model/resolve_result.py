@@ -16,7 +16,7 @@ class ResolveResult(ICollectionSolution):
         self,
         path: Path,
         catalog: ICatalog,
-        collection_entry: ICollectionIndex.ICollectionSolution,
+        collection_entry: Optional[ICollectionIndex.ICollectionSolution],
         coordinates: ICoordinates,
         loaded_solution: Optional[ISolution] = None,
         single_file_solution: bool = False,
@@ -47,7 +47,7 @@ class ResolveResult(ICollectionSolution):
     def path(self) -> Path:
         return self._path
 
-    def database_entry(self) -> ICollectionIndex.ICollectionSolution:
+    def database_entry(self) -> Optional[ICollectionIndex.ICollectionSolution]:
         return self._collection_entry
 
     def coordinates(self) -> ICoordinates:
@@ -68,6 +68,9 @@ class ResolveResult(ICollectionSolution):
         self._collection_entry = database_entry
 
     def _load_solution_from_collection_entry(self) -> None:
+        if not self._collection_entry:
+            raise ValueError("No collection entry to load solution from.")
+
         attrs = self._collection_entry.setup()
         self.set_loaded_solution(Solution(attrs))
 

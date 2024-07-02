@@ -439,7 +439,7 @@ class CatalogHandler(ICatalogHandler):
         )
         self.album.migration_manager().load_index(catalog)
         index = catalog.index()
-        if not index:
+        if index is None:
             raise RuntimeError(
                 "Catalog %s not loaded! Cannot compare solutions!" % catalog.name()
             )

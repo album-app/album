@@ -134,7 +134,7 @@ class CollectionManager(ICollectionManager):
         return self.solution_handler
 
     def get_index_as_dict(self) -> Dict[str, Any]:
-        if not self.catalog_collection:
+        if self.catalog_collection is None:
             return {}
 
         catalogs = self.catalog_collection.get_all_catalogs()
@@ -155,10 +155,12 @@ class CollectionManager(ICollectionManager):
     def resolve_installed(self, resolve_solution: str) -> ICollectionSolution:
         resolve_result = self._resolve(resolve_solution)
 
-        if not resolve_result.database_entry():
+        db_entry = resolve_result.database_entry()
+
+        if not db_entry:
             raise LookupError("Solution not found!")
 
-        if not resolve_result.database_entry().internal()["installed"]:
+        if not db_entry.internal()["installed"]:
             raise ValueError(
                 "Solution seems not to be installed! Please install solution first!"
             )
@@ -238,8 +240,8 @@ class CollectionManager(ICollectionManager):
 
         return resolve_result
 
-    def resolve(self, resolve_solution: str) -> ICollectionSolution:
-        resolve_result = self._resolve(resolve_solution)
+    def resolve(self, str_input: str) -> ICollectionSolution:
+        resolve_result = self._resolve(str_input)
 
         if not Path(resolve_result.path()).exists():
             self.solution_handler.retrieve_solution(
@@ -303,7 +305,10 @@ class CollectionManager(ICollectionManager):
                     solution_entry.internal()["catalog_id"]
                 )
                 path = self.solution_handler.get_solution_file(
-                    catalog, dict_to_coordinates(solution_entry.setup())
+                    catalog,
+                    dict_to_coordinates(
+                        solution_entry.setup()
+                    ),  # this path must not exist yet
                 )
 
         coordinates = None
@@ -311,22 +316,19 @@ class CollectionManager(ICollectionManager):
         if solution_entry:
             coordinates = dict_to_coordinates(solution_entry.setup())
 
-        if not solution_entry:
+        if not path:  # internal error
             raise LookupError(
                 "Cannot find solution %s! Try <doi>:<prefix>/<suffix> or <prefix>/<suffix> "
                 "or <group>:<name>:<version> or <catalog>:<group>:<name>:<version> "
                 "or point to a valid file or folder! Aborting..." % str_input
             )
 
-        if not path:  # seems duplicated but is necessary for mypy
-            raise FileNotFoundError("Cannot find solution %s!" % str_input)
-
         resolve = ResolveResult(
-            path=path,
-            catalog=catalog,
-            collection_entry=solution_entry,
-            coordinates=coordinates,
-            single_file_solution=single_file,
+            path=path,  # never None
+            catalog=catalog,  # always set
+            collection_entry=solution_entry,  # only None if resolved to a path or DOI
+            coordinates=coordinates,  # only None if resolved to a path or DOI
+            single_file_solution=single_file,  # only True if resolved to a path
         )
 
         return resolve
@@ -357,14 +359,11 @@ class CollectionManager(ICollectionManager):
 
         return solution_entry
 
-    def _search(self, str_input: str) -> ICollectionIndex.ICollectionSolution:
+    def _search(self, str_input: str) -> Optional[ICollectionIndex.ICollectionSolution]:
         try:
             attrs = get_attributes_from_string(str_input)
         except ValueError:
-            guess_result = self._guess(str_input)
-            if guess_result is None:
-                raise LookupError("Cannot resolve %s! Aborting..." % str_input)
-            return guess_result
+            return self._guess(str_input)
 
         solution_entry = None
         if "doi" in attrs:  # case doi
@@ -450,10 +449,15 @@ class CollectionManager(ICollectionManager):
     def retrieve_and_load_resolve_result(
         self, resolve_result: ICollectionSolution
     ) -> None:
-        if not resolve_result.path() or not Path(resolve_result.path()).exists():
+        db_entry = resolve_result.database_entry()
+
+        if not resolve_result.path() or not resolve_result.path().exists():
+            if not db_entry:
+                raise LookupError("Solution not found!")
+
             self.solution_handler.retrieve_solution(
                 resolve_result.catalog(),
-                dict_to_coordinates(resolve_result.database_entry().setup()),
+                dict_to_coordinates(db_entry.setup()),
             )
         resolve_result.set_loaded_solution(
             self.album.state_manager().load(resolve_result.path())

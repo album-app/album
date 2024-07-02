@@ -173,7 +173,7 @@ def is_pathname_valid(pathname: str) -> bool:
     # (e.g., a bug). Permit this exception to unwind the call stack.
 
 
-def check_doi(doi: str, tmp_cache_dir: Union[Path, str]) -> Optional[Path]:
+def check_doi(doi: str, tmp_cache_dir: Union[Path, str]) -> Path:
     """Check the DOI and return the path to the solution file."""
     tmp_cache_dir = Path(tmp_cache_dir).joinpath(rand_folder_name())
 
@@ -185,7 +185,12 @@ def check_doi(doi: str, tmp_cache_dir: Union[Path, str]) -> Optional[Path]:
 
     p = download_resource(link_to_solution_zip, tmp_cache_dir.joinpath("solution.zip"))
 
-    return prepare_path(p, tmp_cache_dir)
+    p_prepared = prepare_path(p, tmp_cache_dir)
+
+    if not p_prepared:
+        raise ValueError("Could not prepare the solution file! Aborting...")
+
+    return p_prepared
 
 
 def parse_doi_service_url(url: str) -> str:

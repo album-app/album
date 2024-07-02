@@ -102,13 +102,13 @@ class ICollectionManager:
         raise NotImplementedError
 
     @abstractmethod
-    def resolve(self, resolve_solution: str) -> ICollectionSolution:
+    def resolve(self, str_input: str) -> ICollectionSolution:
         """Resolve a string input and load its content.
 
         Downloads a catalog if not already cached.
 
         Args:
-            resolve_solution:
+            str_input:
                 What to resolve. Either path, doi, group:name:version, catalog:group:name:version, url
 
         Returns:

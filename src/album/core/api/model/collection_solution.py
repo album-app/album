@@ -1,6 +1,7 @@
 """This module contains the ICollectionSolution interface."""
 from abc import abstractmethod
 from pathlib import Path
+from typing import Optional
 
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
@@ -23,8 +24,8 @@ class ICollectionSolution:
         raise NotImplementedError
 
     @abstractmethod
-    def database_entry(self) -> ICollectionIndex.ICollectionSolution:
-        """Return the database entry of the solution."""
+    def database_entry(self) -> Optional[ICollectionIndex.ICollectionSolution]:
+        """Return the database entry of the solution if existed."""
         raise NotImplementedError
 
     @abstractmethod

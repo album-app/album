@@ -1,17 +1,17 @@
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from test.unit.test_unit_core_common import (
+    EmptyTestClass,
+    TestCatalogAndCollectionCommon,
+    TestGitCommon,
+)
+from unittest.mock import MagicMock, patch
 
 import git
+from album.runner.core.model.coordinates import Coordinates
 
 from album.core.controller.deploy_manager import DeployManager
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
-from album.runner.core.model.coordinates import Coordinates
-from test.unit.test_unit_core_common import (
-    TestGitCommon,
-    TestCatalogAndCollectionCommon,
-    EmptyTestClass,
-)
 
 
 class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
@@ -25,7 +25,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         super().tearDown()
 
     def test_deploy(
-            self,
+        self,
     ):
         # mock
         _get_path_to_solution = MagicMock(return_value="solutionPath")
@@ -53,10 +53,10 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
             Path("deployPath"),
             False,
             False,
-            None,
-            None,
-            None,
-            False
+            [],
+            "",
+            "",
+            False,
         )
 
     @patch(
@@ -258,7 +258,9 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
 
         # mock
         _collect_solution_files = MagicMock(return_value="exports")
-        self.album_controller.resource_manager().write_solution_files = _collect_solution_files
+        self.album_controller.resource_manager().write_solution_files = (
+            _collect_solution_files
+        )
 
         # call
         r = self.deploy_manager._deploy_routine_in_local_src(
@@ -366,13 +368,13 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
 
             add_files_commit_and_push_mock.assert_called_once_with(
                 repo.heads[1],
-                [self.closed_tmp_file.name],
+                [Path(self.closed_tmp_file.name)],
                 "Adding new/updated tsg_tsn_tsv",
-                email=None,
+                email="",
                 force=True,
                 push=False,
                 push_option_list=[],
-                username=None,
+                username="",
             )
 
     @patch("album.core.controller.deploy_manager.checkout_main", return_value="head")
@@ -380,10 +382,10 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
     @patch("album.core.controller.deploy_manager.remove_files")
     @patch("album.core.controller.deploy_manager.add_tag")
     def test__push_directly(
-            self, add_tag, remove_files, add_files_commit_and_push, checkout_main
+        self, add_tag, remove_files, add_files_commit_and_push, checkout_main
     ):
         repo = EmptyTestClass()
-        file_paths = ["a", "b", "c"]
+        file_paths = [Path("a"), Path("b"), Path("c")]
 
         commit_msg = "Adding new/updated tsg_tsn_tsv"
 
@@ -411,5 +413,3 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
             username=None,
             force=False,
         )
-
-

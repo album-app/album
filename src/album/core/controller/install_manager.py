@@ -38,7 +38,7 @@ class InstallManager(IInstallManager):
         resolve_result = self.album.collection_manager().resolve_and_load(
             solution_to_resolve
         )
-        self._install_resolve_result(resolve_result, argv, parent=False)
+        self._install_resolve_result(resolve_result, parent=False)
         return resolve_result.loaded_solution()
 
     def _resolve_result_is_installed(self, resolve_result: ICollectionSolution) -> bool:
@@ -55,7 +55,6 @@ class InstallManager(IInstallManager):
     def _install_resolve_result(
         self,
         resolve_result: ICollectionSolution,
-        argv: Optional[List[str]] = None,
         parent: bool = False,
     ):
         # Load solution
@@ -104,7 +103,7 @@ class InstallManager(IInstallManager):
         )
 
         # run installation recursively
-        self._install_active_solution(resolve_result, argv)
+        self._install_active_solution(resolve_result)
 
         # mark as installed and remove "installation unfinished"
         self.album.solutions().set_installed(
@@ -160,11 +159,9 @@ class InstallManager(IInstallManager):
         )
 
     def _install_active_solution(
-        self, collection_solution: ICollectionSolution, argv: Optional[List[str]] = None
+        self, collection_solution: ICollectionSolution
     ) -> Optional[ICollectionSolution]:
         # install environment
-        if argv is None:
-            argv = [""]
 
         parent_resolve_result = None
 
@@ -178,9 +175,21 @@ class InstallManager(IInstallManager):
                 raise e
 
             if parent_resolve_result:
+                db_entry_parent = parent_resolve_result.database_entry()
+                if db_entry_parent is None:
+                    raise RuntimeError(
+                        "Parent solution not found in collection index. Cannot install parent solution!"
+                    )
+
+                db_entry_solution = collection_solution.database_entry()
+                if db_entry_solution is None:
+                    raise RuntimeError(
+                        "Solution not found in collection index. Cannot install solution!"
+                    )
+
                 self.album.solutions().set_parent(
-                    parent_resolve_result.database_entry(),
-                    collection_solution.database_entry(),
+                    db_entry_parent,
+                    db_entry_solution,
                 )
             else:
                 self._remove_parent(collection_solution)
@@ -279,7 +288,14 @@ class InstallManager(IInstallManager):
         if argv is None:
             argv = [""]
 
-        parent = resolve_result.database_entry().internal()["parent"]
+        db_entry = resolve_result.database_entry()
+
+        if db_entry is None:
+            raise RuntimeError(
+                "Solution not found in collection index. Cannot uninstall solution!"
+            )
+
+        parent = db_entry.internal()["parent"]
         # get the environment
         environment = None
         try:
@@ -300,16 +316,9 @@ class InstallManager(IInstallManager):
             if environment and not parent:
                 EnvironmentManager.remove_disc_content_from_environment(environment)
 
-        if parent:
-            self.album.collection_manager().get_collection_index().remove_parent(
-                resolve_result.database_entry().internal()["collection_id"]
-            )
-
-        if resolve_result.database_entry().internal()["children"]:
+        if db_entry.internal()["children"]:
             children = []
-            for dependency_dict in resolve_result.database_entry().internal()[
-                "children"
-            ]:
+            for dependency_dict in db_entry.internal()["children"]:
                 # get the child entry
                 child_solution = (
                     self.album.collection_manager()

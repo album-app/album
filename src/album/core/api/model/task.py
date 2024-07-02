@@ -47,7 +47,7 @@ class ITask:
         raise NotImplementedError
 
     @abstractmethod
-    def args(self) -> Optional[List[str]]:
+    def args(self) -> List[str]:
         """Get the arguments that should be passed to the method."""
         raise NotImplementedError
 

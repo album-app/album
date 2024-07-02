@@ -60,14 +60,20 @@ class SolutionHandler(ISolutionHandler):
         )
 
         if solution.is_single_file():
+            if solution.path() is None:
+                raise RuntimeError("Single file solution without path!")
+
             copy(
                 solution.path(),
                 install_location.joinpath(DefaultValues.solution_default_name.value),
             )
         else:
-            copy_folder(
-                Path(solution.path()).parent, install_location, copy_root_folder=False
-            )
+            _path = solution.path()
+
+            if _path is None:
+                raise RuntimeError("Solution without path!")
+
+            copy_folder(Path(_path).parent, install_location, copy_root_folder=False)
 
     def add_to_cache_catalog(self, solution: ICollectionSolution) -> None:
         self.add_or_replace(self.album.catalogs().get_cache_catalog(), solution)
@@ -132,7 +138,7 @@ class SolutionHandler(ISolutionHandler):
         col_index = self._get_collection_index()
         sol_stat = change.solution_status()
 
-        if not cat_index:
+        if cat_index is None:
             raise RuntimeError(
                 "Catalog index not found for catalog %s!" % str(catalog.catalog_id())
             )

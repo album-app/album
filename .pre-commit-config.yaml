@@ -13,6 +13,7 @@ repos:
         args: [--ignore-missing-imports]
         additional_dependencies:
           [types-PyYAML==6.0.12, types-setuptools~=70.1, types-requests~=2.32]
+        exclude: ^test/
   - repo: https://github.com/psf/black
     rev: 22.10.0
     hooks:
@@ -96,6 +97,7 @@ repos:
             flake8-pytest-style,
             flake8-string-format,
           ]
+        exclude: ^test/
   - repo: https://github.com/jumanjihouse/pre-commit-hooks
     rev: 3.0.0
     hooks:

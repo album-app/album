@@ -1,14 +1,15 @@
 import unittest.mock
 from copy import deepcopy
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from test.unit.test_unit_core_common import EmptyTestClass, TestUnitCoreCommon
+from unittest.mock import MagicMock, patch
+
+from album.runner.core.model.coordinates import Coordinates
+from album.runner.core.model.solution import Solution
 
 from album.core.controller.install_manager import InstallManager
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.resolve_result import ResolveResult
-from album.runner.core.model.coordinates import Coordinates
-from album.runner.core.model.solution import Solution
-from test.unit.test_unit_core_common import TestUnitCoreCommon, EmptyTestClass
 
 
 class TestInstallManager(TestUnitCoreCommon):
@@ -45,9 +46,7 @@ class TestInstallManager(TestUnitCoreCommon):
         self.install_manager.install("aPath", [])
 
         # assert
-        _install_resolve_result.assert_called_once_with(
-            resolve_result, [], parent=False
-        )
+        _install_resolve_result.assert_called_once_with(resolve_result, parent=False)
 
     @unittest.skip("Needs to be implemented!")
     def test__resolve_result_is_installed(self):
@@ -92,21 +91,18 @@ class TestInstallManager(TestUnitCoreCommon):
         # call
         self.install_manager._install_active_solution(
             ResolveResult(
-                "",
+                Path(""),
                 self.album_controller.collection_manager()
                 .catalogs()
                 .get_cache_catalog(),
                 None,
                 self.active_solution.coordinates(),
                 self.active_solution,
-            ),
-            ["myargs"],
+            )
         )
 
         # assert
-        run_solution_install_routine.assert_called_once_with(
-            self.active_solution, None, ["myargs"]
-        )
+        run_solution_install_routine.assert_called_once_with(self.active_solution, None)
         set_environment.assert_not_called()
         install_environment.assert_called_once()
 
@@ -128,7 +124,7 @@ class TestInstallManager(TestUnitCoreCommon):
         self.environment_manager.set_environment = set_environment
 
         parent_resolve_result = ResolveResult(
-            None, None, None, None, loaded_solution=self.parent_solution
+            Path(""), None, CollectionIndex.CollectionSolution(), None, loaded_solution=self.parent_solution
         )
         _install_parent = MagicMock(return_value=parent_resolve_result)
         self.install_manager._install_parent = _install_parent
@@ -140,24 +136,25 @@ class TestInstallManager(TestUnitCoreCommon):
             run_solution_install_routine
         )
 
+        self.album_controller.collection_manager().get_collection_index().get_solution_by_catalog_grp_name_version = MagicMock(return_value= CollectionIndex.CollectionSolution())
+
         # call
         self.install_manager._install_active_solution(
             ResolveResult(
-                "",
+                Path(""),
                 self.album_controller.collection_manager()
                 .catalogs()
                 .get_cache_catalog(),
-                None,
+                CollectionIndex.CollectionSolution(),
                 self.active_solution.coordinates(),
                 self.active_solution,
-            ),
-            ["myargs"],
+            )
         )
 
         # assert
         _install_parent.assert_called_once_with("aParent")
         run_solution_install_routine.assert_called_once_with(
-            self.active_solution, set_environment.return_value, ["myargs"]
+            self.active_solution, set_environment.return_value
         )
         set_environment.assert_called_once()
         install_environment.assert_not_called()

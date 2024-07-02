@@ -43,8 +43,11 @@ class Task(ITask):
             raise NotImplementedError("Method not set!")
         return self._method
 
-    def args(self) -> Optional[List[str]]:
-        return self._args
+    def args(self) -> List[str]:
+        args = self._args
+        if args is None:
+            args = []
+        return args
 
     def log_handler(self) -> Optional[ILogHandler]:
         return self._log_handler

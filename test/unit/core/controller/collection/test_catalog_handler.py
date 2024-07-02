@@ -2,21 +2,22 @@ import json
 import unittest
 from copy import deepcopy
 from pathlib import Path
-from unittest import mock
-from unittest.mock import MagicMock, patch
-
-from album.core.controller.collection.catalog_handler import CatalogHandler
-from album.core.model.catalog import Catalog
-from album.core.model.catalog_index import CatalogIndex
-from album.core.model.catalog_updates import CatalogUpdates, SolutionChange, ChangeType
-from album.core.model.collection_index import CollectionIndex
-from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import folder_empty, write_dict_to_json
-from album.runner.core.model.coordinates import Coordinates
 from test.unit.core.controller.collection.test_collection_manager import (
     TestCatalogAndCollectionCommon,
 )
 from test.unit.test_unit_core_common import EmptyTestClass
+from unittest import mock
+from unittest.mock import MagicMock, patch
+
+from album.runner.core.model.coordinates import Coordinates
+
+from album.core.controller.collection.catalog_handler import CatalogHandler
+from album.core.model.catalog import Catalog
+from album.core.model.catalog_index import CatalogIndex
+from album.core.model.catalog_updates import CatalogUpdates, ChangeType, SolutionChange
+from album.core.model.collection_index import CollectionIndex
+from album.core.model.default_values import DefaultValues
+from album.core.utils.operations.file_operations import folder_empty, write_dict_to_json
 
 
 class TestCatalogHandler(TestCatalogAndCollectionCommon):
@@ -148,7 +149,7 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
 
         # assert
         insert_catalog_mock.assert_called_once_with(
-            "mycatalog", "None", str(catalog_path), 1, "main", "direct"
+            "mycatalog", "", str(catalog_path), True, "main", "direct"
         )
 
     def test_get_by_id(self):
@@ -240,7 +241,7 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
         # assert
         self.assertTrue(local_path.exists())
         self.assertTrue(local_path.joinpath("album_catalog_index.json").exists())
-        with open(local_path.joinpath("album_catalog_index.json"), "r") as f:
+        with open(local_path.joinpath("album_catalog_index.json")) as f:
             metafile = f.readlines()
             self.assertEqual(
                 '{"name": "myNewCatalogName", "version": "0.1.0", "type": "direct"}',
@@ -798,17 +799,19 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
         catalog = self.catalog_handler._create_catalog_from_src(
             self.tmp_dir.name, self.get_catalog_meta_dict("mynewcatalog")
         )
+        with self.assertRaises(RuntimeError) as e:
+            catalog.catalog_id()
+        catalog.set_catalog_id(5)
 
         # assert
         self.assertEqual("mynewcatalog", catalog.name())
-        self.assertEqual(Path(self.tmp_dir.name), catalog.src())
+        self.assertEqual(self.tmp_dir.name, catalog.src())
         self.assertEqual(
             self.album_controller.configuration().get_cache_path_catalog(
                 "mynewcatalog"
             ),
             catalog.path(),
         )
-        self.assertIsNone(catalog.catalog_id())
 
     def test__create_catalog_cache_if_missing(self):
         # prepare
@@ -847,14 +850,15 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
         # prepare
         Path(self.tmp_dir.name).joinpath("myCatalogSrc").touch()
         c1 = Catalog(
-            None,
+            5,
             "n",
             self.tmp_dir.name,
-            src=Path(self.tmp_dir.name).joinpath("myCatalogSrc"),
+            src=str(Path(self.tmp_dir.name).joinpath("myCatalogSrc")),
         )
         c1_index = CatalogIndex(
             "n", Path(self.tmp_dir.name).joinpath("album_catalog_index.db")
         )
+        c1._catalog_index = c1_index
 
         # mock
         get_by_name_mock = MagicMock(return_value=c1)
@@ -885,7 +889,7 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
             self.catalog_handler._get_divergence_between_catalog_and_collection(c1)
 
             # assert
-            get_solutions_by_catalog_mock.assert_called_once_with(None)
+            get_solutions_by_catalog_mock.assert_called_once_with(5)
             load_index_mock.assert_called_once_with(c1)
             get_all_solutions_mock.assert_called_once()
             _compare_solutions_mock.assert_called_once_with([], r_val)

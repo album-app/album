@@ -36,7 +36,7 @@ class ICatalog:
         raise NotImplementedError
 
     @abstractmethod
-    def src(self) -> Path:
+    def src(self) -> str:
         """Get the source of the catalog. Gitlab/github link or path."""
         raise NotImplementedError
 

@@ -108,7 +108,12 @@ class EnvironmentManager(IEnvironmentManager):
         return environment
 
     def set_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
-        parent = collection_solution.database_entry().internal()["parent"]
+        db_entry = collection_solution.database_entry()
+
+        if db_entry is None:
+            raise ValueError("Database entry not set!")
+
+        parent = db_entry.internal()["parent"]
         if not parent:
             env_name = self.get_environment_name(
                 collection_solution.coordinates(), collection_solution.catalog()
