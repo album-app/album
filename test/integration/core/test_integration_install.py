@@ -1,15 +1,14 @@
 import os
-import platform
 import sys
-import time
 import unittest
 from pathlib import Path
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 from unittest.mock import patch
+
+from album.runner.core.model.coordinates import Coordinates
 
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import get_link_target
-from album.runner.core.model.coordinates import Coordinates
-from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
 class TestIntegrationInstall(TestIntegrationCoreCommon):
@@ -669,6 +668,54 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         )
         self.assertNotIn("ERROR", self.captured_output.getvalue())
         self.assertTrue(solution_child_path.exists())
+
+    def test_install_with_parent_faulty_API(
+        self,
+    ):
+        collection = self.album_controller.collection_manager().catalog_collection
+        # assert empty collection
+        self.assertEqual(
+            0,
+            len(
+                collection.get_solutions_by_catalog(
+                    self.album_controller.collection_manager()
+                    .catalogs()
+                    .get_cache_catalog()
+                    .catalog_id()
+                )
+            ),
+        )
+
+        # install parent app solution in collection
+        self.album_controller.install_manager().install(
+            self.get_test_solution_path("app1.py")
+        )
+
+        # assert installed in collection
+        self.assertEqual(
+            1,
+            len(
+                collection.get_solutions_by_catalog(
+                    self.album_controller.collection_manager()
+                    .catalogs()
+                    .get_cache_catalog()
+                    .catalog_id()
+                )
+            ),
+        )
+
+        # install child solution and expect an error
+        with self.assertRaises(RuntimeError):
+            self.album_controller.install_manager().install(
+                self.get_test_solution_path(
+                    "solution19_latest_API_with_outdated_parent.py"
+                )
+            )
+
+        self.assertNotIn(
+            "API version of parent solution (0.5.1) is not compatible",
+            self.captured_output.getvalue(),
+        )
 
     def test_install_with_dependencies(self):
         # fake register app1 dependency but not install

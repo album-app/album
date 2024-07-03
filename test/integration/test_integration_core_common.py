@@ -1,10 +1,11 @@
 import os
 from pathlib import Path
+from test.test_common import TestCommon
 from typing import Optional
 
-from album.core.utils.operations.file_operations import copy
 from album.runner.core.api.model.solution import ISolution
-from test.test_common import TestCommon
+
+from album.core.utils.operations.file_operations import copy
 
 
 class TestIntegrationCoreCommon(TestCommon):
@@ -39,8 +40,6 @@ class TestIntegrationCoreCommon(TestCommon):
             local_catalog_name + "_group_solution9_throws_exception_0.1.0",
             local_catalog_name + "_group_solution10_uninstall_0.1.0",
             local_catalog_name + "_group_solution13_faultySolution_0.1.0",
-            local_catalog_name + "_group_solution_with_steps_0.1.0",
-            local_catalog_name + "_solution_with_steps_grouped_0.1.0",
         ]
         for e in env_names:
             if (

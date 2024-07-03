@@ -41,7 +41,7 @@ class InstallManager(IInstallManager):
         resolve_result = self.album.collection_manager().resolve_and_load(
             solution_to_resolve
         )
-        self._install_resolve_result(resolve_result, parent=False)
+        self._install_loaded_resolve_result(resolve_result, parent=False)
         return resolve_result.loaded_solution()
 
     def _resolve_result_is_installed(self, resolve_result: ICollectionSolution) -> bool:
@@ -55,7 +55,7 @@ class InstallManager(IInstallManager):
             )
         return False
 
-    def _install_resolve_result(
+    def _install_loaded_resolve_result(
         self,
         resolve_result: ICollectionSolution,
         parent: bool = False,
@@ -164,15 +164,16 @@ class InstallManager(IInstallManager):
     def _install_active_solution(
         self, collection_solution: ICollectionSolution
     ) -> Optional[ICollectionSolution]:
-        # install environment
-
         parent_resolve_result = None
 
         parent = get_parent_dict(collection_solution.loaded_solution())
         if parent:
             # install dependencies first. Recursive call to install with dependencies
             try:
-                parent_resolve_result = self._install_parent(parent)
+                parent_resolve_result = self._install_parent(
+                    parent,
+                    collection_solution.loaded_solution().setup().album_api_version,
+                )
             except Exception as e:
                 module_logger().error("Exception when installing parent:")
                 raise e
@@ -264,15 +265,32 @@ class InstallManager(IInstallManager):
                 % active_solution.coordinates().name()
             )
 
-    def _install_parent(self, parent_dict: Dict[str, Any]) -> ICollectionSolution:
+    def _install_parent(
+        self, parent_dict: Dict[str, Any], api_version: str
+    ) -> ICollectionSolution:
         resolve_solution = build_resolve_string(parent_dict)
-        resolve_result = self.album.collection_manager().resolve_and_load(
+        resolve_result_parent = self.album.collection_manager().resolve_and_load(
             resolve_solution
         )
 
+        # check whether API version is compatible
+        if (
+            api_version
+            != resolve_result_parent.loaded_solution().setup().album_api_version
+        ):
+            raise RuntimeError(
+                "API version of parent solution (%s) is not compatible "
+                "with the requested API version (%s)."
+                " Please update the parent solution."
+                % (
+                    resolve_result_parent.loaded_solution().setup().album_api_version,
+                    api_version,
+                )
+            )
+
         # recursive installation call. Not failing for already installed solutions. parent set to "True"
-        self._install_resolve_result(resolve_result, parent=True)
-        return resolve_result
+        self._install_loaded_resolve_result(resolve_result_parent, parent=True)
+        return resolve_result_parent
 
     def uninstall(
         self,

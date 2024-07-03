@@ -37,7 +37,7 @@ class TestInstallManager(TestUnitCoreCommon):
         )
 
         _install_resolve_result = MagicMock(return_value=None)
-        self.install_manager._install_resolve_result = _install_resolve_result
+        self.install_manager._install_loaded_resolve_result = _install_resolve_result
 
         resolve = MagicMock(return_value=resolve_result)
         self.album_controller.collection_manager().resolve_and_load = resolve
@@ -124,7 +124,11 @@ class TestInstallManager(TestUnitCoreCommon):
         self.environment_manager.set_environment = set_environment
 
         parent_resolve_result = ResolveResult(
-            Path(""), None, CollectionIndex.CollectionSolution(), None, loaded_solution=self.parent_solution
+            Path(""),
+            None,
+            CollectionIndex.CollectionSolution(),
+            None,
+            loaded_solution=self.parent_solution,
         )
         _install_parent = MagicMock(return_value=parent_resolve_result)
         self.install_manager._install_parent = _install_parent
@@ -136,7 +140,9 @@ class TestInstallManager(TestUnitCoreCommon):
             run_solution_install_routine
         )
 
-        self.album_controller.collection_manager().get_collection_index().get_solution_by_catalog_grp_name_version = MagicMock(return_value= CollectionIndex.CollectionSolution())
+        self.album_controller.collection_manager().get_collection_index().get_solution_by_catalog_grp_name_version = MagicMock(
+            return_value=CollectionIndex.CollectionSolution()
+        )
 
         # call
         self.install_manager._install_active_solution(
@@ -171,7 +177,7 @@ class TestInstallManager(TestUnitCoreCommon):
     def test__install_parent(self, build_resolve_string_mock):
         # mocks
         _install = MagicMock(return_value=None)
-        self.install_manager._install_resolve_result = _install
+        self.install_manager._install_loaded_resolve_result = _install
         resolve = MagicMock(return_value="resolve")
         self.album_controller.collection_manager().resolve_and_load = resolve
 
