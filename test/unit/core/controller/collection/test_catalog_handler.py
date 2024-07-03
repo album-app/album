@@ -469,7 +469,16 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
         # assert
         get_installed_solutions.assert_called_once()
         get_by_id_mock.assert_called_once_with(1)
-        force_remove_mock.assert_called_once_with(Path("myPath"))
+        call_list = force_remove_mock.call_args_list
+        first_call = call_list[0][0][0]
+        second_call = call_list[1][0][0]
+        self.assertEqual(
+            first_call,
+            self.album_controller.configuration()
+            .cache_path_download()
+            .joinpath("myCatalog"),
+        )
+        self.assertEqual(second_call, Path("myPath"))
         self.assertEqual(catalog, c)
 
     @patch("album.core.controller.collection.catalog_handler.force_remove")
