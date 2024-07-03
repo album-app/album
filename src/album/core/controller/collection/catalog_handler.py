@@ -268,6 +268,13 @@ class CatalogHandler(ICatalogHandler):
 
         self._get_collection_index().remove_catalog(catalog_to_remove.catalog_id())
 
+        # get cache path
+        cache_path = (
+            self.album.configuration()
+            .cache_path_download()
+            .joinpath(catalog_to_remove.name())
+        )
+        force_remove(cache_path)
         force_remove(catalog_to_remove.path())
 
         catalog_to_remove.dispose()

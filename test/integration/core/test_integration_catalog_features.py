@@ -1,14 +1,15 @@
 import sys
 from pathlib import Path
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 from unittest.mock import patch
+
+from album.runner.core.model.coordinates import Coordinates
+from album.runner.core.model.solution import Solution
 
 from album.core.model.catalog_updates import ChangeType
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.solution_operations import get_deploy_dict
-from album.runner.core.model.coordinates import Coordinates
-from album.runner.core.model.solution import Solution
-from test.integration.test_integration_core_common import TestIntegrationCoreCommon
-from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
@@ -74,6 +75,22 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
             str(new_catalog_src.resolve()), catalogs[len(catalogs) - 1]["src"]
         )
 
+        # deploy in catalog
+        self.album_controller.deploy_manager().deploy(
+            str(self.get_test_solution_path("solution11_minimal.py")),
+            catalog_name="catalog_integration_test",
+            changelog="something changed",
+            dry_run=False,
+            git_email=DefaultValues.catalog_git_email.value,
+            git_name=DefaultValues.catalog_git_user.value,
+            no_conda_lock=True,
+        )
+
+        catalog_download_path = self.configuration.cache_path_download().joinpath(
+            "catalog_integration_test"
+        )
+        self.assertTrue(catalog_download_path.exists())
+
         # gather arguments remove
         sys.argv = ["", "remove-catalog", new_catalog_src]
 
@@ -98,6 +115,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         self.assertFalse(
             Path(catalog_cache_path_to_be_deleted).exists()
         )  # cache path deleted
+        self.assertFalse(catalog_download_path.exists())  # download path got deleted
         self.assertTrue(new_catalog_src.exists())  # src path still available!
 
     def test_update_collection(self):
@@ -211,12 +229,12 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         self.add_solutions(catalog, [solution])
 
         # update collection
-        dif = self.album_controller.collection_manager().catalogs().update_any()
+        self.album_controller.collection_manager().catalogs().update_any()
 
         self.assertNotIn("ERROR", self.captured_output.getvalue())
 
         # upgrade collection
-        dif = self.album_controller.collection_manager().catalogs().update_collection()
+        self.album_controller.collection_manager().catalogs().update_collection()
 
         self.assertNotIn("ERROR", self.captured_output.getvalue())
 
@@ -243,7 +261,9 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
 
         catalog.dispose()
 
-    @patch("album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file")
+    @patch(
+        "album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file"
+    )
     def test_update_upgrade_override(self, conda_lock_mock):
         conda_lock_mock.return_value = None
         initial_len = len(
@@ -346,7 +366,9 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         )
         self.assertEqual("app1", parent.setup()["name"])
 
-    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
     def test_resolve(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
@@ -429,6 +451,9 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
 
         with self.assertRaises(LookupError) as e:
             self.album_controller.collection_manager()._resolve("ame")
-        self.assertIn("Cannot find solution ame! Try <doi>:<prefix>/<suffix> or <prefix>/<suffix> "
-                        "or <group>:<name>:<version> or <catalog>:<group>:<name>:<version> "
-                        "or point to a valid file or folder! Aborting...", str(e.exception))
+        self.assertIn(
+            "Cannot find solution ame! Try <doi>:<prefix>/<suffix> or <prefix>/<suffix> "
+            "or <group>:<name>:<version> or <catalog>:<group>:<name>:<version> "
+            "or point to a valid file or folder! Aborting...",
+            str(e.exception),
+        )
