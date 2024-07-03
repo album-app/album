@@ -2,12 +2,15 @@ import os
 from typing import Any, Dict, List, Optional
 
 from album.environments.api.model.environment import IEnvironment
+from album.environments.utils.subcommand import SubProcessError
 from album.runner import album_logging
+from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
 from album.runner.core.default_values_runner import DefaultValuesRunner
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.install_manager import IInstallManager
+from album.core.api.model.collection_index import ICollectionIndex
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.controller.environment_manager import EnvironmentManager
 from album.core.model.resolve_result import ResolveResult
@@ -277,16 +280,17 @@ class InstallManager(IInstallManager):
         rm_dep: bool = False,
         argv: Optional[List[str]] = None,
     ) -> None:
-
+        loaded = False
         try:
             resolve_result = self.album.collection_manager().resolve_installed_and_load(
                 solution_to_resolve
             )
+            loaded = True
         except ValueError:
             module_logger().info(
                 "Cannot load solution. Cannot call uninstall routine. Proceed without..."
             )
-            resolve_result = self.album.collection_manager().resolve_installed_and_load(
+            resolve_result = self.album.collection_manager().resolve_installed(
                 solution_to_resolve
             )
 
@@ -294,62 +298,22 @@ class InstallManager(IInstallManager):
             'Uninstalling "%s"...' % resolve_result.coordinates().name()
         )
 
-        if argv is None:
-            argv = [""]
-
         db_entry = resolve_result.database_entry()
 
-        if db_entry is None:
+        if db_entry is None:  # can only happen if resolve_installed method broken
             raise RuntimeError(
                 "Solution not found in collection index. Cannot uninstall solution!"
             )
 
         parent = db_entry.internal()["parent"]
-        # get the environment
-        environment = None
-        try:
-            environment = self.album.environment_manager().set_environment(
-                resolve_result
-            )
-            self._run_solution_uninstall_routine(
-                resolve_result.loaded_solution(), environment
-            )
-
-            if not parent:
-                self.album.environment_manager().remove_environment(environment)
-
-        except LookupError:
-            # environment might have been deleted manually
-            pass
-        finally:
-            if environment and not parent:
-                EnvironmentManager.remove_disc_content_from_environment(environment)
 
         if db_entry.internal()["children"]:
-            children = []
-            for dependency_dict in db_entry.internal()["children"]:
-                # get the child entry
-                child_solution = (
-                    self.album.collection_manager()
-                    .get_collection_index()
-                    .get_solution_by_collection_id(
-                        dependency_dict["collection_id_child"]
-                    )
-                )
-
-                if child_solution is None:
-                    raise RuntimeError(
-                        "Child solution not found in collection index. "
-                        "Cannot uninstall parent solution!"
-                    )
-
-                if child_solution.internal()["installed"]:
-                    children.append(str(dict_to_coordinates(child_solution.setup())))
+            children = self._get_child_solution_coordinates(db_entry)
 
             if children:
                 module_logger().info(
                     "The following solutions depend on this installation: %s. Not uninstalling %s..."
-                    % (", ".join(children), str(resolve_result.coordinates()))
+                    % (", ".join(str(children)), str(resolve_result.coordinates()))
                 )
                 if parent:
                     return
@@ -358,6 +322,30 @@ class InstallManager(IInstallManager):
                     'Cannot uninstall "%s". Other solution depend on this installation! '
                     "Inspect log for more information!" % resolve_result.coordinates()
                 )
+
+        # get the environment
+        environment = None
+        try:
+            if loaded:
+                environment = self.album.environment_manager().set_environment(
+                    resolve_result
+                )
+                self._run_solution_uninstall_routine(
+                    resolve_result.loaded_solution(), environment
+                )
+
+            if not parent:
+                self.album.environment_manager().remove_environment(environment)
+
+        except LookupError:
+            # environment might have been deleted manually
+            pass
+        except SubProcessError:
+            # uninstall routine failed
+            module_logger().warning("Uninstall routine failed! Proceeding anyways...")
+        finally:
+            if environment and not parent:
+                EnvironmentManager.remove_disc_content_from_environment(environment)
 
         self._remove_disc_content_from_solution(resolve_result)
 
@@ -374,6 +362,28 @@ class InstallManager(IInstallManager):
             self._remove_dependencies(resolve_result.loaded_solution(), rm_dep)
 
         module_logger().info('Uninstalled "%s"!' % resolve_result.coordinates().name())
+
+    def _get_child_solution_coordinates(
+        self, db_entry: ICollectionIndex.ICollectionSolution
+    ) -> List[ICoordinates]:
+        children = []
+        for dependency_dict in db_entry.internal()["children"]:
+            # get the child entry
+            child_solution = (
+                self.album.collection_manager()
+                .get_collection_index()
+                .get_solution_by_collection_id(dependency_dict["collection_id_child"])
+            )
+
+            if child_solution is None:
+                raise RuntimeError(
+                    "Child solution not found in collection index. "
+                    "Cannot uninstall parent solution!"
+                )
+
+            if child_solution.internal()["installed"]:
+                children.append(dict_to_coordinates(child_solution.setup()))
+        return children
 
     def _run_solution_uninstall_routine(
         self, active_solution: ISolution, environment: IEnvironment
@@ -403,7 +413,7 @@ class InstallManager(IInstallManager):
 
             self.album.environment_manager().run_script(
                 environment,
-                active_solution.script(),
+                str(active_solution.script()),
                 environment_variables=env_variables,
             )
 

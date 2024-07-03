@@ -1,6 +1,8 @@
-from album.core.utils.operations.file_operations import create_path_recursively
-from album.runner.core.model.coordinates import Coordinates
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
+
+from album.runner.core.model.coordinates import Coordinates
+
+from album.core.utils.operations.file_operations import create_path_recursively
 
 
 class TestIntegrationUninstall(TestIntegrationCoreCommon):
@@ -141,7 +143,7 @@ class TestIntegrationUninstall(TestIntegrationCoreCommon):
 
         log = self.captured_output.getvalue()
 
-        self.assertIn("Cannot load solution. Cannot call uninstall routine. Proceed without", log)
+        self.assertIn("Uninstall routine failed! Proceeding anyways", log)
 
         # assert solution was set to uninstalled in the collection
         self.assertEqual(

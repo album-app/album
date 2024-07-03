@@ -90,11 +90,13 @@ class CollectionManager(ICollectionManager):
                     .exists()
                 ):
                     shutil.move(
-                        Path(
-                            self.album.configuration()
-                            .get_catalog_collection_meta_path()
-                            .parent.parent.joinpath(
-                                DefaultValues.catalog_collection_json_name.value
+                        str(
+                            Path(
+                                self.album.configuration()
+                                .get_catalog_collection_meta_path()
+                                .parent.parent.joinpath(
+                                    DefaultValues.catalog_collection_json_name.value
+                                )
                             )
                         ),
                         Path(
@@ -158,7 +160,7 @@ class CollectionManager(ICollectionManager):
         db_entry = resolve_result.database_entry()
 
         if not db_entry:
-            raise LookupError("Solution not found!")
+            raise LookupError("Solution not found in database!")
 
         if not db_entry.internal()["installed"]:
             raise ValueError(

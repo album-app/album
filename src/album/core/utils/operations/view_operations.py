@@ -2,7 +2,7 @@
 import enum
 import logging
 from argparse import Namespace
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import colorlog
 from album.runner.core.api.model.solution import ISolution
@@ -163,7 +163,7 @@ def get_index_as_string(index_dict: Dict[str, Any]) -> str:
     return res
 
 
-def get_search_result_as_string(args: Namespace, search_result: List[str]):
+def get_search_result_as_string(args: Namespace, search_result: List[Tuple[Any, Any]]):
     """Get the search result as a string."""
     res = ""
     if len(search_result) > 0:

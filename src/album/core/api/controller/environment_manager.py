@@ -1,5 +1,4 @@
 """Interface for managing environments."""
-import os
 from abc import ABCMeta, abstractmethod
 from typing import List, Mapping, Optional, Union
 
@@ -50,9 +49,7 @@ class IEnvironmentManager:
         script: str,
         environment_variables: Optional[
             Union[
-                Mapping[str, str],
-                Mapping[bytes, Union[str, bytes, os.PathLike[str], os.PathLike[bytes]]],
-                Mapping[str, Union[str, bytes, os.PathLike[str], os.PathLike[bytes]]],
+                Mapping,
                 None,
             ]
         ] = None,

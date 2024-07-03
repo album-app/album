@@ -2,30 +2,32 @@ import os
 import sys
 import traceback
 from argparse import ArgumentParser
+from typing import Callable
+
+from album.runner import album_logging
+from album.runner.album_logging import (
+    debug_settings,
+    get_active_logger,
+    pop_active_logger,
+)
 
 from album.api import Album
 from album.argument_parsing import ArgumentParser as AlbumAP
 from album.ci.commandline import (
+    commit_changes,
     configure_repo,
     configure_ssh,
+    merge,
+    update_index,
     zenodo_publish,
     zenodo_upload,
-    update_index,
-    commit_changes,
-    merge,
 )
 from album.ci.controller.release_manager import ReleaseManager
-from album.runner import album_logging
-from album.runner.album_logging import (
-    get_active_logger,
-    debug_settings,
-    pop_active_logger,
-)
 
 module_logger = get_active_logger
 
 
-def main():
+def main() -> None:
     """Entry points of `album ci`."""
     ci_parser = create_parser()
 
@@ -61,7 +63,7 @@ def main():
         release_manager.close()
 
 
-def _handle_exception(e):
+def _handle_exception(e) -> None:
     get_active_logger().error("album-ci command failed: %s" % str(e))
     get_active_logger().debug(traceback.format_exc())
     sys.exit(e)
@@ -71,7 +73,7 @@ def create_album_instance() -> Album:
     return Album.Builder().build()
 
 
-def create_parser():
+def create_parser() -> ArgumentParser:
     parser = AlbumCIParser()
 
     parser.create_git_command_parser(
@@ -160,7 +162,7 @@ class AlbumCIParser(AlbumAP):
         )
 
     @staticmethod
-    def create_parent_parser():
+    def create_parent_parser() -> ArgumentParser:
         """Parent parser for all subparsers to have the same set of arguments."""
         parent_parser = ArgumentParser(add_help=False)
         # parse logging
@@ -174,7 +176,7 @@ class AlbumCIParser(AlbumAP):
         )
         return parent_parser
 
-    def create_parser(self):
+    def create_parser(self) -> ArgumentParser:
         """Creates the main parser for the album framework."""
         parser = ArgumentParser(
             add_help=True,
@@ -184,8 +186,8 @@ class AlbumCIParser(AlbumAP):
         return parser
 
     def create_catalog_command_parser(
-        self, command_name, command_function, command_help
-    ):
+        self, command_name: str, command_function: Callable, command_help: str
+    ) -> ArgumentParser:
         """Creates a subparser with all necessary arguments for the catalog deployment management"""
         parser = self.subparsers.add_parser(
             command_name, help=command_help, parents=[self.parent_parser]
@@ -213,7 +215,9 @@ class AlbumCIParser(AlbumAP):
 
         return parser
 
-    def create_git_command_parser(self, command_name, command_function, command_help):
+    def create_git_command_parser(
+        self, command_name: str, command_function: Callable, command_help: str
+    ) -> ArgumentParser:
         parser = self.create_catalog_command_parser(
             command_name, command_function, command_help
         )
@@ -239,8 +243,8 @@ class AlbumCIParser(AlbumAP):
         return parser
 
     def create_branch_command_parser(
-        self, command_name, command_function, command_help
-    ):
+        self, command_name: str, command_function: Callable, command_help: str
+    ) -> ArgumentParser:
         parser = self.create_git_command_parser(
             command_name, command_function, command_help
         )
@@ -253,8 +257,8 @@ class AlbumCIParser(AlbumAP):
         return parser
 
     def create_zenodo_command_parser(
-        self, command_name, command_function, command_help
-    ):
+        self, command_name: str, command_function: Callable, command_help: str
+    ) -> ArgumentParser:
         parser = self.create_branch_command_parser(
             command_name, command_function, command_help
         )
@@ -277,8 +281,8 @@ class AlbumCIParser(AlbumAP):
         return parser
 
     def create_pipeline_command_parser(
-        self, command_name, command_function, command_help
-    ):
+        self, command_name: str, command_function: Callable, command_help: str
+    ) -> ArgumentParser:
         parser = self.create_branch_command_parser(
             command_name, command_function, command_help
         )

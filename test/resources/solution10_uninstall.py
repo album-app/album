@@ -3,8 +3,6 @@ import time
 from album.runner.album_logging import get_active_logger
 from album.runner.api import setup
 
-import asdasdasd
-
 
 def album_run():
     pass

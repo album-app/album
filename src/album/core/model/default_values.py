@@ -105,10 +105,6 @@ class DefaultValues(Enum):
     # album
     app_data_dir = os.getenv("ALBUM_BASE_CACHE_PATH", Path.home().joinpath(".album"))  # base data path
 
-    # micromamba
-    micromamba_default_command = "micromamba"
-    micromamba_path = os.getenv("ALBUM_MICROMAMBA_PATH")
-
     # micro mamba default location  # todo: seems not to be used. We should remove this
 
     default_micromamba_path_win = (
@@ -132,6 +128,9 @@ class DefaultValues(Enum):
         if platform.system() == "Windows"
         else default_micromamba_path_else
     )
+    # micromamba
+    micromamba_default_command = "micromamba"
+    micromamba_path = os.getenv("ALBUM_MICROMAMBA_PATH", default_micromamba_path)
 
     # mamba
     mamba_default_command = "mamba"

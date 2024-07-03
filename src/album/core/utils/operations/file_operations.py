@@ -251,7 +251,12 @@ def construct_cache_link_target(
             return resolve
     else:
         if os.path.islink(point_from):
-            return Path(point_from).resolve()
+            r = Path(point_from).resolve()
+
+            if not r.exists():
+                create_path_recursively(r)
+
+            return r
         if create:
             point_to = root.joinpath(_next_free_pointer_number(root))
 

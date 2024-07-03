@@ -200,7 +200,7 @@ def _add_files(repo: Repo, file_paths: List[Path]) -> bool:
 
 
 def add_files_commit_and_push(
-    head: Head,
+    head: Union[Head, HEAD],
     file_paths: List[Path],
     commit_message: str,
     push: bool = False,

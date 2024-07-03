@@ -111,7 +111,7 @@ class EnvironmentManager(IEnvironmentManager):
         db_entry = collection_solution.database_entry()
 
         if db_entry is None:
-            raise ValueError("Database entry not set!")
+            raise ValueError("Database entry not set! Cannot resolve environment.")
 
         parent = db_entry.internal()["parent"]
         if not parent:
@@ -190,9 +190,7 @@ class EnvironmentManager(IEnvironmentManager):
         script: str,
         environment_variables: Optional[
             Union[
-                Mapping[str, str],
-                Mapping[bytes, Union[str, bytes, os.PathLike[str], os.PathLike[bytes]]],
-                Mapping[str, Union[str, bytes, os.PathLike[str], os.PathLike[bytes]]],
+                Mapping,
                 None,
             ]
         ] = None,

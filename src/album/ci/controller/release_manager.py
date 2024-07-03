@@ -3,7 +3,7 @@ import os
 import tempfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Dict, Generator, List, Tuple
+from typing import Any, Dict, Generator, List, Tuple, Union
 
 from album.environments.utils.file_operations import (
     copy,
@@ -93,7 +93,7 @@ class ReleaseManager:
                 repo.remote().set_url(get_ssh_url(project_path, self.catalog_src))
 
     @staticmethod
-    def _get_yml_dict(head: HEAD) -> Tuple[Dict[str, any], str]:
+    def _get_yml_dict(head: HEAD) -> List[Union[Dict[str, Any], Any]]:
         yml_file_path = retrieve_files_from_head_last_commit(
             head, DefaultValues.solution_yml_default_name.value
         )[0]
@@ -147,7 +147,7 @@ class ReleaseManager:
         self,
         repo: Generator[Repo, None, None],
         yml_dict: Dict[str, any],
-        tmp: TemporaryDirectory,
+        tmp: Union[TemporaryDirectory, str],
     ) -> Tuple[List[str], List[str]]:
         coordinates = dict_to_coordinates(yml_dict)
         solution_relative_path = (
@@ -156,7 +156,7 @@ class ReleaseManager:
         solution_dir_in_repo = Path(repo.working_tree_dir).joinpath(
             solution_relative_path
         )
-        zip = Path(tmp).joinpath(DefaultValues.solution_zip_default_name.value)
+        zip = Path(str(tmp)).joinpath(DefaultValues.solution_zip_default_name.value)
         zip_folder(solution_dir_in_repo, zip)
         changelog_name = solution_dir_in_repo.joinpath(get_changelog_file_name())
         documentation_paths = self._get_documentation_paths(
@@ -405,7 +405,7 @@ class ReleaseManager:
         return documentation_paths
 
     @staticmethod
-    def _get_cover_paths(base_dir: str, yml_dict: Dict[str, any]) -> List[str]:
+    def _get_cover_paths(base_dir: Path, yml_dict: Dict[str, any]) -> List[Path]:
         cover_paths = []
         if "covers" in yml_dict.keys():
             cover_list = yml_dict["covers"]

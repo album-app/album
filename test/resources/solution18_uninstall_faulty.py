@@ -1,10 +1,11 @@
 import time
 
+# packet exists only in source environment.
+# This import is will trigger an ImportError in target environment but not in the source environment.
+# Hence, installation of the solution is possible, but executing any target in the target environment will fail.
+import yaml
 from album.runner.album_logging import get_active_logger
 from album.runner.api import setup
-
-# packet exists only in source environment. This import is needed to trigger the ImportError in target environment.
-import yaml
 
 
 def album_run():
@@ -15,6 +16,7 @@ def album_uninstall():
     get_active_logger().info("solution10_uninstall_album_uninstall_start")
     time.sleep(5)
     get_active_logger().info("solution10_uninstall_album_uninstall_end")
+    _ = yaml.resolver.BaseResolver
 
 
 def album_install():
