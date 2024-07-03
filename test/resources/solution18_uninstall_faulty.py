@@ -3,7 +3,8 @@ import time
 from album.runner.album_logging import get_active_logger
 from album.runner.api import setup
 
-import asdasdasd
+# packet exists only in source environment. This import is needed to trigger the ImportError in target environment.
+import yaml
 
 
 def album_run():
@@ -34,9 +35,9 @@ def album_test():
 
 setup(
     group="group",
-    name="solution10_uninstall",
+    name="solution18_uninstall_faulty",
     version="0.1.0",
-    album_api_version="0.5.1",
+    album_api_version="0.6.1",
     args=[
         {
             "name": "testArg1",

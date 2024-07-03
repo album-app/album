@@ -277,10 +277,18 @@ class InstallManager(IInstallManager):
         rm_dep: bool = False,
         argv: Optional[List[str]] = None,
     ) -> None:
-        # DO NOT LOAD THE SOLUTION DURING UNINSTALLATION! SOLUTION MIGHT BE BROKEN (e.g. faulty imports)!
-        resolve_result = self.album.collection_manager().resolve_installed(
-            solution_to_resolve
-        )
+
+        try:
+            resolve_result = self.album.collection_manager().resolve_installed_and_load(
+                solution_to_resolve
+            )
+        except ValueError:
+            module_logger().info(
+                "Cannot load solution. Cannot call uninstall routine. Proceed without..."
+            )
+            resolve_result = self.album.collection_manager().resolve_installed_and_load(
+                solution_to_resolve
+            )
 
         module_logger().info(
             'Uninstalling "%s"...' % resolve_result.coordinates().name()

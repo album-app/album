@@ -118,3 +118,40 @@ class TestIntegrationUninstall(TestIntegrationCoreCommon):
                 )
             ),
         )
+
+    def test_uninstall_faulty_solution_with_routine(self):
+
+        # create test environment
+        p = self.get_test_solution_path("solution18_uninstall_faulty.py")
+        self.fake_install(p)
+
+        collection = self.album_controller.collection_manager().catalog_collection
+        self.assertTrue(
+            collection.is_installed(
+                self.album_controller.collection_manager()
+                .catalogs()
+                .get_cache_catalog()
+                .catalog_id(),
+                Coordinates("group", "solution18_uninstall_faulty", "0.1.0"),
+            )
+        )
+
+        # run
+        self.album_controller.install_manager().uninstall(p)
+
+        log = self.captured_output.getvalue()
+
+        self.assertIn("Cannot load solution. Cannot call uninstall routine. Proceed without", log)
+
+        # assert solution was set to uninstalled in the collection
+        self.assertEqual(
+            0,
+            len(
+                collection.get_solutions_by_catalog(
+                    self.album_controller.collection_manager()
+                    .catalogs()
+                    .get_cache_catalog()
+                    .catalog_id()
+                )
+            ),
+        )
