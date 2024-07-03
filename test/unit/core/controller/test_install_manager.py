@@ -107,7 +107,7 @@ class TestInstallManager(TestUnitCoreCommon):
         install_environment.assert_called_once()
 
     def test__install_active_solution_with_parent(self):
-        self.active_solution._setup.album_api_version = "test"
+        self.active_solution._setup.album_api_version = "1.0.1"
 
         self.parent_solution = Solution(deepcopy(dict(self.active_solution.setup())))
         self.parent_solution.environment = (
@@ -158,7 +158,7 @@ class TestInstallManager(TestUnitCoreCommon):
         )
 
         # assert
-        _install_parent.assert_called_once_with("aParent")
+        _install_parent.assert_called_once_with("aParent", "1.0.1")
         run_solution_install_routine.assert_called_once_with(
             self.active_solution, set_environment.return_value
         )
@@ -178,14 +178,29 @@ class TestInstallManager(TestUnitCoreCommon):
         # mocks
         _install = MagicMock(return_value=None)
         self.install_manager._install_loaded_resolve_result = _install
-        resolve = MagicMock(return_value="resolve")
+
+        s = Solution(
+            {
+                "group": "myGroup",
+                "name": "myName",
+                "version": "myVersion",
+            }
+        )
+
+        class R:
+            album_api_version = "5.1.0"
+
+        s._setup = R()
+        r = ResolveResult("", None, None, None, s)
+
+        resolve = MagicMock(return_value=r)
         self.album_controller.collection_manager().resolve_and_load = resolve
 
         # call
-        self.install_manager._install_parent({"myDictKey": "myDeps"})
+        self.install_manager._install_parent({"myDictKey": "myDeps"}, "5.1.0")
 
         # asert
-        _install.assert_called_once_with("resolve", parent=True)
+        _install.assert_called_once_with(r, parent=True)
         resolve.assert_called_once()
         build_resolve_string_mock.assert_called_once_with({"myDictKey": "myDeps"})
 
