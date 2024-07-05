@@ -140,6 +140,31 @@ class TestIntegrationEnvironmentPreparation(TestIntegrationCoreCommon):
 
         # assert no warning
         self.assertNotIn(
-            "Only proceed if you know what you are doing",
+            "set allow_unsafe during installation",
+            self.captured_output.getvalue(),
+        )
+
+    def test_album_in_album_pip_versioned_allow_unsafe(self):
+        loaded_solution = self._setup()
+
+        dependencies_album_pip_versioned = {
+            "channels": ["conda-forge"],
+            "dependencies": ["python=3.8.5", "pip", {"pip": ["album==0.1.0"]}],
+        }
+
+        # pip dependencies album versioned
+        loaded_solution._setup["dependencies"] = {
+            "environment_file": dependencies_album_pip_versioned
+        }
+        solution = self._set_resolve_result(loaded_solution)
+
+        # call
+        self.album_controller.environment_manager().install_environment(
+            solution, allow_unsafe=True
+        )
+
+        # assert warning
+        self.assertIn(
+            "Potentially unsafe installation of album in album detected!",
             self.captured_output.getvalue(),
         )

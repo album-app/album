@@ -23,7 +23,7 @@ class IEnvironmentManager:
 
     @abstractmethod
     def install_environment(
-        self, collection_solution: ICollectionSolution
+        self, collection_solution: ICollectionSolution, allow_unsafe: bool = False
     ) -> IEnvironment:
         """Install an environment for the given solution."""
         raise NotImplementedError

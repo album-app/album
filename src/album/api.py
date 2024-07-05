@@ -124,11 +124,17 @@ class Album:
             run_async,
         )
 
-    def install(self, solution_to_resolve: str, argv=None, run_async=False):
+    def install(
+        self,
+        solution_to_resolve: str,
+        allow_unsafe: bool = False,
+        argv=None,
+        run_async=False,
+    ):
         """Install a solution to the disk."""
         return self._run_async(
             self._controller.install_manager().install,
-            (solution_to_resolve, argv),
+            (solution_to_resolve, allow_unsafe, argv),
             run_async,
         )
 

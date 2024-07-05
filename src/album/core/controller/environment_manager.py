@@ -1,7 +1,7 @@
 import os
 from io import StringIO
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Union
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
 import validators
 from album.environments.api.environment_api import IEnvironmentAPI
@@ -61,14 +61,16 @@ class EnvironmentManager(IEnvironmentManager):
         )
 
     def install_environment(
-        self, collection_solution: ICollectionSolution
+        self, collection_solution: ICollectionSolution, allow_unsafe: bool = False
     ) -> IEnvironment:
-        environment = self._create_environment_for_solution(collection_solution)
+        environment = self._create_environment_for_solution(
+            collection_solution, allow_unsafe
+        )
         set_environment_paths(collection_solution.loaded_solution(), environment)
         return environment
 
     def _create_environment_for_solution(
-        self, collection_solution: ICollectionSolution
+        self, collection_solution: ICollectionSolution, allow_unsafe: bool = False
     ) -> IEnvironment:
         env_name = self.get_environment_name(
             collection_solution.coordinates(), collection_solution.catalog()
@@ -84,7 +86,12 @@ class EnvironmentManager(IEnvironmentManager):
             collection_solution.loaded_solution().installation().package_path()
         )
         environment = self.create_environment(
-            cache, dependencies, env_name, album_api_version, solution_package_path
+            cache,
+            dependencies,
+            env_name,
+            album_api_version,
+            solution_package_path,
+            allow_unsafe,
         )
         set_environment_paths(collection_solution.loaded_solution(), environment)
         return environment
@@ -96,9 +103,10 @@ class EnvironmentManager(IEnvironmentManager):
         env_name: str,
         album_api_version: str,
         solution_package_path: Path,
+        allow_unsafe: bool = False,
     ) -> IEnvironment:
         env_file = self._prepare_env_file(
-            dependencies, cache, env_name, album_api_version
+            dependencies, cache, env_name, album_api_version, allow_unsafe
         )
         env_path = self.get_environment_path(env_name, create=True)
         environment = Environment(env_file, env_name, env_path)
@@ -109,7 +117,22 @@ class EnvironmentManager(IEnvironmentManager):
 
         return environment
 
-    def _check_album_in_album(self, yml_dict: Dict[str, Any]) -> None:
+    @staticmethod
+    def _get_pypi_package_name_version(str_: str) -> Tuple[str, str]:
+        if "==" in str_:
+            p = str_.split("==")[0]
+            v = str_.split("==")[-1]
+        elif "~=" in str_:
+            p = str_.split("~=")[0]
+            v = str_.split("~=")[-1]
+        else:
+            p = str_
+            v = ""
+        return p, v
+
+    def _check_album_in_album(
+        self, yml_dict: Dict[str, Any], allow_unsafe: bool = False
+    ) -> None:
         album_installed_version = None
         if "dependencies" in yml_dict:
             for dep in yml_dict["dependencies"]:
@@ -117,24 +140,30 @@ class EnvironmentManager(IEnvironmentManager):
                 if isinstance(dep, dict):
                     if "pip" in dep:
                         for pip_dep in dep["pip"]:
-                            if "album" == pip_dep.split("==")[-1]:
-                                album_installed_version = pip_dep.split("==")[-1]
+                            if (
+                                "album"
+                                == self._get_pypi_package_name_version(pip_dep)[0]
+                            ):
+                                album_installed_version = (
+                                    self._get_pypi_package_name_version(pip_dep)[-1]
+                                )
                                 # check if unversioned
                                 album_installed_version = (
                                     album_version
-                                    if album_installed_version == "album"
+                                    if album_installed_version == ""
                                     else album_installed_version
                                 )
                                 break
-                if "album" == dep.split("=")[-1]:
-                    album_installed_version = dep.split("=")[-1]
-                    # check if unversioned
-                    album_installed_version = (
-                        album_version
-                        if album_installed_version == "album"
-                        else album_installed_version
-                    )
-                    break
+                if isinstance(dep, str):
+                    if "album" == dep.split("=")[0]:
+                        album_installed_version = dep.split("=")[-1]
+                        # check if unversioned
+                        album_installed_version = (
+                            album_version
+                            if album_installed_version == "album"
+                            else album_installed_version
+                        )
+                        break
 
         if album_installed_version == album_version:
             module_logger().warning(
@@ -145,16 +174,18 @@ class EnvironmentManager(IEnvironmentManager):
         if album_installed_version is not None and (
             album_installed_version != album_version
         ):
-            module_logger().error(
-                "Album is planned to be installed in the solution environment with a different version. "
-                "They are incompatible!"
-                " Update the solution environment to this version of album if you want you plan to use it!"
+            str_ = (
+                "Album is planned to be installed in the solution environment with a different version."
+                " They might be incompatible! It is recommended to update the parent solution!"
+                " If you know what you are doing, set allow_unsafe during installation!"
             )
-            raise ValueError(
-                "Album is planned to be installed in the solution environment with a different version. "
-                "They are incompatible!"
-                " Update the solution environment to this version of album if you want you plan to use it!"
-            )
+            if not allow_unsafe:
+                module_logger().error(str_)
+                raise ValueError(str_)
+            else:
+                module_logger().info(
+                    "Potentially unsafe installation of album in album detected!"
+                )
 
     def set_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
         db_entry = collection_solution.database_entry()
@@ -272,6 +303,7 @@ class EnvironmentManager(IEnvironmentManager):
         cache_path: Path,
         env_name: str,
         album_api_version: Optional[str] = "",
+        allow_unsafe: bool = False,
     ) -> Path:
         yaml_path = cache_path.joinpath("{n}{s}".format(n=env_name, s=".yml"))
         create_path_recursively(yaml_path.parent)
@@ -325,7 +357,7 @@ class EnvironmentManager(IEnvironmentManager):
             yaml_dict = DefaultValues.default_solution_env_content.value
 
         # safety check to avoid album in album issues
-        self._check_album_in_album(yaml_dict)
+        self._check_album_in_album(yaml_dict, allow_unsafe)
 
         yaml_dict = EnvironmentManager._append_framework_to_dependencies(
             yaml_dict, album_api_version
