@@ -82,7 +82,7 @@ class DefaultValues(Enum):
     solution_zip_default_name = "solution.zip"  # default name of the solution.zip file
     changelog_default_name = "CHANGELOG.md"  # default name of the changelog file
     default_solution_env_content = {
-        "channels": ["defaults"],
+        "channels": ["conda-forge"],
         "dependencies": ["python=%s" % default_solution_python_version],
     }
 

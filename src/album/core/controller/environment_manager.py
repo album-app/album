@@ -107,29 +107,51 @@ class EnvironmentManager(IEnvironmentManager):
             environment, str(solution_lock_file.absolute())
         )
 
-        # safety check to avoid album in album issues
-        self._check_album_in_album(environment)
-
         return environment
 
-    def _check_album_in_album(self, environment):
-        album_installed_version = self._environment_handler.get_package_version(
-            environment, "album", album_version
-        )
-        if album_installed_version == version:
+    def _check_album_in_album(self, yml_dict: Dict[str, Any]) -> None:
+        album_installed_version = None
+        if "dependencies" in yml_dict:
+            for dep in yml_dict["dependencies"]:
+                if "album" in dep:
+                    album_installed_version = dep.split("=")[-1]
+                    # check if unversioned
+                    album_installed_version = (
+                        album_version
+                        if album_installed_version == "album"
+                        else album_installed_version
+                    )
+                    break
+                # check for pip dependencies
+                if isinstance(dep, dict):
+                    if "pip" in dep:
+                        for pip_dep in dep["pip"]:
+                            if "album" in pip_dep:
+                                album_installed_version = pip_dep.split("==")[-1]
+                                # check if unversioned
+                                album_installed_version = (
+                                    album_version
+                                    if album_installed_version == "album"
+                                    else album_installed_version
+                                )
+                                break
+
+        if album_installed_version == album_version:
             module_logger().warning(
-                "Album is installed in the solution environment. "
+                "Album is planned to be installed in the solution environment. "
                 "This might cause issues when sharing the same database!"
                 "Only proceed if you know what you are doing!"
             )
-        if album_installed_version and album_installed_version != version:
+        if album_installed_version and album_installed_version != album_version:
             module_logger().error(
-                "Album is installed in the solution environment with a different version. They are incompatible!"
-                "Update the solution environment to this version of album if you want to use it!"
+                "Album is planned to be installed in the solution environment with a different version. "
+                "They are incompatible!"
+                "Update the solution environment to this version of album if you want you plan to use it!"
             )
             raise ValueError(
-                "Album is installed in the solution environment with a different version. They are incompatible!"
-                "Update the solution environment to this version of album if you want to use it!"
+                "Album is planned to be installed in the solution environment with a different version. "
+                "They are incompatible!"
+                "Update the solution environment to this version of album if you want you plan to use it!"
             )
 
     def set_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
@@ -242,8 +264,8 @@ class EnvironmentManager(IEnvironmentManager):
     def remove_disc_content_from_environment(environment: IEnvironment) -> None:
         remove_link(environment.path())
 
-    @staticmethod
     def _prepare_env_file(
+        self,
         dependencies_dict: Dict[str, Any],
         cache_path: Path,
         env_name: str,
@@ -260,11 +282,13 @@ class EnvironmentManager(IEnvironmentManager):
                     # case valid url
                     if validators.url(env_file):
                         yaml_path = download_resource(env_file, yaml_path)
+
                     # case file content
                     elif "dependencies:" in env_file and "\n" in env_file:
                         with open(str(yaml_path), "w+") as f:
                             f.writelines(env_file)
                         yaml_path = yaml_path
+
                     # case Path
                     elif Path(env_file).is_file() and Path(env_file).stat().st_size > 0:
                         yaml_path = copy(env_file, yaml_path)
@@ -273,6 +297,10 @@ class EnvironmentManager(IEnvironmentManager):
                             "environment_file must either contain the content of the environment file, "
                             "contain the url to a valid file or point to a file on the disk!"
                         )
+                # case dict
+                elif isinstance(env_file, dict):
+                    write_dict_to_yml(yaml_path, env_file)
+
                 # case String stream
                 elif isinstance(env_file, StringIO):
                     with open(str(yaml_path), "w+") as f:
@@ -293,6 +321,9 @@ class EnvironmentManager(IEnvironmentManager):
 
         if not yaml_dict:
             yaml_dict = DefaultValues.default_solution_env_content.value
+
+        # safety check to avoid album in album issues
+        self._check_album_in_album(yaml_dict)
 
         yaml_dict = EnvironmentManager._append_framework_to_dependencies(
             yaml_dict, album_api_version
