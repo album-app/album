@@ -113,20 +113,11 @@ class EnvironmentManager(IEnvironmentManager):
         album_installed_version = None
         if "dependencies" in yml_dict:
             for dep in yml_dict["dependencies"]:
-                if "album" in dep:
-                    album_installed_version = dep.split("=")[-1]
-                    # check if unversioned
-                    album_installed_version = (
-                        album_version
-                        if album_installed_version == "album"
-                        else album_installed_version
-                    )
-                    break
                 # check for pip dependencies
                 if isinstance(dep, dict):
                     if "pip" in dep:
                         for pip_dep in dep["pip"]:
-                            if "album" in pip_dep:
+                            if "album" == pip_dep.split("==")[-1]:
                                 album_installed_version = pip_dep.split("==")[-1]
                                 # check if unversioned
                                 album_installed_version = (
@@ -135,6 +126,15 @@ class EnvironmentManager(IEnvironmentManager):
                                     else album_installed_version
                                 )
                                 break
+                if "album" == dep.split("=")[-1]:
+                    album_installed_version = dep.split("=")[-1]
+                    # check if unversioned
+                    album_installed_version = (
+                        album_version
+                        if album_installed_version == "album"
+                        else album_installed_version
+                    )
+                    break
 
         if album_installed_version == album_version:
             module_logger().warning(
@@ -271,7 +271,7 @@ class EnvironmentManager(IEnvironmentManager):
         dependencies_dict: Dict[str, Any],
         cache_path: Path,
         env_name: str,
-        album_api_version: str,
+        album_api_version: Optional[str] = "",
     ) -> Path:
         yaml_path = cache_path.joinpath("{n}{s}".format(n=env_name, s=".yml"))
         create_path_recursively(yaml_path.parent)

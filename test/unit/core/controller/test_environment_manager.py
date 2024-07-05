@@ -3,18 +3,15 @@ import tempfile
 import unittest
 import unittest.mock
 from pathlib import Path
-from pathlib import Path
-from unittest.mock import patch
-from unittest.mock import patch, MagicMock
+from test.unit.test_unit_core_common import TestUnitCoreCommon
+from unittest.mock import MagicMock, patch
 
-import yaml
-from album.core.controller.environment_manager import EnvironmentManager
-from album.core.model.catalog import Catalog
-from album.core.model.resolve_result import ResolveResult
 from album.environments.utils.file_operations import get_dict_from_yml
 from album.runner.core.model.coordinates import Coordinates
 from album.runner.core.model.solution import Solution
-from test.unit.test_unit_core_common import TestUnitCoreCommon
+
+from album.core.model.catalog import Catalog
+from album.core.model.resolve_result import ResolveResult
 
 
 class TestEnvironmentManager(TestUnitCoreCommon):
@@ -38,23 +35,25 @@ class TestEnvironmentManager(TestUnitCoreCommon):
         return active_solution
 
     @patch(
-        "album.environments.controller.conda_lock_manager.CondaLockManager.create_environment_from_lockfile"
-    )
-    @patch(
         "album.core.controller.environment_manager.EnvironmentManager._prepare_env_file"
     )
     def test_install_environment_from_lockfile(
-        self, mock_prepare_env_file, mock_create_environment_from_lockfile
+        self,
+        mock_prepare_env_file,
     ):
+        mock_create_environment_from_lockfile = MagicMock()
+        self.environment_manager._environment_handler.create_environment_prefer_lock_file = (
+            mock_create_environment_from_lockfile
+        )
         # prepare
         self.active_solution._installation._package_path.joinpath(
             "solution.conda-lock.yml"
         ).touch()
         resolve = ResolveResult(
-            None,
-            self.catalog,
-            MagicMock(),
-            self.active_solution.coordinates(),
+            path=None,
+            catalog=self.catalog,
+            collection_entry=MagicMock(),
+            coordinates=self.active_solution.coordinates(),
             loaded_solution=self.active_solution,
         )
         internal_cache_path = MagicMock(return_value=Path(self.tmp_dir.name))
@@ -124,10 +123,14 @@ class TestEnvironmentManager(TestUnitCoreCommon):
         pass
 
     def test__prepare_env_file_no_deps(self):
-        EnvironmentManager._prepare_env_file(None, Path(self.tmp_dir.name), None, None)
+        self.environment_manager._prepare_env_file(
+            None, Path(self.tmp_dir.name), None, None
+        )
 
     def test__prepare_env_file_empty_deps(self):
-        EnvironmentManager._prepare_env_file({}, Path(self.tmp_dir.name), None, None)
+        self.environment_manager._prepare_env_file(
+            {}, Path(self.tmp_dir.name), None, None
+        )
 
     @patch(
         "album.core.controller.environment_manager.create_path_recursively",
@@ -135,7 +138,7 @@ class TestEnvironmentManager(TestUnitCoreCommon):
     )
     def test__prepare_env_file_invalid_file(self, create_path_mock):
         with self.assertRaises(TypeError) as context:
-            EnvironmentManager._prepare_env_file(
+            self.environment_manager._prepare_env_file(
                 {"environment_file": "env_file"},
                 Path(self.closed_tmp_file.name),
                 None,
@@ -156,7 +159,7 @@ class TestEnvironmentManager(TestUnitCoreCommon):
         with open(self.closed_tmp_file.name, mode="w") as tmp_file:
             tmp_file.write("""name: test""")
 
-        r = EnvironmentManager._prepare_env_file(
+        r = self.environment_manager._prepare_env_file(
             {"environment_file": self.closed_tmp_file.name},
             Path(self.closed_tmp_file.name),
             None,
@@ -181,7 +184,7 @@ class TestEnvironmentManager(TestUnitCoreCommon):
 
         url = "http://test.de"
 
-        r = EnvironmentManager._prepare_env_file(
+        r = self.environment_manager._prepare_env_file(
             {"environment_file": url}, Path("aPath"), self.test_environment_name, None
         )
 
@@ -202,7 +205,7 @@ class TestEnvironmentManager(TestUnitCoreCommon):
         string_io = io.StringIO("""testStringIo""")
 
         with self.assertRaises(TypeError):
-            EnvironmentManager._prepare_env_file(
+            self.environment_manager._prepare_env_file(
                 {"environment_file": string_io},
                 _cache_path,
                 self.test_environment_name,
@@ -226,7 +229,7 @@ class TestEnvironmentManager(TestUnitCoreCommon):
 
         string_io = io.StringIO("""name: value""")
 
-        r = EnvironmentManager._prepare_env_file(
+        r = self.environment_manager._prepare_env_file(
             {"environment_file": string_io},
             _cache_path,
             self.test_environment_name,
