@@ -18,6 +18,7 @@ from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 from packaging import version
 
+from album.core import __version__ as album_version
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.environment_manager import IEnvironmentManager
 from album.core.api.model.catalog import ICatalog
@@ -46,7 +47,7 @@ class EnvironmentManager(IEnvironmentManager):
         conda_path = DefaultValues.conda_path.value
         conda_lock_path = DefaultValues.conda_lock_path.value
 
-        self.environment_handler = init_environment_handler(
+        self._environment_handler = init_environment_handler(
             self.env_base_path,
             micromamba_path=micromamba_path,
             mamba_path=mamba_path,
@@ -102,10 +103,34 @@ class EnvironmentManager(IEnvironmentManager):
         env_path = self.get_environment_path(env_name, create=True)
         environment = Environment(env_file, env_name, env_path)
         solution_lock_file = solution_package_path.joinpath("solution.conda-lock.yml")
-        self.environment_handler.create_environment_prefer_lock_file(
+        self._environment_handler.create_environment_prefer_lock_file(
             environment, str(solution_lock_file.absolute())
         )
+
+        # safety check to avoid album in album issues
+        self._check_album_in_album(environment)
+
         return environment
+
+    def _check_album_in_album(self, environment):
+        album_installed_version = self._environment_handler.get_package_version(
+            environment, "album", album_version
+        )
+        if album_installed_version == version:
+            module_logger().warning(
+                "Album is installed in the solution environment. "
+                "This might cause issues when sharing the same database!"
+                "Only proceed if you know what you are doing!"
+            )
+        if album_installed_version and album_installed_version != version:
+            module_logger().error(
+                "Album is installed in the solution environment with a different version. They are incompatible!"
+                "Update the solution environment to this version of album if you want to use it!"
+            )
+            raise ValueError(
+                "Album is installed in the solution environment with a different version. They are incompatible!"
+                "Update the solution environment to this version of album if you want to use it!"
+            )
 
     def set_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
         db_entry = collection_solution.database_entry()
@@ -166,7 +191,7 @@ class EnvironmentManager(IEnvironmentManager):
             raise LookupError("Could not find environment %s." % environment_name)
 
         environment_list = (
-            self.environment_handler.get_package_manager().get_environment_list()
+            self._environment_handler.get_package_manager().get_environment_list()
         )
 
         if path_expected.resolve() in [env.resolve() for env in environment_list]:
@@ -180,7 +205,7 @@ class EnvironmentManager(IEnvironmentManager):
         environment.set_path(path)
 
     def remove_environment(self, environment: IEnvironment) -> bool:
-        self.environment_handler.remove_environment(environment)
+        self._environment_handler.remove_environment(environment)
         self.remove_disc_content_from_environment(environment)
         return True
 
@@ -198,7 +223,7 @@ class EnvironmentManager(IEnvironmentManager):
         pipe_output: bool = True,
     ) -> None:
         argv_ = argv if argv else []
-        self.environment_handler.run_script(
+        self._environment_handler.run_script(
             environment, script, environment_variables, argv_, pipe_output
         )
 
@@ -312,4 +337,4 @@ class EnvironmentManager(IEnvironmentManager):
         return content
 
     def get_environment_handler(self) -> IEnvironmentAPI:
-        return self.environment_handler
+        return self._environment_handler
