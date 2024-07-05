@@ -43,10 +43,10 @@ class TestInstallManager(TestUnitCoreCommon):
         self.album_controller.collection_manager().resolve_and_load = resolve
 
         # call
-        self.install_manager.install("aPath", [])
+        self.install_manager.install("aPath", False, [])
 
         # assert
-        _install_resolve_result.assert_called_once_with(resolve_result, parent=False)
+        _install_resolve_result.assert_called_once_with(resolve_result, parent=False, allow_unsafe=False)
 
     @unittest.skip("Needs to be implemented!")
     def test__resolve_result_is_installed(self):
