@@ -142,16 +142,18 @@ class EnvironmentManager(IEnvironmentManager):
                 "This might cause issues when sharing the same database!"
                 "Only proceed if you know what you are doing!"
             )
-        if album_installed_version and album_installed_version != album_version:
+        if album_installed_version is not None and (
+            album_installed_version != album_version
+        ):
             module_logger().error(
                 "Album is planned to be installed in the solution environment with a different version. "
                 "They are incompatible!"
-                "Update the solution environment to this version of album if you want you plan to use it!"
+                " Update the solution environment to this version of album if you want you plan to use it!"
             )
             raise ValueError(
                 "Album is planned to be installed in the solution environment with a different version. "
                 "They are incompatible!"
-                "Update the solution environment to this version of album if you want you plan to use it!"
+                " Update the solution environment to this version of album if you want you plan to use it!"
             )
 
     def set_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
