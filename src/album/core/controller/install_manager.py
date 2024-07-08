@@ -72,7 +72,11 @@ class InstallManager(IInstallManager):
                 "Solution cannot be installed without being associated with a catalog!"
             )
         elif not parent and self._resolve_result_is_installed(resolve_result):
-            raise RuntimeError("Solution already installed. Uninstall solution first!")
+            module_logger().info(
+                'Solution "%s" already installed. Skipping...'
+                % resolve_result.loaded_solution().coordinates().name()
+            )
+            return
         elif parent and self._resolve_result_is_installed(resolve_result):
             return resolve_result  # solution already installed
         else:
