@@ -179,6 +179,7 @@ class InstallManager(IInstallManager):
                 parent_resolve_result = self._install_parent(
                     parent,
                     collection_solution.loaded_solution().setup().album_api_version,
+                    collection_solution.coordinates(),
                 )
             except Exception as e:
                 module_logger().error("Exception when installing parent:")
@@ -272,12 +273,21 @@ class InstallManager(IInstallManager):
             )
 
     def _install_parent(
-        self, parent_dict: Dict[str, Any], api_version: str
+        self,
+        parent_dict: Dict[str, Any],
+        api_version: str,
+        child_coordinates: ICoordinates,
     ) -> ICollectionSolution:
         resolve_solution = build_resolve_string(parent_dict)
         resolve_result_parent = self.album.collection_manager().resolve_and_load(
             resolve_solution
         )
+
+        # check whether child_coordinates are resolved_parent coordinates
+        if resolve_result_parent.coordinates() == child_coordinates:
+            raise ValueError(
+                "Parent solution cannot be the same as the child solution!"
+            )
 
         # check whether API version is compatible
         if (

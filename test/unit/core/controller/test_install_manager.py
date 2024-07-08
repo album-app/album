@@ -46,7 +46,9 @@ class TestInstallManager(TestUnitCoreCommon):
         self.install_manager.install("aPath", False, [])
 
         # assert
-        _install_resolve_result.assert_called_once_with(resolve_result, parent=False, allow_unsafe=False)
+        _install_resolve_result.assert_called_once_with(
+            resolve_result, parent=False, allow_unsafe=False
+        )
 
     @unittest.skip("Needs to be implemented!")
     def test__resolve_result_is_installed(self):
@@ -197,12 +199,48 @@ class TestInstallManager(TestUnitCoreCommon):
         self.album_controller.collection_manager().resolve_and_load = resolve
 
         # call
-        self.install_manager._install_parent({"myDictKey": "myDeps"}, "5.1.0")
+        self.install_manager._install_parent(
+            {"myDictKey": "myDeps"}, "5.1.0", Coordinates("a", "b", "c")
+        )
 
         # asert
         _install.assert_called_once_with(r, parent=True)
         resolve.assert_called_once()
         build_resolve_string_mock.assert_called_once_with({"myDictKey": "myDeps"})
+
+    @patch(
+        "album.core.controller.install_manager.build_resolve_string",
+        return_value="myResolveString",
+    )
+    def test__install_parent_eq_child(self, build_resolve_string_mock):
+        # mocks
+        _install = MagicMock(return_value=None)
+        self.install_manager._install_loaded_resolve_result = _install
+
+        s = Solution(
+            {
+                "group": "myGroup",
+                "name": "myName",
+                "version": "myVersion",
+            }
+        )
+
+        class R:
+            album_api_version = "5.1.0"
+
+        s._setup = R()
+        r = ResolveResult(
+            "", None, None, Coordinates("myGroup", "myName", "myVersion"), s
+        )
+
+        resolve = MagicMock(return_value=r)
+        self.album_controller.collection_manager().resolve_and_load = resolve
+
+        # call
+        with self.assertRaises(ValueError):
+            self.install_manager._install_parent(
+                {"myDictKey": "myDeps"}, "5.1.0", s.coordinates()
+            )
 
     @unittest.skip("Needs to be implemented!")
     def test_uninstall(self):
