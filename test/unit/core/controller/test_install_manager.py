@@ -160,7 +160,7 @@ class TestInstallManager(TestUnitCoreCommon):
         )
 
         # assert
-        _install_parent.assert_called_once_with("aParent", "1.0.1")
+        _install_parent.assert_called_once_with("aParent", "1.0.1", Coordinates("tsg", "tsn", "tsv"))
         run_solution_install_routine.assert_called_once_with(
             self.active_solution, set_environment.return_value
         )
