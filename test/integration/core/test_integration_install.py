@@ -301,14 +301,18 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         )
 
         sys.argv = ["", "install", str(self.get_test_solution_path())]
-        with self.assertRaises(RuntimeError) as context:
-            self.album_controller.install_manager().install(
-                self.get_test_solution_path()
-            )
-            self.assertIn(
-                "Solution already installed. Uninstall solution first!",
-                context.exception.args[0],
-            )
+
+        # call again
+        self.album_controller.install_manager().install(
+            self.get_test_solution_path(),
+            allow_unsafe=False,
+        )
+
+        # check for warning
+        self.assertIn(
+            'Solution "%s" already installed. Skipping...' % "name",
+            self.captured_output.getvalue(),
+        )
 
     #  @unittest.skipIf(sys.platform == 'win32' or sys.platform == 'cygwin', "This test fails on the Windows CI with \"SSL: CERTIFICATE_VERIFY_FAILED\"")
     @unittest.skip("Fixme")

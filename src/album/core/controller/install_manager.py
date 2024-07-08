@@ -72,7 +72,7 @@ class InstallManager(IInstallManager):
                 "Solution cannot be installed without being associated with a catalog!"
             )
         elif not parent and self._resolve_result_is_installed(resolve_result):
-            module_logger().info(
+            module_logger().warning(
                 'Solution "%s" already installed. Skipping...'
                 % resolve_result.loaded_solution().coordinates().name()
             )
