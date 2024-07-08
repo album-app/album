@@ -68,22 +68,17 @@ class ResourceManager(IResourceManager):
         )
 
         if not no_conda_lock:
+            c_lock_manager = (
+                self.album.environment_manager()
+                .get_environment_handler()
+                .get_conda_lock_manager()
+            )
             try:
-                lock_path = (
-                    self.album.environment_manager()
-                    .get_environment_handler()
-                    .get_conda_lock_manager()
-                    .create_conda_lock_file(
-                        self.write_solution_environment_file(
-                            active_solution, catalog_solution_local_src_path
-                        ),
-                        Path(
-                            self.album.environment_manager()
-                            .get_environment_handler()
-                            .get_conda_lock_manager()
-                            .conda_lock_executable()
-                        ),
-                    )
+                lock_path = c_lock_manager.create_conda_lock_file(
+                    self.write_solution_environment_file(
+                        active_solution, catalog_solution_local_src_path
+                    ),
+                    Path(c_lock_manager.conda_lock_executable()),
                 )
                 if lock_path:
                     res.append(lock_path)

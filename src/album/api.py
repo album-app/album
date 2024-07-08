@@ -317,10 +317,16 @@ class Album:
 
     def is_installed(self, solution_to_resolve: str):
         """Check if a solution is installed."""
-        resolve_result = self.resolve(solution_to_resolve)
-        return self._controller.solutions().is_installed(
-            resolve_result.catalog(), resolve_result.coordinates()
-        )
+        try:
+            self._controller.collection_manager().resolve_installed(solution_to_resolve)
+        except LookupError:
+            return False
+        except ValueError:
+            return False
+        except FileNotFoundError:
+            return False
+
+        return True
 
     def load_catalog_index(self, catalog: ICatalog):
         """Load the index of a catalog."""
