@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from album.core.api.model.collection_solution import ICollectionSolution
 
@@ -50,7 +50,7 @@ class IDownloadManager:
     @abstractmethod
     def get_download_paths(
         self, collection_solution: ICollectionSolution
-    ) -> tuple[Dict[str, Any], Path]:
+    ) -> Tuple[Dict[str, Any], Path]:
         """
         Converts a resource YAML to a dictionary and inserts the download paths of the resources to the dictionary.
         """

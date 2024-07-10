@@ -40,7 +40,10 @@ class TestConfiguration(TestUnitCoreCommon):
         self.assertTrue(base_path.exists())
         self.assertTrue(conf.base_cache_path().exists())
         self.assertTrue(conf.cache_path_download().exists())
-        self.assertTrue(conf.get_catalog_collection_path().exists())
+
+        # _catalog_collection_path is the folder, the get_catalog_collection_path()
+        # points to the collection database in that folder
+        self.assertTrue(conf._catalog_collection_path.exists())
         self.assertTrue(conf.installation_path().exists())
         self.assertTrue(conf.lnk_path().exists())
         self.assertTrue(conf.environments_path().exists())

@@ -1,7 +1,7 @@
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 import pooch
 import validators
@@ -31,7 +31,7 @@ class DownloadManager(IDownloadManager):
 
     def _resources_yaml_to_dict(
         self, collection_solution: ICollectionSolution
-    ) -> tuple[Dict[str, Any], Path]:
+    ) -> Tuple[Dict[str, Any], Path]:
         """_summary_
 
         Args:
@@ -66,7 +66,7 @@ class DownloadManager(IDownloadManager):
         shared_globally_path = self.album.configuration().shared_resources_path()
 
         if not resource_json_path:
-            return None
+            return None  # todo: wrong return type
 
         # Get the resources from the yaml file and set the paths
         resources_dict = get_dict_from_yml(resource_json_path)
@@ -141,7 +141,7 @@ class DownloadManager(IDownloadManager):
                 # case dict
                 elif isinstance(resource_file, dict):
                     with open(str(json_path), "w+") as f:
-                        json.dump(resources_dict, f, indent=4)
+                        json.dump(resource_file, f, indent=4)
 
                 else:
                     raise RuntimeError(
@@ -150,8 +150,8 @@ class DownloadManager(IDownloadManager):
                     )
 
                 return json_path
-            return None
-        return None
+            return None  # todo: wrong return type
+        return None  # todo: wrong return type
 
     def _retrieve_resources_from_dict(self, resources_dict: Dict[str, Any]) -> None:
         """
@@ -159,7 +159,7 @@ class DownloadManager(IDownloadManager):
 
         Args:
             resources_dict:
-                Resources dictionary with resolved paths in regards to scope.
+                Resources dictionary with resolved paths in regard to scope.
 
         Returns:
             None, if it worked.
