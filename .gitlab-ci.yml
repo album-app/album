@@ -1,6 +1,5 @@
 # CI Routine for the album framework.
 
-
 #----------------------------
 # templates
 #----------------------------
@@ -13,111 +12,38 @@
 #
 # NOTE: Apparently there is no output for commands split over several lines...
 .windows_base_template_micromamba:
-  before_script:
-    - 'echo "We are in path: $pwd "'
-    - 'if(-Not (Test-Path .\downloads)) {echo "Cache download not found! Creating..."; New-Item -ItemType Directory -Force -Path .\downloads} else { echo ".\downloads cache found! with content:"; Get-ChildItem -Path .\downloads}'
-    - 'if(-Not (Test-Path .\.album)) {echo "Cache .album not found! Creating..."; New-Item -ItemType Directory -Force -Path .\.album} else { echo ".\.album cache found! with content:"; Get-ChildItem -Path .\.album}'
-    - 'if(-Not (Test-Path .\micromamba)) {echo "Cache micromamba not found! Creating..."; New-Item -ItemType Directory -Force -Path .\micromamba} else { echo ".\micromamba cache found! with content:"; Get-ChildItem -Path .\micromamba}'
-    - '$7ZIP_EXE=(Join-Path $env:ProgramFiles -ChildPath 7-Zip\7z.exe)'
-    - '$7ZIP_INSTALLER=(Join-Path downloads -ChildPath 7z.exe)'
-    - '$Env:USERPROFILE=$pwd'
-    - '$oldProgressPreference = $progressPreference; $progressPreference = "SilentlyContinue";'
-    - '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12'                                                                                                                                                                                                                                                                                          # set Security download protocol to avoid https errors
-    - 'if(-Not (Test-Path $7ZIP_EXE)) {if(-Not (Test-Path $7ZIP_INSTALLER)){Invoke-Webrequest -URI https://www.7-zip.org/a/7z2201-x64.exe -OutFile $7ZIP_INSTALLER}}'
-    - 'if(-Not (Test-Path $7ZIP_EXE)) {Start-Process -FilePath $7ZIP_INSTALLER -Args "/S" -Verb RunAs -Wait}'
-    - 'Invoke-Webrequest -URI https://micro.mamba.pm/api/micromamba/win-64/1.5.6 -OutFile micromamba.tar.bz2'
-    - '& $7ZIP_EXE x micromamba.tar.bz2 -aoa'
-    - '& $7ZIP_EXE x micromamba.tar -ttar -aoa -r Library\bin\micromamba.exe $("-o" + (Join-Path -Path (Get-Location) -ChildPath micromamba_installation))'
-    - '$progressPreference = $oldProgressPreference'
-    - '\micromamba_installation\Library\bin\micromamba.exe create -y -n album -c conda-forge python=3.10'
-    - '\micromamba_installation\Library\bin\micromamba.exe run -n album pip uninstall -y album'
-    - '\micromamba_installation\Library\bin\micromamba.exe run -n album pip install -e .'
-    - '\micromamba_installation\Library\bin\micromamba.exe run -n album pip install coverage'
-    - '\micromamba_installation\Library\bin\micromamba.exe shell init -s powershell -p $Env:MAMBA_ROOT_PREFIX '
-
   tags:
     - windows
   variables:
     PIP_CACHE_DIR: $CI_PROJECT_DIR\.cache\pip
-    ErrorActionPreference: Continue  # not working properly
+    ErrorActionPreference: Continue # not working properly
+  before_script:
+    - 'echo "We are in path: $pwd "'
+    - '$7ZIP_EXE=(Join-Path $env:ProgramFiles -ChildPath 7-Zip\7z.exe)'
+    - "$7ZIP_INSTALLER=(Join-Path downloads -ChildPath 7z.exe)"
+    - "$Env:USERPROFILE=$pwd" # set user profile to current working directory -> will be micromamba default location
+    - '$oldProgressPreference = $progressPreference; $progressPreference = "SilentlyContinue";'
+    - "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12" # set Security download protocol to avoid https errors
+    - "if(-Not (Test-Path $7ZIP_EXE)) {if(-Not (Test-Path $7ZIP_INSTALLER)){Invoke-Webrequest -URI https://www.7-zip.org/a/7z2201-x64.exe -OutFile $7ZIP_INSTALLER}}"
+    - 'if(-Not (Test-Path $7ZIP_EXE)) {Start-Process -FilePath $7ZIP_INSTALLER -Args "/S" -Verb RunAs -Wait}'
+    - "Invoke-Webrequest -URI https://micro.mamba.pm/api/micromamba/win-64/1.5.6 -OutFile micromamba.tar.bz2"
+    - "& $7ZIP_EXE x micromamba.tar.bz2 -aoa"
+    - '& $7ZIP_EXE x micromamba.tar -ttar -aoa -r Library\bin\micromamba.exe $("-o" + (Join-Path -Path (Get-Location) -ChildPath micromamba_installation))'
+    - "$progressPreference = $oldProgressPreference"
+    - 'Get-ChildItem Env: | Where-Object { $_.Name -match "album" -or $_.Value -match "album" } | Format-Table -AutoSize'
+    - '.\micromamba_installation\Library\bin\micromamba.exe create -y -n album -c conda-forge python=3.10' # created in .\micromamba\envs\album
+    - 'Write-Output "CI_COMMIT_REF_NAME: $env:CI_COMMIT_REF_NAME"'
+    #- "$Env:MAMBA_ROOT_PREFIX=(Join-Path -Path (Get-Location) -ChildPath micromamba)"
+    - 'if($env:CI_COMMIT_REF_NAME -match "api_change_runner*") { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev}'
+    - 'if($env:CI_COMMIT_REF_NAME -match "api_change_env*") { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install git+https://gitlab.com/album-app/album-environments.git@dev}'
+    - 'if($env:CI_COMMIT_REF_NAME -match "dev*" -and $env:ALBUM_API_CHANGE_RUNNER -match "True" ) { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev}'
+    - 'if($env:CI_COMMIT_REF_NAME -match "dev*" -and $env:ALBUM_API_CHANGE_ENV -match "True" ) { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install git+https://gitlab.com/album-app/album-environments.git@dev}'
+    - '.\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install -e .'
+    - '.\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install coverage'
   cache:
     key: one-key-to-rule-them-all-windows
     paths:
-      - downloads
       - .cache\pip
-
-.windows_base_template_conda_with_mamba:
-  before_script:
-    - 'echo "We are in path: $pwd "'
-    - 'echo "conda URL:  $env:MINICONDA_URL "'
-    - '$oldProgressPreference = $progressPreference; $progressPreference = "SilentlyContinue";'
-    - 'if(-Not (Test-Path .\download)) {echo "Cache download not found! Creating..."; New-Item -ItemType Directory -Force -Path .\download} else { echo ".\download cache found! with content:"; Get-ChildItem -Path .\download}'                                                                                                                                                # create cache dir
-    - '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12'                                                                                                                                                                                                                                                                                          # set Security download protocol to avoid https errors
-    - 'if(Test-Path .\download\miniconda_url.txt) {echo "found previous miniconda url information. Extracting information..."; $miniconda_cache_url = try {Get-Content -Path .\download\miniconda_url.txt -errorAction Stop} catch {echo "None"}; echo "Cached minconda executable: $miniconda_cache_url"} else { echo ".\download\miniconda_url.txt does not exist!"}'          # read url from cache
-    - 'if($miniconda_cache_url -ne $env:MINICONDA_URL) {echo "Cached URL not equal to given URL. Removing executable..."; Remove-Item -Path .\download\miniconda3.exe -Force; $force_install = "true"; echo "Force installation triggered!"} else { echo "No force installation necessary!"}'                                                                                    # check if url changed - if yes, remove cache and mark conda reinstall
-    - 'if(-Not (Test-Path .\download\miniconda3.exe)) {echo "Downloading miniconda executable..."; Invoke-WebRequest -UseBasicParsing -Uri $env:MINICONDA_URL -OutFile .\download\miniconda3.exe} else {echo "Executable found in .\download\miniconda3.exe. Reusing..."}'                                                                                                       # download the miniconda windows executable
-    - 'echo $env:MINICONDA_URL | Out-File -FilePath .\download\miniconda_url.txt'                                                                                                                                                                                                                                                                                                # cache version information
-    - 'Get-ChildItem -Path .\download'                                                                                                                                                                                                                                                                                                                                           # show download folder content
-    - '$env:PATH += ";$pwd\miniconda\condabin"'     # set path information
-    - '$env:PATH += ";$pwd\miniconda\Scripts"'
-    - '$env:PATH += ";$pwd\miniconda\Library\bin"'
-    - 'ls env:'
-    - '$conda_available = try {Get-Command "Get-CondaEnvironment" -errorAction Stop} catch {$null}'                                                                                                                                                                                                                                                                              # check if conda cmnd already available
-    - 'if($force_install -eq "true") {$conda_available = $null}'                                                                                                                                                                                                                                                                                                                 # mark conda reinstall
-    - 'if($conda_available -eq $null) {echo "conda cmnd not available! Will install in $pwd\miniconda..."; Start-Process .\download\miniconda3.exe -argumentlist "/InstallationType=JustMe /S /D=$pwd\miniconda" -wait} else {echo "Skip downloading!..."}'
-    - 'echo "Environment path: $env:PATH"'
-    - 'conda init'
-    - 'conda config --set notify_outdated_conda false'
-    - 'conda install -y mamba -c conda-forge'
-    - '$progressPreference = $oldProgressPreference'
-  tags:
-    - windows
-    - mdc
-  variables:
-    PIP_CACHE_DIR: $CI_PROJECT_DIR\.cache\pip
-    ErrorActionPreference: Continue  # not working properly
-    MINICONDA_URL: https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe
-  cache:
-    key: one-key-to-rule-them-all-windows-conda-with-mamba
-    paths:
-      - .\download
-      - .cache\pip
-
-
-.windows_base_template_conda:
-  before_script:
-    - 'echo "We are in path: $pwd "'
-    - 'echo "conda URL:  $env:MINICONDA_URL "'
-    - '$oldProgressPreference = $progressPreference; $progressPreference = "SilentlyContinue";'
-    - 'if(-Not (Test-Path .\download)) {echo "Cache download not found! Creating..."; New-Item -ItemType Directory -Force -Path .\download} else { echo ".\download cache found! with content:"; Get-ChildItem -Path .\download}'                                                                                                                                                # create cache dir
-    - '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12'                                                                                                                                                                                                                                                                                          # set Security download protocol to avoid https errors
-    - 'if(Test-Path .\download\miniconda_url.txt) {echo "found previous miniconda url information. Extracting information..."; $miniconda_cache_url = try {Get-Content -Path .\download\miniconda_url.txt -errorAction Stop} catch {echo "None"}; echo "Cached minconda executable: $miniconda_cache_url"} else { echo ".\download\miniconda_url.txt does not exist!"}'          # read url from cache
-    - 'if($miniconda_cache_url -ne $env:MINICONDA_URL) {echo "Cached URL not equal to given URL. Removing executable..."; Remove-Item -Path .\download\miniconda3.exe -Force; $force_install = "true"; echo "Force installation triggered!"} else { echo "No force installation necessary!"}'                                                                                    # check if url changed - if yes, remove cache and mark conda reinstall
-    - 'if(-Not (Test-Path .\download\miniconda3.exe)) {echo "Downloading miniconda executable..."; Invoke-WebRequest -UseBasicParsing -Uri $env:MINICONDA_URL -OutFile .\download\miniconda3.exe} else {echo "Executable found in .\download\miniconda3.exe. Reusing..."}'                                                                                                       # download the miniconda windows executable
-    - 'echo $env:MINICONDA_URL | Out-File -FilePath .\download\miniconda_url.txt'                                                                                                                                                                                                                                                                                                # cache version information
-    - 'Get-ChildItem -Path .\download'                                                                                                                                                                                                                                                                                                                                           # show download folder content
-    - '$env:PATH += ";$pwd\miniconda\condabin"'     # set path information
-    - '$env:PATH += ";$pwd\miniconda\Scripts"'
-    - '$env:PATH += ";$pwd\miniconda\Library\bin"'
-    - '$conda_available = try {Get-Command "Get-CondaEnvironment" -errorAction Stop} catch {$null}'                                                                                                                                                                                                                                                                              # check if conda cmnd already available
-    - 'if($force_install -eq "true") {$conda_available = $null}'                                                                                                                                                                                                                                                                                                                 # mark conda reinstall
-    - 'if($conda_available -eq $null) {echo "conda cmnd not available! Will install in $pwd\miniconda..."; Start-Process .\download\miniconda3.exe -argumentlist "/InstallationType=JustMe /S /D=$pwd\miniconda" -wait} else {echo "Skip downloading!..."}'
-    - 'echo "Environment path: $env:PATH"'
-    - 'conda init'
-    - 'conda config --set notify_outdated_conda false'
-    - '$progressPreference = $oldProgressPreference'
-  tags:
-    - windows
-  variables:
-    PIP_CACHE_DIR: $CI_PROJECT_DIR\.cache\pip
-    ErrorActionPreference: Continue  # not working properly
-    MINICONDA_URL: https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe
-  cache:
-    key: one-key-to-rule-them-all-windows-conda
-    paths:
-      - .\download
-      - .cache\pip
-
 
 # Linux base template for running tests with micromamba as package manager
 #
@@ -129,104 +55,32 @@
   image: ubuntu:latest
   tags:
     - docker
+  variables:
+    PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
+    MICROMAMBA_EXECUTABLE: "" # ensure that the variable is empty before running the job
   before_script:
-    - df -h
     - apt update
     - apt install git -y
     - apt install -y curl
     - apt install -y bzip2
     - mkdir -p $CI_PROJECT_DIR/bin/
     - curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/1.5.6 | tar -xvj -C $CI_PROJECT_DIR/bin/ --strip-components=1 bin/micromamba
-    - $CI_PROJECT_DIR/bin/micromamba create -y -n album album -c conda-forge python=3.10
-    - $CI_PROJECT_DIR/bin/micromamba run -n album pip uninstall -y album
-    - $CI_PROJECT_DIR/bin/micromamba run -n album pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
-    - $CI_PROJECT_DIR/bin/micromamba run -n album python -V
-    - $CI_PROJECT_DIR/bin/micromamba run -n album pip list
-  variables:
-    PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
+    - MICROMAMBA_EXECUTABLE=$CI_PROJECT_DIR/bin/micromamba
+    - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=3.10
+    - bash -c 'echo $CI_COMMIT_REF_NAME'
+    - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_runner* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No api_change_runner branch"'
+    - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_env* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No api_change_env branch"'
+    - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_API_CHANGE_ENV == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No API env changes on that branch"]]'
+    - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_API_CHANGE_RUNNER == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No API runner changes on that branch"]]'
+    - $MICROMAMBA_EXECUTABLE run -n album pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
+    - $MICROMAMBA_EXECUTABLE run -n album pip install coverage
+    - $MICROMAMBA_EXECUTABLE run -n album python -V
+    - $MICROMAMBA_EXECUTABLE run -n album pip list
+    - $MICROMAMBA_EXECUTABLE run -n album env -0 | sort -z | tr '\0' '\n' | grep -i album
   cache:
     key: one-key-to-rule-them-all-linux
     paths:
-      - ${CONDA_PREFIX}/pkgs/*.tar.bz2
-      - ${CONDA_PREFIX}/pkgs/urls.txt
       - .cache/pip
-
-
-# Linux base template for running test with conda as package manager
-#
-# Uses a docker image where conda is already installed.
-# Creates an album environment.
-#
-.linux_base_template_conda:
-  image: continuumio/miniconda3:latest
-  tags:
-    - docker
-  before_script:
-    - apt update
-    - apt install git -y
-    - python -V  # Print out python version for debugging
-    - which python
-    - conda create -y --channel=conda-forge -n album python=3.9 pip git
-    - conda init bash
-    - source ~/.bashrc
-    - conda activate album
-    - pip install -e .
-    - which python
-    - conda activate album
-    - python -V
-    - python -c "import shutil; print(shutil.which(\"conda\"))"
-    - pip list
-  variables:
-    PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
-    CONDA_ENV_NAME: album
-    CONDA_PREFIX: /opt/conda
-    PREFIX: $CONDA_PREFIX/envs/$CONDA_ENV_NAME
-  cache:
-    key: one-key-to-rule-them-all-linux
-    paths:
-      - ${CONDA_PREFIX}/pkgs/*.tar.bz2
-      - ${CONDA_PREFIX}/pkgs/urls.txt
-      - .cache/pip
-
-# Linux base template for running test with conda with mamba as package manager
-#
-# Uses a docker image where conda is already installed.
-# Creates an album environment.
-#
-.linux_base_template_conda_with_mamba:
-  image: continuumio/miniconda3:latest
-  tags:
-    - docker
-  before_script:
-    - apt update
-    - apt install git -y
-    - python -V  # Print out python version for debugging
-    - which python
-    - conda create -y --channel=conda-forge -n album python=3.9 pip git
-    - conda init bash
-    - source ~/.bashrc
-    - conda install -y mamba -c conda-forge
-    - conda activate album
-    - pip install -e .
-    - which python
-    - conda activate album
-    - python -V
-    - python -c "import shutil; print(shutil.which(\"mamba\"))"
-    - pip list
-  variables:
-    PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
-    CONDA_ENV_NAME: album
-    CONDA_PREFIX: /opt/conda
-    PREFIX: $CONDA_PREFIX/envs/$CONDA_ENV_NAME
-  cache:
-    key: one-key-to-rule-them-all-linux
-    paths:
-      - ${CONDA_PREFIX}/pkgs/*.tar.bz2
-      - ${CONDA_PREFIX}/pkgs/urls.txt
-      - .cache/pip
-
-
-      - $CI_PROJECT_DIR/.cache/pip
 
 # Macos base template for running tests with micromamba as package manager
 #
@@ -237,6 +91,9 @@
   tags:
     - macos
     - shell
+  variables:
+    MICROMAMBA_EXECUTABLE: "" # ensure that the variable is empty before running the job
+    PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
   before_script:
     - echo "$(uname)"
     - sw_vers
@@ -246,17 +103,22 @@
     - mkdir -p $tmpdir/bin/
     - curl -Ls https://micro.mamba.pm/api/micromamba/osx-64/1.5.6 | tar -xvj -C $tmpdir/bin/ --strip-components=1 bin/micromamba
     - MICROMAMBA_EXECUTABLE=$tmpdir/bin/micromamba
-    - $MICROMAMBA_EXECUTABLE create -y -n album album -c conda-forge python=3.10
-    - $MICROMAMBA_EXECUTABLE run -n album pip uninstall -y album
+    - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=3.10
+    - bash -c 'echo $CI_COMMIT_REF_NAME'
+    - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_runner* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No api_change_runner branch"'
+    - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_env* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No api_change_env branch"'
+    - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_API_CHANGE_ENV == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No API env changes on that branch"]]'
+    - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_API_CHANGE_RUNNER == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No API runner changes on that branch"]]'
     - $MICROMAMBA_EXECUTABLE run -n album pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
+    - $MICROMAMBA_EXECUTABLE run -n album pip install coverage
     - $MICROMAMBA_EXECUTABLE run -n album python -V
     - $MICROMAMBA_EXECUTABLE run -n album pip list
+    - $MICROMAMBA_EXECUTABLE run -n album env -0 | sort -z | tr '\0' '\n' | grep -i album
   after_script:
     - tmpdir=$(</tmp/tmpdir)
     - echo $tmpdir
     - rm -rf $tmpdir
-  variables:
-    MICROMAMBA_EXECUTABLE: ""
+
 #----------------------------
 # stages
 #----------------------------
@@ -268,7 +130,6 @@ stages:
   - release
   - deploy
   - post-deploy
-
 
 #----------------------------
 # jobs
@@ -320,17 +181,16 @@ gitlab release:
   script:
     - echo "running release_job for version $VERSION and tag $TAG"
   rules:
-      - if: $CI_COMMIT_TAG
-        when: never
-      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-        changes:
-          - setup.cfg
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - setup.cfg
   release:
-    name: 'Release $TAG'
-    description: 'Created using the release-cli'
-    tag_name: '$TAG'
-    ref: '$CI_COMMIT_SHA'
-
+    name: "Release $TAG"
+    description: "Created using the release-cli"
+    tag_name: "$TAG"
+    ref: "$CI_COMMIT_SHA"
 
 gitlab pypi deploy:
   image: python:latest
@@ -348,11 +208,11 @@ gitlab pypi deploy:
     - python setup.py sdist bdist_wheel
     - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
   rules:
-      - if: $CI_COMMIT_TAG
-        when: never
-      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-        changes:
-          - setup.cfg
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - setup.cfg
 
 pypi deploy:
   image: python:latest
@@ -372,12 +232,11 @@ pypi deploy:
     - python setup.py sdist bdist_wheel
     - TWINE_PASSWORD=$PYPI_DEPLOY_TOKEN TWINE_USERNAME=$PYPI_DEPLOY_USER python -m twine upload --repository-url https://upload.pypi.org/legacy/  dist/*
   rules:
-      - if: $CI_COMMIT_TAG
-        when: never
-      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-        changes:
-          - setup.cfg
-
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - setup.cfg
 
 docker deploy:
   stage: deploy
@@ -400,19 +259,19 @@ docker deploy:
     - docker build -t $tag .
     - docker push $tag
   rules:
-      - if: $CI_COMMIT_TAG
-        when: never
-      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-        changes:
-          - setup.cfg
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - setup.cfg
 
-# Linux Tests
+# Linux Tests with coverage
 
 cmdline linux:
   extends: .linux_base_template_micromamba
   stage: build
   script:
-    - eval "$($CI_PROJECT_DIR/bin/micromamba shell hook -s posix)"
+    - eval "$($MICROMAMBA_EXECUTABLE shell hook -s posix)"
     - micromamba activate album
     # album commands
     - album -h
@@ -430,53 +289,25 @@ unit tests linux micromamba:
   extends: .linux_base_template_micromamba
   stage: test
   script:
-    #- coverage run --data-file=unit.coverage --omit .\test\* -m unittest test/unit/run_all_unit_micromamba.py
-    - coverage run --omit './test/*' -m unittest test/unit/run_all_unit_micromamba.py
-    - $CI_PROJECT_DIR/bin/micromamba run -n album python -m unittest test/unit/run_all_unit_micromamba.py
-    - coverage run --omit './test/*' -m unittest test/unit/run_all_unit_micromamba.py
-    - coverage report
-    - mv .coverage unit.coverage
+    #- coverage run --omit './test/*' -m unittest test/unit/run_all_unit_micromamba.py
+    - $MICROMAMBA_EXECUTABLE run -n album coverage run --omit './test/*' -m unittest test/unit/run_all_unit_micromamba.py
+    - $MICROMAMBA_EXECUTABLE run -n album coverage report
+    - mv .coverage unit.coverage # rename coverage file
   artifacts:
     paths:
       - unit.coverage
-
-unit tests linux conda:
-  extends: .linux_base_template_conda
-  stage: test
-  script:
-    - python -m unittest test/unit/run_all_unit_conda.py
-
-unit tests linux conda with mamba:
-  extends: .linux_base_template_conda_with_mamba
-  stage: test
-  script:
-    - python -m unittest test/unit/run_all_unit_conda_with_mamba.py
 
 integration tests linux micromamba:
   extends: .linux_base_template_micromamba
   stage: test
   script:
-    #- coverage run --data-file=integration.coverage --omit .\test\* -m unittest test/integration/run_all_integration_micromamba.py
-    - coverage run --omit './test/*' -m unittest test/integration/run_all_integration_micromamba.py
-    - $CI_PROJECT_DIR/bin/micromamba run -n album python -m unittest test/integration/run_all_integration_micromamba.py
-    - coverage run --omit './test/*' -m unittest test/integration/run_all_integration_micromamba.py
-    - coverage report
-    - mv .coverage integration.coverage
+    #- coverage run --omit './test/*' -m unittest test/integration/run_all_integration_micromamba.py
+    - $MICROMAMBA_EXECUTABLE run -n album coverage run --omit './test/*' -m unittest test/integration/run_all_integration_micromamba.py
+    - $MICROMAMBA_EXECUTABLE run -n album coverage report
+    - mv .coverage integration.coverage # rename coverage file
   artifacts:
     paths:
       - integration.coverage
-
-integration tests linux conda:
-  extends: .linux_base_template_conda
-  stage: test
-  script:
-    - python -m unittest test/integration/run_integration_conda.py
-
-integration tests linux conda with mamba:
-  extends: .linux_base_template_conda_with_mamba
-  stage: test
-  script:
-    - python -m unittest test/integration/run_integration_conda.py
 
 # MacOs Tests
 
@@ -485,89 +316,42 @@ unit tests macos micromamba:
   stage: test
   script:
     - $MICROMAMBA_EXECUTABLE run -n album python -m unittest test/unit/run_all_unit_micromamba.py
-    - python -m unittest test/unit/run_all_unit_micromamba.py
-
-unit tests macos conda:
-  extends: .macos_base_template_conda
-  stage: test
-  script:
-    - python -m unittest test/unit/run_all_unit_conda.py
-
-unit tests macos conda with mamba:
-  extends: .macos_base_template_conda_with_mamba
-  stage: test
-  script:
-    - python -m unittest test/unit/run_all_unit_conda_with_mamba.py
-
 
 integration tests macos micromamba:
   extends: .macos_base_template_micromamba
   stage: test
   script:
     - $MICROMAMBA_EXECUTABLE run -n album python -m unittest test/integration/run_all_integration_micromamba.py
-    - python -m unittest test/integration/run_all_integration_micromamba.py
 
-integration tests macos conda:
-  extends: .macos_base_template_conda
-  stage: test
-  script:
-    - python -m unittest test/integration/run_integration_conda.py
-
-
-integration tests macos conda with mamba:
-  extends: .macos_base_template_conda_with_mamba
-  stage: test
-  script:
-    - python -m unittest test/integration/run_integration_conda.py
-
-# Windows Tests
+# Windows Tests with coverage
 
 unit tests windows micromamba:
   extends: .windows_base_template_micromamba
   stage: test
   script:
-    - $cmnd = powershell.exe -command {micromamba activate album 2>&1 | Write-Host; coverage run --omit .\test\* -m unittest test\unit\run_all_unit_micromamba.py 2>&1 | Write-Host; if ($lastexitcode -ne 0) {exit(1)} else {coverage report 2>&1| Write-Host; coverage xml 2>&1| Write-Host; Rename-Item -Path ".coverage" -NewName "unit.coverage" 2>&1 | Write-Host; Rename-Item -Path "coverage.xml" -NewName "unit_coverage.xml" 2>&1 | Write-Host;} exit($lastexitcode)}
+    - '.\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album coverage run --omit .\test\* -m unittest test\unit\run_all_unit_micromamba.py'
+    - 'if ($lastexitcode -ne 0) {exit(1)} else { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album coverage report }'
+    - 'if ($lastexitcode -ne 0) {exit(1)} else { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album coverage xml } '
+    - 'if ($lastexitcode -ne 0) {exit(1)} else { Rename-Item -Path ".coverage" -NewName "unit.coverage" }'
+    - 'if ($lastexitcode -ne 0) {exit(1)} else { Rename-Item -Path "coverage.xml" -NewName "unit_coverage.xml" }'
+    - "exit($lastexitcode)"
   artifacts:
     paths:
       - unit.coverage
-
-unit tests windows conda:
-  extends: .windows_base_template_conda
-  stage: test
-  script:
-    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit_conda.py 2>&1 | Write-Host; exit($lastexitcode)}
-
-
-unit tests windows conda with mamba:
-  extends: .windows_base_template_conda_with_mamba
-  stage: test
-  script:
-    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\unit\run_all_unit_conda_with_mamba.py 2>&1 | Write-Host; exit($lastexitcode)}
-
-
-integration tests windows conda with mamba:
-  extends: .windows_base_template_conda_with_mamba
-  stage: test
-  script:
-    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\integration\run_integration_conda.py 2>&1 | Write-Host; exit($lastexitcode)}
-    - .\micromamba_installation\Library\bin\micromamba.exe run -n album python -m unittest .\test\unit\run_all_unit_micromamba.py
-
 
 integration tests windows micromamba:
   extends: .windows_base_template_micromamba
   stage: test
   script:
-    - $cmnd = powershell.exe -command {micromamba activate album 2>&1 | Write-Host; coverage run --omit .\test\* -m unittest test\integration\run_all_integration_micromamba.py 2>&1 | Write-Host; if ($lastexitcode -ne 0) {exit(1)} else {coverage report 2>&1| Write-Host; coverage xml 2>&1| Write-Host; Rename-Item -Path ".coverage" -NewName "integration.coverage" 2>&1 | Write-Host; Rename-Item -Path "coverage.xml" -NewName "integration_coverage.xml" 2>&1 | Write-Host;} exit($lastexitcode)}
+    - '.\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album coverage run --omit .\test\* -m unittest test\integration\run_all_integration_micromamba.py '
+    - 'if ($lastexitcode -ne 0) {exit(1)} else { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album coverage report }'
+    - 'if ($lastexitcode -ne 0) {exit(1)} else { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album coverage xml } '
+    - 'if ($lastexitcode -ne 0) {exit(1)} else { Rename-Item -Path ".coverage" -NewName "integration.coverage" }'
+    - 'if ($lastexitcode -ne 0) {exit(1)} else { Rename-Item -Path "coverage.xml" -NewName "integration_coverage.xml" }'
+    - "exit($lastexitcode)"
   artifacts:
     paths:
       - integration.coverage
-
-integration tests windows conda:
-  extends: .windows_base_template_conda
-  stage: test
-  script:
-    - $cmnd = powershell.exe -command {conda create -y --channel=conda-forge -n album python=3.9 pip git 2>&1 | Write-Host; conda activate album 2>&1 | Write-Host; pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip 2>&1 | Write-Host; python -m unittest test\integration\run_integration_conda.py 2>&1 | Write-Host; exit($lastexitcode)}
-
 
 release tests linux:
   extends: .linux_base_template_micromamba
@@ -608,9 +392,9 @@ create combined coverage for linux:
     - unit tests linux micromamba
     - integration tests linux micromamba
   script:
-    - coverage combine unit.coverage integration.coverage
-    - coverage report
-    - coverage xml
+    - $MICROMAMBA_EXECUTABLE run -n album coverage combine unit.coverage integration.coverage
+    - $MICROMAMBA_EXECUTABLE run -n album coverage report
+    - $MICROMAMBA_EXECUTABLE run -n album coverage xml
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
     reports:
@@ -628,7 +412,10 @@ create combined coverage for windows:
     - unit tests windows micromamba
     - integration tests windows micromamba
   script:
-    - $cmnd = powershell.exe -command {micromamba activate album 2>&1 | Write-Host; coverage combine unit.coverage integration.coverage 2>&1 | Write-Host; coverage report 2>&1| Write-Host; coverage xml 2>&1| Write-Host; exit($lastexitcode)}
+    - '.\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album coverage combine unit.coverage integration.coverage'
+    - '.\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album coverage report'
+    - '.\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album coverage xml'
+    - "exit($lastexitcode)"
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
     reports:

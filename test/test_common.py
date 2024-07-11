@@ -1,11 +1,12 @@
 import gc
 import logging
-import sys
 import os
+import sys
 import tempfile
 import unittest
 from io import StringIO
 from pathlib import Path
+from test.global_exception_watcher import GlobalExceptionWatcher
 from typing import Optional
 from unittest.mock import patch
 
@@ -13,22 +14,18 @@ from album.runner.album_logging import get_active_logger
 
 from album.api import Album
 from album.core.controller.album_controller import AlbumController
-from album.core.controller.micromamba_manager import MicromambaManager
-from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.git_operations import (
-    create_bare_repository,
-    clone_repository,
     add_files_commit_and_push,
+    clone_repository,
+    create_bare_repository,
 )
 from album.core.utils.operations.view_operations import (
-    get_message_filter,
     get_logger_name_minimizer_filter,
     get_logging_formatter,
+    get_message_filter,
 )
-from album.runner.album_logging import get_active_logger, LogLevel
-from test.global_exception_watcher import GlobalExceptionWatcher
 
 
 class TestCommon(unittest.TestCase):
@@ -44,7 +41,7 @@ class TestCommon(unittest.TestCase):
         if os.getenv("ALBUM_TEST_LOGGING", "False") == "True":
             handler = logging.StreamHandler(sys.stdout)
             handler.setLevel("DEBUG")
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(message)s')
+            formatter = logging.Formatter("%(asctime)s - %(name)s - %(message)s")
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
             self.logger.setLevel("DEBUG")
@@ -135,7 +132,7 @@ class TestCommon(unittest.TestCase):
     def setup_collection(self, init_catalogs=True, init_collection=True):
         if init_catalogs:
             with patch(
-                    "album.core.model.configuration.Configuration.get_initial_catalogs"
+                "album.core.model.configuration.Configuration.get_initial_catalogs"
             ) as get_initial_catalogs_mock:
                 get_initial_catalogs_mock.return_value = {}
 
@@ -143,7 +140,7 @@ class TestCommon(unittest.TestCase):
                 self.album_controller.collection_manager().load_or_create()
         elif init_collection:
             with patch(
-                    "album.core.controller.collection.catalog_handler.CatalogHandler.add_initial_catalogs"
+                "album.core.controller.collection.catalog_handler.CatalogHandler.add_initial_catalogs"
             ):
                 self.album_controller.collection_manager().load_or_create()
         # check everything is freshly initialized
@@ -162,8 +159,9 @@ class TestCommon(unittest.TestCase):
                 force_remove(self.tmp_dir.name)
             except (PermissionError, NotADirectoryError):
                 if sys.platform == "win32" or sys.platform == "cygwin":
-                    get_active_logger().warning("Could not remove tmp dir! Cleanup failed!!")
-                    pass
+                    get_active_logger().warning(
+                        "Could not remove tmp dir! Cleanup failed!!"
+                    )
                 else:
                     raise
 
@@ -181,10 +179,10 @@ class TestCommon(unittest.TestCase):
     def run(self, result=None):
         # add watcher to catch any exceptions thrown in threads
         with GlobalExceptionWatcher():
-            super(TestCommon, self).run(result)
+            super().run(result)
 
     @staticmethod
     def get_catalog_meta_dict(
-            name="cache_catalog", version="0.1.0", catalog_type="direct"
+        name="cache_catalog", version="0.1.0", catalog_type="direct"
     ):
         return {"name": name, "version": version, "type": catalog_type}
