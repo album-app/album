@@ -1,5 +1,4 @@
 import os
-import platform
 from enum import Enum
 from pathlib import Path
 
@@ -22,20 +21,6 @@ class DefaultValues(Enum):
     )
     default_solution_python_version = "3.9"
 
-    # micromamba
-    micromamba_url_linux_X86_64 = "https://micro.mamba.pm/api/micromamba/linux-64/1.5.6"
-    micromamba_url_linux_ARM64 = (
-        "https://micro.mamba.pm/api/micromamba/linux-aarch64/1.5.6"
-    )
-    micromamba_url_linux_POWER = (
-        "https://micro.mamba.pm/api/micromamba/linux-ppc64le/1.5.6"
-    )
-
-    micromamba_url_osx_X86_64 = "https://micro.mamba.pm/api/micromamba/osx-64/1.5.6"
-    micromamba_url_osx_ARM64 = "https://micro.mamba.pm/api/micromamba/osx-arm64/1.5.6"
-
-    micromamba_url_windows = "https://gitlab.com/album-app/plugins/album-package/-/raw/micromamba_installer/win-64_micromamba-1.5.6-0.zip?ref_type=heads&inline=false"
-
     # templates
     catalog_template_url = "https://gitlab.com/album-app/catalogs/templates"  # base URL of available catalog templates
 
@@ -55,7 +40,7 @@ class DefaultValues(Enum):
         "ALBUM_DEFAULT_CATALOG", _catalog_url
     )  # default catalog, either catalog_url or env. variable
     default_catalog_src_branch = os.getenv(
-        'ALBUM_DEFAULT_CATALOG_BRANCH', _catalog_branch
+        "ALBUM_DEFAULT_CATALOG_BRANCH", _catalog_branch
     )  # default catalog branch either _catalog_branch or env. variable
     default_catalog_name = "default"  # default catalog, either catalog_url or env. variable
     catalog_collection_name = 'album_collection'  # the default name of the Collection
@@ -105,46 +90,9 @@ class DefaultValues(Enum):
     )
 
     # album
-    app_data_dir = os.getenv("ALBUM_BASE_CACHE_PATH", Path.home().joinpath(".album"))  # base data path
-
-    # micro mamba default location  # todo: seems not to be used. We should remove this
-
-    default_micromamba_path_win = (
-        str(
-            Path(str(app_data_dir)).joinpath(
-                "micromamba", "Library", "bin", "micromamba.exe"
-            )
-        )
-        if platform.system() == "Windows"
-        else ""
-    )
-
-    default_micromamba_path_else = (
-        str(Path(str(app_data_dir)).joinpath("micromamba", "bin", "micromamba"))
-        if platform.system() != "Windows"
-        else ""
-    )
-
-    default_micromamba_path = (
-        default_micromamba_path_win
-        if platform.system() == "Windows"
-        else default_micromamba_path_else
-    )
-    # micromamba
-    micromamba_default_command = "micromamba"
-    micromamba_path = os.getenv("ALBUM_MICROMAMBA_PATH", default_micromamba_path)
-
-    # mamba
-    mamba_default_command = "mamba"
-    mamba_path = os.getenv("ALBUM_MAMBA_PATH")
-
-    # conda
-    conda_default_command = "conda"  # default conda executable
-    conda_path = os.getenv("ALBUM_CONDA_PATH")
-
-    # conda-lock
-    conda_lock_default_command = "conda-lock"  # default conda-lock executable
-    conda_lock_path = os.getenv("ALBUM_CONDA_LOCK_PATH")
+    app_data_dir = os.getenv(
+        "ALBUM_BASE_CACHE_PATH", Path.home().joinpath(".album")
+    )  # base data path
 
     # events
     before_run_event_name = "before-run"

@@ -20,10 +20,6 @@ class IEnvironmentManager:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def ensure_micromamba_is_configured(self):
-        raise NotImplementedError
-
-    @abstractmethod
     def install_environment(
         self, collection_solution: ICollectionSolution, allow_unsafe: bool = False
     ) -> IEnvironment:
@@ -88,4 +84,5 @@ class IEnvironmentManager:
 
     @abstractmethod
     def get_environment_name(self, coordinates: ICoordinates, catalog: ICatalog) -> str:
+        """Get the name of an environment."""
         raise NotImplementedError

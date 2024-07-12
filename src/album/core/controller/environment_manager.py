@@ -41,18 +41,8 @@ class EnvironmentManager(IEnvironmentManager):
         # get installed package manager
         self.env_base_path = self._get_base_envs_path(album)
         self._album = album
-
-        micromamba_path = DefaultValues.micromamba_path.value
-        mamba_path = DefaultValues.mamba_path.value
-        conda_path = DefaultValues.conda_path.value
-        conda_lock_path = DefaultValues.conda_lock_path.value
-
         self._environment_handler = init_environment_handler(
             self.env_base_path,
-            micromamba_path=micromamba_path,
-            mamba_path=mamba_path,
-            conda_path=conda_path,
-            conda_lock_path=conda_lock_path,
         )
 
     def _get_base_envs_path(self, album: IAlbumController) -> Path:
