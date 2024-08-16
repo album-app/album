@@ -42,7 +42,7 @@ class EnvironmentManager(IEnvironmentManager):
         self.env_base_path = self._get_base_envs_path(album)
         self._album = album
         self._environment_handler = init_environment_handler(
-            self.env_base_path,
+            self.env_base_path, album.configuration().base_cache_path()
         )
 
     def _get_base_envs_path(self, album: IAlbumController) -> Path:
