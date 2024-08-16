@@ -40,6 +40,8 @@
     - 'if($env:CI_COMMIT_REF_NAME -match "dev*" -and $env:ALBUM_API_CHANGE_ENV -match "True" ) { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install git+https://gitlab.com/album-app/album-environments.git@dev}'
     - '.\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install -e .'
     - '.\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install coverage'
+    - '$Env:ENVIRONMENT_DEBUGGING_MICROMAMBA_PATH=(Join-Path -Path (Get-Location) -ChildPath micromamba_installation\Library\bin\micromamba.exe)' # set environment variables necessary to work with the environment API
+    - "$Env:ENVIRONMENT_CONDA_LOCK_PATH=(Get-Command conda-lock).Source" # explicitly set conda-lock path as it comes as dependency
   cache:
     key: one-key-to-rule-them-all-windows
     paths:
@@ -72,11 +74,13 @@
     - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_env* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No api_change_env branch"'
     - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_API_CHANGE_ENV == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No API env changes on that branch"]]'
     - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_API_CHANGE_RUNNER == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No API runner changes on that branch"]]'
-    - $MICROMAMBA_EXECUTABLE run -n album pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
+    - $MICROMAMBA_EXECUTABLE run -n album pip install --no-cache-dir -e .
     - $MICROMAMBA_EXECUTABLE run -n album pip install coverage
     - $MICROMAMBA_EXECUTABLE run -n album python -V
     - $MICROMAMBA_EXECUTABLE run -n album pip list
     - $MICROMAMBA_EXECUTABLE run -n album env -0 | sort -z | tr '\0' '\n' | grep -i album
+    - export ENVIRONMENT_DEBUGGING_MICROMAMBA_PATH=$MICROMAMBA_EXECUTABLE # explicitly set conda-lock path as it comes as dependency# set environment variables necessary to work with the environment API
+    - export ENVIRONMENT_CONDA_LOCK_PATH=$(which conda-lock)
   cache:
     key: one-key-to-rule-them-all-linux
     paths:
@@ -109,11 +113,13 @@
     - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_env* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No api_change_env branch"'
     - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_API_CHANGE_ENV == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No API env changes on that branch"]]'
     - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_API_CHANGE_RUNNER == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No API runner changes on that branch"]]'
-    - $MICROMAMBA_EXECUTABLE run -n album pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
+    - $MICROMAMBA_EXECUTABLE run -n album pip install --no-cache-dir -e .
     - $MICROMAMBA_EXECUTABLE run -n album pip install coverage
     - $MICROMAMBA_EXECUTABLE run -n album python -V
     - $MICROMAMBA_EXECUTABLE run -n album pip list
     - $MICROMAMBA_EXECUTABLE run -n album env -0 | sort -z | tr '\0' '\n' | grep -i album
+    - export ENVIRONMENT_DEBUGGING_MICROMAMBA_PATH=$MICROMAMBA_EXECUTABLE # explicitly set conda-lock path as it comes as dependency# set environment variables necessary to work with the environment API
+    - export ENVIRONMENT_CONDA_LOCK_PATH=$(which conda-lock)
   after_script:
     - tmpdir=$(</tmp/tmpdir)
     - echo $tmpdir
