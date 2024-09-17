@@ -1,5 +1,6 @@
 import argparse
 import os
+from importlib.metadata import version as importlib_version
 from queue import Empty, Queue
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -7,10 +8,12 @@ from album.runner import album_logging
 from album.runner.album_logging import get_active_logger
 from album.runner.core.api.model.solution import ISolution
 from album.runner.core.default_values_runner import DefaultValuesRunner
+from packaging import version
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.script_manager import IScriptManager
 from album.core.api.model.collection_solution import ICollectionSolution
+from album.core.model.default_values import DefaultValues
 from album.core.model.script_queue_entry import ScriptQueueEntry
 from album.core.utils.operations.solution_operations import get_parent_dict
 
@@ -121,6 +124,21 @@ class ScriptManager(IScriptManager):
         package_path = (
             collection_solution.loaded_solution().installation().package_path()
         )
+
+        # check if album core solution API < solution API
+        solution_api_version = (
+            collection_solution.loaded_solution().setup()["album_api_version"]
+            if "album_api_version" in collection_solution.loaded_solution().setup()
+            else DefaultValues.runner_api_package_version.value
+        )
+
+        core_version = importlib_version(DefaultValues.runner_api_package_name.value)
+
+        if version.parse(core_version) < version.parse(solution_api_version):
+            module_logger().warning(
+                f"Solution API version {solution_api_version} is higher than the album core solution API version"
+                f" {core_version}. Consider updating your album installation."
+            )
 
         return ScriptQueueEntry(
             collection_solution.coordinates(),
