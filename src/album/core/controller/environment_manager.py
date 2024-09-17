@@ -358,14 +358,14 @@ class EnvironmentManager(IEnvironmentManager):
 
     @staticmethod
     def _append_framework_to_dependencies(
-        content: Dict[str, Any], album_api_version: str
+        content: Dict[str, Any], album_api_version: Optional[str]
     ) -> Dict[str, Any]:
         if (
             not (
                 Path(DefaultValues.runner_api_package_name.value).is_dir()
                 or DefaultValues.runner_api_package_name.value.endswith(".zip")
                 or DefaultValues.runner_api_package_name.value.startswith("https")
-            )
+            )  # check if framework is properly defined. no zip, https or folder allowed
             and album_api_version
             and version.parse(album_api_version)
             >= version.parse(DefaultValues.first_album_solution_api_version.value)
@@ -373,7 +373,15 @@ class EnvironmentManager(IEnvironmentManager):
             return EnvironmentManager._append_framework_via_conda_to_yml(
                 content, album_api_version
             )
+        elif album_api_version is None:
+            module_logger().warning("No framework specified for the environment.")
+            # install no framework
+            return content
         else:
+            module_logger().debug(
+                "Using %s as framework for the environment."
+                % DefaultValues.first_album_solution_api_version.value
+            )
             return EnvironmentManager._append_framework_via_conda_to_yml(
                 content, DefaultValues.first_album_solution_api_version.value
             )
