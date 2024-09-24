@@ -3,11 +3,11 @@ from album.runner.api import setup
 env_file = """name: Dummy-Solution-Lock
 channels:
   - conda-forge
-  - defaults
 dependencies:
   - python=3.8
   - pip
 """
+
 
 def album_run():
     pass
@@ -41,5 +41,5 @@ setup(
     ],
     run=album_run,
     install=album_install,
-    dependencies={'environment_file': env_file},
+    dependencies={"environment_file": env_file},
 )

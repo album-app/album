@@ -1,10 +1,8 @@
-from album.runner.api import setup, get_args
-
+from album.runner.api import setup
 
 env_file = """name: Dummy-Solution
 channels:
   - conda-forge
-  - defaults
 dependencies:
   - python=3.8
   - pip
@@ -14,14 +12,14 @@ dependencies:
 
 
 def install():
-    from album.runner.api import setup, get_args , get_package_path
+    pass
+
     print("HI I AM A DUMMY INSTALL FUNCTION")
 
 
 def run():
-    from album.runner.api import setup, get_args , get_package_path
-    from pathlib import Path
-    import os
+    pass
+
     print("HI I AM A DUMMY RUN FUNCTION of the version 0.1.0")
 
 
@@ -30,12 +28,14 @@ def prepare_test():
 
 
 def test():
-    from album.runner.api import setup, get_args
-    import os
+    pass
+
     print("TEST")
 
+
 def close():
-    from album.runner.api import setup, get_args
+    pass
+
     print("closing")
 
 
@@ -46,17 +46,11 @@ setup(
     title="A Dummy Solution to fail when using conda lock.",
     description="A Dummy Solution to fail when using conda lock.",
     authors=["Lucas Rieckert"],
-    cite=[{
-        "text": "Your first citation text",
-        "doi": "your first citation doi"
-    }],
+    cite=[{"text": "Your first citation text", "doi": "your first citation doi"}],
     tags=["conda_lock", "test"],
     license="UNLICENSE",
     documentation="",
-    covers=[{
-        "description": "Dummy cover image.",
-        "source": "cover.png"
-    }],
+    covers=[{"description": "Dummy cover image.", "source": "cover.png"}],
     album_api_version="0.4.1",
     args=[],
     install=install,
@@ -64,5 +58,5 @@ setup(
     close=close,
     pre_test=prepare_test,
     test=test,
-    dependencies={'environment_file': env_file}
+    dependencies={"environment_file": env_file},
 )
