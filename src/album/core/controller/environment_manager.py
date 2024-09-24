@@ -1,4 +1,5 @@
 import os
+from importlib.metadata import version as importlib_version
 from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
@@ -377,6 +378,16 @@ class EnvironmentManager(IEnvironmentManager):
             module_logger().warning("No framework specified for the environment.")
             # install no framework
             return content
+        elif version.parse(album_api_version) > version.parse(
+            importlib_version(DefaultValues.runner_api_package_name.value)
+        ):
+            module_logger().warning(
+                "It seems you have an old album installation. "
+                "Consider updating album to the latest version."
+            )
+            return EnvironmentManager._append_framework_via_conda_to_yml(
+                content, album_api_version
+            )
         else:
             module_logger().debug(
                 "Using %s as framework for the environment."
