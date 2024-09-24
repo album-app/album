@@ -42,7 +42,21 @@ def get_solution_as_string(solution: ISolution, solution_path: str) -> str:
     if setup.args:
         res += "Run parameters:\n\n"
         for arg in setup.args:
-            res += "  --{n}: {d}\n".format(n=arg["name"], d=arg["description"])
+            r = ""
+            if "required" in arg:
+                r = " (required: True)" if arg["required"] else " (required: False)"
+
+            t = ""
+            if "type" in arg:
+                t = f" (type: {arg['type']})" if arg["type"] else ""
+
+            f = ""
+            if "default" in arg:
+                f = f" (default: {arg['default']})" if arg["default"] else ""
+
+            res += "  --{n}:{r} {d}{t}{f}\n".format(
+                n=arg["name"], d=arg["description"], r=r, t=t, f=f
+            )
     return res
 
 
