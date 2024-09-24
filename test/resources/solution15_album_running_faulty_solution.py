@@ -1,9 +1,9 @@
-from album.runner.api import setup, get_cache_path
 from io import StringIO
+
+from album.runner.api import get_cache_path, setup
 
 env_file = StringIO(
     """channels:
-  - defaults
   - conda-forge
 dependencies:
   - python=3.7
@@ -16,10 +16,12 @@ dependencies:
 
 
 def album_run():
-    from album.api import Album
-    import tempfile
     import os
+    import tempfile
+
     from album.runner.album_logging import get_active_logger
+
+    from album.api import Album
 
     print("print something")
     get_active_logger().info("logging info")
@@ -50,7 +52,7 @@ def get_solution_content():
 from io import StringIO
 
 env_file = StringIO("""channels:
-  - defaults
+  - conda-forge
 dependencies:
   - python=3.7
   - pip

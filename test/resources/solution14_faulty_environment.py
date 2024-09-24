@@ -2,7 +2,7 @@ from album.runner.api import setup
 
 env_file = """name: template-python
 channels:
-  - defaults
+  - conda-forge
 dependencies:
   - albuasdasdm=0.0.0.1
 """
