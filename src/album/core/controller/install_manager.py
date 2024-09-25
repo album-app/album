@@ -1,4 +1,3 @@
-import os
 from typing import Any, Dict, List, Optional
 
 from album.environments.api.model.environment import IEnvironment
@@ -250,7 +249,7 @@ class InstallManager(IInstallManager):
         ):
             module_logger().debug("Creating install script...")
 
-            env_variables = os.environ.copy()
+            env_variables = {}  # os.environ.copy()
             env_variables[
                 DefaultValuesRunner.env_variable_action.value
             ] = ISolution.Action.INSTALL.name
@@ -435,7 +434,7 @@ class InstallManager(IInstallManager):
             module_logger().debug("Calling uninstall routine specified in solution...")
             album_logging.configure_logging("uninstall")
 
-            env_variables = os.environ.copy()
+            env_variables = {}  # os.environ.copy()
             env_variables[
                 DefaultValuesRunner.env_variable_action.value
             ] = ISolution.Action.UNINSTALL.name
