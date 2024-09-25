@@ -83,7 +83,7 @@ setup(
     group="group",
     name="solution15_run_album_throw_error",
     version="0.1.0",
-    album_api_version="0.3.1",
+    album_api_version="0.6.1",
     run=album_run,
     dependencies={"environment_file": env_file},
 )
