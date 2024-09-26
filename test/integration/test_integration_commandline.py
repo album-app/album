@@ -2,11 +2,11 @@ import contextlib
 import io
 import json
 import sys
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 from unittest.mock import patch
 
 from album.argument_parsing import main
 from album.core.model.resolve_result import ResolveResult
-from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
 class TestIntegrationCommandline(TestIntegrationCoreCommon):
@@ -216,7 +216,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
                 "tags": ["tag1", "tag2"],
                 "license": "license",
                 "covers": [],
-                "album_api_version": "0.5.1",
+                "album_api_version": "0.6.1",
                 "args": [
                     {
                         "name": "testArg1",
@@ -263,7 +263,9 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
         self.assertIsNotNone(index_dict["catalogs"])
         self.assertEqual(1, len(index_dict["catalogs"]))
 
-    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
     def test_run_sad_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album._controller.environment_manager()
@@ -280,7 +282,9 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
             main()
         self.assertEqual(1, e.exception.code)
 
-    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
     def test_run_album_throwing_error_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album._controller.environment_manager()

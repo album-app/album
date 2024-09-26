@@ -145,7 +145,9 @@ class ScriptManager(IScriptManager):
         script_path = collection_solution.loaded_solution().script()
 
         # handle old runner API versions, here, solution_action is not available via API, it is set via a script line
-        if collection_solution.loaded_solution().setup().album_api_version < "0.6.0":
+        if version.parse(
+            collection_solution.loaded_solution().setup().album_api_version
+        ) < version.parse("0.6.0"):
             module_logger().warning(
                 "You are using an old version of the album runner API within your solution. "
                 "Consider updating your solution if possible."
