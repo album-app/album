@@ -370,9 +370,7 @@ class InstallManager(IInstallManager):
                 environment = self.album.environment_manager().set_environment(
                     resolve_result
                 )
-                self._run_solution_uninstall_routine(
-                    resolve_result.loaded_solution(), environment
-                )
+                self._run_solution_uninstall_routine(resolve_result, environment)
 
             if not parent:
                 self.album.environment_manager().remove_environment(environment)
@@ -426,42 +424,18 @@ class InstallManager(IInstallManager):
         return children
 
     def _run_solution_uninstall_routine(
-        self, active_solution: ISolution, environment: IEnvironment
+        self, resolve_result: ICollectionSolution, environment: IEnvironment
     ) -> None:
-        if active_solution.setup().uninstall and callable(
-            active_solution.setup().uninstall
+        if resolve_result.loaded_solution().setup().uninstall and callable(
+            resolve_result.loaded_solution().setup().uninstall
         ):
-            module_logger().debug("Calling uninstall routine specified in solution...")
-            album_logging.configure_logging("uninstall")
-
-            env_variables = {}  # os.environ.copy()
-            env_variables[
-                DefaultValuesRunner.env_variable_action.value
-            ] = ISolution.Action.UNINSTALL.name
-            env_variables[DefaultValuesRunner.env_variable_installation.value] = str(
-                active_solution.installation().installation_path()
+            self.album.script_manager().run_solution_script(
+                resolve_result, ISolution.Action.UNINSTALL
             )
-            env_variables[DefaultValuesRunner.env_variable_package.value] = str(
-                active_solution.installation().package_path()
-            )
-            env_variables[DefaultValuesRunner.env_variable_environment.value] = str(
-                environment.path()
-            )
-            env_variables[DefaultValuesRunner.env_variable_logger_level.value] = str(
-                album_logging.get_loglevel_name()
-            )
-
-            self.album.environment_manager().run_script(
-                environment,
-                str(active_solution.script()),
-                environment_variables=env_variables,
-            )
-
-            album_logging.pop_active_logger()
         else:
             module_logger().debug(
                 'No "uninstall" routine configured for solution "%s"! Skipping...'
-                % active_solution.coordinates().name()
+                % resolve_result.loaded_solution().coordinates().name()
             )
 
     def _remove_dependencies(self, solution: ISolution, rm_dep: bool = False) -> None:

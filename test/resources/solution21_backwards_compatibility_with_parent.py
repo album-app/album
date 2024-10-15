@@ -23,10 +23,6 @@ def album_install():
     print("Install backwards compatibility solution")
 
 
-def album_remove():
-    print("Remove backwards compatibility solution")
-
-
 def album_pre_test():
     print("Pre test backwards compatibility solution")
 
