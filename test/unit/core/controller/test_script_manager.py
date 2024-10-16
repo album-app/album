@@ -73,7 +73,7 @@ class TestScriptManager(TestUnitCoreCommon):
 
         self.active_solution.script = lambda: "script.py"
 
-        r = self.script_manager._create_solution_run_script_standalone(
+        r = self.script_manager._create_solution_script(
             ResolveResult(
                 "", None, None, self.active_solution.coordinates(), self.active_solution
             ),
@@ -92,7 +92,7 @@ class TestScriptManager(TestUnitCoreCommon):
         set_environment = MagicMock(return_value=None)
         self.album_controller.environment_manager().set_environment = set_environment
 
-        r = self.script_manager._create_solution_run_script_standalone(
+        r = self.script_manager._create_solution_script(
             ResolveResult(
                 "", None, None, self.active_solution.coordinates(), self.active_solution
             ),
@@ -103,42 +103,6 @@ class TestScriptManager(TestUnitCoreCommon):
         self.assertEqual(self.active_solution.coordinates(), r.coordinates)
         self.assertEqual(["myscript"], r.scripts)
         set_environment.assert_called_once()
-
-    def test_create_solution_run_with_parent_script_standalone(self):
-        # prepare
-        self.setup_collection()
-        self.active_solution._setup.dependencies = {
-            "parent": {"name": "aParent", "group": "grp", "version": "v1"}
-        }
-        self.active_solution.script = lambda: "script.py"
-
-        # mock
-        catalog = (
-            self.album_controller.collection_manager().catalogs().get_cache_catalog()
-        )
-
-        set_environment = MagicMock(return_value=None)
-        self.album_controller.environment_manager().set_environment = set_environment
-
-        # call
-        r = self.script_manager._create_solution_run_with_parent_script_standalone(
-            ResolveResult(
-                path="aPath",
-                catalog=catalog,
-                loaded_solution=self.active_solution,
-                collection_entry=None,
-                coordinates=self.active_solution.coordinates(),
-            ),
-            [],
-            ISolution.Action.RUN,
-        )
-
-        # assertipt.assert_called_once_with(self.active_solution, "active_solution_args")
-        set_environment.assert_called_once()
-
-        # result
-        self.assertEqual(self.active_solution.coordinates(), r.coordinates)
-        self.assertEqual("script.py", r.script)
 
     @unittest.skip("Needs to be implemented!")
     def test_create_solution_run_with_parent_script(self):

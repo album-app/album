@@ -61,3 +61,13 @@ class IMigrationManager:
     def migrate_solution_attrs(self, attrs) -> Dict[str, Any]:
         """Migrate the solution attributes to the current framework version."""
         raise NotImplementedError
+
+    @abstractmethod
+    def compare_core_api_and_solution_api(self, solution_api_version: str) -> None:
+        """Compare the core API version with the solution API version."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def is_outdated_api(self, solution_api_version: str) -> bool:
+        """Check if the solution API version is outdated."""
+        raise NotImplementedError

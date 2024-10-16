@@ -3,9 +3,8 @@ from abc import ABCMeta, abstractmethod
 from queue import Queue
 from typing import List, Optional
 
-from album.runner.core.api.model.solution import ISolution
-
 from album.core.api.model.collection_solution import ICollectionSolution
+from album.runner.core.api.model.solution import ISolution
 
 
 class IScriptManager:
@@ -59,4 +58,11 @@ class IScriptManager:
         self, resolve_result: ICollectionSolution, solution_action: ISolution.Action
     ):
         """Run the solution script."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def run_solution_script_no_pipe(
+        self, resolve_result: ICollectionSolution, solution_action: ISolution.Action
+    ):
+        """Run the solution script without piping."""
         raise NotImplementedError

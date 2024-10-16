@@ -12,28 +12,28 @@ dependencies:
 
 
 def album_run():
-    print("Run backwards compatibility solution")
+    print("Run backwards compatibility solution parent")
 
 
 def album_install():
-    print("Install backwards compatibility solution")
+    print("Install backwards compatibility solution parent")
 
 
 def album_uninstall():
-    print("Uninstall backwards compatibility solution")
+    print("Uninstall backwards compatibility solution parent")
 
 
 def album_pre_test():
-    print("Pre test backwards compatibility solution")
+    print("Pre test backwards compatibility solution parent")
 
 
 def album_test():
-    print("Test backwards compatibility solution")
+    print("Test backwards compatibility solution parent")
 
 
 setup(
     group="group",
-    name="solution21_backwards_compatibility",
+    name="solution21_backwards_compatibility_parent",
     version="0.1.0",
     album_api_version="0.5.5",  # deliberately set to 0.5.5, do not change, install framework via pip, see above!
     args=[

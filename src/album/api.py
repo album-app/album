@@ -4,9 +4,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from album.runner.album_logging import LogLevel, pop_active_logger
-from album.runner.core.api.model.solution import ISolution
-
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
@@ -15,6 +12,8 @@ from album.core.api.model.configuration import IConfiguration
 from album.core.api.model.event import IEvent
 from album.core.controller.album_controller import AlbumController
 from album.core.utils.core_logging import configure_root_logger
+from album.runner.album_logging import LogLevel, pop_active_logger
+from album.runner.core.api.model.solution import ISolution
 
 
 class Album:
@@ -277,7 +276,9 @@ class Album:
         self, resolve_result: ICollectionSolution, action: ISolution.Action
     ):
         """Run a solution script."""
-        self._controller.script_manager().run_solution_script(resolve_result, action)
+        self._controller.script_manager().run_solution_script_no_pipe(
+            resolve_result, action
+        )
 
     def upgrade(self, catalog_name=None, dry_run=False, override=False):
         """Upgrade a catalog in the collection."""

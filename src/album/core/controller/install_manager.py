@@ -1,11 +1,9 @@
 from typing import Any, Dict, List, Optional
 
-from album.environments.api.model.environment import IEnvironment
 from album.environments.utils.subcommand import SubProcessError
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
-from album.runner.core.default_values_runner import DefaultValuesRunner
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.install_manager import IInstallManager
@@ -225,58 +223,27 @@ class InstallManager(IInstallManager):
                 )
 
             collection_solution.set_database_entry(db_entry)
-
-            # resolve environment - at this point all parents should be already installed
-            environment = self.album.environment_manager().set_environment(
-                collection_solution
-            )
         else:
-            environment = self.album.environment_manager().install_environment(
+            self.album.environment_manager().install_environment(
                 collection_solution, allow_unsafe
             )
 
-        self._run_solution_install_routine(
-            collection_solution.loaded_solution(), environment
+        # ensure cache paths exist
+        collection_solution.loaded_solution().installation().internal_cache_path().mkdir(
+            exist_ok=True, parents=True
+        )
+        collection_solution.loaded_solution().installation().user_cache_path().mkdir(
+            exist_ok=True, parents=True
+        )
+        collection_solution.loaded_solution().installation().data_path().mkdir(
+            exist_ok=True, parents=True
+        )
+        collection_solution.loaded_solution().installation().app_path().mkdir(
+            exist_ok=True, parents=True
         )
 
+        self._run_solution_install_routine(collection_solution)
         return parent_resolve_result
-
-    def _run_solution_install_routine(
-        self, active_solution: ISolution, environment: IEnvironment
-    ) -> None:
-        if active_solution.setup().install and callable(
-            active_solution.setup().install
-        ):
-            module_logger().debug("Creating install script...")
-
-            env_variables = {}  # os.environ.copy()
-            env_variables[
-                DefaultValuesRunner.env_variable_action.value
-            ] = ISolution.Action.INSTALL.name
-            env_variables[DefaultValuesRunner.env_variable_installation.value] = str(
-                active_solution.installation().installation_path()
-            )
-            env_variables[DefaultValuesRunner.env_variable_package.value] = str(
-                active_solution.installation().package_path()
-            )
-            env_variables[DefaultValuesRunner.env_variable_environment.value] = str(
-                environment.path()
-            )
-            env_variables[DefaultValuesRunner.env_variable_logger_level.value] = str(
-                album_logging.get_loglevel_name()
-            )
-
-            module_logger().debug("Calling install routine specified in solution...")
-            self.album.environment_manager().run_script(
-                environment,
-                active_solution.script(),
-                environment_variables=env_variables,
-            )
-        else:
-            module_logger().debug(
-                'No "install" routine configured for solution "%s". Skipping...'
-                % active_solution.coordinates().name()
-            )
 
     def _install_parent(
         self,
@@ -370,7 +337,7 @@ class InstallManager(IInstallManager):
                 environment = self.album.environment_manager().set_environment(
                     resolve_result
                 )
-                self._run_solution_uninstall_routine(resolve_result, environment)
+                self._run_solution_uninstall_routine(resolve_result)
 
             if not parent:
                 self.album.environment_manager().remove_environment(environment)
@@ -424,7 +391,7 @@ class InstallManager(IInstallManager):
         return children
 
     def _run_solution_uninstall_routine(
-        self, resolve_result: ICollectionSolution, environment: IEnvironment
+        self, resolve_result: ICollectionSolution
     ) -> None:
         if resolve_result.loaded_solution().setup().uninstall and callable(
             resolve_result.loaded_solution().setup().uninstall
@@ -435,6 +402,21 @@ class InstallManager(IInstallManager):
         else:
             module_logger().debug(
                 'No "uninstall" routine configured for solution "%s"! Skipping...'
+                % resolve_result.loaded_solution().coordinates().name()
+            )
+
+    def _run_solution_install_routine(
+        self, resolve_result: ICollectionSolution
+    ) -> None:
+        if resolve_result.loaded_solution().setup().install and callable(
+            resolve_result.loaded_solution().setup().install
+        ):
+            self.album.script_manager().run_solution_script(
+                resolve_result, ISolution.Action.INSTALL
+            )
+        else:
+            module_logger().debug(
+                'No "install" routine configured for solution "%s". Skipping...'
                 % resolve_result.loaded_solution().coordinates().name()
             )
 

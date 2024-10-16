@@ -5,10 +5,9 @@ from pathlib import Path
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 from unittest.mock import patch
 
-from album.runner.core.model.coordinates import Coordinates
-
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import get_link_target
+from album.runner.core.model.coordinates import Coordinates
 
 
 class TestIntegrationInstall(TestIntegrationCoreCommon):
@@ -692,7 +691,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
 
         # install parent app solution in collection
         self.album_controller.install_manager().install(
-            self.get_test_solution_path("app1.py")
+            self.get_test_solution_path("solution19_outdated_parent.py")
         )
 
         # assert installed in collection

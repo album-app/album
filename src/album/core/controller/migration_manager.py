@@ -4,6 +4,7 @@ import pkgutil
 import shutil
 import sqlite3
 from copy import deepcopy
+from importlib.metadata import version as importlib_version
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List
@@ -207,7 +208,8 @@ class MigrationManager(IMigrationManager):
 
     def _load_solution_schema(self):
         if not self.schema_solution:
-            # the namespace "runner" is still used here, even though the solution schema comes from album-solution-api package
+            # the namespace "runner" is still used here, even though the solution schema comes
+            # from album-solution-api package
             data = pkgutil.get_data("album.runner.core.schema", "solution_schema.json")
             self.schema_solution = json.loads(data)
         if not self.schema_solution_runner_0_4_2:
@@ -321,3 +323,21 @@ class MigrationManager(IMigrationManager):
                     )
         versions.sort()
         return versions
+
+    def compare_core_api_and_solution_api(self, solution_api_version: str) -> None:
+        core_version = importlib_version(DefaultValues.runner_api_package_name.value)
+
+        if version.parse(core_version) < version.parse(solution_api_version):
+            module_logger().warning(
+                f"Solution API version {solution_api_version} is higher than the album core solution API version"
+                f" {core_version}. Consider updating your album installation."
+            )
+
+    def is_outdated_api(self, solution_api_version: str) -> bool:
+        if version.parse(solution_api_version) < version.parse("0.6.0"):
+            module_logger().warning(
+                "You are using an old version of the album runner API within your solution. "
+                "Consider updating your solution if possible."
+            )
+            return True
+        return False

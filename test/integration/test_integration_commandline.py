@@ -285,7 +285,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
     @patch(
         "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
     )
-    def test_run_album_throwing_error_solution(self, get_environment_path):
+    def test_run_album_throwing_deep_error_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album._controller.environment_manager()
             .get_environment_handler()

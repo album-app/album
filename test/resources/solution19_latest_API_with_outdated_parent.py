@@ -43,5 +43,7 @@ setup(
     uninstall=album_uninstall,
     pre_test=album_pre_test,
     test=album_test,
-    dependencies={"parent": {"name": "app1", "group": "group", "version": "0.1.0"}},
+    dependencies={
+        "parent": {"name": "app1", "group": "group", "version": "0.1.0"}
+    },  # deliberately outdated parent
 )
