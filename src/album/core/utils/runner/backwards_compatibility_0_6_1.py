@@ -816,8 +816,78 @@ def pop_active_solution():
         return None
 
 
-# necessary overwrite of the setup of the old runner
+def in_target_environment() -> bool:
+    """Give the boolean information whether current python is the python from the album target environment.
+
+    Returns:
+        True when current active python is the album target environment else False.
+
+    """
+    active_solution = get_active_solution()
+
+    return (
+        True
+        if sys.executable.startswith(
+            str(active_solution.installation().environment_path())
+        )
+        else False
+    )
+
+
+def get_environment_name() -> str:
+    """Return the name of the environment the solution runs in."""
+    from album.runner.api import get_environment_path
+
+    return str(get_environment_path())
+
+
+def get_environment_path():
+    """Return the path of the environment the solution runs in."""
+    active_solution = get_active_solution()
+    res = active_solution.installation().environment_path()
+    return Path(res) if res else res
+
+
+def get_data_path() -> Path:
+    """Return the data path provided for the solution."""
+    active_solution = get_active_solution()
+    res = active_solution.installation().data_path()
+    return Path(res) if res else res
+
+
+def get_package_path() -> Path:
+    """Return the package path provided for the solution."""
+    active_solution = get_active_solution()
+    res = active_solution.installation().package_path()
+    return Path(res) if res else res
+
+
+def get_app_path() -> Path:
+    """Return the app path provided for the solution."""
+    active_solution = get_active_solution()
+    res = active_solution.installation().app_path()
+    return Path(res) if res else res
+
+
+def get_cache_path() -> Path:
+    """Return the cache path provided for the solution."""
+    active_solution = get_active_solution()
+    res = active_solution.installation().user_cache_path()
+    return Path(res) if res else res
+
+
+# necessary overwrite of the API of the old runner, DO NOT DELETE
 _active_solution = []
 import album.runner.api  # noqa: E402
 
 album.runner.api.setup = setup
+album.runner.api.get_active_solution = get_active_solution
+album.runner.api.in_target_environment = in_target_environment
+album.runner.api.get_environment_name = get_environment_name
+album.runner.api.get_environment_path = get_environment_path
+album.runner.api.get_data_path = get_data_path
+album.runner.api.get_package_path = get_package_path
+album.runner.api.get_app_path = get_app_path
+album.runner.api.get_cache_path = get_cache_path
+
+album.runner.album_logging.get_active_logger = get_active_logger

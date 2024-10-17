@@ -1,4 +1,18 @@
-from album.runner.api import setup
+from album.runner.api import (
+    download_if_not_exists,
+    extract_tar,
+    get_active_logger,
+    get_active_solution,
+    get_app_path,
+    get_args,
+    get_cache_path,
+    get_data_path,
+    get_environment_name,
+    get_environment_path,
+    get_package_path,
+    in_target_environment,
+    setup,
+)
 
 env_file = """name: backwards_compatibility
 channels:
@@ -13,6 +27,18 @@ dependencies:
 
 def album_run():
     print("Run backwards compatibility solution")
+    print(get_args())
+    print(in_target_environment())
+    print(get_environment_name())
+    print(get_environment_path())
+    print(get_data_path())
+    print(get_package_path())
+    print(get_app_path())
+    print(get_cache_path())
+    print(get_active_solution())
+    print(download_if_not_exists)
+    print(extract_tar)
+    print(get_active_logger())
 
 
 def album_install():

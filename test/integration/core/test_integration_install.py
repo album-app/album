@@ -135,18 +135,13 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
             dry_run=False,
             git_email=DefaultValues.catalog_git_email.value,
             git_name=DefaultValues.catalog_git_user.value,
+            no_conda_lock=True,
         )
         self.album_controller.collection_manager().catalogs().update_collection(
             catalog.name()
         )
 
         # first, install via path - will add the solution to the local catalog
-        with self.assertRaises(RuntimeError):
-            self.album_controller.install_manager().install(
-                self.get_test_solution_path("solution13_faulty_routine.py")
-            )
-
-        # call
         with self.assertRaises(RuntimeError):
             self.album_controller.install_manager().install(
                 self.get_test_solution_path("solution13_faulty_routine.py")
@@ -160,12 +155,6 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         leftover_env_name = local_catalog_name + "_group_faultySolution_0.1.0"
         env_path = self.album_controller.environment_manager().get_environment_path(
             leftover_env_name, create=False
-        )
-        env_list = (
-            self.album_controller.environment_manager()
-            .get_environment_handler()
-            .get_package_manager()
-            .get_environment_list()
         )
         self.assertTrue(
             self.album_controller.environment_manager()

@@ -7,10 +7,9 @@ from copy import deepcopy
 from importlib.metadata import version as importlib_version
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import pkg_resources
-from album.runner import album_logging
 from jsonschema import ValidationError, validate
 from packaging import version
 
@@ -25,6 +24,7 @@ from album.core.utils.operations.file_operations import (
     get_dict_from_json,
     write_dict_to_json,
 )
+from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
@@ -324,16 +324,7 @@ class MigrationManager(IMigrationManager):
         versions.sort()
         return versions
 
-    def compare_core_api_and_solution_api(self, solution_api_version: str) -> None:
-        core_version = importlib_version(DefaultValues.runner_api_package_name.value)
-
-        if version.parse(core_version) < version.parse(solution_api_version):
-            module_logger().warning(
-                f"Solution API version {solution_api_version} is higher than the album core solution API version"
-                f" {core_version}. Consider updating your album installation."
-            )
-
-    def is_outdated_api(self, solution_api_version: str) -> bool:
+    def is_outdated_api(self, solution_api_version: str, warn: bool = True) -> bool:
         if version.parse(solution_api_version) < version.parse("0.6.0"):
             module_logger().warning(
                 "You are using an old version of the album runner API within your solution. "
@@ -341,3 +332,20 @@ class MigrationManager(IMigrationManager):
             )
             return True
         return False
+
+    def is_outdated_core(self, solution_api_version, warn: bool = True) -> bool:
+        core_version = importlib_version(DefaultValues.runner_api_package_name.value)
+
+        if version.parse(core_version) < version.parse(solution_api_version):
+            module_logger().warning(
+                f"Solution API version {solution_api_version} is higher than the album core solution API version"
+                f" {core_version}. Consider updating your album installation."
+            )
+            return True
+        return False
+
+    def get_outdated_runner_name_and_version(self) -> Tuple[str, str]:
+        album_api_version = "0.5.5"
+        runner_package_name = "album-runner"
+
+        return runner_package_name, album_api_version

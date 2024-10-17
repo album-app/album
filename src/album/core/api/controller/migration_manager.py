@@ -63,11 +63,16 @@ class IMigrationManager:
         raise NotImplementedError
 
     @abstractmethod
-    def compare_core_api_and_solution_api(self, solution_api_version: str) -> None:
-        """Compare the core API version with the solution API version."""
+    def is_outdated_api(self, solution_api_version: str, warn: bool = True) -> bool:
+        """Check if the solution API version is outdated."""
         raise NotImplementedError
 
     @abstractmethod
-    def is_outdated_api(self, solution_api_version: str) -> bool:
-        """Check if the solution API version is outdated."""
+    def is_outdated_core(self, solution_api_version, warn: bool = True) -> bool:
+        """Check if the core API version is outdated."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_outdated_runner_name_and_version(self) -> Dict[str, str]:
+        """Get the outdated runner name and version."""
         raise NotImplementedError

@@ -4,11 +4,10 @@ from test.unit.test_unit_core_common import EmptyTestClass, TestUnitCoreCommon
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
-from album.runner.core.api.model.solution import ISolution
-
 from album.core.controller.script_manager import ScriptManager
 from album.core.model.resolve_result import ResolveResult
 from album.core.model.script_queue_entry import ScriptQueueEntry
+from album.runner.core.api.model.solution import ISolution
 
 
 class TestScriptManager(TestUnitCoreCommon):
@@ -135,7 +134,11 @@ class TestScriptManager(TestUnitCoreCommon):
         )
 
         run_script_mock.assert_called_once_with(
-            environment, "script.py", argv=[""], environment_variables=mock.ANY
+            environment,
+            "script.py",
+            argv=[""],
+            environment_variables=mock.ANY,
+            pipe_output=True,
         )
         push_mock.assert_not_called()
         pop_mock.assert_not_called()

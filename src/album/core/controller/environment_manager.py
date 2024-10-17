@@ -1,5 +1,4 @@
 import os
-from importlib.metadata import version as importlib_version
 from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
@@ -15,9 +14,6 @@ from album.environments.utils.file_operations import (
     write_dict_to_yml,
 )
 from album.environments.utils.url_operations import download_resource
-from album.runner import album_logging
-from album.runner.core.api.model.coordinates import ICoordinates
-from packaging import version
 
 from album.core import __version__ as album_version
 from album.core.api.controller.controller import IAlbumController
@@ -33,6 +29,8 @@ from album.core.utils.operations.file_operations import (
 )
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.core.utils.operations.solution_operations import set_environment_paths
+from album.runner import album_logging
+from album.runner.core.api.model.coordinates import ICoordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -350,59 +348,51 @@ class EnvironmentManager(IEnvironmentManager):
         # safety check to avoid album in album issues
         self._check_album_in_album(yaml_dict, allow_unsafe)
 
-        yaml_dict = EnvironmentManager._append_framework_to_dependencies(
-            yaml_dict, album_api_version
-        )
+        yaml_dict = self._append_framework_to_dependencies(yaml_dict, album_api_version)
         write_dict_to_yml(yaml_path, yaml_dict)
 
         return yaml_path
 
-    @staticmethod
     def _append_framework_to_dependencies(
-        content: Dict[str, Any], album_api_version: Optional[str]
+        self, content: Dict[str, Any], album_api_version: Optional[str]
     ) -> Dict[str, Any]:
-        if (
-            not (
-                Path(DefaultValues.runner_api_package_name.value).is_dir()
-                or DefaultValues.runner_api_package_name.value.endswith(".zip")
-                or DefaultValues.runner_api_package_name.value.startswith("https")
-            )  # check if framework is properly defined. no zip, https or folder allowed
-            and album_api_version
-            and version.parse(album_api_version)
-            >= version.parse(DefaultValues.first_album_solution_api_version.value)
-        ):
-            return EnvironmentManager._append_framework_via_conda_to_yml(
-                content, album_api_version
-            )
-        elif album_api_version is None:
+        if album_api_version is None:
             module_logger().warning("No framework specified for the environment.")
             # install no framework
             return content
-        elif version.parse(album_api_version) > version.parse(
-            importlib_version(DefaultValues.runner_api_package_name.value)
+
+        # Check if framework is properly defined. No zip, https or folder allowed.
+        if (
+            Path(DefaultValues.runner_api_package_name.value).is_dir()
+            or DefaultValues.runner_api_package_name.value.endswith(".zip")
+            or DefaultValues.runner_api_package_name.value.startswith("https")
         ):
-            module_logger().warning(
-                "It seems you have an old album installation. "
-                "Consider updating album to the latest version."
+            raise ValueError(
+                "Framework is not properly defined. No zip, https or folder allowed."
             )
-            return EnvironmentManager._append_framework_via_conda_to_yml(
-                content, album_api_version
-            )
-        else:
-            module_logger().debug(
-                "Using %s as framework for the environment."
-                % DefaultValues.first_album_solution_api_version.value
-            )
-            return EnvironmentManager._append_framework_via_conda_to_yml(
-                content, DefaultValues.first_album_solution_api_version.value
-            )
+
+        runner_package_name = DefaultValues.runner_api_package_name.value
+
+        # check outdated framework version
+        if self._album.migration_manager().is_outdated_api(
+            album_api_version, warn=False
+        ):
+            # append first available conda-forge framework to dependencies
+            (
+                runner_package_name,
+                album_api_version,
+            ) = self._album.migration_manager().get_outdated_runner_name_and_version()
+
+        return EnvironmentManager._append_framework_via_conda_to_yml(
+            content, album_api_version, runner_package_name
+        )
 
     @staticmethod
     def _append_framework_via_conda_to_yml(
-        content: Dict[str, Any], album_api_version: str
+        content: Dict[str, Any], album_api_version: str, runner_package_name: str
     ) -> Dict[str, Any]:
         framework = "conda-forge::{d}={a}".format(
-            d=DefaultValues.runner_api_package_name.value,
+            d=runner_package_name,
             a=album_api_version,
         )
         if "dependencies" not in content or not content["dependencies"]:

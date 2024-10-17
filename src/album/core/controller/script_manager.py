@@ -1,18 +1,20 @@
 import argparse
 import os
+import platform
 from pathlib import Path
 from queue import Empty, Queue
 from typing import Any, Dict, List, Optional
+
+from album.runner import album_logging
+from album.runner.album_logging import get_active_logger
+from album.runner.core.api.model.solution import ISolution
+from album.runner.core.default_values_runner import DefaultValuesRunner
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.script_manager import IScriptManager
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.model.default_values import DefaultValues
 from album.core.model.script_queue_entry import ScriptQueueEntry
-from album.runner import album_logging
-from album.runner.album_logging import get_active_logger
-from album.runner.core.api.model.solution import ISolution
-from album.runner.core.default_values_runner import DefaultValuesRunner
 
 module_logger = get_active_logger
 
@@ -87,9 +89,8 @@ class ScriptManager(IScriptManager):
             if "album_api_version" in collection_solution.loaded_solution().setup()
             else DefaultValues.runner_api_package_version.value
         )
-        self.album.migration_manager().compare_core_api_and_solution_api(
-            solution_api_version
-        )
+
+        _ = self.album.migration_manager().is_outdated_core(solution_api_version)
 
         # manage backwards compatibility
         script_path = (
@@ -133,7 +134,7 @@ class ScriptManager(IScriptManager):
             )
             # write the solution script
             f.write(
-                'exec(open("%s").read())'
+                'exec(open(r"%s").read())'
                 % collection_solution.loaded_solution().script()
             )
 
@@ -147,7 +148,10 @@ class ScriptManager(IScriptManager):
             % script_queue_entry.coordinates.name()
         )
 
-        env_variables = {}  # os.environ.copy()
+        # todo: on windows necessary to work - on linux not
+        env_variables = {}
+        if platform.system() == "Windows":
+            env_variables = os.environ.copy()
         env_variables[
             DefaultValuesRunner.env_variable_action.value
         ] = script_queue_entry.solution_action.name

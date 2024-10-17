@@ -33,9 +33,7 @@ class TestIntegrationBackwardsCompatibility(TestIntegrationCoreCommon):
                     TestIntegrationBackwardsCompatibility.EnumFake(x.name, x.value),
                 )
 
-        self.album_controller.migration_manager().compare_core_api_and_solution_api = (
-            MagicMock()
-        )
+        self.album_controller.migration_manager().is_outdated_core = MagicMock()
         self.album_controller.migration_manager().is_outdated_api = MagicMock(
             return_value=True
         )
@@ -115,9 +113,7 @@ class TestIntegrationBackwardsCompatibility(TestIntegrationCoreCommon):
                     TestIntegrationBackwardsCompatibility.EnumFake(x.name, x.value),
                 )
 
-        self.album_controller.migration_manager().compare_core_api_and_solution_api = (
-            MagicMock()
-        )
+        self.album_controller.migration_manager().is_outdated_core = MagicMock()
         self.album_controller.migration_manager().is_outdated_api = MagicMock(
             return_value=True
         )

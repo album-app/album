@@ -141,7 +141,7 @@ class ResourceManager(IResourceManager):
             )
         with open(yml_path) as yml_file:
             yml_dict = yaml.load(yml_file, Loader=yaml.FullLoader)
-        yml_dict = EnvironmentManager._append_framework_to_dependencies(
+        yml_dict = self.album.environment_manager()._append_framework_to_dependencies(
             yml_dict, solution.setup()["album_api_version"]
         )
         yml_dict = self._append_setuptools_to_yml(yml_dict)
