@@ -41,7 +41,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
 
         self.assertIn(
             "the following arguments are required: --lambda_arg1",
-            self.get_logs(),
+            self.get_logs()[-1],
         )
 
     @patch(
@@ -73,7 +73,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         # run
         self.album_controller.run_manager().run(p, argv=argv)
 
-        log = self.get_logs()
+        log = self.get_logs_as_string()
 
         print(log)
         self.assertNotIn("ERROR", log)
@@ -141,7 +141,9 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
 
         # assert
         self.assertNotIn("ERROR", self.get_logs_as_string())
-        self.assertIn('No "run" routine configured for solution', self.get_logs())
+        self.assertIn(
+            'No "run" routine configured for solution', self.get_logs_as_string()
+        )
 
     @patch(
         "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
@@ -211,4 +213,4 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
 
         # run
         self.album_controller.run_manager().run(path)
-        self.assertIn("INFO ~ ['Me']", self.get_logs())
+        self.assertIn("INFO ~ ['Me']", self.get_logs_as_string())

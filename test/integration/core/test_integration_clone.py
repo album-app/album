@@ -67,7 +67,7 @@ class TestIntegrationClone(TestIntegrationCoreCommon):
         self.assertIn(
             'Initialized new catalog "my_catalog" from template "catalog" in %s'
             % target_path,
-            self.get_logs(),
+            self.get_logs()[-1],
         )
         with clone_repository(
             target_path, Path(self.tmp_dir.name).joinpath("tmp_repo")
@@ -96,7 +96,7 @@ class TestIntegrationClone(TestIntegrationCoreCommon):
         self.assertIn(
             'Initialized new catalog "my_catalog" from template "catalog" in %s'
             % target_path,
-            self.get_logs(),
+            self.get_logs()[-1],
         )
         with clone_repository(
             target_path, Path(self.tmp_dir.name).joinpath("tmp_repo")

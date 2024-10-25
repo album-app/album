@@ -299,7 +299,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         # check for warning
         self.assertIn(
             'Solution "%s" already installed. Skipping...' % "name",
-            self.get_logs(),
+            self.get_logs()[-1],
         )
 
     #  @unittest.skipIf(sys.platform == 'win32' or sys.platform == 'cygwin', "This test fails on the Windows CI with \"SSL: CERTIFICATE_VERIFY_FAILED\"")
@@ -632,7 +632,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         self.assertNotIn("ERROR", self.get_logs_as_string())
         self.assertIn(
             "The following solutions depend on this installation",
-            self.get_logs(),
+            self.get_logs_as_string(),
         )
         self.assertTrue(solution_path.exists())
 

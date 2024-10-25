@@ -40,7 +40,7 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
 
         # assert
         self.assertNotIn("ERROR", self.get_logs_as_string())
-        self.assertIn("Pretending to deploy", self.get_logs())
+        self.assertIn("Pretending to deploy", self.get_logs_as_string())
         self.album_controller.collection_manager().catalogs().update_any("test_catalog")
         updates = (
             self.album_controller.collection_manager()
@@ -349,7 +349,7 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
 
         # assert
         self.assertNotIn("ERROR", self.get_logs_as_string())
-        self.assertIn("We recommend documenting changes", self.get_logs())
+        self.assertIn("We recommend documenting changes", self.get_logs_as_string())
 
         # check if update exists, solution is present and has updated changelog
         self.album_controller.collection_manager().catalogs().update_any(catalog.name())

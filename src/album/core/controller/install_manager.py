@@ -1,9 +1,6 @@
 from typing import Any, Dict, List, Optional
 
 from album.environments.utils.subcommand import SubProcessError
-from album.runner import album_logging
-from album.runner.core.api.model.coordinates import ICoordinates
-from album.runner.core.api.model.solution import ISolution
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.install_manager import IInstallManager
@@ -21,6 +18,9 @@ from album.core.utils.operations.solution_operations import (
     get_deploy_dict,
     get_parent_dict,
 )
+from album.runner import album_logging
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
 
 module_logger = album_logging.get_active_logger
 
@@ -320,7 +320,10 @@ class InstallManager(IInstallManager):
             if children:
                 module_logger().info(
                     "The following solutions depend on this installation: %s. Not uninstalling %s..."
-                    % (", ".join(str(children)), str(resolve_result.coordinates()))
+                    % (
+                        ", ".join([str(child) for child in children]),
+                        str(resolve_result.coordinates()),
+                    )
                 )
                 if parent:
                     return

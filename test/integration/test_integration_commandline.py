@@ -23,7 +23,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
         with self.assertRaises(SystemExit) as e:
             main()
         self.assertEqual(SystemExit(1).code, e.exception.code)
-        self.assertIn("Invalid argument(s): ['--versn']", self.get_logs())
+        self.assertIn("Invalid argument(s): ['--versn']", self.get_logs()[-1])
         load_or_create_mock.assert_not_called()
 
     @patch("album.api.Album.load_or_create_collection")
@@ -101,7 +101,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
                 h.coordinates().name(),
                 h.coordinates().version(),
             ),
-            self.get_logs(),
+            self.get_logs_as_string(),
         )
 
     def test_search_as_json(self):
@@ -184,7 +184,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
 
         # assert
         self.assertNotIn("ERROR", self.get_logs_as_string())
-        self.assertIn("--testArg1: testArg1Description", self.get_logs()[-1])
+        self.assertIn("--testArg1: testArg1Description", self.get_logs_as_string())
 
     def test_info_json(self):
         self.fake_install(self.get_test_solution_path(), create_environment=False)
@@ -243,7 +243,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
 
         # assert
         self.assertNotIn("ERROR", self.get_logs_as_string())
-        self.assertIn("name: cache_catalog", self.get_logs())
+        self.assertIn("name: cache_catalog", self.get_logs_as_string())
 
     def test_index_json(self):
         sys.argv = ["", "index", "--json"]
@@ -298,20 +298,25 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
         # run
         with self.assertRaises(SystemExit) as e:
             main()
-        print(self.get_logs())
         self.assertEqual(1, e.exception.code)
-        self.assertIn("INFO ~ print something", self.get_logs())
-        self.assertIn("INFO ~ logging info", self.get_logs())
-        self.assertIn("WARNING ~ logging warning", self.get_logs())
-        self.assertIn("ERROR ~ logging error", self.get_logs())
-        self.assertIn("INFO ~~~ album in album: print something", self.get_logs())
-        self.assertIn("INFO ~~~ album in album: logging info", self.get_logs())
+        self.assertIn("INFO ~ print something", self.get_logs_as_string())
+        self.assertIn("INFO ~ logging info", self.get_logs_as_string())
+        self.assertIn("WARNING ~ logging warning", self.get_logs_as_string())
+        self.assertIn("ERROR ~ logging error", self.get_logs_as_string())
+        self.assertIn(
+            "INFO ~~~ album in album: print something", self.get_logs_as_string()
+        )
+        self.assertIn(
+            "INFO ~~~ album in album: logging info", self.get_logs_as_string()
+        )
         self.assertIn(
             "WARNING ~~~ album in album: logging warning",
-            self.get_logs(),
+            self.get_logs_as_string(),
         )
-        self.assertIn("ERROR ~~~ album in album: logging error", self.get_logs())
+        self.assertIn(
+            "ERROR ~~~ album in album: logging error", self.get_logs_as_string()
+        )
         self.assertIn(
             "INFO ~~~ RuntimeError: Error in run method",
-            self.get_logs(),
+            self.get_logs_as_string(),
         )

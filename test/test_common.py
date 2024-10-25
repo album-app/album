@@ -174,13 +174,20 @@ class TestCommon(unittest.TestCase):
         logs = self.captured_output.getvalue()
         logs = logs.strip()
         logs = logs.split("\n")
+        # remove empty strings
+        logs = [log for log in logs if log]
         return self._remove_color_codes(logs)
 
     def get_logs_as_string(self):
         return "\n".join(self.get_logs())
 
     def _remove_color_codes(self, logs):
-        return [log.replace("\x1b[0m", "") for log in logs]
+        logs = [log.replace("\x1b[0m", "") for log in logs]
+        logs = [log.replace("\x1b[31m", "") for log in logs]
+        logs = [log.replace("\x1b[32m", "") for log in logs]
+        logs = [log.replace("\x1b[33m", "") for log in logs]
+
+        return logs
 
     def run(self, result=None):
         # add watcher to catch any exceptions thrown in threads

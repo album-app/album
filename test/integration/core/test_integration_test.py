@@ -22,7 +22,7 @@ class TestIntegrationTest(TestIntegrationCoreCommon):
         self.assertNotIn("ERROR", self.get_logs_as_string())
         self.assertIn(
             'WARNING No "test" routine configured for solution',
-            self.get_logs(),
+            self.get_logs()[-1],
         )
 
     @patch(
@@ -48,7 +48,7 @@ class TestIntegrationTest(TestIntegrationCoreCommon):
 
         # todo: change this. first assure subprocess logging is possible in windows
         if sys.platform == "linux" or sys.platform == "darwin":
-            log = self.get_logs()
+            log = self.get_logs_as_string()
             self.assertIn("solution6_noparent_test_pre_test", log)
             self.assertIn("solution6_noparent_test_run", log)
             self.assertIn("solution6_noparent_test_close", log)

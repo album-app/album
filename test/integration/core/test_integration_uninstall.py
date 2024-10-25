@@ -64,7 +64,7 @@ class TestIntegrationUninstall(TestIntegrationCoreCommon):
         self.assertNotIn("ERROR", self.get_logs_as_string())
 
         # assert that solution is removed from the catalog
-        self.assertIn('Uninstalled "name"', self.get_logs())
+        self.assertIn('Uninstalled "name"', self.get_logs()[-1])
         solutions = (
             self.album_controller.collection_manager()
             .get_collection_index()
@@ -102,7 +102,7 @@ class TestIntegrationUninstall(TestIntegrationCoreCommon):
         # run
         self.album_controller.install_manager().uninstall(p)
 
-        log = self.get_logs()
+        log = self.get_logs_as_string()
 
         self.assertIn("solution10_uninstall_album_uninstall_start", log)
         self.assertIn("solution10_uninstall_album_uninstall_end", log)
@@ -121,7 +121,6 @@ class TestIntegrationUninstall(TestIntegrationCoreCommon):
         )
 
     def test_uninstall_faulty_solution_with_routine(self):
-
         # create test environment
         p = self.get_test_solution_path("solution18_uninstall_faulty.py")
         self.fake_install(p)
@@ -140,7 +139,7 @@ class TestIntegrationUninstall(TestIntegrationCoreCommon):
         # run
         self.album_controller.install_manager().uninstall(p)
 
-        log = self.get_logs()
+        log = self.get_logs_as_string()
 
         self.assertIn("Uninstall routine failed! Proceeding anyways", log)
 
