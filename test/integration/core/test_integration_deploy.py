@@ -7,10 +7,10 @@ from test.integration.test_integration_core_common import TestIntegrationCoreCom
 from unittest.mock import patch
 
 from album.environments.utils.subcommand import SubProcessError
-from album.runner.core.model.coordinates import Coordinates
 
 from album.core.api.model.catalog_updates import ChangeType
 from album.core.model.default_values import DefaultValues
+from album.runner.core.model.coordinates import Coordinates
 
 
 class TestIntegrationDeploy(TestIntegrationCoreCommon):
@@ -39,8 +39,8 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         )
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
-        self.assertIn("Pretending to deploy", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
+        self.assertIn("Pretending to deploy", self.get_logs())
         self.album_controller.collection_manager().catalogs().update_any("test_catalog")
         updates = (
             self.album_controller.collection_manager()
@@ -234,9 +234,8 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         )
         self.assertEqual(0, len(solutions))
 
-        print(self.captured_output.getvalue())
-        self.assertNotIn("WARNING", self.captured_output.getvalue())
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("WARNING", self.get_logs_as_string())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
 
     @patch(
         "album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file"
@@ -268,7 +267,7 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         )
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
 
         # check if solution is present and has updated changelog
         self.album_controller.collection_manager().catalogs().update_any(catalog.name())
@@ -305,7 +304,7 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
             git_name=DefaultValues.catalog_git_user.value,
             force_deploy=True,
         )
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         self.album_controller.collection_manager().catalogs().update_any(catalog.name())
         self.album_controller.collection_manager().catalogs().update_collection(
             catalog.name()
@@ -349,10 +348,8 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         )
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
-        self.assertIn(
-            "We recommend documenting changes", self.captured_output.getvalue()
-        )
+        self.assertNotIn("ERROR", self.get_logs_as_string())
+        self.assertIn("We recommend documenting changes", self.get_logs())
 
         # check if update exists, solution is present and has updated changelog
         self.album_controller.collection_manager().catalogs().update_any(catalog.name())
@@ -392,10 +389,8 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         )
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
-        self.assertNotIn(
-            "We recommend documenting changes", self.captured_output.getvalue()
-        )
+        self.assertNotIn("ERROR", self.get_logs_as_string())
+        self.assertNotIn("We recommend documenting changes", self.get_logs())
 
         # check if solution has provided changelog
         self.album_controller.collection_manager().catalogs().update_any(catalog.name())
@@ -449,10 +444,8 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         )
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
-        self.assertNotIn(
-            "We recommend documenting changes", self.captured_output.getvalue()
-        )
+        self.assertNotIn("ERROR", self.get_logs_as_string())
+        self.assertNotIn("We recommend documenting changes", self.get_logs())
 
         # check if solution is present and has updated changelog
         self.album_controller.collection_manager().catalogs().update_any(catalog.name())
@@ -500,7 +493,7 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         )
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         self.album_controller.collection_manager().catalogs().update_any("test_catalog")
         updates = (
             self.album_controller.collection_manager()

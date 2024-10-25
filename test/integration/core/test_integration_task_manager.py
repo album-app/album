@@ -1,9 +1,9 @@
-from time import time, sleep
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
+from time import sleep, time
 from unittest.mock import patch
 
 from album.core.controller.task_manager import TaskManager
 from album.core.model.task import Task
-from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
 class TestIntegrationTaskManager(TestIntegrationCoreCommon):
@@ -42,7 +42,6 @@ class TestIntegrationTaskManager(TestIntegrationCoreCommon):
         self._finish_taskmanager_with_timeout(task_manager, 30)
         self.assertFalse(task_manager.server_queue.unfinished_tasks)
         status = task_manager.get_status(task)
-        # print(self.captured_output.getvalue())
         self.assertEqual("FINISHED", status.get("status"))
         self.assertEqual(Task.Status.FINISHED, task.status())
 

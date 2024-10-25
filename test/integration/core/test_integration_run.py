@@ -1,8 +1,8 @@
 from pathlib import Path
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 from unittest.mock import patch
 
 from album.environments.utils.subcommand import SubProcessError
-from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
 class TestIntegrationRun(TestIntegrationCoreCommon):
@@ -20,9 +20,11 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         self.album_controller.run_manager().run(self.get_test_solution_path())
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
 
-    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
     def test_run_arguments(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
@@ -39,10 +41,12 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
 
         self.assertIn(
             "the following arguments are required: --lambda_arg1",
-            self.captured_output.getvalue(),
+            self.get_logs(),
         )
 
-    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
     def test_run_arguments_given(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
@@ -69,7 +73,7 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         # run
         self.album_controller.run_manager().run(p, argv=argv)
 
-        log = self.captured_output.getvalue()
+        log = self.get_logs()
 
         print(log)
         self.assertNotIn("ERROR", log)
@@ -83,7 +87,9 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         self.assertIn("lambda_arg1: <class 'str'> myFile.txt", log)
         self.assertIn("lambda_arg2: <class 'NoneType'> None", log)
 
-    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
     def test_run_with_group_name_version(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
@@ -107,9 +113,11 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         self.album_controller.run_manager().run(solution_str)
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
 
-    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
     def test_run_minimal_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
@@ -132,12 +140,12 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
         )
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
-        self.assertIn(
-            'No "run" routine configured for solution', self.captured_output.getvalue()
-        )
+        self.assertNotIn("ERROR", self.get_logs_as_string())
+        self.assertIn('No "run" routine configured for solution', self.get_logs())
 
-    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
     def test_run_with_parent(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
@@ -167,16 +175,18 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
             self.get_test_solution_path("solution1_app1.py"), argv=argv
         )
 
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
 
         # assert file logs
-        with open(self.closed_tmp_file.name, "r") as f:
+        with open(self.closed_tmp_file.name) as f:
             log = f.read().strip().split("\n")
             self.assertEqual(2, len(log))
             self.assertEqual("solution1_app1_run", log[0])
             self.assertEqual("solution1_app1_close", log[1])
 
-    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
     def test_run_throwing_error_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
@@ -194,36 +204,6 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
             self.album_controller.run_manager().run(path)
 
         print(self.captured_output.getvalue())
-        # self.assertIn("INFO ~ print something", self.captured_output.getvalue())
-        # self.assertIn("INFO ~ logging info", self.captured_output.getvalue())
-        # self.assertEqual(
-        #     1, self.captured_output.getvalue().count("INFO ~ logging info")
-        # )
-        # self.assertIn("WARNING ~ logging warning", self.captured_output.getvalue())
-        # self.assertIn("ERROR ~ logging error", self.captured_output.getvalue())
-        # self.assertIn(
-        #     "INFO ~~~ album in album: print something", self.captured_output.getvalue()
-        # )
-        # self.assertIn(
-        #     "INFO ~~~ album in album: logging info", self.captured_output.getvalue()
-        # )
-        # self.assertEqual(
-        #     1,
-        #     self.captured_output.getvalue().count(
-        #         "INFO ~~~ album in album: logging info"
-        #     ),
-        # )
-        # self.assertIn(
-        #     "WARNING ~~~ album in album: logging warning",
-        #     self.captured_output.getvalue(),
-        # )
-        # self.assertIn(
-        #     "ERROR ~~~ album in album: logging error", self.captured_output.getvalue()
-        # )
-        # self.assertIn(
-        #     "INFO ~~~ RuntimeError: Error in run method",
-        #     self.captured_output.getvalue(),
-        # )
 
     def test_run_schema0(self):
         path = self.get_test_solution_path("solution17_schema0.py")
@@ -231,5 +211,4 @@ class TestIntegrationRun(TestIntegrationCoreCommon):
 
         # run
         self.album_controller.run_manager().run(path)
-        #print(self.captured_output.getvalue())
-        self.assertIn("INFO ~ ['Me']", self.captured_output.getvalue())
+        self.assertIn("INFO ~ ['Me']", self.get_logs())

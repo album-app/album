@@ -4,12 +4,11 @@ from test.integration.test_integration_core_common import TestIntegrationCoreCom
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 from unittest.mock import patch
 
-from album.runner.core.model.coordinates import Coordinates
-from album.runner.core.model.solution import Solution
-
 from album.core.model.catalog_updates import ChangeType
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.solution_operations import get_deploy_dict
+from album.runner.core.model.coordinates import Coordinates
+from album.runner.core.model.solution import Solution
 
 
 class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
@@ -63,7 +62,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         )
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         catalogs = (
             self.album_controller.collection_manager()
             .get_collection_index()
@@ -100,7 +99,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         )
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         catalogs = (
             self.album_controller.collection_manager()
             .get_collection_index()
@@ -231,12 +230,12 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         # update collection
         self.album_controller.collection_manager().catalogs().update_any()
 
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
 
         # upgrade collection
         self.album_controller.collection_manager().catalogs().update_collection()
 
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
 
         # assert
         solutions = (

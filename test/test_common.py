@@ -10,8 +10,6 @@ from test.global_exception_watcher import GlobalExceptionWatcher
 from typing import Optional
 from unittest.mock import patch
 
-from album.runner.album_logging import get_active_logger
-
 from album.api import Album
 from album.core.controller.album_controller import AlbumController
 from album.core.model.default_values import DefaultValues
@@ -26,6 +24,7 @@ from album.core.utils.operations.view_operations import (
     get_logging_formatter,
     get_message_filter,
 )
+from album.runner.album_logging import get_active_logger
 
 
 class TestCommon(unittest.TestCase):
@@ -174,7 +173,14 @@ class TestCommon(unittest.TestCase):
     def get_logs(self):
         logs = self.captured_output.getvalue()
         logs = logs.strip()
-        return logs.split("\n")
+        logs = logs.split("\n")
+        return self._remove_color_codes(logs)
+
+    def get_logs_as_string(self):
+        return "\n".join(self.get_logs())
+
+    def _remove_color_codes(self, logs):
+        return [log.replace("\x1b[0m", "") for log in logs]
 
     def run(self, result=None):
         # add watcher to catch any exceptions thrown in threads
