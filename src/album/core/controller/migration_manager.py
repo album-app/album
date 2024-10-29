@@ -325,7 +325,9 @@ class MigrationManager(IMigrationManager):
         return versions
 
     def is_outdated_api(self, solution_api_version: str, warn: bool = True) -> bool:
-        if version.parse(solution_api_version) < version.parse("0.6.0"):
+        if version.parse(solution_api_version) < version.parse(
+            DefaultValues.first_album_solution_api_version.value
+        ):
             module_logger().warning(
                 "You are using an old version of the album runner API within your solution. "
                 "Consider updating your solution if possible."

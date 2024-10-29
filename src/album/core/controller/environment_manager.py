@@ -1,4 +1,5 @@
 import os
+import tempfile
 from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
@@ -9,11 +10,11 @@ from album.environments.api.model.environment import IEnvironment
 from album.environments.initialization import init_environment_handler
 from album.environments.model.environment import Environment
 from album.environments.utils.file_operations import (
-    copy,
     get_dict_from_yml,
     write_dict_to_yml,
 )
 from album.environments.utils.url_operations import download_resource
+from packaging import version
 
 from album.core import __version__ as album_version
 from album.core.api.controller.controller import IAlbumController
@@ -301,20 +302,22 @@ class EnvironmentManager(IEnvironmentManager):
             if "environment_file" in dependencies_dict:
                 env_file = dependencies_dict["environment_file"]
 
+                # create temporary file
+                temporary_open_yml_file = tempfile.NamedTemporaryFile(
+                    mode="w", delete=False
+                )
+                temporary_yml_file = Path(temporary_open_yml_file.name)
+                temporary_open_yml_file.close()
+
                 if isinstance(env_file, str):
                     # case valid url
                     if validators.url(env_file):
-                        yaml_path = download_resource(env_file, yaml_path)
+                        download_resource(env_file, temporary_yml_file)
 
                     # case file content
                     elif "dependencies:" in env_file and "\n" in env_file:
-                        with open(str(yaml_path), "w+") as f:
+                        with open(str(temporary_yml_file), "w+") as f:
                             f.writelines(env_file)
-                        yaml_path = yaml_path
-
-                    # case Path
-                    elif Path(env_file).is_file() and Path(env_file).stat().st_size > 0:
-                        yaml_path = copy(env_file, yaml_path)
                     else:
                         raise TypeError(
                             "environment_file must either contain the content of the environment file, "
@@ -322,21 +325,20 @@ class EnvironmentManager(IEnvironmentManager):
                         )
                 # case dict
                 elif isinstance(env_file, dict):
-                    write_dict_to_yml(yaml_path, env_file)
+                    write_dict_to_yml(temporary_yml_file, env_file)
 
                 # case String stream
                 elif isinstance(env_file, StringIO):
-                    with open(str(yaml_path), "w+") as f:
+                    with open(str(temporary_yml_file), "w+") as f:
                         env_file.seek(0)  # make sure we start from the beginning
                         f.writelines(env_file.readlines())
-                    yaml_path = yaml_path
                 else:
                     raise RuntimeError(
                         "Environment file specified, but format is unknown!"
                         " Don't know where to run solution!"
                     )
 
-                yaml_dict = get_dict_from_yml(yaml_path)
+                yaml_dict = get_dict_from_yml(temporary_yml_file)
                 yaml_dict["name"] = env_name
 
         if not album_api_version:
@@ -348,13 +350,28 @@ class EnvironmentManager(IEnvironmentManager):
         # safety check to avoid album in album issues
         self._check_album_in_album(yaml_dict, allow_unsafe)
 
-        yaml_dict = self._append_framework_to_dependencies(yaml_dict, album_api_version)
+        # package name
+        runner_package_name = DefaultValues.runner_api_package_name.value
+
+        # if specified, install the outdated runner
+        if version.parse(album_api_version) <= version.parse("0.5.5"):
+            (
+                runner_package_name,
+                album_api_version,
+            ) = self._album.migration_manager().get_outdated_runner_name_and_version()
+
+        yaml_dict = self._append_framework_to_dependencies(
+            yaml_dict, album_api_version, runner_package_name
+        )
         write_dict_to_yml(yaml_path, yaml_dict)
 
         return yaml_path
 
     def _append_framework_to_dependencies(
-        self, content: Dict[str, Any], album_api_version: Optional[str]
+        self,
+        content: Dict[str, Any],
+        album_api_version: Optional[str],
+        runner_package_name: str,
     ) -> Dict[str, Any]:
         if album_api_version is None:
             module_logger().warning("No framework specified for the environment.")
@@ -370,18 +387,6 @@ class EnvironmentManager(IEnvironmentManager):
             raise ValueError(
                 "Framework is not properly defined. No zip, https or folder allowed."
             )
-
-        runner_package_name = DefaultValues.runner_api_package_name.value
-
-        # check outdated framework version
-        if self._album.migration_manager().is_outdated_api(
-            album_api_version, warn=False
-        ):
-            # append first available conda-forge framework to dependencies
-            (
-                runner_package_name,
-                album_api_version,
-            ) = self._album.migration_manager().get_outdated_runner_name_and_version()
 
         return EnvironmentManager._append_framework_via_conda_to_yml(
             content, album_api_version, runner_package_name

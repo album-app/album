@@ -8,17 +8,17 @@ import yaml
 from album.environments.utils.file_operations import write_dict_to_yml
 from album.environments.utils.subcommand import SubProcessError
 from album.environments.utils.url_operations import download_resource
-from album.runner import album_logging
-from album.runner.core.api.model.solution import ISolution
+from packaging import version
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.resource_manager import IResourceManager
 from album.core.api.model.catalog import ICatalog
-from album.core.controller.environment_manager import EnvironmentManager
 from album.core.model.default_values import DefaultValues
 from album.core.utils.export.changelog import create_changelog_file
 from album.core.utils.operations.file_operations import copy
 from album.core.utils.operations.solution_operations import get_deploy_dict
+from album.runner import album_logging
+from album.runner.core.api.model.solution import ISolution
 
 module_logger = album_logging.get_active_logger
 
@@ -141,8 +141,19 @@ class ResourceManager(IResourceManager):
             )
         with open(yml_path) as yml_file:
             yml_dict = yaml.load(yml_file, Loader=yaml.FullLoader)
+
+        runner_package_name = DefaultValues.runner_api_package_name.value
+        album_api_version = solution.setup()["album_api_version"]
+
+        # if specified, install the outdated runner
+        if version.parse(album_api_version) < version.parse("0.5.5"):
+            (
+                runner_package_name,
+                album_api_version,
+            ) = self.album.migration_manager().get_outdated_runner_name_and_version()
+
         yml_dict = self.album.environment_manager()._append_framework_to_dependencies(
-            yml_dict, solution.setup()["album_api_version"]
+            yml_dict, solution.setup()["album_api_version"], runner_package_name
         )
         yml_dict = self._append_setuptools_to_yml(yml_dict)
         write_dict_to_yml(yml_path, yml_dict)

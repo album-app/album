@@ -1,7 +1,7 @@
 """Interface for handling the migration of indices."""
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
@@ -73,6 +73,6 @@ class IMigrationManager:
         raise NotImplementedError
 
     @abstractmethod
-    def get_outdated_runner_name_and_version(self) -> Dict[str, str]:
+    def get_outdated_runner_name_and_version(self) -> Tuple[str, str]:
         """Get the outdated runner name and version."""
         raise NotImplementedError
