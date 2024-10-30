@@ -59,7 +59,7 @@ class TestIntegrationEnvironmentPreparation(TestIntegrationCoreCommon):
         # assert warning
         self.assertIn(
             "Only proceed if you know what you are doing",
-            self.get_logs(),
+            self.get_logs()[-1],
         )
 
     def test_album_in_album_versioned(self):
@@ -118,7 +118,7 @@ class TestIntegrationEnvironmentPreparation(TestIntegrationCoreCommon):
         # assert warning
         self.assertIn(
             "Only proceed if you know what you are doing",
-            self.get_logs(),
+            self.get_logs()[-1],
         )
 
     def test_no_album_in_album(self):
@@ -166,5 +166,5 @@ class TestIntegrationEnvironmentPreparation(TestIntegrationCoreCommon):
         # assert warning
         self.assertIn(
             "Potentially unsafe installation of album in album detected!",
-            self.get_logs(),
+            self.get_logs()[-1],
         )

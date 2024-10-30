@@ -13,7 +13,9 @@ class TestIntegrationTaskManager(TestIntegrationCoreCommon):
     def tearDown(self) -> None:
         super().tearDown()
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
     def test_run_happy_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
@@ -26,7 +28,7 @@ class TestIntegrationTaskManager(TestIntegrationCoreCommon):
         resolve_result = self.album_controller.collection_manager().resolve_and_load(
             solution_path
         )
-        task = Task()
+        task = Task(lambda x: x)
         task._method = self.album_controller.run_manager().run
         task._args = [
             resolve_result.coordinates().group()
@@ -45,7 +47,9 @@ class TestIntegrationTaskManager(TestIntegrationCoreCommon):
         self.assertEqual("FINISHED", status.get("status"))
         self.assertEqual(Task.Status.FINISHED, task.status())
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
     def test_run_sad_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
@@ -58,7 +62,7 @@ class TestIntegrationTaskManager(TestIntegrationCoreCommon):
         resolve_result = self.album_controller.collection_manager().resolve_and_load(
             solution_path
         )
-        task = Task()
+        task = Task(lambda x: x)
         task.method = self.album_controller.run_manager().run
         task.args = [
             resolve_result.coordinates().group()

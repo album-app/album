@@ -1,5 +1,6 @@
 import os
 import tempfile
+from copy import deepcopy
 from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
@@ -14,14 +15,13 @@ from album.environments.utils.file_operations import (
     write_dict_to_yml,
 )
 from album.environments.utils.url_operations import download_resource
-from packaging import version
 
 from album.core import __version__ as album_version
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.environment_manager import IEnvironmentManager
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_solution import ICollectionSolution
-from album.core.model.default_values import DefaultValues
+from album.core.model.default_values import DEFAULT_SOLUTION_ENV_CONTENT, DefaultValues
 from album.core.model.link import Link
 from album.core.utils.operations.file_operations import (
     construct_cache_link_target,
@@ -312,16 +312,21 @@ class EnvironmentManager(IEnvironmentManager):
                 if isinstance(env_file, str):
                     # case valid url
                     if validators.url(env_file):
-                        download_resource(env_file, temporary_yml_file)
+                        temporary_yml_file = download_resource(
+                            env_file, temporary_yml_file
+                        )
 
                     # case file content
                     elif "dependencies:" in env_file and "\n" in env_file:
                         with open(str(temporary_yml_file), "w+") as f:
                             f.writelines(env_file)
+                    # case yml file on disk
+                    elif Path(env_file).is_file() and str(env_file).endswith(".yml"):
+                        Path(env_file).replace(temporary_yml_file)
                     else:
                         raise TypeError(
                             "environment_file must either contain the content of the environment file, "
-                            "contain the url to a valid file or point to a file on the disk!"
+                            "contain the url to a valid yml file or point to a yml file on the disk!"
                         )
                 # case dict
                 elif isinstance(env_file, dict):
@@ -345,7 +350,7 @@ class EnvironmentManager(IEnvironmentManager):
             album_api_version = DefaultValues.runner_api_package_version.value
 
         if not yaml_dict:
-            yaml_dict = DefaultValues.default_solution_env_content.value
+            yaml_dict = deepcopy(DEFAULT_SOLUTION_ENV_CONTENT)
 
         # safety check to avoid album in album issues
         self._check_album_in_album(yaml_dict, allow_unsafe)
@@ -354,7 +359,9 @@ class EnvironmentManager(IEnvironmentManager):
         runner_package_name = DefaultValues.runner_api_package_name.value
 
         # if specified, install the outdated runner
-        if version.parse(album_api_version) <= version.parse("0.5.5"):
+        if not self._album.migration_manager().is_horribly_outdated_api(
+            album_api_version
+        ):
             (
                 runner_package_name,
                 album_api_version,

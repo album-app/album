@@ -68,11 +68,16 @@ class IMigrationManager:
         raise NotImplementedError
 
     @abstractmethod
-    def is_outdated_core(self, solution_api_version, warn: bool = True) -> bool:
+    def is_outdated_core(self, solution_api_version: str, warn: bool = True) -> bool:
         """Check if the core API version is outdated."""
         raise NotImplementedError
 
     @abstractmethod
     def get_outdated_runner_name_and_version(self) -> Tuple[str, str]:
         """Get the outdated runner name and version."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def is_horribly_outdated_api(self, solution_api_version: str) -> bool:
+        """Check if the current API version is available on conda-forge."""
         raise NotImplementedError

@@ -33,9 +33,13 @@ class TestIntegrationBackwardsCompatibility(TestIntegrationCoreCommon):
                     TestIntegrationBackwardsCompatibility.EnumFake(x.name, x.value),
                 )
 
+        # set the migration manager to trigger outdated api routine
         self.album_controller.migration_manager().is_outdated_core = MagicMock()
         self.album_controller.migration_manager().is_outdated_api = MagicMock(
             return_value=True
+        )
+        self.album_controller.migration_manager().is_horribly_outdated_api = MagicMock(
+            return_value=False
         )
 
         # install an environment that holds the old album api version
@@ -52,7 +56,7 @@ class TestIntegrationBackwardsCompatibility(TestIntegrationCoreCommon):
         self.album_controller.install_manager()._install_loaded_resolve_result(
             resolve_result=solution, parent=False, allow_unsafe=False
         )
-        output_dict_as_str = self.get_logs()
+        output_dict_as_str = self.get_logs_as_string()
 
         self.assertIn(
             "Install backwards compatibility solution",
@@ -62,7 +66,7 @@ class TestIntegrationBackwardsCompatibility(TestIntegrationCoreCommon):
 
         # run the solution
         self.album_controller.run_manager().run(solution_path)
-        output_dict_as_str = self.get_logs()
+        output_dict_as_str = self.get_logs_as_string()
 
         self.assertIn(
             "Run backwards compatibility solution",
@@ -72,7 +76,7 @@ class TestIntegrationBackwardsCompatibility(TestIntegrationCoreCommon):
 
         # test the solution
         self.album_controller.test_manager().test(solution_path)
-        output_dict_as_str = self.get_logs()
+        output_dict_as_str = self.get_logs_as_string()
 
         self.assertIn(
             "Pre test backwards compatibility solution",
@@ -88,7 +92,7 @@ class TestIntegrationBackwardsCompatibility(TestIntegrationCoreCommon):
         # uninstall the solution
         self.album_controller.install_manager().uninstall(solution_path)
 
-        output_dict_as_str = self.get_logs()
+        output_dict_as_str = self.get_logs_as_string()
 
         self.assertIn(
             "Uninstall backwards compatibility solution",
@@ -115,6 +119,9 @@ class TestIntegrationBackwardsCompatibility(TestIntegrationCoreCommon):
 
         self.album_controller.migration_manager().is_outdated_core = MagicMock()
         self.album_controller.migration_manager().is_outdated_api = MagicMock(
+            return_value=True
+        )
+        self.album_controller.migration_manager().is_horribly_outdated_api = MagicMock(
             return_value=True
         )
 
@@ -146,7 +153,7 @@ class TestIntegrationBackwardsCompatibility(TestIntegrationCoreCommon):
 
         # run the solution
         self.album_controller.run_manager().run(solution_path)
-        output_dict_as_str = self.get_logs()
+        output_dict_as_str = self.get_logs_as_string()
 
         self.assertIn(
             "Run backwards compatibility solution with parent",
@@ -156,7 +163,7 @@ class TestIntegrationBackwardsCompatibility(TestIntegrationCoreCommon):
 
         # test the solution
         self.album_controller.test_manager().test(solution_path)
-        output_dict_as_str = self.get_logs()
+        output_dict_as_str = self.get_logs_as_string()
 
         self.assertIn(
             "Pre test backwards compatibility solution with parent",
@@ -172,7 +179,7 @@ class TestIntegrationBackwardsCompatibility(TestIntegrationCoreCommon):
         # uninstall the solution
         self.album_controller.install_manager().uninstall(solution_path)
 
-        output_dict_as_str = self.get_logs()
+        output_dict_as_str = self.get_logs_as_string()
 
         self.assertIn(
             "Uninstall backwards compatibility solution with parent",
