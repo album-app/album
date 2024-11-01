@@ -38,6 +38,9 @@
     - 'if($env:CI_COMMIT_REF_NAME -match "api_change_env*") { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install git+https://gitlab.com/album-app/album-environments.git@dev}'
     - 'if($env:CI_COMMIT_REF_NAME -match "dev*" -and $env:ALBUM_API_CHANGE_RUNNER -match "True" ) { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev}'
     - 'if($env:CI_COMMIT_REF_NAME -match "dev*" -and $env:ALBUM_API_CHANGE_ENV -match "True" ) { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install git+https://gitlab.com/album-app/album-environments.git@dev}'
+    - 'if($env:ALBUM_DEV_ONLY -match "True") { echo "CAUTION! DEV ONLY OPTION ACTIVE. ENABLE/DISABLE BY SETTING ALBUM_DEV_ONLY GITLAB-RUNNER VARIABLE." }'
+    - 'if($env:ALBUM_DEV_ONLY -match "True") { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev}'
+    - 'if($env:ALBUM_DEV_ONLY -match "True") { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install git+https://gitlab.com/album-app/album-environments.git@dev}'
     - '.\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install -e .'
     - '.\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install coverage'
     - '$Env:ENVIRONMENT_DEBUGGING_MICROMAMBA_PATH=(Join-Path -Path (Get-Location) -ChildPath micromamba_installation\Library\bin\micromamba.exe)' # set environment variables necessary to work with the environment API
@@ -74,6 +77,9 @@
     - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_env* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No api_change_env branch"'
     - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_API_CHANGE_ENV == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No API env changes on that branch"]]'
     - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_API_CHANGE_RUNNER == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No API runner changes on that branch"]]'
+    - bash -c '[[ $ALBUM_DEV_ONLY == "True" ]] && echo "CAUTION! DEV ONLY OPTION ACTIVE. ENABLE/DISABLE BY SETTING ALBUM_DEV_ONLY GITLAB-RUNNER VARIABLE."'
+    - bash -c '[[ $ALBUM_DEV_ONLY == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev'
+    - bash -c '[[ $ALBUM_DEV_ONLY == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev'
     - $MICROMAMBA_EXECUTABLE run -n album pip install --no-cache-dir -e .
     - $MICROMAMBA_EXECUTABLE run -n album pip install coverage
     - $MICROMAMBA_EXECUTABLE run -n album python -V
@@ -113,6 +119,9 @@
     - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_env* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No api_change_env branch"'
     - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_API_CHANGE_ENV == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No API env changes on that branch"]]'
     - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_API_CHANGE_RUNNER == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No API runner changes on that branch"]]'
+    - bash -c '[[ $ALBUM_DEV_ONLY == "True" ]] && echo "CAUTION! DEV ONLY OPTION ACTIVE. ENABLE/DISABLE BY SETTING ALBUM_DEV_ONLY GITLAB-RUNNER VARIABLE."'
+    - bash -c '[[ $ALBUM_DEV_ONLY == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev'
+    - bash -c '[[ $ALBUM_DEV_ONLY == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev'
     - $MICROMAMBA_EXECUTABLE run -n album pip install --no-cache-dir -e .
     - $MICROMAMBA_EXECUTABLE run -n album pip install coverage
     - $MICROMAMBA_EXECUTABLE run -n album python -V
