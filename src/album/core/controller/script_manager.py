@@ -5,16 +5,15 @@ from pathlib import Path
 from queue import Empty, Queue
 from typing import Any, Dict, List, Optional
 
-from album.runner import album_logging
-from album.runner.album_logging import get_active_logger
-from album.runner.core.api.model.solution import ISolution
-from album.runner.core.default_values_runner import DefaultValuesRunner
-
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.script_manager import IScriptManager
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.model.default_values import DefaultValues
 from album.core.model.script_queue_entry import ScriptQueueEntry
+from album.runner import album_logging
+from album.runner.album_logging import get_active_logger
+from album.runner.core.api.model.solution import ISolution
+from album.runner.core.default_values_runner import DefaultValuesRunner
 
 module_logger = get_active_logger
 
@@ -95,7 +94,9 @@ class ScriptManager(IScriptManager):
         # manage backwards compatibility
         script_path = (
             ScriptManager._handle_old_runner_api_version(collection_solution)
-            if self.album.migration_manager().is_outdated_api(solution_api_version)
+            if self.album.migration_manager().is_outdated_core_runner(
+                solution_api_version
+            )
             else collection_solution.loaded_solution().script()
         )
 

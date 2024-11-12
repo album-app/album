@@ -324,7 +324,9 @@ class MigrationManager(IMigrationManager):
         versions.sort()
         return versions
 
-    def is_outdated_api(self, solution_api_version: str, warn: bool = True) -> bool:
+    def is_outdated_core_runner(
+        self, solution_api_version: str, warn: bool = True
+    ) -> bool:
         if version.parse(solution_api_version) < version.parse(
             DefaultValues.first_album_solution_api_version.value
         ):
@@ -352,7 +354,7 @@ class MigrationManager(IMigrationManager):
 
         return runner_package_name, album_api_version
 
-    def is_horribly_outdated_api(self, solution_api_version: str) -> bool:
+    def is_outdated_solution_api(self, solution_api_version: str) -> bool:
         if version.parse(solution_api_version) <= version.parse("0.5.5"):
-            return False
-        return True
+            return True
+        return False

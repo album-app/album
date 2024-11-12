@@ -66,7 +66,7 @@ class TestScriptManager(TestUnitCoreCommon):
         # assert
         self.assertEqual(2, _run_in_environment_with_own_logger.call_count)
 
-    def test_create_solution_run_script_standalone(self):
+    def test_create_solution_run_script(self):
         set_environment = MagicMock(return_value=None)
         self.album_controller.environment_manager().set_environment = set_environment
 

@@ -304,7 +304,7 @@ class EnvironmentManager(IEnvironmentManager):
 
                 # create temporary file
                 temporary_open_yml_file = tempfile.NamedTemporaryFile(
-                    mode="w", delete=False
+                    mode="w", delete=False, dir=self._album.configuration().tmp_path()
                 )
                 temporary_yml_file = Path(temporary_open_yml_file.name)
                 temporary_open_yml_file.close()
@@ -359,9 +359,7 @@ class EnvironmentManager(IEnvironmentManager):
         runner_package_name = DefaultValues.runner_api_package_name.value
 
         # if specified, install the outdated runner
-        if not self._album.migration_manager().is_horribly_outdated_api(
-            album_api_version
-        ):
+        if self._album.migration_manager().is_outdated_solution_api(album_api_version):
             (
                 runner_package_name,
                 album_api_version,

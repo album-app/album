@@ -35,10 +35,10 @@ class TestIntegrationBackwardsCompatibility(TestIntegrationCoreCommon):
 
         # set the migration manager to trigger outdated api routine
         self.album_controller.migration_manager().is_outdated_core = MagicMock()
-        self.album_controller.migration_manager().is_outdated_api = MagicMock(
+        self.album_controller.migration_manager().is_outdated_core_runner = MagicMock(
             return_value=True
         )
-        self.album_controller.migration_manager().is_horribly_outdated_api = MagicMock(
+        self.album_controller.migration_manager().is_outdated_solution_api = MagicMock(
             return_value=False
         )
 
@@ -118,10 +118,10 @@ class TestIntegrationBackwardsCompatibility(TestIntegrationCoreCommon):
                 )
 
         self.album_controller.migration_manager().is_outdated_core = MagicMock()
-        self.album_controller.migration_manager().is_outdated_api = MagicMock(
+        self.album_controller.migration_manager().is_outdated_core_runner = MagicMock(
             return_value=True
         )
-        self.album_controller.migration_manager().is_horribly_outdated_api = MagicMock(
+        self.album_controller.migration_manager().is_outdated_solution_api = MagicMock(
             return_value=True
         )
 
