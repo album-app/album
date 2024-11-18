@@ -1,11 +1,8 @@
 import os
-import tempfile
 from copy import deepcopy
-from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
-import validators
 from album.environments.api.environment_api import IEnvironmentAPI
 from album.environments.api.model.environment import IEnvironment
 from album.environments.initialization import init_environment_handler
@@ -14,7 +11,6 @@ from album.environments.utils.file_operations import (
     get_dict_from_yml,
     write_dict_to_yml,
 )
-from album.environments.utils.url_operations import download_resource
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 
@@ -302,48 +298,11 @@ class EnvironmentManager(IEnvironmentManager):
             if "environment_file" in dependencies_dict:
                 env_file = dependencies_dict["environment_file"]
 
-                # create temporary file
-                temporary_open_yml_file = tempfile.NamedTemporaryFile(
-                    mode="w", delete=False, dir=self._album.configuration().tmp_path()
+                self._album.resource_manager().handle_env_file_dependency(
+                    env_file, yaml_path
                 )
-                temporary_yml_file = Path(temporary_open_yml_file.name)
-                temporary_open_yml_file.close()
 
-                if isinstance(env_file, str):
-                    # case valid url
-                    if validators.url(env_file):
-                        temporary_yml_file = download_resource(
-                            env_file, temporary_yml_file
-                        )
-
-                    # case file content
-                    elif "dependencies:" in env_file and "\n" in env_file:
-                        with open(str(temporary_yml_file), "w+") as f:
-                            f.writelines(env_file)
-                    # case yml file on disk
-                    elif Path(env_file).is_file() and str(env_file).endswith(".yml"):
-                        Path(env_file).replace(temporary_yml_file)
-                    else:
-                        raise TypeError(
-                            "environment_file must either contain the content of the environment file, "
-                            "contain the url to a valid yml file or point to a yml file on the disk!"
-                        )
-                # case dict
-                elif isinstance(env_file, dict):
-                    write_dict_to_yml(temporary_yml_file, env_file)
-
-                # case String stream
-                elif isinstance(env_file, StringIO):
-                    with open(str(temporary_yml_file), "w+") as f:
-                        env_file.seek(0)  # make sure we start from the beginning
-                        f.writelines(env_file.readlines())
-                else:
-                    raise RuntimeError(
-                        "Environment file specified, but format is unknown!"
-                        " Don't know where to run solution!"
-                    )
-
-                yaml_dict = get_dict_from_yml(temporary_yml_file)
+                yaml_dict = get_dict_from_yml(yaml_path)
                 yaml_dict["name"] = env_name
 
         if not album_api_version:

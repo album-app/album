@@ -2,7 +2,7 @@ import os
 from copy import deepcopy
 from io import StringIO
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Union
 
 import validators
 import yaml
@@ -98,6 +98,53 @@ class ResourceManager(IResourceManager):
                 raise e
         return res
 
+    def handle_env_file_dependency(
+        self, env_file: Union[str, Dict[str, Any], StringIO], yml_path: Path
+    ) -> None:
+        if isinstance(env_file, str):
+            self._handle_env_file_string(env_file, yml_path)
+        elif isinstance(env_file, StringIO):
+            self._handle_env_file_stream(env_file, yml_path)
+        elif isinstance(env_file, dict):
+            self._handle_env_file_dict(env_file, yml_path)
+        else:
+            raise TypeError(
+                "environment_file must either contain the content of the environment file, "
+                "contain the url to a valid file or point to a file on the disk!"
+            )
+
+    @staticmethod
+    def _handle_env_file_string(env_file: str, yml_path: Path) -> None:
+        # 1. Link
+        if validators.url(env_file):
+            download_resource(env_file, yml_path)
+        # 2. string from solution file
+        elif "dependencies:" in env_file and "\n" in env_file:
+            with open(str(yml_path), "w+") as yml_file:
+                yml_file.writelines(env_file)
+        # 3. existing env.yml
+        elif (
+            Path(env_file).is_file()
+            and Path(env_file).stat().st_size > 0
+            and str(env_file).endswith(".yml")
+        ):
+            copy(env_file, yml_path)
+        else:
+            raise TypeError(
+                "environment_file must either contain the content of the environment file, "
+                "contain the url to a valid file or point to a file on the disk!"
+            )
+
+    @staticmethod
+    def _handle_env_file_stream(env_file_stream: StringIO, yml_path: Path) -> None:
+        with open(str(yml_path), "w+") as f:
+            env_file_stream.seek(0)
+            f.writelines(env_file_stream.readlines())
+
+    @staticmethod
+    def _handle_env_file_dict(env_file_dict: Dict[str, Any], yml_path: Path) -> None:
+        write_dict_to_yml(yml_path, env_file_dict)
+
     def write_solution_environment_file(
         self, solution: ISolution, solution_home: Path
     ) -> Path:
@@ -106,34 +153,9 @@ class ResourceManager(IResourceManager):
             env_file = solution.setup()["dependencies"]["environment_file"]
         except KeyError:
             env_file = None
-        if env_file:
-            if isinstance(env_file, str):
-                # 1. Link
-                if validators.url(env_file):
-                    download_resource(env_file, yml_path)
 
-                # 2. string from solution file
-                elif "dependencies:" in env_file and "\n" in env_file:
-                    with open(str(yml_path), "w+") as yml_file:
-                        yml_file.writelines(env_file)
-                # 3. existing env.yml
-                elif Path(env_file).is_file() and Path(env_file).stat().st_size > 0:
-                    copy(env_file, yml_path)
-                else:
-                    raise TypeError(
-                        "environment_file must either contain the content of the environment file, "
-                        "contain the url to a valid file or point to a file on the disk!"
-                    )
-            # String stream
-            elif isinstance(env_file, StringIO):
-                with open(str(yml_path), "w+") as f:
-                    env_file.seek(0)  # make sure we start from the beginning
-                    f.writelines(env_file.readlines())
-            else:
-                raise RuntimeError(
-                    "Environment file specified, but format is unknown!"
-                    " Don't know where to run solution!"
-                )
+        if env_file:
+            self.handle_env_file_dependency(env_file, yml_path)
         else:
             # No env file specified, build default solution env file
             write_dict_to_yml(yml_path, deepcopy(DEFAULT_SOLUTION_ENV_CONTENT))
