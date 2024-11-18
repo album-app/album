@@ -10,6 +10,7 @@ from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Tuple
 
 import pkg_resources
+from album.runner import album_logging
 from jsonschema import ValidationError, validate
 from packaging import version
 
@@ -24,7 +25,6 @@ from album.core.utils.operations.file_operations import (
     get_dict_from_json,
     write_dict_to_json,
 )
-from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
@@ -324,20 +324,22 @@ class MigrationManager(IMigrationManager):
         versions.sort()
         return versions
 
-    def is_outdated_core_runner(
+    def is_solution_api_outdated(
         self, solution_api_version: str, warn: bool = True
     ) -> bool:
         if version.parse(solution_api_version) < version.parse(
             DefaultValues.first_album_solution_api_version.value
         ):
             module_logger().warning(
-                "You are using an old version of the album runner API within your solution. "
+                "You are using an old version of the album solution API within your solution. "
                 "Consider updating your solution if possible."
             )
             return True
         return False
 
-    def is_outdated_core(self, solution_api_version: str, warn: bool = True) -> bool:
+    def is_core_api_outdated(
+        self, solution_api_version: str, warn: bool = True
+    ) -> bool:
         core_version = importlib_version(DefaultValues.runner_api_package_name.value)
 
         if version.parse(core_version) < version.parse(solution_api_version):
@@ -348,13 +350,13 @@ class MigrationManager(IMigrationManager):
             return True
         return False
 
-    def get_outdated_runner_name_and_version(self) -> Tuple[str, str]:
+    def is_migration_needed_solution_api(self, solution_api_version: str) -> bool:
+        if version.parse(solution_api_version) <= version.parse("0.5.5"):
+            return True
+        return False
+
+    def get_conda_available_outdated_runner_name_and_version(self) -> Tuple[str, str]:
         album_api_version = "0.5.5"
         runner_package_name = "album-runner"
 
         return runner_package_name, album_api_version
-
-    def is_outdated_solution_api(self, solution_api_version: str) -> bool:
-        if version.parse(solution_api_version) <= version.parse("0.5.5"):
-            return True
-        return False

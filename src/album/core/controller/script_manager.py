@@ -5,15 +5,16 @@ from pathlib import Path
 from queue import Empty, Queue
 from typing import Any, Dict, List, Optional
 
+from album.runner import album_logging
+from album.runner.album_logging import get_active_logger
+from album.runner.core.api.model.solution import ISolution
+from album.runner.core.default_values_runner import DefaultValuesRunner
+
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.script_manager import IScriptManager
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.model.default_values import DefaultValues
 from album.core.model.script_queue_entry import ScriptQueueEntry
-from album.runner import album_logging
-from album.runner.album_logging import get_active_logger
-from album.runner.core.api.model.solution import ISolution
-from album.runner.core.default_values_runner import DefaultValuesRunner
 
 module_logger = get_active_logger
 
@@ -22,21 +23,17 @@ class ScriptManager(IScriptManager):
     def __init__(self, album: IAlbumController):
         self.album = album
 
-    def run_solution_script_no_pipe(
-        self, resolve_result: ICollectionSolution, solution_action: ISolution.Action
-    ):
-        queue: Queue = Queue()
-        self.build_queue(resolve_result, queue, solution_action, False, [""])
-        self._run_in_environment(queue.get(block=False), pipe_output=False)
-
     def run_solution_script(
-        self, resolve_result: ICollectionSolution, solution_action: ISolution.Action
-    ):
+        self,
+        resolve_result: ICollectionSolution,
+        solution_action: ISolution.Action,
+        pipe_output: bool = True,
+    ) -> None:
         queue: Queue = Queue()
         self.build_queue(resolve_result, queue, solution_action, False, [""])
-        self.run_queue(queue)
+        self.run_queue(queue, pipe_output=pipe_output)
 
-    def run_queue(self, queue: Queue):
+    def run_queue(self, queue: Queue, pipe_output: bool = True) -> None:
         module_logger().debug("Running queue...")
         try:
             while True:
@@ -44,7 +41,7 @@ class ScriptManager(IScriptManager):
                 module_logger().debug(
                     'Running task "%s"...' % script_queue_entry.coordinates.name()
                 )
-                self._run_in_environment(script_queue_entry)
+                self._run_in_environment(script_queue_entry, pipe_output=pipe_output)
                 module_logger().debug(
                     'Finished running task "%s"!'
                     % script_queue_entry.coordinates.name()
@@ -89,12 +86,15 @@ class ScriptManager(IScriptManager):
             else DefaultValues.runner_api_package_version.value
         )
 
-        _ = self.album.migration_manager().is_outdated_core(solution_api_version)
+        _ = self.album.migration_manager().is_core_api_outdated(solution_api_version)
+        _ = self.album.migration_manager().is_solution_api_outdated(
+            solution_api_version
+        )
 
-        # manage backwards compatibility
+        # manage backwards compatibility when necessary
         script_path = (
             ScriptManager._handle_old_runner_api_version(collection_solution)
-            if self.album.migration_manager().is_outdated_core_runner(
+            if self.album.migration_manager().is_migration_needed_solution_api(
                 solution_api_version
             )
             else collection_solution.loaded_solution().script()

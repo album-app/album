@@ -61,7 +61,7 @@ setup(
     group="group",
     name="solution21_backwards_compatibility",
     version="0.1.0",
-    album_api_version="0.5.5",  # deliberately set to 0.5.5, do not change, install framework via pip, see above!
+    album_api_version="0.0.0",  # deliberately set to 0.0.0, do not change, install framework via pip, see above!
     args=[
         {
             "name": "testArg1",

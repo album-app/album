@@ -11,7 +11,6 @@ from album.core.api.controller.event_manager import IEventManager
 from album.core.api.controller.install_manager import IInstallManager
 from album.core.api.controller.migration_manager import IMigrationManager
 from album.core.api.controller.resource_manager import IResourceManager
-from album.core.api.controller.resource_manager import IResourceManager
 from album.core.api.controller.run_manager import IRunManager
 from album.core.api.controller.script_manager import IScriptManager
 from album.core.api.controller.search_manager import ISearchManager
@@ -118,4 +117,5 @@ class IAlbumController:
 
     @abstractmethod
     def download_manager(self) -> IDownloadManager:
+        """Return the download manager."""
         raise NotImplementedError

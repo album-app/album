@@ -63,23 +63,25 @@ class IMigrationManager:
         raise NotImplementedError
 
     @abstractmethod
-    def is_outdated_core_runner(
+    def is_solution_api_outdated(
         self, solution_api_version: str, warn: bool = True
     ) -> bool:
-        """Check if the solution API version is outdated."""
+        """Check if the given solution API version is smaller than the first known solution_api_version of this installation."""  # noqa: E501
         raise NotImplementedError
 
     @abstractmethod
-    def is_outdated_core(self, solution_api_version: str, warn: bool = True) -> bool:
-        """Check if the core API version is outdated."""
+    def is_core_api_outdated(
+        self, solution_api_version: str, warn: bool = True
+    ) -> bool:
+        """Check if the given solution API version is higher than the solution_api_version of this installation."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_outdated_runner_name_and_version(self) -> Tuple[str, str]:
+    def is_migration_needed_solution_api(self, solution_api_version: str) -> bool:
+        """Check if the given solution API version needs the migration routine when scripts are executed."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_conda_available_outdated_runner_name_and_version(self) -> Tuple[str, str]:
         """Get the outdated runner name and version."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def is_outdated_solution_api(self, solution_api_version: str) -> bool:
-        """Check if the current API version is available on conda-forge."""
         raise NotImplementedError

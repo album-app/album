@@ -34,12 +34,22 @@ class TestIntegrationBackwardsCompatibility(TestIntegrationCoreCommon):
                 )
 
         # set the migration manager to trigger outdated api routine
-        self.album_controller.migration_manager().is_outdated_core = MagicMock()
-        self.album_controller.migration_manager().is_outdated_core_runner = MagicMock(
-            return_value=True
-        )
-        self.album_controller.migration_manager().is_outdated_solution_api = MagicMock(
+        self.album_controller.migration_manager().is_core_api_outdated = MagicMock(
             return_value=False
+        )
+        self.album_controller.migration_manager().is_solution_api_outdated = MagicMock(
+            return_value=False
+        )
+
+        # we explicitly want to install the solution api version via pip specified in the solution environment
+        # hence we do not trigger the migration routine during installation
+        is_migration_needed_solution_api_mock = MagicMock()
+        is_migration_needed_solution_api_mock.side_effect = [
+            False,  # first call during environment installation
+            True,  # second call during installation routine execution, here we want to trigger the migration routine
+        ]
+        self.album_controller.migration_manager().is_migration_needed_solution_api = (
+            is_migration_needed_solution_api_mock
         )
 
         # install an environment that holds the old album api version
@@ -62,6 +72,11 @@ class TestIntegrationBackwardsCompatibility(TestIntegrationCoreCommon):
             "Install backwards compatibility solution",
             output_dict_as_str,
             "Your install routine has not been called! Backwards compatibility broken!",
+        )
+
+        # change the behavior of the mock to now always trigger the migration routine
+        self.album_controller.migration_manager().is_migration_needed_solution_api = (
+            MagicMock(return_value=True)
         )
 
         # run the solution
@@ -117,12 +132,22 @@ class TestIntegrationBackwardsCompatibility(TestIntegrationCoreCommon):
                     TestIntegrationBackwardsCompatibility.EnumFake(x.name, x.value),
                 )
 
-        self.album_controller.migration_manager().is_outdated_core = MagicMock()
-        self.album_controller.migration_manager().is_outdated_core_runner = MagicMock(
-            return_value=True
+        self.album_controller.migration_manager().is_core_api_outdated = MagicMock(
+            return_value=False
         )
-        self.album_controller.migration_manager().is_outdated_solution_api = MagicMock(
-            return_value=True
+        self.album_controller.migration_manager().is_solution_api_outdated = MagicMock(
+            return_value=False
+        )
+
+        # we explicitly want to install the solution api version via pip specified in the solution environment
+        # hence we do not trigger the migration routine during installation
+        is_migration_needed_solution_api_mock = MagicMock()
+        is_migration_needed_solution_api_mock.side_effect = [
+            False,  # first call during environment installation
+            True,  # second call during installation routine execution, here we want to trigger the migration routine
+        ]
+        self.album_controller.migration_manager().is_migration_needed_solution_api = (
+            is_migration_needed_solution_api_mock
         )
 
         # install parent
@@ -138,6 +163,18 @@ class TestIntegrationBackwardsCompatibility(TestIntegrationCoreCommon):
 
         self.album_controller.install_manager()._install_loaded_resolve_result(
             resolve_result=solution, parent=False, allow_unsafe=False
+        )
+
+        # assert that the parent solution execution routine has been called during installation
+        self.assertIn(
+            "Install backwards compatibility solution",
+            self.get_logs_as_string(),
+            "Your install routine of the parent solution has not been called! Backwards compatibility broken!",
+        )
+
+        # change the behavior of the mock to now always trigger the migration routine
+        self.album_controller.migration_manager().is_migration_needed_solution_api = (
+            MagicMock(return_value=True)
         )
 
         # install child, environment used from parent, framework installed via parent

@@ -9,7 +9,8 @@ import yaml
 from album.environments.utils.file_operations import write_dict_to_yml
 from album.environments.utils.subcommand import SubProcessError
 from album.environments.utils.url_operations import download_resource
-from packaging import version
+from album.runner import album_logging
+from album.runner.core.api.model.solution import ISolution
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.resource_manager import IResourceManager
@@ -18,8 +19,6 @@ from album.core.model.default_values import DEFAULT_SOLUTION_ENV_CONTENT, Defaul
 from album.core.utils.export.changelog import create_changelog_file
 from album.core.utils.operations.file_operations import copy
 from album.core.utils.operations.solution_operations import get_deploy_dict
-from album.runner import album_logging
-from album.runner.core.api.model.solution import ISolution
 
 module_logger = album_logging.get_active_logger
 
@@ -109,15 +108,15 @@ class ResourceManager(IResourceManager):
             env_file = None
         if env_file:
             if isinstance(env_file, str):
-                # 1 Link
+                # 1. Link
                 if validators.url(env_file):
                     download_resource(env_file, yml_path)
 
-                # 2 string from solution file
+                # 2. string from solution file
                 elif "dependencies:" in env_file and "\n" in env_file:
                     with open(str(yml_path), "w+") as yml_file:
                         yml_file.writelines(env_file)
-                # 3 existing env.yml
+                # 3. existing env.yml
                 elif Path(env_file).is_file() and Path(env_file).stat().st_size > 0:
                     copy(env_file, yml_path)
                 else:
@@ -142,17 +141,22 @@ class ResourceManager(IResourceManager):
             yml_dict = yaml.load(yml_file, Loader=yaml.FullLoader)
 
         runner_package_name = DefaultValues.runner_api_package_name.value
-        album_api_version = solution.setup()["album_api_version"]
+        solution_api_version = solution.setup()["album_api_version"]
 
-        # if specified, install the outdated runner
-        if version.parse(album_api_version) < version.parse("0.5.5"):
+        # if the solution api version is outdated, we need to append the outdated runner. We always install the
+        # first available conda-forge version of the outdated runner.
+        if self.album.migration_manager().is_migration_needed_solution_api(
+            solution_api_version
+        ):
             (
                 runner_package_name,
-                album_api_version,
-            ) = self.album.migration_manager().get_outdated_runner_name_and_version()
+                solution_api_version,
+            ) = (
+                self.album.migration_manager().get_conda_available_outdated_runner_name_and_version()
+            )
 
         yml_dict = self.album.environment_manager()._append_framework_to_dependencies(
-            yml_dict, solution.setup()["album_api_version"], runner_package_name
+            yml_dict, solution_api_version, runner_package_name
         )
         yml_dict = self._append_setuptools_to_yml(yml_dict)
         write_dict_to_yml(yml_path, yml_dict)

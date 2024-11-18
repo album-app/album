@@ -15,6 +15,8 @@ from album.environments.utils.file_operations import (
     write_dict_to_yml,
 )
 from album.environments.utils.url_operations import download_resource
+from album.runner import album_logging
+from album.runner.core.api.model.coordinates import ICoordinates
 
 from album.core import __version__ as album_version
 from album.core.api.controller.controller import IAlbumController
@@ -30,8 +32,6 @@ from album.core.utils.operations.file_operations import (
 )
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.core.utils.operations.solution_operations import set_environment_paths
-from album.runner import album_logging
-from album.runner.core.api.model.coordinates import ICoordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -359,11 +359,15 @@ class EnvironmentManager(IEnvironmentManager):
         runner_package_name = DefaultValues.runner_api_package_name.value
 
         # if specified, install the outdated runner
-        if self._album.migration_manager().is_outdated_solution_api(album_api_version):
+        if self._album.migration_manager().is_migration_needed_solution_api(
+            album_api_version
+        ):
             (
                 runner_package_name,
                 album_api_version,
-            ) = self._album.migration_manager().get_outdated_runner_name_and_version()
+            ) = (
+                self._album.migration_manager().get_conda_available_outdated_runner_name_and_version()
+            )
 
         yaml_dict = self._append_framework_to_dependencies(
             yaml_dict, album_api_version, runner_package_name

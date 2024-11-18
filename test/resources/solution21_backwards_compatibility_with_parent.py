@@ -25,7 +25,7 @@ setup(
     group="group",
     name="solution21_backwards_compatibility_with_parent",
     version="0.1.0",
-    album_api_version="0.5.5",  # deliberately set to 0.5.5, do not change
+    album_api_version="0.0.0",  # deliberately set to 0.0.0, do not change
     args=[
         {
             "name": "testArg1",
