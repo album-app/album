@@ -233,3 +233,139 @@ dependencies:
             self.resource_manager.write_solution_environment_file(
                 solution_faulty_string, Path(self.tmp_dir.name)
             )
+
+    def test_handle_env_file_dependency(self):
+        _handle_env_file_string = MagicMock()
+        self.resource_manager._handle_env_file_string = _handle_env_file_string
+        _handle_env_file_stream = MagicMock()
+        self.resource_manager._handle_env_file_stream = _handle_env_file_stream
+        _handle_env_file_dict = MagicMock()
+        self.resource_manager._handle_env_file_dict = _handle_env_file_dict
+
+        # case 1: string
+        self.resource_manager.handle_env_file_dependency(
+            "test", Path(self.tmp_dir.name)
+        )
+        _handle_env_file_string.assert_called_once()
+
+        # case 2: StringIO
+        self.resource_manager.handle_env_file_dependency(
+            StringIO("test"), Path(self.tmp_dir.name)
+        )
+        _handle_env_file_stream.assert_called_once()
+
+        # case 3: dict
+        self.resource_manager.handle_env_file_dependency(
+            {"test": "test"}, Path(self.tmp_dir.name)
+        )
+        _handle_env_file_dict.assert_called_once()
+
+        # case 4: error
+        with self.assertRaises(TypeError):
+            self.resource_manager.handle_env_file_dependency(1, Path(self.tmp_dir.name))
+
+    @patch("album.core.controller.resource_manager.download_resource")
+    def test__handle_env_file_string_valid_url(self, download_mock):
+        test_yml_to_be_downloaded = Path(self.tmp_dir.name).joinpath("test_dl.yml")
+        # touch file
+        test_yml_to_be_downloaded.touch()
+
+        # create tmp yml file named test.yml
+        test_yml = Path(self.tmp_dir.name).joinpath("test.yml")
+        with open(test_yml, mode="w") as tmp_file:
+            tmp_file.write("""name: test""")
+
+        url = "http://test.de"
+
+        # mocks
+        download_mock.side_effect = lambda x, y: test_yml.replace(
+            test_yml_to_be_downloaded
+        )
+
+        # call
+        self.resource_manager._handle_env_file_string(url, test_yml_to_be_downloaded)
+
+        # assert
+        download_mock.assert_called_once()
+
+        # content of test_yml_to_be_downloaded == content of test_yml
+        with open(test_yml_to_be_downloaded) as f:
+            content = f.read()
+
+        self.assertEqual("name: test", content)
+
+    def test__handle_env_file_string_valid_path(self):
+        test_yml_to_be_copied = Path(self.tmp_dir.name).joinpath("test_cp.yml")
+        with open(test_yml_to_be_copied, mode="w") as tmp_file:
+            tmp_file.write("""name: test_to_be_copied""")
+
+        # create tmp yml file named test.yml
+        test_yml = Path(self.tmp_dir.name).joinpath("test.yml")
+        with open(test_yml, mode="w") as tmp_file:
+            tmp_file.write("""name: test""")
+
+        # call
+        self.resource_manager._handle_env_file_string(
+            str(test_yml_to_be_copied), test_yml
+        )
+
+        # assert
+        with open(test_yml) as f:
+            content = f.read()
+
+        self.assertEqual("name: test_to_be_copied", content)
+
+    def test__handle_env_file_string_valid_string(self):
+        # create tmp yml file named test.yml
+        test_yml = Path(self.tmp_dir.name).joinpath("test.yml")
+        with open(test_yml, mode="w") as tmp_file:
+            tmp_file.write("""name: test""")
+
+        # call
+        self.resource_manager._handle_env_file_string(
+            "dependencies: test_to_be_taken\n", test_yml
+        )
+
+        # assert
+        with open(test_yml) as f:
+            content = f.read()
+
+        self.assertEqual("dependencies: test_to_be_taken\n", content)
+
+    def test__handle_env_file_string_error(self):
+        with self.assertRaises(TypeError):
+            self.resource_manager._handle_env_file_string(1, Path(self.tmp_dir.name))
+
+    def test__handle_env_file_stream_valid(self):
+        # create tmp yml file named test.yml
+        test_yml = Path(self.tmp_dir.name).joinpath("test.yml")
+        with open(test_yml, mode="w") as tmp_file:
+            tmp_file.write("""name: test""")
+
+        string_io = StringIO("""dependencies: test_to_be_taken\n""")
+
+        # call
+        self.resource_manager._handle_env_file_stream(string_io, test_yml)
+
+        # assert
+        with open(test_yml) as f:
+            content = f.read()
+
+        self.assertEqual("dependencies: test_to_be_taken\n", content)
+
+    def test__handle_env_file_dict(self):
+        # create tmp yml file named test.yml
+        test_yml = Path(self.tmp_dir.name).joinpath("test.yml")
+        with open(test_yml, mode="w") as tmp_file:
+            tmp_file.write("""name: test""")
+
+        # call
+        self.resource_manager._handle_env_file_dict(
+            {"name": "test_to_be_taken"}, test_yml
+        )
+
+        # assert
+        with open(test_yml) as f:
+            content = f.read()
+
+        self.assertEqual("name: test_to_be_taken\n", content)
