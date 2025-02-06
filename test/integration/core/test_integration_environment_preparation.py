@@ -140,11 +140,11 @@ class TestIntegrationEnvironmentPreparation(TestIntegrationCoreCommon):
 
         # assert no warning
         self.assertNotIn(
-            "set allow_unsafe during installation",
+            "set allow_recursive during installation",
             self.get_logs(),
         )
 
-    def test_album_in_album_pip_versioned_allow_unsafe(self):
+    def test_album_in_album_pip_versioned_allow_recursive(self):
         loaded_solution = self._setup()
 
         dependencies_album_pip_versioned = {
@@ -160,7 +160,7 @@ class TestIntegrationEnvironmentPreparation(TestIntegrationCoreCommon):
 
         # call
         self.album_controller.environment_manager().install_environment(
-            solution, allow_unsafe=True
+            solution, allow_recursive=True
         )
 
         # assert warning

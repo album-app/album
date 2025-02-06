@@ -4,9 +4,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from album.runner.album_logging import LogLevel, pop_active_logger
-from album.runner.core.api.model.solution import ISolution
-
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
@@ -15,6 +12,8 @@ from album.core.api.model.configuration import IConfiguration
 from album.core.api.model.event import IEvent
 from album.core.controller.album_controller import AlbumController
 from album.core.utils.core_logging import configure_root_logger
+from album.runner.album_logging import LogLevel, pop_active_logger
+from album.runner.core.api.model.solution import ISolution
 
 
 class Album:
@@ -127,14 +126,14 @@ class Album:
     def install(
         self,
         solution_to_resolve: str,
-        allow_unsafe: bool = False,
+        allow_recursive: bool = False,
         argv=None,
         run_async=False,
     ):
         """Install a solution to the disk."""
         return self._run_async(
             self._controller.install_manager().install,
-            (solution_to_resolve, allow_unsafe, argv),
+            (solution_to_resolve, allow_recursive, argv),
             run_async,
         )
 

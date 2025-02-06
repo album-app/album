@@ -293,7 +293,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         # call again
         self.album_controller.install_manager().install(
             self.get_test_solution_path(),
-            allow_unsafe=False,
+            allow_recursive=False,
         )
 
         # check for warning

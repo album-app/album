@@ -64,7 +64,7 @@ class TestIntegrationBackwardsCompatibility(TestIntegrationCoreCommon):
         solution.loaded_solution().setup().album_api_version = ""
 
         self.album_controller.install_manager()._install_loaded_resolve_result(
-            resolve_result=solution, parent=False, allow_unsafe=False
+            resolve_result=solution, parent=False, allow_recursive=False
         )
         output_dict_as_str = self.get_logs_as_string()
 
@@ -162,7 +162,7 @@ class TestIntegrationBackwardsCompatibility(TestIntegrationCoreCommon):
         solution.loaded_solution().setup().album_api_version = ""
 
         self.album_controller.install_manager()._install_loaded_resolve_result(
-            resolve_result=solution, parent=False, allow_unsafe=False
+            resolve_result=solution, parent=False, allow_recursive=False
         )
 
         # assert that the parent solution execution routine has been called during installation
@@ -185,7 +185,7 @@ class TestIntegrationBackwardsCompatibility(TestIntegrationCoreCommon):
             solution_path
         )
         self.album_controller.install_manager()._install_loaded_resolve_result(
-            resolve_result=solution, parent=False, allow_unsafe=False
+            resolve_result=solution, parent=False, allow_recursive=False
         )
 
         # run the solution

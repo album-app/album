@@ -11,8 +11,6 @@ from album.environments.utils.file_operations import (
     get_dict_from_yml,
     write_dict_to_yml,
 )
-from album.runner import album_logging
-from album.runner.core.api.model.coordinates import ICoordinates
 
 from album.core import __version__ as album_version
 from album.core.api.controller.controller import IAlbumController
@@ -28,6 +26,8 @@ from album.core.utils.operations.file_operations import (
 )
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.core.utils.operations.solution_operations import set_environment_paths
+from album.runner import album_logging
+from album.runner.core.api.model.coordinates import ICoordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -47,16 +47,16 @@ class EnvironmentManager(IEnvironmentManager):
         )
 
     def install_environment(
-        self, collection_solution: ICollectionSolution, allow_unsafe: bool = False
+        self, collection_solution: ICollectionSolution, allow_recursive: bool = False
     ) -> IEnvironment:
         environment = self._create_environment_for_solution(
-            collection_solution, allow_unsafe
+            collection_solution, allow_recursive
         )
         set_environment_paths(collection_solution.loaded_solution(), environment)
         return environment
 
     def _create_environment_for_solution(
-        self, collection_solution: ICollectionSolution, allow_unsafe: bool = False
+        self, collection_solution: ICollectionSolution, allow_recursive: bool = False
     ) -> IEnvironment:
         env_name = self.get_environment_name(
             collection_solution.coordinates(), collection_solution.catalog()
@@ -77,7 +77,7 @@ class EnvironmentManager(IEnvironmentManager):
             env_name,
             album_api_version,
             solution_package_path,
-            allow_unsafe,
+            allow_recursive,
         )
         set_environment_paths(collection_solution.loaded_solution(), environment)
         return environment
@@ -89,10 +89,10 @@ class EnvironmentManager(IEnvironmentManager):
         env_name: str,
         album_api_version: str,
         solution_package_path: Path,
-        allow_unsafe: bool = False,
+        allow_recursive: bool = False,
     ) -> IEnvironment:
         env_file = self._prepare_env_file(
-            dependencies, cache, env_name, album_api_version, allow_unsafe
+            dependencies, cache, env_name, album_api_version, allow_recursive
         )
         env_path = self.get_environment_path(env_name, create=True)
         environment = Environment(env_file, env_name, env_path)
@@ -117,7 +117,7 @@ class EnvironmentManager(IEnvironmentManager):
         return p, v
 
     def _check_album_in_album(
-        self, yml_dict: Dict[str, Any], allow_unsafe: bool = False
+        self, yml_dict: Dict[str, Any], allow_recursive: bool = False
     ) -> None:
         album_installed_version = None
         if "dependencies" in yml_dict:
@@ -163,14 +163,14 @@ class EnvironmentManager(IEnvironmentManager):
             str_ = (
                 "Album is planned to be installed in the solution environment with a different version."
                 " They might be incompatible! It is recommended to update the parent solution!"
-                " If you know what you are doing, set allow_unsafe during installation!"
+                " If you know what you are doing, set allow_recursive during installation!"
             )
-            if not allow_unsafe:
+            if not allow_recursive:
                 module_logger().error(str_)
                 raise ValueError(str_)
             else:
                 module_logger().info(
-                    "Potentially unsafe installation of album in album detected!"
+                    "Potentially incompatible installation of album in album detected!"
                 )
 
     def set_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
@@ -289,7 +289,7 @@ class EnvironmentManager(IEnvironmentManager):
         cache_path: Path,
         env_name: str,
         album_api_version: Optional[str] = "",
-        allow_unsafe: bool = False,
+        allow_recursive: bool = False,
     ) -> Path:
         yaml_path = cache_path.joinpath("{n}{s}".format(n=env_name, s=".yml"))
         create_path_recursively(yaml_path.parent)
@@ -312,7 +312,7 @@ class EnvironmentManager(IEnvironmentManager):
             yaml_dict = deepcopy(DEFAULT_SOLUTION_ENV_CONTENT)
 
         # safety check to avoid album in album issues
-        self._check_album_in_album(yaml_dict, allow_unsafe)
+        self._check_album_in_album(yaml_dict, allow_recursive)
 
         # package name
         runner_package_name = DefaultValues.runner_api_package_name.value

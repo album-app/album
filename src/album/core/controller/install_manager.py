@@ -32,7 +32,7 @@ class InstallManager(IInstallManager):
     def install(
         self,
         solution_to_resolve: str,
-        allow_unsafe: bool = False,
+        allow_recursive: bool = False,
         argv: Optional[List[str]] = None,
     ) -> ISolution:
         # this needs to happen before any (potentially not completely installed) solution is resolved
@@ -42,7 +42,7 @@ class InstallManager(IInstallManager):
             solution_to_resolve
         )
         self._install_loaded_resolve_result(
-            resolve_result, parent=False, allow_unsafe=allow_unsafe
+            resolve_result, parent=False, allow_recursive=allow_recursive
         )
 
         # TODO: run install and download in parallel, enable resource feature
@@ -64,7 +64,7 @@ class InstallManager(IInstallManager):
         self,
         resolve_result: ICollectionSolution,
         parent: bool = False,
-        allow_unsafe: bool = False,
+        allow_recursive: bool = False,
     ):
         # Load solution
         if not resolve_result.catalog():
@@ -116,7 +116,7 @@ class InstallManager(IInstallManager):
         )
 
         # run installation recursively
-        self._install_active_solution(resolve_result, allow_unsafe)
+        self._install_active_solution(resolve_result, allow_recursive)
 
         # mark as installed and remove "installation unfinished"
         self.album.solutions().set_installed(
@@ -172,7 +172,7 @@ class InstallManager(IInstallManager):
         )
 
     def _install_active_solution(
-        self, collection_solution: ICollectionSolution, allow_unsafe: bool = False
+        self, collection_solution: ICollectionSolution, allow_recursive: bool = False
     ) -> Optional[ICollectionSolution]:
         parent_resolve_result = None
 
@@ -225,7 +225,7 @@ class InstallManager(IInstallManager):
             collection_solution.set_database_entry(db_entry)
         else:
             self.album.environment_manager().install_environment(
-                collection_solution, allow_unsafe
+                collection_solution, allow_recursive
             )
 
         # ensure cache paths exist

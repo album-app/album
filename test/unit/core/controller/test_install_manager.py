@@ -4,12 +4,11 @@ from pathlib import Path
 from test.unit.test_unit_core_common import EmptyTestClass, TestUnitCoreCommon
 from unittest.mock import MagicMock, patch
 
-from album.runner.core.model.coordinates import Coordinates
-from album.runner.core.model.solution import Solution
-
 from album.core.controller.install_manager import InstallManager
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.resolve_result import ResolveResult
+from album.runner.core.model.coordinates import Coordinates
+from album.runner.core.model.solution import Solution
 
 
 class TestInstallManager(TestUnitCoreCommon):
@@ -47,7 +46,7 @@ class TestInstallManager(TestUnitCoreCommon):
 
         # assert
         _install_resolve_result.assert_called_once_with(
-            resolve_result, parent=False, allow_unsafe=False
+            resolve_result, parent=False, allow_recursive=False
         )
 
     @unittest.skip("Needs to be implemented!")
@@ -103,14 +102,14 @@ class TestInstallManager(TestUnitCoreCommon):
         )
 
         r = ResolveResult(
-                path=Path(""),
-                catalog=self.album_controller.collection_manager()
-                .catalogs()
-                .get_cache_catalog(),
-                collection_entry=None,
-                coordinates=self.active_solution.coordinates(),
-                loaded_solution=self.active_solution,
-            )
+            path=Path(""),
+            catalog=self.album_controller.collection_manager()
+            .catalogs()
+            .get_cache_catalog(),
+            collection_entry=None,
+            coordinates=self.active_solution.coordinates(),
+            loaded_solution=self.active_solution,
+        )
 
         # call
         self.install_manager._install_active_solution(r)
@@ -163,27 +162,29 @@ class TestInstallManager(TestUnitCoreCommon):
         self.album_controller.solutions().set_parent = MagicMock()
 
         run_solution_install_routine = MagicMock()
-        self.install_manager._run_solution_install_routine = run_solution_install_routine
+        self.install_manager._run_solution_install_routine = (
+            run_solution_install_routine
+        )
 
         self.album_controller.collection_manager().get_collection_index().get_solution_by_catalog_grp_name_version = MagicMock(
             return_value=CollectionIndex.CollectionSolution()
         )
 
         r = ResolveResult(
-                Path(""),
-                self.album_controller.collection_manager()
-                .catalogs()
-                .get_cache_catalog(),
-                CollectionIndex.CollectionSolution(),
-                self.active_solution.coordinates(),
-                self.active_solution,
-            )
+            Path(""),
+            self.album_controller.collection_manager().catalogs().get_cache_catalog(),
+            CollectionIndex.CollectionSolution(),
+            self.active_solution.coordinates(),
+            self.active_solution,
+        )
 
         # call
         self.install_manager._install_active_solution(r)
 
         # assert
-        _install_parent.assert_called_once_with("aParent", "1.0.1", Coordinates("tsg", "tsn", "tsv"))
+        _install_parent.assert_called_once_with(
+            "aParent", "1.0.1", Coordinates("tsg", "tsn", "tsv")
+        )
         run_solution_install_routine.assert_called_once_with(r)
         install_environment.assert_not_called()
 

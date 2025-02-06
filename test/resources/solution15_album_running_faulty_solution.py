@@ -41,7 +41,7 @@ def album_run():
         solution_file = str(solution_file.name)
         if album.is_installed(solution_file):
             album.uninstall(solution_file)
-        album.install(solution_file, allow_unsafe=True)
+        album.install(solution_file, allow_recursive=True)
         album.run(solution_file)
         os.remove(solution_file)
 
