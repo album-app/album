@@ -1,16 +1,15 @@
 """Link model module."""
+
 from __future__ import annotations
 
 import os
 import platform
 from pathlib import Path
-from typing import Optional
 
 
 class Link(type(Path())):
     """Link model implementation."""
 
-    _flavour = type(Path())._flavour
     _link = None
 
     def set_link(self, link: Path) -> Link:
@@ -18,7 +17,7 @@ class Link(type(Path())):
         self._link = link
         return self
 
-    def get_link(self) -> Optional[Path]:
+    def get_link(self) -> Path | None:
         """Get the link."""
         return self._link
 

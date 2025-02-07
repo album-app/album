@@ -266,14 +266,14 @@ package:
     dependencies:
       python: ">=3.6"
     hash:
-      md5: a42daeac01e0a806b2c4025066699eee
-      sha256: 4ed1fb23b42f0ec5a330a1161f4421df78b24bb34105df75e3854ba7c7140657
+      md5: 7bd0f76c9d6100182b9bb20bb813ca8d
+      sha256: 23b9a71e8d4dbe3f225d78de5368464ca2fdb927ec5ebae6d85579ed90a54d13
     manager: conda
     name: album-solution-api
     optional: false
     platform: linux-64
-    url: https://conda.anaconda.org/conda-forge/noarch/album-solution-api-0.6.0-pyhd8ed1ab_0.conda
-    version: 0.5.1
+    url: https://conda.anaconda.org/conda-forge/noarch/album-solution-api-0.6.1-pyhd8ed1ab_0.conda
+    version: 0.6.1
   - category: main
     dependencies:
       python: ">=3.7"

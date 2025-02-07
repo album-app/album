@@ -1,6 +1,8 @@
 """Interface for the resource manager class."""
 from abc import ABCMeta, abstractmethod
+from io import StringIO
 from pathlib import Path
+from typing import Any, Dict, Union
 
 from album.runner.core.api.model.solution import ISolution
 
@@ -27,4 +29,11 @@ class IResourceManager:
     @abstractmethod
     def write_solution_environment_file(self, solution: ISolution, solution_home: Path):
         """Write the environment file for the solution."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def handle_env_file_dependency(
+        self, env_file: Union[str, Dict[str, Any], StringIO], yml_path: Path
+    ):
+        """Handle the environment file dependency."""
         raise NotImplementedError

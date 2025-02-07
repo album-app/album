@@ -1,8 +1,19 @@
 import os
 from enum import Enum
 from pathlib import Path
+from typing import Dict, Final, List
 
 import album.core
+
+# outside of the class to be able to use it in the default values
+DEFAULT_SOLUTION_PYTHON_VERSION: Final[str] = "3.9"
+
+# outside of the class. Dictionary as enum values are not hashable
+# always use with deepcopy, as it is mutable
+DEFAULT_SOLUTION_ENV_CONTENT: Final[Dict[str, List[str]]] = {
+    "channels": ["conda-forge"],
+    "dependencies": ["python=%s" % DEFAULT_SOLUTION_PYTHON_VERSION],
+}
 
 
 class DefaultValues(Enum):
@@ -21,7 +32,7 @@ class DefaultValues(Enum):
     first_album_solution_api_version = (
         "0.6.1"  # first version this album installation knows
     )
-    default_solution_python_version = "3.9"
+    default_solution_python_version = DEFAULT_SOLUTION_PYTHON_VERSION
 
     # templates
     catalog_template_url = "https://gitlab.com/album-app/catalogs/templates"  # base URL of available catalog templates
@@ -90,10 +101,6 @@ class DefaultValues(Enum):
     solution_yml_default_name = "solution.yml"  # default name of the solution.yml file
     solution_zip_default_name = "solution.zip"  # default name of the solution.zip file
     changelog_default_name = "CHANGELOG.md"  # default name of the changelog file
-    default_solution_env_content = {
-        "channels": ["conda-forge"],
-        "dependencies": ["python=%s" % default_solution_python_version],
-    }
 
     # lnk folder prefixes
     lnk_package_prefix = (

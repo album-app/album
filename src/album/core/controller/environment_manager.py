@@ -1,30 +1,23 @@
 import os
-from importlib.metadata import version as importlib_version
-from io import StringIO
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
-import validators
 from album.environments.api.environment_api import IEnvironmentAPI
 from album.environments.api.model.environment import IEnvironment
 from album.environments.initialization import init_environment_handler
 from album.environments.model.environment import Environment
 from album.environments.utils.file_operations import (
-    copy,
     get_dict_from_yml,
     write_dict_to_yml,
 )
-from album.environments.utils.url_operations import download_resource
-from album.runner import album_logging
-from album.runner.core.api.model.coordinates import ICoordinates
-from packaging import version
 
 from album.core import __version__ as album_version
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.environment_manager import IEnvironmentManager
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_solution import ICollectionSolution
-from album.core.model.default_values import DefaultValues
+from album.core.model.default_values import DEFAULT_SOLUTION_ENV_CONTENT, DefaultValues
 from album.core.model.link import Link
 from album.core.utils.operations.file_operations import (
     construct_cache_link_target,
@@ -33,6 +26,8 @@ from album.core.utils.operations.file_operations import (
 )
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.core.utils.operations.solution_operations import set_environment_paths
+from album.runner import album_logging
+from album.runner.core.api.model.coordinates import ICoordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -52,16 +47,16 @@ class EnvironmentManager(IEnvironmentManager):
         )
 
     def install_environment(
-        self, collection_solution: ICollectionSolution, allow_unsafe: bool = False
+        self, collection_solution: ICollectionSolution, allow_recursive: bool = False
     ) -> IEnvironment:
         environment = self._create_environment_for_solution(
-            collection_solution, allow_unsafe
+            collection_solution, allow_recursive
         )
         set_environment_paths(collection_solution.loaded_solution(), environment)
         return environment
 
     def _create_environment_for_solution(
-        self, collection_solution: ICollectionSolution, allow_unsafe: bool = False
+        self, collection_solution: ICollectionSolution, allow_recursive: bool = False
     ) -> IEnvironment:
         env_name = self.get_environment_name(
             collection_solution.coordinates(), collection_solution.catalog()
@@ -82,7 +77,7 @@ class EnvironmentManager(IEnvironmentManager):
             env_name,
             album_api_version,
             solution_package_path,
-            allow_unsafe,
+            allow_recursive,
         )
         set_environment_paths(collection_solution.loaded_solution(), environment)
         return environment
@@ -94,10 +89,10 @@ class EnvironmentManager(IEnvironmentManager):
         env_name: str,
         album_api_version: str,
         solution_package_path: Path,
-        allow_unsafe: bool = False,
+        allow_recursive: bool = False,
     ) -> IEnvironment:
         env_file = self._prepare_env_file(
-            dependencies, cache, env_name, album_api_version, allow_unsafe
+            dependencies, cache, env_name, album_api_version, allow_recursive
         )
         env_path = self.get_environment_path(env_name, create=True)
         environment = Environment(env_file, env_name, env_path)
@@ -122,7 +117,7 @@ class EnvironmentManager(IEnvironmentManager):
         return p, v
 
     def _check_album_in_album(
-        self, yml_dict: Dict[str, Any], allow_unsafe: bool = False
+        self, yml_dict: Dict[str, Any], allow_recursive: bool = False
     ) -> None:
         album_installed_version = None
         if "dependencies" in yml_dict:
@@ -168,14 +163,14 @@ class EnvironmentManager(IEnvironmentManager):
             str_ = (
                 "Album is planned to be installed in the solution environment with a different version."
                 " They might be incompatible! It is recommended to update the parent solution!"
-                " If you know what you are doing, set allow_unsafe during installation!"
+                " If you know what you are doing, set allow_recursive during installation!"
             )
-            if not allow_unsafe:
+            if not allow_recursive:
                 module_logger().error(str_)
                 raise ValueError(str_)
             else:
                 module_logger().info(
-                    "Potentially unsafe installation of album in album detected!"
+                    "Potentially incompatible installation of album in album detected!"
                 )
 
     def set_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
@@ -294,7 +289,7 @@ class EnvironmentManager(IEnvironmentManager):
         cache_path: Path,
         env_name: str,
         album_api_version: Optional[str] = "",
-        allow_unsafe: bool = False,
+        allow_recursive: bool = False,
     ) -> Path:
         yaml_path = cache_path.joinpath("{n}{s}".format(n=env_name, s=".yml"))
         create_path_recursively(yaml_path.parent)
@@ -303,40 +298,9 @@ class EnvironmentManager(IEnvironmentManager):
             if "environment_file" in dependencies_dict:
                 env_file = dependencies_dict["environment_file"]
 
-                if isinstance(env_file, str):
-                    # case valid url
-                    if validators.url(env_file):
-                        yaml_path = download_resource(env_file, yaml_path)
-
-                    # case file content
-                    elif "dependencies:" in env_file and "\n" in env_file:
-                        with open(str(yaml_path), "w+") as f:
-                            f.writelines(env_file)
-                        yaml_path = yaml_path
-
-                    # case Path
-                    elif Path(env_file).is_file() and Path(env_file).stat().st_size > 0:
-                        yaml_path = copy(env_file, yaml_path)
-                    else:
-                        raise TypeError(
-                            "environment_file must either contain the content of the environment file, "
-                            "contain the url to a valid file or point to a file on the disk!"
-                        )
-                # case dict
-                elif isinstance(env_file, dict):
-                    write_dict_to_yml(yaml_path, env_file)
-
-                # case String stream
-                elif isinstance(env_file, StringIO):
-                    with open(str(yaml_path), "w+") as f:
-                        env_file.seek(0)  # make sure we start from the beginning
-                        f.writelines(env_file.readlines())
-                    yaml_path = yaml_path
-                else:
-                    raise RuntimeError(
-                        "Environment file specified, but format is unknown!"
-                        " Don't know where to run solution!"
-                    )
+                self._album.resource_manager().handle_env_file_dependency(
+                    env_file, yaml_path
+                )
 
                 yaml_dict = get_dict_from_yml(yaml_path)
                 yaml_dict["name"] = env_name
@@ -345,64 +309,63 @@ class EnvironmentManager(IEnvironmentManager):
             album_api_version = DefaultValues.runner_api_package_version.value
 
         if not yaml_dict:
-            yaml_dict = DefaultValues.default_solution_env_content.value
+            yaml_dict = deepcopy(DEFAULT_SOLUTION_ENV_CONTENT)
 
         # safety check to avoid album in album issues
-        self._check_album_in_album(yaml_dict, allow_unsafe)
+        self._check_album_in_album(yaml_dict, allow_recursive)
 
-        yaml_dict = EnvironmentManager._append_framework_to_dependencies(
-            yaml_dict, album_api_version
+        # package name
+        runner_package_name = DefaultValues.runner_api_package_name.value
+
+        # if specified, install the outdated runner
+        if self._album.migration_manager().is_migration_needed_solution_api(
+            album_api_version
+        ):
+            (
+                runner_package_name,
+                album_api_version,
+            ) = (
+                self._album.migration_manager().get_conda_available_outdated_runner_name_and_version()
+            )
+
+        yaml_dict = self._append_framework_to_dependencies(
+            yaml_dict, album_api_version, runner_package_name
         )
         write_dict_to_yml(yaml_path, yaml_dict)
 
         return yaml_path
 
-    @staticmethod
     def _append_framework_to_dependencies(
-        content: Dict[str, Any], album_api_version: Optional[str]
+        self,
+        content: Dict[str, Any],
+        album_api_version: Optional[str],
+        runner_package_name: str,
     ) -> Dict[str, Any]:
-        if (
-            not (
-                Path(DefaultValues.runner_api_package_name.value).is_dir()
-                or DefaultValues.runner_api_package_name.value.endswith(".zip")
-                or DefaultValues.runner_api_package_name.value.startswith("https")
-            )  # check if framework is properly defined. no zip, https or folder allowed
-            and album_api_version
-            and version.parse(album_api_version)
-            >= version.parse(DefaultValues.first_album_solution_api_version.value)
-        ):
-            return EnvironmentManager._append_framework_via_conda_to_yml(
-                content, album_api_version
-            )
-        elif album_api_version is None:
+        if album_api_version is None:
             module_logger().warning("No framework specified for the environment.")
             # install no framework
             return content
-        elif version.parse(album_api_version) > version.parse(
-            importlib_version(DefaultValues.runner_api_package_name.value)
+
+        # Check if framework is properly defined. No zip, https or folder allowed.
+        if (
+            Path(DefaultValues.runner_api_package_name.value).is_dir()
+            or DefaultValues.runner_api_package_name.value.endswith(".zip")
+            or DefaultValues.runner_api_package_name.value.startswith("https")
         ):
-            module_logger().warning(
-                "It seems you have an old album installation. "
-                "Consider updating album to the latest version."
+            raise ValueError(
+                "Framework is not properly defined. No zip, https or folder allowed."
             )
-            return EnvironmentManager._append_framework_via_conda_to_yml(
-                content, album_api_version
-            )
-        else:
-            module_logger().debug(
-                "Using %s as framework for the environment."
-                % DefaultValues.first_album_solution_api_version.value
-            )
-            return EnvironmentManager._append_framework_via_conda_to_yml(
-                content, DefaultValues.first_album_solution_api_version.value
-            )
+
+        return EnvironmentManager._append_framework_via_conda_to_yml(
+            content, album_api_version, runner_package_name
+        )
 
     @staticmethod
     def _append_framework_via_conda_to_yml(
-        content: Dict[str, Any], album_api_version: str
+        content: Dict[str, Any], album_api_version: str, runner_package_name: str
     ) -> Dict[str, Any]:
         framework = "conda-forge::{d}={a}".format(
-            d=DefaultValues.runner_api_package_name.value,
+            d=runner_package_name,
             a=album_api_version,
         )
         if "dependencies" not in content or not content["dependencies"]:

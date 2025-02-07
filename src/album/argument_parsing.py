@@ -5,12 +5,6 @@ import traceback
 
 import pkg_resources
 from album.environments.utils.subcommand import SubProcessError
-from album.runner.album_logging import (
-    LogLevel,
-    debug_settings,
-    get_active_logger,
-    to_loglevel,
-)
 
 from album import core
 from album.api import Album
@@ -30,6 +24,12 @@ from album.commandline import (
     uninstall,
     update,
     upgrade,
+)
+from album.runner.album_logging import (
+    LogLevel,
+    debug_settings,
+    get_active_logger,
+    to_loglevel,
 )
 
 
@@ -238,7 +238,7 @@ def create_install_parser(parser):
         "install", install, "install an album solution."
     )
     p.add_argument(
-        "--allow-unsafe",
+        "--allow-recursive",
         required=False,
         help="Parameter to indicate to allow album in album installation.",
         action="store_true",

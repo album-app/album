@@ -19,7 +19,7 @@ class IInstallManager:
     def install(
         self,
         solution_to_resolve: str,
-        allow_unsafe: bool = False,
+        allow_recursive: bool = False,
         argv: Optional[List[str]] = None,
     ) -> ISolution:
         """Install an album solution."""

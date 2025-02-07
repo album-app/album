@@ -5,10 +5,9 @@ from pathlib import Path
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 from unittest.mock import patch
 
-from album.runner.core.model.coordinates import Coordinates
-
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import get_link_target
+from album.runner.core.model.coordinates import Coordinates
 
 
 class TestIntegrationInstall(TestIntegrationCoreCommon):
@@ -36,7 +35,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         )
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs())
 
         # FIXME the next assertion doesn't work since not calling main in this method. Don't know how to set the loglevel to DEBUG in this test.
         # self.assertIn("No \"install\" routine configured for solution", self.captured_output.getvalue())
@@ -45,7 +44,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         self.album_controller.install_manager().install(self.get_test_solution_path())
 
         # assert solution was added to local catalog
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs())
         collection = self.album_controller.collection_manager().catalog_collection
         self.assertEqual(
             1,
@@ -77,7 +76,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         )
 
         # assert solution was added to local catalog
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs())
         collection = self.album_controller.collection_manager().catalog_collection
         self.assertEqual(
             1,
@@ -136,18 +135,13 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
             dry_run=False,
             git_email=DefaultValues.catalog_git_email.value,
             git_name=DefaultValues.catalog_git_user.value,
+            no_conda_lock=True,
         )
         self.album_controller.collection_manager().catalogs().update_collection(
             catalog.name()
         )
 
         # first, install via path - will add the solution to the local catalog
-        with self.assertRaises(RuntimeError):
-            self.album_controller.install_manager().install(
-                self.get_test_solution_path("solution13_faulty_routine.py")
-            )
-
-        # call
         with self.assertRaises(RuntimeError):
             self.album_controller.install_manager().install(
                 self.get_test_solution_path("solution13_faulty_routine.py")
@@ -161,12 +155,6 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         leftover_env_name = local_catalog_name + "_group_faultySolution_0.1.0"
         env_path = self.album_controller.environment_manager().get_environment_path(
             leftover_env_name, create=False
-        )
-        env_list = (
-            self.album_controller.environment_manager()
-            .get_environment_handler()
-            .get_package_manager()
-            .get_environment_list()
         )
         self.assertTrue(
             self.album_controller.environment_manager()
@@ -305,13 +293,13 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         # call again
         self.album_controller.install_manager().install(
             self.get_test_solution_path(),
-            allow_unsafe=False,
+            allow_recursive=False,
         )
 
         # check for warning
         self.assertIn(
             'Solution "%s" already installed. Skipping...' % "name",
-            self.captured_output.getvalue(),
+            self.get_logs()[-1],
         )
 
     #  @unittest.skipIf(sys.platform == 'win32' or sys.platform == 'cygwin', "This test fails on the Windows CI with \"SSL: CERTIFICATE_VERIFY_FAILED\"")
@@ -322,7 +310,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         )
 
         # assert solution was added to local catalog
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         collection = self.album_controller.collection_manager().catalog_collection
         self.assertEqual(
             1,
@@ -361,13 +349,13 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         self.album_controller.install_manager().install(
             self.get_test_solution_path("app1.py")
         )
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
 
         # install child solution
         self.album_controller.install_manager().install(
             self.get_test_solution_path("solution1_app1.py")
         )
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
 
         # assert both solutions added to local catalog
         collection = self.album_controller.collection_manager().catalog_collection
@@ -422,7 +410,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
             self.get_test_solution_path("solution1_app1.py")
         )
 
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
 
         # assert that child solution path doesn't exist any more
         solution_path = Path(self.tmp_dir.name).joinpath(
@@ -445,7 +433,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
             self.get_test_solution_path("solution1_app1.py")
         )
 
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         self.assertTrue(get_link_target(solution_path).exists())
 
         # uninstall child solution
@@ -561,17 +549,17 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
             self.get_test_solution_path("app1.py")
         )
 
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
 
         self.album_controller.install_manager().install(
             self.get_test_solution_path("solution1_app1.py")
         )
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
 
         self.album_controller.install_manager().install(
             self.get_test_solution_path("solution12_solution1_app1.py")
         )
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
 
         # assert solution was added to local catalog
         collection = self.album_controller.collection_manager().catalog_collection
@@ -641,36 +629,36 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         self.album_controller.install_manager().uninstall(
             self.get_test_solution_path("solution1_app1.py")
         )
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         self.assertIn(
             "The following solutions depend on this installation",
-            self.captured_output.getvalue(),
+            self.get_logs_as_string(),
         )
         self.assertTrue(solution_path.exists())
 
         self.album_controller.install_manager().uninstall(
             self.get_test_solution_path("solution12_solution1_app1.py")
         )
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         self.assertFalse(solution_child_path.exists())
 
         self.album_controller.install_manager().uninstall(
             self.get_test_solution_path("solution1_app1.py")
         )
 
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         self.assertFalse(solution_path.exists())
 
         self.album_controller.install_manager().install(
             self.get_test_solution_path("solution1_app1.py")
         )
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         self.assertTrue(solution_path.exists())
 
         self.album_controller.install_manager().install(
             self.get_test_solution_path("solution12_solution1_app1.py")
         )
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         self.assertTrue(solution_child_path.exists())
 
     def test_install_with_parent_faulty_API(
@@ -692,7 +680,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
 
         # install parent app solution in collection
         self.album_controller.install_manager().install(
-            self.get_test_solution_path("app1.py")
+            self.get_test_solution_path("solution19_outdated_parent.py")
         )
 
         # assert installed in collection
@@ -718,7 +706,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
 
         self.assertNotIn(
             "API version of parent solution (0.5.1) is not compatible",
-            self.captured_output.getvalue(),
+            self.get_logs(),
         )
 
     def test_install_with_dependencies(self):

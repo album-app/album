@@ -4,11 +4,11 @@ from typing import List, Mapping, Optional, Union
 
 from album.environments.api.environment_api import IEnvironmentAPI
 from album.environments.api.model.environment import IEnvironment
-from album.runner.core.api.model.coordinates import ICoordinates
 
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.model.link import Link
+from album.runner.core.api.model.coordinates import ICoordinates
 
 
 class IEnvironmentManager:
@@ -21,7 +21,7 @@ class IEnvironmentManager:
 
     @abstractmethod
     def install_environment(
-        self, collection_solution: ICollectionSolution, allow_unsafe: bool = False
+        self, collection_solution: ICollectionSolution, allow_recursive: bool = False
     ) -> IEnvironment:
         """Install an environment for the given solution."""
         raise NotImplementedError

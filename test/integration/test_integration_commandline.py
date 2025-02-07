@@ -2,11 +2,11 @@ import contextlib
 import io
 import json
 import sys
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 from unittest.mock import patch
 
 from album.argument_parsing import main
 from album.core.model.resolve_result import ResolveResult
-from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
 class TestIntegrationCommandline(TestIntegrationCoreCommon):
@@ -23,9 +23,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
         with self.assertRaises(SystemExit) as e:
             main()
         self.assertEqual(SystemExit(1).code, e.exception.code)
-        self.assertIn(
-            "Invalid argument(s): ['--versn']", self.captured_output.getvalue()
-        )
+        self.assertIn("Invalid argument(s): ['--versn']", self.get_logs()[-1])
         load_or_create_mock.assert_not_called()
 
     @patch("album.api.Album.load_or_create_collection")
@@ -33,7 +31,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
     def test_run(self, run_mock, load_or_create_mock):
         sys.argv = ["", "run", "testpath"]
         self.assertIsNone(main())
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         run_mock.assert_called_once()
         load_or_create_mock.assert_called_once()
 
@@ -42,7 +40,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
     def test_test(self, test_mock, load_or_create_mock):
         sys.argv = ["", "test", "testpath"]
         self.assertIsNone(main())
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         test_mock.assert_called_once()
         load_or_create_mock.assert_called_once()
 
@@ -51,7 +49,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
     def test_install(self, install_mock, load_or_create_mock):
         sys.argv = ["", "install", "testpath"]
         self.assertIsNone(main())
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         install_mock.assert_called_once()
         load_or_create_mock.assert_called_once()
 
@@ -92,7 +90,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
         sys.argv = ["", "search", "keyword"]
         self.assertIsNone(main())
 
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
 
         # check output to have found the solution behind keyword1
         self.assertIn(
@@ -103,7 +101,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
                 h.coordinates().name(),
                 h.coordinates().version(),
             ),
-            self.captured_output.getvalue(),
+            self.get_logs_as_string(),
         )
 
     def test_search_as_json(self):
@@ -139,7 +137,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
             sys.argv = ["", "search", "keyword1", "--json"]
             self.assertIsNone(main())
 
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         # check output to have found the solution behind keyword1
         self.assertEqual(
             [["cache_catalog:group:name:0.1.0", 1]], json.loads(f.getvalue())
@@ -157,7 +155,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
             main()
         self.assertTrue(isinstance(e.exception.code, LookupError))
 
-        self.assertIn("ERROR", self.captured_output.getvalue())
+        self.assertIn("ERROR", self.get_logs_as_string())
         self.assertIn("Solution not found", e.exception.code.args[0])
 
     def test_remove_solution_not_installed(self):
@@ -167,7 +165,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
             main()
         self.assertTrue(isinstance(e.exception.code, LookupError))
 
-        self.assertIn("ERROR", self.captured_output.getvalue())
+        self.assertIn("ERROR", self.get_logs_as_string())
         self.assertIn("Solution not found", e.exception.code.args[0])
 
     def test_info(self):
@@ -185,10 +183,8 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
         self.assertIsNone(main())
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
-        self.assertIn(
-            "--testArg1: testArg1Description", self.captured_output.getvalue()
-        )
+        self.assertNotIn("ERROR", self.get_logs_as_string())
+        self.assertIn("--testArg1: testArg1Description", self.get_logs_as_string())
 
     def test_info_json(self):
         self.fake_install(self.get_test_solution_path(), create_environment=False)
@@ -201,7 +197,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
             self.assertIsNone(main())
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         self.assertEqual(
             {
                 "group": "group",
@@ -216,7 +212,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
                 "tags": ["tag1", "tag2"],
                 "license": "license",
                 "covers": [],
-                "album_api_version": "0.5.1",
+                "album_api_version": "0.6.1",
                 "args": [
                     {
                         "name": "testArg1",
@@ -246,8 +242,8 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
         self.assertIsNone(main())
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
-        self.assertIn("name: cache_catalog", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
+        self.assertIn("name: cache_catalog", self.get_logs_as_string())
 
     def test_index_json(self):
         sys.argv = ["", "index", "--json"]
@@ -257,13 +253,15 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
         with contextlib.redirect_stdout(stdout_content):
             self.assertIsNone(main())
 
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         index_dict = json.loads(stdout_content.getvalue())
         self.assertIsNotNone(index_dict)
         self.assertIsNotNone(index_dict["catalogs"])
         self.assertEqual(1, len(index_dict["catalogs"]))
 
-    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
     def test_run_sad_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album._controller.environment_manager()
@@ -280,8 +278,10 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
             main()
         self.assertEqual(1, e.exception.code)
 
-    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
-    def test_run_album_throwing_error_solution(self, get_environment_path):
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
+    def test_run_album_throwing_deep_error_solution(self, get_environment_path):
         get_environment_path.return_value = (
             self.album._controller.environment_manager()
             .get_environment_handler()
@@ -298,27 +298,25 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
         # run
         with self.assertRaises(SystemExit) as e:
             main()
-        print(self.captured_output.getvalue())
         self.assertEqual(1, e.exception.code)
-        # print(self.captured_output.getvalue())
-        self.assertIn("INFO ~ print something", self.captured_output.getvalue())
-        self.assertIn("INFO ~ logging info", self.captured_output.getvalue())
-        self.assertIn("WARNING ~ logging warning", self.captured_output.getvalue())
-        self.assertIn("ERROR ~ logging error", self.captured_output.getvalue())
+        self.assertIn("INFO ~ print something", self.get_logs_as_string())
+        self.assertIn("INFO ~ logging info", self.get_logs_as_string())
+        self.assertIn("WARNING ~ logging warning", self.get_logs_as_string())
+        self.assertIn("ERROR ~ logging error", self.get_logs_as_string())
         self.assertIn(
-            "INFO ~~~ album in album: print something", self.captured_output.getvalue()
+            "INFO ~~~ album in album: print something", self.get_logs_as_string()
         )
         self.assertIn(
-            "INFO ~~~ album in album: logging info", self.captured_output.getvalue()
+            "INFO ~~~ album in album: logging info", self.get_logs_as_string()
         )
         self.assertIn(
             "WARNING ~~~ album in album: logging warning",
-            self.captured_output.getvalue(),
+            self.get_logs_as_string(),
         )
         self.assertIn(
-            "ERROR ~~~ album in album: logging error", self.captured_output.getvalue()
+            "ERROR ~~~ album in album: logging error", self.get_logs_as_string()
         )
         self.assertIn(
             "INFO ~~~ RuntimeError: Error in run method",
-            self.captured_output.getvalue(),
+            self.get_logs_as_string(),
         )

@@ -23,7 +23,7 @@ setup(
     name="app1",
     title="app one",
     version="0.1.0",
-    album_api_version="0.6.1",
+    album_api_version="0.5.5",  # deliberately outdated
     args=[
         {
             "name": "file",

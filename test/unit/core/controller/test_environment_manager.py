@@ -148,52 +148,55 @@ class TestEnvironmentManager(TestUnitCoreCommon):
 
         create_path_mock.assert_called_once()
 
-    @patch("album.core.controller.environment_manager.copy")
     @patch(
         "album.core.controller.environment_manager.create_path_recursively",
         return_value="createdPath",
     )
-    def test__prepare_env_file_valid_file(self, create_path_mock, copy_mock):
-        # mocks
-        copy_mock.return_value = self.closed_tmp_file.name
-        with open(self.closed_tmp_file.name, mode="w") as tmp_file:
+    def test__prepare_env_file_valid_file(self, create_path_mock):
+
+        # create tmp yml file named test.yml
+        test_yml = Path(self.tmp_dir.name).joinpath("test.yml")
+        with open(test_yml, mode="w") as tmp_file:
             tmp_file.write("""name: test""")
 
         r = self.environment_manager._prepare_env_file(
-            {"environment_file": self.closed_tmp_file.name},
-            Path(self.closed_tmp_file.name),
-            None,
+            {"environment_file": str(test_yml)},
+            Path(self.tmp_dir.name),
+            "env_name",
             None,
         )
 
-        self.assertEqual(self.closed_tmp_file.name, r)
+        self.assertEqual(Path(self.tmp_dir.name).joinpath("env_name.yml"), r)
 
         create_path_mock.assert_called_once()
-        copy_mock.assert_called_once()
 
-    @patch("album.core.controller.environment_manager.download_resource")
     @patch(
         "album.core.controller.environment_manager.create_path_recursively",
         return_value="createdPath",
     )
-    def test__prepare_env_file_valid_url(self, create_path_mock, download_mock):
-        # mocks
-        download_mock.return_value = self.closed_tmp_file.name
-        with open(self.closed_tmp_file.name, mode="w") as tmp_file:
+    def test__prepare_env_file_valid_url(self, create_path_mock):
+        # create tmp yml file named test.yml
+        test_yml = Path(self.tmp_dir.name).joinpath("unittest.yml")
+        with open(test_yml, mode="w") as tmp_file:
             tmp_file.write("""name: test""")
+
+        handle_env_file_dependency_mock = MagicMock(return_value=test_yml)
+        self.album_controller.resource_manager().handle_env_file_dependency = (
+            handle_env_file_dependency_mock
+        )
 
         url = "http://test.de"
 
         r = self.environment_manager._prepare_env_file(
-            {"environment_file": url}, Path("aPath"), self.test_environment_name, None
+            {"environment_file": url}, test_yml.parent, self.test_environment_name, None
         )
 
-        self.assertEqual(self.closed_tmp_file.name, r)
+        self.assertEqual(
+            test_yml.parent.joinpath(self.test_environment_name + ".yml"), r
+        )
 
         create_path_mock.assert_called_once()
-        download_mock.assert_called_once_with(
-            url, Path("aPath").joinpath("%s.yml" % self.test_environment_name)
-        )
+        handle_env_file_dependency_mock.assert_called_once()
 
     @patch(
         "album.core.controller.environment_manager.create_path_recursively",
@@ -205,18 +208,12 @@ class TestEnvironmentManager(TestUnitCoreCommon):
         string_io = io.StringIO("""testStringIo""")
 
         with self.assertRaises(TypeError):
-            self.environment_manager._prepare_env_file(
+            r = self.environment_manager._prepare_env_file(
                 {"environment_file": string_io},
                 _cache_path,
                 self.test_environment_name,
                 None,
             )
-
-        self.assertTrue(
-            Path(tempfile.gettempdir())
-            .joinpath("%s.yml" % self.test_environment_name)
-            .exists()
-        )
 
         create_path_mock.assert_called_once()
 

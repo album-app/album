@@ -19,9 +19,8 @@ def album_run():
     import os
     import tempfile
 
-    from album.runner.album_logging import get_active_logger
-
     from album.api import Album
+    from album.runner.album_logging import get_active_logger
 
     print("print something")
     get_active_logger().info("logging info")
@@ -42,7 +41,7 @@ def album_run():
         solution_file = str(solution_file.name)
         if album.is_installed(solution_file):
             album.uninstall(solution_file)
-        album.install(solution_file)
+        album.install(solution_file, allow_recursive=True)
         album.run(solution_file)
         os.remove(solution_file)
 
@@ -83,7 +82,7 @@ setup(
     group="group",
     name="solution15_run_album_throw_error",
     version="0.1.0",
-    album_api_version="0.3.1",
+    album_api_version="0.6.1",
     run=album_run,
     dependencies={"environment_file": env_file},
 )

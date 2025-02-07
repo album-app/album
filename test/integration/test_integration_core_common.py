@@ -3,9 +3,8 @@ from pathlib import Path
 from test.test_common import TestCommon
 from typing import Optional
 
-from album.runner.core.api.model.solution import ISolution
-
 from album.core.utils.operations.file_operations import copy
+from album.runner.core.api.model.solution import ISolution
 
 
 class TestIntegrationCoreCommon(TestCommon):
@@ -15,42 +14,7 @@ class TestIntegrationCoreCommon(TestCommon):
         self.setup_collection()
 
     def tearDown(self) -> None:
-        self._remove_test_environments()
         super().tearDown()
-
-    def _remove_test_environments(self):
-        local_catalog_name = str(
-            self.album_controller.collection_manager()
-            .catalogs()
-            .get_cache_catalog()
-            .name()
-        )
-        env_names = [
-            local_catalog_name + "_group_name_0.1.0",
-            local_catalog_name + "_group_app1_0.1.0",
-            local_catalog_name + "_group_app2_0.1.0",
-            local_catalog_name + "_group_solution1_app1_0.1.0",
-            local_catalog_name + "_group_solution2_app1_0.1.0",
-            local_catalog_name + "_group_solution3_noparent_0.1.0",
-            local_catalog_name + "_group_solution4_app2_0.1.0",
-            local_catalog_name + "_group_solution5_app2_0.1.0",
-            local_catalog_name + "_group_solution6_noparent_test_0.1.0",
-            local_catalog_name + "_group_solution7_long_routines_0.1.0",
-            local_catalog_name + "_group_solution8_arguments_0.1.0",
-            local_catalog_name + "_group_solution9_throws_exception_0.1.0",
-            local_catalog_name + "_group_solution10_uninstall_0.1.0",
-            local_catalog_name + "_group_solution13_faultySolution_0.1.0",
-        ]
-        for e in env_names:
-            if (
-                self.album_controller.environment_manager()
-                .get_environment_handler()
-                .get_package_manager()
-                .environment_exists(e)
-            ):
-                self.album_controller.environment_manager().get_environment_handler().get_package_manager().remove_environment(
-                    e
-                )
 
     @staticmethod
     def get_test_solution_path(solution_file="solution0_dummy.py"):

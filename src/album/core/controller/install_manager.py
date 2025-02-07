@@ -1,12 +1,6 @@
-import os
 from typing import Any, Dict, List, Optional
 
-from album.environments.api.model.environment import IEnvironment
 from album.environments.utils.subcommand import SubProcessError
-from album.runner import album_logging
-from album.runner.core.api.model.coordinates import ICoordinates
-from album.runner.core.api.model.solution import ISolution
-from album.runner.core.default_values_runner import DefaultValuesRunner
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.install_manager import IInstallManager
@@ -24,6 +18,9 @@ from album.core.utils.operations.solution_operations import (
     get_deploy_dict,
     get_parent_dict,
 )
+from album.runner import album_logging
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
 
 module_logger = album_logging.get_active_logger
 
@@ -35,7 +32,7 @@ class InstallManager(IInstallManager):
     def install(
         self,
         solution_to_resolve: str,
-        allow_unsafe: bool = False,
+        allow_recursive: bool = False,
         argv: Optional[List[str]] = None,
     ) -> ISolution:
         # this needs to happen before any (potentially not completely installed) solution is resolved
@@ -45,7 +42,7 @@ class InstallManager(IInstallManager):
             solution_to_resolve
         )
         self._install_loaded_resolve_result(
-            resolve_result, parent=False, allow_unsafe=allow_unsafe
+            resolve_result, parent=False, allow_recursive=allow_recursive
         )
 
         # TODO: run install and download in parallel, enable resource feature
@@ -67,7 +64,7 @@ class InstallManager(IInstallManager):
         self,
         resolve_result: ICollectionSolution,
         parent: bool = False,
-        allow_unsafe: bool = False,
+        allow_recursive: bool = False,
     ):
         # Load solution
         if not resolve_result.catalog():
@@ -119,7 +116,7 @@ class InstallManager(IInstallManager):
         )
 
         # run installation recursively
-        self._install_active_solution(resolve_result, allow_unsafe)
+        self._install_active_solution(resolve_result, allow_recursive)
 
         # mark as installed and remove "installation unfinished"
         self.album.solutions().set_installed(
@@ -175,7 +172,7 @@ class InstallManager(IInstallManager):
         )
 
     def _install_active_solution(
-        self, collection_solution: ICollectionSolution, allow_unsafe: bool = False
+        self, collection_solution: ICollectionSolution, allow_recursive: bool = False
     ) -> Optional[ICollectionSolution]:
         parent_resolve_result = None
 
@@ -226,58 +223,27 @@ class InstallManager(IInstallManager):
                 )
 
             collection_solution.set_database_entry(db_entry)
-
-            # resolve environment - at this point all parents should be already installed
-            environment = self.album.environment_manager().set_environment(
-                collection_solution
-            )
         else:
-            environment = self.album.environment_manager().install_environment(
-                collection_solution, allow_unsafe
+            self.album.environment_manager().install_environment(
+                collection_solution, allow_recursive
             )
 
-        self._run_solution_install_routine(
-            collection_solution.loaded_solution(), environment
+        # ensure cache paths exist
+        collection_solution.loaded_solution().installation().internal_cache_path().mkdir(
+            exist_ok=True, parents=True
+        )
+        collection_solution.loaded_solution().installation().user_cache_path().mkdir(
+            exist_ok=True, parents=True
+        )
+        collection_solution.loaded_solution().installation().data_path().mkdir(
+            exist_ok=True, parents=True
+        )
+        collection_solution.loaded_solution().installation().app_path().mkdir(
+            exist_ok=True, parents=True
         )
 
+        self._run_solution_install_routine(collection_solution)
         return parent_resolve_result
-
-    def _run_solution_install_routine(
-        self, active_solution: ISolution, environment: IEnvironment
-    ) -> None:
-        if active_solution.setup().install and callable(
-            active_solution.setup().install
-        ):
-            module_logger().debug("Creating install script...")
-
-            env_variables = os.environ.copy()
-            env_variables[
-                DefaultValuesRunner.env_variable_action.value
-            ] = ISolution.Action.INSTALL.name
-            env_variables[DefaultValuesRunner.env_variable_installation.value] = str(
-                active_solution.installation().installation_path()
-            )
-            env_variables[DefaultValuesRunner.env_variable_package.value] = str(
-                active_solution.installation().package_path()
-            )
-            env_variables[DefaultValuesRunner.env_variable_environment.value] = str(
-                environment.path()
-            )
-            env_variables[DefaultValuesRunner.env_variable_logger_level.value] = str(
-                album_logging.get_loglevel_name()
-            )
-
-            module_logger().debug("Calling install routine specified in solution...")
-            self.album.environment_manager().run_script(
-                environment,
-                active_solution.script(),
-                environment_variables=env_variables,
-            )
-        else:
-            module_logger().debug(
-                'No "install" routine configured for solution "%s". Skipping...'
-                % active_solution.coordinates().name()
-            )
 
     def _install_parent(
         self,
@@ -354,7 +320,10 @@ class InstallManager(IInstallManager):
             if children:
                 module_logger().info(
                     "The following solutions depend on this installation: %s. Not uninstalling %s..."
-                    % (", ".join(str(children)), str(resolve_result.coordinates()))
+                    % (
+                        ", ".join([str(child) for child in children]),
+                        str(resolve_result.coordinates()),
+                    )
                 )
                 if parent:
                     return
@@ -371,9 +340,7 @@ class InstallManager(IInstallManager):
                 environment = self.album.environment_manager().set_environment(
                     resolve_result
                 )
-                self._run_solution_uninstall_routine(
-                    resolve_result.loaded_solution(), environment
-                )
+                self._run_solution_uninstall_routine(resolve_result)
 
             if not parent:
                 self.album.environment_manager().remove_environment(environment)
@@ -427,42 +394,33 @@ class InstallManager(IInstallManager):
         return children
 
     def _run_solution_uninstall_routine(
-        self, active_solution: ISolution, environment: IEnvironment
+        self, resolve_result: ICollectionSolution
     ) -> None:
-        if active_solution.setup().uninstall and callable(
-            active_solution.setup().uninstall
+        if resolve_result.loaded_solution().setup().uninstall and callable(
+            resolve_result.loaded_solution().setup().uninstall
         ):
-            module_logger().debug("Calling uninstall routine specified in solution...")
-            album_logging.configure_logging("uninstall")
-
-            env_variables = os.environ.copy()
-            env_variables[
-                DefaultValuesRunner.env_variable_action.value
-            ] = ISolution.Action.UNINSTALL.name
-            env_variables[DefaultValuesRunner.env_variable_installation.value] = str(
-                active_solution.installation().installation_path()
+            self.album.script_manager().run_solution_script(
+                resolve_result, ISolution.Action.UNINSTALL
             )
-            env_variables[DefaultValuesRunner.env_variable_package.value] = str(
-                active_solution.installation().package_path()
-            )
-            env_variables[DefaultValuesRunner.env_variable_environment.value] = str(
-                environment.path()
-            )
-            env_variables[DefaultValuesRunner.env_variable_logger_level.value] = str(
-                album_logging.get_loglevel_name()
-            )
-
-            self.album.environment_manager().run_script(
-                environment,
-                str(active_solution.script()),
-                environment_variables=env_variables,
-            )
-
-            album_logging.pop_active_logger()
         else:
             module_logger().debug(
                 'No "uninstall" routine configured for solution "%s"! Skipping...'
-                % active_solution.coordinates().name()
+                % resolve_result.loaded_solution().coordinates().name()
+            )
+
+    def _run_solution_install_routine(
+        self, resolve_result: ICollectionSolution
+    ) -> None:
+        if resolve_result.loaded_solution().setup().install and callable(
+            resolve_result.loaded_solution().setup().install
+        ):
+            self.album.script_manager().run_solution_script(
+                resolve_result, ISolution.Action.INSTALL
+            )
+        else:
+            module_logger().debug(
+                'No "install" routine configured for solution "%s". Skipping...'
+                % resolve_result.loaded_solution().coordinates().name()
             )
 
     def _remove_dependencies(self, solution: ISolution, rm_dep: bool = False) -> None:

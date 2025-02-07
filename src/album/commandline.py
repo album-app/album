@@ -5,9 +5,6 @@ import sys
 import tempfile
 from argparse import Namespace
 
-from album.runner.album_logging import get_active_logger
-from album.runner.core.model.solution import Solution
-
 from album.api import Album
 from album.core.utils.operations.solution_operations import (
     get_deploy_dict,
@@ -19,6 +16,8 @@ from album.core.utils.operations.view_operations import (
     get_solution_as_string,
     get_updates_as_string,
 )
+from album.runner.album_logging import get_active_logger
+from album.runner.core.model.solution import Solution
 
 module_logger = get_active_logger
 
@@ -85,7 +84,7 @@ def undeploy(album_instance: Album, args: Namespace):
 
 def install(album_instance: Album, args: Namespace):
     """Call function corresponding to the `install` subcommand of `album`."""
-    album_instance.install(str(args.path), args.allow_unsafe, sys.argv)
+    album_instance.install(str(args.path), args.allow_recursive, sys.argv)
 
 
 def uninstall(album_instance: Album, args: Namespace):

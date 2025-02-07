@@ -1,9 +1,6 @@
 import sys
-import unittest
-from unittest.mock import patch
-
-from album.environments.utils.subcommand import SubProcessError
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
+from unittest.mock import patch
 
 
 class TestIntegrationTest(TestIntegrationCoreCommon):
@@ -22,13 +19,15 @@ class TestIntegrationTest(TestIntegrationCoreCommon):
         self.album_controller.test_manager().test(path)
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         self.assertIn(
             'WARNING No "test" routine configured for solution',
-            self.captured_output.getvalue(),
+            self.get_logs()[-1],
         )
 
-    @patch("album.core.controller.environment_manager.EnvironmentManager.get_environment_path")
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
     def test_test(self, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
@@ -44,12 +43,12 @@ class TestIntegrationTest(TestIntegrationCoreCommon):
         self.album_controller.test_manager().test(path)
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         # NOTE: assertion also happens in test routine!
 
         # todo: change this. first assure subprocess logging is possible in windows
         if sys.platform == "linux" or sys.platform == "darwin":
-            log = self.captured_output.getvalue()
+            log = self.get_logs_as_string()
             self.assertIn("solution6_noparent_test_pre_test", log)
             self.assertIn("solution6_noparent_test_run", log)
             self.assertIn("solution6_noparent_test_close", log)

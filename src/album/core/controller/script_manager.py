@@ -1,21 +1,20 @@
 import argparse
 import os
-from importlib.metadata import version as importlib_version
+import platform
+from pathlib import Path
 from queue import Empty, Queue
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from album.runner import album_logging
 from album.runner.album_logging import get_active_logger
 from album.runner.core.api.model.solution import ISolution
 from album.runner.core.default_values_runner import DefaultValuesRunner
-from packaging import version
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.script_manager import IScriptManager
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.model.default_values import DefaultValues
 from album.core.model.script_queue_entry import ScriptQueueEntry
-from album.core.utils.operations.solution_operations import get_parent_dict
 
 module_logger = get_active_logger
 
@@ -25,38 +24,16 @@ class ScriptManager(IScriptManager):
         self.album = album
 
     def run_solution_script(
-        self, resolve_result: ICollectionSolution, solution_action: ISolution.Action
-    ):
+        self,
+        resolve_result: ICollectionSolution,
+        solution_action: ISolution.Action,
+        pipe_output: bool = True,
+    ) -> None:
         queue: Queue = Queue()
         self.build_queue(resolve_result, queue, solution_action, False, [""])
-        script_queue_entry = queue.get(block=False)
+        self.run_queue(queue, pipe_output=pipe_output)
 
-        env_variables = os.environ.copy()
-        env_variables[
-            DefaultValuesRunner.env_variable_action.value
-        ] = script_queue_entry.solution_action.name
-        env_variables[DefaultValuesRunner.env_variable_installation.value] = str(
-            script_queue_entry.solution_installation_path
-        )
-        env_variables[DefaultValuesRunner.env_variable_package.value] = str(
-            script_queue_entry.solution_package_path
-        )
-        env_variables[DefaultValuesRunner.env_variable_environment.value] = str(
-            script_queue_entry.environment.path()
-        )
-        env_variables[DefaultValuesRunner.env_variable_logger_level.value] = str(
-            album_logging.get_loglevel_name()
-        )
-
-        self.album.environment_manager().run_script(
-            script_queue_entry.environment,
-            script_queue_entry.script,
-            pipe_output=False,
-            argv=script_queue_entry.args,
-            environment_variables=env_variables,
-        )
-
-    def run_queue(self, queue: Queue):
+    def run_queue(self, queue: Queue, pipe_output: bool = True) -> None:
         module_logger().debug("Running queue...")
         try:
             while True:
@@ -64,7 +41,7 @@ class ScriptManager(IScriptManager):
                 module_logger().debug(
                     'Running task "%s"...' % script_queue_entry.coordinates.name()
                 )
-                self._run_in_environment(script_queue_entry)
+                self._run_in_environment(script_queue_entry, pipe_output=pipe_output)
                 module_logger().debug(
                     'Finished running task "%s"!'
                     % script_queue_entry.coordinates.name()
@@ -83,27 +60,13 @@ class ScriptManager(IScriptManager):
     ) -> None:
         if argv is None:
             argv = [""]
-        solution = collection_solution.loaded_solution()
+        module_logger().debug("Adding standalone to queue...")
+        queue.put(
+            self._create_solution_script(collection_solution, argv, solution_action)
+        )
+        module_logger().debug("Added standalone to queue.")
 
-        parent = get_parent_dict(solution)
-        if parent:
-            module_logger().debug("Adding standalone solution with parent to queue...")
-            # create script with parent
-            queue.put(
-                self._create_solution_run_with_parent_script_standalone(
-                    collection_solution, argv, solution_action
-                )
-            )
-        else:
-            module_logger().debug("Adding standalone to queue...")
-            # create script without parent
-            queue.put(
-                self._create_solution_run_script_standalone(
-                    collection_solution, argv, solution_action
-                )
-            )
-
-    def _create_solution_run_script_standalone(
+    def _create_solution_script(
         self,
         collection_solution: ICollectionSolution,
         args: List[str],
@@ -115,15 +78,6 @@ class ScriptManager(IScriptManager):
         )
 
         self._print_credit([collection_solution.loaded_solution()])
-        environment = self.album.environment_manager().set_environment(
-            collection_solution
-        )
-        installation_path = (
-            collection_solution.loaded_solution().installation().installation_path()
-        )
-        package_path = (
-            collection_solution.loaded_solution().installation().package_path()
-        )
 
         # check if album core solution API < solution API
         solution_api_version = (
@@ -132,145 +86,73 @@ class ScriptManager(IScriptManager):
             else DefaultValues.runner_api_package_version.value
         )
 
-        core_version = importlib_version(DefaultValues.runner_api_package_name.value)
+        _ = self.album.migration_manager().is_core_api_outdated(solution_api_version)
+        _ = self.album.migration_manager().is_solution_api_outdated(
+            solution_api_version
+        )
 
-        if version.parse(core_version) < version.parse(solution_api_version):
-            module_logger().warning(
-                f"Solution API version {solution_api_version} is higher than the album core solution API version"
-                f" {core_version}. Consider updating your album installation."
+        # manage backwards compatibility when necessary
+        script_path = (
+            ScriptManager._handle_old_runner_api_version(collection_solution)
+            if self.album.migration_manager().is_migration_needed_solution_api(
+                solution_api_version
             )
+            else collection_solution.loaded_solution().script()
+        )
 
         return ScriptQueueEntry(
             collection_solution.coordinates(),
-            collection_solution.loaded_solution().script(),
+            script_path,
             solution_action,
             args,
-            environment=environment,
-            solution_installation_path=installation_path,
-            solution_package_path=package_path,
+            environment=self.album.environment_manager().set_environment(
+                collection_solution
+            ),
+            solution_installation_path=collection_solution.loaded_solution()
+            .installation()
+            .installation_path(),
+            solution_package_path=collection_solution.loaded_solution()
+            .installation()
+            .package_path(),
         )
 
-    def _create_solution_run_with_parent_script_standalone(
-        self,
+    @staticmethod
+    def _handle_old_runner_api_version(
         collection_solution: ICollectionSolution,
-        args: List[str],
-        solution_action: ISolution.Action,
-    ) -> ScriptQueueEntry:
-        environment = self.album.environment_manager().set_environment(
-            collection_solution
+    ) -> Path:
+        script_path = (
+            collection_solution.loaded_solution().installation().internal_cache_path()
+            / "solution_wrapper.py"
         )
-        active_solution = collection_solution.loaded_solution()
+        current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
-        # TODO this should probably move into the runner
-        self._print_credit([active_solution])
-
-        return ScriptQueueEntry(
-            collection_solution.loaded_solution().coordinates(),
-            collection_solution.loaded_solution().script(),
-            solution_action,
-            args,
-            environment,
-            active_solution.installation().installation_path(),
-            active_solution.installation().package_path(),
-        )
-
-    def __parse_args(self, active_solution: ISolution, args: List[str]):
-        parser = argparse.ArgumentParser()
-
-        class FileAction(argparse.Action):
-            def __init__(self, option_strings, dest, nargs=None, **kwargs):
-                if nargs is not None:
-                    raise ValueError("nargs not allowed")
-                super().__init__(option_strings, dest, **kwargs)
-
-            def __call__(self, p, namespace, values, option_string=None):
-                setattr(
-                    namespace,
-                    self.dest,
-                    active_solution.get_arg(self.dest)["action"](values),
-                )
-
-        for element in active_solution.setup()["args"]:
-            if "action" in element.keys():
-                parser.add_argument("--" + element["name"], action=FileAction)
-            else:
-                parser.add_argument("--" + element["name"])
-
-        return parser.parse_known_args(args=args)
-
-    def _resolve_args(
-        self,
-        parent_solution: ISolution,
-        steps_solution: List[ISolution],
-        steps: List[Dict[str, Any]],
-        step_solution_parsed_args: List[argparse.Namespace],
-        args=None,
-    ) -> Tuple[List[str], List[List[str]]]:
-        args = [] if args is None else args
-        parsed_parent_args: List[str] = []
-        parsed_steps_args_list = []
-
-        module_logger().debug("Parsing arguments...")
-
-        # iterate over all steps and parse arguments together
-        for idx, step_solution in enumerate(steps_solution):
-            step_parser = argparse.ArgumentParser()
-
-            # the steps description
-            step = steps[idx]
-
-            if step:  # case steps argument resolving
-                step_args = self._get_args(step, step_solution_parsed_args[0])
-            else:  # case single step solution
-                step_args = args
-
-            # add parent arguments to the step album object arguments
-            parent_dict = get_parent_dict(step_solution)
-            if parent_dict:
-                if "args" in parent_dict:
-                    for param in parent_dict["args"]:
-                        step_args.insert(0, f"--{param['name']}={str(param['value'])}")
-
-            # add parent arguments
-            if "args" in parent_solution.setup():
-                [
-                    step_parser.add_argument("--" + element["name"])
-                    for element in parent_solution.setup()["args"]
-                ]
-
-            # parse all known arguments
-            args_known, args_unknown = step_parser.parse_known_args(step_args)
-
-            # only set parents args if not already set
-            if not parsed_parent_args:
-                parsed_parent_args = [""]
-                parsed_parent_args.extend(
-                    [
-                        "--" + arg_name + "=" + getattr(args_known, arg_name)
-                        for arg_name in vars(args_known)
-                    ]
-                )
-                module_logger().debug(
-                    'For step "%s" set parent arguments to %s...'
-                    % (step_solution.coordinates().name(), parsed_parent_args)
-                )
-
-            # args_unknown are step args
-            parsed_steps_args_list.append(args_unknown)
-            module_logger().debug(
-                'For step "%s" set step arguments to %s...'
-                % (step_solution.coordinates().name(), args_unknown)
+        with open(script_path, "w") as f:
+            # write the backup script
+            f.write(
+                Path(current_path)
+                .joinpath("..", "utils", "runner", "backwards_compatibility_0_6_1.py")
+                .read_text()
+            )
+            # write the solution script
+            f.write(
+                'exec(open(r"%s").read())'
+                % collection_solution.loaded_solution().script()
             )
 
-        return parsed_parent_args, parsed_steps_args_list
+        return script_path
 
-    def _run_in_environment(self, script_queue_entry: ScriptQueueEntry) -> None:
+    def _run_in_environment(
+        self, script_queue_entry: ScriptQueueEntry, pipe_output: bool = True
+    ) -> None:
         module_logger().debug(
             'Running script in environment of solution "%s"...'
             % script_queue_entry.coordinates.name()
         )
 
-        env_variables = os.environ.copy()
+        # todo: on windows necessary to work - on linux not
+        env_variables = {}
+        if platform.system() == "Windows":
+            env_variables = os.environ.copy()
         env_variables[
             DefaultValuesRunner.env_variable_action.value
         ] = script_queue_entry.solution_action.name
@@ -291,6 +173,7 @@ class ScriptManager(IScriptManager):
             script_queue_entry.environment,
             str(script_queue_entry.script),
             argv=script_queue_entry.args,
+            pipe_output=pipe_output,
             environment_variables=env_variables,
         )
         module_logger().debug(
