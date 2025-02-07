@@ -165,6 +165,6 @@ class TestIntegrationEnvironmentPreparation(TestIntegrationCoreCommon):
 
         # assert warning
         self.assertIn(
-            "Potentially unsafe installation of album in album detected!",
+            "Potentially incompatible installation of album in album detected!",
             self.get_logs()[-1],
         )
