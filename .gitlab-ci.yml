@@ -210,7 +210,7 @@ gitlab pypi deploy:
       artifacts: true
   script:
     - echo "deploying gitlab pypi version $VERSION"
-    - pip install twine
+    - pip install twine setuptools
     - python setup.py sdist bdist_wheel
     - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
   rules:
@@ -234,7 +234,7 @@ pypi deploy:
     - echo "deploying pypi version $VERSION"
     - echo "using pypi deploy user $PYPI_DEPLOY_USER"
   script:
-    - pip install twine
+    - pip install twine setuptools
     - python setup.py sdist bdist_wheel
     - TWINE_PASSWORD=$PYPI_DEPLOY_TOKEN TWINE_USERNAME=$PYPI_DEPLOY_USER python -m twine upload --repository-url https://upload.pypi.org/legacy/  dist/*
   rules:
