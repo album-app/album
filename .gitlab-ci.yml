@@ -31,7 +31,7 @@
     - '& $7ZIP_EXE x micromamba.tar -ttar -aoa -r Library\bin\micromamba.exe $("-o" + (Join-Path -Path (Get-Location) -ChildPath micromamba_installation))'
     - "$progressPreference = $oldProgressPreference"
     - 'Get-ChildItem Env: | Where-Object { $_.Name -match "album" -or $_.Value -match "album" } | Format-Table -AutoSize'
-    - '.\micromamba_installation\Library\bin\micromamba.exe create -y -n album -c conda-forge python=$env:TEST_PYTHON_VERSION' # created in .\micromamba\envs\album
+    - '.\micromamba_installation\Library\bin\micromamba.exe create -y -n album python=$env:TEST_PYTHON_VERSION -c conda-forge' # created in .\micromamba\envs\album
     - 'Write-Output "CI_COMMIT_REF_NAME: $env:CI_COMMIT_REF_NAME"'
     #- "$Env:MAMBA_ROOT_PREFIX=(Join-Path -Path (Get-Location) -ChildPath micromamba)"
     # The following lines allow to install the dev version of the API and envs in the album environment, based on the current branch name
@@ -205,7 +205,7 @@ gitlab release:
     ref: "$CI_COMMIT_SHA"
 
 gitlab pypi deploy:
-  image: python:latest
+  image: python:$TEST_PYTHON_VERSION
   stage: deploy
   tags:
     - DeployRunner
@@ -227,7 +227,7 @@ gitlab pypi deploy:
         - setup.cfg
 
 pypi deploy:
-  image: python:latest
+  image: python:$TEST_PYTHON_VERSION
   stage: deploy
   tags:
     - DeployRunner
