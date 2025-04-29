@@ -1,10 +1,9 @@
 """Argument parsing for the album command line interface."""
+
 import argparse
 import sys
 import traceback
-
-import pkg_resources
-from album.environments.utils.subcommand import SubProcessError
+from importlib.metadata import entry_points
 
 from album import core
 from album.api import Album
@@ -25,6 +24,7 @@ from album.commandline import (
     update,
     upgrade,
 )
+from album.environments.utils.subcommand import SubProcessError
 from album.runner.album_logging import (
     LogLevel,
     debug_settings,
@@ -109,7 +109,7 @@ def create_parser():
     """Create a parser for all known album arguments."""
     parser = AlbumParser()
     parser_creators = []
-    for entry_point in pkg_resources.iter_entry_points("console_parsers_album"):
+    for entry_point in entry_points(group="console_parsers_polarityjam"):
         try:
             parser_creators.append(entry_point.load())
         except Exception as e:
