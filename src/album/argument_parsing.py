@@ -114,7 +114,7 @@ def create_parser():
             parser_creators.append(entry_point.load())
         except Exception as e:
             get_active_logger().error(
-                "Cannot load console parser %s" % entry_point.name
+                f"Cannot load console parser {entry_point.name}. Error: {str(e)}"
             )
             get_active_logger().debug(str(e))
     for parse_creator in parser_creators:
