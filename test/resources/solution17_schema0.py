@@ -20,7 +20,7 @@ setup(
     tags=["tag1", "tag2"],
     license="license",
     covers=[],
-    album_api_version="0.4.1",
+    album_api_version="0.4.1",  # deliberately set to 0.4.1, do not change, tests old solution schema
     args=[
         {
             "name": "testArg1",

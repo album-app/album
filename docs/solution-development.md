@@ -48,7 +48,6 @@ from album.runner.api import setup
 
 env_file = """channels:
  - conda-forge
- - defaults
 dependencies:
  - python=3.6
 """
@@ -214,7 +213,7 @@ album run [path-to-solution] --my-parameter [parameter-value]
 ```
 
 ## Setup parameters
-The setup parameters are derived from the [bioimage.io](https://bioimage.io) specification. We provide an [RDF schema](https://gitlab.com/album-app/album/-/blob/main/src/album/core/schema/solution_schema_0.json).
+The setup parameters are derived from the [bioimage.io](https://bioimage.io) specification. We provide an [RDF schema](https://gitlab.com/album-app/album/-/blob/main/src/album/core/schema/solution_schema_0.4.2.json).
 
 ### Required solution parameters
 

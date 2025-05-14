@@ -1,19 +1,22 @@
 import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-
-from album.core.api.model.catalog_updates import ChangeType
-from album.core.model.catalog import Catalog
-from album.core.model.catalog_updates import SolutionChange
-from album.core.model.collection_index import CollectionIndex
-from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import get_link_target
-from album.runner.core.model.coordinates import Coordinates
-from album.runner.core.model.solution import Solution
 from test.unit.core.controller.collection.test_collection_manager import (
     TestCatalogAndCollectionCommon,
 )
 from test.unit.test_unit_core_common import EmptyTestClass
+from unittest.mock import MagicMock, create_autospec, patch
+
+from album.runner.core.model.coordinates import Coordinates
+from album.runner.core.model.solution import Solution
+
+from album.core.api.model.catalog_updates import ChangeType
+from album.core.model.catalog import Catalog
+from album.core.model.catalog_index import CatalogIndex
+from album.core.model.catalog_updates import SolutionChange
+from album.core.model.collection_index import CollectionIndex
+from album.core.model.default_values import DefaultValues
+from album.core.model.resolve_result import ResolveResult
+from album.core.utils.operations.file_operations import get_link_target
 
 
 class TestSolutionHandler(TestCatalogAndCollectionCommon):
@@ -29,7 +32,11 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         catalog_path = Path(self.tmp_dir.name).joinpath("testPath")
         catalog_path.mkdir(parents=True)
 
-        self.catalog = Catalog(0, "test", src=catalog_src, path=catalog_path)
+        self.catalog = Catalog(0, "test", src=str(catalog_src), path=str(catalog_path))
+        self.catalog_index = CatalogIndex(
+            "n", Path(self.tmp_dir.name).joinpath("album_catalog_index.db")
+        )
+        self.catalog._catalog_index = self.catalog_index
         self.solution_handler = (
             self.album_controller.collection_manager().solution_handler
         )
@@ -39,11 +46,17 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
 
     @patch("album.core.controller.collection.solution_handler.copy")
     @patch("album.core.controller.collection.solution_handler.copy_folder")
-    def test_add_or_replace_folder_call(self, copy_folder_mock, copy_mock):
-        self.setup_solution_no_env()
+    @patch("album.core.controller.collection.solution_handler.get_deploy_dict")
+    def test_add_or_replace_folder_call(
+        self, get_deploy_dict_mock, copy_folder_mock, copy_mock
+    ):
+        get_deploy_dict_mock.return_value = self.solution_default_dict
 
         catalog = EmptyTestClass()
         catalog.catalog_id = lambda: 5
+        solution = ResolveResult(
+            Path("path").joinpath("solution.py"), catalog, None, None
+        )
 
         # mock
         add_or_replace_solution = MagicMock()
@@ -51,23 +64,61 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
             add_or_replace_solution
         )
 
-        get_solution_path = MagicMock(return_value="myCopyPath")
+        get_solution_path = MagicMock(return_value=Path("myCopyPath"))
         self.solution_handler.get_solution_package_path = get_solution_path
 
         # call
-        self.solution_handler.add_or_replace(
-            catalog, self.active_solution, self.tmp_dir.name
-        )
+        self.solution_handler.add_or_replace(catalog, solution)
 
         # assert
         add_or_replace_solution.assert_called_once_with(
-            5, self.active_solution.coordinates(), self.solution_default_dict
+            5, None, self.solution_default_dict
         )
         get_solution_path.assert_called_once_with(
             catalog, Coordinates("tsg", "tsn", "tsv")
         )
         copy_folder_mock.assert_called_once_with(
-            self.tmp_dir.name, "myCopyPath", copy_root_folder=False
+            Path("path"), Path("myCopyPath"), copy_root_folder=False
+        )
+        copy_mock.assert_not_called()
+
+    @patch("album.core.controller.collection.solution_handler.copy")
+    @patch("album.core.controller.collection.solution_handler.copy_folder")
+    @patch("album.core.controller.collection.solution_handler.get_deploy_dict")
+    def test_add_or_replace_file_call(
+        self, get_deploy_dict_mock, copy_folder_mock, copy_mock
+    ):
+        self.setup_solution_no_env()
+
+        get_deploy_dict_mock.return_value = self.solution_default_dict
+
+        catalog = EmptyTestClass()
+        catalog.catalog_id = lambda: 5
+        self.active_solution = ResolveResult(
+            "path", catalog, None, None, single_file_solution=True
+        )
+
+        # mock
+        add_or_replace_solution = MagicMock()
+        self.album_controller.collection_manager().get_collection_index().add_or_replace_solution = (
+            add_or_replace_solution
+        )
+
+        get_solution_path = MagicMock(return_value=Path("myCopyPath"))
+        self.solution_handler.get_solution_package_path = get_solution_path
+
+        # call
+        self.solution_handler.add_or_replace(catalog, self.active_solution)
+
+        # assert
+        add_or_replace_solution.assert_called_once_with(
+            5, solution.coordinates(), self.solution_default_dict
+        )
+        get_solution_path.assert_called_once_with(
+            catalog, Coordinates("tsg", "tsn", "tsv")
+        )
+        copy_folder_mock.assert_called_once_with(
+            solution.path(), Path("myCopyPath"), copy_root_folder=False
         )
         copy_mock.assert_not_called()
 
@@ -75,6 +126,9 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
     @patch("album.core.controller.collection.solution_handler.copy_folder")
     def test_add_or_replace_file_call(self, copy_folder_mock, copy_mock):
         self.setup_solution_no_env()
+        solution = create_autospec(ResolveResult)
+        solution.loaded_solution = lambda: self.active_solution
+        solution.is_single_file = lambda: True
 
         catalog = EmptyTestClass()
         catalog.catalog_id = lambda: 5
@@ -89,20 +143,18 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         self.solution_handler.get_solution_package_path = get_solution_path
 
         # call
-        self.solution_handler.add_or_replace(
-            catalog, self.active_solution, self.closed_tmp_file.name
-        )
+        self.solution_handler.add_or_replace(catalog, solution)
 
         # assert
         add_or_replace_solution.assert_called_once_with(
-            5, self.active_solution.coordinates(), self.solution_default_dict
+            5, solution.coordinates(), self.solution_default_dict
         )
         get_solution_path.assert_called_once_with(
             catalog, Coordinates("tsg", "tsn", "tsv")
         )
         copy_folder_mock.assert_not_called()
         copy_mock.assert_called_once_with(
-            self.closed_tmp_file.name, Path("myCopyPath").joinpath("solution.py")
+            solution.path(), Path("myCopyPath").joinpath("solution.py")
         )
 
     def test_add_to_cache_catalog(self):
@@ -119,12 +171,10 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         )
 
         # call
-        self.solution_handler.add_to_cache_catalog(self.active_solution, "mypath")
+        self.solution_handler.add_to_cache_catalog(self.active_solution)
 
         # assert
-        add_or_replace.assert_called_once_with(
-            cache_catalog, self.active_solution, "mypath"
-        )
+        add_or_replace.assert_called_once_with(cache_catalog, self.active_solution)
 
     def test_set_parent(self):
         # prepare
@@ -512,10 +562,10 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
     def test_retrieve_solution(self, dl_mock):
         # prepare
         self.catalog = Catalog(
-            self.catalog.catalog_id(),
-            self.catalog.name(),
-            self.catalog.path(),
-            "http://NonsenseUrl.git",
+            catalog_id=self.catalog.catalog_id(),
+            name=self.catalog.name(),
+            path=str(self.catalog.path()),
+            src="http://NonsenseUrl.git",
         )
         self.catalog.is_cache = MagicMock(return_value=False)
         get_solution_package_path = MagicMock(return_value=Path("somewhere"))

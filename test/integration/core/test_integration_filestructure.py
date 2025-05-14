@@ -1,11 +1,12 @@
 import platform
 from os import listdir
 from pathlib import Path
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 from unittest.mock import patch
 
-from album.core.model.environment import Environment
+from album.environments.model.environment import Environment
+
 from album.core.utils.operations.file_operations import get_link_target
-from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
 class TestIntegrationFileStructure(TestIntegrationCoreCommon):
@@ -15,7 +16,9 @@ class TestIntegrationFileStructure(TestIntegrationCoreCommon):
     def tearDown(self) -> None:
         super().tearDown()
 
-    @patch("album.core.controller.conda_manager.CondaManager.get_environment_path")
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
     @patch(
         "album.core.controller.environment_manager.EnvironmentManager.install_environment"
     )
@@ -28,25 +31,28 @@ class TestIntegrationFileStructure(TestIntegrationCoreCommon):
     def test_file_structure(self, _, __, install_environment, get_environment_path):
         get_environment_path.return_value = (
             self.album_controller.environment_manager()
+            .get_environment_handler()
             .get_package_manager()
             .get_active_environment_path()
         )
         environment = Environment(
             {},
             self.album_controller.environment_manager()
+            .get_environment_handler()
             .get_package_manager()
             .get_active_environment_name(),
             None,
         )
         environment.set_path(
             self.album_controller.environment_manager()
+            .get_environment_handler()
             .get_package_manager()
             .get_active_environment_path()
         )
         install_environment.return_value = environment
 
         base = Path(self.album_controller.configuration().base_cache_path())
-        self.assertFalse(base.joinpath("lnk").exists())
+        self.assertTrue(base.joinpath("lnk").exists())
 
         # install and uninstall working solution
         solution = self.get_test_solution_path("solution11_minimal.py")

@@ -1,4 +1,5 @@
 from pathlib import Path
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 from git import GitCommandError
 
@@ -7,7 +8,6 @@ from album.core.utils.operations.git_operations import (
     clone_repository,
     create_bare_repository,
 )
-from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
 class TestIntegrationClone(TestIntegrationCoreCommon):
@@ -19,7 +19,7 @@ class TestIntegrationClone(TestIntegrationCoreCommon):
 
     def test_clone_solution(self):
         input_path = self.get_test_solution_path("solution0_dummy_no_routines.py")
-        self.fake_install(input_path)
+        self.fake_install(input_path, create_environment=False)
         target_dir = Path(self.tmp_dir.name).joinpath("my_catalog")
 
         # run
@@ -28,7 +28,7 @@ class TestIntegrationClone(TestIntegrationCoreCommon):
         )
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         self.assertTrue(
             target_dir.joinpath(
                 "my_solution", DefaultValues.solution_default_name.value
@@ -47,7 +47,7 @@ class TestIntegrationClone(TestIntegrationCoreCommon):
         )
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         self.assertTrue(
             target_dir.joinpath(
                 "my_solution", DefaultValues.solution_default_name.value
@@ -63,11 +63,11 @@ class TestIntegrationClone(TestIntegrationCoreCommon):
         )
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         self.assertIn(
             'Initialized new catalog "my_catalog" from template "catalog" in %s'
             % target_path,
-            self.captured_output.getvalue(),
+            self.get_logs()[-1],
         )
         with clone_repository(
             target_path, Path(self.tmp_dir.name).joinpath("tmp_repo")
@@ -92,11 +92,11 @@ class TestIntegrationClone(TestIntegrationCoreCommon):
         )
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         self.assertIn(
             'Initialized new catalog "my_catalog" from template "catalog" in %s'
             % target_path,
-            self.captured_output.getvalue(),
+            self.get_logs()[-1],
         )
         with clone_repository(
             target_path, Path(self.tmp_dir.name).joinpath("tmp_repo")

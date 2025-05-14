@@ -1,37 +1,38 @@
 import os
 from enum import Enum
 from pathlib import Path
+from typing import Dict, Final, List
 
 import album.core
+
+# outside of the class to be able to use it in the default values
+DEFAULT_SOLUTION_PYTHON_VERSION: Final[str] = "3.9"
+
+# outside of the class. Dictionary as enum values are not hashable
+# always use with deepcopy, as it is mutable
+DEFAULT_SOLUTION_ENV_CONTENT: Final[Dict[str, List[str]]] = {
+    "channels": ["conda-forge"],
+    "dependencies": ["python=%s" % DEFAULT_SOLUTION_PYTHON_VERSION],
+}
 
 
 class DefaultValues(Enum):
     """Add an entry here to initialize default attributes for a album framework installation instance."""
 
     album_cite_doi = "arXiv:2110.00601"  # album DOI
-    album_cite_text = "Albrecht, Schmidt, Harrington. Album: a framework for scientific data processing with software solutions of heterogeneous tools."  # album text
+    album_cite_text = "Albrecht, Schmidt, Harrington. Album: a framework for scientific data processing with software solutions of heterogeneous tools."  # noqa: E501
     album_cite_url = "https://album.solutions"  # album url
 
     # runner
-    runner_api_packet_version = "0.5.1"  # set to None to use with url
-    runner_api_packet_name = "album-runner"  # can also point to zip/url like: https://gitlab.com/album-app/album-runner/-/archive/main/album-runner-main.zip
-    runner_pip_version = "pip=21.0"
-    first_runner_conda_version = "0.5.1"
-    default_solution_python_version = "3.9"
-
-    # micromamba
-    micromamba_url_linux_X86_64 = "https://micro.mamba.pm/api/micromamba/linux-64/1.5.6"
-    micromamba_url_linux_ARM64 = (
-        "https://micro.mamba.pm/api/micromamba/linux-aarch64/1.5.6"
+    runner_api_package_version = (
+        "0.6.1"  # set explicitly to None to install no runner_api_package
     )
-    micromamba_url_linux_POWER = (
-        "https://micro.mamba.pm/api/micromamba/linux-ppc64le/1.5.6"
+    runner_api_package_name = "album-solution-api"
+    runner_pip_version = "pip"
+    first_album_solution_api_version = (
+        "0.6.1"  # first version this album installation knows
     )
-
-    micromamba_url_osx_X86_64 = "https://micro.mamba.pm/api/micromamba/osx-64/1.5.6"
-    micromamba_url_osx_ARM64 = "https://micro.mamba.pm/api/micromamba/osx-arm64/1.5.6"
-
-    micromamba_url_windows = "https://gitlab.com/album-app/plugins/album-package/-/raw/micromamba_installer/win-64_micromamba-1.5.6-0.zip?ref_type=heads&inline=false"
+    default_solution_python_version = DEFAULT_SOLUTION_PYTHON_VERSION
 
     # templates
     catalog_template_url = "https://gitlab.com/album-app/catalogs/templates"  # base URL of available catalog templates
@@ -76,7 +77,7 @@ class DefaultValues(Enum):
     catalog_index_db_version = (
         "0.1.0"  # the version of the catalog database created by this album version
     )
-    catalog_solution_list_file_name = "album_solution_list.json"  # the default file name for exporting the list of solutions of a catalog
+    catalog_solution_list_file_name = "album_solution_list.json"  # the default file name for exporting the list of solutions of a catalog  # noqa: E501
     catalog_folder_prefix = (
         "catalogs"  # base folder prefix where all not local catalogs live
     )
@@ -90,9 +91,8 @@ class DefaultValues(Enum):
     catalog_solutions_prefix = "solutions"  # base folder prefix where solutions live
     cache_path_download_prefix = "downloads"  # base folder prefix where downloads live
     cache_path_envs_prefix = "envs"  # base folder prefix where environments live in
-    micromamba_base_path = (
-        "micromamba"  # base folder prefix where micromamba is installed into
-    )
+
+    shared_globally_suffix = "shared_downloads"  # suffix for shared globally downloads
 
     # solutions
     solution_default_name = (
@@ -113,23 +113,15 @@ class DefaultValues(Enum):
         "inst"  # short name of the folder linked to from the installations
     )
 
-    # solution specific files living in the installations folder
-    solution_app_prefix = "app"  # solution specific app files
-    solution_data_prefix = "data"  # solution specific data files
-    solution_internal_cache_prefix = (
-        "icache"  # solution specific album internal cache files
-    )
-    solution_user_cache_prefix = (
-        "ucache"  # solution specific user cache files, accessible via runner API
-    )
-
     # environment
     default_environment = (
         "album"  # default environment name the album framework operates from
     )
 
     # album
-    app_data_dir = Path.home().joinpath(".album")  # base data path
+    app_data_dir = os.getenv(
+        "ALBUM_BASE_CACHE_PATH", Path.home().joinpath(".album")
+    )  # base data path
 
     # events
     before_run_event_name = "before-run"

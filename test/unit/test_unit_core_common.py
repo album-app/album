@@ -3,20 +3,20 @@ import os
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
+from test.test_common import TestCommon
 from typing import Generator
 from unittest.mock import patch
 
 import git
+from album.runner import album_logging
+from album.runner.album_logging import pop_active_logger
+from album.runner.core.model.solution import Solution
 
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove
-from album.runner import album_logging
-from album.runner.album_logging import pop_active_logger
-from album.runner.core.model.solution import Solution
-from test.test_common import TestCommon
 
 
 class TestUnitCoreCommon(TestCommon):
@@ -49,7 +49,7 @@ class TestUnitCoreCommon(TestCommon):
             "name": "tsn",
             "description": "d1",
             "version": "tsv",
-            "album_api_version": "0.5.1",
+            "album_api_version": "0.6.1",
             "album_version": "mhv1",
             "license": "l1",
             "changelog": "ch1",
@@ -63,6 +63,30 @@ class TestUnitCoreCommon(TestCommon):
             "title": "t1",
             "timestamp": "",
             "custom": {"my_key": "my_value"},
+        }
+
+    @staticmethod
+    def get_solution_dict_with_dependecies():
+        return {
+            "group": "tsg",
+            "name": "tsn",
+            "description": "d1",
+            "version": "tsv",
+            "album_api_version": "0.6.1",
+            "album_version": "mhv1",
+            "license": "l1",
+            "changelog": "ch1",
+            "acknowledgement": "a1",
+            "solution_creators": ["a1", "a2"],
+            "cite": [{"text": "c1", "doi": "doi1", "url": "url1"}],
+            "tags": ["t1"],
+            "documentation": ["do1"],
+            "covers": [{"source": "co1", "description": ""}],
+            "args": [{"name": "a1", "type": "string", "description": ""}],
+            "title": "t1",
+            "timestamp": "",
+            "custom": {"my_key": "my_value"},
+            "dependencies": {},
         }
 
     def setup_catalog_no_git(self):

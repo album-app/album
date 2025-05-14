@@ -1,35 +1,40 @@
+"""Catalog class to represent a catalog in the Album system."""
 import os
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional, Tuple, List, Generator
+from typing import Dict, Generator, List, Optional, Tuple, Union
 
 import validators
+from album.environments.utils.file_operations import copy
+from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
-from git import Repo, GitCommandError
+from album.runner.core.api.model.solution import ISolution
+from album.runner.core.model.solution import Solution
+from git import GitCommandError, Repo
 
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.catalog_index import ICatalogIndex
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import copy, force_remove
+from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.git_operations import (
-    download_repository,
-    clone_repository_sparse,
     checkout_files,
+    clone_repository_sparse,
+    download_repository,
 )
-from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.core.utils.operations.solution_operations import get_deploy_dict
-from album.runner import album_logging
-from album.runner.core.api.model.solution import ISolution
-from album.runner.core.model.solution import Solution
 
 module_logger = album_logging.get_active_logger
 
 
 def retrieve_index_files_from_src(
-    src, tmp_dir: Path, branch_name="main"
+    src: str, tmp_dir: Path, branch_name: str = "main"
 ) -> Tuple[Path, Path]:
-    """Takes a src (path, or url) and retrieves the index files. Expects a git repository behind the src!"""
+    """Take a src (path, or url) and retrieves the index files.
+
+    Expects a git repository behind the src!
+
+    """
     tmp_dir = Path(tmp_dir)
     with clone_repository_sparse(src, branch_name, tmp_dir) as repo:
         # meta file - must be available
@@ -37,7 +42,6 @@ def retrieve_index_files_from_src(
             checkout_files(repo, [DefaultValues.catalog_index_metafile_json.value])
         except GitCommandError as e:
             raise FileNotFoundError("Could not retrieve meta file from source.") from e
-            raise FileNotFoundError("Could not retrieve meta file from source.") from e  # todo: own exception class
         try:
             # db file - optional
             checkout_files(repo, [DefaultValues.catalog_index_file_name.value])
@@ -52,15 +56,17 @@ def retrieve_index_files_from_src(
 
 
 class Catalog(ICatalog):
+    """Catalog class to represent a catalog in the Album system."""
+
     def __init__(
         self,
-        catalog_id,
-        name,
-        path,
-        src=None,
-        deletable=True,
-        branch_name="main",
-        catalog_type="direct",
+        catalog_id: Optional[int],
+        name: str,
+        path: str,
+        src: str = "",
+        deletable: bool = True,
+        branch_name: str = "main",
+        catalog_type: str = "direct",
     ):
         """Init routine.
 
@@ -85,7 +91,7 @@ class Catalog(ICatalog):
         self._catalog_id = catalog_id
         self._name = name
         self._src = src
-        self._version = None  # is set automatically with the index
+        self._version = ""  # is set automatically with the index
         self._catalog_index: Optional[ICatalogIndex] = None
         self._path = Path(path)
         self._branch_name = branch_name
@@ -104,20 +110,19 @@ class Catalog(ICatalog):
         self._type = catalog_type
 
         if self.is_local() and self._src:
-            self._src = Path(self._src).absolute()
+            self._src = str(Path(self._src).absolute())
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         return isinstance(other, ICatalog) and other.catalog_id() == self._catalog_id
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.dispose()
 
-    def dispose(self):
+    def dispose(self) -> None:
         if self._catalog_index is not None:
             self._catalog_index.close()
 
-    def is_cache(self):
-        """Returns Boolean indicating whether the catalog is used for caching only."""
+    def is_cache(self) -> bool:
         return (
             self._src is None
             or self.is_local()
@@ -125,13 +130,12 @@ class Catalog(ICatalog):
             and os.path.samefile(str(self._src), self._path)
         )
 
-    def is_local(self):
-        """Returns Boolean indicating whether the catalog is remote or local."""
+    def is_local(self) -> bool:
         return not self._src or (
             not validators.url(str(self._src)) and Path(self._src).exists()
         )
 
-    def update_index_cache_if_possible(self, tmp_dir):
+    def update_index_cache_if_possible(self, tmp_dir: str) -> bool:
         try:
             self.update_index_cache(tmp_dir)
         except GitCommandError as e:
@@ -149,7 +153,7 @@ class Catalog(ICatalog):
 
         return True
 
-    def update_index_cache(self, tmp_dir):
+    def update_index_cache(self, tmp_dir: str) -> bool:
         if self.is_cache():
             return False
 
@@ -160,7 +164,10 @@ class Catalog(ICatalog):
 
         return True
 
-    def add(self, active_solution: ISolution, force_overwrite=False):
+    def add(self, active_solution: ISolution, force_overwrite: bool = False) -> None:
+        if self._catalog_index is None:
+            raise RuntimeError("Catalog index not loaded!")
+
         solution_attrs = get_deploy_dict(active_solution)
 
         if active_solution.setup().doi:
@@ -190,7 +197,10 @@ class Catalog(ICatalog):
         self._catalog_index.save()
         self._catalog_index.export(self._solution_list_path)
 
-    def remove(self, coordinates: ICoordinates):
+    def remove(self, coordinates: ICoordinates) -> None:
+        if self._catalog_index is None:
+            raise RuntimeError("Catalog index not loaded!")
+
         solution_entry = self._catalog_index.remove_solution_by_group_name_version(
             coordinates
         )
@@ -199,17 +209,17 @@ class Catalog(ICatalog):
         else:
             module_logger().warning("Solution not found! Doing nothing...")
 
-    def _update_index_cache(self, tmp_dir):
+    def _update_index_cache(self, tmp_dir: str) -> bool:
         repo_dir = Path(tmp_dir).joinpath("repo")
         try:
             src, meta_src = retrieve_index_files_from_src(
-                self.src(), repo_dir, branch_name=self.branch_name()
+                str(self.src()), repo_dir, branch_name=self.branch_name()
             )
             return self._copy_index_to_cache(src, meta_src)
         finally:
             force_remove(repo_dir)
 
-    def _copy_index_to_cache(self, db_file, meta_file):
+    def _copy_index_to_cache(self, db_file: Path, meta_file: Path) -> bool:
         # check if meta information valid, only then continue
         if not meta_file.exists():
             raise FileNotFoundError("Could not find file %s..." % meta_file)
@@ -222,7 +232,7 @@ class Catalog(ICatalog):
 
         if db_file.exists():
             module_logger().debug(
-                "Copying index from %s to %s..." % (db_file, self._index_file_path)
+                f"Copying index from {db_file} to {self._index_file_path}..."
             )
             copy(db_file, self._index_file_path)
         else:
@@ -236,7 +246,10 @@ class Catalog(ICatalog):
 
     @contextmanager
     def retrieve_catalog(
-        self, path=None, force_retrieve=False, update=True
+        self,
+        path: Union[Path, None] = None,
+        force_retrieve: bool = False,
+        update: bool = True,
     ) -> Generator[Repo, None, None]:
         if self.is_cache():
             raise RuntimeError("Cannot retrieve a cache catalog as no source exists!")
@@ -244,41 +257,48 @@ class Catalog(ICatalog):
         path = Path(path) if path else self._path
 
         module_logger().debug(
-            "Trying to retrieve catalog %s to the path %s..." % (self._name, str(path))
+            "Trying to retrieve catalog {n} to the path {p}...".format(
+                n=self._name, p=str(path)
+            )
         )
         repo = download_repository(
-            self._src, str(path), force_download=force_retrieve, update=update
+            str(self._src), str(path), force_download=force_retrieve, update=update
         )
 
         yield repo
         repo.close()
 
-    def get_meta_information(self):
+    def get_meta_information(self) -> Dict[str, str]:
         return {"name": self._name, "version": self._version, "type": self._type}
 
     def get_all_solution_versions(self, group: str, name: str) -> List[Solution]:
+        if self._catalog_index is None:
+            raise RuntimeError("Catalog index not loaded!")
         versions = self._catalog_index.get_all_solution_versions(group, name)
         res = []
         for version in versions:
-            res.append(Solution(attrs=version))
+            if version:
+                res.append(Solution(attrs=version))
         return res
 
-    def load_index(self):
+    def load_index(self) -> None:
         self._catalog_index = CatalogIndex(self._name, self._index_file_path)
 
     def catalog_id(self) -> int:
+        if self._catalog_id is None:
+            raise RuntimeError("Catalog id not set!")
         return self._catalog_id
 
     def name(self) -> str:
         return self._name
 
-    def src(self) -> Path:
+    def src(self) -> str:
         return self._src
 
     def version(self) -> str:
         return self._version
 
-    def index(self) -> ICatalogIndex:
+    def index(self) -> Optional[ICatalogIndex]:
         return self._catalog_index
 
     def path(self) -> Path:
@@ -296,20 +316,20 @@ class Catalog(ICatalog):
     def index_file_path(self) -> Path:
         return self._index_file_path
 
-    def set_index_path(self, path):
-        self._index_file_path = Path(path)
+    def set_index_path(self, path: Path) -> None:
+        self._index_file_path = path
 
     def type(self) -> str:
         return self._type
 
-    def set_catalog_id(self, catalog_id):
+    def set_catalog_id(self, catalog_id: int) -> None:
         self._catalog_id = catalog_id
 
-    def set_version(self, version):
+    def set_version(self, version: str) -> None:
         self._version = version
 
-    def get_version(self):
+    def get_version(self) -> str:
         return self._version
 
-    def get_meta_file_path(self):
+    def get_meta_file_path(self) -> Path:
         return self._meta_file_path

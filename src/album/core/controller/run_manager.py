@@ -1,52 +1,17 @@
 from queue import Queue
-from typing import List
+from typing import List, Optional
 
 import pkg_resources
-
 from album.runner import album_logging
+from album.runner.core.api.model.solution import ISolution
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.run_manager import IRunManager
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.model.default_values import DefaultValues
 from album.core.model.event import Event
-from album.runner.core.api.model.solution import ISolution
-from album.runner.core.model.script_creator import ScriptCreatorRun
 
 module_logger = album_logging.get_active_logger
-
-
-class SolutionGroup:
-    def __init__(
-        self,
-        parent_parsed_args=None,
-        parent: ICollectionSolution = None,
-        steps_solution=None,
-        steps=None,
-    ):
-        if parent_parsed_args is None:
-            parent_parsed_args = [None]
-        if steps_solution is None:
-            steps_solution = []
-        if steps is None:
-            steps = []
-        self.parent_parsed_args = parent_parsed_args
-        self.parent = parent
-        self.steps_solution: List[
-            ISolution
-        ] = steps_solution  # The solution objects of all steps.
-
-        self.steps = (
-            steps  # The step description of the step. Must hold the argument keyword.
-        )
-
-    def __eq__(self, o: object) -> bool:
-        return (
-            isinstance(o, SolutionGroup)
-            and o.parent.coordinates() == self.parent.coordinates()
-            and o.steps_solution == self.steps_solution
-            and o.steps == self.steps
-        )
 
 
 class RunManager(IRunManager):
@@ -55,13 +20,18 @@ class RunManager(IRunManager):
 
         self.init_script = ""
 
-    def run(self, solution_to_resolve: str, run_immediately=False, argv=None):
+    def run(
+        self,
+        solution_to_resolve: str,
+        run_immediately: bool = False,
+        argv: Optional[List[str]] = None,
+    ):
         """Run an already loaded solution."""
         resolve_result = self.album.collection_manager().resolve_installed_and_load(
             solution_to_resolve
         )
         coordinates = resolve_result.loaded_solution().coordinates()
-        if not resolve_result.catalog:
+        if not resolve_result.catalog():  # todo: cannot happen
             module_logger().debug("solution loaded locally: %s..." % str(coordinates))
         else:
             module_logger().debug(
@@ -75,11 +45,11 @@ class RunManager(IRunManager):
             argv = [""]
 
         # pushing album and their scripts to a queue
-        que = Queue()
+        que: Queue = Queue()
 
         # builds the queue
         self.album.script_manager().build_queue(
-            resolve_result, que, ScriptCreatorRun(), run_immediately, argv
+            resolve_result, que, ISolution.Action.RUN, run_immediately, argv
         )
 
         self.album.event_manager().publish(
@@ -100,7 +70,7 @@ class RunManager(IRunManager):
             'Finished running script for solution "%s"' % coordinates.name()
         )
 
-    def load_plugins(self, resolve_result):
+    def load_plugins(self, resolve_result: ICollectionSolution):
         # process solution plugins
         module_logger().debug("Processing plugins...")
         if "dependencies" in resolve_result.loaded_solution().setup():

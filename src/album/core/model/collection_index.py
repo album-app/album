@@ -1,20 +1,26 @@
+"""Implementation of the collection index Interface."""
 import pkgutil
 from datetime import datetime
-from typing import Optional, List
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from album.runner.core.api.model.coordinates import ICoordinates
 
 from album.core.api.model.collection_index import ICollectionIndex
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.database import Database
+from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import get_dict_entry
 from album.core.utils.operations.solution_operations import get_solution_hash
-from album.runner.core.api.model.coordinates import ICoordinates
-from album.core.model.default_values import DefaultValues
 
 
 class CollectionIndex(ICollectionIndex, Database):
-
     class CollectionSolution(ICollectionIndex.ICollectionSolution):
-        def __init__(self, setup: dict = None, internal: dict = None):
+        def __init__(
+            self,
+            setup: Optional[Dict[str, Any]] = None,
+            internal: Optional[Dict[str, Any]] = None,
+        ):
             if setup:
                 self._setup = setup
             else:
@@ -24,28 +30,40 @@ class CollectionIndex(ICollectionIndex, Database):
             else:
                 self._internal = {}
 
-        def __eq__(self, other) -> bool:
-            return other.setup() == self._setup and other.internal() == self._internal
+        def __eq__(self, other: object) -> bool:
+            return (
+                isinstance(other, CollectionIndex.CollectionSolution)
+                and other.setup() == self._setup
+                and other.internal() == self._internal
+            )
 
-        def setup(self) -> dict:
+        def setup(self) -> Dict[str, Any]:
             return self._setup
 
-        def internal(self) -> dict:
+        def internal(self) -> Dict[str, Any]:
             return self._internal
 
-    def __init__(self, name, path):
+    def __init__(self, name: str, path: Path):
         self.name = name
         super().__init__(path)
 
-    def create(self):
+    def create(self) -> None:
         data = pkgutil.get_data("album.core.schema", "catalog_collection_schema.sql")
         cursor = self.get_cursor()
+
+        if not data:
+            raise FileNotFoundError(
+                "Could not find catalog_collection_schema.sql! Installation is probably broken!"
+            )
+
         cursor.executescript(data.decode("utf-8"))
-        self.update_name_version(self.name, DefaultValues.catalog_collection_db_version.value, close=False)
+        self.update_name_version(
+            self.name, DefaultValues.catalog_collection_db_version.value, close=False
+        )
 
         self.close_current_connection()
 
-    def update_name_version(self, name, version, close=True):
+    def update_name_version(self, name: str, version: str, close: bool = True) -> None:
         curr_name = self.get_name(close=False)
 
         cursor = self.get_cursor()
@@ -62,7 +80,7 @@ class CollectionIndex(ICollectionIndex, Database):
         if close:
             self.close_current_connection()
 
-    def get_name(self, close=True):
+    def get_name(self, close: bool = True) -> str:
         cursor = self.get_cursor()
 
         r = cursor.execute("SELECT * FROM catalog_collection").fetchone()
@@ -74,7 +92,7 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return cur_name
 
-    def get_version(self, close=True):
+    def get_version(self, close: bool = True) -> str:
         cursor = self.get_cursor()
 
         r = cursor.execute("SELECT * FROM catalog_collection").fetchone()
@@ -86,7 +104,7 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return cur_version
 
-    def is_empty(self, close=True):
+    def is_empty(self, close: bool = True) -> bool:
         cursor = self.get_cursor()
 
         r = cursor.execute("SELECT * FROM collection").fetchone()
@@ -99,8 +117,15 @@ class CollectionIndex(ICollectionIndex, Database):
     # ### catalog ###
 
     def insert_catalog(
-        self, name, src, path, deletable, branch_name, catalog_type, close=True
-    ):
+        self,
+        name: str,
+        src: str,
+        path: str,
+        deletable: bool,
+        branch_name: str,
+        catalog_type: str,
+        close: bool = True,
+    ) -> int:
         next_id = self.next_id("catalog")
         cursor = self.get_cursor()
 
@@ -114,7 +139,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return next_id
 
-    def get_catalog(self, catalog_id, close=True):
+    def get_catalog(
+        self, catalog_id: int, close: bool = True
+    ) -> Optional[Dict[str, Any]]:
         cursor = self.get_cursor()
 
         r = cursor.execute(
@@ -133,7 +160,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return catalog
 
-    def get_catalog_by_name(self, catalog_name: str, close=True):
+    def get_catalog_by_name(
+        self, catalog_name: str, close: bool = True
+    ) -> Optional[Dict[str, Any]]:
         cursor = self.get_cursor()
 
         r = cursor.execute(
@@ -152,7 +181,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return catalog
 
-    def get_catalog_by_path(self, catalog_path: str, close=True):
+    def get_catalog_by_path(
+        self, catalog_path: str, close: bool = True
+    ) -> Optional[Dict[str, Any]]:
         cursor = self.get_cursor()
 
         r = cursor.execute(
@@ -171,7 +202,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return catalog
 
-    def get_catalog_by_src(self, catalog_src: str, close=True):
+    def get_catalog_by_src(
+        self, catalog_src: str, close: bool = True
+    ) -> Optional[Dict[str, Any]]:
         cursor = self.get_cursor()
 
         r = cursor.execute(
@@ -190,7 +223,7 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return catalog
 
-    def get_all_catalogs(self, close=True):
+    def get_all_catalogs(self, close: bool = True) -> List[Dict[str, Any]]:
         catalog_list = []
         cursor = self.get_cursor()
         for row in cursor.execute("SELECT * FROM catalog"):
@@ -201,7 +234,7 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return catalog_list
 
-    def remove_catalog(self, catalog_id, close=True):
+    def remove_catalog(self, catalog_id: int, close: bool = True) -> None:
         cursor = self.get_cursor()
         cursor.execute(
             "DELETE FROM collection " "WHERE catalog_id=:catalog_id",
@@ -273,7 +306,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
     # ### collection ###
 
-    def insert_solution(self, catalog_id, solution_attrs, close=True):
+    def insert_solution(
+        self, catalog_id: int, solution_attrs: Dict[str, Any], close: bool = True
+    ) -> int:
         collection_id = self.next_id("collection")
         hash_val = get_dict_entry(solution_attrs, "hash", allow_none=True)
 
@@ -383,8 +418,8 @@ class CollectionIndex(ICollectionIndex, Database):
         return collection_id
 
     def _insert_collection_argument(
-        self, collection_id, argument_id, catalog_id, close=True
-    ):
+        self, collection_id: int, argument_id: int, catalog_id: int, close: bool = True
+    ) -> int:
         collection_solution_argument_id = self.next_id("collection_argument")
 
         cursor = self.get_cursor()
@@ -399,8 +434,8 @@ class CollectionIndex(ICollectionIndex, Database):
         return collection_solution_argument_id
 
     def _insert_collection_custom(
-        self, collection_id, custom_id, catalog_id, close=True
-    ):
+        self, collection_id: int, custom_id: int, catalog_id: int, close: bool = True
+    ) -> int:
         collection_solution_custom_id = self.next_id("collection_custom")
 
         cursor = self.get_cursor()
@@ -415,8 +450,8 @@ class CollectionIndex(ICollectionIndex, Database):
         return collection_solution_custom_id
 
     def _insert_collection_citation(
-        self, collection_id, citation_id, catalog_id, close=True
-    ):
+        self, collection_id: int, citation_id: int, catalog_id: int, close: bool = True
+    ) -> int:
         collection_solution_citation_id = self.next_id("collection_citation")
 
         cursor = self.get_cursor()
@@ -430,7 +465,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return collection_solution_citation_id
 
-    def _insert_collection_tag(self, collection_id, tag_id, catalog_id, close=True):
+    def _insert_collection_tag(
+        self, collection_id: int, tag_id: int, catalog_id: int, close: bool = True
+    ) -> int:
         collection_solution_tag_id = self.next_id("collection_tag")
 
         cursor = self.get_cursor()
@@ -445,8 +482,8 @@ class CollectionIndex(ICollectionIndex, Database):
         return collection_solution_tag_id
 
     def _insert_collection_author(
-        self, collection_id, author_id, catalog_id, close=True
-    ):
+        self, collection_id: int, author_id: int, catalog_id: int, close: bool = True
+    ) -> int:
         collection_author_id = self.next_id("collection_author")
 
         cursor = self.get_cursor()
@@ -460,7 +497,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return collection_author_id
 
-    def _exists_author(self, author_name, catalog_id, close=True):
+    def _exists_author(
+        self, author_name: str, catalog_id: int, close: bool = True
+    ) -> Optional[int]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT * FROM author WHERE name=:author_name AND catalog_id=:catalog_id",
@@ -472,7 +511,7 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return r["author_id"] if r else None
 
-    def _insert_author(self, author, catalog_id, close=True):
+    def _insert_author(self, author: str, catalog_id: int, close: bool = True) -> int:
         author_id = self.next_id("author")
 
         cursor = self.get_cursor()
@@ -485,7 +524,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return author_id
 
-    def _exists_tag(self, tag_name, catalog_id, close=True):
+    def _exists_tag(
+        self, tag_name: str, catalog_id: int, close: bool = True
+    ) -> Optional[int]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT * FROM tag WHERE name=:tag_name AND catalog_id=:catalog_id",
@@ -497,7 +538,7 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return r["tag_id"] if r else None
 
-    def _insert_tag(self, tag, catalog_id, close=True):
+    def _insert_tag(self, tag: str, catalog_id: int, close: bool = True) -> int:
         tag_id = self.next_id("tag")
         cursor = self.get_cursor()
 
@@ -510,7 +551,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return tag_id
 
-    def _exists_argument(self, argument, catalog_id, close=True):
+    def _exists_argument(
+        self, argument: Dict[str, Any], catalog_id: int, close: bool = True
+    ) -> Optional[int]:
         cursor = self.get_cursor()
 
         exc_str = (
@@ -544,7 +587,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return r["argument_id"] if r else None
 
-    def _exists_custom(self, custom_key, custom_value, catalog_id, close=True):
+    def _exists_custom(
+        self, custom_key: str, custom_value: str, catalog_id: int, close: bool = True
+    ) -> Optional[int]:
         cursor = self.get_cursor()
 
         exc_str = (
@@ -564,7 +609,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return r["custom_id"] if r else None
 
-    def _insert_argument(self, argument, catalog_id, close=True):
+    def _insert_argument(
+        self, argument: Dict[str, Any], catalog_id: int, close: bool = True
+    ) -> int:
         argument_id = self.next_id("argument")
         cursor = self.get_cursor()
 
@@ -586,7 +633,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return argument_id
 
-    def _insert_custom(self, custom_key, custom_value, catalog_id, close=True):
+    def _insert_custom(
+        self, custom_key: str, custom_value: str, catalog_id: int, close: bool = True
+    ) -> int:
         custom_id = self.next_id("custom")
         cursor = self.get_cursor()
 
@@ -600,7 +649,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return custom_id
 
-    def _exists_citation(self, citation, catalog_id, close=True):
+    def _exists_citation(
+        self, citation: Dict[str, Any], catalog_id: int, close: bool = True
+    ) -> Optional[int]:
         cursor = self.get_cursor()
 
         exc_str = "SELECT * FROM citation WHERE text=:citation_text AND catalog_id=:catalog_id "
@@ -620,7 +671,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return r["citation_id"] if r else None
 
-    def _insert_citation(self, citation, catalog_id, close=True):
+    def _insert_citation(
+        self, citation: Dict[str, Any], catalog_id: int, close: bool = True
+    ) -> int:
         citation_id = self.next_id("citation")
 
         cursor = self.get_cursor()
@@ -640,7 +693,13 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return citation_id
 
-    def _exists_cover(self, cover, catalog_id, collection_id, close=True):
+    def _exists_cover(
+        self,
+        cover: Dict[str, Any],
+        catalog_id: int,
+        collection_id: int,
+        close: bool = True,
+    ) -> Optional[int]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT * FROM cover WHERE source=:cover_source AND description=:cover_description "
@@ -658,7 +717,13 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return r["cover_id"] if r else None
 
-    def _insert_cover(self, cover, catalog_id, collection_id, close=True):
+    def _insert_cover(
+        self,
+        cover: Dict[str, Any],
+        catalog_id: int,
+        collection_id: int,
+        close: bool = True,
+    ) -> int:
         cover_id = self.next_id("cover")
 
         cursor = self.get_cursor()
@@ -679,8 +744,12 @@ class CollectionIndex(ICollectionIndex, Database):
         return cover_id
 
     def _exists_documentation(
-        self, documentation, catalog_id, collection_id, close=True
-    ):
+        self,
+        documentation: str,
+        catalog_id: int,
+        collection_id: int,
+        close: bool = True,
+    ) -> Optional[int]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT * FROM main.documentation WHERE documentation=:documentation "
@@ -698,8 +767,12 @@ class CollectionIndex(ICollectionIndex, Database):
         return r["documentation_id"] if r else None
 
     def _insert_documentation(
-        self, documentation, catalog_id, collection_id, close=True
-    ):
+        self,
+        documentation: str,
+        catalog_id: int,
+        collection_id: int,
+        close: bool = True,
+    ) -> int:
         documentation_id = self.next_id("documentation")
         cursor = self.get_cursor()
         cursor.execute(
@@ -714,12 +787,12 @@ class CollectionIndex(ICollectionIndex, Database):
 
     def insert_collection_collection(
         self,
-        collection_id_parent,
-        collection_id_child,
-        catalog_id_parent,
-        catalog_id_child,
-        close=True,
-    ):
+        collection_id_parent: int,
+        collection_id_child: int,
+        catalog_id_parent: int,
+        catalog_id_child: int,
+        close: bool = True,
+    ) -> None:
 
         if not self._exists_collection_collection(
             collection_id_parent,
@@ -747,12 +820,12 @@ class CollectionIndex(ICollectionIndex, Database):
 
     def _exists_collection_collection(
         self,
-        collection_id_parent,
-        collection_id_child,
-        catalog_id_parent,
-        catalog_id_child,
-        close=True,
-    ):
+        collection_id_parent: int,
+        collection_id_child: int,
+        catalog_id_parent: int,
+        catalog_id_child: int,
+        close: bool = True,
+    ) -> Optional[int]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT * FROM collection_collection WHERE collection_id_parent=:collection_id_parent "
@@ -771,7 +844,7 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return r["collection_collection_id"] if r else None
 
-    def remove_parent(self, collection_id, close=True):
+    def remove_parent(self, collection_id: int, close: bool = True) -> None:
         cursor = self.get_cursor()
         cursor.execute(
             "DELETE FROM collection_collection WHERE collection_id_child=:collection_id",
@@ -781,7 +854,9 @@ class CollectionIndex(ICollectionIndex, Database):
         if close:
             self.close_current_connection()
 
-    def _get_children_of_solution(self, collection_id, close=True):
+    def _get_children_of_solution(
+        self, collection_id: int, close: bool = True
+    ) -> List[Dict[str, Any]]:
         child_solutions = []
         cursor = self.get_cursor()
 
@@ -803,8 +878,8 @@ class CollectionIndex(ICollectionIndex, Database):
         return child_solutions
 
     def get_parent_of_solution(
-        self, collection_id, close=True
-    ) -> Optional[CollectionSolution]:
+        self, collection_id: int, close: bool = True
+    ) -> Optional[ICollectionIndex.ICollectionSolution]:
         parent_solution = None
         cursor = self.get_cursor()
 
@@ -831,7 +906,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return parent_solution
 
-    def get_all_solutions(self, close=True) -> List[CollectionSolution]:
+    def get_all_solutions(
+        self, close: bool = True
+    ) -> List[ICollectionIndex.ICollectionSolution]:
         solutions_list = []
         cursor = self.get_cursor()
         for row in cursor.execute("SELECT * FROM collection").fetchall():
@@ -843,7 +920,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return solutions_list
 
-    def get_all_installed_solutions_by_catalog(self, catalog_id, close=True):
+    def get_all_installed_solutions_by_catalog(
+        self, catalog_id: int, close: bool = True
+    ) -> List[ICollectionIndex.ICollectionSolution]:
         solutions_list = []
 
         cursor = self.get_cursor()
@@ -859,7 +938,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return solutions_list
 
-    def _process_solution_row(self, solution_dict, close=True) -> CollectionSolution:
+    def _process_solution_row(
+        self, solution_dict: Dict[str, Any], close: bool = True
+    ) -> ICollectionIndex.ICollectionSolution:
         setup = {}
         internal = {}
         collection_id = solution_dict["collection_id"]
@@ -885,7 +966,9 @@ class CollectionIndex(ICollectionIndex, Database):
         internal["parent"] = self.get_parent_of_solution(collection_id, close=close)
         return CollectionIndex.CollectionSolution(setup, internal)
 
-    def _get_authors_by_solution(self, collection_id, close=True):
+    def _get_authors_by_solution(
+        self, collection_id: int, close: bool = True
+    ) -> List[str]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT a.* FROM author a "
@@ -903,7 +986,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return res
 
-    def _get_arguments_by_solution(self, collection_id, close=True):
+    def _get_arguments_by_solution(
+        self, collection_id: int, close: bool = True
+    ) -> List[Dict[str, Any]]:
         cursor = self.get_cursor()
 
         r = cursor.execute(
@@ -930,7 +1015,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return res
 
-    def _get_custom_by_solution(self, collection_id, close=True):
+    def _get_custom_by_solution(
+        self, collection_id: int, close: bool = True
+    ) -> Dict[str, str]:
         cursor = self.get_cursor()
 
         r = cursor.execute(
@@ -949,7 +1036,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return res
 
-    def _get_tags_by_solution(self, collection_id, close=True):
+    def _get_tags_by_solution(
+        self, collection_id: int, close: bool = True
+    ) -> List[str]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT t.* FROM tag t "
@@ -967,7 +1056,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return res
 
-    def _get_citations_by_solution(self, collection_id, close=True):
+    def _get_citations_by_solution(
+        self, collection_id: int, close: bool = True
+    ) -> List[Dict[str, Any]]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT c.* FROM citation c "
@@ -990,7 +1081,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return res
 
-    def _get_covers_by_solution(self, collection_id, close=True):
+    def _get_covers_by_solution(
+        self, collection_id: int, close: bool = True
+    ) -> List[Dict[str, Any]]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT c.* FROM cover c " "WHERE c.collection_id=:collection_id",
@@ -1007,7 +1100,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return res
 
-    def _get_documentation_by_solution(self, collection_id, close=True):
+    def _get_documentation_by_solution(
+        self, collection_id: int, close: bool = True
+    ) -> List[str]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT d.* FROM documentation d " "WHERE d.collection_id=:collection_id",
@@ -1024,8 +1119,8 @@ class CollectionIndex(ICollectionIndex, Database):
         return res
 
     def get_solutions_by_catalog(
-        self, catalog_id, close=True
-    ) -> List[CollectionSolution]:
+        self, catalog_id: int, close: bool = True
+    ) -> List[ICollectionIndex.ICollectionSolution]:
         catalog_solutions = []
 
         cursor = self.get_cursor()
@@ -1042,8 +1137,8 @@ class CollectionIndex(ICollectionIndex, Database):
         return catalog_solutions
 
     def get_solution_by_hash(
-        self, hash_value, close=True
-    ) -> Optional[CollectionSolution]:
+        self, hash_value: str, close: bool = True
+    ) -> Optional[ICollectionIndex.ICollectionSolution]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT * FROM collection WHERE hash=:hash_value",
@@ -1060,8 +1155,8 @@ class CollectionIndex(ICollectionIndex, Database):
         return solution
 
     def get_solution_by_collection_id(
-        self, collection_id, close=True
-    ) -> Optional[CollectionSolution]:
+        self, collection_id: int, close: bool = True
+    ) -> Optional[ICollectionIndex.ICollectionSolution]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT * FROM collection WHERE collection_id=:collection_id",
@@ -1079,7 +1174,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return solution
 
-    def get_solution_by_doi(self, doi, close=True) -> Optional[CollectionSolution]:
+    def get_solution_by_doi(
+        self, doi: str, close: bool = True
+    ) -> Optional[ICollectionIndex.ICollectionSolution]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT * FROM collection WHERE doi=:doi",
@@ -1098,8 +1195,8 @@ class CollectionIndex(ICollectionIndex, Database):
         return solution
 
     def get_solution_by_catalog_grp_name_version(
-        self, catalog_id, coordinates: ICoordinates, close=True
-    ) -> Optional[CollectionSolution]:
+        self, catalog_id: int, coordinates: ICoordinates, close: bool = True
+    ) -> Optional[ICollectionIndex.ICollectionSolution]:
         cursor = self.get_cursor()
         r = cursor.execute(
             "SELECT * FROM collection "
@@ -1128,8 +1225,8 @@ class CollectionIndex(ICollectionIndex, Database):
         return solution
 
     def get_solutions_by_grp_name_version(
-        self, coordinates: ICoordinates, close=True
-    ) -> List[CollectionSolution]:
+        self, coordinates: ICoordinates, close: bool = True
+    ) -> List[ICollectionIndex.ICollectionSolution]:
         solutions_list = []
 
         cursor = self.get_cursor()
@@ -1151,7 +1248,7 @@ class CollectionIndex(ICollectionIndex, Database):
 
     def get_solutions_by_grp_name(
         self, group: str, name: str, close=True
-    ) -> List[CollectionSolution]:
+    ) -> List[ICollectionIndex.ICollectionSolution]:
         solutions_list = []
 
         cursor = self.get_cursor()
@@ -1169,7 +1266,7 @@ class CollectionIndex(ICollectionIndex, Database):
 
     def get_solutions_by_name_version(
         self, name: str, version: str, close=True
-    ) -> List[CollectionSolution]:
+    ) -> List[ICollectionIndex.ICollectionSolution]:
         solutions_list = []
 
         cursor = self.get_cursor()
@@ -1188,7 +1285,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return solutions_list
 
-    def get_solutions_by_name(self, name: str, close=True) -> List[CollectionSolution]:
+    def get_solutions_by_name(
+        self, name: str, close: bool = True
+    ) -> List[ICollectionIndex.ICollectionSolution]:
         solutions_list = []
 
         cursor = self.get_cursor()
@@ -1203,7 +1302,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return solutions_list
 
-    def get_recently_installed_solutions(self, close=True) -> List[CollectionSolution]:
+    def get_recently_installed_solutions(
+        self, close: bool = True
+    ) -> List[ICollectionIndex.ICollectionSolution]:
         solutions_list = []
 
         cursor = self.get_cursor()
@@ -1219,7 +1320,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return solutions_list
 
-    def get_recently_launched_solutions(self, close=True) -> List[CollectionSolution]:
+    def get_recently_launched_solutions(
+        self, close: bool = True
+    ) -> List[ICollectionIndex.ICollectionSolution]:
         solutions_list = []
 
         cursor = self.get_cursor()
@@ -1234,7 +1337,9 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return solutions_list
 
-    def get_unfinished_installation_solutions(self, close=True):
+    def get_unfinished_installation_solutions(
+        self, close: bool = True
+    ) -> List[ICollectionIndex.ICollectionSolution]:
         solutions_list = []
 
         cursor = self.get_cursor()
@@ -1252,11 +1357,11 @@ class CollectionIndex(ICollectionIndex, Database):
 
     def update_solution(
         self,
-        catalog_id,
+        catalog_id: int,
         coordinates: ICoordinates,
-        solution_attrs: dict,
-        supported_attrs: list,
-        close=True,
+        solution_attrs: Dict[str, Any],
+        supported_attrs: List[str],
+        close: bool = True,
     ):
         exec_str = "UPDATE collection SET last_execution=:cur_date"
         exec_args = {
@@ -1282,7 +1387,11 @@ class CollectionIndex(ICollectionIndex, Database):
             self.close_current_connection()
 
     def add_or_replace_solution(
-        self, catalog_id, coordinates: ICoordinates, solution_attrs, close=True
+        self,
+        catalog_id: int,
+        coordinates: ICoordinates,
+        solution_attrs: Dict[str, Any],
+        close: bool = True,
     ):
         solution = self.get_solution_by_catalog_grp_name_version(
             catalog_id, coordinates, close=False
@@ -1291,7 +1400,9 @@ class CollectionIndex(ICollectionIndex, Database):
             self.remove_solution(catalog_id, coordinates, close=False)
         self.insert_solution(catalog_id, solution_attrs, close=close)
 
-    def remove_solution(self, catalog_id, coordinates: ICoordinates, close=True):
+    def remove_solution(
+        self, catalog_id: int, coordinates: ICoordinates, close: bool = True
+    ) -> None:
         solution = self.get_solution_by_catalog_grp_name_version(
             catalog_id, coordinates, close=False
         )
@@ -1385,7 +1496,9 @@ class CollectionIndex(ICollectionIndex, Database):
         if close:
             self.close_current_connection()
 
-    def is_installed(self, catalog_id, coordinates: ICoordinates, close=True):
+    def is_installed(
+        self, catalog_id: int, coordinates: ICoordinates, close: bool = True
+    ) -> bool:
         r = self.get_solution_by_catalog_grp_name_version(
             catalog_id, coordinates, close=close
         )
@@ -1393,7 +1506,7 @@ class CollectionIndex(ICollectionIndex, Database):
             raise LookupError(f"Solution {catalog_id}:{coordinates} not found!")
         return True if r.internal()["installed"] else False
 
-    def __len__(self, close=True):
+    def __len__(self, close: bool = True) -> int:
         cursor = self.get_cursor()
 
         r = cursor.execute("SELECT COUNT(*) FROM collection").fetchone()
@@ -1405,13 +1518,13 @@ class CollectionIndex(ICollectionIndex, Database):
         return r
 
     @staticmethod
-    def _as_db_col(key):
+    def _as_db_col(key: str) -> str:
         if key == "group":
             return '"group"'
         return key
 
     @staticmethod
-    def get_collection_column_keys():
+    def get_collection_column_keys() -> List[str]:
         res = CatalogIndex.get_solution_column_keys()
         res.append("installed")
         res.append("installation_unfinished")

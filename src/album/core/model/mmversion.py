@@ -1,33 +1,56 @@
+"""Implementation of the MMVersion interface."""
 from album.core.api.model.mmversion import IMMVersion
 
 
 class MMVersion(IMMVersion):
-
     def __init__(self, version, major, minor):
         self.version = version
         self.major = major
         self.minor = minor
 
-    def __eq__(self, other):
-        return (self.version == other.version) and (self.major == other.major) and (self.minor == other.minor)
+    def __eq__(self, other: object):
+        return (
+            isinstance(other, MMVersion)
+            and (self.version == other.version)
+            and (self.major == other.major)
+            and (self.minor == other.minor)
+        )
 
-    def __lt__(self, other):
-        return (self.version < other.version) or (self.version == other.version and self.major < other.major) or (
-                    self.version == other.version and self.major == other.major and self.minor < other.minor)
+    def __lt__(self, other: object):
+        if not isinstance(other, MMVersion):
+            raise NotImplementedError("Cannot compare MMVersion with other type.")
+        return (
+            (self.version < other.version)
+            or (self.version == other.version and self.major < other.major)
+            or (
+                self.version == other.version
+                and self.major == other.major
+                and self.minor < other.minor
+            )
+        )
 
     def __gt__(self, other):
-        return (self.version > other.version) or (self.version == other.version and self.major > other.major) or (
-                    self.version == other.version and self.major == other.major and self.minor > other.minor)
+        if not isinstance(other, MMVersion):
+            raise NotImplementedError("Cannot compare MMVersion with other type.")
+        return (
+            (self.version > other.version)
+            or (self.version == other.version and self.major > other.major)
+            or (
+                self.version == other.version
+                and self.major == other.major
+                and self.minor > other.minor
+            )
+        )
 
     def __str__(self):
-        return "%s.%s.%s" % (self.version, self.major, self.minor)
+        return f"{self.version}.{self.major}.{self.minor}"
 
     @classmethod
     def from_string(cls, version_string):
-        if '.' in version_string:
-            version = int(version_string.split('.')[0])
-            major = int(version_string.split('.')[1])
-            minor = int(version_string.split('.')[2])
+        if "." in version_string:
+            version = int(version_string.split(".")[0])
+            major = int(version_string.split(".")[1])
+            minor = int(version_string.split(".")[2])
         else:
             version = int(version_string[0])
             major = int(version_string[1])
@@ -36,5 +59,4 @@ class MMVersion(IMMVersion):
 
     @classmethod
     def from_sql_schema_name(cls, sql_schema_name):
-        return cls.from_string(sql_schema_name.split('_')[-1])
-
+        return cls.from_string(sql_schema_name.split("_")[-1])

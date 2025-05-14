@@ -1,3 +1,4 @@
+"""This module contains the interface for an event."""
 from abc import ABCMeta, abstractmethod
 
 
@@ -8,4 +9,5 @@ class IEvent:
 
     @abstractmethod
     def name(self):
+        """Get the name of the event."""
         raise NotImplementedError

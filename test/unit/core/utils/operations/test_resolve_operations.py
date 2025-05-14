@@ -193,25 +193,13 @@ class TestResolveOperations(TestUnitCoreCommon):
         # todo: implement
         pass
 
-    @patch("album.core.utils.operations.resolve_operations.check_zip")
-    @patch("album.core.utils.operations.resolve_operations.rand_folder_name")
-    @patch("album.core.utils.operations.resolve_operations.copy_folder")
-    @patch("album.core.utils.operations.resolve_operations.copy")
-    @patch("album.core.utils.operations.resolve_operations.unzip_archive")
     @patch("album.core.utils.operations.resolve_operations.download")
+    @patch("album.core.utils.operations.resolve_operations.prepare_path")
     def test_check_file_or_url_case_url(
         self,
+        prepare_path_mock,
         download_mock,
-        unzip_archive_mock,
-        copy_mock,
-        copy_folder_mock,
-        rand_folder_name_mock,
-        check_zip_mock,
     ):
-        def check_zip(name):
-            return str(name).endswith(".zip")
-
-        check_zip_mock.side_effect = check_zip
 
         # prepare
         zipfile = Path(self.tmp_dir.name).joinpath("zipfile.zip")
@@ -222,38 +210,24 @@ class TestResolveOperations(TestUnitCoreCommon):
 
         # mocks
         download_mock.return_value = pythonfile
-        unzip_archive_mock.return_value = Path("uPath")
-        copy_mock.return_value = Path("cPath")
-        copy_folder_mock.return_value = Path("cfPath")
-        rand_folder_name_mock.return_value = Path("rPath")
-        check_zip_mock.return_value = True
+        prepare_path_mock.return_value = Path("pPath")
 
         # case URL
         case_url = check_file_or_url(
             "http://test.de",
             Path(self.tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value),
         )
-        self.assertEqual(copy_mock.return_value, case_url)
+        self.assertEqual(prepare_path_mock.return_value, case_url)
         download_mock.assert_called_once()
-        rand_folder_name_mock.assert_called_once()
-        copy_mock.assert_called_once()
-
-        copy_folder_mock.assert_not_called()
-        unzip_archive_mock.assert_not_called()
-        check_zip_mock.assert_called_once()
 
     @patch("album.core.utils.operations.resolve_operations.check_zip")
     @patch("album.core.utils.operations.resolve_operations.rand_folder_name")
-    @patch("album.core.utils.operations.resolve_operations.copy_folder")
-    @patch("album.core.utils.operations.resolve_operations.copy")
     @patch("album.core.utils.operations.resolve_operations.unzip_archive")
     @patch("album.core.utils.operations.resolve_operations.download")
     def test_check_file_or_url_case_zip(
         self,
         download_mock,
         unzip_archive_mock,
-        copy_mock,
-        copy_folder_mock,
         rand_folder_name_mock,
         check_zip_mock,
     ):
@@ -267,8 +241,6 @@ class TestResolveOperations(TestUnitCoreCommon):
         # mocks
         download_mock.return_value = pythonfile
         unzip_archive_mock.return_value = Path("uPath")
-        copy_mock.return_value = Path("cPath")
-        copy_folder_mock.return_value = Path("cfPath")
         rand_folder_name_mock.return_value = Path("rPath")
         check_zip_mock.return_value = True
 
@@ -277,9 +249,7 @@ class TestResolveOperations(TestUnitCoreCommon):
             str(zipfile),
             Path(self.tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value),
         )
-        self.assertEqual(
-            unzip_archive_mock.return_value.joinpath("solution.py"), case_zip
-        )
+        self.assertEqual(unzip_archive_mock.return_value, case_zip)
 
         unzip_archive_mock.assert_called_once_with(
             zipfile,
@@ -288,22 +258,16 @@ class TestResolveOperations(TestUnitCoreCommon):
         rand_folder_name_mock.assert_called_once()
         check_zip_mock.assert_called_once_with(zipfile)
 
-        copy_mock.assert_not_called()
         download_mock.assert_not_called()
-        copy_folder_mock.assert_not_called()
 
     @patch("album.core.utils.operations.resolve_operations.check_zip")
     @patch("album.core.utils.operations.resolve_operations.rand_folder_name")
-    @patch("album.core.utils.operations.resolve_operations.copy_folder")
-    @patch("album.core.utils.operations.resolve_operations.copy")
     @patch("album.core.utils.operations.resolve_operations.unzip_archive")
     @patch("album.core.utils.operations.resolve_operations.download")
     def test_check_file_or_url_case_file(
         self,
         download_mock,
         unzip_archive_mock,
-        copy_mock,
-        copy_folder_mock,
         rand_folder_name_mock,
         check_zip_mock,
     ):
@@ -322,8 +286,6 @@ class TestResolveOperations(TestUnitCoreCommon):
         # mocks
         download_mock.return_value = pythonfile
         unzip_archive_mock.return_value = Path("uPath")
-        copy_mock.return_value = Path("cPath")
-        copy_folder_mock.return_value = Path("cfPath")
         rand_folder_name_mock.return_value = Path("rPath")
         check_zip_mock.return_value = True
 
@@ -332,33 +294,22 @@ class TestResolveOperations(TestUnitCoreCommon):
             str(pythonfile),
             Path(self.tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value),
         )
-        self.assertEqual(copy_mock.return_value, case_file)
+        self.assertEqual(pythonfile, case_file)
 
-        copy_mock.assert_called_once_with(
-            pythonfile,
-            Path(self.tmp_dir.name).joinpath(
-                "tmp", rand_folder_name_mock.return_value, "solution.py"
-            ),
-        )
         rand_folder_name_mock.assert_called_once()
 
         unzip_archive_mock.assert_not_called()
         download_mock.assert_not_called()
-        copy_folder_mock.assert_not_called()
         check_zip_mock.assert_called_once()
 
     @patch("album.core.utils.operations.resolve_operations.check_zip")
     @patch("album.core.utils.operations.resolve_operations.rand_folder_name")
-    @patch("album.core.utils.operations.resolve_operations.copy_folder")
-    @patch("album.core.utils.operations.resolve_operations.copy")
     @patch("album.core.utils.operations.resolve_operations.unzip_archive")
     @patch("album.core.utils.operations.resolve_operations.download")
     def test_check_file_or_url_case_folder(
         self,
         download_mock,
         unzip_archive_mock,
-        copy_mock,
-        copy_folder_mock,
         rand_folder_name_mock,
         check_zip_mock,
     ):
@@ -372,30 +323,23 @@ class TestResolveOperations(TestUnitCoreCommon):
         # mocks
         download_mock.return_value = pythonfile
         unzip_archive_mock.return_value = Path("uPath")
-        copy_mock.return_value = Path("cPath")
-        copy_folder_mock.return_value = Path("cfPath")
         rand_folder_name_mock.return_value = Path("rPath")
         check_zip_mock.return_value = True
 
         # case file
+        cache = Path(self.tmp_dir.name).joinpath(
+            DefaultValues.cache_path_tmp_prefix.value
+        )
         case_folder = check_file_or_url(
             self.tmp_dir.name,
-            Path(self.tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value),
+            cache,
         )
-        self.assertEqual(
-            copy_folder_mock.return_value.joinpath("solution.py"), case_folder
-        )
+        self.assertEqual(Path(self.tmp_dir.name), case_folder)
 
-        copy_folder_mock.assert_called_once_with(
-            Path(self.tmp_dir.name),
-            Path(self.tmp_dir.name).joinpath("tmp", rand_folder_name_mock.return_value),
-            copy_root_folder=False,
-        )
         rand_folder_name_mock.assert_called_once()
 
         unzip_archive_mock.assert_not_called()
         download_mock.assert_not_called()
-        copy_mock.assert_not_called()
         check_zip_mock.assert_not_called()
 
     def test_dict_to_coordinates(self):

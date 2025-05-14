@@ -1,18 +1,21 @@
+"""This module provides operations for dictionaries."""
 import json
-from typing import List
+from typing import Any, Dict, List
 
 
 def get_dict_entries_from_attribute_path(obj, attribute_path: str) -> List:
-    """"""
+    """Get a list of entries from a dictionary by a given attribute path."""
     parts = attribute_path.split(".")
     return _get_entries(obj, parts)
 
 
-def str_to_dict(s):
+def str_to_dict(s: str) -> Dict[str, Any]:
+    """Convert a string to a dictionary."""
     return json.loads(s)
 
 
-def _get_entries(obj, attribute_paths: List) -> List:
+def _get_entries(obj: Dict[str, Any], attribute_paths: List[str]) -> List[Any]:
+    """Get a list of entries from a dictionary by a given attribute path."""
     # case single attribute path
     if len(attribute_paths) == 0:
         if isinstance(obj, list):

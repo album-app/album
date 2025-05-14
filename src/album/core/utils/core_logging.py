@@ -1,22 +1,28 @@
+"""Core logging utilities for Album."""
 import logging
 import sys
+from typing import Optional
+
+from album.runner.album_logging import (
+    LogLevel,
+    debug_settings,
+    push_active_logger,
+    set_loglevel,
+)
 
 from album.core.utils.operations.view_operations import (
     get_logger_name_minimizer_filter,
     get_logging_formatter,
     get_message_filter,
 )
-from album.runner.album_logging import (
-    set_loglevel,
-    debug_settings,
-    LogLevel,
-    push_active_logger,
-)
 
 
 def configure_root_logger(
-    log_format: str = None, log_format_time: str = None, log_level: LogLevel = None
+    log_format: Optional[str] = None,
+    log_format_time: Optional[str] = None,
+    log_level: Optional[LogLevel] = None,
 ):
+    """Configure the root logger."""
     if not log_level:
         log_level = LogLevel(debug_settings())
     logger = logging.getLogger("album")
@@ -38,7 +44,8 @@ def configure_root_logger(
 
 
 def add_logging_level(levelName, levelNum, methodName=None):
-    """
+    """Add a new logging level to the `logging` module and the currently configured logging class.
+
     Copied from https://stackoverflow.com/a/35804945
 
     Comprehensively adds a new logging level to the `logging` module and the
@@ -68,11 +75,11 @@ def add_logging_level(levelName, levelNum, methodName=None):
         methodName = levelName.lower()
 
     if hasattr(logging, levelName):
-        raise AttributeError("{} already defined in logging module".format(levelName))
+        raise AttributeError(f"{levelName} already defined in logging module")
     if hasattr(logging, methodName):
-        raise AttributeError("{} already defined in logging module".format(methodName))
+        raise AttributeError(f"{methodName} already defined in logging module")
     if hasattr(logging.getLoggerClass(), methodName):
-        raise AttributeError("{} already defined in logger class".format(methodName))
+        raise AttributeError(f"{methodName} already defined in logger class")
 
     # This method was inspired by the answers to Stack Overflow post
     # http://stackoverflow.com/q/2183233/2988730, especially

@@ -3,12 +3,11 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import git
-from album.core.model.default_values import DefaultValues
-
-from album.core.utils.operations.git_operations import configure_git
 
 from album.ci.controller.release_manager import ReleaseManager
-from album.core.utils.operations.file_operations import force_remove, write_dict_to_yml
+from album.core.model.default_values import DefaultValues
+from album.core.utils.operations.git_operations import configure_git
+from album.environments.utils.file_operations import force_remove, write_dict_to_yml
 from test.unit.test_unit_core_common import TestUnitCoreCommon, EmptyTestClass
 
 

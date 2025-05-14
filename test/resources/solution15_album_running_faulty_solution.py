@@ -1,9 +1,9 @@
-from album.runner.api import setup, get_cache_path
 from io import StringIO
+
+from album.runner.api import get_cache_path, setup
 
 env_file = StringIO(
     """channels:
-  - defaults
   - conda-forge
 dependencies:
   - python=3.7
@@ -16,9 +16,10 @@ dependencies:
 
 
 def album_run():
-    from album.api import Album
-    import tempfile
     import os
+    import tempfile
+
+    from album.api import Album
     from album.runner.album_logging import get_active_logger
 
     print("print something")
@@ -40,7 +41,7 @@ def album_run():
         solution_file = str(solution_file.name)
         if album.is_installed(solution_file):
             album.uninstall(solution_file)
-        album.install(solution_file)
+        album.install(solution_file, allow_recursive=True)
         album.run(solution_file)
         os.remove(solution_file)
 
@@ -50,7 +51,7 @@ def get_solution_content():
 from io import StringIO
 
 env_file = StringIO("""channels:
-  - defaults
+  - conda-forge
 dependencies:
   - python=3.7
   - pip
@@ -81,7 +82,7 @@ setup(
     group="group",
     name="solution15_run_album_throw_error",
     version="0.1.0",
-    album_api_version="0.3.1",
+    album_api_version="0.6.1",
     run=album_run,
     dependencies={"environment_file": env_file},
 )

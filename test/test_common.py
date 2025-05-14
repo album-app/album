@@ -1,65 +1,55 @@
 import gc
 import logging
+import os
 import sys
 import tempfile
 import unittest
 from io import StringIO
 from pathlib import Path
+from test.global_exception_watcher import GlobalExceptionWatcher
 from typing import Optional
 from unittest.mock import patch
 
-from album.runner.album_logging import get_active_logger
-
 from album.api import Album
 from album.core.controller.album_controller import AlbumController
-from album.core.controller.micromamba_manager import MicromambaManager
-from album.core.model.configuration import Configuration
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.git_operations import (
-    create_bare_repository,
-    clone_repository,
     add_files_commit_and_push,
+    clone_repository,
+    create_bare_repository,
 )
 from album.core.utils.operations.view_operations import (
-    get_message_filter,
     get_logger_name_minimizer_filter,
     get_logging_formatter,
+    get_message_filter,
 )
-from test.global_exception_watcher import GlobalExceptionWatcher
+from album.runner.album_logging import get_active_logger
 
 
 class TestCommon(unittest.TestCase):
-
-    micromamba_tmp_dir = None
-    micromamba_test_base_path = None
-
-    @classmethod
-    def setUpClass(cls):
-        cls.micromamba_tmp_dir = tempfile.TemporaryDirectory()
-        config = Configuration()
-        config.setup(Path(cls.micromamba_tmp_dir.name))
-        Path(config.micromamba_base_path()).mkdir(parents=True, exist_ok=True)
-        MicromambaManager(config).install_if_missing()
-        cls.micromamba_test_base_path = config.micromamba_base_path()
-
-    @classmethod
-    def tearDownClass(cls):
-        if cls.micromamba_tmp_dir:
-            cls.micromamba_tmp_dir.cleanup()
-
     def setUp(self) -> None:
         super().setUp()
         self.setup_tmp_resources()
         self.setup_silent_test_logging()
+        self.enable_test_logging()
         self.album: Optional[Album] = None
         self.album_controller: Optional[AlbumController] = None
+
+    def enable_test_logging(self):
+        if os.getenv("ALBUM_TEST_LOGGING", "False") == "True":
+            handler = logging.StreamHandler(sys.stdout)
+            handler.setLevel("DEBUG")
+            formatter = logging.Formatter("%(asctime)s - %(name)s - %(message)s")
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
+            self.logger.setLevel("DEBUG")
+            self.logger.debug("Test logging enabled!")
 
     def tearDown(self) -> None:
         if self.album:
             self.album.close()
             self.album_patch.stop()
-            self.micromamba_patch.stop()
         self.logger.handlers.clear()
         self.teardown_tmp_resources()
         super().tearDown()
@@ -75,12 +65,6 @@ class TestCommon(unittest.TestCase):
                 "Only one instance of an AlbumController should be used!"
                 "Either use setup_album_instance or setup_album_controller!"
             )
-        self.micromamba_patch = patch.object(
-            Configuration,
-            "micromamba_base_path",
-            return_value=self.micromamba_test_base_path,
-        )
-        self.micromamba_patch.start()
         self.album_controller = AlbumController(base_cache_path=Path(self.tmp_dir.name))
 
     def setup_album_instance(self):
@@ -89,12 +73,6 @@ class TestCommon(unittest.TestCase):
                 "Only one instance of an Album should be used!"
                 "Either use setup_album_instance or setup_album_controller!"
             )
-        self.micromamba_patch = patch.object(
-            Configuration,
-            "micromamba_base_path",
-            return_value=self.micromamba_test_base_path,
-        )
-        self.micromamba_patch.start()
         with patch("album.api.configure_root_logger"):
             self.album = (
                 Album.Builder().base_cache_path(Path(self.tmp_dir.name)).build()
@@ -172,16 +150,17 @@ class TestCommon(unittest.TestCase):
     def teardown_tmp_resources(self):
         # garbage collector
         gc.collect()
-
         try:
             Path(self.closed_tmp_file.name).unlink()
             self.tmp_dir.cleanup()
-        except PermissionError:
+        except (PermissionError, NotADirectoryError):
             try:
                 force_remove(self.tmp_dir.name)
-            except PermissionError:
+            except (PermissionError, NotADirectoryError):
                 if sys.platform == "win32" or sys.platform == "cygwin":
-                    pass
+                    get_active_logger().warning(
+                        "Could not remove tmp dir! Cleanup failed!!"
+                    )
                 else:
                     raise
 
@@ -194,12 +173,26 @@ class TestCommon(unittest.TestCase):
     def get_logs(self):
         logs = self.captured_output.getvalue()
         logs = logs.strip()
-        return logs.split("\n")
+        logs = logs.split("\n")
+        # remove empty strings
+        logs = [log for log in logs if log]
+        return self._remove_color_codes(logs)
+
+    def get_logs_as_string(self):
+        return "\n".join(self.get_logs())
+
+    def _remove_color_codes(self, logs):
+        logs = [log.replace("\x1b[0m", "") for log in logs]
+        logs = [log.replace("\x1b[31m", "") for log in logs]
+        logs = [log.replace("\x1b[32m", "") for log in logs]
+        logs = [log.replace("\x1b[33m", "") for log in logs]
+
+        return logs
 
     def run(self, result=None):
         # add watcher to catch any exceptions thrown in threads
         with GlobalExceptionWatcher():
-            super(TestCommon, self).run(result)
+            super().run(result)
 
     @staticmethod
     def get_catalog_meta_dict(

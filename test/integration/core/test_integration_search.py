@@ -10,4 +10,4 @@ class TestIntegrationSearch(TestIntegrationCoreCommon):
 
     def test_search_emtpy_index(self):
         self.album_controller.search_manager().search("keyword")
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())

@@ -1,6 +1,5 @@
 # CI Routine for the album framework.
 
-
 #----------------------------
 # templates
 #----------------------------
@@ -13,65 +12,83 @@
 #
 # NOTE: Apparently there is no output for commands split over several lines...
 .windows_base_template_micromamba:
-  before_script:
-    - 'echo "We are in path: $pwd "'
-    - 'if(-Not (Test-Path .\downloads)) {echo "Cache download not found! Creating..."; New-Item -ItemType Directory -Force -Path .\downloads} else { echo ".\downloads cache found! with content:"; Get-ChildItem -Path .\downloads}'
-    - 'if(-Not (Test-Path .\.album)) {echo "Cache .album not found! Creating..."; New-Item -ItemType Directory -Force -Path .\.album} else { echo ".\.album cache found! with content:"; Get-ChildItem -Path .\.album}'
-    - 'if(-Not (Test-Path .\micromamba)) {echo "Cache micromamba not found! Creating..."; New-Item -ItemType Directory -Force -Path .\micromamba} else { echo ".\micromamba cache found! with content:"; Get-ChildItem -Path .\micromamba}'
-    - '$7ZIP_EXE=(Join-Path $env:ProgramFiles -ChildPath 7-Zip\7z.exe)'
-    - '$7ZIP_INSTALLER=(Join-Path downloads -ChildPath 7z.exe)'
-    - '$Env:USERPROFILE=$pwd'
-    - '$oldProgressPreference = $progressPreference; $progressPreference = "SilentlyContinue";'
-    - '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12'                                                                                                                                                                                                                                                                                          # set Security download protocol to avoid https errors
-    - 'if(-Not (Test-Path $7ZIP_EXE)) {if(-Not (Test-Path $7ZIP_INSTALLER)){Invoke-Webrequest -URI https://www.7-zip.org/a/7z2201-x64.exe -OutFile $7ZIP_INSTALLER}}'
-    - 'if(-Not (Test-Path $7ZIP_EXE)) {Start-Process -FilePath $7ZIP_INSTALLER -Args "/S" -Verb RunAs -Wait}'
-    - 'Invoke-Webrequest -URI https://micro.mamba.pm/api/micromamba/win-64/1.5.6 -OutFile micromamba.tar.bz2'
-    - '& $7ZIP_EXE x micromamba.tar.bz2 -aoa'
-    - '& $7ZIP_EXE x micromamba.tar -ttar -aoa -r Library\bin\micromamba.exe $("-o" + (Join-Path -Path (Get-Location) -ChildPath micromamba_installation))'
-    - '$progressPreference = $oldProgressPreference'
-    - '.\micromamba_installation\Library\bin\micromamba.exe create -y -n album album -c conda-forge python=3.10'
-    - '.\micromamba_installation\Library\bin\micromamba.exe run -n album pip uninstall -y album'
-    - '.\micromamba_installation\Library\bin\micromamba.exe run -n album pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$env:CI_COMMIT_REF_NAME/album-$env:CI_COMMIT_REF_NAME.zip'
-
   tags:
     - windows
   variables:
     PIP_CACHE_DIR: $CI_PROJECT_DIR\.cache\pip
-    ErrorActionPreference: Continue  # not working properly
+    ErrorActionPreference: Continue # not working properly
+  before_script:
+    - 'echo "We are in path: $pwd "'
+    - '$7ZIP_EXE=(Join-Path $env:ProgramFiles -ChildPath 7-Zip\7z.exe)'
+    - "$7ZIP_INSTALLER=(Join-Path downloads -ChildPath 7z.exe)"
+    - "$Env:USERPROFILE=$pwd" # set user profile to current working directory -> will be micromamba default location
+    - '$oldProgressPreference = $progressPreference; $progressPreference = "SilentlyContinue";'
+    - "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12" # set Security download protocol to avoid https errors
+    - "if(-Not (Test-Path $7ZIP_EXE)) {if(-Not (Test-Path $7ZIP_INSTALLER)){Invoke-Webrequest -URI https://www.7-zip.org/a/7z2201-x64.exe -OutFile $7ZIP_INSTALLER}}"
+    - 'if(-Not (Test-Path $7ZIP_EXE)) {Start-Process -FilePath $7ZIP_INSTALLER -Args "/S" -Verb RunAs -Wait}'
+    - "Invoke-Webrequest -URI https://micro.mamba.pm/api/micromamba/win-64/1.5.6 -OutFile micromamba.tar.bz2"
+    - "& $7ZIP_EXE x micromamba.tar.bz2 -aoa"
+    - '& $7ZIP_EXE x micromamba.tar -ttar -aoa -r Library\bin\micromamba.exe $("-o" + (Join-Path -Path (Get-Location) -ChildPath micromamba_installation))'
+    - "$progressPreference = $oldProgressPreference"
+    - 'Get-ChildItem Env: | Where-Object { $_.Name -match "album" -or $_.Value -match "album" } | Format-Table -AutoSize'
+    - '.\micromamba_installation\Library\bin\micromamba.exe create -y -n album python=$env:TEST_PYTHON_VERSION -c conda-forge' # created in .\micromamba\envs\album
+    - 'Write-Output "CI_COMMIT_REF_NAME: $env:CI_COMMIT_REF_NAME"'
+    #- "$Env:MAMBA_ROOT_PREFIX=(Join-Path -Path (Get-Location) -ChildPath micromamba)"
+    # The following lines allow to install the dev version of the API and envs in the album environment, based on the current branch name
+    - 'if($env:CI_COMMIT_REF_NAME -match "api_change_runner*") { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev}'
+    - 'if($env:CI_COMMIT_REF_NAME -match "api_change_env*") { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install git+https://gitlab.com/album-app/album-environments.git@dev}'
+    # The following is necessary for the dev branch of this repository, so it can use the dev version of the API and envs
+    - 'if($env:CI_COMMIT_REF_NAME -match "dev*" -and $env:ALBUM_API_CHANGE_RUNNER -match "True" ) { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev}'
+    - 'if($env:CI_COMMIT_REF_NAME -match "dev*" -and $env:ALBUM_API_CHANGE_ENV -match "True" ) { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install git+https://gitlab.com/album-app/album-environments.git@dev}'
+    - '.\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install --no-cache-dir -e $Env:CI_PROJECT_DIR' # -e needed for coverage
+    - '.\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album pip install coverage'
+    - '$Env:ENVIRONMENT_DEBUGGING_MICROMAMBA_PATH=(Join-Path -Path (Get-Location) -ChildPath micromamba_installation\Library\bin\micromamba.exe)' # set environment variables necessary to work with the environment API
+    - "$Env:ENVIRONMENT_CONDA_LOCK_PATH=(Get-Command conda-lock).Source" # explicitly set conda-lock path as it comes as dependency
   cache:
     key: one-key-to-rule-them-all-windows
     paths:
-      - downloads
       - .cache\pip
 
 # Linux base template for running tests with micromamba as package manager
 #
 # Uses a docker image where micromamba will be installed.
-# Creates a album environment.
+# Creates an album environment.
 #
 
 .linux_base_template_micromamba:
   image: ubuntu:latest
   tags:
     - docker
-    - linux
+  variables:
+    PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
+    MICROMAMBA_EXECUTABLE: "" # ensure that the variable is empty before running the job
   before_script:
     - apt update
+    - apt install git -y
     - apt install -y curl
     - apt install -y bzip2
     - mkdir -p $CI_PROJECT_DIR/bin/
     - curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/1.5.6 | tar -xvj -C $CI_PROJECT_DIR/bin/ --strip-components=1 bin/micromamba
-    - $CI_PROJECT_DIR/bin/micromamba create -y -n album album -c conda-forge python=3.10
-    - $CI_PROJECT_DIR/bin/micromamba run -n album pip uninstall -y album
-    - $CI_PROJECT_DIR/bin/micromamba run -n album pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
-    - $CI_PROJECT_DIR/bin/micromamba run -n album python -V
-    - $CI_PROJECT_DIR/bin/micromamba run -n album pip list
-  variables:
-    PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
+    - MICROMAMBA_EXECUTABLE=$CI_PROJECT_DIR/bin/micromamba
+    - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=$TEST_PYTHON_VERSION
+    - bash -c 'echo $CI_COMMIT_REF_NAME'
+    # The following lines allow to install the dev version of the API and envs in the album environment, based on the current branch name
+    - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_runner* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No api_change_runner branch"'
+    - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_env* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No api_change_env branch"'
+    # The following is necessary for the dev branch of this repository, so it can use the dev version of the API and envs
+    - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_API_CHANGE_ENV == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No API env changes on that branch"]]'
+    - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_API_CHANGE_RUNNER == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No API runner changes on that branch"]]'
+    - $MICROMAMBA_EXECUTABLE run -n album pip install --no-cache-dir -e $CI_PROJECT_DIR # -e needed for coverage
+    - $MICROMAMBA_EXECUTABLE run -n album pip install coverage
+    - $MICROMAMBA_EXECUTABLE run -n album python -V
+    - $MICROMAMBA_EXECUTABLE run -n album pip list
+    - $MICROMAMBA_EXECUTABLE run -n album env -0 | sort -z | tr '\0' '\n' | grep -i album
+    - export ENVIRONMENT_DEBUGGING_MICROMAMBA_PATH=$MICROMAMBA_EXECUTABLE # explicitly set conda-lock path as it comes as dependency# set environment variables necessary to work with the environment API
+    - export ENVIRONMENT_CONDA_LOCK_PATH=$(which conda-lock)
   cache:
     key: one-key-to-rule-them-all-linux
     paths:
-      - $CI_PROJECT_DIR/.cache/pip
+      - .cache/pip
 
 # Macos base template for running tests with micromamba as package manager
 #
@@ -82,6 +99,9 @@
   tags:
     - macos
     - shell
+  variables:
+    MICROMAMBA_EXECUTABLE: "" # ensure that the variable is empty before running the job
+    PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
   before_script:
     - echo "$(uname)"
     - sw_vers
@@ -91,17 +111,26 @@
     - mkdir -p $tmpdir/bin/
     - curl -Ls https://micro.mamba.pm/api/micromamba/osx-64/1.5.6 | tar -xvj -C $tmpdir/bin/ --strip-components=1 bin/micromamba
     - MICROMAMBA_EXECUTABLE=$tmpdir/bin/micromamba
-    - $MICROMAMBA_EXECUTABLE create -y -n album album -c conda-forge python=3.10
-    - $MICROMAMBA_EXECUTABLE run -n album pip uninstall -y album
-    - $MICROMAMBA_EXECUTABLE run -n album pip install --no-cache-dir https://gitlab.com/album-app/album/-/archive/$CI_COMMIT_REF_NAME/album-$CI_COMMIT_REF_NAME.zip
+    - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=$TEST_PYTHON_VERSION
+    - bash -c 'echo $CI_COMMIT_REF_NAME'
+    # The following lines allow to install the dev version of the API and envs in the album environment, based on the current branch name
+    - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_runner* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No api_change_runner branch"'
+    - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_env* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No api_change_env branch"'
+    # The following is necessary for the dev branch of this repository, so it can use the dev version of the API and envs
+    - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_API_CHANGE_ENV == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No API env changes on that branch"]]'
+    - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_API_CHANGE_RUNNER == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No API runner changes on that branch"]]'
+    - $MICROMAMBA_EXECUTABLE run -n album pip install --no-cache-dir -e $CI_PROJECT_DIR # -e needed for coverage
+    - $MICROMAMBA_EXECUTABLE run -n album pip install coverage
     - $MICROMAMBA_EXECUTABLE run -n album python -V
     - $MICROMAMBA_EXECUTABLE run -n album pip list
+    - $MICROMAMBA_EXECUTABLE run -n album env -0 | sort -z | tr '\0' '\n' | grep -i album
+    - export ENVIRONMENT_DEBUGGING_MICROMAMBA_PATH=$MICROMAMBA_EXECUTABLE # explicitly set conda-lock path as it comes as dependency# set environment variables necessary to work with the environment API
+    - export ENVIRONMENT_CONDA_LOCK_PATH=$(which conda-lock)
   after_script:
     - tmpdir=$(</tmp/tmpdir)
     - echo $tmpdir
     - rm -rf $tmpdir
-  variables:
-    MICROMAMBA_EXECUTABLE: ""
+
 #----------------------------
 # stages
 #----------------------------
@@ -113,7 +142,6 @@ stages:
   - release
   - deploy
   - post-deploy
-
 
 #----------------------------
 # jobs
@@ -165,20 +193,19 @@ gitlab release:
   script:
     - echo "running release_job for version $VERSION and tag $TAG"
   rules:
-      - if: $CI_COMMIT_TAG
-        when: never
-      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-        changes:
-          - setup.cfg
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - setup.cfg
   release:
-    name: 'Release $TAG'
-    description: 'Created using the release-cli'
-    tag_name: '$TAG'
-    ref: '$CI_COMMIT_SHA'
-
+    name: "Release $TAG"
+    description: "Created using the release-cli"
+    tag_name: "$TAG"
+    ref: "$CI_COMMIT_SHA"
 
 gitlab pypi deploy:
-  image: python:latest
+  image: python:$TEST_PYTHON_VERSION
   stage: deploy
   tags:
     - DeployRunner
@@ -189,18 +216,18 @@ gitlab pypi deploy:
       artifacts: true
   script:
     - echo "deploying gitlab pypi version $VERSION"
-    - pip install twine
+    - pip install twine setuptools
     - python setup.py sdist bdist_wheel
     - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
   rules:
-      - if: $CI_COMMIT_TAG
-        when: never
-      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-        changes:
-          - setup.cfg
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - setup.cfg
 
 pypi deploy:
-  image: python:latest
+  image: python:$TEST_PYTHON_VERSION
   stage: deploy
   tags:
     - DeployRunner
@@ -213,16 +240,15 @@ pypi deploy:
     - echo "deploying pypi version $VERSION"
     - echo "using pypi deploy user $PYPI_DEPLOY_USER"
   script:
-    - pip install twine
+    - pip install twine setuptools
     - python setup.py sdist bdist_wheel
     - TWINE_PASSWORD=$PYPI_DEPLOY_TOKEN TWINE_USERNAME=$PYPI_DEPLOY_USER python -m twine upload --repository-url https://upload.pypi.org/legacy/  dist/*
   rules:
-      - if: $CI_COMMIT_TAG
-        when: never
-      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-        changes:
-          - setup.cfg
-
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - setup.cfg
 
 docker deploy:
   stage: deploy
@@ -245,19 +271,19 @@ docker deploy:
     - docker build -t $tag .
     - docker push $tag
   rules:
-      - if: $CI_COMMIT_TAG
-        when: never
-      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-        changes:
-          - setup.cfg
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - setup.cfg
 
-# Linux Tests
+# Linux Tests with coverage
 
 cmdline linux:
   extends: .linux_base_template_micromamba
   stage: build
   script:
-    - eval "$($CI_PROJECT_DIR/bin/micromamba shell hook -s posix)"
+    - eval "$($MICROMAMBA_EXECUTABLE shell hook -s posix)"
     - micromamba activate album
     # album commands
     - album -h
@@ -275,13 +301,23 @@ unit tests linux micromamba:
   extends: .linux_base_template_micromamba
   stage: test
   script:
-    - $CI_PROJECT_DIR/bin/micromamba run -n album python -m unittest test/unit/run_all_unit_micromamba.py
+    - $MICROMAMBA_EXECUTABLE run -n album coverage run --omit './test/*' -m unittest test/unit/run_all_unit_micromamba.py
+    - $MICROMAMBA_EXECUTABLE run -n album coverage report
+    - mv .coverage unit.coverage # rename coverage file
+  artifacts:
+    paths:
+      - unit.coverage
 
 integration tests linux micromamba:
   extends: .linux_base_template_micromamba
   stage: test
   script:
-    - $CI_PROJECT_DIR/bin/micromamba run -n album python -m unittest test/integration/run_all_integration_micromamba.py
+    - $MICROMAMBA_EXECUTABLE run -n album coverage run --omit './test/*' -m unittest test/integration/run_all_integration_micromamba.py
+    - $MICROMAMBA_EXECUTABLE run -n album coverage report
+    - mv .coverage integration.coverage # rename coverage file
+  artifacts:
+    paths:
+      - integration.coverage
 
 # MacOs Tests
 
@@ -291,24 +327,108 @@ unit tests macos micromamba:
   script:
     - $MICROMAMBA_EXECUTABLE run -n album python -m unittest test/unit/run_all_unit_micromamba.py
 
-
 integration tests macos micromamba:
   extends: .macos_base_template_micromamba
   stage: test
   script:
     - $MICROMAMBA_EXECUTABLE run -n album python -m unittest test/integration/run_all_integration_micromamba.py
 
-# Windows Tests
+# Windows Tests with coverage
 
 unit tests windows micromamba:
   extends: .windows_base_template_micromamba
   stage: test
   script:
-    - .\micromamba_installation\Library\bin\micromamba.exe run -n album python -m unittest .\test\unit\run_all_unit_micromamba.py
-
+    - '.\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album coverage run --omit .\test\* -m unittest test\unit\run_all_unit_micromamba.py'
+    - 'if ($lastexitcode -ne 0) {exit(1)} else { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album coverage report }'
+    - 'if ($lastexitcode -ne 0) {exit(1)} else { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album coverage xml } '
+    - 'if ($lastexitcode -ne 0) {exit(1)} else { Rename-Item -Path ".coverage" -NewName "unit.coverage" }'
+    - 'if ($lastexitcode -ne 0) {exit(1)} else { Rename-Item -Path "coverage.xml" -NewName "unit_coverage.xml" }'
+    - "exit($lastexitcode)"
+  artifacts:
+    paths:
+      - unit.coverage
 
 integration tests windows micromamba:
   extends: .windows_base_template_micromamba
   stage: test
   script:
-    - .\micromamba_installation\Library\bin\micromamba.exe run -n album python -m unittest .\test\integration\run_all_integration_micromamba.py
+    - '.\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album coverage run --omit .\test\* -m unittest test\integration\run_all_integration_micromamba.py '
+    - 'if ($lastexitcode -ne 0) {exit(1)} else { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album coverage report }'
+    - 'if ($lastexitcode -ne 0) {exit(1)} else { .\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album coverage xml } '
+    - 'if ($lastexitcode -ne 0) {exit(1)} else { Rename-Item -Path ".coverage" -NewName "integration.coverage" }'
+    - 'if ($lastexitcode -ne 0) {exit(1)} else { Rename-Item -Path "coverage.xml" -NewName "integration_coverage.xml" }'
+    - "exit($lastexitcode)"
+  artifacts:
+    paths:
+      - integration.coverage
+
+release tests linux:
+  extends: .linux_base_template_micromamba
+  stage: release-test
+  script:
+    # install system requirements
+    - apt-get -y update
+    - apt-get install -y libgl1-mesa-dev
+    # install templates in default catalog
+    # - album install album:template-python:0.1.0-SNAPSHOT
+    # - album install album:template-java:0.1.0-SNAPSHOT
+    # - album install album:template-r:0.1.0-SNAPSHOT
+    # - album install album:template-scijava:0.1.0-SNAPSHOT
+    # - album install album:template-imagej:0.1.0-SNAPSHOT
+    # - album install album:template-imagej2:0.1.0-SNAPSHOT
+    # - album install album:template-bdv:0.1.0-SNAPSHOT
+    # - album install album:template-napari:0.1.0-SNAPSHOT
+    # - album install album:template-minimal:0.1.0-SNAPSHOT
+    # run non-interactive templates
+    # - album run album:template-minimal:0.1.0-SNAPSHOT
+    # - album run album:template-python:0.1.0-SNAPSHOT
+    # - album run album:template-java:0.1.0-SNAPSHOT
+    # - album run album:template-r:0.1.0-SNAPSHOT
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - setup.cfg
+
+# Create combined coverage reports
+
+create combined coverage for linux:
+  extends: .linux_base_template_micromamba
+  stage: test
+  dependencies:
+    - unit tests linux micromamba
+    - integration tests linux micromamba
+  needs:
+    - unit tests linux micromamba
+    - integration tests linux micromamba
+  script:
+    - $MICROMAMBA_EXECUTABLE run -n album coverage combine unit.coverage integration.coverage
+    - $MICROMAMBA_EXECUTABLE run -n album coverage report
+    - $MICROMAMBA_EXECUTABLE run -n album coverage xml
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+
+create combined coverage for windows:
+  extends: .windows_base_template_micromamba
+  stage: test
+  dependencies:
+    - unit tests windows micromamba
+    - integration tests windows micromamba
+  needs:
+    - unit tests windows micromamba
+    - integration tests windows micromamba
+  script:
+    - '.\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album coverage combine unit.coverage integration.coverage'
+    - '.\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album coverage report'
+    - '.\micromamba_installation\Library\bin\micromamba.exe run -p .\micromamba\envs\album coverage xml'
+    - "exit($lastexitcode)"
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml

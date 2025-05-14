@@ -1,4 +1,9 @@
+"""Module containing the commandline functions for the `album` commandline tool."""
+import os
+import pkgutil
 import sys
+import tempfile
+from argparse import Namespace
 
 from album.api import Album
 from album.core.utils.operations.solution_operations import (
@@ -6,31 +11,34 @@ from album.core.utils.operations.solution_operations import (
     serialize_json,
 )
 from album.core.utils.operations.view_operations import (
-    get_solution_as_string,
-    get_updates_as_string,
     get_index_as_string,
     get_search_result_as_string,
+    get_solution_as_string,
+    get_updates_as_string,
 )
 from album.runner.album_logging import get_active_logger
-from album.runner.core.api.model.solution import ISolution
-from album.runner.core.model.script_creator import ScriptCreator
+from album.runner.core.model.solution import Solution
 
 module_logger = get_active_logger
 
 
-def add_catalog(album_instance: Album, args) -> None:
+def add_catalog(album_instance: Album, args: Namespace) -> None:
+    """Call function corresponding to the `add-catalog` subcommand of `album`."""
     album_instance.add_catalog(args.src)
 
 
-def remove_catalog(album_instance: Album, args) -> None:
+def remove_catalog(album_instance: Album, args: Namespace) -> None:
+    """Call function corresponding to the `remove-catalog` subcommand of `album`."""
     album_instance.remove_catalog_by_name(args.name)
 
 
-def update(album_instance: Album, args):
+def update(album_instance: Album, args: Namespace):
+    """Call function corresponding to the `update` subcommand of `album`."""
     album_instance.update(getattr(args, "catalog", None))
 
 
-def upgrade(album_instance: Album, args):
+def upgrade(album_instance: Album, args: Namespace):
+    """Call function corresponding to the `upgrade` subcommand of `album`."""
     updates = album_instance.upgrade(
         getattr(args, "catalog", None), dry_run=args.dry_run, override=args.override
     )
@@ -47,7 +55,8 @@ def upgrade(album_instance: Album, args):
         module_logger().info(res)
 
 
-def deploy(album_instance: Album, args):
+def deploy(album_instance: Album, args: Namespace):
+    """Call function corresponding to the `deploy` subcommand of `album`."""
     album_instance.deploy(
         args.path,
         args.catalog,
@@ -57,10 +66,12 @@ def deploy(album_instance: Album, args):
         args.git_name,
         args.force_deploy,
         args.changelog,
+        args.no_conda_lock,
     )
 
 
-def undeploy(album_instance: Album, args):
+def undeploy(album_instance: Album, args: Namespace):
+    """Call function corresponding to the `undeploy` subcommand of `album`."""
     album_instance.undeploy(
         args.path,
         args.catalog,
@@ -71,15 +82,18 @@ def undeploy(album_instance: Album, args):
     )
 
 
-def install(album_instance: Album, args):
-    album_instance.install(str(args.path), sys.argv)
+def install(album_instance: Album, args: Namespace):
+    """Call function corresponding to the `install` subcommand of `album`."""
+    album_instance.install(str(args.path), args.allow_recursive, sys.argv)
 
 
-def uninstall(album_instance: Album, args):
+def uninstall(album_instance: Album, args: Namespace):
+    """Call function corresponding to the `uninstall` subcommand of `album`."""
     album_instance.uninstall(str(args.path), args.uninstall_deps, sys.argv)
 
 
-def info(album_instance: Album, args):
+def info(album_instance: Album, args: Namespace):
+    """Call function corresponding to the `info` subcommand of `album`."""
     solution_path = args.path
     resolve_result = album_instance.resolve(str(args.path))
     print_json = _get_print_json(args)
@@ -92,11 +106,13 @@ def info(album_instance: Album, args):
         module_logger().info(res)
 
 
-def run(album_instance: Album, args):
+def run(album_instance: Album, args: Namespace):
+    """Call function corresponding to the `run` subcommand of `album`."""
     album_instance.run(str(args.path), argv=sys.argv)
 
 
-def search(album_instance: Album, args):
+def search(album_instance: Album, args: Namespace):
+    """Call function corresponding to the `search` subcommand of `album`."""
     print_json = _get_print_json(args)
     search_result = album_instance.search(args.keywords)
     if print_json:
@@ -106,15 +122,18 @@ def search(album_instance: Album, args):
         module_logger().info(res)
 
 
-def test(album_instance: Album, args):
+def test(album_instance: Album, args: Namespace):
+    """Call function corresponding to the `test` subcommand of `album`."""
     album_instance.test(str(args.path), sys.argv)
 
 
-def clone(album_instance: Album, args):
+def clone(album_instance: Album, args: Namespace):
+    """Call function corresponding to the `clone` subcommand of `album`."""
     album_instance.clone(args.src, args.target_dir, args.name)
 
 
-def index(album_instance: Album, args):
+def index(album_instance: Album, args: Namespace):
+    """Call function corresponding to the `index` subcommand of `album`."""
     index_dict = album_instance.get_index_as_dict()
     print_json = _get_print_json(args)
     if print_json:
@@ -124,47 +143,43 @@ def index(album_instance: Album, args):
         module_logger().info(res)
 
 
-def repl(album_instance: Album, args):
-    """Function corresponding to the `repl` subcommand of `album`."""
+def _merge_scripts(script1, script2_content, tmp_dir):
+    """Merge two scripts into one."""
+    with open(script1) as fp:
+        data = fp.read()
+
+    data += "\n"
+    data += script2_content.decode("utf-8")
+
+    with tempfile.NamedTemporaryFile(
+        "w", suffix=".py", prefix="solution_repl", dir=tmp_dir, delete=False
+    ) as tmp_file:
+        tmp_file.write(data)
+    return tmp_file.name
+
+
+def repl(album_instance: Album, args: Namespace):
+    """Call function corresponding to the `repl` subcommand of `album`."""
     # resolve the input
     resolve_result = album_instance.resolve_installed(str(args.path))
-    album_instance.run_solution_script(resolve_result, ScriptRepl())
+    solution_script = resolve_result.loaded_solution().script()
+    repl_script_content = pkgutil.get_data("album.core.utils.runner", "repl.py")
+    script = _merge_scripts(
+        solution_script, repl_script_content, album_instance.configuration().tmp_path()
+    )
+    resolve_result.loaded_solution().set_script(script)
+    album_instance.run_solution_script(resolve_result, Solution.Action.NO_ACTION)
+    os.remove(script)
     module_logger().info(
         'Ran REPL for "%s"!' % resolve_result.loaded_solution().coordinates().name()
     )
 
 
 def _get_print_json(args):
+    """Check if the user wants to print the output as JSON."""
     return getattr(args, "json", False)
 
 
 def _as_json(data):
+    """Serialize data as JSON."""
     return serialize_json(data)
-
-
-class ScriptRepl(ScriptCreator):
-    def get_execution_block(self, solution_object: ISolution):
-        return """
-from code import InteractiveConsole
-try:
-    import readline
-except ImportError:
-    print("Module readline not available.")
-else:
-    import rlcompleter
-    readline.parse_and_bind("tab: complete")
-console = InteractiveConsole(locals={**globals(), **locals()})
-console.interact()
-"""
-
-    def __init__(self, pop_solution: bool = False, execution_callback=None):
-        super().__init__(append_arguments=False)
-        self.pop_solution = pop_solution
-
-        if execution_callback is not None and callable(execution_callback):
-            self.execution_callback = execution_callback
-        else:
-            self.reset_callback()
-
-    def reset_callback(self):
-        self.execution_callback = lambda: ""

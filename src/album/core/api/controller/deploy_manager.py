@@ -1,4 +1,6 @@
+"""Interface for the deploy manager."""
 from abc import ABCMeta, abstractmethod
+from typing import List, Optional
 
 
 class IDeployManager:
@@ -23,13 +25,14 @@ class IDeployManager:
         deploy_path: str,
         catalog_name: str,
         dry_run: bool,
-        push_options=None,
-        git_email: str = None,
-        git_name: str = None,
+        push_options: Optional[List[str]] = None,
+        git_email: str = "",
+        git_name: str = "",
         force_deploy: bool = False,
         changelog: str = "",
+        no_conda_lock: bool = False,
     ):
-        """Function corresponding to the `deploy` subcommand of `album`.
+        """Deploy a solution.
 
         Generates the yml for a album and creates a merge request to the catalog only
         including the yaml and solution file.
@@ -54,6 +57,8 @@ class IDeployManager:
                 The git user to use. (Default: systems git configuration)
             changelog:
                 The change associated with this version of a solution compared to the last version.
+            no_conda_lock:
+                Do not create a conda lock file for the deployment.
 
         """
         raise NotImplementedError
@@ -64,11 +69,11 @@ class IDeployManager:
         solution_to_resolve: str,
         catalog_name: str,
         dry_run: bool,
-        push_options=None,
-        git_email: str = None,
-        git_name: str = None,
-    ):
-        """Function corresponding to the `deploy` subcommand of `album`.
+        push_options: Optional[List[str]] = None,
+        git_email: str = "",
+        git_name: str = "",
+    ) -> None:
+        """Undeploy an album solution.
 
         Generates the yml for a album and creates a merge request to the catalog only
         including the yaml and solution file.

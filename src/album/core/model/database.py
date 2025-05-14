@@ -1,3 +1,4 @@
+"""Implements the Database class which is a wrapper around the sqlite3 python module."""
 import gc
 import sqlite3
 import threading
@@ -8,8 +9,6 @@ from album.core.api.model.database import IDatabase
 
 
 class Database(IDatabase, ABC):
-    """Abstract model class for all album sqlite databases"""
-
     def __init__(self, path):
         self.connections = {}
         self.cursors = {}
@@ -22,7 +21,7 @@ class Database(IDatabase, ABC):
     def __del__(self):
         self.close()
 
-    def close_current_connection(self, commit=True):
+    def close_current_connection(self, commit: bool = True) -> None:
         current_thread_id = threading.current_thread().ident
         if current_thread_id in self.cursors:
             cursor = self.cursors.pop(current_thread_id)
@@ -37,7 +36,7 @@ class Database(IDatabase, ABC):
             # finally close
             conn.close()
 
-    def close(self):
+    def close(self) -> None:
         for cursor_id in self.cursors:
             cursor = self.cursors[cursor_id]
             try:
@@ -58,7 +57,7 @@ class Database(IDatabase, ABC):
         self.cursors = {}
         self.connections = {}
 
-    def get_connection(self):
+    def get_connection(self) -> sqlite3.Connection:
         thread_id = threading.current_thread().ident
         if thread_id in self.connections:
             return self.connections[thread_id]
@@ -66,7 +65,7 @@ class Database(IDatabase, ABC):
         self.connections[thread_id] = con
         return con
 
-    def get_cursor(self):
+    def get_cursor(self) -> sqlite3.Cursor:
         thread_id = threading.current_thread().ident
         if thread_id in self.cursors:
             return self.cursors[thread_id]
@@ -74,12 +73,12 @@ class Database(IDatabase, ABC):
         self.cursors[thread_id] = cursor
         return cursor
 
-    def _create_connection(self):
+    def _create_connection(self) -> sqlite3.Connection:
         con = sqlite3.connect(str(self.path))
         con.row_factory = sqlite3.Row
         return con
 
-    def next_id(self, table_name, close=False):
+    def next_id(self, table_name: str, close=False) -> int:
         cursor = self.get_cursor()
 
         table_name_id = table_name + "_id"
@@ -102,7 +101,7 @@ class Database(IDatabase, ABC):
 
         return int(r[table_name_id]) + 1
 
-    def is_created(self, close=True):
+    def is_created(self, close: bool = True) -> bool:
         cursor = self.get_cursor()
         r = cursor.execute("SELECT * FROM sqlite_master").fetchall()
         created = False
@@ -117,7 +116,7 @@ class Database(IDatabase, ABC):
 
         return created
 
-    def is_table_empty(self, table, close=True):
+    def is_table_empty(self, table: str, close: bool = True) -> bool:
         cursor = self.get_cursor()
 
         r = cursor.execute("SELECT * FROM %s" % table).fetchone()
@@ -127,5 +126,5 @@ class Database(IDatabase, ABC):
 
         return False if r else True
 
-    def get_path(self):
+    def get_path(self) -> Path:
         return self.path

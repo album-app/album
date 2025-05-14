@@ -1,17 +1,17 @@
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from test.unit.test_unit_core_common import (
+    EmptyTestClass,
+    TestCatalogAndCollectionCommon,
+    TestGitCommon,
+)
+from unittest.mock import MagicMock, patch
 
 import git
+from album.runner.core.model.coordinates import Coordinates
 
 from album.core.controller.deploy_manager import DeployManager
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
-from album.runner.core.model.coordinates import Coordinates
-from test.unit.test_unit_core_common import (
-    TestGitCommon,
-    TestCatalogAndCollectionCommon,
-    EmptyTestClass,
-)
 
 
 class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
@@ -53,9 +53,10 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
             Path("deployPath"),
             False,
             False,
-            None,
-            None,
-            None,
+            [],
+            "",
+            "",
+            False,
         )
 
     @patch(
@@ -188,7 +189,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
             catalog, self.active_solution, False, True
         )
         _deploy_routine_in_local_src.assert_called_once_with(
-            catalog, repo, self.active_solution, "deployPath"
+            catalog, repo, self.active_solution, "deployPath", False
         )
         _push_directly.assert_called_once_with(
             self.active_solution.coordinates(),
@@ -235,7 +236,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
 
         # assert
         _deploy_routine_in_local_src.assert_called_once_with(
-            catalog, repo, self.active_solution, "deployPath"
+            catalog, repo, self.active_solution, "deployPath", False
         )
         retrieve_default_mr_push_options.assert_called_once_with("mySrc")
         _create_merge_request.assert_called_once_with(
@@ -257,11 +258,13 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
 
         # mock
         _collect_solution_files = MagicMock(return_value="exports")
-        self.deploy_manager._collect_solution_files = _collect_solution_files
+        self.album_controller.resource_manager().write_solution_files = (
+            _collect_solution_files
+        )
 
         # call
         r = self.deploy_manager._deploy_routine_in_local_src(
-            catalog, repo, self.active_solution, "deployPath"
+            catalog, repo, self.active_solution, "deployPath", False
         )
 
         # assert
@@ -314,35 +317,6 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         # fixme: definitely fix me! smth. is wrong
         pass
 
-    @patch(
-        "album.core.controller.deploy_manager.create_changelog_file",
-        return_value="changelogfile",
-    )
-    def test__collect_solution_files(self, create_changelog_file):
-        # prepare
-        catalog_src_path, _ = self.setup_empty_catalog("test_cat")
-        catalog = Catalog(
-            0,
-            "test_cat",
-            src=catalog_src_path,
-            path=Path(self.tmp_dir.name).joinpath("catalog_cache_path"),
-        )
-
-        # mock
-        _create_yaml_file_in_local_src = MagicMock(return_value="ymlfile")
-        self.deploy_manager._create_yaml_file_in_local_src = (
-            _create_yaml_file_in_local_src
-        )
-
-        # call
-        r = self.deploy_manager._collect_solution_files(
-            catalog, catalog_src_path, self.active_solution, Path("deployPath")
-        )
-
-        expected = ["ymlfile", "changelogfile"]
-        # assert
-        self.assertListEqual(expected, r)
-
     @patch("album.core.controller.deploy_manager.force_remove")
     @patch("album.core.controller.deploy_manager.folder_empty", return_value=False)
     def test__clear_deploy_target_path(self, _, force_remove):
@@ -394,13 +368,13 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
 
             add_files_commit_and_push_mock.assert_called_once_with(
                 repo.heads[1],
-                [self.closed_tmp_file.name],
+                [Path(self.closed_tmp_file.name)],
                 "Adding new/updated tsg_tsn_tsv",
-                email=None,
+                email="",
                 force=True,
                 push=False,
                 push_option_list=[],
-                username=None,
+                username="",
             )
 
     @patch("album.core.controller.deploy_manager.checkout_main", return_value="head")
@@ -411,7 +385,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         self, add_tag, remove_files, add_files_commit_and_push, checkout_main
     ):
         repo = EmptyTestClass()
-        file_paths = ["a", "b", "c"]
+        file_paths = [Path("a"), Path("b"), Path("c")]
 
         commit_msg = "Adding new/updated tsg_tsn_tsv"
 
@@ -439,25 +413,3 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
             username=None,
             force=False,
         )
-
-    @patch("album.core.controller.deploy_manager.get_deploy_dict")
-    def test__create_yaml_file_in_local_src(self, deploy_dict_mock):
-        deploy_dict_mock.return_value = {
-            "name": "tsn",
-            "group": "tsg",
-            "version": "tsv",
-        }
-
-        target = Path(self.tmp_dir.name)
-
-        y_path = DeployManager._create_yaml_file_in_local_src(
-            self.active_solution, target
-        )
-
-        self.assertEqual(target.joinpath("solution.yml"), y_path)
-
-        f = open(y_path)
-        f_content = f.readlines()
-        f.close()
-
-        self.assertEqual(["group: tsg\n", "name: tsn\n", "version: tsv\n"], f_content)

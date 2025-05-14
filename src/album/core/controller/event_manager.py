@@ -1,13 +1,18 @@
+from typing import Callable, List, Optional
+
+from album.runner.core.api.model.coordinates import ICoordinates
+
 from album.core.api.controller.event_manager import IEventManager
 from album.core.api.model.event import IEvent
-from album.runner.core.api.model.coordinates import ICoordinates
 
 
 class EventManager(IEventManager):
     """Class for handling events."""
 
     class EventCallback:
-        def __init__(self, event_name, method, solution_id):
+        def __init__(
+            self, event_name: str, method: Callable, solution_id: ICoordinates
+        ):
             self.event_name = event_name
             self.method = method
             self.solution_id = solution_id
@@ -16,7 +21,10 @@ class EventManager(IEventManager):
         self.event_callbacks = []
 
     def add_listener(
-        self, event_name, callback_method, coordinates: ICoordinates = None
+        self,
+        event_name: str,
+        callback_method: Callable,
+        coordinates: Optional[ICoordinates] = None,
     ):
         res = self._filter_callbacks(
             event_name, coordinates=coordinates, callback_method=callback_method
@@ -27,8 +35,11 @@ class EventManager(IEventManager):
             )
 
     def remove_listener(
-        self, event_name, callback_method, coordinates: ICoordinates = None
-    ):
+        self,
+        event_name: str,
+        callback_method: Callable,
+        coordinates: Optional[ICoordinates] = None,
+    ) -> None:
         res = self._filter_callbacks(
             event_name, callback_method=callback_method, coordinates=coordinates
         )
@@ -36,8 +47,11 @@ class EventManager(IEventManager):
             self.event_callbacks.remove(c)
 
     def _filter_callbacks(
-        self, event_name, coordinates: ICoordinates = None, callback_method=None
-    ):
+        self,
+        event_name: str,
+        coordinates: Optional[ICoordinates] = None,
+        callback_method: Optional[Callable] = None,
+    ) -> List[EventCallback]:
         if coordinates and callback_method:
             return [
                 callback
@@ -66,6 +80,8 @@ class EventManager(IEventManager):
             if callback.event_name == event_name
         ]
 
-    def publish(self, event: IEvent, coordinates: ICoordinates = None):
+    def publish(
+        self, event: IEvent, coordinates: Optional[ICoordinates] = None
+    ) -> None:
         for callback in self._filter_callbacks(event.name(), coordinates=coordinates):
             callback.method(event)

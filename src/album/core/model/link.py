@@ -1,20 +1,28 @@
+"""Link model module."""
+
+from __future__ import annotations
+
 import os
 import platform
 from pathlib import Path
 
 
 class Link(type(Path())):
-    _flavour = type(Path())._flavour
+    """Link model implementation."""
+
     _link = None
 
-    def set_link(self, link):
+    def set_link(self, link: Path) -> Link:
+        """Set the link."""
         self._link = link
         return self
 
-    def get_link(self):
+    def get_link(self) -> Path | None:
+        """Get the link."""
         return self._link
 
-    def dispose(self):
+    def dispose(self) -> None:
+        """Dispose the link."""
         if self._link:
             operation_system = platform.system().lower()
             link = os.path.normpath(self._link)

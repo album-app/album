@@ -1,32 +1,37 @@
+"""Implementation of the ICollectionSolution class."""
 from pathlib import Path
+from typing import Optional
+
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
+from album.runner.core.model.solution import Solution
 
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
 from album.core.api.model.collection_solution import ICollectionSolution
-from album.runner.core.api.model.coordinates import ICoordinates
-from album.runner.core.api.model.solution import ISolution
-from album.runner.core.model.solution import Solution
 
 
 class ResolveResult(ICollectionSolution):
     def __init__(
         self,
-        path,
+        path: Path,
         catalog: ICatalog,
-        collection_entry: ICollectionIndex.ICollectionSolution,
+        collection_entry: Optional[ICollectionIndex.ICollectionSolution],
         coordinates: ICoordinates,
-        loaded_solution=None,
+        loaded_solution: Optional[ISolution] = None,
+        single_file_solution: bool = False,
     ):
         self._catalog: ICatalog = catalog
         self._path = path
-        self._collection_entry: ICollectionIndex.ICollectionSolution = collection_entry
-        self._coordinates: ICoordinates = coordinates
-        self._loaded_solution: ISolution = loaded_solution
+        self._collection_entry = collection_entry
+        self._coordinates = coordinates
+        self._loaded_solution = loaded_solution
+        self._is_single_file = single_file_solution
 
         if collection_entry and not loaded_solution:
             self._load_solution_from_collection_entry()
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         return (
             isinstance(other, ICollectionSolution)
             and other.catalog() == self._catalog
@@ -42,7 +47,7 @@ class ResolveResult(ICollectionSolution):
     def path(self) -> Path:
         return self._path
 
-    def database_entry(self) -> ICollectionIndex.ICollectionSolution:
+    def database_entry(self) -> Optional[ICollectionIndex.ICollectionSolution]:
         return self._collection_entry
 
     def coordinates(self) -> ICoordinates:
@@ -51,15 +56,23 @@ class ResolveResult(ICollectionSolution):
     def loaded_solution(self) -> ISolution:
         return self._loaded_solution
 
-    def set_loaded_solution(self, loaded_solution):
+    def set_loaded_solution(self, loaded_solution: ISolution) -> None:
         self._loaded_solution = loaded_solution
 
-    def set_coordinates(self, coordinates):
+    def set_coordinates(self, coordinates: ICoordinates) -> None:
         self._coordinates = coordinates
 
-    def set_database_entry(self, database_entry: ICollectionIndex.ICollectionSolution):
+    def set_database_entry(
+        self, database_entry: ICollectionIndex.ICollectionSolution
+    ) -> None:
         self._collection_entry = database_entry
 
-    def _load_solution_from_collection_entry(self):
+    def _load_solution_from_collection_entry(self) -> None:
+        if not self._collection_entry:
+            raise ValueError("No collection entry to load solution from.")
+
         attrs = self._collection_entry.setup()
         self.set_loaded_solution(Solution(attrs))
+
+    def is_single_file(self) -> bool:
+        return self._is_single_file

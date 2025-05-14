@@ -1,40 +1,40 @@
+"""Argument parsing for the album command line interface."""
+
 import argparse
 import sys
 import traceback
-
-import pkg_resources
+from importlib.metadata import entry_points
 
 from album import core
 from album.api import Album
 from album.commandline import (
     add_catalog,
-    remove_catalog,
+    clone,
     deploy,
+    index,
+    info,
     install,
+    remove_catalog,
     repl,
     run,
     search,
     test,
-    update,
-    clone,
-    upgrade,
-    index,
-    uninstall,
-    info,
     undeploy,
+    uninstall,
+    update,
+    upgrade,
 )
-from album.core.utils.subcommand import SubProcessError
+from album.environments.utils.subcommand import SubProcessError
 from album.runner.album_logging import (
+    LogLevel,
     debug_settings,
     get_active_logger,
-    LogLevel,
     to_loglevel,
 )
 
 
 def main():
     """Entry points of `album`."""
-
     parser = create_parser()
 
     get_active_logger().debug("Parsing base album call arguments...")
@@ -43,18 +43,20 @@ def main():
 
 
 def __handle_args(namespace, args, parser):
-    """Handles all arguments provided after the album command."""
+    """Handle all arguments provided after the album command."""
     level = namespace.log
     print_json = getattr(namespace, "json", False)
     __run_subcommand(namespace, args, parser, level, print_json)
 
 
 def _capture_output():
+    """Capture the output of the logger to a file."""
     logger = get_active_logger()
     logger.handlers.clear()
 
 
 def _handle_exception(e, silent: bool = False):
+    """Handle exceptions and exits the program."""
     if not silent:
         get_active_logger().error("album command failed: %s" % str(e))
         get_active_logger().debug(traceback.format_exc())
@@ -67,7 +69,7 @@ def _handle_exception(e, silent: bool = False):
 
 
 def __run_subcommand(namespace, args, parser, level: LogLevel, print_json):
-    """Calls a specific album subcommand."""
+    """Call a specific album subcommand."""
     album_command = ""
     try:
         album_command = sys.argv[1]  # album command always expected at second position
@@ -99,19 +101,20 @@ def __run_subcommand(namespace, args, parser, level: LogLevel, print_json):
 
 
 def create_album_instance(level: LogLevel) -> Album:
+    """Create an album instance with a specific log level."""
     return Album.Builder().log_level(level).build()
 
 
 def create_parser():
-    """Creates a parser for all known album arguments."""
+    """Create a parser for all known album arguments."""
     parser = AlbumParser()
     parser_creators = []
-    for entry_point in pkg_resources.iter_entry_points("console_parsers_album"):
+    for entry_point in entry_points(group="console_parsers_album"):
         try:
             parser_creators.append(entry_point.load())
         except Exception as e:
             get_active_logger().error(
-                "Cannot load console parser %s" % entry_point.name
+                f"Cannot load console parser {entry_point.name}. Error: {str(e)}"
             )
             get_active_logger().debug(str(e))
     for parse_creator in parser_creators:
@@ -120,18 +123,21 @@ def create_parser():
 
 
 def create_test_parser(parser):
+    """Create a parser for the test command."""
     parser.create_file_command_parser(
         "test", test, "execute the test routine of a solution."
     )
 
 
 def create_index_parser(parser):
+    """Create a parser for the index command."""
     parser.create_command_parser(
         "index", index, "print the index of the local album collection."
     )
 
 
 def create_clone_parser(parser):
+    """Create a parser for the clone command."""
     p = parser.create_command_parser(
         "clone", clone, "clone an album solution or catalog template."
     )
@@ -143,7 +149,8 @@ def create_clone_parser(parser):
     p.add_argument(
         "target_dir",
         type=str,
-        help="The target directory where the solution or catalog will be added to. For a catalog, this can also be an empty GIT repository URL.",
+        help="The target directory where the solution or catalog will be added to. "
+        "For a catalog, this can also be an empty GIT repository URL.",
     )
     p.add_argument(
         "name", type=str, help="The new name of the cloned solution or catalog."
@@ -151,6 +158,7 @@ def create_clone_parser(parser):
 
 
 def create_upgrade_parser(parser):
+    """Create a parser for the upgrade command."""
     p = parser.create_command_parser(
         "upgrade",
         upgrade,
@@ -173,6 +181,7 @@ def create_upgrade_parser(parser):
 
 
 def create_update_parser(parser):
+    """Create a parser for the update command."""
     p = parser.create_command_parser(
         "update",
         update,
@@ -182,6 +191,7 @@ def create_update_parser(parser):
 
 
 def create_remove_catalog_parser(parser):
+    """Create a parser for the remove-catalog command."""
     p = parser.create_command_parser(
         "remove-catalog",
         remove_catalog,
@@ -191,6 +201,7 @@ def create_remove_catalog_parser(parser):
 
 
 def create_add_catalog_parser(parser):
+    """Create a parser for the add-catalog command."""
     p = parser.create_command_parser(
         "add-catalog",
         add_catalog,
@@ -200,12 +211,14 @@ def create_add_catalog_parser(parser):
 
 
 def create_info_parser(parser):
+    """Create a parser for the info command."""
     parser.create_file_command_parser(
         "info", info, "print information about an album solution."
     )
 
 
 def create_uninstall_parser(parser):
+    """Create a parser for the uninstall command."""
     p = parser.create_file_command_parser(
         "uninstall", uninstall, "uninstall an album solution."
     )
@@ -220,10 +233,20 @@ def create_uninstall_parser(parser):
 
 
 def create_install_parser(parser):
-    parser.create_file_command_parser("install", install, "install an album solution.")
+    """Create a parser for the install command."""
+    p = parser.create_file_command_parser(
+        "install", install, "install an album solution."
+    )
+    p.add_argument(
+        "--allow-recursive",
+        required=False,
+        help="Parameter to indicate to allow album in album installation.",
+        action="store_true",
+    )
 
 
 def create_deploy_parser(parser):
+    """Create a parser for the deploy command."""
     p = parser.create_file_command_parser("deploy", deploy, "deploy an album solution.")
     p.add_argument(
         "catalog",
@@ -269,8 +292,16 @@ def create_deploy_parser(parser):
         default=None,
     )
 
+    p.add_argument(
+        "--no-conda-lock",
+        required=False,
+        help="When specified, the conda.lock file will not be created.",
+        action="store_true",
+    )
+
 
 def create_undeploy_parser(parser):
+    """Create a parser for the undeploy command."""
     p = parser.create_file_command_parser(
         "undeploy", undeploy, "undeploy an album solution."
     )
@@ -307,16 +338,19 @@ def create_undeploy_parser(parser):
 
 
 def create_repl_parser(parser):
+    """Create a parser for the repl command."""
     parser.create_file_command_parser(
         "repl", repl, "get an interactive repl for an album solution."
     )
 
 
 def create_run_parser(parser):
+    """Create a parser for the run command."""
     parser.create_file_command_parser("run", run, "run an album solution.")
 
 
 def create_search_parser(parser):
+    """Create a parser for the search command."""
     p = parser.create_command_parser(
         "search", search, "search for an album solution using keywords."
     )
@@ -324,15 +358,19 @@ def create_search_parser(parser):
 
 
 class ArgumentParser(argparse.ArgumentParser):
-    """Override default error method of all parsers to show help of subcommand"""
+    """Override default error method of all parsers to show help of subcommand."""
 
     def error(self, message):
+        """Override default error method of all parsers to show help of subcommand."""
         self.print_help()
-        self.exit(2, "%s: error: %s\n" % (self.prog, message))
+        self.exit(2, f"{self.prog}: error: {message}\n")
 
 
 class AlbumParser(ArgumentParser):
+    """Parser for the album command line interface."""
+
     def __init__(self):
+        """Initialize the album parser."""
         super().__init__()
         self.parent_parser = self.create_parent_parser()
         self.parser = self.create_parser()
@@ -366,7 +404,7 @@ class AlbumParser(ArgumentParser):
         return parent_parser
 
     def create_parser(self):
-        """Creates the main parser for the album framework."""
+        """Create the main parser for the album framework."""
         parser = ArgumentParser(
             add_help=True,
             description="album for running, building, and deploying computational solutions",
@@ -375,7 +413,7 @@ class AlbumParser(ArgumentParser):
         return parser
 
     def create_command_parser(self, command_name, command_function, command_help):
-        """Creates a parser for a album command, specified by a name, a function and a help description."""
+        """Create a parser for a album command, specified by a name, a function and a help description."""
         parser = self.subparsers.add_parser(
             command_name, help=command_help, parents=[self.parent_parser]
         )
@@ -383,7 +421,7 @@ class AlbumParser(ArgumentParser):
         return parser
 
     def create_file_command_parser(self, command_name, command_function, command_help):
-        """Creates a parser for a album command dealing with an album file.
+        """Create a parser for a album command dealing with an album file.
 
         Parser is specified by a name, a function and a help description.
         """

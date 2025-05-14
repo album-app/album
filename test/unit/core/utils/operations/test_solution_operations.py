@@ -1,9 +1,10 @@
 from io import StringIO
+from test.unit.test_unit_core_common import TestUnitCoreCommon
+
+from album.runner.core.model.solution import Solution
 
 from album.core.model.catalog_index import CatalogIndex
 from album.core.utils.operations.solution_operations import get_deploy_dict
-from album.runner.core.model.solution import Solution
-from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestSolutionOperations(TestUnitCoreCommon):
@@ -17,7 +18,6 @@ class TestSolutionOperations(TestUnitCoreCommon):
         """name: unit-test-env
 channels:
   - conda-forge
-  - defaults
 """
     )
 

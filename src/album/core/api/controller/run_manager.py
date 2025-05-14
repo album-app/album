@@ -1,3 +1,4 @@
+"""This module contains the interface for the RunManager class."""
 from abc import ABCMeta, abstractmethod
 
 
@@ -13,5 +14,5 @@ class IRunManager:
 
     @abstractmethod
     def run(self, solution_to_resolve: str, run_immediately=False, argv=None):
-        """Function corresponding to the `run` subcommand of `album`."""
+        """Run an album solution."""
         raise NotImplementedError

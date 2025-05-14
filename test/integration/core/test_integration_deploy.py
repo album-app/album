@@ -3,12 +3,14 @@ import os
 import sys
 from pathlib import Path
 from shutil import copy
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
+from unittest.mock import patch
+
+from album.environments.utils.subcommand import SubProcessError
 
 from album.core.api.model.catalog_updates import ChangeType
-
 from album.core.model.default_values import DefaultValues
 from album.runner.core.model.coordinates import Coordinates
-from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
 class TestIntegrationDeploy(TestIntegrationCoreCommon):
@@ -18,11 +20,14 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
     def tearDown(self) -> None:
         super().tearDown()
 
-    def test_deploy_dry_run(self):
+    @patch(
+        "album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file"
+    )
+    def test_deploy_dry_run(self, conda_lock_mock):
         # prepare
         path, _ = self.setup_empty_catalog("test_catalog")
         catalog = self.album_controller.collection_manager().catalogs().add_by_src(path)
-
+        conda_lock_mock.return_value = None
         # call
         self.album_controller.deploy_manager().deploy(
             str(self.get_test_solution_path()),
@@ -34,8 +39,8 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         )
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
-        self.assertIn("Pretending to deploy", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
+        self.assertIn("Pretending to deploy", self.get_logs_as_string())
         self.album_controller.collection_manager().catalogs().update_any("test_catalog")
         updates = (
             self.album_controller.collection_manager()
@@ -45,10 +50,14 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         self.assertIn("test_catalog", updates)
         self.assertEqual(0, len(updates["test_catalog"].solution_changes()))
 
-    def test_deploy_undeploy_file(self):
+    @patch(
+        "album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file"
+    )
+    def test_deploy_undeploy_file(self, conda_lock_mock):
+
         path, _ = self.setup_empty_catalog("test_catalog")
         catalog = self.album_controller.collection_manager().catalogs().add_by_src(path)
-
+        conda_lock_mock.return_value = None
         # call
         self.album_controller.deploy_manager().deploy(
             str(self.get_test_solution_path("solution11_minimal.py")),
@@ -225,15 +234,17 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         )
         self.assertEqual(0, len(solutions))
 
-        print(self.captured_output.getvalue())
-        self.assertNotIn("WARNING", self.captured_output.getvalue())
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("WARNING", self.get_logs_as_string())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
 
-    def test_deploy_folder_remove_file(self):
+    @patch(
+        "album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file"
+    )
+    def test_deploy_folder_remove_file(self, conda_lock_mock):
         # prepare
         path, _ = self.setup_empty_catalog("test_catalog")
         catalog = self.album_controller.collection_manager().catalogs().add_by_src(path)
-
+        conda_lock_mock.return_value = None
         coordinates = Coordinates("group", "name", "0.1.0")
 
         # copy solution and changelog file into new folder
@@ -256,7 +267,7 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         )
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
 
         # check if solution is present and has updated changelog
         self.album_controller.collection_manager().catalogs().update_any(catalog.name())
@@ -293,7 +304,7 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
             git_name=DefaultValues.catalog_git_user.value,
             force_deploy=True,
         )
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
+        self.assertNotIn("ERROR", self.get_logs_as_string())
         self.album_controller.collection_manager().catalogs().update_any(catalog.name())
         self.album_controller.collection_manager().catalogs().update_collection(
             catalog.name()
@@ -312,10 +323,14 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
                 .exists()
             )
 
-    def test_deploy_file_no_changelog(self):
+    @patch(
+        "album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file"
+    )
+    def test_deploy_file_no_changelog(self, conda_lock_mock):
         # prepare
         path, _ = self.setup_empty_catalog("test_catalog")
         catalog = self.album_controller.collection_manager().catalogs().add_by_src(path)
+        conda_lock_mock.return_value = None
 
         path = str(self.get_test_solution_path())
         coordinates = Coordinates("group", "name", "0.1.0")
@@ -333,10 +348,8 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         )
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
-        self.assertIn(
-            "We recommend documenting changes", self.captured_output.getvalue()
-        )
+        self.assertNotIn("ERROR", self.get_logs_as_string())
+        self.assertIn("We recommend documenting changes", self.get_logs_as_string())
 
         # check if update exists, solution is present and has updated changelog
         self.album_controller.collection_manager().catalogs().update_any(catalog.name())
@@ -351,12 +364,16 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
             catalog.catalog_id(), coordinates
         )
         self.assertIsNotNone(solution)
-        self.assertEqual(None, solution.setup()["changelog"])
+        self.assertEqual("", solution.setup()["changelog"])
 
-    def test_deploy_file_changelog_parameter(self):
+    @patch(
+        "album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file"
+    )
+    def test_deploy_file_changelog_parameter(self, conda_lock_mock):
         # prepare
         path, _ = self.setup_empty_catalog("test_catalog")
         catalog = self.album_controller.collection_manager().catalogs().add_by_src(path)
+        conda_lock_mock.return_value = None
 
         path = str(self.get_test_solution_path())
         coordinates = Coordinates("group", "name", "0.1.0")
@@ -372,10 +389,8 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         )
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
-        self.assertNotIn(
-            "We recommend documenting changes", self.captured_output.getvalue()
-        )
+        self.assertNotIn("ERROR", self.get_logs_as_string())
+        self.assertNotIn("We recommend documenting changes", self.get_logs())
 
         # check if solution has provided changelog
         self.album_controller.collection_manager().catalogs().update_any(catalog.name())
@@ -389,10 +404,14 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         self.assertIsNotNone(solution.setup()["timestamp"])
         self.assertEqual("something changed", solution.setup()["changelog"])
 
-    def test_deploy_folder_changelog_file(self):
+    @patch(
+        "album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file"
+    )
+    def test_deploy_folder_changelog_file(self, conda_lock_mock):
         # prepare
         path, _ = self.setup_empty_catalog("test_catalog")
         catalog = self.album_controller.collection_manager().catalogs().add_by_src(path)
+        conda_lock_mock.return_value = None
 
         coordinates = Coordinates("group", "name", "0.1.0")
 
@@ -425,10 +444,8 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
         )
 
         # assert
-        self.assertNotIn("ERROR", self.captured_output.getvalue())
-        self.assertNotIn(
-            "We recommend documenting changes", self.captured_output.getvalue()
-        )
+        self.assertNotIn("ERROR", self.get_logs_as_string())
+        self.assertNotIn("We recommend documenting changes", self.get_logs())
 
         # check if solution is present and has updated changelog
         self.album_controller.collection_manager().catalogs().update_any(catalog.name())
@@ -454,4 +471,51 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
                     "file.md",
                 )
                 .exists()
+            )
+
+    @patch(
+        "album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file"
+    )
+    def test_deploy_no_conda_lock(self, conda_lock_mock):
+        # prepare
+        path, _ = self.setup_empty_catalog("test_catalog")
+        catalog = self.album_controller.collection_manager().catalogs().add_by_src(path)
+        conda_lock_mock.return_value = None
+        # call
+        self.album_controller.deploy_manager().deploy(
+            str(self.get_test_solution_path()),
+            catalog_name=catalog.name(),
+            changelog="something changed",
+            dry_run=False,
+            git_name="MyName",
+            git_email="MyEmail",
+            no_conda_lock=True,
+        )
+
+        # assert
+        self.assertNotIn("ERROR", self.get_logs_as_string())
+        self.album_controller.collection_manager().catalogs().update_any("test_catalog")
+        updates = (
+            self.album_controller.collection_manager()
+            .catalogs()
+            .update_collection("test_catalog")
+        )
+        self.assertIn("test_catalog", updates)
+        self.assertEqual(1, len(updates["test_catalog"].solution_changes()))
+        conda_lock_mock.assert_not_called()
+
+    def test_deploy_broken_conda_lock(self):
+        # prepare
+        path, _ = self.setup_empty_catalog("test_catalog")
+        catalog = self.album_controller.collection_manager().catalogs().add_by_src(path)
+        # call and assert
+        with self.assertRaises(SubProcessError):
+            self.album_controller.deploy_manager().deploy(
+                str(self.get_test_solution_path("solution_broken_lock.py")),
+                catalog_name=catalog.name(),
+                changelog="something changed",
+                dry_run=False,
+                git_name="MyName",
+                git_email="MyEmail",
+                no_conda_lock=False,
             )

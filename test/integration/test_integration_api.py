@@ -1,14 +1,16 @@
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
+from unittest.mock import patch
+
+from album.runner import album_logging
+from album.runner.album_logging import LogLevel
 
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.git_operations import clone_repository
 from album.core.utils.operations.solution_operations import serialize_json
-from album.runner import album_logging
-from album.runner.album_logging import LogLevel
-from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
 class TestIntegrationAPI(TestIntegrationCoreCommon):
@@ -19,7 +21,15 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
     def tearDown(self) -> None:
         super().tearDown()
 
-    def test_api(self):
+    @patch(
+        "album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file"
+    )
+    def test_api(self, conda_lock_mock):
+        # fake conda-lock executable
+        self.album_controller.environment_manager().get_environment_handler().get_conda_lock_manager()._conda_lock_executable = (
+            "conda-lock"
+        )
+        conda_lock_mock.return_value = None
 
         album_logging.set_loglevel(LogLevel.INFO)
         logger = album_logging.get_active_logger()
@@ -39,7 +49,7 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
 
         # add remote catalog
         remote_catalog = "https://gitlab.com/album-app/catalogs/templates/catalog"
-        remote_catalog_instance = album.add_catalog(remote_catalog)
+        album.add_catalog(remote_catalog)
 
         # remove remote catalog
         album.remove_catalog_by_src(remote_catalog)
@@ -71,7 +81,7 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
             force_remove(target_tmp)
 
         # add catalog
-        catalog = album.add_catalog(local_catalog_path)
+        album.add_catalog(local_catalog_path)
 
         self.assertCatalogPresence(
             self.album._controller.collection_manager().catalogs().get_all(),
@@ -112,7 +122,13 @@ class TestIntegrationAPI(TestIntegrationCoreCommon):
         # upgrade collection
         album.upgrade()
 
-        solution_str = "%s:%s:%s" % (group, name, version)
+        solution_str = f"{group}:{name}:{version}"
+
+        # check is_installed for a nonexistend solution
+        self.assertFalse(album.is_installed("wrong_group:wrong_name:wrong_version"))
+
+        # check is_installed for a wrong input format
+        self.assertFalse(album.is_installed("wrong_input_format"))
 
         # check that solution exists, but is not installed
         installed = album.is_installed(solution_str)

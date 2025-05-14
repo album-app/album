@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import album.core.utils.operations.git_operations as git_op
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import copy
+from album.environments.utils.file_operations import copy
 from album.runner.core.model.solution import Solution
 from test.unit.test_unit_core_common import TestGitCommon
 
