@@ -1,6 +1,6 @@
 FROM ubuntu
 
-COPY album /album
+COPY . /album
 
 SHELL ["/bin/bash", "-l", "-c"]
 RUN sed -e '/[ -z "$PS1" ] && return/s/^/#/g' -i /root/.bashrc
@@ -14,7 +14,9 @@ RUN echo "micromamba activate" >> /root/.bashrc
 
 RUN micromamba install -y git python==3.10 pip -c conda-forge &&  cd /album && pip install .
 
-ENTRYPOINT ["/bin/bash", "-l", "-c", "album", "-h"]
+RUN chmod +x /album/docker_entrypoint.sh
+
+ENTRYPOINT ["/album/docker_entrypoint.sh"]
 LABEL MAINTAINER="Max Delbrueck Centrum for Molecular Medicine"
 LABEL author="Jan Philipp Albrecht, Deborah Schmidt, Kyle Harrington"
 LABEL comment="Album - spanning solutions across scales and tools"
