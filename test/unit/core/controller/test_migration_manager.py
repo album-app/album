@@ -4,11 +4,11 @@ import shutil
 import sqlite3
 from copy import deepcopy
 from pathlib import Path
+from test.unit.test_unit_core_common import TestCatalogAndCollectionCommon
 from unittest.mock import MagicMock, patch
 
 from album.core.model.catalog import Catalog
 from album.core.model.mmversion import MMVersion
-from test.unit.test_unit_core_common import TestCatalogAndCollectionCommon
 
 
 class TestMigrationManager(TestCatalogAndCollectionCommon):
@@ -21,10 +21,16 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
         self.setup_outdated_temporary_collection()
         self.migration_manager = self.album_controller._migration_manager
         self.migration_manager.load_index(self.catalog)
-        self.migration_manager.catalog_db_versions = [MMVersion.from_string('0.0.0'), MMVersion.from_string('0.0.1'),
-                                                      MMVersion.from_string('0.1.0')]
-        self.migration_manager.collection_db_versions = [MMVersion.from_string('0.0.0'), MMVersion.from_string('0.0.1'),
-                                                         MMVersion.from_string('0.1.0')]
+        self.migration_manager.catalog_db_versions = [
+            MMVersion.from_string("0.0.0"),
+            MMVersion.from_string("0.0.1"),
+            MMVersion.from_string("0.1.0"),
+        ]
+        self.migration_manager.collection_db_versions = [
+            MMVersion.from_string("0.0.0"),
+            MMVersion.from_string("0.0.1"),
+            MMVersion.from_string("0.1.0"),
+        ]
 
     def tearDown(self) -> None:
         self.catalog.dispose()
@@ -32,35 +38,61 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
 
     def setup_outdated_temporary_collection(self):
         get_catalog_collection_meta_path = MagicMock()
-        get_catalog_collection_meta_path.return_value = Path(self.tmp_dir.name).joinpath("catalog_collection.json")
-        self.album_controller.configuration().get_catalog_collection_meta_path = get_catalog_collection_meta_path
+        get_catalog_collection_meta_path.return_value = Path(
+            self.tmp_dir.name
+        ).joinpath("catalog_collection.json")
+        self.album_controller.configuration().get_catalog_collection_meta_path = (
+            get_catalog_collection_meta_path
+        )
 
         get_catalog_collection_path = MagicMock()
-        get_catalog_collection_path.return_value = Path(self.tmp_dir.name).joinpath("catalog_collection.db")
-        self.album_controller.configuration().get_catalog_collection_path = get_catalog_collection_path
-
-        shutil.copyfile(Path(os.path.realpath(__file__)).parent.parent.parent.parent.joinpath("resources",
-                                                                                              "outdated_collection",
-                                                                                              "catalog_collection.json"),
-                        Path(self.tmp_dir.name).joinpath("catalog_collection.json"))
-        shutil.copyfile(Path(os.path.realpath(__file__)).parent.parent.parent.parent.joinpath("resources",
-                                                                                              "outdated_collection",
-                                                                                              "catalog_collection.db"),
-                        Path(self.tmp_dir.name).joinpath("catalog_collection.db"))
+        get_catalog_collection_path.return_value = Path(self.tmp_dir.name).joinpath(
+            "catalog_collection.db"
+        )
+        self.album_controller.configuration().get_catalog_collection_path = (
+            get_catalog_collection_path
+        )
 
         shutil.copyfile(
-            Path(os.path.realpath(__file__)).parent.parent.parent.parent.joinpath("resources", "catalogs", "unit",
-                                                                                  "outdated_catalog",
-                                                                                  "album_catalog_index.json"),
-            Path(self.tmp_dir.name).joinpath("album_catalog_index.json"))
+            Path(os.path.realpath(__file__)).parent.parent.parent.parent.joinpath(
+                "resources", "outdated_collection", "catalog_collection.json"
+            ),
+            Path(self.tmp_dir.name).joinpath("catalog_collection.json"),
+        )
         shutil.copyfile(
-            Path(os.path.realpath(__file__)).parent.parent.parent.parent.joinpath("resources", "catalogs", "unit",
-                                                                                  "outdated_catalog",
-                                                                                  "album_catalog_index.db"),
-            Path(self.tmp_dir.name).joinpath("album_catalog_index.db"))
+            Path(os.path.realpath(__file__)).parent.parent.parent.parent.joinpath(
+                "resources", "outdated_collection", "catalog_collection.db"
+            ),
+            Path(self.tmp_dir.name).joinpath("catalog_collection.db"),
+        )
 
-        self.catalog.set_index_path(Path(self.tmp_dir.name).joinpath("album_catalog_index.db"))
-        self.catalog._meta_file_path = Path(self.tmp_dir.name).joinpath("album_catalog_index.json")
+        shutil.copyfile(
+            Path(os.path.realpath(__file__)).parent.parent.parent.parent.joinpath(
+                "resources",
+                "catalogs",
+                "unit",
+                "outdated_catalog",
+                "album_catalog_index.json",
+            ),
+            Path(self.tmp_dir.name).joinpath("album_catalog_index.json"),
+        )
+        shutil.copyfile(
+            Path(os.path.realpath(__file__)).parent.parent.parent.parent.joinpath(
+                "resources",
+                "catalogs",
+                "unit",
+                "outdated_catalog",
+                "album_catalog_index.db",
+            ),
+            Path(self.tmp_dir.name).joinpath("album_catalog_index.db"),
+        )
+
+        self.catalog.set_index_path(
+            Path(self.tmp_dir.name).joinpath("album_catalog_index.db")
+        )
+        self.catalog._meta_file_path = Path(self.tmp_dir.name).joinpath(
+            "album_catalog_index.json"
+        )
 
     def test_load_index(self):
         # prepare
@@ -113,15 +145,21 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
         current_version = MMVersion.from_string("0.0.0")
 
         migrate_catalog_collection_db = MagicMock()
-        self.migration_manager.migrate_catalog_collection_db = migrate_catalog_collection_db
+        self.migration_manager.migrate_catalog_collection_db = (
+            migrate_catalog_collection_db
+        )
 
         # call & assert
         with self.assertRaises(Exception):
             self.migration_manager.migrate_collection_index(
-                self.album_controller._collection_manager.catalog_collection, false_current_version)
+                self.album_controller._collection_manager.catalog_collection,
+                false_current_version,
+            )
 
         self.migration_manager.migrate_collection_index(
-            self.album_controller._collection_manager.catalog_collection, current_version)
+            self.album_controller._collection_manager.catalog_collection,
+            current_version,
+        )
         self.assertEqual(migrate_catalog_collection_db.call_count, 2)
 
     def test_load_catalog_index(self):
@@ -134,7 +172,9 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
 
         # call & assert
         with self.assertRaises(Exception):
-            self.migration_manager._load_catalog_index(self.catalog, false_current_version)
+            self.migration_manager._load_catalog_index(
+                self.catalog, false_current_version
+            )
 
         self.migration_manager._load_catalog_index(self.catalog, current_version)
         self.assertEqual(migrate_catalog_index_db.call_count, 2)
@@ -157,10 +197,17 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
     def test_load_solution_schema(self):
         pass
 
-    @patch('pkg_resources.resource_filename')
-    def test_load_catalog_collection_migration_schema(self, pkg_resources):
+    @patch("importlib.resources.files")
+    def test_load_catalog_collection_migration_schema(self, mock_files):
         # prepare
-        pkg_resources.return_value = Path(os.path.realpath(__file__)).parent.parent.parent.parent.joinpath("resources", "migrations", "catalog_collection", "migrate_catalog_collection_001_to_010.sql")
+        mock_files.return_value = Path(
+            os.path.realpath(__file__)
+        ).parent.parent.parent.parent.joinpath(
+            "resources",
+            "migrations",
+            "catalog_collection",
+            "migrate_catalog_collection_001_to_010.sql",
+        )
         prep_schema = """CREATE TABLE IF NOT EXISTS test_table2 (
     spalte_1 INTEGER DEFAULT 0,
     spalte_2 TEXT DEFAULT "default"
@@ -172,15 +219,26 @@ WHERE name = 'album_collection'"""
         target_version = MMVersion.from_string("0.1.0")
 
         # call
-        called_schema = self.migration_manager._load_catalog_collection_migration_schema(curr_version, target_version)
+        called_schema = (
+            self.migration_manager._load_catalog_collection_migration_schema(
+                curr_version, target_version
+            )
+        )
 
         # assert
         self.assertEqual(prep_schema, called_schema)
 
-    @patch('pkg_resources.resource_filename')
-    def test_load_catalog_index_migration_schema(self, pkg_resources):
+    @patch("importlib.resources.files")
+    def test_load_catalog_index_migration_schema(self, mock_files):
         # prepare
-        pkg_resources.return_value = Path(os.path.realpath(__file__)).parent.parent.parent.parent.joinpath("resources", "migrations", "catalog_index", "migrate_catalog_index_001_to_010.sql")
+        mock_files.return_value = Path(
+            os.path.realpath(__file__)
+        ).parent.parent.parent.parent.joinpath(
+            "resources",
+            "migrations",
+            "catalog_index",
+            "migrate_catalog_index_001_to_010.sql",
+        )
         prep_schema = """CREATE TABLE IF NOT EXISTS test_table2 (
     spalte_1 INTEGER DEFAULT 0,
     spalte_2 TEXT DEFAULT "default"
@@ -192,7 +250,9 @@ WHERE version = '0.0.1'"""
         target_version = MMVersion.from_string("0.1.0")
 
         # call
-        called_schema = self.migration_manager._load_catalog_index_migration_schema(curr_version, target_version)
+        called_schema = self.migration_manager._load_catalog_index_migration_schema(
+            curr_version, target_version
+        )
 
         # assert
         self.assertEqual(prep_schema, called_schema)
@@ -210,7 +270,8 @@ WHERE name = 'album_collection'"""
 
         # call
         self.migration_manager._execute_migration_script(
-            Path(self.tmp_dir.name).joinpath("catalog_collection.db"), test_script)
+            Path(self.tmp_dir.name).joinpath("catalog_collection.db"), test_script
+        )
 
         # assert
         con = sqlite3.connect(Path(self.tmp_dir.name).joinpath("catalog_collection.db"))
@@ -230,7 +291,8 @@ WHERE name = 'album_collection'"""
     def test_update_catalog_index_version(self):
         # call
         self.migration_manager._update_catalog_index_version(
-            Path(self.tmp_dir.name).joinpath("album_catalog_index.json"))
+            Path(self.tmp_dir.name).joinpath("album_catalog_index.json")
+        )
 
         # assert
         with open(Path(self.tmp_dir.name).joinpath("album_catalog_index.json")) as file:
@@ -243,7 +305,9 @@ WHERE name = 'album_collection'"""
         versions = [MMVersion.from_string("0.1.0"), MMVersion.from_string("0.2.0")]
 
         # call
-        called_versions = self.migration_manager._read_collection_database_versions_from_scripts()
+        called_versions = (
+            self.migration_manager._read_collection_database_versions_from_scripts()
+        )
 
         # assert
         self.assertEqual(versions, called_versions)
@@ -255,7 +319,9 @@ WHERE name = 'album_collection'"""
         versions = [MMVersion.from_string("0.1.0"), MMVersion.from_string("0.2.0")]
 
         # call
-        called_versions = self.migration_manager._read_catalog_database_versions_from_scripts()
+        called_versions = (
+            self.migration_manager._read_catalog_database_versions_from_scripts()
+        )
 
         # assert
         self.assertEqual(versions, called_versions)
@@ -263,7 +329,10 @@ WHERE name = 'album_collection'"""
     @patch("os.listdir")
     def test_read_broken_collection_database_versions_from_scripts(self, listdir):
         # prepare
-        listdir.return_value = ["migrate_catalog_collection_000_to_10.sql", "migrate_catalog_collection_010_to_020.sql"]
+        listdir.return_value = [
+            "migrate_catalog_collection_000_to_10.sql",
+            "migrate_catalog_collection_010_to_020.sql",
+        ]
 
         # call & assert
         with self.assertRaises(ValueError):
@@ -272,8 +341,10 @@ WHERE name = 'album_collection'"""
     @patch("os.listdir")
     def test_read_broken_catalog_database_versions_from_scripts(self, listdir):
         # prepare
-        listdir.return_value = ["migrate_catalog_index_000_to_01s.sql",
-                                "migrate_catalog_index_010_to_020.sql"]
+        listdir.return_value = [
+            "migrate_catalog_index_000_to_01s.sql",
+            "migrate_catalog_index_010_to_020.sql",
+        ]
         # call & assert
         with self.assertRaises(ValueError):
             self.migration_manager._read_catalog_database_versions_from_scripts()
