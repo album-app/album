@@ -1,16 +1,14 @@
 import json
-import os
 import pkgutil
 import shutil
 import sqlite3
 from copy import deepcopy
 from importlib.metadata import version as importlib_version
+from importlib.resources import files
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Tuple
 
-import pkg_resources
-from album.runner import album_logging
 from jsonschema import ValidationError, validate
 from packaging import version
 
@@ -25,6 +23,7 @@ from album.core.utils.operations.file_operations import (
     get_dict_from_json,
     write_dict_to_json,
 )
+from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
@@ -220,34 +219,34 @@ class MigrationManager(IMigrationManager):
     def _load_catalog_collection_migration_schema(
         curr_version: IMMVersion, target_version: IMMVersion
     ) -> str:
-        with open(
-            pkg_resources.resource_filename(
-                "album.core.schema.migrations.catalog_collection",
-                "migrate_catalog_collection_%s_to_%s.sql"
-                % (
-                    str(curr_version).replace(".", ""),
-                    str(target_version).replace(".", ""),
-                ),
-            )
-        ) as file:
-            schema = file.read()
+        resource_name = "migrate_catalog_collection_{}_to_{}.sql".format(  # noqa: P101
+            str(curr_version).replace(".", ""),
+            str(target_version).replace(".", ""),
+        )
+
+        schema = (
+            files("album.core.schema.migrations.catalog_collection")
+            .joinpath(resource_name)
+            .read_text()
+        )
+
         return schema
 
     @staticmethod
     def _load_catalog_index_migration_schema(
         curr_version: IMMVersion, target_version: IMMVersion
     ) -> str:
-        with open(
-            pkg_resources.resource_filename(
-                "album.core.schema.migrations.catalog_index",
-                "migrate_catalog_index_%s_to_%s.sql"
-                % (
-                    str(curr_version).replace(".", ""),
-                    str(target_version).replace(".", ""),
-                ),
-            )
-        ) as file:
-            schema = file.read()
+        resource_name = "migrate_catalog_index_{}_to_{}.sql".format(  # noqa: P101
+            str(curr_version).replace(".", ""),
+            str(target_version).replace(".", ""),
+        )
+
+        schema = (
+            files("album.core.schema.migrations.catalog_index")
+            .joinpath(resource_name)
+            .read_text()
+        )
+
         return schema
 
     @staticmethod
@@ -287,15 +286,16 @@ class MigrationManager(IMigrationManager):
     @staticmethod
     def _read_collection_database_versions_from_scripts() -> List[IMMVersion]:
         versions = [MMVersion.from_string("0.1.0")]
-        for file in os.listdir(
-            pkg_resources.resource_filename(
-                "album.core.schema.migrations.catalog_collection", ""
-            )
-        ):
-            if ".sql" in file:
+
+        # Get a Traversable for the package dir
+        resource_dir = files("album.core.schema.migrations.catalog_collection")
+
+        # Iterate over its contents (like os.listdir)
+        for file in resource_dir.iterdir():
+            if file.name.endswith(".sql"):
                 try:
                     versions.append(
-                        MMVersion.from_string(file.split("_")[-1].split(".")[0])
+                        MMVersion.from_string(file.name.split("_")[-1].split(".")[0])
                     )
                 except (ValueError, IndexError):
                     raise ValueError(
@@ -307,15 +307,16 @@ class MigrationManager(IMigrationManager):
     @staticmethod
     def _read_catalog_database_versions_from_scripts() -> List[IMMVersion]:
         versions = [MMVersion.from_string("0.1.0")]
-        for file in os.listdir(
-            pkg_resources.resource_filename(
-                "album.core.schema.migrations.catalog_index", ""
-            )
-        ):
-            if ".sql" in file:
+
+        # Get a Traversable for the package dir
+        resource_dir = files("album.core.schema.migrations.catalog_index")
+
+        # Iterate over its contents (like os.listdir)
+        for file in resource_dir.iterdir():
+            if file.name.endswith(".sql"):
                 try:
                     versions.append(
-                        MMVersion.from_string(file.split("_")[-1].split(".")[0])
+                        MMVersion.from_string(file.name.split("_")[-1].split(".")[0])
                     )
                 except (ValueError, IndexError):
                     raise ValueError(
