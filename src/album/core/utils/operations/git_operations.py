@@ -1,4 +1,5 @@
 """Module for git operations."""
+
 import os
 import re
 from contextlib import contextmanager
@@ -7,7 +8,6 @@ from typing import Generator, List, Union
 from urllib.parse import urlparse
 
 import git
-from album.runner import album_logging
 from git import Head, Repo
 from git.refs import HEAD
 
@@ -17,6 +17,7 @@ from album.core.utils.operations.file_operations import (
     force_remove,
 )
 from album.core.utils.operations.url_operations import is_url
+from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
@@ -576,6 +577,9 @@ def get_local_remote_ref_head(repo: Repo) -> Head:
             remote_main_name = remote_head.split(" ")[-1]
         except git.GitCommandError:
             remote_main_name = "main"
+        # Sanitize the name, as it might contain ' or " when it is "main"
+        # E.g. when the branch is called "main",  remote_main_name="'origin/HEAD' is unchanged and points to 'main'"
+        remote_main_name = remote_main_name.strip("'\"")
         head = repo.heads[remote_main_name]
     else:
         head = repo.head.ref
