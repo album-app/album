@@ -197,7 +197,7 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
     def test_load_solution_schema(self):
         pass
 
-    @patch("importlib.resources.files")
+    @patch("album.core.controller.migration_manager.files")
     def test_load_catalog_collection_migration_schema(self, mock_files):
         # prepare
         mock_files.return_value = Path(
@@ -206,7 +206,6 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
             "resources",
             "migrations",
             "catalog_collection",
-            "migrate_catalog_collection_001_to_010.sql",
         )
         prep_schema = """CREATE TABLE IF NOT EXISTS test_table2 (
     spalte_1 INTEGER DEFAULT 0,
@@ -228,7 +227,7 @@ WHERE name = 'album_collection'"""
         # assert
         self.assertEqual(prep_schema, called_schema)
 
-    @patch("importlib.resources.files")
+    @patch("album.core.controller.migration_manager.files")
     def test_load_catalog_index_migration_schema(self, mock_files):
         # prepare
         mock_files.return_value = Path(
@@ -237,7 +236,6 @@ WHERE name = 'album_collection'"""
             "resources",
             "migrations",
             "catalog_index",
-            "migrate_catalog_index_001_to_010.sql",
         )
         prep_schema = """CREATE TABLE IF NOT EXISTS test_table2 (
     spalte_1 INTEGER DEFAULT 0,
@@ -298,12 +296,18 @@ WHERE name = 'album_collection'"""
         with open(Path(self.tmp_dir.name).joinpath("album_catalog_index.json")) as file:
             self.assertTrue(json.load(file)["version"] == "0.1.0")
 
-    @patch("os.listdir")
-    def test_read_collection_database_versions_from_scripts(self, listdir):
+    @patch("album.core.controller.migration_manager.files")
+    def test_read_collection_database_versions_from_scripts(
+        self, mock_resource_filename
+    ):
         # prepare
-        listdir.return_value = ["migrate_catalog_collection_010_to_020.sql"]
+        list_mock = MagicMock()
+        list_mock.iterdir = MagicMock()
+        list_mock.iterdir.return_value = [
+            Path("migrate_catalog_collection_010_to_020.sql")
+        ]
         versions = [MMVersion.from_string("0.1.0"), MMVersion.from_string("0.2.0")]
-
+        mock_resource_filename.return_value = list_mock
         # call
         called_versions = (
             self.migration_manager._read_collection_database_versions_from_scripts()
@@ -312,12 +316,14 @@ WHERE name = 'album_collection'"""
         # assert
         self.assertEqual(versions, called_versions)
 
-    @patch("os.listdir")
-    def test_read_catalog_database_versions_from_scripts(self, listdir):
+    @patch("album.core.controller.migration_manager.files")
+    def test_read_catalog_database_versions_from_scripts(self, mock_resource_filename):
         # prepare
-        listdir.return_value = ["migrate_catalog_index_010_to_020.sql"]
+        list_mock = MagicMock()
+        list_mock.iterdir = MagicMock()
+        list_mock.iterdir.return_value = [Path("migrate_catalog_index_010_to_020.sql")]
         versions = [MMVersion.from_string("0.1.0"), MMVersion.from_string("0.2.0")]
-
+        mock_resource_filename.return_value = list_mock
         # call
         called_versions = (
             self.migration_manager._read_catalog_database_versions_from_scripts()
@@ -326,25 +332,32 @@ WHERE name = 'album_collection'"""
         # assert
         self.assertEqual(versions, called_versions)
 
-    @patch("os.listdir")
-    def test_read_broken_collection_database_versions_from_scripts(self, listdir):
-        # prepare
-        listdir.return_value = [
-            "migrate_catalog_collection_000_to_10.sql",
-            "migrate_catalog_collection_010_to_020.sql",
+    @patch("album.core.controller.migration_manager.files")
+    def test_read_broken_collection_database_versions_from_scripts(
+        self, mock_resource_filename
+    ):
+        list_mock = MagicMock()
+        list_mock.iterdir = MagicMock()
+        list_mock.iterdir.return_value = [
+            Path("migrate_catalog_collection_000_to_10.sql"),
+            Path("migrate_catalog_collection_010_to_020.sql"),
         ]
-
+        mock_resource_filename.return_value = list_mock
         # call & assert
         with self.assertRaises(ValueError):
             self.migration_manager._read_collection_database_versions_from_scripts()
 
-    @patch("os.listdir")
-    def test_read_broken_catalog_database_versions_from_scripts(self, listdir):
-        # prepare
-        listdir.return_value = [
-            "migrate_catalog_index_000_to_01s.sql",
-            "migrate_catalog_index_010_to_020.sql",
+    @patch("album.core.controller.migration_manager.files")
+    def test_read_broken_catalog_database_versions_from_scripts(
+        self, mock_resource_filename
+    ):
+        list_mock = MagicMock()
+        list_mock.iterdir = MagicMock()
+        list_mock.iterdir.return_value = [
+            Path("migrate_catalog_index_000_to_01s.sql"),
+            Path("migrate_catalog_index_010_to_020.sql"),
         ]
+        mock_resource_filename.return_value = list_mock
         # call & assert
         with self.assertRaises(ValueError):
             self.migration_manager._read_catalog_database_versions_from_scripts()

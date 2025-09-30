@@ -102,7 +102,7 @@ class TestIntegrationMigrationManager(TestIntegrationCoreCommon):
             "album_catalog_index.json"
         )
 
-    @patch("importlib.resources.files")
+    @patch("album.core.controller.migration_manager.files")
     def test_migrate_catalog_single(self, mock_resource_filename):
         # mocks
         mock_resource_filename.return_value = Path(
@@ -111,7 +111,6 @@ class TestIntegrationMigrationManager(TestIntegrationCoreCommon):
             "resources",
             "migrations",
             "catalog_index",
-            "migrate_catalog_index_001_to_010.sql",
         )
         # prepare
         current_version = MMVersion.from_string("0.0.1")
@@ -135,7 +134,7 @@ class TestIntegrationMigrationManager(TestIntegrationCoreCommon):
         self.assertEqual("test_table2", result[0][0])
         self.catalog.__del__()  # close connection to db completely to avoid problems with the cleanup
 
-    @patch("importlib.resources.files")
+    @patch("album.core.controller.migration_manager.files")
     def test_migrate_catalog_multiple(self, mock_resource_filename):
         # mocks
         mock_resource_filename.side_effect = [
@@ -143,13 +142,11 @@ class TestIntegrationMigrationManager(TestIntegrationCoreCommon):
                 "resources",
                 "migrations",
                 "catalog_index",
-                "migrate_catalog_index_000_to_001.sql",
             ),
             Path(os.path.realpath(__file__)).parent.parent.parent.joinpath(
                 "resources",
                 "migrations",
                 "catalog_index",
-                "migrate_catalog_index_001_to_010.sql",
             ),
         ]
         # prepare
@@ -175,7 +172,7 @@ class TestIntegrationMigrationManager(TestIntegrationCoreCommon):
         self.assertEqual("test_table2", result[1][0])
         self.catalog.__del__()  # close connection to db completely to avoid problems with the cleanup
 
-    @patch("importlib.resources.files")
+    @patch("album.core.controller.migration_manager.files")
     def test_migrate_catalog_collection_single(self, mock_resource_filename):
         # mocks
         mock_resource_filename.return_value = Path(
@@ -184,7 +181,6 @@ class TestIntegrationMigrationManager(TestIntegrationCoreCommon):
             "resources",
             "migrations",
             "catalog_collection",
-            "migrate_catalog_collection_001_to_010.sql",
         )
         # prepare
         current_version = MMVersion.from_string("0.0.1")
@@ -219,7 +215,7 @@ class TestIntegrationMigrationManager(TestIntegrationCoreCommon):
         )
         self.assertEqual("test_table2", result[0][0])
 
-    @patch("importlib.resources.files")
+    @patch("album.core.controller.migration_manager.files")
     def test_migrate_catalog_collection_multiple(self, mock_resource_filename):
         # mock
         mock_resource_filename.side_effect = [
@@ -227,13 +223,11 @@ class TestIntegrationMigrationManager(TestIntegrationCoreCommon):
                 "resources",
                 "migrations",
                 "catalog_collection",
-                "migrate_catalog_collection_000_to_001.sql",
             ),
             Path(os.path.realpath(__file__)).parent.parent.parent.joinpath(
                 "resources",
                 "migrations",
                 "catalog_collection",
-                "migrate_catalog_collection_001_to_010.sql",
             ),
         ]
         # prepare
