@@ -2,21 +2,21 @@ import copy
 import os
 import tempfile
 import unittest
+from test.unit.test_unit_core_common import TestZenodoCommon
 
 from requests import Response
 
 from album.ci.utils.zenodo_api import (
-    ZenodoEntry,
-    ZenodoMetadata,
-    ZenodoFile,
-    ZenodoDeposit,
-    UploadType,
-    IterableList,
     InvalidResponseStatusError,
+    IterableList,
+    UploadType,
     ZenodoAPI,
-    ResponseStatus,
+    ZenodoDeposit,
+    ZenodoEntry,
+    ZenodoFile,
+    ZenodoMetadata,
 )
-from test.unit.test_unit_core_common import TestZenodoCommon
+from album.core.utils.operations.url_operations import ResponseStatus
 
 
 class TestZenodoEntry(unittest.TestCase):
