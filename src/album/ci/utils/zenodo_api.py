@@ -6,7 +6,7 @@ import json
 import os
 from abc import ABC
 from enum import Enum, unique
-from typing import Any
+from typing import Any, SupportsIndex
 
 import requests
 from requests import Response
@@ -98,7 +98,7 @@ class ZenodoEntry(ABC):  # noqa: B024
 
     @staticmethod
     def _get_attribute(
-        entry_dict: dict[str, Any] | str,
+        entry_dict: dict[str, Any],
         key: str,
         required: bool = False,
     ) -> Any:
@@ -160,15 +160,14 @@ class ZenodoEntry(ABC):  # noqa: B024
         # treat special objects
         if "metadata" in d.keys():
             if isinstance(d["metadata"], ZenodoMetadata):
-                d["metadata"] = self.metadata.to_dict()
+                d["metadata"] = d["metadata"].to_dict()
 
         if "files" in d.keys():
-            if isinstance(d["files"], ZenodoFile):
-                d["files"] = [x.to_dict() for x in self.files]
+            d["files"] = [x.to_dict() for x in ZenodoDeposit.list_items(d["files"])]
 
         if "stats" in d.keys():
             if isinstance(d["stats"], ZenodoRecordStats):
-                d["stats"] = self.stats.to_dict()
+                d["stats"] = d["stats"].to_dict()
 
         return d
 
@@ -239,8 +238,11 @@ class IterableList(list):
         super().__init__()
         self._id_attr = id_attr
 
-    def __contains__(self, attr: str):
+    def __contains__(self, attr: object):
         """Check if an attribute is in the list."""
+        if not isinstance(attr, str):
+            return False
+
         try:
             getattr(self, attr)
             return True
@@ -254,35 +256,26 @@ class IterableList(list):
                 return item
         return list.__getattribute__(self, attr)
 
-    def __getitem__(self, index: int | str):
-        """Get item by index or by id."""
-        if isinstance(index, int):
+    def __getitem__(self, index: SupportsIndex | slice | str) -> Any:
+        """Get item by index, slice, or id string."""
+        if isinstance(index, slice):
+            # delegate to list for normal slicing
             return list.__getitem__(self, index)
-
-        try:
-            return getattr(self, index)
-        except AttributeError as e:
-            raise IndexError("No item found with id %r" % index) from e
+        elif isinstance(index, int):
+            return list.__getitem__(self, index)
+        elif isinstance(index, str):
+            try:
+                return getattr(self, index)
+            except AttributeError as e:
+                raise IndexError(f"No item found with id {index!r}") from e
+        else:
+            raise TypeError(f"Invalid index type: {type(index).__name__}")
 
 
 class ZenodoFile(ZenodoEntry):
     """Describe a file in a @ZenodoDeposit or a @ZenodoRecord."""
 
-    _id_attribute_ = "filename"
-
-    @classmethod
-    def list_items(cls, deposit: ZenodoDeposit | ZenodoRecord):
-        """List all files of a deposit."""
-        out_list = IterableList(cls._id_attribute_)
-        out_list.extend(cls.iter_items(deposit))
-        return out_list
-
-    @classmethod
-    def iter_items(cls, deposit: ZenodoDeposit | ZenodoRecord):
-        """Iterate over the files of a deposit."""
-        return (f for f in deposit._files)
-
-    def __init__(self, entry_dict: dict[str, Any] | str):
+    def __init__(self, entry_dict: dict[str, Any]):
         """Init the class."""
         super().__init__(entry_dict, "", "")
         self.checksum = self._get_attribute(entry_dict, "checksum")
@@ -304,9 +297,21 @@ class ZenodoFile(ZenodoEntry):
 class ZenodoDeposit(ZenodoEntry):
     """The Zenodo Deposit class."""
 
-    def __init__(
-        self, entry_dict: dict[str, Any] | str, base_url: str, access_token: str
-    ):
+    _id_attribute_ = "filename"
+
+    @classmethod
+    def list_items(cls, deposit: ZenodoDeposit | ZenodoRecord):
+        """List all files of a deposit."""
+        out_list = IterableList(cls._id_attribute_)
+        out_list.extend(cls.iter_items(deposit))
+        return out_list
+
+    @classmethod
+    def iter_items(cls, deposit: ZenodoDeposit | ZenodoRecord):
+        """Iterate over the files of a deposit."""
+        return (f for f in deposit._files)
+
+    def __init__(self, entry_dict: dict[str, Any], base_url: str, access_token: str):
         """Init the class.
 
         The dictionary usually comes from a API response. Files and metadata keys will have extra classes.
@@ -319,6 +324,10 @@ class ZenodoDeposit(ZenodoEntry):
             access_token:
                 The authentication token to use for querying the API.
         """
+        super().__init__(entry_dict, base_url, access_token)
+        self._init(entry_dict, base_url, access_token)
+
+    def _init(self, entry_dict: dict[str, Any], base_url: str, access_token: str):
         super().__init__(entry_dict, base_url, access_token)
         self.conceptdoi = self._get_attribute(entry_dict, "conceptdoi")
         self.conceptrecid = self._get_attribute(entry_dict, "conceptrecid")
@@ -348,23 +357,19 @@ class ZenodoDeposit(ZenodoEntry):
         self.files = files_init
 
     @property
-    def files(self) -> list[dict[str, Any] | ZenodoFile]:
+    def files(self) -> IterableList:
         """Get the files of the deposit."""
-        return ZenodoFile.list_items(self)
+        return ZenodoDeposit.list_items(self)
 
     @files.setter
-    def files(self, files_init: IterableList[dict[str, Any] | ZenodoFile]):
+    def files(self, files_init: IterableList | dict[str, Any]):
         """Set the files of the deposit."""
+        files: IterableList = IterableList(self._id_attribute_)
         if files_init:
-            files = []
             for file_entry in files_init:
-                if isinstance(file_entry, ZenodoFile):
-                    files.append(file_entry)
-                else:
+                if isinstance(file_entry, dict):
                     files.append(ZenodoFile(file_entry))
-            self._files = files
-        else:
-            self._files = []
+        self._files = files
 
     # ############# Deposits attributes #############
 
@@ -426,7 +431,7 @@ class ZenodoDeposit(ZenodoEntry):
         response_dict = ZenodoAPI.validate_response(r, ResponseStatus.OK)
 
         # update object according to response
-        self.__init__(response_dict, self.base_url, self.params["access_token"])
+        self._init(response_dict, self.base_url, self.params["access_token"])
 
         return True
 
@@ -448,6 +453,7 @@ class ZenodoDeposit(ZenodoEntry):
                 zenodo_metadata = ZenodoMetadata(zenodo_metadata)
             except AttributeError:
                 print("Please provide a valid dictionary as input!")
+                return False
 
         link = self.base_url + "/api/deposit/depositions/%s" % self.id
 
@@ -462,7 +468,7 @@ class ZenodoDeposit(ZenodoEntry):
         response_dict = ZenodoAPI.validate_response(r, ResponseStatus.OK)
 
         # update object according to response
-        self.__init__(response_dict, self.base_url, self.params["access_token"])
+        self._init(response_dict, self.base_url, self.params["access_token"])
 
         return True
 
@@ -482,7 +488,7 @@ class ZenodoDeposit(ZenodoEntry):
         r = requests.delete(link, params=self.params)
 
         if ZenodoAPI.validate_response(r, ResponseStatus.NoContent):
-            self.__init__({}, "", "")
+            self._init({}, "", "")
 
         return True
 
@@ -505,7 +511,7 @@ class ZenodoDeposit(ZenodoEntry):
         response_dict = ZenodoAPI.validate_response(r, ResponseStatus.Accepted)
 
         # update object according to response
-        self.__init__(response_dict, self.base_url, self.params["access_token"])
+        self._init(response_dict, self.base_url, self.params["access_token"])
 
         return True
 
@@ -532,7 +538,7 @@ class ZenodoDeposit(ZenodoEntry):
         response_dict = ZenodoAPI.validate_response(r, ResponseStatus.OK)
 
         # update object according to response
-        self.__init__(response_dict, self.base_url, self.params["access_token"])
+        self._init(response_dict, self.base_url, self.params["access_token"])
 
         # return new version
         try:
@@ -549,7 +555,7 @@ class ZenodoDeposit(ZenodoEntry):
 
     # ############# Deposition files #############
 
-    def get_remote_files(self) -> list[ZenodoFile] | None:
+    def get_remote_files(self) -> IterableList | None:
         """Retrieve all files listed in a deposit.
 
         Returns:
@@ -564,14 +570,9 @@ class ZenodoDeposit(ZenodoEntry):
 
         response_dict = ZenodoAPI.validate_response(r, ResponseStatus.OK)
 
-        file_list = []
-        for file_dict in response_dict:
-            file_list.append(ZenodoFile(file_dict))
+        self.files = response_dict  # type: ignore[assignment]
 
-        if file_list:
-            self.files = file_list
-
-        return file_list
+        return self.files
 
     def create_file(self, file) -> ZenodoFile:
         """Upload a new file to the deposit.
@@ -687,7 +688,7 @@ class ZenodoDeposit(ZenodoEntry):
 class ZenodoRecord(ZenodoDeposit):
     """Class for the @ZenodoRecord. Holds the statistics (@ZenodoRecordStats) of a published deposit."""
 
-    def __init__(self, entry_dict, base_url, access_token):
+    def __init__(self, entry_dict: dict[str, Any], base_url: str, access_token: str):
         """Init the class."""
         super().__init__(entry_dict, base_url, access_token)
         self.owners = self._get_attribute(entry_dict, "owners")
@@ -754,7 +755,7 @@ class ZenodoAPI:
     @staticmethod
     def validate_response(
         response: Response, expected_response_code: ResponseStatus | None = None
-    ) -> dict[str, Any] | str:
+    ) -> dict[str, Any]:
         """Validate the response from a request.
 
         Args:
@@ -764,7 +765,7 @@ class ZenodoAPI:
                 The expected response specified in the API
 
         Returns:
-            JSON response body or "{'true'}" if no body included in response.
+            JSON response body or '{"": True}' if no body included in response.
 
         Raises:
             InvalidResponseStatusError: If query response status other than expected.
@@ -791,14 +792,16 @@ class ZenodoAPI:
                     "Expected %s got %s"
                     % (expected_response_code.name, status_code.name)
                 )
-            return json.dumps(True)
+            return {"": True}
         else:
             print("Error: %s" % status_code.name)
+            if status_code == ResponseStatus.Forbidden:
+                print("Forbidden operation. Is your access token valid?")
             if status_code != ResponseStatus.InternalServerError:
-                print("Detailed message:")
-                print(response.json()["message"])
-                if response.json()["errors"]:
-                    print(response.json()["errors"])
+                json_response = response.json()
+                print("Detailed message: %s" % json_response["message"])
+                if hasattr(json_response, "errors"):
+                    print("Errors: %s" % json_response["errors"])
 
         raise InvalidResponseStatusError(
             "Error '%s' occurred. See Log for detailed information!" % status_code.name
