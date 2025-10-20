@@ -2,21 +2,21 @@ import copy
 import os
 import tempfile
 import unittest
+from test.unit.test_unit_core_common import TestZenodoCommon
 
 from requests import Response
 
 from album.ci.utils.zenodo_api import (
-    ZenodoEntry,
-    ZenodoMetadata,
-    ZenodoFile,
-    ZenodoDeposit,
-    UploadType,
-    IterableList,
     InvalidResponseStatusError,
+    IterableList,
+    UploadType,
     ZenodoAPI,
-    ResponseStatus,
+    ZenodoDeposit,
+    ZenodoEntry,
+    ZenodoFile,
+    ZenodoMetadata,
 )
-from test.unit.test_unit_core_common import TestZenodoCommon
+from album.core.utils.operations.url_operations import ResponseStatus
 
 
 class TestZenodoEntry(unittest.TestCase):
@@ -253,8 +253,20 @@ class TestZenodoAPI(TestZenodoCommon):
 
         title = "unit_test_solution.py"
         creators = [{"name": "me"}]
+        related_identifiers = (
+            [
+                {
+                    "scheme": "doi",
+                    "identifier": "10.1234/software.paper.5678",
+                    "relation": "isDocumentedBy",
+                    "resource_type": "publication-article",
+                }
+            ],
+        )
         self.test_deposit2 = self.zenodoAPI.deposit_create_with_prereserve_doi(
-            ZenodoMetadata.default_values(title, creators, "", "", "")
+            ZenodoMetadata.default_values(
+                title, creators, "", "", "", related_identifiers, ["r1, r2"]
+            )
         )
 
         self.assertIsNot(self.test_deposit2.id, "", "ID empty string!")
