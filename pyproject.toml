@@ -60,6 +60,9 @@ Tracker= "https://gitlab.com/album-app/album/-/issues"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"*" = ['*.sql', '*.json', '*LICENSE']
+
 [project.scripts]
 album = "album.__main__:startup"
 album-catalog-admin = "album.ci.__main__:startup"
