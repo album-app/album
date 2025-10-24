@@ -14,14 +14,23 @@ We use the following:
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
-## [Unreleased]
+## [0.12.1]
+
+### Changed
+
+- improved zenodo API for CI
+- pyproject.toml over setup.cfg
+
+## [0.12.0]
 
 ### Added
 
 - reconstruct changelog
 - changelog to the repository (#233)
 
-[unreleased]: https://gitlab.com/album-app/album/-/compare/v0.11.0...HEAD
+[unreleased]: https://gitlab.com/album-app/album/-/compare/v0.12.1...HEAD
+[0.12.1]: https://gitlab.com/album-app/album/-/compare/v0.12.0...v0.12.1
+[0.12.0]: https://gitlab.com/album-app/album/-/compare/v0.11.0...v0.12.0
 [0.11.0]: https://gitlab.com/album-app/album/-/compare/v0.10.4...v0.11.0
 [0.10.4]: https://gitlab.com/album-app/album/-/compare/v0.10.0...v0.10.1
 [0.10.3]: https://gitlab.com/album-app/album/-/compare/v0.10.2...v0.10.3
