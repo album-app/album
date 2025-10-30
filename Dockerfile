@@ -12,7 +12,7 @@ ENV MAMBA_EXE="/mamba/bin/micromamba"
 RUN $MAMBA_EXE shell init --shell bash
 RUN echo "micromamba activate" >> /root/.bashrc
 
-RUN micromamba install -y git python==3.10 pip -c conda-forge &&  cd /album && pip install .
+RUN micromamba install -y git python==3.10 pip -c conda-forge &&  cd /album && pip install . && album index
 
 RUN chmod +x /album/docker_entrypoint.sh
 
