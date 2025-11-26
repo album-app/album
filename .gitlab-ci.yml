@@ -156,7 +156,7 @@ rebuild_album_installer:
       when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
-        - setup.cfg
+        - pyproject.toml
 
 prepare release:
   stage: release
@@ -166,7 +166,6 @@ prepare release:
     - DeployDocker
   script:
     - echo "preparing release"
-    # - VERSION=$(cat setup.cfg | grep "version=*" | awk '{split($0, s, " "); print s[3]}')
     - VERSION=$(cat pyproject.toml | grep "version=*" | awk '{gsub(/"/, "", $3); print $3}')
     - TAG=v$VERSION
     - echo "prepare to release version $VERSION with tag $TAG"
@@ -180,7 +179,7 @@ prepare release:
       when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
-        - setup.cfg
+        - pyproject.toml
 
 gitlab release:
   stage: release
@@ -198,7 +197,7 @@ gitlab release:
       when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
-        - setup.cfg
+        - pyproject.toml
   release:
     name: "Release $TAG"
     description: "Created using the release-cli"
@@ -225,7 +224,7 @@ gitlab pypi deploy:
       when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
-        - setup.cfg
+        - pyproject.toml
 
 pypi deploy:
   image: python:$TEST_PYTHON_VERSION
@@ -249,7 +248,7 @@ pypi deploy:
       when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
-        - setup.cfg
+        - pyproject.toml
 
 docker deploy:
   stage: deploy
@@ -276,7 +275,7 @@ docker deploy:
       when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
-        - setup.cfg
+        - pyproject.toml
 
 # Linux Tests with coverage
 
@@ -389,7 +388,7 @@ release tests linux:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
-        - setup.cfg
+        - pyproject.toml
 
 # Create combined coverage reports
 
