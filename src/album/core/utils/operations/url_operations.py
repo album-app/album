@@ -1,14 +1,16 @@
 """Operations for urls."""
+
+from __future__ import annotations
+
 import re
 import tempfile
+from enum import Enum, unique
 from pathlib import Path
 
+from album.core.utils.operations.file_operations import check_zip
 from album.environments.utils.file_operations import copy
 from album.environments.utils.url_operations import _get_session
 from album.runner import album_logging
-
-from album.ci.utils.zenodo_api import ResponseStatus
-from album.core.utils.operations.file_operations import check_zip
 
 module_logger = album_logging.get_active_logger
 
@@ -64,3 +66,22 @@ def download(str_input: str, base: str) -> Path:
             copy(tmp_file_name, tmp_file_name_zip)
             return Path(tmp_file_name_zip)
         return Path(tmp_file_name)
+
+
+@unique
+class ResponseStatus(Enum):
+    """Response values and their name."""
+
+    OK = 200  # response included
+    Created = 201  # response included
+    Accepted = 202  # response included
+    NoContent = 204  # response NOT included
+    BadRequest = 400  # error response included
+    Unauthorized = 401  # error response included
+    Forbidden = 403  # error response included
+    NotFound = 404  # error response included
+    MethodNotAllowed = 405  # error response included
+    Conflict = 409  # error response included
+    UnsupportedMediaType = 415  # error response included
+    TooManyRequests = 429  # error response included
+    InternalServerError = 500  # error NOT response included

@@ -1,12 +1,12 @@
 """ZenodoManager class to manage Zenodo deposits."""
+
 import os
 from typing import Dict, Iterable, List, Union
-
-from album.runner import album_logging
 
 from album.ci.utils import zenodo_api
 from album.ci.utils.zenodo_api import ZenodoDeposit, ZenodoMetadata
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
+from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
@@ -134,15 +134,15 @@ class ZenodoManager:
         deposit_id: str,
         deposit_name: str,
         expected_files: Union[Iterable, None] = None,
-    ) -> List[ZenodoDeposit]:
+    ) -> ZenodoDeposit:
         """Query zenodo to get the unpublished deposit by id."""
-        deposit = self._zenodo_get_unpublished(deposit_id)
+        deposit = self._zenodo_get_unpublished(deposit_id)[0]
 
         # raise error when not found
         if not deposit:
             raise RuntimeError("Deposit with id %s not found!" % deposit_id)
 
-        self._check_deposit(deposit[0], deposit_name, expected_files)
+        self._check_deposit(deposit, deposit_name, expected_files)
 
         return deposit
 

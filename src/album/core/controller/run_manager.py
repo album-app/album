@@ -1,15 +1,13 @@
 from queue import Queue
 from typing import List, Optional
 
-import pkg_resources
-from album.runner import album_logging
-from album.runner.core.api.model.solution import ISolution
-
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.run_manager import IRunManager
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.model.default_values import DefaultValues
 from album.core.model.event import Event
+from album.runner import album_logging
+from album.runner.core.api.model.solution import ISolution
 
 module_logger = album_logging.get_active_logger
 
@@ -76,6 +74,8 @@ class RunManager(IRunManager):
         if "dependencies" in resolve_result.loaded_solution().setup():
             deps = resolve_result.loaded_solution().setup()["dependencies"]
             if "plugins" in deps:
+                import pkg_resources
+
                 module_logger().debug(
                     "Processing solution plugins: %s" % deps["plugins"]
                 )

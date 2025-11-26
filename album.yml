@@ -2,8 +2,7 @@ name: album
 channels:
   - conda-forge
 dependencies:
-  - python=3.9
+  - python=3.10
   - pip
   - git>=2.34
-  - pip:
-      - album==0.11.0 # point to latest pypi version here.
+  - album
