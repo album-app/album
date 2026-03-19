@@ -423,7 +423,8 @@ def download_repository(
         module_logger().info(
             f"Download repository from {repo_url} in {git_folder_path}..."
         )
-        repo = git.Repo.clone_from(repo_url, git_folder_path)
+        # todo: hard-link throws error, no-local forces copy
+        repo = git.Repo.clone_from(repo_url, git_folder_path, multi_options=["--no-local"])
 
     return repo
 
@@ -466,6 +467,7 @@ def clone_repository_sparse(
         depth=1,
         no_tags=True,
         single_branch=True,
+        multi_options = ["--no-local"]
     )
     yield repo
     repo.close()
@@ -493,7 +495,7 @@ def clone_repository(
             raise RuntimeError('Target folder "%s" not empty!' % str(target_repo_path))
 
     create_path_recursively(target_repo_path)
-    repo = git.Repo.clone_from(src, target_repo_path)
+    repo = git.Repo.clone_from(src, target_repo_path, multi_options=["--no-local"])
 
     yield repo
     repo.close()
