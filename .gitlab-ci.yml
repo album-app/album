@@ -26,7 +26,7 @@
     - "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12" # set Security download protocol to avoid https errors
     - "if(-Not (Test-Path $7ZIP_EXE)) {if(-Not (Test-Path $7ZIP_INSTALLER)){Invoke-Webrequest -URI https://www.7-zip.org/a/7z2201-x64.exe -OutFile $7ZIP_INSTALLER}}"
     - 'if(-Not (Test-Path $7ZIP_EXE)) {Start-Process -FilePath $7ZIP_INSTALLER -Args "/S" -Verb RunAs -Wait}'
-    - "Invoke-Webrequest -URI https://micro.mamba.pm/api/micromamba/win-64/1.5.6 -OutFile micromamba.tar.bz2"
+    - "Invoke-Webrequest -URI https://micro.mamba.pm/api/micromamba/win-64/latest -OutFile micromamba.tar.bz2"
     - "& $7ZIP_EXE x micromamba.tar.bz2 -aoa"
     - '& $7ZIP_EXE x micromamba.tar -ttar -aoa -r Library\bin\micromamba.exe $("-o" + (Join-Path -Path (Get-Location) -ChildPath micromamba_installation))'
     - "$progressPreference = $oldProgressPreference"
@@ -68,7 +68,7 @@
     - apt install -y curl
     - apt install -y bzip2
     - mkdir -p $CI_PROJECT_DIR/bin/
-    - curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/1.5.6 | tar -xvj -C $CI_PROJECT_DIR/bin/ --strip-components=1 bin/micromamba
+    - curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj -C $CI_PROJECT_DIR/bin/ --strip-components=1 bin/micromamba
     - MICROMAMBA_EXECUTABLE=$CI_PROJECT_DIR/bin/micromamba
     - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=$TEST_PYTHON_VERSION
     - bash -c 'echo $CI_COMMIT_REF_NAME'
@@ -109,7 +109,7 @@
     - echo $tmpdir
     - echo $tmpdir > /tmp/tmpdir
     - mkdir -p $tmpdir/bin/
-    - curl -Ls https://micro.mamba.pm/api/micromamba/osx-64/1.5.6 | tar -xvj -C $tmpdir/bin/ --strip-components=1 bin/micromamba
+    - curl -Ls https://micro.mamba.pm/api/micromamba/osx-64/latest | tar -xvj -C $tmpdir/bin/ --strip-components=1 bin/micromamba
     - MICROMAMBA_EXECUTABLE=$tmpdir/bin/micromamba
     - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=$TEST_PYTHON_VERSION
     - bash -c 'echo $CI_COMMIT_REF_NAME'
