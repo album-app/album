@@ -113,6 +113,11 @@ class ZenodoManager:
         if deposit_id:  # case deposit already exists
             deposit = self._zenodo_get_deposit_by_id(deposit_id)[0]
 
+            # Update the deposit metadata to reflect new version information.
+            # This is crucial for new version drafts which inherit metadata
+            # from the published version (e.g. old version number).
+            deposit.update(metadata)
+
             self._check_deposit(deposit, metadata.title, expected_files)
 
         else:

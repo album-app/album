@@ -1,16 +1,11 @@
 """Module for handling a catalog as administrator."""
+
 import os
 import tempfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Generator, List, Tuple, Union
 
-from album.environments.utils.file_operations import (
-    copy,
-    get_dict_from_yml,
-    write_dict_to_yml,
-)
-from album.runner import album_logging
 from git import Repo
 from git.refs import HEAD
 
@@ -36,6 +31,12 @@ from album.core.utils.operations.git_operations import (
     retrieve_files_from_head_last_commit,
 )
 from album.core.utils.operations.resolve_operations import as_tag, dict_to_coordinates
+from album.environments.utils.file_operations import (
+    copy,
+    get_dict_from_yml,
+    write_dict_to_yml,
+)
+from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
@@ -53,6 +54,7 @@ class ReleaseManager:
         catalog_src: str,
         force_retrieve: bool,
     ):
+        """Initialize the ReleaseManager."""
         self.catalog_name = catalog_name
         self.catalog_path = catalog_path
         self.catalog_src = catalog_src
@@ -75,10 +77,12 @@ class ReleaseManager:
         return repo
 
     def close(self) -> None:
+        """Close the catalog and dispose resources."""
         if self.catalog:
             self.catalog.dispose()
 
     def configure_repo(self, user_name: str, user_email: str) -> None:
+        """Configure the repository with the given user name and email."""
         module_logger().info(
             "Configuring repository using:\n\tusername:\t%s\n\temail:\t%s"
             % (user_name, user_email)
@@ -87,6 +91,7 @@ class ReleaseManager:
             configure_git(repo, user_email, user_name)
 
     def configure_ssh(self, project_path: str) -> None:
+        """Configure ssh protocol for the repository."""
         module_logger().info("Configure ssh protocol for repository %s" % project_path)
         with self._open_repo() as repo:
             if not repo.remote().url.startswith("git"):
@@ -104,6 +109,7 @@ class ReleaseManager:
     def zenodo_publish(
         self, branch_name: str, zenodo_base_url: str, zenodo_access_token: str
     ) -> None:
+        """Publish an unpublished Zenodo deposit."""
         zenodo_base_url, zenodo_access_token = self._prepare_zenodo_arguments(
             zenodo_base_url, zenodo_access_token
         )
@@ -156,8 +162,10 @@ class ReleaseManager:
         solution_dir_in_repo = Path(repo.working_tree_dir).joinpath(
             solution_relative_path
         )
-        zip = Path(str(tmp)).joinpath(DefaultValues.solution_zip_default_name.value)
-        zip_folder(solution_dir_in_repo, zip)
+        zip_path = Path(str(tmp)).joinpath(
+            DefaultValues.solution_zip_default_name.value
+        )
+        zip_folder(solution_dir_in_repo, zip_path)
         changelog_name = solution_dir_in_repo.joinpath(get_changelog_file_name())
         documentation_paths = self._get_documentation_paths(
             solution_dir_in_repo, yml_dict
@@ -166,7 +174,7 @@ class ReleaseManager:
         solution_yml = solution_dir_in_repo.joinpath(
             DefaultValues.solution_yml_default_name.value
         )
-        files = [str(solution_yml), str(zip)]
+        files = [str(solution_yml), str(zip_path)]
         for doc in documentation_paths:
             files.append(str(doc))
         for cover in cover_paths:
@@ -182,6 +190,7 @@ class ReleaseManager:
         zenodo_access_token: str,
         report_file: Path,
     ) -> None:
+        """Upload a solution to Zenodo."""
         zenodo_base_url, zenodo_access_token = self._prepare_zenodo_arguments(
             zenodo_base_url, zenodo_access_token
         )
@@ -228,14 +237,12 @@ class ReleaseManager:
 
                 if deposit.files:
                     for file in deposit.files:
-                        if file not in file_names:
+                        if file.filename not in file_names:
                             # remove file from deposit
-                            zenodo_manager.zenodo_delete(deposit, file)
+                            zenodo_manager.zenodo_delete(deposit, file.filename)
 
                 for file in files:
                     deposit = zenodo_manager.zenodo_upload(deposit, file)
-
-        module_logger().info("Deposit %s successfully retrieved..." % deposit_id)
 
         if report_file:
             report_file = create_report(
@@ -265,6 +272,7 @@ class ReleaseManager:
         return zenodo_base_url, zenodo_access_token
 
     def update_index(self, branch_name: str, doi: str, deposit_id: str) -> None:
+        """Update the catalog index with the solution from the given branch."""
         with self._open_repo() as repo:
             head = checkout_branch(repo, branch_name)
 
@@ -316,6 +324,7 @@ class ReleaseManager:
     def commit_changes(
         self, branch_name: str, ci_user_name: str, ci_user_email: str
     ) -> bool:
+        """Commit changes to the catalog repository."""
         with self._open_repo() as repo:
             head = checkout_branch(repo, branch_name)
 
@@ -331,7 +340,7 @@ class ReleaseManager:
             )
 
             commit_files = [yml_file] + files
-            if not all([Path(f).is_file() for f in commit_files]):
+            if not all(Path(f).is_file() for f in commit_files):
                 raise FileNotFoundError(
                     "Invalid deploy request or broken catalog repository!"
                 )
@@ -357,6 +366,7 @@ class ReleaseManager:
         ci_user_name: str,
         ci_user_email: str,
     ) -> None:
+        """Merge the branch into the main branch."""
         with self._open_repo() as repo:
             head = checkout_branch(repo, branch_name)
 
@@ -364,7 +374,7 @@ class ReleaseManager:
                 self.catalog.solution_list_path(),
                 self.catalog.index_file_path(),
             ]
-            if not all([Path(f).is_file() for f in commit_files]):
+            if not all(Path(f).is_file() for f in commit_files):
                 raise FileNotFoundError(
                     "Invalid deploy request or broken catalog repository!"
                 )
@@ -434,9 +444,9 @@ class ReleaseManager:
         )
         if "description" in solution_meta:
             description = solution_meta["description"]
-        license = None
+        license_ = None
         if "license" in solution_meta:
-            license = solution_meta["license"]
+            license_ = solution_meta["license"]
         version = None
         if "version" in solution_meta:
             version = solution_meta["version"]
@@ -465,7 +475,7 @@ class ReleaseManager:
             deposit_name,
             creators,
             description,
-            license,
+            license_,
             version,
             related_identifiers,
             references,
