@@ -2,9 +2,10 @@
 
 import os
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, Generator, List, Tuple, Union
+from typing import Any, Dict, Iterator, List, Tuple, Union
 
 from git import Repo
 from git.refs import HEAD
@@ -13,6 +14,7 @@ from album.api import Album
 from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.continuous_integration import create_report, get_ssh_url
 from album.ci.utils.zenodo_api import ZenodoMetadata
+from album.core.api.model.configuration import IConfiguration
 from album.core.model.catalog import Catalog, retrieve_index_files_from_src
 from album.core.model.default_values import DefaultValues
 from album.core.utils.export.changelog import get_changelog_file_name
@@ -44,7 +46,7 @@ module_logger = album_logging.get_active_logger
 class ReleaseManager:
     """Class for handling a catalog as administrator."""
 
-    configuration = None
+    configuration: IConfiguration
 
     def __init__(
         self,
@@ -69,12 +71,12 @@ class ReleaseManager:
         self.force_retrieve = force_retrieve
         self.album_instance = album_instance
 
-    def _open_repo(self) -> Generator[Repo, None, None]:
-        repo = self.catalog.retrieve_catalog(
+    @contextmanager
+    def _open_repo(self) -> Iterator[Repo]:
+        with self.catalog.retrieve_catalog(
             force_retrieve=self.force_retrieve, update=False
-        )
-
-        return repo
+        ) as repo:
+            yield repo
 
     def close(self) -> None:
         """Close the catalog and dispose resources."""
@@ -151,8 +153,8 @@ class ReleaseManager:
 
     def _get_release_files(
         self,
-        repo: Generator[Repo, None, None],
-        yml_dict: Dict[str, any],
+        repo: Repo,
+        yml_dict: Dict[str, Any],
         tmp: Union[TemporaryDirectory, str],
     ) -> Tuple[List[str], List[str]]:
         coordinates = dict_to_coordinates(yml_dict)
@@ -231,6 +233,7 @@ class ReleaseManager:
                 )
 
                 # include doi and ID in yml
+                assert deposit.metadata is not None
                 yml_dict["doi"] = deposit.metadata.prereserve_doi["doi"]
                 yml_dict["deposit_id"] = deposit.id
                 write_dict_to_yml(yml_file_path, yml_dict)
@@ -317,9 +320,11 @@ class ReleaseManager:
             % (branch_name, log_message_doi, log_message_deposit)
         )
 
-        self.catalog.index().update(dict_to_coordinates(yml_dict), yml_dict)
-        self.catalog.index().save()
-        self.catalog.index().export(self.catalog.solution_list_path())
+        index = self.catalog.index()
+        assert index is not None
+        index.update(dict_to_coordinates(yml_dict), yml_dict)
+        index.save()
+        index.export(self.catalog.solution_list_path())
 
     def commit_changes(
         self, branch_name: str, ci_user_name: str, ci_user_email: str
@@ -402,7 +407,7 @@ class ReleaseManager:
 
     @staticmethod
     def _get_documentation_paths(
-        base_dir: Path, yml_dict: Dict[str, any]
+        base_dir: Path, yml_dict: Dict[str, Any]
     ) -> List[Path]:
         documentation_paths = []
         if "documentation" in yml_dict.keys():
@@ -415,7 +420,7 @@ class ReleaseManager:
         return documentation_paths
 
     @staticmethod
-    def _get_cover_paths(base_dir: Path, yml_dict: Dict[str, any]) -> List[Path]:
+    def _get_cover_paths(base_dir: Path, yml_dict: Dict[str, Any]) -> List[Path]:
         cover_paths = []
         if "covers" in yml_dict.keys():
             cover_list = yml_dict["covers"]
@@ -427,7 +432,7 @@ class ReleaseManager:
                     cover_paths.append(base_dir.joinpath(cover["source"]))
         return cover_paths
 
-    def _get_deposit_metadata(self, solution_meta: Dict[str, any]) -> ZenodoMetadata:
+    def _get_deposit_metadata(self, solution_meta: Dict[str, Any]) -> ZenodoMetadata:
         if "title" in solution_meta:
             deposit_name = solution_meta["title"]
         else:
