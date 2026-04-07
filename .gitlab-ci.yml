@@ -16,7 +16,7 @@
     - windows
   variables:
     PIP_CACHE_DIR: $CI_PROJECT_DIR\.cache\pip
-    WINDOWS_MAMBA_ENV_PREFIX: .\mamba\envs\album
+    WINDOWS_MAMBA_ENV_PREFIX: .\AppData\Roaming\mamba\envs\album
     ErrorActionPreference: Continue # not working properly
   before_script:
     - 'echo "We are in path: $pwd "'
