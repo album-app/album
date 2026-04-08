@@ -1,10 +1,7 @@
 """Implements the IConfiguration interface."""
+
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
-
-from album.environments.utils.file_operations import force_remove
-from album.runner import album_logging
-from album.runner.core.model.coordinates import Coordinates
 
 from album.core.api.model.configuration import IConfiguration
 from album.core.model.default_values import DefaultValues
@@ -12,6 +9,9 @@ from album.core.utils.operations.file_operations import (
     create_paths_recursively,
     get_dict_from_json,
 )
+from album.environments.utils.file_operations import force_remove
+from album.runner import album_logging
+from album.runner.core.api.model.coordinates import ICoordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -100,7 +100,7 @@ class Configuration(IConfiguration):
             ]
         )
 
-    def get_solution_path_suffix(self, coordinates: Coordinates) -> Path:
+    def get_solution_path_suffix(self, coordinates: ICoordinates) -> Path:
         return Path("").joinpath(
             DefaultValues.catalog_solutions_prefix.value,
             coordinates.group(),
@@ -108,7 +108,7 @@ class Configuration(IConfiguration):
             coordinates.version(),
         )
 
-    def get_solution_path_suffix_unversioned(self, coordinates: Coordinates) -> Path:
+    def get_solution_path_suffix_unversioned(self, coordinates: ICoordinates) -> Path:
         return Path("").joinpath(
             DefaultValues.catalog_solutions_prefix.value,
             coordinates.group(),

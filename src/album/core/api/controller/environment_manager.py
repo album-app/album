@@ -1,13 +1,13 @@
 """Interface for managing environments."""
-from abc import ABCMeta, abstractmethod
-from typing import List, Mapping, Optional, Union
 
-from album.environments.api.environment_api import IEnvironmentAPI
-from album.environments.api.model.environment import IEnvironment
+from abc import ABCMeta, abstractmethod
+from typing import Any, Dict, List, Mapping, Optional, Union
 
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.model.link import Link
+from album.environments.api.environment_api import IEnvironmentAPI
+from album.environments.api.model.environment import IEnvironment
 from album.runner.core.api.model.coordinates import ICoordinates
 
 
@@ -85,4 +85,14 @@ class IEnvironmentManager:
     @abstractmethod
     def get_environment_name(self, coordinates: ICoordinates, catalog: ICatalog) -> str:
         """Get the name of an environment."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def _append_framework_to_dependencies(
+        self,
+        content: Dict[str, Any],
+        album_api_version: Optional[str],
+        runner_package_name: str,
+    ) -> Dict[str, Any]:
+        """Append the album framework to the environment dependencies."""
         raise NotImplementedError

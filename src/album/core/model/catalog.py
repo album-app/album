@@ -1,15 +1,11 @@
 """Catalog class to represent a catalog in the Album system."""
+
 import os
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, Generator, List, Optional, Tuple, Union
 
 import validators
-from album.environments.utils.file_operations import copy
-from album.runner import album_logging
-from album.runner.core.api.model.coordinates import ICoordinates
-from album.runner.core.api.model.solution import ISolution
-from album.runner.core.model.solution import Solution
 from git import GitCommandError, Repo
 
 from album.core.api.model.catalog import ICatalog
@@ -23,6 +19,11 @@ from album.core.utils.operations.git_operations import (
     download_repository,
 )
 from album.core.utils.operations.solution_operations import get_deploy_dict
+from album.environments.utils.file_operations import copy
+from album.runner import album_logging
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
+from album.runner.core.model.solution import Solution
 
 module_logger = album_logging.get_active_logger
 
@@ -271,7 +272,7 @@ class Catalog(ICatalog):
     def get_meta_information(self) -> Dict[str, str]:
         return {"name": self._name, "version": self._version, "type": self._type}
 
-    def get_all_solution_versions(self, group: str, name: str) -> List[Solution]:
+    def get_all_solution_versions(self, group: str, name: str) -> List[ISolution]:
         if self._catalog_index is None:
             raise RuntimeError("Catalog index not loaded!")
         versions = self._catalog_index.get_all_solution_versions(group, name)

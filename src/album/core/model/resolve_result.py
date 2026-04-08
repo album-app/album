@@ -1,14 +1,14 @@
 """Implementation of the ICollectionSolution class."""
+
 from pathlib import Path
 from typing import Optional
-
-from album.runner.core.api.model.coordinates import ICoordinates
-from album.runner.core.api.model.solution import ISolution
-from album.runner.core.model.solution import Solution
 
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
 from album.core.api.model.collection_solution import ICollectionSolution
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
+from album.runner.core.model.solution import Solution
 
 
 class ResolveResult(ICollectionSolution):
@@ -17,7 +17,7 @@ class ResolveResult(ICollectionSolution):
         path: Path,
         catalog: ICatalog,
         collection_entry: Optional[ICollectionIndex.ICollectionSolution],
-        coordinates: ICoordinates,
+        coordinates: Optional[ICoordinates],
         loaded_solution: Optional[ISolution] = None,
         single_file_solution: bool = False,
     ):
@@ -51,9 +51,13 @@ class ResolveResult(ICollectionSolution):
         return self._collection_entry
 
     def coordinates(self) -> ICoordinates:
+        if self._coordinates is None:
+            raise RuntimeError("Coordinates not set for this resolve result.")
         return self._coordinates
 
     def loaded_solution(self) -> ISolution:
+        if self._loaded_solution is None:
+            raise RuntimeError("Solution not loaded for this resolve result.")
         return self._loaded_solution
 
     def set_loaded_solution(self, loaded_solution: ISolution) -> None:

@@ -1,17 +1,17 @@
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import pooch
 import validators
-from album.environments.utils.file_operations import get_dict_from_yml
-from album.environments.utils.url_operations import download_resource
-from album.runner.album_logging import get_active_logger
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.shared_downloads_manager import IDownloadManager
 from album.core.api.model.collection_solution import ICollectionSolution
+from album.environments.utils.file_operations import get_dict_from_yml
+from album.environments.utils.url_operations import download_resource
+from album.runner.album_logging import get_active_logger
 
 
 class DownloadManager(IDownloadManager):
@@ -21,18 +21,17 @@ class DownloadManager(IDownloadManager):
     def download_resources_from_yaml(
         self, collection_solution: ICollectionSolution
     ) -> bool:
-        resources_dict, resources_json_path = self._resources_yaml_to_dict(
-            collection_solution
-        )
-        if resources_dict:
+        result = self._resources_yaml_to_dict(collection_solution)
+        if result:
+            resources_dict, resources_json_path = result
             self._retrieve_resources_from_dict(resources_dict)
             self._set_file_paths_in_json(resources_dict, resources_json_path)
         return True
 
     def _resources_yaml_to_dict(
         self, collection_solution: ICollectionSolution
-    ) -> Tuple[Dict[str, Any], Path]:
-        """_summary_
+    ) -> Optional[Tuple[Dict[str, Any], Path]]:
+        """Convert a solution's resource YAML to a dictionary with resolved paths.
 
         Args:
             collection_solution (ICollectionSolution): current solution to get the resources for
@@ -66,7 +65,7 @@ class DownloadManager(IDownloadManager):
         shared_globally_path = self.album.configuration().shared_resources_path()
 
         if not resource_json_path:
-            return None  # todo: wrong return type
+            return None
 
         # Get the resources from the yaml file and set the paths
         resources_dict = get_dict_from_yml(resource_json_path)
@@ -82,15 +81,16 @@ class DownloadManager(IDownloadManager):
     @staticmethod
     def _prepare_resource_file(
         dependencies_dict: Dict[str, Any], cache_path: Path, env_name: str
-    ) -> Path:
-        """Checks if a resource file is provided. Returns a path to a valid json file.
+    ) -> Optional[Path]:
+        """Check if a resource file is provided and return a path to a valid json file.
 
         Args:
-            dependencies_dict (_type_): _description_
-            chache_path (_type_): _description_
+            dependencies_dict: The solution dependencies dictionary.
+            cache_path: The internal cache path for the solution.
+            env_name: The environment name used as a file prefix.
 
         Returns:
-            _type_: _description_
+            Path to the prepared resource json file, or None if not applicable.
         """
         if dependencies_dict:
             if "resource_file" in dependencies_dict:
@@ -150,12 +150,12 @@ class DownloadManager(IDownloadManager):
                     )
 
                 return json_path
-            return None  # todo: wrong return type
-        return None  # todo: wrong return type
+            return None
+        return None
 
-    def _retrieve_resources_from_dict(self, resources_dict: Dict[str, Any]) -> None:
-        """
-        Downloads the files specified in the dictionary.
+    @staticmethod
+    def _retrieve_resources_from_dict(resources_dict: Dict[str, Any]) -> None:
+        """Download the files specified in the dictionary.
 
         Args:
             resources_dict:
@@ -185,22 +185,22 @@ class DownloadManager(IDownloadManager):
             if resource_value["hash"] is None:
                 get_active_logger().info(
                     f"Resource {resource_value['name']} has no hash provided in the resource file. \n"
-                    "Therefore, if the requested file already exists in the target directory, it will be used without checking if the hashes match. \n"
-                    "You can copy the following md5 hash of the just obtained file to the resource file to enforce reproducibility before deployment: \n"
+                    "Therefore, if the requested file already exists in the target directory, "
+                    "it will be used without checking if the hashes match. \n"
+                    "You can copy the following md5 hash of the just obtained file to the resource "
+                    "file to enforce reproducibility before deployment: \n"
                     f"{pooch.file_hash(fpath, alg='md5')}"
                 )
         return None
 
+    @staticmethod
     def _set_paths_in_dict(
-        self,
         resources_dict: Dict[str, Any],
         app_path: Path,
         catalog_name: str,
         shared_globally_path: Path,
     ) -> Dict[str, Any]:
-        """
-        Sets the paths of the downloaded resources in the resources dictionary.
-        """
+        """Set the paths of the downloaded resources in the resources dictionary."""
         for _, resource_value in resources_dict["resources"].items():
             # Default scope: fully shared / global scope
             if "scope" not in resource_value:
@@ -219,9 +219,7 @@ class DownloadManager(IDownloadManager):
     def _set_file_paths_in_json(
         resources_dict: Dict[str, Any], json_path: Path
     ) -> Dict[str, Any]:
-        """
-        Sets the full file paths into the dict and overwrites the json file.
-        """
+        """Set the full file paths into the dict and overwrite the json file."""
         for _, resource_value in resources_dict["resources"].items():
             resource_value["path"] = str(
                 Path(resource_value["path"]) / resource_value["name"]
