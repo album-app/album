@@ -2,10 +2,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-from album.environments.utils.file_operations import force_remove
-from album.runner import album_logging
-from album.runner.core.api.model.coordinates import ICoordinates
-from album.runner.core.api.model.solution import ISolution
 from git import Repo
 
 from album.core.api.controller.controller import IAlbumController
@@ -32,6 +28,10 @@ from album.core.utils.operations.resolve_operations import (
     dict_to_coordinates,
     get_attributes_from_string,
 )
+from album.environments.utils.file_operations import force_remove
+from album.runner import album_logging
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
 
 module_logger = album_logging.get_active_logger
 
@@ -216,6 +216,10 @@ class DeployManager(IDeployManager):
             # requires a loaded index
             process_changelog_file(catalog, active_solution, deploy_path)
 
+            # carry forward doi from the catalog index so it survives
+            # re-deploy across versions
+            self._carry_forward_doi(catalog, active_solution)
+
             if catalog.type() == "direct":
                 self._deploy_to_direct_catalog(
                     repo,
@@ -336,6 +340,86 @@ class DeployManager(IDeployManager):
             git_email,
             git_name,
         )
+
+    @staticmethod
+    def _carry_forward_doi(catalog: ICatalog, active_solution: ISolution) -> None:
+        """Carry forward doi (and deposit_id) from the catalog into the solution setup.
+
+        If the solution.py already provides a doi (from any provider — Zenodo,
+        DataCite, etc.) that value takes precedence.  deposit_id is also
+        carried forward when available in the catalog data; if absent but the
+        DOI is a Zenodo DOI, deposit_id is derived from it.
+
+        Note: deposit_id is intentionally NOT stored in the DB schema — it is
+        Zenodo-specific and derivable from the DOI.  The carry-forward from the
+        catalog index is best-effort (for forward-compatibility).
+
+        Lookup order when a value is missing from the solution:
+        1) exact coordinates match (same group:name:version) — re-deploy of same version
+        2) any previous version of the same group:name — version bump
+
+        This ensures identifiers issued in a previous deploy cycle are
+        preserved in the solution.yml that gets written during deployment.
+        """
+        setup = active_solution.setup()
+        has_doi = setup.get("doi")
+        has_deposit = setup.get("deposit_id")
+
+        if has_doi and has_deposit:
+            module_logger().debug(
+                "Solution already has doi=%s and deposit_id=%s, keeping them."
+                % (has_doi, has_deposit)
+            )
+            return
+
+        index = catalog.index()
+        if index is None:
+            return
+
+        existing = None
+        try:
+            # First try: exact same coordinates (re-deploy of same version)
+            existing = index.get_solution_by_coordinates(active_solution.coordinates())
+        except Exception:
+            pass
+
+        if not existing or not existing.get("doi"):
+            try:
+                # Second try: any version of same group:name (version bump)
+                versions = index.get_all_solution_versions(
+                    active_solution.coordinates().group(),
+                    active_solution.coordinates().name(),
+                )
+                # versions are ordered DESC by version; pick the first one with a doi
+                for v in versions:
+                    if v.get("doi"):
+                        existing = v
+                        break
+            except Exception:
+                pass
+
+        if existing:
+            if not has_doi and existing.get("doi"):
+                setup["doi"] = existing["doi"]
+                module_logger().info(
+                    "Carried forward doi=%s from catalog index." % existing["doi"]
+                )
+            if not has_deposit and existing.get("deposit_id"):
+                setup["deposit_id"] = existing["deposit_id"]
+                module_logger().info(
+                    "Carried forward deposit_id=%s from catalog index."
+                    % existing["deposit_id"]
+                )
+
+        # If we have a DOI but still no deposit_id, try to derive it from a
+        # Zenodo DOI (format: 10.5281/zenodo.<deposit_id>)
+        if setup.get("doi") and not setup.get("deposit_id"):
+            doi = setup["doi"]
+            if "zenodo" in doi.lower():
+                setup["deposit_id"] = doi.rsplit(".", 1)[-1]
+                module_logger().info(
+                    "Derived deposit_id={} from doi={}".format(setup["deposit_id"], doi)
+                )
 
     def _deploy_routine_in_local_src(
         self,

@@ -1,5 +1,6 @@
 [flake8]
 max-line-length = 120
+extend-ignore = P101
 per-file-ignores =
     src/album/core/controller/*.py:D1
     src/album/core/model/*.py:D1

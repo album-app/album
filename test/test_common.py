@@ -196,6 +196,8 @@ class TestCommon(unittest.TestCase):
 
     @staticmethod
     def get_catalog_meta_dict(
-        name="cache_catalog", version="0.1.0", catalog_type="direct"
+        name="cache_catalog",
+        version=DefaultValues.catalog_index_db_version.value,
+        catalog_type="direct",
     ):
         return {"name": name, "version": version, "type": catalog_type}

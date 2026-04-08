@@ -209,6 +209,16 @@ class ReleaseManager:
                 deposit_id = yml_dict["deposit_id"]
             except KeyError:
                 deposit_id = None
+
+            # If deposit_id is not explicitly set but a Zenodo DOI exists,
+            # derive deposit_id from the DOI (format: 10.5281/zenodo.<id>)
+            if not deposit_id:
+                doi = yml_dict.get("doi")
+                if doi and "zenodo" in doi.lower():
+                    deposit_id = doi.rsplit(".", 1)[-1]
+                    module_logger().info(
+                        f"Derived deposit_id={deposit_id} from doi={doi}"
+                    )
             coordinates = dict_to_coordinates(yml_dict)
 
             # do not upload SNAPSHOT versions
