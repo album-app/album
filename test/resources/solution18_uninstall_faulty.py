@@ -4,6 +4,7 @@ import time
 # This import is will trigger an ImportError in target environment but not in the source environment.
 # Hence, installation of the solution is possible, but executing any target in the target environment will fail.
 import yaml
+
 from album.runner.album_logging import get_active_logger
 from album.runner.api import setup
 
@@ -39,7 +40,7 @@ setup(
     group="group",
     name="solution18_uninstall_faulty",
     version="0.1.0",
-    album_api_version="0.6.1",
+    album_api_version="0.7.1",
     args=[
         {
             "name": "testArg1",
