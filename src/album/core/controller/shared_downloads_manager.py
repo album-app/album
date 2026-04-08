@@ -28,6 +28,18 @@ class DownloadManager(IDownloadManager):
             self._set_file_paths_in_json(resources_dict, resources_json_path)
         return True
 
+    def get_download_paths(
+        self, collection_solution: ICollectionSolution
+    ) -> Tuple[Dict[str, Any], Path]:
+        """Convert a resource YAML to a dictionary and insert the download paths."""
+        result = self._resources_yaml_to_dict(collection_solution)
+        if result is None:
+            raise RuntimeError(
+                "No resource file found for solution %s."
+                % collection_solution.coordinates()
+            )
+        return result
+
     def _resources_yaml_to_dict(
         self, collection_solution: ICollectionSolution
     ) -> Optional[Tuple[Dict[str, Any], Path]]:
@@ -40,7 +52,6 @@ class DownloadManager(IDownloadManager):
             dict: Resources dictionary, including their paths. Paths do NOT contain the resource name!
             Path: Path to the resource yaml file
         """
-
         # Get solution names and storage paths needed
         coords = collection_solution.coordinates()
         sol_name = "_".join([coords.group(), coords.name(), coords.version()])
@@ -164,7 +175,6 @@ class DownloadManager(IDownloadManager):
         Returns:
             None, if it worked.
         """
-
         for _, resource_value in resources_dict["resources"].items():
             if "os" in resource_value and not resource_value["os"] == sys.platform:
                 continue

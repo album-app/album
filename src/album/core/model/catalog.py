@@ -276,7 +276,7 @@ class Catalog(ICatalog):
         if self._catalog_index is None:
             raise RuntimeError("Catalog index not loaded!")
         versions = self._catalog_index.get_all_solution_versions(group, name)
-        res = []
+        res: List[ISolution] = []
         for version in versions:
             if version:
                 res.append(Solution(attrs=version))
@@ -320,7 +320,7 @@ class Catalog(ICatalog):
     def set_index_path(self, path: Path) -> None:
         self._index_file_path = path
 
-    def type(self) -> str:
+    def type(self) -> str:  # noqa: A003
         return self._type
 
     def set_catalog_id(self, catalog_id: int) -> None:
