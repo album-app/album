@@ -3,7 +3,7 @@ import os
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
-from test.test_common import TestCommon
+from test.test_common import TEST_ALBUM_API_VERSION, TestCommon
 from typing import Generator
 from unittest.mock import patch
 
@@ -49,7 +49,7 @@ class TestUnitCoreCommon(TestCommon):
             "name": "tsn",
             "description": "d1",
             "version": "tsv",
-            "album_api_version": "0.7.1",
+            "album_api_version": TEST_ALBUM_API_VERSION,
             "album_version": "mhv1",
             "license": "l1",
             "changelog": "ch1",
@@ -72,7 +72,7 @@ class TestUnitCoreCommon(TestCommon):
             "name": "tsn",
             "description": "d1",
             "version": "tsv",
-            "album_api_version": "0.7.1",
+            "album_api_version": TEST_ALBUM_API_VERSION,
             "album_version": "mhv1",
             "license": "l1",
             "changelog": "ch1",

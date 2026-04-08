@@ -219,7 +219,7 @@ class MigrationManager(IMigrationManager):
     def _load_catalog_collection_migration_schema(
         curr_version: IMMVersion, target_version: IMMVersion
     ) -> str:
-        resource_name = "migrate_catalog_collection_{}_to_{}.sql".format(  # noqa: P101
+        resource_name = "migrate_catalog_collection_{}_to_{}.sql".format(
             str(curr_version).replace(".", ""),
             str(target_version).replace(".", ""),
         )
@@ -236,7 +236,7 @@ class MigrationManager(IMigrationManager):
     def _load_catalog_index_migration_schema(
         curr_version: IMMVersion, target_version: IMMVersion
     ) -> str:
-        resource_name = "migrate_catalog_index_{}_to_{}.sql".format(  # noqa: P101
+        resource_name = "migrate_catalog_index_{}_to_{}.sql".format(
             str(curr_version).replace(".", ""),
             str(target_version).replace(".", ""),
         )
@@ -361,3 +361,20 @@ class MigrationManager(IMigrationManager):
         runner_package_name = "album-runner"
 
         return runner_package_name, album_api_version
+
+    def get_outdated_environment_config(self) -> Dict[str, Any]:
+        """Return the full environment configuration for solutions using the old album-runner.
+
+        The old album-runner (api_version <= 0.5.5) depends on pkg_resources which was removed in
+        modern setuptools (>= 71). We therefore pin an older Python and
+        setuptools so the legacy runner can still be imported.
+        """
+        runner_package_name, runner_version = (
+            self.get_conda_available_outdated_runner_name_and_version()
+        )
+        return {
+            "runner_package_name": runner_package_name,
+            "runner_version": runner_version,
+            "python_version": "3.9",
+            "extra_pins": ["setuptools<71"],
+        }

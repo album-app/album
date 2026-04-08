@@ -2,7 +2,7 @@ from album.runner.api import setup
 
 
 def album_install():
-    pass
+    raise RuntimeError("Faulty install routine")  # deliberately faulty — do not fix!
 
 
 setup(

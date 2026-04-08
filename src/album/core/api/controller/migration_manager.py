@@ -1,4 +1,5 @@
 """Interface for handling the migration of indices."""
+
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, Tuple
@@ -84,4 +85,16 @@ class IMigrationManager:
     @abstractmethod
     def get_conda_available_outdated_runner_name_and_version(self) -> Tuple[str, str]:
         """Get the outdated runner name and version."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_outdated_environment_config(self) -> Dict[str, Any]:
+        """Get the full environment configuration for outdated solutions.
+
+        Returns a dict with keys:
+            runner_package_name: str — conda package name for the old runner
+            runner_version: str — version of the old runner
+            python_version: str — Python version compatible with the old runner
+            extra_pins: List[str] — additional dependency pins (e.g. setuptools)
+        """
         raise NotImplementedError

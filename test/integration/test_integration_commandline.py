@@ -3,6 +3,7 @@ import io
 import json
 import sys
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
+from test.test_common import TEST_ALBUM_API_VERSION
 from unittest.mock import patch
 
 from album.argument_parsing import main
@@ -212,7 +213,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
                 "tags": ["tag1", "tag2"],
                 "license": "license",
                 "covers": [],
-                "album_api_version": "0.7.1",
+                "album_api_version": TEST_ALBUM_API_VERSION,
                 "args": [
                     {
                         "name": "testArg1",

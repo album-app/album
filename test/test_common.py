@@ -26,9 +26,21 @@ from album.core.utils.operations.view_operations import (
 )
 from album.runner.album_logging import get_active_logger
 
+# Central test constant — must match DefaultValues.runner_api_package_version.
+# All test resource solutions (except deliberately-old ones) must use this version.
+TEST_ALBUM_API_VERSION: str = DefaultValues.runner_api_package_version.value
+
 
 class TestCommon(unittest.TestCase):
     def setUp(self) -> None:
+        # Fail fast if the test API version constant drifts from DefaultValues
+        assert (
+            TEST_ALBUM_API_VERSION == DefaultValues.runner_api_package_version.value
+        ), (
+            f"TEST_ALBUM_API_VERSION ({TEST_ALBUM_API_VERSION}) does not match "
+            f"DefaultValues.runner_api_package_version ({DefaultValues.runner_api_package_version.value}). "
+            f"Update TEST_ALBUM_API_VERSION in test/test_common.py."
+        )
         super().setUp()
         self.setup_tmp_resources()
         self.setup_silent_test_logging()

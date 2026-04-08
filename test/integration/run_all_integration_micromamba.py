@@ -1,6 +1,10 @@
 import time
 import unittest
-from test.integration import test_integration_api, test_integration_commandline
+from test.integration import (
+    test_integration_api,
+    test_integration_commandline,
+    test_integration_resource_api_version,
+)
 from test.integration.ci import test_integration_ci
 from test.integration.core import (
     test_integration_backwards_compatibility,
@@ -28,6 +32,7 @@ def main():
     # album
     suite.addTests(loader.loadTestsFromModule(test_integration_api))
     suite.addTests(loader.loadTestsFromModule(test_integration_commandline))
+    suite.addTests(loader.loadTestsFromModule(test_integration_resource_api_version))
 
     # Core
     suite.addTests(loader.loadTestsFromModule(test_integration_backwards_compatibility))
