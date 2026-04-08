@@ -179,12 +179,12 @@ class ZenodoMetadata(ZenodoEntry):
     def default_values(
         cls,
         title: str,
-        creators: list[str],
+        creators: list[dict[str, Any]],
         description: str,
-        license_: str,
-        version: str,
-        related_identifiers: str,
-        references: str,
+        license_: str | None,
+        version: str | None,
+        related_identifiers: list[dict[str, str]],
+        references: list[str],
     ):
         """Get the default metadata object."""
         default_values = {
