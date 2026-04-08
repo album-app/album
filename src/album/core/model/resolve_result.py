@@ -32,13 +32,14 @@ class ResolveResult(ICollectionSolution):
             self._load_solution_from_collection_entry()
 
     def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ResolveResult):
+            return NotImplemented
         return (
-            isinstance(other, ICollectionSolution)
-            and other.catalog() == self._catalog
-            and other.path() == self._path
-            and other.loaded_solution() == self._loaded_solution
-            and other.database_entry() == self._collection_entry
-            and other.coordinates() == self._coordinates
+            other._catalog == self._catalog
+            and other._path == self._path
+            and other._loaded_solution == self._loaded_solution
+            and other._collection_entry == self._collection_entry
+            and other._coordinates == self._coordinates
         )
 
     def catalog(self) -> ICatalog:

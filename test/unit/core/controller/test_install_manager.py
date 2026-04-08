@@ -219,7 +219,9 @@ class TestInstallManager(TestUnitCoreCommon):
             album_api_version = "5.1.0"
 
         s._setup = R()
-        r = ResolveResult("", None, None, None, s)
+        r = ResolveResult(
+            "", None, None, Coordinates("myGroup", "myName", "myVersion"), s
+        )
 
         resolve = MagicMock(return_value=r)
         self.album_controller.collection_manager().resolve_and_load = resolve

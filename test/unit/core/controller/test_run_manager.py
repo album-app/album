@@ -25,7 +25,9 @@ class TestRunManager(TestUnitCoreCommon):
         run_queue = MagicMock(return_value=None)
         self.album_controller.script_manager().run_queue = run_queue
 
-        resolve_result = ResolveResult("", None, None, None, self.active_solution)
+        resolve_result = ResolveResult(
+            "", None, None, self.active_solution.coordinates(), self.active_solution
+        )
 
         resolve_installed_and_load = MagicMock(return_value=resolve_result)
         self.album_controller.collection_manager().resolve_installed_and_load = (

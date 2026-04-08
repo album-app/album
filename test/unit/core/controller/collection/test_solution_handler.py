@@ -6,9 +6,6 @@ from test.unit.core.controller.collection.test_collection_manager import (
 from test.unit.test_unit_core_common import EmptyTestClass
 from unittest.mock import MagicMock, create_autospec, patch
 
-from album.runner.core.model.coordinates import Coordinates
-from album.runner.core.model.solution import Solution
-
 from album.core.api.model.catalog_updates import ChangeType
 from album.core.model.catalog import Catalog
 from album.core.model.catalog_index import CatalogIndex
@@ -17,6 +14,8 @@ from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import get_link_target
+from album.runner.core.model.coordinates import Coordinates
+from album.runner.core.model.solution import Solution
 
 
 class TestSolutionHandler(TestCatalogAndCollectionCommon):
@@ -54,8 +53,13 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
 
         catalog = EmptyTestClass()
         catalog.catalog_id = lambda: 5
+        loaded_solution = Solution(self.solution_default_dict)
         solution = ResolveResult(
-            Path("path").joinpath("solution.py"), catalog, None, None
+            Path("path").joinpath("solution.py"),
+            catalog,
+            None,
+            None,
+            loaded_solution=loaded_solution,
         )
 
         # mock
