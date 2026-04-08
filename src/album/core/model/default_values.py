@@ -6,7 +6,7 @@ from typing import Dict, Final, List
 import album.core
 
 # outside of the class to be able to use it in the default values
-DEFAULT_SOLUTION_PYTHON_VERSION: Final[str] = "3.9"
+DEFAULT_SOLUTION_PYTHON_VERSION: Final[str] = "3.10"
 
 # outside of the class. Dictionary as enum values are not hashable
 # always use with deepcopy, as it is mutable
