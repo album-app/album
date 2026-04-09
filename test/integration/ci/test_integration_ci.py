@@ -1,6 +1,8 @@
 import sys
 import unittest
 from pathlib import Path
+from test.integration.test_integration_core_common import TestIntegrationCoreCommon
+from test.unit.test_unit_core_common import EmptyTestClass
 from unittest.mock import patch
 
 import git
@@ -10,8 +12,6 @@ from album.ci.argument_parsing import main
 from album.core.controller.album_controller import AlbumController
 from album.core.model.catalog import Catalog
 from album.core.utils.operations.git_operations import checkout_branch
-from test.integration.test_integration_core_common import TestIntegrationCoreCommon
-from test.unit.test_unit_core_common import EmptyTestClass
 
 
 class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
@@ -27,7 +27,9 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
             self.repo.close()
         super().tearDown()
 
-    @patch("album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file")
+    @patch(
+        "album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file"
+    )
     def deploy_request(self, conda_lock_mock):
         conda_lock_mock.return_value = None
         catalog_cache_path = Path(self.tmp_dir.name).joinpath("test_catalog_cache")
@@ -140,6 +142,7 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         # mock
         deposit = EmptyTestClass()
         deposit.id = "id"
+        deposit.conceptdoi = None
         deposit.files = []
         deposit.metadata = EmptyTestClass()
         deposit.metadata.prereserve_doi = {}

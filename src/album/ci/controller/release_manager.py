@@ -100,13 +100,15 @@ class ReleaseManager:
                 repo.remote().set_url(get_ssh_url(project_path, self.catalog_src))
 
     @staticmethod
-    def _get_yml_dict(head: HEAD) -> List[Union[Dict[str, Any], Any]]:
-        yml_file_path = retrieve_files_from_head_last_commit(
-            head, DefaultValues.solution_yml_default_name.value
-        )[0]
+    def _get_yml_dict(head: HEAD) -> Tuple[Dict[str, Any], Path]:
+        yml_file_path = Path(
+            retrieve_files_from_head_last_commit(
+                head, DefaultValues.solution_yml_default_name.value
+            )[0]
+        )
         yml_dict = get_dict_from_yml(yml_file_path)
 
-        return [yml_dict, yml_file_path]
+        return yml_dict, yml_file_path
 
     def zenodo_publish(
         self, branch_name: str, zenodo_base_url: str, zenodo_access_token: str
@@ -144,6 +146,12 @@ class ReleaseManager:
 
                 # publish to zenodo
                 deposit.publish()
+
+                # Persist the concept DOI — for first-ever deploys this is the
+                # earliest moment the concept DOI becomes available from Zenodo.
+                if deposit.conceptdoi and not yml_dict.get("conceptdoi"):
+                    yml_dict["conceptdoi"] = deposit.conceptdoi
+                    write_dict_to_yml(yml_file_path, yml_dict)
 
             add_tag(repo, as_tag(dict_to_coordinates(yml_dict)))
 
@@ -242,10 +250,12 @@ class ReleaseManager:
                     "Deposit %s successfully retrieved..." % deposit.id
                 )
 
-                # include doi and ID in yml
+                # include doi, deposit ID, and concept DOI in yml
                 assert deposit.metadata is not None
                 yml_dict["doi"] = deposit.metadata.prereserve_doi["doi"]
                 yml_dict["deposit_id"] = deposit.id
+                if deposit.conceptdoi:
+                    yml_dict["conceptdoi"] = deposit.conceptdoi
                 write_dict_to_yml(yml_file_path, yml_dict)
 
                 if deposit.files:
@@ -258,10 +268,13 @@ class ReleaseManager:
                     deposit = zenodo_manager.zenodo_upload(deposit, file)
 
         if report_file:
-            report_file = create_report(
-                report_file,
-                {"DOI": yml_dict["doi"], "DEPOSIT_ID": yml_dict["deposit_id"]},
-            )
+            report_vars = {
+                "DOI": yml_dict["doi"],
+                "DEPOSIT_ID": yml_dict["deposit_id"],
+            }
+            if yml_dict.get("conceptdoi"):
+                report_vars["CONCEPTDOI"] = yml_dict["conceptdoi"]
+            report_file = create_report(report_file, report_vars)
             module_logger().info("Created report file under %s" % str(report_file))
 
     @staticmethod
@@ -385,7 +398,10 @@ class ReleaseManager:
         with self._open_repo() as repo:
             head = checkout_branch(repo, branch_name)
 
+            yml_dict, yml_file = self._get_yml_dict(head)
+
             commit_files = [
+                yml_file,
                 self.catalog.solution_list_path(),
                 self.catalog.index_file_path(),
             ]
