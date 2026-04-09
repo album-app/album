@@ -518,8 +518,13 @@ class ZenodoDeposit(ZenodoEntry):
     def new_version(self) -> list[ZenodoDeposit]:
         """Create a new version of the deposit.
 
+        If a new version draft already exists (e.g. from a re-run of a CI
+        pipeline), Zenodo responds with 403 Forbidden.  In that case the
+        method falls back to retrieving the existing draft via the
+        ``latest_draft`` link that is present on the published deposit.
+
         Returns:
-             True if success.
+             A list containing the new version draft deposit.
 
         Raises:
             InvalidResponseStatusError: If query response status other than expected.
@@ -534,6 +539,23 @@ class ZenodoDeposit(ZenodoEntry):
         )
 
         r = requests.post(link, params=self.params)
+
+        if r.status_code == ResponseStatus.Forbidden.value:
+            # A new version draft already exists — retrieve it instead.
+            print(
+                "New version draft already exists for deposit %s. "
+                "Attempting to retrieve existing draft..." % self.id
+            )
+            latest_draft_link = self.links.get("latest_draft") if self.links else None
+            if latest_draft_link:
+                latest_draft_id = extract_draft_id(latest_draft_link)
+                return ZenodoAPI(
+                    self.base_url, self.params["access_token"]
+                ).deposit_get(latest_draft_id, status=DepositStatus.DRAFT)
+            raise InvalidResponseStatusError(
+                "New version draft already exists for deposit %s but no "
+                "latest_draft link found to retrieve it." % self.id
+            )
 
         response_dict = ZenodoAPI.validate_response(r, ResponseStatus.Created)
 

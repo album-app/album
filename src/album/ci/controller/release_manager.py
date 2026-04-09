@@ -145,7 +145,7 @@ class ReleaseManager:
                 # publish to zenodo
                 deposit.publish()
 
-        add_tag(repo, as_tag(dict_to_coordinates(yml_dict)))
+            add_tag(repo, as_tag(dict_to_coordinates(yml_dict)))
 
         module_logger().info(
             "Published unpublished deposit with deposit id %s..." % deposit_id
