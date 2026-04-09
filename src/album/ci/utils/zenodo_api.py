@@ -535,7 +535,7 @@ class ZenodoDeposit(ZenodoEntry):
 
         r = requests.post(link, params=self.params)
 
-        response_dict = ZenodoAPI.validate_response(r, ResponseStatus.OK)
+        response_dict = ZenodoAPI.validate_response(r, ResponseStatus.Created)
 
         # update object according to response
         self._init(response_dict, self.base_url, self.params["access_token"])
