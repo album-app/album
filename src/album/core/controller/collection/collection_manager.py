@@ -2,9 +2,6 @@ import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from album.runner import album_logging
-from album.runner.core.api.model.coordinates import ICoordinates
-
 from album.core.api.controller.collection.catalog_handler import ICatalogHandler
 from album.core.api.controller.collection.collection_manager import ICollectionManager
 from album.core.api.controller.collection.solution_handler import ISolutionHandler
@@ -26,6 +23,8 @@ from album.core.utils.operations.resolve_operations import (
     get_attributes_from_string,
     get_doi_from_input,
 )
+from album.runner import album_logging
+from album.runner.core.api.model.coordinates import ICoordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -293,6 +292,11 @@ class CollectionManager(ICollectionManager):
                     # download DOI
                     path = check_doi(doi["doi"], self.album.configuration().tmp_path())
                     catalog = self.album.catalogs().get_cache_catalog()
+                    # check_doi downloads and unzips the Zenodo archive,
+                    # returning the directory.  We need to point to the
+                    # actual solution file inside it.
+                    if path.is_dir():
+                        path = path.joinpath(DefaultValues.solution_default_name.value)
             else:  # case no doi
                 solution_entry = self._search(str_input)
 

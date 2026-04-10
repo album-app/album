@@ -1,25 +1,25 @@
 import unittest.mock
 from copy import deepcopy
 from pathlib import Path
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 from unittest import mock
 from unittest.mock import patch
 
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.resolve_operations import (
-    get_doi_from_input,
-    get_cgnv_from_input,
-    get_gnv_from_input,
-    get_attributes_from_string,
+    _parse_zenodo_url,
+    check_doi,
     check_file_or_url,
     dict_to_coordinates,
-    get_zip_name_prefix,
+    get_attributes_from_string,
+    get_cgnv_from_input,
+    get_doi_from_input,
+    get_gnv_from_input,
     get_zip_name,
-    check_doi,
+    get_zip_name_prefix,
     parse_doi_service_url,
-    _parse_zenodo_url,
 )
 from album.runner.core.model.coordinates import Coordinates
-from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestResolveOperations(TestUnitCoreCommon):
@@ -145,10 +145,12 @@ class TestResolveOperations(TestUnitCoreCommon):
         url3 = "https://subdomain.zenodo.org/record/5571504"
         url4 = "https://bullshit.net/"
         url5 = "https://zenodo.org"
+        url6 = "https://zenodo.org/records/5571504"
 
         # calls no error
         parse_doi_service_url(url1)
         parse_doi_service_url(url3)
+        parse_doi_service_url(url6)
 
         # calls expect error
         with self.assertRaises(NotImplementedError):
@@ -169,11 +171,17 @@ class TestResolveOperations(TestUnitCoreCommon):
         url4 = "https://bullshitt/record/5571504"
         url5 = "https://zenodo.org/whatsoever/5571504"
         url6 = "https://zenodo.org/record/5571504/1234"
+        url7 = "https://zenodo.org/records/5571504"
 
-        # call
+        # call — old /record/ format
         _parse_zenodo_url(url1)
 
         # assert
+        rzrdz.assert_called_once_with("5571504")
+
+        # call — new /records/ format
+        rzrdz.reset_mock()
+        _parse_zenodo_url(url7)
         rzrdz.assert_called_once_with("5571504")
 
         # call expect error

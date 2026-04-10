@@ -1,15 +1,11 @@
 """Module for resolving solutions from different sources."""
+
 import errno
 import os
 import re
 import sys
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
-
-from album.environments.utils.url_operations import download_resource
-from album.runner import album_logging
-from album.runner.core.api.model.coordinates import ICoordinates
-from album.runner.core.model.coordinates import Coordinates
 
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoFile
 from album.core.api.model.catalog import ICatalog
@@ -26,6 +22,10 @@ from album.core.utils.operations.url_operations import (
     is_url,
     retrieve_redirect_url,
 )
+from album.environments.utils.url_operations import download_resource
+from album.runner import album_logging
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.model.coordinates import Coordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -205,7 +205,7 @@ def parse_doi_service_url(url: str) -> str:
 
 def _parse_zenodo_url(url: str):
     """Parse the zenodo URL and return the download link for the zip file."""
-    g = re.search(r"(https:\/\/[a-zA-Z.]*zenodo[.]org\/)(record)[\/]([0-9]*)$", url)
+    g = re.search(r"(https:\/\/[a-zA-Z.]*zenodo[.]org\/)(records?)[\/]([0-9]*)$", url)
 
     if g:
         record_id = g.group(3)
@@ -288,7 +288,7 @@ def prepare_path(
 
 def dict_to_coordinates(solution_attr: Dict[str, Any]) -> ICoordinates:
     """Convert a dictionary to coordinates."""
-    if not all([k in solution_attr.keys() for k in ["name", "version", "group"]]):
+    if not all(k in solution_attr.keys() for k in ["name", "version", "group"]):
         raise ValueError(
             "Cannot resolve solution! Group, name and version must be specified!"
         )
@@ -315,7 +315,7 @@ def build_resolve_string(
     """Build a string representation of the solution to be resolved."""
     if "doi" in resolve_solution_dict.keys():
         resolve_solution = resolve_solution_dict["doi"]
-    elif all([x in resolve_solution_dict.keys() for x in ["group", "name", "version"]]):
+    elif all(x in resolve_solution_dict.keys() for x in ["group", "name", "version"]):
         resolve_solution = ":".join(
             [
                 resolve_solution_dict["group"],
