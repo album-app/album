@@ -616,24 +616,19 @@ class ZenodoDeposit(ZenodoEntry):
 
         return self.files
 
-    def create_file(self, file, name=None) -> ZenodoFile:
+    def create_file(self, file) -> ZenodoFile:
         """Upload a new file to the deposit.
 
         Args:
             file:
                 The full path to the file to upload.
-            name:
-                Optional name for the file on Zenodo.  May contain forward
-                slashes to preserve directory structure (e.g.
-                ``src/main/java/Main.java``).  Defaults to the basename of
-                *file*.
 
         Returns:
             A @ZenodoFile object.
         """
         link = self.base_url + "/api/deposit/depositions/%s/files" % self.id
 
-        data = {"name": name or os.path.basename(file)}
+        data = {"name": os.path.basename(file)}
         open_file = open(file, "rb")
         files = {"file": open_file}
 
@@ -673,7 +668,7 @@ class ZenodoDeposit(ZenodoEntry):
 
         return True
 
-    def update_file_by_id(self, file_id: str, new_file: str, name=None) -> ZenodoFile:
+    def update_file_by_id(self, file_id: str, new_file: str) -> ZenodoFile:
         """Update an existent file with the new version.
 
         Args:
@@ -681,8 +676,6 @@ class ZenodoDeposit(ZenodoEntry):
                 The id of the file to delete.
             new_file:
                  The new version of the file.
-            name:
-                Optional name override.
 
         Returns:
               The new created @ZenodoFile object.
@@ -691,7 +684,7 @@ class ZenodoDeposit(ZenodoEntry):
             InvalidResponseStatusError: If query response status other than expected.
         """
         self.delete_file_by_id(file_id)
-        return self.create_file(new_file, name=name)
+        return self.create_file(new_file)
 
     def delete_file(self, file_name: str) -> bool:
         """Delete a file in a deposit given its name.
@@ -712,9 +705,7 @@ class ZenodoDeposit(ZenodoEntry):
 
         return False
 
-    def update_file(
-        self, file_name: str, new_file: str, name=None
-    ) -> ZenodoFile | None:
+    def update_file(self, file_name: str, new_file: str) -> ZenodoFile | None:
         """Update a file in a deposit given its name.
 
         Args:
@@ -722,8 +713,6 @@ class ZenodoDeposit(ZenodoEntry):
                 The name of the file to delete.
             new_file:
                  The new version of the file.
-            name:
-                Optional name override.
 
         Returns:
               The updated @ZenodoFile object.
@@ -733,7 +722,7 @@ class ZenodoDeposit(ZenodoEntry):
         """
         file_id = self.get_files_id_by_name(file_name)
         if file_id:
-            return self.update_file_by_id(file_id, new_file, name=name)
+            return self.update_file_by_id(file_id, new_file)
 
         return None
 

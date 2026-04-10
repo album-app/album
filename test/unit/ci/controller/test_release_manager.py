@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from test.unit.test_unit_core_common import EmptyTestClass, TestUnitCoreCommon
 from unittest.mock import MagicMock, patch
@@ -248,16 +249,19 @@ class TestReleaseManager(TestUnitCoreCommon):
         # test
         release_manager.zenodo_upload(branch, None, None, None)
 
-        # assert — all files in solution dir are uploaded with relative names
+        # assert — solution.yml individually + solution.zip with full directory
         self.assertEqual(2, zenodo_upload.call_count)
         self.assertTrue(catalog_path.joinpath(yml_relative_path).exists())
         self.assertTrue(catalog_path.joinpath(solution_relative_path).exists())
-        uploaded_names = {call[1]["name"] for call in zenodo_upload.call_args_list}
-        self.assertEqual({"solution.yml", "solution.py"}, uploaded_names)
+        uploaded_names = {
+            Path(call[0][1]).name for call in zenodo_upload.call_args_list
+        }
+        self.assertEqual({"solution.yml", "solution.zip"}, uploaded_names)
         force_remove(repo_dir)
 
-    def test_zenodo_upload_includes_subdirectory_files(self):
-        """Files in subdirectories of the solution dir must be uploaded."""
+    def test_zenodo_upload_includes_subdirectory_files_via_zip(self):
+        """Subdirectory files must be included in solution.zip, plus
+        individual preview files (solution.yml, covers) are uploaded."""
         yml_dict = {"group": "group", "name": "name", "version": "0.1.0"}
         repo_dir = Path(self.tmp_dir.name).joinpath("repo")
         repo_dir.mkdir(parents=True)
@@ -300,20 +304,42 @@ class TestReleaseManager(TestUnitCoreCommon):
             deposit_id="0", doi="doi", conceptdoi="conceptdoi"
         )
         zenodo_manager.zenodo_get_deposit = MagicMock(return_value=deposit)
-        zenodo_upload_mock = MagicMock()
+        # Capture zip contents during upload (temp dir is cleaned after)
+        import zipfile
+
+        captured_zip_contents = []
+
+        def capture_upload(deposit, file):
+            if Path(file).name == "solution.zip":
+                with zipfile.ZipFile(file) as zf:
+                    captured_zip_contents.extend(zf.namelist())
+            return deposit
+
+        zenodo_upload_mock = MagicMock(side_effect=capture_upload)
         zenodo_manager.zenodo_upload = zenodo_upload_mock
         release_manager._get_zenodo_manager = MagicMock(return_value=zenodo_manager)
 
         release_manager.zenodo_upload("branch", None, None, None)
 
-        # All files must be uploaded with their relative paths as names
-        uploaded_names = {call[1]["name"] for call in zenodo_upload_mock.call_args_list}
+        uploaded_names = {
+            Path(call[0][1]).name for call in zenodo_upload_mock.call_args_list
+        }
+        # solution.yml individually for metadata, solution.zip for full content
         self.assertIn("solution.yml", uploaded_names)
-        self.assertIn("solution.py", uploaded_names)
-        # subdirectory files must use forward-slash relative paths
-        self.assertIn("src/main/java/Main.java", uploaded_names)
-        self.assertIn("cover.png", uploaded_names)
-        self.assertEqual(4, zenodo_upload_mock.call_count)
+        self.assertIn("solution.zip", uploaded_names)
+
+        # verify the zip contains the nested file with correct path
+        self.assertTrue(
+            any("Main.java" in name for name in captured_zip_contents),
+            "Main.java not found in zip: %s" % captured_zip_contents,
+        )
+        self.assertTrue(
+            any(
+                "src/main/java/Main.java" in name.replace(os.sep, "/")
+                for name in captured_zip_contents
+            ),
+            "Nested path not preserved in zip: %s" % captured_zip_contents,
+        )
         force_remove(repo_dir)
 
     def test_zenodo_upload_writes_conceptdoi_to_yml(self):

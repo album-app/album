@@ -1,4 +1,5 @@
 import unittest.mock
+import zipfile
 from copy import deepcopy
 from pathlib import Path
 from test.unit.test_unit_core_common import TestUnitCoreCommon
@@ -18,6 +19,7 @@ from album.core.utils.operations.resolve_operations import (
     get_zip_name,
     get_zip_name_prefix,
     parse_doi_service_url,
+    prepare_path,
     retrieve_zenodo_record_archive_url,
 )
 from album.runner.core.model.coordinates import Coordinates
@@ -347,6 +349,65 @@ class TestResolveOperations(TestUnitCoreCommon):
         unzip_archive_mock.assert_not_called()
         download_mock.assert_not_called()
         check_zip_mock.assert_not_called()
+
+    def test_prepare_path_nested_zenodo_zip(self):
+        """prepare_path must handle Zenodo deposit archives that contain an
+        inner solution.zip (with directory structure) plus preview files."""
+        tmp = Path(self.tmp_dir.name)
+
+        # Build inner solution.zip (what _get_release_files produces)
+        inner_zip_path = tmp.joinpath("inner", "solution.zip")
+        inner_zip_path.parent.mkdir(parents=True)
+        with zipfile.ZipFile(inner_zip_path, "w") as zf:
+            zf.writestr("solution.py", "from album.runner.api import setup\nsetup()")
+            zf.writestr("solution.yml", "group: g\nname: n\nversion: '0.1.0'")
+            zf.writestr("src/main/java/Main.java", "class Main {}")
+
+        # Build outer archive (what Zenodo /files-archive returns)
+        outer_zip_path = tmp.joinpath("outer", "archive.zip")
+        outer_zip_path.parent.mkdir(parents=True)
+        with zipfile.ZipFile(outer_zip_path, "w") as zf:
+            zf.write(inner_zip_path, "solution.zip")
+            zf.writestr("solution.yml", "group: g\nname: n\nversion: '0.1.0'")
+            zf.writestr("cover.png", "fake")
+
+        cache_dir = tmp.joinpath("cache")
+        cache_dir.mkdir()
+
+        result = prepare_path(outer_zip_path, cache_dir)
+
+        # Must resolve to solution.py
+        self.assertIsNotNone(result)
+        self.assertEqual("solution.py", result.name)
+        self.assertTrue(result.exists(), "solution.py must exist: %s" % result)
+
+        # The nested directory structure must be preserved
+        solution_dir = result.parent
+        nested_java = solution_dir.joinpath("src", "main", "java", "Main.java")
+        self.assertTrue(
+            nested_java.exists(),
+            "Nested file not extracted: %s" % nested_java,
+        )
+
+    def test_prepare_path_flat_zip_still_works(self):
+        """prepare_path must still work with a simple zip containing solution.py
+        directly (no inner solution.zip — backward compatibility)."""
+        tmp = Path(self.tmp_dir.name)
+
+        flat_zip_path = tmp.joinpath("flat", "solution.zip")
+        flat_zip_path.parent.mkdir(parents=True)
+        with zipfile.ZipFile(flat_zip_path, "w") as zf:
+            zf.writestr("solution.py", "from album.runner.api import setup\nsetup()")
+            zf.writestr("solution.yml", "group: g\nname: n\nversion: '0.1.0'")
+
+        cache_dir = tmp.joinpath("cache")
+        cache_dir.mkdir()
+
+        result = prepare_path(flat_zip_path, cache_dir)
+
+        self.assertIsNotNone(result)
+        self.assertEqual("solution.py", result.name)
+        self.assertTrue(result.exists())
 
     def test_dict_to_coordinates(self):
         self.assertEqual(

@@ -262,6 +262,18 @@ def prepare_path(
         if p.is_file():
             if check_zip(p):  # zip file — unzip and point to solution.py inside
                 p = unzip_archive(p, target_folder)
+                # Zenodo deposit archives contain solution.zip (with full
+                # directory structure) plus individual preview files.  If
+                # solution.py is not at the top level but solution.zip is,
+                # extract the inner zip to get the actual solution files.
+                solution_file = p.joinpath(DefaultValues.solution_default_name.value)
+                inner_zip = p.joinpath(DefaultValues.solution_zip_default_name.value)
+                if (
+                    not solution_file.exists()
+                    and inner_zip.is_file()
+                    and check_zip(inner_zip)
+                ):
+                    unzip_archive(inner_zip, p)
                 p = p.joinpath(DefaultValues.solution_default_name.value)
             else:  # single python file — return as-is (can have any name)
                 pass

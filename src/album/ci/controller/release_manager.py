@@ -16,10 +16,12 @@ from album.ci.utils.zenodo_api import ZenodoMetadata
 from album.core.api.model.configuration import IConfiguration
 from album.core.model.catalog import Catalog, retrieve_index_files_from_src
 from album.core.model.default_values import DefaultValues
+from album.core.utils.export.changelog import get_changelog_file_name
 from album.core.utils.operations import view_operations
 from album.core.utils.operations.file_operations import (
     force_remove,
     get_dict_entry,
+    zip_folder,
 )
 from album.core.utils.operations.git_operations import (
     add_files_commit_and_push,
@@ -147,18 +149,17 @@ class ReleaseManager:
         self,
         repo: Repo,
         yml_dict: Dict[str, Any],
+        tmp_dir: str,
     ) -> Tuple[List[str], List[str]]:
-        """Collect all files from the solution directory to upload to Zenodo.
+        """Collect files to upload to Zenodo.
 
-        Every file in the solution directory is required for the solution
-        to function correctly.  This includes source files, resources,
-        documentation, covers, and any subdirectories.
+        The solution directory is zipped into ``solution.zip`` so that the
+        full directory structure (including subdirectories like
+        ``src/main/java/``) is preserved on Zenodo.  Key metadata files
+        are additionally uploaded individually so Zenodo can preview them.
 
         Returns:
-            A tuple of (absolute_paths, relative_names).  The relative names
-            use forward slashes and are relative to the solution directory
-            (e.g. ``src/main/java/Main.java``).  They are used as the
-            filename on Zenodo so that the directory structure is preserved.
+            A tuple of (absolute_paths, basenames) for all files to upload.
         """
         coordinates = dict_to_coordinates(yml_dict)
         solution_relative_path = (
@@ -174,23 +175,29 @@ class ReleaseManager:
                 % str(solution_dir_in_repo)
             )
 
-        files: List[str] = []
-        names: List[str] = []
-        for dirpath, _, filenames in os.walk(solution_dir_in_repo):
-            for filename in filenames:
-                abs_path = os.path.join(dirpath, filename)
-                rel_path = os.path.relpath(abs_path, solution_dir_in_repo)
-                files.append(abs_path)
-                # Zenodo uses forward slashes regardless of OS
-                names.append(rel_path.replace(os.sep, "/"))
+        # zip the entire solution directory — preserves folder structure
+        zip_target = Path(tmp_dir).joinpath(
+            DefaultValues.solution_zip_default_name.value
+        )
+        zip_path = zip_folder(solution_dir_in_repo, zip_target)
 
-        if not files:
-            raise RuntimeError(
-                "No files found for %s in %s!"
-                % (str(coordinates), str(solution_dir_in_repo))
-            )
+        # individual files for Zenodo preview
+        solution_yml = solution_dir_in_repo.joinpath(
+            DefaultValues.solution_yml_default_name.value
+        )
+        files: List[str] = [str(solution_yml), str(zip_path)]
 
-        return files, names
+        for doc in self._get_documentation_paths(solution_dir_in_repo, yml_dict):
+            files.append(str(doc))
+
+        for cover in self._get_cover_paths(solution_dir_in_repo, yml_dict):
+            files.append(str(cover))
+
+        changelog = solution_dir_in_repo.joinpath(get_changelog_file_name())
+        if changelog.exists():
+            files.append(str(changelog))
+
+        return files, [Path(f).name for f in files]
 
     def zenodo_upload(
         self,
@@ -205,7 +212,7 @@ class ReleaseManager:
         )
 
         zenodo_manager = self._get_zenodo_manager(zenodo_access_token, zenodo_base_url)
-        with self._open_repo() as repo:
+        with self._open_repo() as repo, TemporaryDirectory() as tmp_dir:
             head = checkout_branch(repo, branch_name)
 
             # get the yml file to release
@@ -235,7 +242,7 @@ class ReleaseManager:
                 )
                 return
 
-            files, file_names = self._get_release_files(repo, yml_dict)
+            files, file_names = self._get_release_files(repo, yml_dict, tmp_dir)
 
             # get the release deposit. Either a new one or an existing one to perform an update on
             deposit = zenodo_manager.zenodo_get_deposit(
@@ -262,8 +269,8 @@ class ReleaseManager:
                         # remove file from deposit
                         zenodo_manager.zenodo_delete(deposit, file.filename)
 
-            for file, name in zip(files, file_names):
-                deposit = zenodo_manager.zenodo_upload(deposit, file, name=name)
+            for file in files:
+                deposit = zenodo_manager.zenodo_upload(deposit, file)
 
         if report_file:
             report_vars = {

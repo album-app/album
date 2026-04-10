@@ -170,21 +170,14 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
             )
             self.assertIsNone(main())
 
-        # All uploaded files should be under the solution directory —
-        # no zip, only individual deploy-changed files
-        solution_dir = Path("solutions", "group", "name")
+        # solution.zip preserves directory structure; solution.yml uploaded
+        # individually for Zenodo metadata/preview
         self.assertGreater(zenodo_upload.call_count, 0)
         uploaded_names = {
             Path(call[0][1]).name for call in zenodo_upload.call_args_list
         }
         self.assertIn("solution.yml", uploaded_names)
-        self.assertNotIn("solution.zip", uploaded_names)
-        for call in zenodo_upload.call_args_list:
-            self.assertTrue(
-                str(call[0][1]).endswith(str(solution_dir))
-                or str(solution_dir) in str(call[0][1]),
-                f"Uploaded file {call[0][1]} is not under {solution_dir}",
-            )
+        self.assertIn("solution.zip", uploaded_names)
 
     def test_update_index(self):
         # deploy request to test catalog
