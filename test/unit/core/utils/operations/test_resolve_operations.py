@@ -18,6 +18,7 @@ from album.core.utils.operations.resolve_operations import (
     get_zip_name,
     get_zip_name_prefix,
     parse_doi_service_url,
+    retrieve_zenodo_record_archive_url,
 )
 from album.runner.core.model.coordinates import Coordinates
 
@@ -145,12 +146,10 @@ class TestResolveOperations(TestUnitCoreCommon):
         url3 = "https://subdomain.zenodo.org/record/5571504"
         url4 = "https://bullshit.net/"
         url5 = "https://zenodo.org"
-        url6 = "https://zenodo.org/records/5571504"
 
         # calls no error
         parse_doi_service_url(url1)
         parse_doi_service_url(url3)
-        parse_doi_service_url(url6)
 
         # calls expect error
         with self.assertRaises(NotImplementedError):
@@ -160,10 +159,7 @@ class TestResolveOperations(TestUnitCoreCommon):
         with self.assertRaises(NotImplementedError):
             parse_doi_service_url(url5)
 
-    @patch(
-        "album.core.utils.operations.resolve_operations.retrieve_zenodo_record_download_zip"
-    )
-    def test__parse_zenodo_url(self, rzrdz):
+    def test__parse_zenodo_url(self):
         # prepare
         url1 = "https://zenodo.org/record/5571504"
         url2 = "https://zenod.org/record/5571504"
@@ -171,18 +167,12 @@ class TestResolveOperations(TestUnitCoreCommon):
         url4 = "https://bullshitt/record/5571504"
         url5 = "https://zenodo.org/whatsoever/5571504"
         url6 = "https://zenodo.org/record/5571504/1234"
-        url7 = "https://zenodo.org/records/5571504"
 
-        # call — old /record/ format
-        _parse_zenodo_url(url1)
+        # call
+        result = _parse_zenodo_url(url1)
 
-        # assert
-        rzrdz.assert_called_once_with("5571504")
-
-        # call — new /records/ format
-        rzrdz.reset_mock()
-        _parse_zenodo_url(url7)
-        rzrdz.assert_called_once_with("5571504")
+        # assert — should return the files-archive URL
+        self.assertEqual("https://zenodo.org/api/records/5571504/files-archive", result)
 
         # call expect error
         with self.assertRaises(ValueError):
@@ -196,10 +186,16 @@ class TestResolveOperations(TestUnitCoreCommon):
         with self.assertRaises(ValueError):
             _parse_zenodo_url(url6)
 
-    @unittest.skip("Needs to be implemented!")
-    def test_retrieve_zenodo_record_download_zip(self):
-        # todo: implement
-        pass
+    def test__parse_zenodo_url_subdomain(self):
+        url = "https://sandbox.zenodo.org/record/9999"
+        result = _parse_zenodo_url(url)
+        self.assertEqual(
+            "https://sandbox.zenodo.org/api/records/9999/files-archive", result
+        )
+
+    def test_retrieve_zenodo_record_archive_url(self):
+        result = retrieve_zenodo_record_archive_url("https://zenodo.org", "5571504")
+        self.assertEqual("https://zenodo.org/api/records/5571504/files-archive", result)
 
     @patch("album.core.utils.operations.resolve_operations.download")
     @patch("album.core.utils.operations.resolve_operations.prepare_path")
@@ -252,17 +248,12 @@ class TestResolveOperations(TestUnitCoreCommon):
         rand_folder_name_mock.return_value = Path("rPath")
         check_zip_mock.return_value = True
 
-        # case zip — prepare_path unzips and appends solution.py
+        # case zip
         case_zip = check_file_or_url(
             str(zipfile),
             Path(self.tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value),
         )
-        self.assertEqual(
-            unzip_archive_mock.return_value.joinpath(
-                DefaultValues.solution_default_name.value
-            ),
-            case_zip,
-        )
+        self.assertEqual(unzip_archive_mock.return_value, case_zip)
 
         unzip_archive_mock.assert_called_once_with(
             zipfile,
@@ -347,10 +338,7 @@ class TestResolveOperations(TestUnitCoreCommon):
             self.tmp_dir.name,
             cache,
         )
-        self.assertEqual(
-            Path(self.tmp_dir.name).joinpath(DefaultValues.solution_default_name.value),
-            case_folder,
-        )
+        self.assertEqual(Path(self.tmp_dir.name), case_folder)
 
         rand_folder_name_mock.assert_called_once()
 

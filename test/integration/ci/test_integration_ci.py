@@ -143,6 +143,7 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         deposit = EmptyTestClass()
         deposit.id = "id"
         deposit.conceptdoi = None
+        deposit.conceptrecid = "1234"
         deposit.files = []
         deposit.metadata = EmptyTestClass()
         deposit.metadata.prereserve_doi = {}
@@ -169,21 +170,21 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
             )
             self.assertIsNone(main())
 
-        self.assertEqual(3, zenodo_upload.call_count)
+        # All uploaded files should be under the solution directory —
+        # no zip, only individual deploy-changed files
         solution_dir = Path("solutions", "group", "name")
-        self.assertTrue(
-            str(zenodo_upload.call_args_list[0][0][1]).endswith(
-                str(solution_dir.joinpath("solution.yml"))
+        self.assertGreater(zenodo_upload.call_count, 0)
+        uploaded_names = {
+            Path(call[0][1]).name for call in zenodo_upload.call_args_list
+        }
+        self.assertIn("solution.yml", uploaded_names)
+        self.assertNotIn("solution.zip", uploaded_names)
+        for call in zenodo_upload.call_args_list:
+            self.assertTrue(
+                str(call[0][1]).endswith(str(solution_dir))
+                or str(solution_dir) in str(call[0][1]),
+                f"Uploaded file {call[0][1]} is not under {solution_dir}",
             )
-        )
-        self.assertTrue(
-            str(zenodo_upload.call_args_list[1][0][1]).endswith("solution.zip")
-        )
-        self.assertTrue(
-            str(zenodo_upload.call_args_list[2][0][1]).endswith(
-                str(solution_dir.joinpath("CHANGELOG.md"))
-            )
-        )
 
     def test_update_index(self):
         # deploy request to test catalog

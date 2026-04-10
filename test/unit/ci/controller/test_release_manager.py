@@ -29,6 +29,10 @@ class TestReleaseManager(TestUnitCoreCommon):
     def _create_source_repo(self, yml_dict=None):
         """Create a local git repo with a branch containing a solution.yml.
 
+        Mirrors how ``_create_merge_request`` works in production: a single
+        commit on the branch with all deploy-produced files so that
+        ``head.commit.parents[0]`` is the fork point from main.
+
         Returns (repo_dir, branch_name, yml_relative_path, solution_relative_path).
         """
         if yml_dict is None:
@@ -51,9 +55,8 @@ class TestReleaseManager(TestUnitCoreCommon):
             solution_file.touch()
             repo.git.checkout("-b", "branch")
             repo.git.add(str(solution_file))
-            repo.git.commit("-m", "committed solution")
             repo.git.add(str(yml_file))
-            repo.git.commit("-m", "committed yml")
+            repo.git.commit("-m", "deploy commit")
         return repo_dir, "branch", yml_relative_path, solution_relative_path
 
     def _create_release_manager(self, repo_dir):
@@ -73,11 +76,13 @@ class TestReleaseManager(TestUnitCoreCommon):
         deposit_id="0",
         doi="10.5281/zenodo.5678",
         conceptdoi="10.5281/zenodo.1234",
+        conceptrecid="1234",
     ):
         """Create a mock deposit with the most common attributes."""
         deposit = EmptyTestClass()
         deposit.id = deposit_id
         deposit.conceptdoi = conceptdoi
+        deposit.conceptrecid = conceptrecid
         deposit.title = "t1"
         deposit.metadata = EmptyTestClass()
         deposit.metadata.prereserve_doi = {"doi": doi}
@@ -185,7 +190,7 @@ class TestReleaseManager(TestUnitCoreCommon):
 
     @patch("album.ci.controller.release_manager.add_tag")
     def test_zenodo_publish(self, mock_add_tag):
-        """zenodo_publish must publish the deposit, tag the repo, and persist conceptdoi."""
+        """zenodo_publish must publish the deposit and tag the repo."""
         yml_dict = {
             "group": "group",
             "name": "name",
@@ -216,44 +221,6 @@ class TestReleaseManager(TestUnitCoreCommon):
         # tag must have been added
         mock_add_tag.assert_called_once()
 
-        # conceptdoi must be written to yml
-        yml_on_disk = get_dict_from_yml(catalog_path.joinpath(yml_relative_path))
-        self.assertEqual("10.5281/zenodo.1234", yml_on_disk["conceptdoi"])
-
-        force_remove(repo_dir)
-
-    @patch("album.ci.controller.release_manager.add_tag")
-    def test_zenodo_publish_no_overwrite_existing_conceptdoi(self, mock_add_tag):
-        """zenodo_publish must not overwrite conceptdoi if already in yml."""
-        yml_dict = {
-            "group": "group",
-            "name": "name",
-            "version": "0.1.0",
-            "deposit_id": "42",
-            "conceptdoi": "10.5281/zenodo.9999",
-        }
-        repo_dir, branch, yml_relative_path, _ = self._create_source_repo(yml_dict)
-        release_manager, catalog_path = self._create_release_manager(repo_dir)
-        release_manager._prepare_zenodo_arguments = MagicMock(return_value=(None, None))
-
-        deposit = self._create_mock_deposit(
-            deposit_id="42",
-            doi="10.5281/zenodo.5678",
-            conceptdoi="10.5281/zenodo.1234",
-        )
-
-        zenodo_manager = EmptyTestClass()
-        zenodo_manager.zenodo_get_unpublished_deposit_by_id = MagicMock(
-            return_value=deposit
-        )
-        release_manager._get_zenodo_manager = MagicMock(return_value=zenodo_manager)
-
-        release_manager.zenodo_publish(branch, None, None)
-
-        # the original conceptdoi from the yml must be preserved
-        yml_on_disk = get_dict_from_yml(catalog_path.joinpath(yml_relative_path))
-        self.assertEqual("10.5281/zenodo.9999", yml_on_disk["conceptdoi"])
-
         force_remove(repo_dir)
 
     # ------------------------------------------------------------------
@@ -281,17 +248,68 @@ class TestReleaseManager(TestUnitCoreCommon):
         # test
         release_manager.zenodo_upload(branch, None, None, None)
 
-        # assert
+        # assert — only deploy-changed files are uploaded (no zip)
         self.assertEqual(2, zenodo_upload.call_count)
         self.assertTrue(catalog_path.joinpath(yml_relative_path).exists())
-        self.assertEqual(
-            str(catalog_path.joinpath(yml_relative_path)),
-            zenodo_upload.call_args_list[0][0][1],
-        )
         self.assertTrue(catalog_path.joinpath(solution_relative_path).exists())
-        self.assertTrue(
-            str(zenodo_upload.call_args_list[1][0][1]).endswith("solution.zip")
+        uploaded_basenames = {
+            Path(call[0][1]).name for call in zenodo_upload.call_args_list
+        }
+        self.assertEqual({"solution.yml", "solution.py"}, uploaded_basenames)
+        force_remove(repo_dir)
+
+    def test_zenodo_upload_excludes_stale_files_from_main(self):
+        """Files present on main but not touched by the deploy must not be uploaded."""
+        yml_dict = {"group": "group", "name": "name", "version": "0.1.0"}
+        repo_dir = Path(self.tmp_dir.name).joinpath("repo")
+        repo_dir.mkdir(parents=True)
+        yml_relative_path = Path("solutions", "group", "name", "solution.yml")
+        solution_relative_path = Path("solutions", "group", "name", "solution.py")
+        stale_file_relative = Path("solutions", "group", "name", "Dockerfile")
+
+        with git.Repo.init(repo_dir) as repo:
+            configure_git(
+                repo,
+                DefaultValues.catalog_git_email.value,
+                DefaultValues.catalog_git_user.value,
+            )
+            # create a stale file on main before branching
+            stale_file = repo_dir.joinpath(stale_file_relative)
+            stale_file.parent.mkdir(parents=True, exist_ok=True)
+            stale_file.write_text("FROM scratch")
+            repo.git.add(str(stale_file))
+            repo.git.commit("-m", "add stale Dockerfile on main")
+
+            # branch off and commit only the deploy-produced files (single commit)
+            repo.git.checkout("-b", "branch")
+            yml_file = repo_dir.joinpath(yml_relative_path)
+            solution_file = repo_dir.joinpath(solution_relative_path)
+            write_dict_to_yml(yml_file, yml_dict)
+            solution_file.touch()
+            repo.git.add(str(solution_file))
+            repo.git.add(str(yml_file))
+            repo.git.commit("-m", "deploy commit")
+
+        release_manager, catalog_path = self._create_release_manager(repo_dir)
+        release_manager._prepare_zenodo_arguments = MagicMock(return_value=(None, None))
+        zenodo_manager = EmptyTestClass()
+        deposit = self._create_mock_deposit(
+            deposit_id="0", doi="doi", conceptdoi="conceptdoi"
         )
+        zenodo_manager.zenodo_get_deposit = MagicMock(return_value=deposit)
+        zenodo_upload_mock = MagicMock()
+        zenodo_manager.zenodo_upload = zenodo_upload_mock
+        release_manager._get_zenodo_manager = MagicMock(return_value=zenodo_manager)
+
+        release_manager.zenodo_upload("branch", None, None, None)
+
+        uploaded_basenames = {
+            Path(call[0][1]).name for call in zenodo_upload_mock.call_args_list
+        }
+        # Only deploy-produced files — Dockerfile must NOT appear
+        self.assertIn("solution.yml", uploaded_basenames)
+        self.assertIn("solution.py", uploaded_basenames)
+        self.assertNotIn("Dockerfile", uploaded_basenames)
         force_remove(repo_dir)
 
     def test_zenodo_upload_writes_conceptdoi_to_yml(self):
@@ -319,8 +337,33 @@ class TestReleaseManager(TestUnitCoreCommon):
         self.assertEqual("10.5281/zenodo.1234", yml_on_disk["conceptdoi"])
         force_remove(repo_dir)
 
-    def test_zenodo_upload_no_conceptdoi_when_none(self):
-        """When deposit.conceptdoi is None the key must not appear in the yml."""
+    def test_zenodo_upload_derives_conceptdoi_from_conceptrecid(self):
+        """When conceptdoi is empty (draft), conceptdoi must be derived from conceptrecid."""
+        repo_dir, branch, yml_relative_path, _ = self._create_source_repo()
+        release_manager, catalog_path = self._create_release_manager(repo_dir)
+        release_manager._prepare_zenodo_arguments = MagicMock(return_value=(None, None))
+
+        # Simulate a brand-new draft: conceptdoi="" but conceptrecid present
+        deposit = self._create_mock_deposit(
+            deposit_id="42",
+            doi="10.5281/zenodo.5678",
+            conceptdoi="",
+            conceptrecid="9999",
+        )
+
+        zenodo_manager = EmptyTestClass()
+        zenodo_manager.zenodo_get_deposit = MagicMock(return_value=deposit)
+        zenodo_manager.zenodo_upload = MagicMock()
+        release_manager._get_zenodo_manager = MagicMock(return_value=zenodo_manager)
+
+        release_manager.zenodo_upload(branch, None, None, None)
+
+        yml_on_disk = get_dict_from_yml(catalog_path.joinpath(yml_relative_path))
+        self.assertEqual("10.5281/zenodo.9999", yml_on_disk["conceptdoi"])
+        force_remove(repo_dir)
+
+    def test_zenodo_upload_no_conceptdoi_when_nothing_available(self):
+        """When neither conceptdoi nor conceptrecid is set, no conceptdoi must appear."""
         repo_dir, branch, yml_relative_path, _ = self._create_source_repo()
         release_manager, catalog_path = self._create_release_manager(repo_dir)
         release_manager._prepare_zenodo_arguments = MagicMock(return_value=(None, None))
@@ -329,6 +372,7 @@ class TestReleaseManager(TestUnitCoreCommon):
             deposit_id="42",
             doi="10.5281/zenodo.5678",
             conceptdoi=None,
+            conceptrecid=None,
         )
 
         zenodo_manager = EmptyTestClass()

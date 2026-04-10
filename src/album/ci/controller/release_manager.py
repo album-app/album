@@ -1,11 +1,10 @@
 """Module for handling a catalog as administrator."""
 
 import os
-import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, Iterator, List, Tuple, Union
+from typing import Any, Dict, Iterator, List, Tuple
 
 from git import Repo
 from git.refs import HEAD
@@ -17,12 +16,10 @@ from album.ci.utils.zenodo_api import ZenodoMetadata
 from album.core.api.model.configuration import IConfiguration
 from album.core.model.catalog import Catalog, retrieve_index_files_from_src
 from album.core.model.default_values import DefaultValues
-from album.core.utils.export.changelog import get_changelog_file_name
 from album.core.utils.operations import view_operations
 from album.core.utils.operations.file_operations import (
     force_remove,
     get_dict_entry,
-    zip_folder,
 )
 from album.core.utils.operations.git_operations import (
     add_files_commit_and_push,
@@ -126,32 +123,19 @@ class ReleaseManager:
             # get the yml file to release from current branch
             yml_dict, yml_file_path = self._get_yml_dict(head)
 
-            with tempfile.TemporaryDirectory(
-                dir=self.album_instance.configuration().tmp_path()
-            ) as tmp:
+            # query deposit
+            deposit_name = self._get_deposit_metadata(yml_dict).title
+            deposit_id = get_dict_entry(yml_dict, "deposit_id", allow_none=False)
 
-                # checkout files
-                files, file_names = self._get_release_files(repo, yml_dict, tmp)
+            module_logger().info(
+                "Get unpublished deposit with deposit id %s..." % deposit_id
+            )
+            deposit = zenodo_manager.zenodo_get_unpublished_deposit_by_id(
+                deposit_id, deposit_name
+            )
 
-                # query deposit
-                deposit_name = self._get_deposit_metadata(yml_dict).title
-                deposit_id = get_dict_entry(yml_dict, "deposit_id", allow_none=False)
-
-                module_logger().info(
-                    "Get unpublished deposit with deposit id %s..." % deposit_id
-                )
-                deposit = zenodo_manager.zenodo_get_unpublished_deposit_by_id(
-                    deposit_id, deposit_name, expected_files=file_names
-                )
-
-                # publish to zenodo
-                deposit.publish()
-
-                # Persist the concept DOI — for first-ever deploys this is the
-                # earliest moment the concept DOI becomes available from Zenodo.
-                if deposit.conceptdoi and not yml_dict.get("conceptdoi"):
-                    yml_dict["conceptdoi"] = deposit.conceptdoi
-                    write_dict_to_yml(yml_file_path, yml_dict)
+            # publish to zenodo
+            deposit.publish()
 
             add_tag(repo, as_tag(dict_to_coordinates(yml_dict)))
 
@@ -162,35 +146,52 @@ class ReleaseManager:
     def _get_release_files(
         self,
         repo: Repo,
+        head: HEAD,
         yml_dict: Dict[str, Any],
-        tmp: Union[TemporaryDirectory, str],
     ) -> Tuple[List[str], List[str]]:
+        """Collect files to upload to Zenodo.
+
+        Only files that were changed on the deploy branch (relative to
+        the catalog's default branch) are included.  This prevents
+        stale files inherited from the main branch from being uploaded.
+
+        The deploy commit's first parent is the fork point from main
+        (``_create_merge_request`` creates exactly one commit on the
+        branch, and ``zenodo_upload`` — the only caller — is always the
+        first CI step, so no additional commits exist yet).
+        """
         coordinates = dict_to_coordinates(yml_dict)
-        solution_relative_path = (
+        solution_relative_path = str(
             self.configuration.get_solution_path_suffix_unversioned(coordinates)
         )
-        solution_dir_in_repo = Path(repo.working_tree_dir).joinpath(
-            solution_relative_path
-        )
-        zip_path = Path(str(tmp)).joinpath(
-            DefaultValues.solution_zip_default_name.value
-        )
-        zip_folder(solution_dir_in_repo, zip_path)
-        changelog_name = solution_dir_in_repo.joinpath(get_changelog_file_name())
-        documentation_paths = self._get_documentation_paths(
-            solution_dir_in_repo, yml_dict
-        )
-        cover_paths = self._get_cover_paths(solution_dir_in_repo, yml_dict)
-        solution_yml = solution_dir_in_repo.joinpath(
-            DefaultValues.solution_yml_default_name.value
-        )
-        files = [str(solution_yml), str(zip_path)]
-        for doc in documentation_paths:
-            files.append(str(doc))
-        for cover in cover_paths:
-            files.append(str(cover))
-        if changelog_name.exists():
-            files.append(str(changelog_name))
+        # Git paths always use forward slashes
+        solution_prefix = solution_relative_path.replace(os.sep, "/") + "/"
+
+        if not head.commit.parents:
+            raise RuntimeError(
+                "Cannot determine deploy-changed files: no parent commit!"
+            )
+        base_commit = head.commit.parents[0]
+
+        diff = base_commit.diff(head.commit)
+        files: List[str] = []
+        for diff_item in diff:
+            path = diff_item.b_path or diff_item.a_path
+            if not path or not path.startswith(solution_prefix):
+                continue
+            abs_path = os.path.join(
+                repo.working_tree_dir,
+                path.replace("/", os.sep),
+            )
+            if os.path.isfile(abs_path):
+                files.append(abs_path)
+
+        if not files:
+            raise RuntimeError(
+                "No deploy-produced files found for %s in the branch diff!"
+                % str(coordinates)
+            )
+
         return files, [Path(file).name for file in files]
 
     def zenodo_upload(
@@ -236,36 +237,35 @@ class ReleaseManager:
                 )
                 return
 
-            with tempfile.TemporaryDirectory(
-                dir=self.album_instance.configuration().tmp_path()
-            ) as tmp:
+            files, file_names = self._get_release_files(repo, head, yml_dict)
 
-                files, file_names = self._get_release_files(repo, yml_dict, tmp)
+            # get the release deposit. Either a new one or an existing one to perform an update on
+            deposit = zenodo_manager.zenodo_get_deposit(
+                self._get_deposit_metadata(yml_dict), deposit_id
+            )
+            module_logger().info("Deposit %s successfully retrieved..." % deposit.id)
 
-                # get the release deposit. Either a new one or an existing one to perform an update on
-                deposit = zenodo_manager.zenodo_get_deposit(
-                    self._get_deposit_metadata(yml_dict), deposit_id
-                )
-                module_logger().info(
-                    "Deposit %s successfully retrieved..." % deposit.id
-                )
+            # include doi, deposit ID, and concept DOI in yml
+            assert deposit.metadata is not None
+            yml_dict["doi"] = deposit.metadata.prereserve_doi["doi"]
+            yml_dict["deposit_id"] = deposit.id
+            if deposit.conceptdoi:
+                yml_dict["conceptdoi"] = deposit.conceptdoi
+            elif deposit.conceptrecid:
+                # conceptdoi is "" on draft deposits, but conceptrecid is
+                # always available.  Derive the concept DOI so that
+                # commit_changes (which runs before publish) captures it.
+                yml_dict["conceptdoi"] = "10.5281/zenodo.%s" % deposit.conceptrecid
+            write_dict_to_yml(yml_file_path, yml_dict)
 
-                # include doi, deposit ID, and concept DOI in yml
-                assert deposit.metadata is not None
-                yml_dict["doi"] = deposit.metadata.prereserve_doi["doi"]
-                yml_dict["deposit_id"] = deposit.id
-                if deposit.conceptdoi:
-                    yml_dict["conceptdoi"] = deposit.conceptdoi
-                write_dict_to_yml(yml_file_path, yml_dict)
+            if deposit.files:
+                for file in deposit.files:
+                    if file.filename not in file_names:
+                        # remove file from deposit
+                        zenodo_manager.zenodo_delete(deposit, file.filename)
 
-                if deposit.files:
-                    for file in deposit.files:
-                        if file.filename not in file_names:
-                            # remove file from deposit
-                            zenodo_manager.zenodo_delete(deposit, file.filename)
-
-                for file in files:
-                    deposit = zenodo_manager.zenodo_upload(deposit, file)
+            for file in files:
+                deposit = zenodo_manager.zenodo_upload(deposit, file)
 
         if report_file:
             report_vars = {
