@@ -253,7 +253,9 @@ class TestResolveOperations(TestUnitCoreCommon):
             str(zipfile),
             Path(self.tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value),
         )
-        self.assertEqual(unzip_archive_mock.return_value, case_zip)
+        self.assertEqual(
+            unzip_archive_mock.return_value.joinpath("solution.py"), case_zip
+        )
 
         unzip_archive_mock.assert_called_once_with(
             zipfile,
@@ -338,7 +340,7 @@ class TestResolveOperations(TestUnitCoreCommon):
             self.tmp_dir.name,
             cache,
         )
-        self.assertEqual(Path(self.tmp_dir.name), case_folder)
+        self.assertEqual(Path(self.tmp_dir.name).joinpath("solution.py"), case_folder)
 
         rand_folder_name_mock.assert_called_once()
 
