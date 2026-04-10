@@ -454,6 +454,29 @@ class TestReleaseManager(TestUnitCoreCommon):
         self.assertTrue(mock_push.call_args[1]["push"])
         force_remove(repo_dir)
 
+    @patch("album.ci.controller.release_manager.add_files_commit_and_push")
+    def test_merge_passes_allow_empty(self, mock_push):
+        """merge must pass allow_empty=True so it tolerates no-change pushes."""
+        repo_dir, branch, _, _ = self._create_source_repo()
+        release_manager, catalog_path = self._create_release_manager(repo_dir)
+
+        with release_manager._open_repo():
+            pass
+        catalog_path.joinpath(
+            DefaultValues.catalog_solution_list_file_name.value
+        ).touch()
+        catalog_path.joinpath(DefaultValues.catalog_index_file_name.value).touch()
+
+        release_manager.merge(
+            branch,
+            dry_run=True,
+            push_option=None,
+            ci_user_name="u",
+            ci_user_email="e",
+        )
+        self.assertTrue(mock_push.call_args[1]["allow_empty"])
+        force_remove(repo_dir)
+
     # ------------------------------------------------------------------
     # update_index
     # ------------------------------------------------------------------

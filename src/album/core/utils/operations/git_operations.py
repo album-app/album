@@ -209,6 +209,7 @@ def add_files_commit_and_push(
     username: str = "",
     push_option_list: Union[List[str], None] = None,
     force: bool = False,
+    allow_empty: bool = False,
 ) -> None:
     """Add files in a given path to a git head and commits.
 
@@ -229,9 +230,14 @@ def add_files_commit_and_push(
             The git email to use. (Default: systems git configuration)
         force:
             whether to use force push or not
+        allow_empty:
+            If True, create an empty commit when there are no file changes
+            instead of raising.  This is useful when the push itself must
+            happen (e.g. to deliver push options like auto-merge) even
+            though no files were modified.
 
     Raises:
-        RuntimeError when no files are in the index
+        RuntimeError when no files are in the index and allow_empty is False
 
     """
     if push_option_list is None or push_option_list == []:
@@ -244,31 +250,34 @@ def add_files_commit_and_push(
     if email or username:
         configure_git(repo, email, username)
 
-    if _add_files(repo, file_paths):
+    # build push command
+    cmd_option = ["--set-upstream"]
+    cmd = cmd_option + push_options_
+    if force:
+        cmd = cmd + ["-f"]
 
-        # build command
-        cmd_option = ["--set-upstream"]
-        cmd = cmd_option + push_options_
-        if force:
-            cmd = cmd + ["-f"]
+    remote_name = get_remote_name(repo)
 
-        remote_name = get_remote_name(repo)
+    cmd = cmd + [remote_name, head]
 
-        cmd = cmd + [remote_name, head]
+    has_changes = _add_files(repo, file_paths)
 
+    if has_changes:
         module_logger().debug(
             "Running command: repo.git.push(%s)..." % (", ".join(str(x) for x in cmd))
         )
-
-        # commit
         repo.git.commit(m=commit_message)
-
-        if push:
-            module_logger().info("Preparing pushing...")
-            repo.git.push(cmd)
-
+    elif allow_empty:
+        module_logger().info(
+            "No file changes; creating empty commit to deliver push options."
+        )
+        repo.git.commit(m=commit_message, allow_empty=True)
     else:
         raise RuntimeError("Diff shows no changes to the repository. Aborting...")
+
+    if push:
+        module_logger().info("Preparing pushing...")
+        repo.git.push(cmd)
 
 
 def add_tag(repo: Repo, tag: str) -> None:
@@ -424,7 +433,9 @@ def download_repository(
             f"Download repository from {repo_url} in {git_folder_path}..."
         )
         # todo: hard-link throws error, no-local forces copy
-        repo = git.Repo.clone_from(repo_url, git_folder_path, multi_options=["--no-local"])
+        repo = git.Repo.clone_from(
+            repo_url, git_folder_path, multi_options=["--no-local"]
+        )
 
     return repo
 
@@ -467,7 +478,7 @@ def clone_repository_sparse(
         depth=1,
         no_tags=True,
         single_branch=True,
-        multi_options = ["--no-local"]
+        multi_options=["--no-local"],
     )
     yield repo
     repo.close()

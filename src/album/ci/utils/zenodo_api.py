@@ -495,18 +495,38 @@ class ZenodoDeposit(ZenodoEntry):
     # ############# Deposits actions #############
 
     def publish(self) -> bool:
-        """Publish an unpublished repo.
+        """Publish an unpublished deposit.
+
+        If the deposit has already been published (e.g. from a previous
+        pipeline run), Zenodo responds with 403 Forbidden.  In that case
+        the method reloads the deposit state and returns ``True`` so the
+        caller can proceed with post-publish steps (tagging, etc.).
 
         Returns:
-             True if success.
+             True if success (or already published).
 
         Raises:
             InvalidResponseStatusError: If query response status other than expected.
         """
-        # todo: check if already published
-
         link = self.base_url + "/api/deposit/depositions/%s/actions/publish" % self.id
         r = requests.post(link, params=self.params)
+
+        if r.status_code in (
+            ResponseStatus.Forbidden.value,
+            ResponseStatus.Conflict.value,
+        ):
+            # Deposit may already be published — reload and check.
+            self.reload()
+            if self.submitted:
+                print(
+                    "Deposit %s is already published. Skipping publish step." % self.id
+                )
+                return True
+            # Not published but still forbidden — genuine auth / state error.
+            raise InvalidResponseStatusError(
+                "Publish failed for deposit %s with status %s."
+                % (self.id, r.status_code)
+            )
 
         response_dict = ZenodoAPI.validate_response(r, ResponseStatus.Accepted)
 

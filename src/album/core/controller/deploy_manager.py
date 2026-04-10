@@ -323,6 +323,14 @@ class DeployManager(IDeployManager):
         git_name: str = "",
         no_conda_lock: bool = False,
     ) -> None:
+        # Determine the solution directory inside the catalog repo so we can
+        # remove stale files from a previous deploy before writing the new ones.
+        solution_root = str(
+            self.album.configuration().get_solution_path_suffix_unversioned(
+                active_solution.coordinates()
+            )
+        )
+
         # include files/folders in catalog
         mr_files = self._deploy_routine_in_local_src(
             catalog, repo, active_solution, deploy_path, no_conda_lock
@@ -339,6 +347,7 @@ class DeployManager(IDeployManager):
             push_options,
             git_email,
             git_name,
+            files_to_remove=[solution_root],
         )
 
     @staticmethod
@@ -508,6 +517,7 @@ class DeployManager(IDeployManager):
         push_option: Optional[List[str]] = None,
         email: str = "",
         username: str = "",
+        files_to_remove: Optional[List[str]] = None,
     ):
         if push_option is None:
             push_option = []
@@ -515,6 +525,11 @@ class DeployManager(IDeployManager):
         # make a new branch and checkout
         new_head = create_new_head(repo, DeployManager.retrieve_head_name(coordinates))
         new_head.checkout()
+
+        # Remove stale files from a previous deploy so only the current
+        # solution files end up on the branch (mirrors _push_directly).
+        if files_to_remove:
+            remove_files(new_head, files_to_remove)
 
         commit_msg = "Adding new/updated %s" % DeployManager.retrieve_head_name(
             coordinates

@@ -422,6 +422,7 @@ class ReleaseManager:
                 push_option_list=push_option,
                 username=ci_user_name,
                 email=ci_user_email,
+                allow_empty=True,
             )
 
     def _get_zenodo_manager(
