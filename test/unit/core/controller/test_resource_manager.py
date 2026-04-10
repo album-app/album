@@ -3,11 +3,10 @@ from pathlib import Path
 from test.unit.test_unit_core_common import TestCatalogAndCollectionCommon
 from unittest.mock import MagicMock, patch
 
-from album.runner.core.model.solution import Solution
-
 from album.core.controller.resource_manager import ResourceManager
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
+from album.runner.core.model.solution import Solution
 
 
 class TestResourceManager(TestCatalogAndCollectionCommon):
@@ -62,7 +61,9 @@ dependencies:
         "album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file",
         return_value="lockfile",
     )
-    def test_build_solution_files(self, create_changelog_file, create_conda_lock_file):
+    def test_build_solution_files(
+        self, create_conda_lock_file_mock, create_changelog_file_mock
+    ):
         # prepare
         catalog_src_path, _ = self.setup_empty_catalog("test_cat")
         catalog = Catalog(
@@ -84,14 +85,83 @@ dependencies:
             write_solution_environment_file
         )
 
-        # call
+        # call — no_conda_lock=False so the lock file path is included
         r = self.resource_manager.write_solution_files(
-            catalog, catalog_src_path, self.active_solution, Path("deployPath")
+            catalog, catalog_src_path, self.active_solution, Path("deployPath"), False
         )
 
         expected = ["ymlfile", "changelogfile", "lockfile"]
         # assert
         self.assertListEqual(expected, r)
+
+    @patch(
+        "album.core.controller.resource_manager.create_changelog_file",
+        return_value="changelogfile",
+    )
+    @patch(
+        "album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file",
+        return_value="lockfile",
+    )
+    def test_build_solution_files_preserves_user_changelog(
+        self, create_conda_lock_file_mock, create_changelog_file_mock
+    ):
+        """When the deploy path is a directory containing a CHANGELOG.md, the
+        user-provided file must be kept — create_changelog_file must NOT be
+        called and the auto-generated version must NOT overwrite it."""
+        # prepare
+        catalog_src_path, _ = self.setup_empty_catalog("test_cat")
+        catalog = Catalog(
+            0,
+            "test_cat",
+            src=catalog_src_path,
+            path=Path(self.tmp_dir.name).joinpath("catalog_cache_path"),
+        )
+
+        # create a deploy directory with a user-provided CHANGELOG.md
+        deploy_dir = Path(self.tmp_dir.name).joinpath("deploy_dir")
+        deploy_dir.mkdir()
+        solution_file = deploy_dir.joinpath("solution.py")
+        solution_file.write_text(
+            "from album.runner.api import setup\nsetup(name='tsn', group='tsg', version='tsv')\n"
+        )
+        user_changelog = deploy_dir.joinpath("CHANGELOG.md")
+        user_changelog.write_text(
+            "# My handwritten changelog\n## [tsv] - 2026-01-01\n- My change\n"
+        )
+
+        # mock
+        _create_yaml_file_in_local_src = MagicMock(return_value="ymlfile")
+        self.resource_manager._create_yaml_file_in_local_src = (
+            _create_yaml_file_in_local_src
+        )
+        write_solution_environment_file = MagicMock(
+            return_value=Path(self.tmp_dir.name).joinpath("env.yml")
+        )
+        self.resource_manager.write_solution_environment_file = (
+            write_solution_environment_file
+        )
+
+        # call
+        r = self.resource_manager.write_solution_files(
+            catalog, catalog_src_path, self.active_solution, deploy_dir, False
+        )
+
+        # assert — create_changelog_file must NOT have been called
+        create_changelog_file_mock.assert_not_called()
+
+        # the user's CHANGELOG.md path should be in the result (from the copy)
+        changelog_paths = [str(p) for p in r if "CHANGELOG" in str(p)]
+        self.assertEqual(1, len(changelog_paths))
+
+        # verify the user's content is preserved, not overwritten
+
+        suffix = (
+            self.album_controller.configuration().get_solution_path_suffix_unversioned(
+                self.active_solution.coordinates()
+            )
+        )
+        committed_changelog = Path(catalog_src_path).joinpath(suffix, "CHANGELOG.md")
+        self.assertIn("My handwritten changelog", committed_changelog.read_text())
 
     @patch("album.core.controller.resource_manager.download_resource")
     @patch(

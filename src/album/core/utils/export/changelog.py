@@ -1,14 +1,14 @@
 """This module provides functions to create and process changelog files."""
+
 from datetime import datetime
 from pathlib import Path
-
-from album.runner.album_logging import get_active_logger
-from album.runner.core.api.model.solution import ISolution
 
 from album.core.api.model.catalog import ICatalog
 from album.core.model.default_values import DefaultValues
 from album.core.utils.export.keepachangelog import to_raw_dict
 from album.core.utils.operations.file_operations import create_path_recursively
+from album.runner.album_logging import get_active_logger
+from album.runner.core.api.model.solution import ISolution
 
 
 def get_changelog_file_name() -> str:
@@ -29,6 +29,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     versions = catalog.get_all_solution_versions(
         active_solution.coordinates().group(), active_solution.coordinates().name()
     )
+
+    # For request (indirect) catalogs the current version has NOT been added
+    # to the catalog index yet.  Prepend its changelog entry so the generated
+    # CHANGELOG.md is complete.
+    current_version = active_solution.setup().version
+    already_present = any(v.setup()["version"] == current_version for v in versions)
+
+    if not already_present:
+        ts = active_solution.setup().get("timestamp")
+        if ts:
+            time = datetime.strptime(ts, "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y-%m-%d")
+        else:
+            time = datetime.now().strftime("%Y-%m-%d")
+        change = dummy_content or (active_solution.setup().changelog or "")
+        content += f"\n## [{current_version}] - {time}\n{change}\n"
+
     for version in versions:
         timestamp = version.setup()["timestamp"]
         if timestamp:
