@@ -299,26 +299,25 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         return_value=None,
     )
     def test__resolve_case_doi_directory(self, _, check_doi_mock):
-        """When check_doi returns a directory (unzipped Zenodo archive), the
-        resolver must append solution.py so that state_manager.load receives a
-        file path, not a directory."""
+        """check_doi (via prepare_path) returns a path to solution.py inside
+        the unzipped Zenodo archive.  _resolve must use it as-is."""
         # prepare
         input = "doi:10.5072/zenodo.931388"
         unzipped_dir = Path(self.tmp_dir.name).joinpath("unzipped")
         unzipped_dir.mkdir()
-        unzipped_dir.joinpath("solution.py").touch()
+        solution_file = unzipped_dir.joinpath("solution.py")
+        solution_file.touch()
 
-        # mocks
+        # mocks — check_doi already returns the solution.py path
         _search_doi_mock = MagicMock(return_value=None)
         self.album_controller.collection_manager()._search_doi = _search_doi_mock
-        check_doi_mock.return_value = unzipped_dir  # check_doi returns a directory
+        check_doi_mock.return_value = solution_file
 
         # call
         resolve_result = self.album_controller.collection_manager()._resolve(input)
 
-        # assert — path must point to solution.py inside the directory
-        expected_path = unzipped_dir.joinpath("solution.py")
-        self.assertEqual(expected_path, resolve_result.path())
+        # assert — path is the solution.py returned by check_doi
+        self.assertEqual(solution_file, resolve_result.path())
 
     @patch(
         "album.core.controller.collection.collection_manager.check_file_or_url",

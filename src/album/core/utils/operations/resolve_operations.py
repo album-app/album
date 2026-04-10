@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional, Union
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoFile
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
+from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import (
     check_zip,
     create_path_recursively,
@@ -269,18 +270,15 @@ def prepare_path(
     p = Path(path)
     tmp_cache_dir_ = Path(tmp_cache_dir)
     if p.exists():
-        # copying to tmp-dir necessary for cloning
         target_folder = tmp_cache_dir_.joinpath(rand_folder_name())
-        if p.is_file():  # zip or file
-            if check_zip(p):  # zip file
+        if p.is_file():
+            if check_zip(p):  # zip file — unzip and point to solution.py inside
                 p = unzip_archive(p, target_folder)
-                # p = p.joinpath(DefaultValues.solution_default_name.value)
-            else:  # python file
-                # do not copy specified single file anywhere
+                p = p.joinpath(DefaultValues.solution_default_name.value)
+            else:  # single python file — return as-is (can have any name)
                 pass
-        # elif p.is_dir():  # folder
-        #     # p = copy_folder(p, target_folder, copy_root_folder=False)
-        #     p = p.joinpath(DefaultValues.solution_default_name.value)
+        elif p.is_dir():  # folder — solution.py must exist inside
+            p = p.joinpath(DefaultValues.solution_default_name.value)
 
         return p
     return None

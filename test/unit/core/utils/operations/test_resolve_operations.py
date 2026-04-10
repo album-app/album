@@ -252,12 +252,17 @@ class TestResolveOperations(TestUnitCoreCommon):
         rand_folder_name_mock.return_value = Path("rPath")
         check_zip_mock.return_value = True
 
-        # case zip
+        # case zip — prepare_path unzips and appends solution.py
         case_zip = check_file_or_url(
             str(zipfile),
             Path(self.tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value),
         )
-        self.assertEqual(unzip_archive_mock.return_value, case_zip)
+        self.assertEqual(
+            unzip_archive_mock.return_value.joinpath(
+                DefaultValues.solution_default_name.value
+            ),
+            case_zip,
+        )
 
         unzip_archive_mock.assert_called_once_with(
             zipfile,
@@ -342,7 +347,10 @@ class TestResolveOperations(TestUnitCoreCommon):
             self.tmp_dir.name,
             cache,
         )
-        self.assertEqual(Path(self.tmp_dir.name), case_folder)
+        self.assertEqual(
+            Path(self.tmp_dir.name).joinpath(DefaultValues.solution_default_name.value),
+            case_folder,
+        )
 
         rand_folder_name_mock.assert_called_once()
 
