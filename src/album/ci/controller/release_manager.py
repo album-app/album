@@ -153,6 +153,12 @@ class ReleaseManager:
         Every file in the solution directory is required for the solution
         to function correctly.  This includes source files, resources,
         documentation, covers, and any subdirectories.
+
+        Returns:
+            A tuple of (absolute_paths, relative_names).  The relative names
+            use forward slashes and are relative to the solution directory
+            (e.g. ``src/main/java/Main.java``).  They are used as the
+            filename on Zenodo so that the directory structure is preserved.
         """
         coordinates = dict_to_coordinates(yml_dict)
         solution_relative_path = (
@@ -169,9 +175,14 @@ class ReleaseManager:
             )
 
         files: List[str] = []
+        names: List[str] = []
         for dirpath, _, filenames in os.walk(solution_dir_in_repo):
             for filename in filenames:
-                files.append(os.path.join(dirpath, filename))
+                abs_path = os.path.join(dirpath, filename)
+                rel_path = os.path.relpath(abs_path, solution_dir_in_repo)
+                files.append(abs_path)
+                # Zenodo uses forward slashes regardless of OS
+                names.append(rel_path.replace(os.sep, "/"))
 
         if not files:
             raise RuntimeError(
@@ -179,7 +190,7 @@ class ReleaseManager:
                 % (str(coordinates), str(solution_dir_in_repo))
             )
 
-        return files, [Path(file).name for file in files]
+        return files, names
 
     def zenodo_upload(
         self,
@@ -251,8 +262,8 @@ class ReleaseManager:
                         # remove file from deposit
                         zenodo_manager.zenodo_delete(deposit, file.filename)
 
-            for file in files:
-                deposit = zenodo_manager.zenodo_upload(deposit, file)
+            for file, name in zip(files, file_names):
+                deposit = zenodo_manager.zenodo_upload(deposit, file, name=name)
 
         if report_file:
             report_vars = {

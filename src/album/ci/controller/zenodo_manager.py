@@ -1,7 +1,7 @@
 """ZenodoManager class to manage Zenodo deposits."""
 
 import os
-from typing import Dict, Iterable, List, Union
+from typing import Dict, Iterable, List, Optional, Union
 
 from album.ci.utils import zenodo_api
 from album.ci.utils.zenodo_api import ZenodoDeposit, ZenodoMetadata
@@ -19,7 +19,9 @@ class ZenodoManager:
         self.query = zenodo_api.ZenodoAPI(zenodo_base_url, zenodo_access_token)
 
     @staticmethod
-    def zenodo_upload(deposit: ZenodoDeposit, file: str) -> ZenodoDeposit:
+    def zenodo_upload(
+        deposit: ZenodoDeposit, file: str, name: Optional[str] = None
+    ) -> ZenodoDeposit:
         """Upload a solution file to a ZenodoDeposit.
 
         Expects the deposit to be writable (e.g. unpublished).
@@ -29,25 +31,29 @@ class ZenodoManager:
                 The deposit to upload to.
             file:
                 The file to upload.
+            name:
+                The name the file should have on Zenodo.  May contain
+                forward slashes to preserve directory structure.
+                Defaults to ``os.path.basename(file)``.
 
         Returns:
             The updated deposit.
 
         """
-        file_basename = os.path.basename(file)
+        file_name = name or os.path.basename(file)
 
-        if file_basename in deposit.files:  # File does exist
+        if file_name in deposit.files:  # File does exist
             module_logger().debug(
                 "Update file %s in Zenodo deposit with id %s..."
-                % (file_basename, deposit.id)
+                % (file_name, deposit.id)
             )
-            deposit.update_file(file_basename, file)
+            deposit.update_file(file_name, file, name=file_name)
         else:
             module_logger().debug(
                 "Create file %s in Zenodo deposit with id %s..."
-                % (file_basename, deposit.id)
+                % (file_name, deposit.id)
             )
-            deposit.create_file(file)
+            deposit.create_file(file, name=file_name)
 
         return deposit
 

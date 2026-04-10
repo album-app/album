@@ -248,14 +248,12 @@ class TestReleaseManager(TestUnitCoreCommon):
         # test
         release_manager.zenodo_upload(branch, None, None, None)
 
-        # assert — only deploy-changed files are uploaded (no zip)
+        # assert — all files in solution dir are uploaded with relative names
         self.assertEqual(2, zenodo_upload.call_count)
         self.assertTrue(catalog_path.joinpath(yml_relative_path).exists())
         self.assertTrue(catalog_path.joinpath(solution_relative_path).exists())
-        uploaded_basenames = {
-            Path(call[0][1]).name for call in zenodo_upload.call_args_list
-        }
-        self.assertEqual({"solution.yml", "solution.py"}, uploaded_basenames)
+        uploaded_names = {call[1]["name"] for call in zenodo_upload.call_args_list}
+        self.assertEqual({"solution.yml", "solution.py"}, uploaded_names)
         force_remove(repo_dir)
 
     def test_zenodo_upload_includes_subdirectory_files(self):
@@ -308,14 +306,13 @@ class TestReleaseManager(TestUnitCoreCommon):
 
         release_manager.zenodo_upload("branch", None, None, None)
 
-        uploaded_basenames = {
-            Path(call[0][1]).name for call in zenodo_upload_mock.call_args_list
-        }
-        # All files in the solution directory must be uploaded
-        self.assertIn("solution.yml", uploaded_basenames)
-        self.assertIn("solution.py", uploaded_basenames)
-        self.assertIn("Main.java", uploaded_basenames)
-        self.assertIn("cover.png", uploaded_basenames)
+        # All files must be uploaded with their relative paths as names
+        uploaded_names = {call[1]["name"] for call in zenodo_upload_mock.call_args_list}
+        self.assertIn("solution.yml", uploaded_names)
+        self.assertIn("solution.py", uploaded_names)
+        # subdirectory files must use forward-slash relative paths
+        self.assertIn("src/main/java/Main.java", uploaded_names)
+        self.assertIn("cover.png", uploaded_names)
         self.assertEqual(4, zenodo_upload_mock.call_count)
         force_remove(repo_dir)
 
