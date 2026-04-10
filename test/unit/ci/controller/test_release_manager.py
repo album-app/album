@@ -258,14 +258,17 @@ class TestReleaseManager(TestUnitCoreCommon):
         self.assertEqual({"solution.yml", "solution.py"}, uploaded_basenames)
         force_remove(repo_dir)
 
-    def test_zenodo_upload_excludes_stale_files_from_main(self):
-        """Files present on main but not touched by the deploy must not be uploaded."""
+    def test_zenodo_upload_includes_subdirectory_files(self):
+        """Files in subdirectories of the solution dir must be uploaded."""
         yml_dict = {"group": "group", "name": "name", "version": "0.1.0"}
         repo_dir = Path(self.tmp_dir.name).joinpath("repo")
         repo_dir.mkdir(parents=True)
         yml_relative_path = Path("solutions", "group", "name", "solution.yml")
         solution_relative_path = Path("solutions", "group", "name", "solution.py")
-        stale_file_relative = Path("solutions", "group", "name", "Dockerfile")
+        nested_file_relative = Path(
+            "solutions", "group", "name", "src", "main", "java", "Main.java"
+        )
+        cover_relative = Path("solutions", "group", "name", "cover.png")
 
         with git.Repo.init(repo_dir) as repo:
             configure_git(
@@ -273,21 +276,23 @@ class TestReleaseManager(TestUnitCoreCommon):
                 DefaultValues.catalog_git_email.value,
                 DefaultValues.catalog_git_user.value,
             )
-            # create a stale file on main before branching
-            stale_file = repo_dir.joinpath(stale_file_relative)
-            stale_file.parent.mkdir(parents=True, exist_ok=True)
-            stale_file.write_text("FROM scratch")
-            repo.git.add(str(stale_file))
-            repo.git.commit("-m", "add stale Dockerfile on main")
+            repo.git.commit("-m", "init", "--allow-empty")
 
-            # branch off and commit only the deploy-produced files (single commit)
             repo.git.checkout("-b", "branch")
             yml_file = repo_dir.joinpath(yml_relative_path)
             solution_file = repo_dir.joinpath(solution_relative_path)
+            nested_file = repo_dir.joinpath(nested_file_relative)
+            cover_file = repo_dir.joinpath(cover_relative)
+            yml_file.parent.mkdir(parents=True, exist_ok=True)
+            nested_file.parent.mkdir(parents=True, exist_ok=True)
             write_dict_to_yml(yml_file, yml_dict)
             solution_file.touch()
+            nested_file.write_text("class Main {}")
+            cover_file.write_bytes(b"\x89PNG")
             repo.git.add(str(solution_file))
             repo.git.add(str(yml_file))
+            repo.git.add(str(nested_file))
+            repo.git.add(str(cover_file))
             repo.git.commit("-m", "deploy commit")
 
         release_manager, catalog_path = self._create_release_manager(repo_dir)
@@ -306,10 +311,12 @@ class TestReleaseManager(TestUnitCoreCommon):
         uploaded_basenames = {
             Path(call[0][1]).name for call in zenodo_upload_mock.call_args_list
         }
-        # Only deploy-produced files — Dockerfile must NOT appear
+        # All files in the solution directory must be uploaded
         self.assertIn("solution.yml", uploaded_basenames)
         self.assertIn("solution.py", uploaded_basenames)
-        self.assertNotIn("Dockerfile", uploaded_basenames)
+        self.assertIn("Main.java", uploaded_basenames)
+        self.assertIn("cover.png", uploaded_basenames)
+        self.assertEqual(4, zenodo_upload_mock.call_count)
         force_remove(repo_dir)
 
     def test_zenodo_upload_writes_conceptdoi_to_yml(self):

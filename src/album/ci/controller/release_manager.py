@@ -146,50 +146,37 @@ class ReleaseManager:
     def _get_release_files(
         self,
         repo: Repo,
-        head: HEAD,
         yml_dict: Dict[str, Any],
     ) -> Tuple[List[str], List[str]]:
-        """Collect files to upload to Zenodo.
+        """Collect all files from the solution directory to upload to Zenodo.
 
-        Only files that were changed on the deploy branch (relative to
-        the catalog's default branch) are included.  This prevents
-        stale files inherited from the main branch from being uploaded.
-
-        The deploy commit's first parent is the fork point from main
-        (``_create_merge_request`` creates exactly one commit on the
-        branch, and ``zenodo_upload`` — the only caller — is always the
-        first CI step, so no additional commits exist yet).
+        Every file in the solution directory is required for the solution
+        to function correctly.  This includes source files, resources,
+        documentation, covers, and any subdirectories.
         """
         coordinates = dict_to_coordinates(yml_dict)
-        solution_relative_path = str(
+        solution_relative_path = (
             self.configuration.get_solution_path_suffix_unversioned(coordinates)
         )
-        # Git paths always use forward slashes
-        solution_prefix = solution_relative_path.replace(os.sep, "/") + "/"
+        solution_dir_in_repo = Path(repo.working_tree_dir).joinpath(
+            solution_relative_path
+        )
 
-        if not head.commit.parents:
+        if not solution_dir_in_repo.is_dir():
             raise RuntimeError(
-                "Cannot determine deploy-changed files: no parent commit!"
+                "Solution directory %s does not exist in the repository!"
+                % str(solution_dir_in_repo)
             )
-        base_commit = head.commit.parents[0]
 
-        diff = base_commit.diff(head.commit)
         files: List[str] = []
-        for diff_item in diff:
-            path = diff_item.b_path or diff_item.a_path
-            if not path or not path.startswith(solution_prefix):
-                continue
-            abs_path = os.path.join(
-                repo.working_tree_dir,
-                path.replace("/", os.sep),
-            )
-            if os.path.isfile(abs_path):
-                files.append(abs_path)
+        for dirpath, _, filenames in os.walk(solution_dir_in_repo):
+            for filename in filenames:
+                files.append(os.path.join(dirpath, filename))
 
         if not files:
             raise RuntimeError(
-                "No deploy-produced files found for %s in the branch diff!"
-                % str(coordinates)
+                "No files found for %s in %s!"
+                % (str(coordinates), str(solution_dir_in_repo))
             )
 
         return files, [Path(file).name for file in files]
@@ -237,7 +224,7 @@ class ReleaseManager:
                 )
                 return
 
-            files, file_names = self._get_release_files(repo, head, yml_dict)
+            files, file_names = self._get_release_files(repo, yml_dict)
 
             # get the release deposit. Either a new one or an existing one to perform an update on
             deposit = zenodo_manager.zenodo_get_deposit(
