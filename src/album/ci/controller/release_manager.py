@@ -12,7 +12,7 @@ from git.refs import HEAD
 from album.api import Album
 from album.ci.controller.zenodo_manager import ZenodoManager
 from album.ci.utils.continuous_integration import create_report, get_ssh_url
-from album.ci.utils.zenodo_api import ZenodoMetadata
+from album.ci.utils.zenodo_api import InvalidResponseStatusError, ZenodoMetadata
 from album.core.api.model.configuration import IConfiguration
 from album.core.model.catalog import Catalog, retrieve_index_files_from_src
 from album.core.model.default_values import DefaultValues
@@ -105,7 +105,16 @@ class ReleaseManager:
                 head, DefaultValues.solution_yml_default_name.value
             )[0]
         )
+        module_logger().info("Found solution.yml at %s" % yml_file_path)
         yml_dict = get_dict_from_yml(yml_file_path)
+        module_logger().info(
+            "Solution coordinates: %s:%s:%s"
+            % (
+                yml_dict.get("group", "?"),
+                yml_dict.get("name", "?"),
+                yml_dict.get("version", "?"),
+            )
+        )
 
         return yml_dict, yml_file_path
 
@@ -132,14 +141,39 @@ class ReleaseManager:
             module_logger().info(
                 "Get unpublished deposit with deposit id %s..." % deposit_id
             )
-            deposit = zenodo_manager.zenodo_get_unpublished_deposit_by_id(
-                deposit_id, deposit_name
-            )
+
+            try:
+                deposit = zenodo_manager.zenodo_get_unpublished_deposit_by_id(
+                    deposit_id, deposit_name
+                )
+            except (InvalidResponseStatusError, RuntimeError):
+                # The deposit may already be published (e.g. pipeline re-run).
+                # Check via the records API before giving up.
+                module_logger().info(
+                    "Unpublished deposit %s not found. "
+                    "Checking if it is already published..." % deposit_id
+                )
+                try:
+                    published = zenodo_manager.get_published_deposit(deposit_id)
+                except Exception:
+                    published = None
+                if published:
+                    module_logger().info(
+                        "Deposit %s is already published — skipping publish step."
+                        % deposit_id
+                    )
+                    add_tag(repo, as_tag(dict_to_coordinates(yml_dict)))
+                    return
+                raise
 
             # publish to zenodo
+            module_logger().info("Publishing deposit %s to Zenodo..." % deposit.id)
             deposit.publish()
+            module_logger().info("Deposit %s published successfully." % deposit.id)
 
-            add_tag(repo, as_tag(dict_to_coordinates(yml_dict)))
+            tag = as_tag(dict_to_coordinates(yml_dict))
+            module_logger().info("Adding git tag: %s" % tag)
+            add_tag(repo, tag)
 
         module_logger().info(
             "Published unpublished deposit with deposit id %s..." % deposit_id
@@ -175,11 +209,14 @@ class ReleaseManager:
                 % str(solution_dir_in_repo)
             )
 
+        module_logger().info("Collecting release files from %s" % solution_dir_in_repo)
+
         # zip the entire solution directory — preserves folder structure
         zip_target = Path(tmp_dir).joinpath(
             DefaultValues.solution_zip_default_name.value
         )
         zip_path = zip_folder(solution_dir_in_repo, zip_target)
+        module_logger().info("Created solution zip: %s" % zip_path)
 
         # individual files for Zenodo preview
         solution_yml = solution_dir_in_repo.joinpath(
@@ -188,14 +225,22 @@ class ReleaseManager:
         files: List[str] = [str(solution_yml), str(zip_path)]
 
         for doc in self._get_documentation_paths(solution_dir_in_repo, yml_dict):
+            module_logger().info("Including documentation file: %s" % doc.name)
             files.append(str(doc))
 
         for cover in self._get_cover_paths(solution_dir_in_repo, yml_dict):
+            module_logger().info("Including cover image: %s" % cover.name)
             files.append(str(cover))
 
         changelog = solution_dir_in_repo.joinpath(get_changelog_file_name())
         if changelog.exists():
+            module_logger().info("Including CHANGELOG.md for preview")
             files.append(str(changelog))
+
+        module_logger().info(
+            "Release files prepared (%d files): %s"
+            % (len(files), ", ".join(Path(f).name for f in files))
+        )
 
         return files, [Path(f).name for f in files]
 
@@ -248,19 +293,39 @@ class ReleaseManager:
             # duplicate deposit when a pipeline is re-run after a partial
             # failure (e.g. merge step failed due to auth).
             if deposit_id:
+                module_logger().info(
+                    "Checking if deposit %s is already published..." % deposit_id
+                )
                 published = zenodo_manager.get_published_deposit(deposit_id)
                 if published is not None:
                     pub_version = getattr(published, "version", None)
+                    module_logger().info(
+                        "Deposit %s is published (version: %s, "
+                        "deploying version: %s)."
+                        % (published.id, pub_version, coordinates.version())
+                    )
                     if pub_version and str(pub_version) == str(coordinates.version()):
                         module_logger().info(
-                            "Deposit %s (v%s) is already published. "
-                            "Skipping upload." % (published.id, pub_version)
+                            "Deposit %s (v%s) is already published for "
+                            "the version being deployed. Skipping upload."
+                            % (published.id, pub_version)
                         )
                         yml_dict["doi"] = published.doi
                         yml_dict["deposit_id"] = published.id
+                        module_logger().info(
+                            "Using existing DOI: %s, deposit ID: %s"
+                            % (published.doi, published.id)
+                        )
                         if published.conceptdoi:
                             yml_dict["conceptdoi"] = published.conceptdoi
+                            module_logger().info(
+                                "Using existing concept DOI: %s" % published.conceptdoi
+                            )
                         write_dict_to_yml(yml_file_path, yml_dict)
+                        module_logger().info(
+                            "Updated solution.yml with existing deposit "
+                            "metadata at %s" % yml_file_path
+                        )
 
                         if report_file:
                             report_vars = {
@@ -274,14 +339,31 @@ class ReleaseManager:
                                 "Created report file under %s" % str(report_file)
                             )
                         return
+                    else:
+                        module_logger().info(
+                            "Published version (%s) differs from deploy "
+                            "version (%s). Proceeding with new version "
+                            "upload." % (pub_version, coordinates.version())
+                        )
+                else:
+                    module_logger().info(
+                        "Deposit %s is not yet published. "
+                        "Proceeding with upload." % deposit_id
+                    )
 
             files, file_names = self._get_release_files(repo, yml_dict, tmp_dir)
 
             # get the release deposit. Either a new one or an existing one to perform an update on
+            module_logger().info(
+                "Retrieving Zenodo deposit (deposit_id=%s)..." % (deposit_id or "(new)")
+            )
             deposit = zenodo_manager.zenodo_get_deposit(
                 self._get_deposit_metadata(yml_dict), deposit_id
             )
-            module_logger().info("Deposit %s successfully retrieved..." % deposit.id)
+            module_logger().info(
+                "Deposit %s retrieved (title=%s, submitted=%s)"
+                % (deposit.id, deposit.title, deposit.submitted)
+            )
 
             # include doi, deposit ID, and concept DOI in yml
             assert deposit.metadata is not None
@@ -294,16 +376,38 @@ class ReleaseManager:
                 # always available.  Derive the concept DOI so that
                 # commit_changes (which runs before publish) captures it.
                 yml_dict["conceptdoi"] = "10.5281/zenodo.%s" % deposit.conceptrecid
+            module_logger().info(
+                "DOI metadata — doi=%s, deposit_id=%s, conceptdoi=%s"
+                % (
+                    yml_dict["doi"],
+                    yml_dict["deposit_id"],
+                    yml_dict.get("conceptdoi", "(none)"),
+                )
+            )
             write_dict_to_yml(yml_file_path, yml_dict)
+            module_logger().info("Updated solution.yml at %s" % yml_file_path)
 
             if deposit.files:
+                stale_files = [
+                    f.filename for f in deposit.files if f.filename not in file_names
+                ]
+                if stale_files:
+                    module_logger().info(
+                        "Removing %d stale file(s) from deposit: %s"
+                        % (len(stale_files), ", ".join(stale_files))
+                    )
                 for file in deposit.files:
                     if file.filename not in file_names:
                         # remove file from deposit
                         zenodo_manager.zenodo_delete(deposit, file.filename)
 
+            module_logger().info(
+                "Uploading %d file(s) to deposit %s..." % (len(files), deposit.id)
+            )
             for file in files:
+                module_logger().info("  Uploading %s..." % Path(file).name)
                 deposit = zenodo_manager.zenodo_upload(deposit, file)
+            module_logger().info("All files uploaded successfully.")
 
         if report_file:
             report_vars = {
@@ -337,13 +441,19 @@ class ReleaseManager:
 
     def update_index(self, branch_name: str, doi: str, deposit_id: str) -> None:
         """Update the catalog index with the solution from the given branch."""
+        module_logger().info("Updating catalog index from branch %s..." % branch_name)
         with self._open_repo() as repo:
             head = checkout_branch(repo, branch_name)
+            module_logger().info("Checked out branch %s." % branch_name)
 
             # always use remote index
             with TemporaryDirectory(dir=self.configuration.tmp_path()) as tmp_dir:
                 repo = Path(tmp_dir).joinpath("repo")
                 try:
+                    module_logger().info(
+                        "Retrieving remote index from %s (branch=%s)..."
+                        % (self.catalog_src, self.catalog.branch_name())
+                    )
                     index_db, index_meta = retrieve_index_files_from_src(
                         self.catalog_src,
                         branch_name=self.catalog.branch_name(),
@@ -351,6 +461,10 @@ class ReleaseManager:
                     )
                     if index_db.exists():
                         copy(index_db, self.catalog.index_file_path())
+                        module_logger().info(
+                            "Remote index DB copied to %s"
+                            % self.catalog.index_file_path()
+                        )
                     else:
                         module_logger().warning(
                             "Index not downloadable! Using Index in merge request branch!"
@@ -359,6 +473,7 @@ class ReleaseManager:
                     force_remove(repo)
 
             self.album_instance.load_catalog_index(self.catalog)
+            module_logger().info("Catalog index loaded.")
 
             yml_dict, yml_file_path = self._get_yml_dict(head)
 
@@ -375,6 +490,10 @@ class ReleaseManager:
 
             if doi or deposit_id:
                 write_dict_to_yml(yml_file_path, yml_dict)
+                module_logger().info(
+                    "Updated solution.yml with doi=%s, deposit_id=%s"
+                    % (doi or "(none)", deposit_id or "(none)")
+                )
 
         module_logger().info(
             "Update index to include solution from branch %s %s %s!"
@@ -383,14 +502,24 @@ class ReleaseManager:
 
         index = self.catalog.index()
         assert index is not None
-        index.update(dict_to_coordinates(yml_dict), yml_dict)
+        coordinates = dict_to_coordinates(yml_dict)
+        module_logger().info("Updating index entry for %s..." % str(coordinates))
+        index.update(coordinates, yml_dict)
         index.save()
+        module_logger().info("Index saved.")
         index.export(self.catalog.solution_list_path())
+        module_logger().info(
+            "Solution list exported to %s" % self.catalog.solution_list_path()
+        )
 
     def commit_changes(
         self, branch_name: str, ci_user_name: str, ci_user_email: str
     ) -> bool:
         """Commit changes to the catalog repository."""
+        module_logger().info(
+            "Committing changes on branch %s (user=%s, email=%s)..."
+            % (branch_name, ci_user_name, ci_user_email)
+        )
         with self._open_repo() as repo:
             head = checkout_branch(repo, branch_name)
 
@@ -404,6 +533,10 @@ class ReleaseManager:
             files = retrieve_files_from_head(
                 head, str(solution_relative_path) + os.sep + "*", number_of_files=-1
             )
+            module_logger().info(
+                "Found %d solution file(s) under %s"
+                % (len(files), solution_relative_path)
+            )
 
             commit_files = [yml_file] + files
             if not all(Path(f).is_file() for f in commit_files):
@@ -412,6 +545,10 @@ class ReleaseManager:
                 )
 
             commit_msg = 'Prepared branch "%s" for merging.' % branch_name
+            module_logger().info(
+                "Committing %d file(s): %s"
+                % (len(commit_files), ", ".join(Path(f).name for f in commit_files))
+            )
 
             add_files_commit_and_push(
                 head,
@@ -422,6 +559,7 @@ class ReleaseManager:
                 email=ci_user_email,
                 allow_empty=True,
             )
+            module_logger().info("Commit created (not pushed).")
 
         return True
 
@@ -434,6 +572,10 @@ class ReleaseManager:
         ci_user_email: str,
     ) -> None:
         """Merge the branch into the main branch."""
+        module_logger().info(
+            "Merging branch %s into main (dry_run=%s, push_option=%s)..."
+            % (branch_name, dry_run, push_option)
+        )
         with self._open_repo() as repo:
             head = checkout_branch(repo, branch_name)
 
@@ -444,6 +586,9 @@ class ReleaseManager:
                 self.catalog.solution_list_path(),
                 self.catalog.index_file_path(),
             ]
+            module_logger().info(
+                "Merge commit files: %s" % ", ".join(Path(f).name for f in commit_files)
+            )
             if not all(Path(f).is_file() for f in commit_files):
                 raise FileNotFoundError(
                     "Invalid deploy request or broken catalog repository!"
@@ -463,6 +608,10 @@ class ReleaseManager:
                 email=ci_user_email,
                 allow_empty=True,
             )
+            if dry_run:
+                module_logger().info("Dry run — commit created but NOT pushed.")
+            else:
+                module_logger().info("Merge commit pushed to origin/%s." % branch_name)
 
     def _get_zenodo_manager(
         self, zenodo_access_token: str, zenodo_base_url: str

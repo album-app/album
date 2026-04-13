@@ -12,6 +12,9 @@ import requests
 from requests import Response
 
 from album.core.utils.operations.url_operations import ResponseStatus
+from album.runner import album_logging
+
+module_logger = album_logging.get_active_logger
 
 
 class InvalidResponseStatusError(BaseException):
@@ -452,7 +455,7 @@ class ZenodoDeposit(ZenodoEntry):
             try:
                 zenodo_metadata = ZenodoMetadata(zenodo_metadata)
             except AttributeError:
-                print("Please provide a valid dictionary as input!")
+                module_logger().error("Please provide a valid dictionary as input!")
                 return False
 
         link = self.base_url + "/api/deposit/depositions/%s" % self.id
@@ -518,7 +521,7 @@ class ZenodoDeposit(ZenodoEntry):
             # Deposit may already be published — reload and check.
             self.reload()
             if self.submitted:
-                print(
+                module_logger().info(
                     "Deposit %s is already published. Skipping publish step." % self.id
                 )
                 return True
@@ -562,7 +565,7 @@ class ZenodoDeposit(ZenodoEntry):
 
         if r.status_code == ResponseStatus.Forbidden.value:
             # A new version draft already exists — retrieve it instead.
-            print(
+            module_logger().info(
                 "New version draft already exists for deposit %s. "
                 "Attempting to retrieve existing draft..." % self.id
             )
@@ -740,7 +743,7 @@ class ZenodoRecord(ZenodoDeposit):
 
     def print_stats(self) -> None:
         """Print the dictionary."""
-        print(self.stats.to_dict())
+        module_logger().info("Record stats: %s" % self.stats.to_dict())
 
 
 class ZenodoRecordStats(ZenodoEntry):
@@ -836,14 +839,16 @@ class ZenodoAPI:
                 )
             return {"": True}
         else:
-            print("Error: %s" % status_code.name)
+            module_logger().error("Zenodo API error: %s" % status_code.name)
             if status_code == ResponseStatus.Forbidden:
-                print("Forbidden operation. Is your access token valid?")
+                module_logger().error(
+                    "Forbidden operation. Is your access token valid?"
+                )
             if status_code != ResponseStatus.InternalServerError:
                 json_response = response.json()
-                print("Detailed message: %s" % json_response["message"])
+                module_logger().error("Detailed message: %s" % json_response["message"])
                 if hasattr(json_response, "errors"):
-                    print("Errors: %s" % json_response["errors"])
+                    module_logger().error("Errors: %s" % json_response["errors"])
 
         raise InvalidResponseStatusError(
             "Error '%s' occurred. See Log for detailed information!" % status_code.name
@@ -884,6 +889,10 @@ class ZenodoAPI:
                 **self.params,
             }
 
+        module_logger().debug(
+            "GET %s (deposit_id=%s, status=%s)"
+            % (link, deposit_id or "(search)", status.value)
+        )
         r = requests.get(link, params=params)
 
         response_dict = self.validate_response(r, ResponseStatus.OK)
@@ -901,6 +910,7 @@ class ZenodoAPI:
                 ZenodoDeposit(response_dict, self.base_url, self.params["access_token"])
             )
 
+        module_logger().debug("deposit_get returned %d result(s)." % len(deposit_list))
         return deposit_list
 
     def deposit_create(self) -> ZenodoDeposit:
@@ -911,11 +921,16 @@ class ZenodoAPI:
         """
         link = self.base_url + "/api/deposit/depositions"
 
+        module_logger().info("Creating new empty deposit on Zenodo...")
         r = requests.post(link, params=self.params, json={})
 
         response_dict = self.validate_response(r, ResponseStatus.Created)
 
-        return ZenodoDeposit(response_dict, self.base_url, self.params["access_token"])
+        deposit = ZenodoDeposit(
+            response_dict, self.base_url, self.params["access_token"]
+        )
+        module_logger().info("Empty deposit created: id=%s" % deposit.id)
+        return deposit
 
     def deposit_create_with_prereserve_doi(
         self, metadata: ZenodoMetadata | dict[str, Any]
@@ -978,6 +993,9 @@ class ZenodoAPI:
                 **self.params,
             }
 
+        module_logger().debug(
+            "GET {} (record_id={})".format(link, record_id or "(search)")
+        )
         r = requests.get(link, params=params)
 
         response_dict = self.validate_response(r, ResponseStatus.OK)

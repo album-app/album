@@ -82,8 +82,10 @@ class TestReleaseManager(TestUnitCoreCommon):
         """Create a mock deposit with the most common attributes."""
         deposit = EmptyTestClass()
         deposit.id = deposit_id
+        deposit.doi = doi
         deposit.conceptdoi = conceptdoi
         deposit.conceptrecid = conceptrecid
+        deposit.submitted = False
         deposit.title = "t1"
         deposit.metadata = EmptyTestClass()
         deposit.metadata.prereserve_doi = {"doi": doi}
@@ -224,6 +226,48 @@ class TestReleaseManager(TestUnitCoreCommon):
 
         force_remove(repo_dir)
 
+    @patch("album.ci.controller.release_manager.add_tag")
+    def test_zenodo_publish_skips_when_already_published(self, mock_add_tag):
+        """zenodo_publish must skip publish when deposit is already published."""
+        yml_dict = {
+            "group": "group",
+            "name": "name",
+            "version": "0.1.0",
+            "deposit_id": "42",
+        }
+        repo_dir, branch, _, _ = self._create_source_repo(yml_dict)
+        release_manager, catalog_path = self._create_release_manager(repo_dir)
+        release_manager._prepare_zenodo_arguments = MagicMock(return_value=(None, None))
+
+        from album.ci.utils.zenodo_api import InvalidResponseStatusError
+
+        published_deposit = self._create_mock_deposit(
+            deposit_id="42",
+            doi="10.5281/zenodo.5678",
+            conceptdoi="10.5281/zenodo.1234",
+        )
+
+        zenodo_manager = EmptyTestClass()
+        # Simulate 404 from unpublished query (deposit is already published)
+        zenodo_manager.zenodo_get_unpublished_deposit_by_id = MagicMock(
+            side_effect=InvalidResponseStatusError("NotFound")
+        )
+        zenodo_manager.get_published_deposit = MagicMock(return_value=published_deposit)
+        release_manager._get_zenodo_manager = MagicMock(return_value=zenodo_manager)
+
+        release_manager.zenodo_publish(branch, None, None)
+
+        # publish() must NOT have been called (already published)
+        published_deposit.publish.assert_not_called()
+
+        # get_published_deposit must have been consulted
+        zenodo_manager.get_published_deposit.assert_called_once_with("42")
+
+        # tag must still have been added
+        mock_add_tag.assert_called_once()
+
+        force_remove(repo_dir)
+
     # ------------------------------------------------------------------
     # zenodo_upload
     # ------------------------------------------------------------------
@@ -257,6 +301,52 @@ class TestReleaseManager(TestUnitCoreCommon):
             Path(call[0][1]).name for call in zenodo_upload.call_args_list
         }
         self.assertEqual({"solution.yml", "solution.zip"}, uploaded_names)
+        force_remove(repo_dir)
+
+    def test_zenodo_upload_skips_when_already_published(self):
+        """zenodo_upload must skip upload when deposit is already published
+        for the same version (pipeline re-run after partial failure)."""
+        yml_dict = {
+            "group": "group",
+            "name": "name",
+            "version": "0.1.0",
+            "deposit_id": "99",
+        }
+        repo_dir, branch, yml_relative_path, _ = self._create_source_repo(yml_dict)
+        release_manager, catalog_path = self._create_release_manager(repo_dir)
+        release_manager._prepare_zenodo_arguments = MagicMock(return_value=(None, None))
+
+        published_deposit = self._create_mock_deposit(
+            deposit_id="99",
+            doi="10.5281/zenodo.99",
+            conceptdoi="10.5281/zenodo.50",
+        )
+        published_deposit.version = "0.1.0"  # matches deploy version
+
+        zenodo_manager = EmptyTestClass()
+        zenodo_manager.get_published_deposit = MagicMock(return_value=published_deposit)
+        zenodo_manager.zenodo_get_deposit = MagicMock()
+        zenodo_upload_mock = MagicMock()
+        zenodo_manager.zenodo_upload = zenodo_upload_mock
+        release_manager._get_zenodo_manager = MagicMock(return_value=zenodo_manager)
+
+        report_file = Path(self.tmp_dir.name).joinpath("report.yml")
+
+        release_manager.zenodo_upload(branch, None, None, report_file)
+
+        # upload must NOT have been called
+        zenodo_upload_mock.assert_not_called()
+        zenodo_manager.zenodo_get_deposit.assert_not_called()
+
+        # solution.yml must be updated with existing DOI
+        updated_yml = get_dict_from_yml(catalog_path.joinpath(yml_relative_path))
+        self.assertEqual("10.5281/zenodo.99", updated_yml["doi"])
+        self.assertEqual("99", updated_yml["deposit_id"])
+        self.assertEqual("10.5281/zenodo.50", updated_yml["conceptdoi"])
+
+        # report must be created
+        self.assertTrue(report_file.exists())
+
         force_remove(repo_dir)
 
     def test_zenodo_upload_includes_subdirectory_files_via_zip(self):
