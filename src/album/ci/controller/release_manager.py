@@ -242,6 +242,39 @@ class ReleaseManager:
                 )
                 return
 
+            # Re-run detection: if the deposit is already published for this
+            # exact version, skip upload and just write the report with the
+            # existing DOI.  This prevents ``new_version()`` from creating a
+            # duplicate deposit when a pipeline is re-run after a partial
+            # failure (e.g. merge step failed due to auth).
+            if deposit_id:
+                published = zenodo_manager.get_published_deposit(deposit_id)
+                if published is not None:
+                    pub_version = getattr(published, "version", None)
+                    if pub_version and str(pub_version) == str(coordinates.version()):
+                        module_logger().info(
+                            "Deposit %s (v%s) is already published. "
+                            "Skipping upload." % (published.id, pub_version)
+                        )
+                        yml_dict["doi"] = published.doi
+                        yml_dict["deposit_id"] = published.id
+                        if published.conceptdoi:
+                            yml_dict["conceptdoi"] = published.conceptdoi
+                        write_dict_to_yml(yml_file_path, yml_dict)
+
+                        if report_file:
+                            report_vars = {
+                                "DOI": published.doi,
+                                "DEPOSIT_ID": str(published.id),
+                            }
+                            if published.conceptdoi:
+                                report_vars["CONCEPTDOI"] = published.conceptdoi
+                            create_report(report_file, report_vars)
+                            module_logger().info(
+                                "Created report file under %s" % str(report_file)
+                            )
+                        return
+
             files, file_names = self._get_release_files(repo, yml_dict, tmp_dir)
 
             # get the release deposit. Either a new one or an existing one to perform an update on
@@ -387,6 +420,7 @@ class ReleaseManager:
                 push=False,
                 username=ci_user_name,
                 email=ci_user_email,
+                allow_empty=True,
             )
 
         return True

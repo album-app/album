@@ -187,6 +187,17 @@ class ZenodoManager:
 
         return deposit
 
+    def get_published_deposit(self, deposit_id: str) -> Union[ZenodoDeposit, None]:
+        """Return the published deposit if it exists, WITHOUT creating a new version.
+
+        This is used for re-run detection: if a deposit is already published
+        for the same version, the upload step can be skipped entirely.
+        """
+        deposit = self.query.deposit_get(deposit_id)
+        if deposit and deposit[0].submitted:
+            return deposit[0]
+        return None
+
     def _zenodo_get_unpublished(self, deposit_id: str) -> List[ZenodoDeposit]:
         """Get an unpublished deposit by id."""
         deposit = self.query.deposit_get(
