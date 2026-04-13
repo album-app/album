@@ -298,7 +298,12 @@ class ReleaseManager:
                 if conceptrecid:
                     latest = zenodo_manager.get_latest_version_by_concept(conceptrecid)
                     if latest is not None:
+                        # The records API does NOT set the top-level
+                        # ``version`` attribute — the semantic version
+                        # lives in ``metadata.version``.
                         latest_version = getattr(latest, "version", None)
+                        if not latest_version and latest.metadata:
+                            latest_version = getattr(latest.metadata, "version", None)
                         module_logger().info(
                             "Latest published version under concept %s: "
                             "%s (deposit %s). Deploying version: %s."

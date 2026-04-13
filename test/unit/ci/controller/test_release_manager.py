@@ -367,6 +367,51 @@ class TestReleaseManager(TestUnitCoreCommon):
 
         force_remove(repo_dir)
 
+    def test_zenodo_upload_skips_when_version_in_metadata(self):
+        """The records API returns version=None at top level; the semantic
+        version lives in metadata.version. The fallback must work."""
+        yml_dict = {
+            "group": "group",
+            "name": "name",
+            "version": "0.1.1",
+            "deposit_id": "6410028",
+        }
+        repo_dir, branch, yml_relative_path, _ = self._create_source_repo(yml_dict)
+        release_manager, catalog_path = self._create_release_manager(repo_dir)
+        release_manager._prepare_zenodo_arguments = MagicMock(return_value=(None, None))
+
+        # Mimic real Zenodo records API: top-level version is None,
+        # semantic version only in metadata.version.
+        published_deposit = self._create_mock_deposit(
+            deposit_id="19553456",
+            doi="10.5281/zenodo.19553456",
+            conceptdoi="10.5281/zenodo.6410027",
+        )
+        published_deposit.version = None  # records API returns None here
+        published_deposit.metadata.version = "0.1.1"  # this is where it lives
+
+        zenodo_manager = self._create_mock_zenodo_manager()
+        zenodo_manager.resolve_concept_record_id = MagicMock(return_value="6410027")
+        zenodo_manager.get_latest_version_by_concept = MagicMock(
+            return_value=published_deposit
+        )
+        release_manager._get_zenodo_manager = MagicMock(return_value=zenodo_manager)
+
+        report_file = Path(self.tmp_dir.name).joinpath("report.yml")
+        release_manager.zenodo_upload(branch, None, None, report_file)
+
+        # upload must have been skipped (same version)
+        zenodo_manager.zenodo_get_deposit.assert_not_called()
+        zenodo_manager.zenodo_upload.assert_not_called()
+
+        # report with existing DOI
+        self.assertTrue(report_file.exists())
+
+        updated_yml = get_dict_from_yml(catalog_path.joinpath(yml_relative_path))
+        self.assertEqual("10.5281/zenodo.19553456", updated_yml["doi"])
+
+        force_remove(repo_dir)
+
     def test_zenodo_upload_rejects_older_version(self):
         """zenodo_upload must raise when deploy version < latest on Zenodo."""
         yml_dict = {

@@ -277,9 +277,14 @@ class ZenodoManager:
             records = self.query.records_get(record_id=conceptrecid)
             if records:
                 latest = records[0]
+                # The records API stores the semantic version in
+                # metadata.version, not at the top level.
+                version = getattr(latest, "version", None)
+                if not version and latest.metadata:
+                    version = getattr(latest.metadata, "version", None)
                 module_logger().info(
                     "Latest version under concept %s: deposit=%s, version=%s"
-                    % (conceptrecid, latest.id, getattr(latest, "version", "?"))
+                    % (conceptrecid, latest.id, version)
                 )
                 return latest
         except Exception:
