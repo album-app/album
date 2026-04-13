@@ -287,67 +287,98 @@ class ReleaseManager:
                 )
                 return
 
-            # Re-run detection: if the deposit is already published for this
-            # exact version, skip upload and just write the report with the
-            # existing DOI.  This prevents ``new_version()`` from creating a
-            # duplicate deposit when a pipeline is re-run after a partial
-            # failure (e.g. merge step failed due to auth).
+            # Concept-level version detection: resolve the concept record ID
+            # and query the latest published version under the concept.  This
+            # prevents duplicates when deposit_id points to an old version
+            # (e.g. re-deploy with v1's DOI when v2 already exists on Zenodo).
             if deposit_id:
-                module_logger().info(
-                    "Checking if deposit %s is already published..." % deposit_id
+                conceptrecid = zenodo_manager.resolve_concept_record_id(
+                    deposit_id, yml_dict.get("conceptdoi")
                 )
-                published = zenodo_manager.get_published_deposit(deposit_id)
-                if published is not None:
-                    pub_version = getattr(published, "version", None)
-                    module_logger().info(
-                        "Deposit %s is published (version: %s, "
-                        "deploying version: %s)."
-                        % (published.id, pub_version, coordinates.version())
-                    )
-                    if pub_version and str(pub_version) == str(coordinates.version()):
+                if conceptrecid:
+                    latest = zenodo_manager.get_latest_version_by_concept(conceptrecid)
+                    if latest is not None:
+                        latest_version = getattr(latest, "version", None)
                         module_logger().info(
-                            "Deposit %s (v%s) is already published for "
-                            "the version being deployed. Skipping upload."
-                            % (published.id, pub_version)
-                        )
-                        yml_dict["doi"] = published.doi
-                        yml_dict["deposit_id"] = published.id
-                        module_logger().info(
-                            "Using existing DOI: %s, deposit ID: %s"
-                            % (published.doi, published.id)
-                        )
-                        if published.conceptdoi:
-                            yml_dict["conceptdoi"] = published.conceptdoi
-                            module_logger().info(
-                                "Using existing concept DOI: %s" % published.conceptdoi
+                            "Latest published version under concept %s: "
+                            "%s (deposit %s). Deploying version: %s."
+                            % (
+                                conceptrecid,
+                                latest_version,
+                                latest.id,
+                                coordinates.version(),
                             )
-                        write_dict_to_yml(yml_file_path, yml_dict)
-                        module_logger().info(
-                            "Updated solution.yml with existing deposit "
-                            "metadata at %s" % yml_file_path
                         )
 
-                        if report_file:
-                            report_vars = {
-                                "DOI": published.doi,
-                                "DEPOSIT_ID": str(published.id),
-                            }
-                            if published.conceptdoi:
-                                report_vars["CONCEPTDOI"] = published.conceptdoi
-                            create_report(report_file, report_vars)
-                            module_logger().info(
-                                "Created report file under %s" % str(report_file)
-                            )
-                        return
+                        if latest_version:
+                            from packaging.version import Version
+
+                            try:
+                                v_latest = Version(str(latest_version))
+                                v_deploy = Version(str(coordinates.version()))
+                            except Exception:
+                                # Unparseable versions — fall through to
+                                # normal upload logic and let Zenodo handle it.
+                                module_logger().warning(
+                                    "Could not parse versions for comparison "
+                                    "(latest=%s, deploy=%s). "
+                                    "Proceeding with upload."
+                                    % (latest_version, coordinates.version())
+                                )
+                                v_latest = None
+                                v_deploy = None
+
+                            if v_latest is not None and v_deploy is not None:
+                                if v_deploy == v_latest:
+                                    # Same version already published — skip
+                                    module_logger().info(
+                                        "Version %s is already published "
+                                        "under concept %s (deposit %s). "
+                                        "Skipping upload."
+                                        % (latest_version, conceptrecid, latest.id)
+                                    )
+                                    self._write_existing_deposit_to_yml(
+                                        latest,
+                                        yml_dict,
+                                        yml_file_path,
+                                        report_file,
+                                    )
+                                    return
+
+                                if v_deploy < v_latest:
+                                    raise RuntimeError(
+                                        "Deploy version %s is older than the "
+                                        "latest published version %s (concept "
+                                        "%s, deposit %s). Uploading older "
+                                        "versions is not allowed. Please "
+                                        "bump the version and re-deploy."
+                                        % (
+                                            coordinates.version(),
+                                            latest_version,
+                                            conceptrecid,
+                                            latest.id,
+                                        )
+                                    )
+
+                                # v_deploy > v_latest — new version.
+                                # Override deposit_id so zenodo_get_deposit
+                                # creates the new-version draft from the
+                                # latest deposit (not the stale one from yml).
+                                if str(latest.id) != str(deposit_id):
+                                    module_logger().info(
+                                        "Overriding stale deposit_id %s with "
+                                        "latest deposit %s to create "
+                                        "new-version draft." % (deposit_id, latest.id)
+                                    )
+                                    deposit_id = str(latest.id)
                     else:
                         module_logger().info(
-                            "Published version (%s) differs from deploy "
-                            "version (%s). Proceeding with new version "
-                            "upload." % (pub_version, coordinates.version())
+                            "No published version found under concept %s. "
+                            "Proceeding with upload." % conceptrecid
                         )
                 else:
                     module_logger().info(
-                        "Deposit %s is not yet published. "
+                        "No concept record ID available for deposit %s. "
                         "Proceeding with upload." % deposit_id
                     )
 
@@ -375,7 +406,11 @@ class ReleaseManager:
                 # conceptdoi is "" on draft deposits, but conceptrecid is
                 # always available.  Derive the concept DOI so that
                 # commit_changes (which runs before publish) captures it.
-                yml_dict["conceptdoi"] = "10.5281/zenodo.%s" % deposit.conceptrecid
+                # Use the deposit's own DOI prefix (varies by instance:
+                # production=10.5281, sandbox=10.5072, etc.).
+                own_doi = deposit.metadata.prereserve_doi["doi"]
+                doi_prefix = own_doi.rsplit(".", 1)[0]  # e.g. "10.5281/zenodo"
+                yml_dict["conceptdoi"] = f"{doi_prefix}.{deposit.conceptrecid}"
             module_logger().info(
                 "DOI metadata — doi=%s, deposit_id=%s, conceptdoi=%s"
                 % (
@@ -417,6 +452,36 @@ class ReleaseManager:
             if yml_dict.get("conceptdoi"):
                 report_vars["CONCEPTDOI"] = yml_dict["conceptdoi"]
             report_file = create_report(report_file, report_vars)
+            module_logger().info("Created report file under %s" % str(report_file))
+
+    @staticmethod
+    def _write_existing_deposit_to_yml(deposit, yml_dict, yml_file_path, report_file):
+        """Write an already-published deposit's metadata to solution.yml.
+
+        Used when the upload step detects that the exact version is already
+        published and skips the upload.
+        """
+        yml_dict["doi"] = deposit.doi
+        yml_dict["deposit_id"] = deposit.id
+        module_logger().info(
+            f"Using existing DOI: {deposit.doi}, deposit ID: {deposit.id}"
+        )
+        if deposit.conceptdoi:
+            yml_dict["conceptdoi"] = deposit.conceptdoi
+            module_logger().info("Using existing concept DOI: %s" % deposit.conceptdoi)
+        write_dict_to_yml(yml_file_path, yml_dict)
+        module_logger().info(
+            "Updated solution.yml with existing deposit metadata at %s" % yml_file_path
+        )
+
+        if report_file:
+            report_vars = {
+                "DOI": deposit.doi,
+                "DEPOSIT_ID": str(deposit.id),
+            }
+            if deposit.conceptdoi:
+                report_vars["CONCEPTDOI"] = deposit.conceptdoi
+            create_report(report_file, report_vars)
             module_logger().info("Created report file under %s" % str(report_file))
 
     @staticmethod

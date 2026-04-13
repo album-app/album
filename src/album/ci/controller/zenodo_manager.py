@@ -134,10 +134,12 @@ class ZenodoManager:
                 "No deposit_id provided — creating new deposit with DOI..."
             )
             deposit = self.query.deposit_create_with_prereserve_doi(metadata)
-            module_logger().info(
-                "New deposit created: id=%s, doi=%s"
-                % (deposit.id, deposit.metadata.prereserve_doi.get("doi", "?"))
+            pre_doi = (
+                deposit.metadata.prereserve_doi.get("doi", "?")
+                if deposit.metadata
+                else "?"
             )
+            module_logger().info(f"New deposit created: id={deposit.id}, doi={pre_doi}")
 
         return deposit
 
@@ -253,6 +255,80 @@ class ZenodoManager:
             )
 
         module_logger().info("Deposit %s is not published." % deposit_id)
+        return None
+
+    def get_latest_version_by_concept(
+        self, conceptrecid: str
+    ) -> Union[ZenodoDeposit, None]:
+        """Return the latest published version under a concept record ID.
+
+        Zenodo's records API automatically redirects a concept record ID
+        to the latest published version.  This allows checking what the
+        newest version is without knowing its specific deposit ID.
+
+        Returns:
+            The latest published ``ZenodoRecord`` (or ``ZenodoDeposit``),
+            or ``None`` if the lookup fails.
+        """
+        module_logger().info(
+            "Querying latest version under concept record %s..." % conceptrecid
+        )
+        try:
+            records = self.query.records_get(record_id=conceptrecid)
+            if records:
+                latest = records[0]
+                module_logger().info(
+                    "Latest version under concept %s: deposit=%s, version=%s"
+                    % (conceptrecid, latest.id, getattr(latest, "version", "?"))
+                )
+                return latest
+        except Exception:
+            module_logger().info(
+                "Could not resolve concept record %s via records API." % conceptrecid
+            )
+        return None
+
+    def resolve_concept_record_id(
+        self, deposit_id: str, conceptdoi: Union[str, None] = None
+    ) -> Union[str, None]:
+        """Derive the concept record ID for a deposit.
+
+        Tries two strategies:
+        1. Parse ``conceptdoi`` (format ``<prefix>/zenodo.<conceptrecid>``).
+        2. Query the deposit API for ``deposit_id`` and read ``conceptrecid``.
+
+        Returns:
+            The concept record ID as a string, or ``None`` if unavailable.
+        """
+        # Strategy 1: parse from conceptdoi
+        if conceptdoi and "zenodo" in conceptdoi.lower():
+            conceptrecid = conceptdoi.rsplit(".", 1)[-1]
+            module_logger().info(
+                "Derived conceptrecid=%s from conceptdoi=%s"
+                % (conceptrecid, conceptdoi)
+            )
+            return conceptrecid
+
+        # Strategy 2: query the deposit and read conceptrecid
+        if deposit_id:
+            try:
+                deposit = self.query.deposit_get(deposit_id)
+                if deposit and deposit[0].conceptrecid:
+                    conceptrecid = str(deposit[0].conceptrecid)
+                    module_logger().info(
+                        "Resolved conceptrecid=%s from deposit %s"
+                        % (conceptrecid, deposit_id)
+                    )
+                    return conceptrecid
+            except Exception:
+                module_logger().info(
+                    "Could not resolve conceptrecid from deposit %s." % deposit_id
+                )
+
+        module_logger().info(
+            "No concept record ID available (deposit_id=%s, conceptdoi=%s)."
+            % (deposit_id, conceptdoi)
+        )
         return None
 
     def _zenodo_get_unpublished(self, deposit_id: str) -> List[ZenodoDeposit]:

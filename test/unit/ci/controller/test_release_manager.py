@@ -93,6 +93,18 @@ class TestReleaseManager(TestUnitCoreCommon):
         deposit.publish = MagicMock()
         return deposit
 
+    def _create_mock_zenodo_manager(self):
+        """Create a mock ZenodoManager with all required methods stubbed."""
+        zm = EmptyTestClass()
+        zm.zenodo_get_deposit = MagicMock()
+        zm.zenodo_upload = MagicMock()
+        zm.zenodo_delete = MagicMock()
+        zm.get_published_deposit = MagicMock(return_value=None)
+        zm.get_latest_version_by_concept = MagicMock(return_value=None)
+        zm.resolve_concept_record_id = MagicMock(return_value=None)
+        zm.zenodo_get_unpublished_deposit_by_id = MagicMock()
+        return zm
+
     # ------------------------------------------------------------------
     # configure_repo
     # ------------------------------------------------------------------
@@ -281,7 +293,7 @@ class TestReleaseManager(TestUnitCoreCommon):
         # mock
         release_manager, catalog_path = self._create_release_manager(repo_dir)
         release_manager._prepare_zenodo_arguments = MagicMock(return_value=(None, None))
-        zenodo_manager = EmptyTestClass()
+        zenodo_manager = self._create_mock_zenodo_manager()
         deposit = self._create_mock_deposit(
             deposit_id="0", doi="doi", conceptdoi="conceptdoi"
         )
@@ -304,8 +316,8 @@ class TestReleaseManager(TestUnitCoreCommon):
         force_remove(repo_dir)
 
     def test_zenodo_upload_skips_when_already_published(self):
-        """zenodo_upload must skip upload when deposit is already published
-        for the same version (pipeline re-run after partial failure)."""
+        """zenodo_upload must skip upload when the latest concept version
+        matches the deploy version (pipeline re-run after partial failure)."""
         yml_dict = {
             "group": "group",
             "name": "name",
@@ -323,9 +335,11 @@ class TestReleaseManager(TestUnitCoreCommon):
         )
         published_deposit.version = "0.1.0"  # matches deploy version
 
-        zenodo_manager = EmptyTestClass()
-        zenodo_manager.get_published_deposit = MagicMock(return_value=published_deposit)
-        zenodo_manager.zenodo_get_deposit = MagicMock()
+        zenodo_manager = self._create_mock_zenodo_manager()
+        zenodo_manager.resolve_concept_record_id = MagicMock(return_value="50")
+        zenodo_manager.get_latest_version_by_concept = MagicMock(
+            return_value=published_deposit
+        )
         zenodo_upload_mock = MagicMock()
         zenodo_manager.zenodo_upload = zenodo_upload_mock
         release_manager._get_zenodo_manager = MagicMock(return_value=zenodo_manager)
@@ -338,6 +352,10 @@ class TestReleaseManager(TestUnitCoreCommon):
         zenodo_upload_mock.assert_not_called()
         zenodo_manager.zenodo_get_deposit.assert_not_called()
 
+        # concept-level lookup must have been used
+        zenodo_manager.resolve_concept_record_id.assert_called_once_with("99", None)
+        zenodo_manager.get_latest_version_by_concept.assert_called_once_with("50")
+
         # solution.yml must be updated with existing DOI
         updated_yml = get_dict_from_yml(catalog_path.joinpath(yml_relative_path))
         self.assertEqual("10.5281/zenodo.99", updated_yml["doi"])
@@ -346,6 +364,87 @@ class TestReleaseManager(TestUnitCoreCommon):
 
         # report must be created
         self.assertTrue(report_file.exists())
+
+        force_remove(repo_dir)
+
+    def test_zenodo_upload_rejects_older_version(self):
+        """zenodo_upload must raise when deploy version < latest on Zenodo."""
+        yml_dict = {
+            "group": "group",
+            "name": "name",
+            "version": "0.1.0",
+            "deposit_id": "99",
+        }
+        repo_dir, branch, _, _ = self._create_source_repo(yml_dict)
+        release_manager, catalog_path = self._create_release_manager(repo_dir)
+        release_manager._prepare_zenodo_arguments = MagicMock(return_value=(None, None))
+
+        latest_deposit = self._create_mock_deposit(
+            deposit_id="100",
+            doi="10.5281/zenodo.100",
+            conceptdoi="10.5281/zenodo.50",
+        )
+        latest_deposit.version = "0.2.0"  # newer than deploy 0.1.0
+
+        zenodo_manager = self._create_mock_zenodo_manager()
+        zenodo_manager.resolve_concept_record_id = MagicMock(return_value="50")
+        zenodo_manager.get_latest_version_by_concept = MagicMock(
+            return_value=latest_deposit
+        )
+        release_manager._get_zenodo_manager = MagicMock(return_value=zenodo_manager)
+
+        with self.assertRaises(RuntimeError) as ctx:
+            release_manager.zenodo_upload(branch, None, None, None)
+
+        self.assertIn("older than", str(ctx.exception))
+        self.assertIn("0.1.0", str(ctx.exception))
+        self.assertIn("0.2.0", str(ctx.exception))
+
+        # upload must NOT have been called
+        zenodo_manager.zenodo_get_deposit.assert_not_called()
+
+        force_remove(repo_dir)
+
+    def test_zenodo_upload_overrides_stale_deposit_id(self):
+        """When deposit_id from yml points to an old version, it must be
+        overridden with the latest deposit so new_version() chains correctly."""
+        yml_dict = {
+            "group": "group",
+            "name": "name",
+            "version": "0.2.0",
+            "deposit_id": "80",  # stale — points to v0.1.0
+        }
+        repo_dir, branch, yml_relative_path, _ = self._create_source_repo(yml_dict)
+        release_manager, catalog_path = self._create_release_manager(repo_dir)
+        release_manager._prepare_zenodo_arguments = MagicMock(return_value=(None, None))
+
+        latest_deposit = self._create_mock_deposit(
+            deposit_id="90",
+            doi="10.5281/zenodo.90",
+            conceptdoi="10.5281/zenodo.50",
+        )
+        latest_deposit.version = "0.1.0"  # older than deploy 0.2.0
+
+        new_draft = self._create_mock_deposit(
+            deposit_id="91",
+            doi="10.5281/zenodo.91",
+            conceptdoi="10.5281/zenodo.50",
+        )
+
+        zenodo_manager = self._create_mock_zenodo_manager()
+        zenodo_manager.resolve_concept_record_id = MagicMock(return_value="50")
+        zenodo_manager.get_latest_version_by_concept = MagicMock(
+            return_value=latest_deposit
+        )
+        zenodo_manager.zenodo_get_deposit = MagicMock(return_value=new_draft)
+        release_manager._get_zenodo_manager = MagicMock(return_value=zenodo_manager)
+
+        release_manager.zenodo_upload(branch, None, None, None)
+
+        # zenodo_get_deposit must have been called with the LATEST deposit id
+        # (90), not the stale one (80)
+        call_args = zenodo_manager.zenodo_get_deposit.call_args
+        self.assertEqual("90", call_args[0][1])
 
         force_remove(repo_dir)
 
