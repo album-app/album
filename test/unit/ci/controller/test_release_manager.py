@@ -280,9 +280,74 @@ class TestReleaseManager(TestUnitCoreCommon):
 
         force_remove(repo_dir)
 
-    # ------------------------------------------------------------------
-    # zenodo_upload
-    # ------------------------------------------------------------------
+    @patch("album.ci.controller.release_manager.add_tag")
+    def test_zenodo_publish_skips_via_records_api_fallback(self, mock_add_tag):
+        """zenodo_publish must succeed when the deposit is already published
+        and only reachable via the records API (deposits API returns 404).
+
+        This is an end-to-end test for the exact scenario encountered with
+        https://zenodo.org/records/19553456 — the deposits API returns 404
+        for a published record that the authenticated user does not own via
+        the deposit endpoint, but the records API returns it successfully.
+
+        Unlike test_zenodo_publish_skips_when_already_published, this test
+        does NOT mock get_published_deposit; it mocks the underlying
+        ZenodoAPI methods so the internal except-Exception fallback inside
+        get_published_deposit is exercised. This is the regression test for
+        InvalidResponseStatusError formerly inheriting from BaseException.
+        """
+        from album.ci.controller.zenodo_manager import ZenodoManager
+        from album.ci.utils.zenodo_api import InvalidResponseStatusError
+
+        yml_dict = {
+            "group": "group",
+            "name": "name",
+            "version": "0.1.1",
+            "deposit_id": "19553456",
+        }
+        repo_dir, branch, _, _ = self._create_source_repo(yml_dict)
+        release_manager, catalog_path = self._create_release_manager(repo_dir)
+        release_manager._prepare_zenodo_arguments = MagicMock(return_value=(None, None))
+
+        # Build a real ZenodoManager but with a mocked query object
+        zm = ZenodoManager.__new__(ZenodoManager)
+        zm.query = MagicMock()
+
+        # 1) zenodo_get_unpublished_deposit_by_id → 404 (not a draft)
+        #    We need to make the real method raise, so we wire it through
+        #    the underlying _zenodo_get_unpublished which calls deposit_get.
+        zm.query.deposit_get.side_effect = InvalidResponseStatusError(
+            "Error 'NotFound' occurred. See Log for detailed information!"
+        )
+
+        # 2) records API → returns the published deposit
+        published_record = self._create_mock_deposit(
+            deposit_id="19553456",
+            doi="10.5281/zenodo.19553456",
+            conceptdoi="10.5281/zenodo.6410027",
+            conceptrecid="6410027",
+        )
+        published_record.submitted = True
+        zm.query.records_get.return_value = [published_record]
+
+        release_manager._get_zenodo_manager = MagicMock(return_value=zm)
+
+        release_manager.zenodo_publish(branch, None, None)
+
+        # deposit_get was called (and failed) — at least once for the
+        # unpublished query and once inside get_published_deposit
+        self.assertGreaterEqual(zm.query.deposit_get.call_count, 1)
+
+        # records_get must have been called as fallback
+        zm.query.records_get.assert_called_once_with(record_id="19553456")
+
+        # publish() must NOT have been called (already published)
+        published_record.publish.assert_not_called()
+
+        # tag must still have been added
+        mock_add_tag.assert_called_once()
+
+        force_remove(repo_dir)
 
     def test_zenodo_upload(self):
         # prepare

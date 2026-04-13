@@ -17,7 +17,7 @@ from album.runner import album_logging
 module_logger = album_logging.get_active_logger
 
 
-class InvalidResponseStatusError(BaseException):
+class InvalidResponseStatusError(Exception):
     """Raised when the response status is not the one expected."""
 
 
