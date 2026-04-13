@@ -142,6 +142,8 @@ class TestIntegrationCIFeatures(TestIntegrationCoreCommon):
         # mock
         deposit = EmptyTestClass()
         deposit.id = "id"
+        deposit.title = "t1"
+        deposit.submitted = False
         deposit.conceptdoi = None
         deposit.conceptrecid = "1234"
         deposit.files = []
