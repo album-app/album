@@ -154,7 +154,9 @@ class ReleaseManager:
                     "Checking if it is already published..." % deposit_id
                 )
                 try:
-                    published = zenodo_manager.get_published_deposit(deposit_id)
+                    published = zenodo_manager.get_published_deposit(
+                        deposit_id, doi=yml_dict.get("doi")
+                    )
                 except Exception:
                     published = None
                 if published:

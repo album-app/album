@@ -246,6 +246,7 @@ class TestReleaseManager(TestUnitCoreCommon):
             "name": "name",
             "version": "0.1.0",
             "deposit_id": "42",
+            "doi": "10.5281/zenodo.42",
         }
         repo_dir, branch, _, _ = self._create_source_repo(yml_dict)
         release_manager, catalog_path = self._create_release_manager(repo_dir)
@@ -272,8 +273,140 @@ class TestReleaseManager(TestUnitCoreCommon):
         # publish() must NOT have been called (already published)
         published_deposit.publish.assert_not_called()
 
-        # get_published_deposit must have been consulted
-        zenodo_manager.get_published_deposit.assert_called_once_with("42")
+        # get_published_deposit must have been consulted with doi
+        zenodo_manager.get_published_deposit.assert_called_once_with(
+            "42", doi="10.5281/zenodo.42"
+        )
+
+        # tag must still have been added
+        mock_add_tag.assert_called_once()
+
+        force_remove(repo_dir)
+
+    @patch("album.ci.controller.release_manager.add_tag")
+    def test_zenodo_publish_skips_via_records_api_fallback(self, mock_add_tag):
+        """zenodo_publish must succeed when the deposit is already published
+        and only reachable via the records API (deposits API returns 404).
+
+        Unlike test_zenodo_publish_skips_when_already_published, this test
+        does NOT mock get_published_deposit; it mocks the underlying
+        ZenodoAPI methods so the internal except-Exception fallback inside
+        get_published_deposit is exercised. This is the regression test for
+        InvalidResponseStatusError formerly inheriting from BaseException.
+        """
+        from album.ci.controller.zenodo_manager import ZenodoManager
+        from album.ci.utils.zenodo_api import InvalidResponseStatusError
+
+        yml_dict = {
+            "group": "group",
+            "name": "name",
+            "version": "0.1.1",
+            "deposit_id": "19553456",
+        }
+        repo_dir, branch, _, _ = self._create_source_repo(yml_dict)
+        release_manager, catalog_path = self._create_release_manager(repo_dir)
+        release_manager._prepare_zenodo_arguments = MagicMock(return_value=(None, None))
+
+        # Build a real ZenodoManager but with a mocked query object
+        zm = ZenodoManager.__new__(ZenodoManager)
+        zm.query = MagicMock()
+
+        # 1) zenodo_get_unpublished_deposit_by_id → 404 (not a draft)
+        zm.query.deposit_get.side_effect = InvalidResponseStatusError(
+            "Error 'NotFound' occurred. See Log for detailed information!"
+        )
+
+        # 2) records API → returns the published deposit
+        published_record = self._create_mock_deposit(
+            deposit_id="19553456",
+            doi="10.5281/zenodo.19553456",
+            conceptdoi="10.5281/zenodo.6410027",
+            conceptrecid="6410027",
+        )
+        published_record.submitted = True
+        zm.query.records_get.return_value = [published_record]
+
+        release_manager._get_zenodo_manager = MagicMock(return_value=zm)
+
+        release_manager.zenodo_publish(branch, None, None)
+
+        # deposit_get was called (and failed)
+        self.assertGreaterEqual(zm.query.deposit_get.call_count, 1)
+
+        # records_get must have been called as fallback
+        zm.query.records_get.assert_called_once_with(record_id="19553456")
+
+        # publish() must NOT have been called (already published)
+        published_record.publish.assert_not_called()
+
+        # tag must still have been added
+        mock_add_tag.assert_called_once()
+
+        force_remove(repo_dir)
+
+    @patch("album.ci.controller.release_manager.add_tag")
+    def test_zenodo_publish_skips_via_doi_search_fallback(self, mock_add_tag):
+        """zenodo_publish must succeed when the deposit is already published
+        but BOTH the deposit API and the direct records API return 404.
+
+        This is the exact scenario from https://zenodo.org/records/19553456 :
+        after Zenodo's migration to InvenioRDM, the numeric DOI suffix no
+        longer matches the record's API PID, so direct lookups fail.  The
+        DOI-based search (``/api/records?q=doi:"..."``) still finds it.
+
+        The test exercises the full fallback chain:
+        deposit_get → 404, records_get(record_id=) → 404,
+        records_get(q=doi:"...") → found.
+        """
+        from album.ci.controller.zenodo_manager import ZenodoManager
+        from album.ci.utils.zenodo_api import InvalidResponseStatusError
+
+        yml_dict = {
+            "group": "group",
+            "name": "name",
+            "version": "0.1.1",
+            "deposit_id": "19553456",
+            "doi": "10.5281/zenodo.19553456",
+        }
+        repo_dir, branch, _, _ = self._create_source_repo(yml_dict)
+        release_manager, catalog_path = self._create_release_manager(repo_dir)
+        release_manager._prepare_zenodo_arguments = MagicMock(return_value=(None, None))
+
+        zm = ZenodoManager.__new__(ZenodoManager)
+        zm.query = MagicMock()
+
+        # deposit API → 404
+        zm.query.deposit_get.side_effect = InvalidResponseStatusError("NotFound")
+
+        # records API: direct lookup → 404, DOI search → found
+        published_record = self._create_mock_deposit(
+            deposit_id="19553456",
+            doi="10.5281/zenodo.19553456",
+            conceptdoi="10.5281/zenodo.6410027",
+            conceptrecid="6410027",
+        )
+        published_record.submitted = True
+
+        def records_get_side_effect(**kwargs):
+            if "record_id" in kwargs and kwargs["record_id"]:
+                raise InvalidResponseStatusError("NotFound")
+            if "q" in kwargs and "doi:" in kwargs["q"]:
+                return [published_record]
+            raise InvalidResponseStatusError("NotFound")
+
+        zm.query.records_get.side_effect = records_get_side_effect
+
+        release_manager._get_zenodo_manager = MagicMock(return_value=zm)
+
+        release_manager.zenodo_publish(branch, None, None)
+
+        # records_get called twice: direct lookup (failed) + DOI search (found)
+        self.assertEqual(2, zm.query.records_get.call_count)
+        zm.query.records_get.assert_any_call(record_id="19553456")
+        zm.query.records_get.assert_any_call(q='doi:"10.5281/zenodo.19553456"')
+
+        # publish() must NOT have been called (already published)
+        published_record.publish.assert_not_called()
 
         # tag must still have been added
         mock_add_tag.assert_called_once()

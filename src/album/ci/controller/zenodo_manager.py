@@ -222,11 +222,19 @@ class ZenodoManager:
         )
         return deposit
 
-    def get_published_deposit(self, deposit_id: str) -> Union[ZenodoDeposit, None]:
+    def get_published_deposit(
+        self, deposit_id: str, doi: Union[str, None] = None
+    ) -> Union[ZenodoDeposit, None]:
         """Return the published deposit if it exists, WITHOUT creating a new version.
 
         This is used for re-run detection: if a deposit is already published
         for the same version, the upload step can be skipped entirely.
+
+        Args:
+            deposit_id: The numeric deposit / record ID.
+            doi: Optional full DOI string (e.g. ``10.5281/zenodo.19553456``). Used as a search fallback
+            when the direct lookup by ID fails, which happens on new Zenodo (InvenioRDM)
+            where the numeric DOI suffix may not match the record's API PID.
         """
         module_logger().info("Checking published state of deposit %s..." % deposit_id)
         # Try the deposit API first.
@@ -242,8 +250,7 @@ class ZenodoManager:
                 "Deposit API returned error for %s — trying records API..." % deposit_id
             )
 
-        # Fallback: query the records API (published deposits are always
-        # visible there, even when the deposit endpoint returns 404).
+        # Fallback 1: direct records API lookup by ID.
         try:
             records = self.query.records_get(record_id=deposit_id)
             if records:
@@ -251,8 +258,27 @@ class ZenodoManager:
                 return records[0]
         except Exception:
             module_logger().info(
-                "Records API also returned no result for %s." % deposit_id
+                "Records API direct lookup returned no result for %s." % deposit_id
             )
+
+        # Fallback 2: search by DOI.  On new Zenodo (InvenioRDM) the numeric
+        # DOI suffix and the record's API PID can differ; direct lookup
+        # returns 404 but the search index still finds the record by DOI.
+        if doi:
+            module_logger().info("Trying records search by DOI %s..." % doi)
+            try:
+                records = self.query.records_get(q='doi:"%s"' % doi)
+                if records:
+                    module_logger().info(
+                        "Deposit found via DOI search (doi=%s, id=%s)."
+                        % (doi, records[0].id)
+                    )
+                    print("Deposit found via DOI search: id=%s" % records[0].id)
+                    return records[0]
+            except Exception:
+                module_logger().info(
+                    "Records search by DOI %s returned no result." % doi
+                )
 
         module_logger().info("Deposit %s is not published." % deposit_id)
         return None

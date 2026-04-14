@@ -121,7 +121,7 @@ class ZenodoEntry(ABC):  # noqa: B024
         Raises:
             AttributeError: When key not found if required.
         """
-        if key in entry_dict.keys():
+        if entry_dict is not None and key in entry_dict.keys():
             return entry_dict[key]
         if required:
             raise AttributeError("Key %s not found but required" % key)
@@ -791,7 +791,7 @@ class ZenodoAPI:
             access_token:
                 The authentication token needed to perform operations.
         """
-        self.base_url = base_url
+        self.base_url = base_url.rstrip("/")
         self.params = {"access_token": ""}
 
         if access_token:
@@ -999,6 +999,14 @@ class ZenodoAPI:
         r = requests.get(link, params=params)
 
         response_dict = self.validate_response(r, ResponseStatus.OK)
+
+        # InvenioRDM (new Zenodo) wraps search results in
+        # {"hits": {"hits": [record, ...], "total": N}, "links": {...}}.
+        # Unwrap so the downstream list-vs-single-record logic works.
+        if isinstance(response_dict, dict) and "hits" in response_dict:
+            inner = response_dict["hits"]
+            if isinstance(inner, dict) and "hits" in inner:
+                response_dict = inner["hits"]  # list of record dicts
 
         record_list = []
         if isinstance(response_dict, list):
