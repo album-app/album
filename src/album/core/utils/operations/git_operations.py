@@ -209,6 +209,7 @@ def add_files_commit_and_push(
     username: str = "",
     push_option_list: Union[List[str], None] = None,
     force: bool = False,
+    force_with_lease: bool = False,
     allow_empty: bool = False,
 ) -> None:
     """Add files in a given path to a git head and commits.
@@ -230,6 +231,9 @@ def add_files_commit_and_push(
             The git email to use. (Default: systems git configuration)
         force:
             whether to use force push or not
+        force_with_lease:
+            whether to use --force-with-lease (safe force push after rebase).
+            Mutually exclusive with *force* — if both are set, force wins.
         allow_empty:
             If True, create an empty commit when there are no file changes
             instead of raising.  This is useful when the push itself must
@@ -255,6 +259,8 @@ def add_files_commit_and_push(
     cmd = cmd_option + push_options_
     if force:
         cmd = cmd + ["-f"]
+    elif force_with_lease:
+        cmd = cmd + ["--force-with-lease"]
 
     remote_name = get_remote_name(repo)
 

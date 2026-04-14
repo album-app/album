@@ -706,6 +706,7 @@ class ReleaseManager:
                 username=ci_user_name,
                 email=ci_user_email,
                 allow_empty=True,
+                force_with_lease=True,
             )
             if dry_run:
                 module_logger().info("Dry run — commit created but NOT pushed.")
