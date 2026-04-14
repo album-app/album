@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from abc import ABC
 from enum import Enum, unique
 from typing import Any, SupportsIndex
@@ -546,6 +547,14 @@ class ZenodoDeposit(ZenodoEntry):
         method falls back to retrieving the existing draft via the
         ``latest_draft`` link that is present on the published deposit.
 
+        If Zenodo responds with 400 BadRequest, the full error details are
+        logged (they were previously hidden) and a draft-retrieval fallback
+        is attempted.  If no draft exists, the original error is re-raised
+        so the real cause (rate limit, metadata issue, etc.) is visible.
+
+        If Zenodo responds with 429 TooManyRequests, the request is retried
+        after the ``Retry-After`` header interval (up to 3 attempts).
+
         Returns:
              A list containing the new version draft deposit.
 
@@ -557,27 +566,93 @@ class ZenodoDeposit(ZenodoEntry):
             draft_id, _ = os.path.splitext(os.path.basename(latest_draft_l))
             return draft_id
 
+        def _try_retrieve_existing_draft():
+            """Try to return an existing draft via the latest_draft link.
+
+            After a failed ``new_version`` POST the server may have created
+            the draft but returned an error.  Reload the deposit so the
+            ``latest_draft`` link reflects the current server state.
+            """
+            try:
+                self.reload()
+            except Exception:
+                pass  # best-effort; fall through to link check
+            latest_draft_link = self.links.get("latest_draft") if self.links else None
+            if latest_draft_link:
+                latest_draft_id = extract_draft_id(latest_draft_link)
+                drafts = ZenodoAPI(
+                    self.base_url, self.params["access_token"]
+                ).deposit_get(latest_draft_id, status=DepositStatus.DRAFT)
+                if drafts:
+                    return drafts
+            return None
+
         link = (
             self.base_url + "/api/deposit/depositions/%s/actions/newversion" % self.id
         )
 
-        r = requests.post(link, params=self.params)
+        # Retry loop for transient 429 TooManyRequests responses.
+        max_retries = 3
+        r: Response = requests.post(link, params=self.params)
+        for attempt in range(1, max_retries + 1):
+            if r.status_code != ResponseStatus.TooManyRequests.value:
+                break
+            retry_after = int(r.headers.get("Retry-After", 60))
+            module_logger().warning(
+                "Zenodo rate limit hit (429) on new_version for deposit %s. "
+                "Retrying in %ds (attempt %d/%d)..."
+                % (self.id, retry_after, attempt, max_retries)
+            )
+            time.sleep(retry_after)
+            r = requests.post(link, params=self.params)
+
+        if r.status_code == ResponseStatus.TooManyRequests.value:
+            module_logger().error(
+                "Zenodo rate limit (429) persists after %d retries for "
+                "deposit %s." % (max_retries, self.id)
+            )
 
         if r.status_code == ResponseStatus.Forbidden.value:
             # A new version draft already exists — retrieve it instead.
             module_logger().info(
-                "New version draft already exists for deposit %s. "
+                "New version draft already exists for deposit %s (403). "
                 "Attempting to retrieve existing draft..." % self.id
             )
-            latest_draft_link = self.links.get("latest_draft") if self.links else None
-            if latest_draft_link:
-                latest_draft_id = extract_draft_id(latest_draft_link)
-                return ZenodoAPI(
-                    self.base_url, self.params["access_token"]
-                ).deposit_get(latest_draft_id, status=DepositStatus.DRAFT)
+            drafts = _try_retrieve_existing_draft()
+            if drafts:
+                return drafts
             raise InvalidResponseStatusError(
                 "New version draft already exists for deposit %s but no "
                 "latest_draft link found to retrieve it." % self.id
+            )
+
+        if r.status_code == ResponseStatus.BadRequest.value:
+            # 400 BadRequest — could be "draft already exists" on InvenioRDM,
+            # or a genuine validation / rate-limit error.  Log full details
+            # first, then attempt draft retrieval as a fallback.
+            try:
+                body = r.json()
+                message = body.get("message", "(no message)")
+                errors = body.get("errors", [])
+            except Exception:
+                message = r.text[:500]
+                errors = []
+            module_logger().error(
+                "Zenodo returned 400 BadRequest for new_version on deposit %s. "
+                "Message: %s | Errors: %s" % (self.id, message, errors)
+            )
+            drafts = _try_retrieve_existing_draft()
+            if drafts:
+                module_logger().info(
+                    "Found existing draft %s — treating 400 as "
+                    "'draft already exists'." % drafts[0].id
+                )
+                return drafts
+            # No draft found — the 400 is a genuine error, not "draft exists".
+            raise InvalidResponseStatusError(
+                "Zenodo returned 400 BadRequest for new_version on deposit "
+                "%s and no existing draft was found. Message: %s | Errors: %s"
+                % (self.id, message, errors)
             )
 
         response_dict = ZenodoAPI.validate_response(r, ResponseStatus.Created)
@@ -847,7 +922,7 @@ class ZenodoAPI:
             if status_code != ResponseStatus.InternalServerError:
                 json_response = response.json()
                 module_logger().error("Detailed message: %s" % json_response["message"])
-                if hasattr(json_response, "errors"):
+                if "errors" in json_response:
                     module_logger().error("Errors: %s" % json_response["errors"])
 
         raise InvalidResponseStatusError(
@@ -944,7 +1019,7 @@ class ZenodoAPI:
 
         response_dict = self.validate_response(r, ResponseStatus.OK)
 
-        deposit_list = []
+        deposit_list: list[ZenodoDeposit] = []
         if isinstance(response_dict, list):
             for deposit_dict in response_dict:
                 deposit_list.append(
