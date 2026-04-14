@@ -162,11 +162,15 @@ class ZenodoManager:
             "Querying unpublished (draft) deposit %s (expected name=%s)..."
             % (deposit_id, deposit_name)
         )
-        deposit = self._zenodo_get_unpublished(deposit_id)[0]
+        deposits = self._zenodo_get_unpublished(deposit_id)
 
-        # raise error when not found
-        if not deposit:
-            raise RuntimeError("Deposit with id %s not found!" % deposit_id)
+        if not deposits:
+            raise RuntimeError(
+                "No draft deposit with id %s found — "
+                "it may already be published." % deposit_id
+            )
+
+        deposit = deposits[0]
 
         module_logger().info(
             f"Unpublished deposit {deposit.id} found (title={deposit.title})."

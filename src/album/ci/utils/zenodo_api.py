@@ -909,6 +909,12 @@ class ZenodoAPI:
             deposit_list.append(
                 ZenodoDeposit(response_dict, self.base_url, self.params["access_token"])
             )
+        # Apply the filter on client-side so callers can trust the status argument.
+        if deposit_id and deposit_list:
+            want_published = status == DepositStatus.PUBLISHED
+            deposit_list = [
+                d for d in deposit_list if bool(d.submitted) == want_published
+            ]
 
         module_logger().debug("deposit_get returned %d result(s)." % len(deposit_list))
         return deposit_list
