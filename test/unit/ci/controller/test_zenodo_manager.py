@@ -3,6 +3,7 @@ from test.unit.test_unit_core_common import EmptyTestClass, TestUnitCoreCommon
 from unittest.mock import MagicMock
 
 from album.ci.controller.zenodo_manager import ZenodoManager
+from album.ci.utils import zenodo_api
 from album.ci.utils.zenodo_api import InvalidResponseStatusError
 
 
@@ -47,11 +48,13 @@ class TestZenodoManager(TestUnitCoreCommon):
         zm = self._create_zenodo_manager_with_mock_query()
 
         deposit = self._make_record()
-        zm.query.deposit_get.return_value = [deposit]
+        zm.query.deposit_get_by_id.return_value = [deposit]
 
         result = zm.get_published_deposit("19553456")
 
-        zm.query.deposit_get.assert_called_once_with("19553456")
+        zm.query.deposit_get_by_id.assert_called_once_with(
+            "19553456", status=zenodo_api.DepositStatus.PUBLISHED
+        )
         zm.query.records_get.assert_not_called()
         self.assertEqual("19553456", result.id)
 
@@ -66,9 +69,7 @@ class TestZenodoManager(TestUnitCoreCommon):
         zm = self._create_zenodo_manager_with_mock_query()
 
         # deposits API → 404
-        zm.query.deposit_get.side_effect = InvalidResponseStatusError("NotFound")
-
-        # records API direct lookup → published record found
+        zm.query.deposit_get_by_id.side_effect = InvalidResponseStatusError("NotFound")
         published_record = self._make_record()
         zm.query.records_get.return_value = [published_record]
 
@@ -91,9 +92,7 @@ class TestZenodoManager(TestUnitCoreCommon):
         zm = self._create_zenodo_manager_with_mock_query()
 
         # deposit API → 404
-        zm.query.deposit_get.side_effect = InvalidResponseStatusError("NotFound")
-
-        # records API: direct lookup → 404, DOI search → found
+        zm.query.deposit_get_by_id.side_effect = InvalidResponseStatusError("NotFound")
         published_record = self._make_record()
 
         def records_get_side_effect(**kwargs):
@@ -120,7 +119,7 @@ class TestZenodoManager(TestUnitCoreCommon):
         deposit API, direct records API, and DOI search all fail."""
         zm = self._create_zenodo_manager_with_mock_query()
 
-        zm.query.deposit_get.side_effect = InvalidResponseStatusError("NotFound")
+        zm.query.deposit_get_by_id.side_effect = InvalidResponseStatusError("NotFound")
         zm.query.records_get.side_effect = InvalidResponseStatusError("NotFound")
 
         result = zm.get_published_deposit("00000", doi="10.5281/zenodo.00000")
@@ -133,7 +132,7 @@ class TestZenodoManager(TestUnitCoreCommon):
         """When no DOI is provided, the DOI search fallback must be skipped."""
         zm = self._create_zenodo_manager_with_mock_query()
 
-        zm.query.deposit_get.side_effect = InvalidResponseStatusError("NotFound")
+        zm.query.deposit_get_by_id.side_effect = InvalidResponseStatusError("NotFound")
         zm.query.records_get.side_effect = InvalidResponseStatusError("NotFound")
 
         result = zm.get_published_deposit("00000")  # no doi param

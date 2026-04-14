@@ -243,8 +243,10 @@ class ZenodoManager:
         module_logger().info("Checking published state of deposit %s..." % deposit_id)
         # Try the deposit API first.
         try:
-            deposit = self.query.deposit_get(deposit_id)
-            if deposit and deposit[0].submitted:
+            deposit = self.query.deposit_get_by_id(
+                deposit_id, status=zenodo_api.DepositStatus.PUBLISHED
+            )
+            if deposit:
                 module_logger().info(
                     "Deposit %s is published (via deposit API)." % deposit_id
                 )
@@ -347,7 +349,7 @@ class ZenodoManager:
         # Strategy 2: query the deposit and read conceptrecid
         if deposit_id:
             try:
-                deposit = self.query.deposit_get(deposit_id)
+                deposit = self.query.deposit_get_by_id(deposit_id)
                 if deposit and deposit[0].conceptrecid:
                     conceptrecid = str(deposit[0].conceptrecid)
                     module_logger().info(
@@ -371,7 +373,7 @@ class ZenodoManager:
         module_logger().debug(
             "Querying Zenodo deposit API for draft deposit %s..." % deposit_id
         )
-        deposit = self.query.deposit_get(
+        deposit = self.query.deposit_get_by_id(
             deposit_id, status=zenodo_api.DepositStatus.DRAFT
         )
 
@@ -396,7 +398,7 @@ class ZenodoManager:
         module_logger().debug(
             "Querying Zenodo deposit API for published deposit %s..." % deposit_id
         )
-        deposit = self.query.deposit_get(deposit_id)
+        deposit = self.query.deposit_get_by_id(deposit_id)
 
         if deposit and deposit[0].submitted:
             deposit_ = deposit[0]

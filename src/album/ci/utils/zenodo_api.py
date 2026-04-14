@@ -856,43 +856,90 @@ class ZenodoAPI:
 
     # ############# Deposits #############
 
-    def deposit_get(
+    # --- Status filter mapping ---
+    # Zenodo's by-ID endpoint ignores the ``status`` query parameter and
+    # returns the deposit regardless of its state.  The mapping below
+    # translates each ``DepositStatus`` to the expected value of the
+    # ``submitted`` field on the returned ``ZenodoDeposit``, so we can
+    # filter client-side.
+    _STATUS_TO_SUBMITTED = {
+        DepositStatus.DRAFT: False,
+        DepositStatus.PUBLISHED: True,
+    }
+
+    def deposit_get_by_id(
         self,
-        deposit_id: str | None = None,
+        deposit_id: str,
+        status: DepositStatus | None = None,
+    ) -> list[ZenodoDeposit]:
+        """Fetch a single deposit by its ID.
+
+        Args:
+            deposit_id:
+                The numeric deposit ID.
+            status:
+                Optional status filter.  When given, the deposit is only
+                returned if its state matches (client-side check, because
+                the Zenodo by-ID endpoint ignores the ``status`` query
+                parameter).  When ``None``, the deposit is returned
+                regardless of state.
+
+        Returns:
+            A list containing the deposit, or an empty list if not found
+            or filtered out by *status*.
+        """
+        link = self.base_url + "/api/deposit/depositions/%s" % deposit_id
+
+        module_logger().debug(
+            "GET {} (status={})".format(link, status.value if status else "any")
+        )
+        r = requests.get(link, params=self.params)
+
+        response_dict = self.validate_response(r, ResponseStatus.OK)
+
+        deposit = ZenodoDeposit(
+            response_dict, self.base_url, self.params["access_token"]
+        )
+
+        # Client-side status filter.
+        if status is not None:
+            expected_submitted = self._STATUS_TO_SUBMITTED[status]
+            if bool(deposit.submitted) != expected_submitted:
+                module_logger().debug(
+                    "Deposit %s filtered out: submitted=%s but status=%s requested."
+                    % (deposit.id, deposit.submitted, status.value)
+                )
+                return []
+
+        module_logger().debug("deposit_get_by_id returned deposit %s." % deposit.id)
+        return [deposit]
+
+    def deposit_search(
+        self,
         q: str = "",
         status: DepositStatus = DepositStatus.PUBLISHED,
         sort: SortOrder = SortOrder.BEST_MATCH,
     ) -> list[ZenodoDeposit]:
-        """Retrieve a deposit.
+        """Search deposits using query parameters (server-side filtering).
 
         Args:
-            deposit_id:
-                The id of the deposit. If None specified other params define a search request.
             q:
-                The search query. Holds keywords to search for in the deposit metadata.
+                The search query.  Keywords to search for in deposit metadata.
             status:
-                The deposit status. See @DepositStatus
+                Deposit status filter (applied server-side by Zenodo).
             sort:
-                Sorting of the result. See @SortOrder
+                Sorting of the result.
 
         Returns:
-            A list of @ZenodoDeposit found. Empty if none found.
+            A list of matching ``ZenodoDeposit`` objects.  Empty if none found.
         """
         link = self.base_url + "/api/deposit/depositions"
+        params = {
+            **{"q": q, "status": status.value, "sort": sort.value},
+            **self.params,
+        }
 
-        if deposit_id:
-            link = link + "/%s" % deposit_id
-            params = self.params
-        else:
-            params = {
-                **{"q": q, "status": status.value, "sort": sort.value},
-                **self.params,
-            }
-
-        module_logger().debug(
-            "GET %s (deposit_id=%s, status=%s)"
-            % (link, deposit_id or "(search)", status.value)
-        )
+        module_logger().debug(f"GET {link} (q={q!r}, status={status.value})")
         r = requests.get(link, params=params)
 
         response_dict = self.validate_response(r, ResponseStatus.OK)
@@ -905,19 +952,27 @@ class ZenodoAPI:
                         deposit_dict, self.base_url, self.params["access_token"]
                     )
                 )
-        else:
-            deposit_list.append(
-                ZenodoDeposit(response_dict, self.base_url, self.params["access_token"])
-            )
-        # Apply the filter on client-side so callers can trust the status argument.
-        if deposit_id and deposit_list:
-            want_published = status == DepositStatus.PUBLISHED
-            deposit_list = [
-                d for d in deposit_list if bool(d.submitted) == want_published
-            ]
 
-        module_logger().debug("deposit_get returned %d result(s)." % len(deposit_list))
+        module_logger().debug(
+            "deposit_search returned %d result(s)." % len(deposit_list)
+        )
         return deposit_list
+
+    def deposit_get(
+        self,
+        deposit_id: str | None = None,
+        q: str = "",
+        status: DepositStatus = DepositStatus.PUBLISHED,
+        sort: SortOrder = SortOrder.BEST_MATCH,
+    ) -> list[ZenodoDeposit]:
+        """Retrieve a deposit by ID or search.
+
+        Deprecated: prefer ``deposit_get_by_id`` or ``deposit_search`` directly.
+        This method dispatches to one of them for backward compatibility.
+        """
+        if deposit_id:
+            return self.deposit_get_by_id(deposit_id, status=status)
+        return self.deposit_search(q=q, status=status, sort=sort)
 
     def deposit_create(self) -> ZenodoDeposit:
         """Create an empty deposit (already uploaded).

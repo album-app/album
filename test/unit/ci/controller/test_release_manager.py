@@ -312,7 +312,7 @@ class TestReleaseManager(TestUnitCoreCommon):
         zm.query = MagicMock()
 
         # 1) zenodo_get_unpublished_deposit_by_id → 404 (not a draft)
-        zm.query.deposit_get.side_effect = InvalidResponseStatusError(
+        zm.query.deposit_get_by_id.side_effect = InvalidResponseStatusError(
             "Error 'NotFound' occurred. See Log for detailed information!"
         )
 
@@ -330,8 +330,8 @@ class TestReleaseManager(TestUnitCoreCommon):
 
         release_manager.zenodo_publish(branch, None, None)
 
-        # deposit_get was called (and failed)
-        self.assertGreaterEqual(zm.query.deposit_get.call_count, 1)
+        # deposit_get_by_id was called (and failed)
+        self.assertGreaterEqual(zm.query.deposit_get_by_id.call_count, 1)
 
         # records_get must have been called as fallback
         zm.query.records_get.assert_called_once_with(record_id="19553456")
@@ -355,7 +355,7 @@ class TestReleaseManager(TestUnitCoreCommon):
         DOI-based search (``/api/records?q=doi:"..."``) still finds it.
 
         The test exercises the full fallback chain:
-        deposit_get → 404, records_get(record_id=) → 404,
+        deposit_get_by_id → 404, records_get(record_id=) → 404,
         records_get(q=doi:"...") → found.
         """
         from album.ci.controller.zenodo_manager import ZenodoManager
@@ -376,7 +376,7 @@ class TestReleaseManager(TestUnitCoreCommon):
         zm.query = MagicMock()
 
         # deposit API → 404
-        zm.query.deposit_get.side_effect = InvalidResponseStatusError("NotFound")
+        zm.query.deposit_get_by_id.side_effect = InvalidResponseStatusError("NotFound")
 
         # records API: direct lookup → 404, DOI search → found
         published_record = self._create_mock_deposit(
@@ -448,8 +448,8 @@ class TestReleaseManager(TestUnitCoreCommon):
 
         # 1) zenodo_get_unpublished_deposit_by_id → 404 (not a draft)
         #    We need to make the real method raise, so we wire it through
-        #    the underlying _zenodo_get_unpublished which calls deposit_get.
-        zm.query.deposit_get.side_effect = InvalidResponseStatusError(
+        #    the underlying _zenodo_get_unpublished which calls deposit_get_by_id.
+        zm.query.deposit_get_by_id.side_effect = InvalidResponseStatusError(
             "Error 'NotFound' occurred. See Log for detailed information!"
         )
 
@@ -467,9 +467,9 @@ class TestReleaseManager(TestUnitCoreCommon):
 
         release_manager.zenodo_publish(branch, None, None)
 
-        # deposit_get was called (and failed) — at least once for the
+        # deposit_get_by_id was called (and failed) — at least once for the
         # unpublished query and once inside get_published_deposit
-        self.assertGreaterEqual(zm.query.deposit_get.call_count, 1)
+        self.assertGreaterEqual(zm.query.deposit_get_by_id.call_count, 1)
 
         # records_get must have been called as fallback
         zm.query.records_get.assert_called_once_with(record_id="19553456")
