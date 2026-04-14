@@ -6,6 +6,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Iterator, List, Tuple
 
+import git
 from git import Repo
 from git.refs import HEAD
 
@@ -26,8 +27,10 @@ from album.core.utils.operations.file_operations import (
 from album.core.utils.operations.git_operations import (
     add_files_commit_and_push,
     add_tag,
+    assert_main_not_advanced,
     checkout_branch,
     configure_git,
+    rebase_branch_onto_main,
     retrieve_files_from_head,
     retrieve_files_from_head_last_commit,
 )
@@ -518,7 +521,22 @@ class ReleaseManager:
             head = checkout_branch(repo, branch_name)
             module_logger().info("Checked out branch %s." % branch_name)
 
-            # always use remote index
+            # Rebase the branch onto the latest main before doing any work.
+            # This moves the fork point forward so that subsequent changes
+            # (DB update, solution list export) are based on the current
+            # main — preventing merge conflicts when the MR is merged later.
+            try:
+                rebase_branch_onto_main(repo, self.catalog.branch_name())
+            except git.GitCommandError:
+                module_logger().warning(
+                    "Could not rebase branch %s onto %s. "
+                    "Continuing without — the remote index fetch "
+                    "will still produce correct content."
+                    % (branch_name, self.catalog.branch_name())
+                )
+
+            # always use remote index, regardless of rebase success, to ensure we have the
+            # latest main index as base for updates.
             with TemporaryDirectory(dir=self.configuration.tmp_path()) as tmp_dir:
                 repo = Path(tmp_dir).joinpath("repo")
                 try:
@@ -650,6 +668,15 @@ class ReleaseManager:
         )
         with self._open_repo() as repo:
             head = checkout_branch(repo, branch_name)
+
+            # --- Guard: fail if main advanced during the pipeline ------
+            # The rebase in update_index brought the branch up-to-date.
+            # If main has moved since then (e.g. a concurrent deploy
+            # merged), the index data on this branch is stale and we
+            # must NOT silently overwrite it.  Fail fast so the pipeline
+            # can be re-run safely.
+            assert_main_not_advanced(repo, self.catalog.branch_name())
+            # ------------------------------------------------------------
 
             yml_dict, yml_file = self._get_yml_dict(head)
 

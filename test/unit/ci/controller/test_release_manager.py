@@ -878,8 +878,9 @@ class TestReleaseManager(TestUnitCoreCommon):
     # merge
     # ------------------------------------------------------------------
 
+    @patch("album.ci.controller.release_manager.assert_main_not_advanced")
     @patch("album.ci.controller.release_manager.add_files_commit_and_push")
-    def test_merge_commit_files_include_yml(self, mock_push):
+    def test_merge_commit_files_include_yml(self, mock_push, mock_assert_main):
         """merge must commit the solution.yml alongside index files."""
         repo_dir, branch, yml_relative_path, _ = self._create_source_repo()
         release_manager, catalog_path = self._create_release_manager(repo_dir)
@@ -926,8 +927,9 @@ class TestReleaseManager(TestUnitCoreCommon):
         self.assertEqual(3, len(committed))
         force_remove(repo_dir)
 
+    @patch("album.ci.controller.release_manager.assert_main_not_advanced")
     @patch("album.ci.controller.release_manager.add_files_commit_and_push")
-    def test_merge_push_flag_respects_dry_run(self, mock_push):
+    def test_merge_push_flag_respects_dry_run(self, mock_push, mock_assert_main):
         """dry_run=True → push=False, dry_run=False → push=True."""
         repo_dir, branch, _, _ = self._create_source_repo()
         release_manager, catalog_path = self._create_release_manager(repo_dir)
@@ -960,8 +962,9 @@ class TestReleaseManager(TestUnitCoreCommon):
         self.assertTrue(mock_push.call_args[1]["push"])
         force_remove(repo_dir)
 
+    @patch("album.ci.controller.release_manager.assert_main_not_advanced")
     @patch("album.ci.controller.release_manager.add_files_commit_and_push")
-    def test_merge_passes_allow_empty(self, mock_push):
+    def test_merge_passes_allow_empty(self, mock_push, mock_assert_main):
         """merge must pass allow_empty=True so it tolerates no-change pushes."""
         repo_dir, branch, _, _ = self._create_source_repo()
         release_manager, catalog_path = self._create_release_manager(repo_dir)
@@ -1036,4 +1039,66 @@ class TestReleaseManager(TestUnitCoreCommon):
 
         # index update must still be called
         mock_index.update.assert_called_once()
+        force_remove(repo_dir)
+
+    # ------------------------------------------------------------------
+    # merge — assert_main_not_advanced guard
+    # ------------------------------------------------------------------
+
+    @patch("album.ci.controller.release_manager.assert_main_not_advanced")
+    @patch("album.ci.controller.release_manager.add_files_commit_and_push")
+    def test_merge_calls_assert_main_not_advanced(self, mock_push, mock_assert_main):
+        """merge must call assert_main_not_advanced to guard against races."""
+        repo_dir, branch, _, _ = self._create_source_repo()
+        release_manager, catalog_path = self._create_release_manager(repo_dir)
+
+        with release_manager._open_repo():
+            pass
+        catalog_path.joinpath(
+            DefaultValues.catalog_solution_list_file_name.value
+        ).touch()
+        catalog_path.joinpath(DefaultValues.catalog_index_file_name.value).touch()
+
+        release_manager.merge(
+            branch,
+            dry_run=True,
+            push_option=None,
+            ci_user_name="u",
+            ci_user_email="e",
+        )
+
+        mock_assert_main.assert_called_once()
+        # first arg is the repo object, second is the catalog's main branch
+        call_args = mock_assert_main.call_args[0]
+        self.assertEqual(release_manager.catalog.branch_name(), call_args[1])
+        force_remove(repo_dir)
+
+    @patch("album.ci.controller.release_manager.add_files_commit_and_push")
+    def test_merge_fails_when_main_advanced(self, mock_push):
+        """merge must fail if assert_main_not_advanced raises RuntimeError."""
+        repo_dir, branch, _, _ = self._create_source_repo()
+        release_manager, catalog_path = self._create_release_manager(repo_dir)
+
+        with release_manager._open_repo():
+            pass
+        catalog_path.joinpath(
+            DefaultValues.catalog_solution_list_file_name.value
+        ).touch()
+        catalog_path.joinpath(DefaultValues.catalog_index_file_name.value).touch()
+
+        with patch(
+            "album.ci.controller.release_manager.assert_main_not_advanced",
+            side_effect=RuntimeError("Main branch has advanced"),
+        ):
+            with self.assertRaises(RuntimeError):
+                release_manager.merge(
+                    branch,
+                    dry_run=True,
+                    push_option=None,
+                    ci_user_name="u",
+                    ci_user_email="e",
+                )
+
+        # add_files_commit_and_push must NOT have been called
+        mock_push.assert_not_called()
         force_remove(repo_dir)

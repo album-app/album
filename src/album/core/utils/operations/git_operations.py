@@ -303,6 +303,82 @@ def get_remote_name(repo: Repo) -> str:
     return remote_name
 
 
+def rebase_branch_onto_main(repo: Repo, main_branch: str = "main") -> None:
+    """Fetch and rebase the currently checked-out branch onto the main branch.
+
+    Uses ``-X theirs`` so that any text-level conflicts are resolved in
+    favour of the branch's commits (which are being replayed).  This
+    brings the branch's fork point up-to-date with main and produces a
+    linear history, preventing three-way merge conflicts when the branch
+    is later merged back into main (e.g. via GitLab auto-merge).
+
+    Safe to call when the branch is already up-to-date — git rebase is a
+    no-op in that case.
+
+    Args:
+        repo:
+            The git repository (must have the target branch checked out).
+        main_branch:
+            Name of the main/default branch to rebase onto (default: ``"main"``).
+    """
+    remote_name = get_remote_name(repo)
+    module_logger().info(
+        f"Fetching {remote_name}/{main_branch} to incorporate latest changes..."
+    )
+    repo.git.fetch(remote_name, main_branch)
+    module_logger().info(f"Rebasing current branch onto {remote_name}/{main_branch}...")
+    try:
+        repo.git.rebase(
+            f"{remote_name}/{main_branch}",
+            "-X",
+            "theirs",
+        )
+        module_logger().info(f"Rebase onto {remote_name}/{main_branch} succeeded.")
+    except git.GitCommandError as e:
+        if "is up to date" in str(e).lower():
+            module_logger().info("Branch is already up-to-date with %s." % main_branch)
+        else:
+            raise
+
+
+def assert_main_not_advanced(repo: Repo, main_branch: str = "main") -> None:
+    """Fail fast if the main branch has advanced since this branch diverged.
+
+    Fetches the latest main from the remote and compares the merge-base of
+    the current HEAD with ``remote/main``.  If the merge-base is *not* the
+    same commit as the remote main HEAD, another deploy (or any other push)
+    must have landed on main while this pipeline was running.  In that case
+    the index data on this branch is stale and silently pushing would
+    overwrite the concurrent changes — so we raise ``RuntimeError`` to let
+    the pipeline fail and be safely re-run.
+
+    Args:
+        repo:
+            The git repository (must have the target branch checked out).
+        main_branch:
+            Name of the main/default branch (default: ``"main"``).
+
+    Raises:
+        RuntimeError: If main has advanced since the branch's fork point.
+    """
+    remote_name = get_remote_name(repo)
+    repo.git.fetch(remote_name, main_branch)
+    remote_ref = f"{remote_name}/{main_branch}"
+    merge_base = repo.git.merge_base("HEAD", remote_ref).strip()
+    remote_head = repo.git.rev_parse(remote_ref).strip()
+    if merge_base != remote_head:
+        raise RuntimeError(
+            "Main branch '%s' has advanced since this pipeline's "
+            "update_index step (merge-base=%s, main HEAD=%s). "
+            "A concurrent deploy may have merged. "
+            "Please re-run the pipeline."
+            % (main_branch, merge_base[:12], remote_head[:12])
+        )
+    module_logger().info(
+        f"Branch is up-to-date with {remote_name}/{main_branch} — safe to merge."
+    )
+
+
 def remove_files(head: Head, file_paths: List[str]) -> None:
     """Add files in a given path to a git head and commits.
 
