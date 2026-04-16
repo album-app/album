@@ -4,15 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "album"
-version = "0.12.1"
+version = "0.12.2"
 authors = [
     {name = "Kyle Harrington", email = "album@kyleharrington.com"},
-    {name = "Jan Philipp Albrecht", email = "j.p.albrecht@fu-berlin.de"},
+    {name = "Jan Philipp Albrecht", email = "album@jpalbrecht.de"},
     {name = "Deborah Schmidt", email = "mail@frauzufall.de"}
 ]
 maintainers = [
     {name = "Kyle Harrington", email = "album@kyleharrington.com"},
-    {name = "Jan Philipp Albrecht", email = "j.p.albrecht@fu-berlin.de"},
+    {name = "Jan Philipp Albrecht", email = "album@jpalbrecht.de"},
     {name = "Deborah Schmidt", email = "mail@frauzufall.de"}
 ]
 description = "Album is a framework for unifying computational tools across frameworks, languages, and environments."

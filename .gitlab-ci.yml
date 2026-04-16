@@ -1,5 +1,12 @@
 # CI Routine for the album framework.
 
+# Prevent duplicate pipelines: only run branch pipelines and cross-project triggers.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: never
+    - when: always
+
 #----------------------------
 # templates
 #----------------------------
@@ -27,7 +34,7 @@
     - "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12" # set Security download protocol to avoid https errors
     - "if(-Not (Test-Path $7ZIP_EXE)) {if(-Not (Test-Path $7ZIP_INSTALLER)){Invoke-Webrequest -URI https://www.7-zip.org/a/7z2201-x64.exe -OutFile $7ZIP_INSTALLER}}"
     - 'if(-Not (Test-Path $7ZIP_EXE)) {Start-Process -FilePath $7ZIP_INSTALLER -Args "/S" -Verb RunAs -Wait}'
-    - "Invoke-Webrequest -URI https://micro.mamba.pm/api/micromamba/win-64/latest -OutFile micromamba.tar.bz2"
+    - "Invoke-Webrequest -URI https://micro.mamba.pm/api/micromamba/win-64/$env:MICROMAMBA_CI_VERSION -OutFile micromamba.tar.bz2"
     - "& $7ZIP_EXE x micromamba.tar.bz2 -aoa"
     - '& $7ZIP_EXE x micromamba.tar -ttar -aoa -r Library\bin\micromamba.exe $("-o" + (Join-Path -Path (Get-Location) -ChildPath micromamba_installation))'
     - "$progressPreference = $oldProgressPreference"
@@ -39,8 +46,8 @@
     - 'if($env:CI_COMMIT_REF_NAME -match "api_change_runner*") { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX pip install git+https://gitlab.com/album-app/album-solution-api.git@dev}'
     - 'if($env:CI_COMMIT_REF_NAME -match "api_change_env*") { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX pip install git+https://gitlab.com/album-app/album-environments.git@dev}'
     # The following is necessary for the dev branch of this repository, so it can use the dev version of the API and envs
-    - 'if($env:CI_COMMIT_REF_NAME -match "dev*" -and $env:ALBUM_API_CHANGE_RUNNER -match "True" ) { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX pip install git+https://gitlab.com/album-app/album-solution-api.git@dev}'
-    - 'if($env:CI_COMMIT_REF_NAME -match "dev*" -and $env:ALBUM_API_CHANGE_ENV -match "True" ) { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX pip install git+https://gitlab.com/album-app/album-environments.git@dev}'
+    - 'if($env:CI_COMMIT_REF_NAME -match "dev*" -and $env:ALBUM_DEV_CORE_API -match "True" ) { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX pip install git+https://gitlab.com/album-app/album-solution-api.git@dev}'
+    - 'if($env:CI_COMMIT_REF_NAME -match "dev*" -and $env:ALBUM_DEV_CORE_ENV -match "True" ) { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX pip install git+https://gitlab.com/album-app/album-environments.git@dev}'
     - '.\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX pip install --no-cache-dir -e $Env:CI_PROJECT_DIR' # -e needed for coverage
     - '.\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX pip install coverage'
     - '$Env:ENVIRONMENT_DEBUGGING_MICROMAMBA_PATH=(Join-Path -Path (Get-Location) -ChildPath micromamba_installation\Library\bin\micromamba.exe)' # set environment variables necessary to work with the environment API
@@ -64,12 +71,9 @@
     PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
     MICROMAMBA_EXECUTABLE: "" # ensure that the variable is empty before running the job
   before_script:
-    - apt update
-    - apt install git -y
-    - apt install -y curl
-    - apt install -y bzip2
+    - apt update || (sleep 30 && apt update) && apt install -y git curl bzip2
     - mkdir -p $CI_PROJECT_DIR/bin/
-    - curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj -C $CI_PROJECT_DIR/bin/ --strip-components=1 bin/micromamba
+    - curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/$MICROMAMBA_CI_VERSION | tar -xvj -C $CI_PROJECT_DIR/bin/ --strip-components=1 bin/micromamba
     - MICROMAMBA_EXECUTABLE=$CI_PROJECT_DIR/bin/micromamba
     - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=$TEST_PYTHON_VERSION
     - bash -c 'echo $CI_COMMIT_REF_NAME'
@@ -77,8 +81,8 @@
     - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_runner* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No api_change_runner branch"'
     - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_env* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No api_change_env branch"'
     # The following is necessary for the dev branch of this repository, so it can use the dev version of the API and envs
-    - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_API_CHANGE_ENV == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No API env changes on that branch"]]'
-    - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_API_CHANGE_RUNNER == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No API runner changes on that branch"]]'
+    - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_DEV_CORE_ENV == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No API env changes on that branch"]]'
+    - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_DEV_CORE_API == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No API runner changes on that branch"]]'
     - $MICROMAMBA_EXECUTABLE run -n album pip install --no-cache-dir -e $CI_PROJECT_DIR # -e needed for coverage
     - $MICROMAMBA_EXECUTABLE run -n album pip install coverage
     - $MICROMAMBA_EXECUTABLE run -n album python -V
@@ -110,7 +114,7 @@
     - echo $tmpdir
     - echo $tmpdir > /tmp/tmpdir
     - mkdir -p $tmpdir/bin/
-    - curl -Ls https://micro.mamba.pm/api/micromamba/osx-64/latest | tar -xvj -C $tmpdir/bin/ --strip-components=1 bin/micromamba
+    - curl -Ls https://micro.mamba.pm/api/micromamba/osx-64/$MICROMAMBA_CI_VERSION | tar -xvj -C $tmpdir/bin/ --strip-components=1 bin/micromamba
     - MICROMAMBA_EXECUTABLE=$tmpdir/bin/micromamba
     - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=$TEST_PYTHON_VERSION
     - bash -c 'echo $CI_COMMIT_REF_NAME'
@@ -118,8 +122,8 @@
     - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_runner* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No api_change_runner branch"'
     - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_env* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No api_change_env branch"'
     # The following is necessary for the dev branch of this repository, so it can use the dev version of the API and envs
-    - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_API_CHANGE_ENV == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No API env changes on that branch"]]'
-    - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_API_CHANGE_RUNNER == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No API runner changes on that branch"]]'
+    - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_DEV_CORE_ENV == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No API env changes on that branch"]]'
+    - bash -c '[[ $CI_COMMIT_REF_NAME == dev && $ALBUM_DEV_CORE_API == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No API runner changes on that branch"]]'
     - $MICROMAMBA_EXECUTABLE run -n album pip install --no-cache-dir -e $CI_PROJECT_DIR # -e needed for coverage
     - $MICROMAMBA_EXECUTABLE run -n album pip install coverage
     - $MICROMAMBA_EXECUTABLE run -n album python -V
@@ -153,6 +157,8 @@ rebuild_album_installer:
   trigger:
     project: album-app/plugins/album-package
   rules:
+    - if: $ALBUM_DEV_CORE_API == "True" || $ALBUM_DEV_CORE_ENV == "True"
+      when: never
     - if: $CI_COMMIT_TAG
       when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -176,6 +182,8 @@ prepare release:
     reports:
       dotenv: variables.env
   rules:
+    - if: $ALBUM_DEV_CORE_API == "True" || $ALBUM_DEV_CORE_ENV == "True"
+      when: never
     - if: $CI_COMMIT_TAG
       when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -194,6 +202,8 @@ gitlab release:
   script:
     - echo "running release_job for version $VERSION and tag $TAG"
   rules:
+    - if: $ALBUM_DEV_CORE_API == "True" || $ALBUM_DEV_CORE_ENV == "True"
+      when: never
     - if: $CI_COMMIT_TAG
       when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -221,6 +231,8 @@ gitlab pypi deploy:
     - python -m build
     - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
   rules:
+    - if: $ALBUM_DEV_CORE_API == "True" || $ALBUM_DEV_CORE_ENV == "True"
+      when: never
     - if: $CI_COMMIT_TAG
       when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -245,6 +257,8 @@ pypi deploy:
     - python -m build
     - TWINE_PASSWORD=$PYPI_DEPLOY_TOKEN TWINE_USERNAME=$PYPI_DEPLOY_USER python -m twine upload --repository-url https://upload.pypi.org/legacy/  dist/*
   rules:
+    - if: $ALBUM_DEV_CORE_API == "True" || $ALBUM_DEV_CORE_ENV == "True"
+      when: never
     - if: $CI_COMMIT_TAG
       when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -272,6 +286,8 @@ docker deploy:
     - docker build -t $tag .
     - docker push $tag
   rules:
+    - if: $ALBUM_DEV_CORE_API == "True" || $ALBUM_DEV_CORE_ENV == "True"
+      when: never
     - if: $CI_COMMIT_TAG
       when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
