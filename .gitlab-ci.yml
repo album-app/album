@@ -71,10 +71,12 @@ workflow:
     PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
     MICROMAMBA_EXECUTABLE: "" # ensure that the variable is empty before running the job
   before_script:
-    - apt update || (sleep 30 && apt update) && apt install -y git curl bzip2
+    - apt update || (sleep 30 && apt update) && apt install -y ca-certificates git curl bzip2
     - mkdir -p $CI_PROJECT_DIR/bin/
-    - curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/$MICROMAMBA_CI_VERSION | tar -xvj -C $CI_PROJECT_DIR/bin/ --strip-components=1 bin/micromamba
+    - curl -fsSL --retry 5 --retry-delay 3 https://micro.mamba.pm/api/micromamba/linux-64/$MICROMAMBA_CI_VERSION -o /tmp/micromamba.tar.bz2
+    - tar -xvjf /tmp/micromamba.tar.bz2 -C $CI_PROJECT_DIR/bin/ --strip-components=1 bin/micromamba
     - MICROMAMBA_EXECUTABLE=$CI_PROJECT_DIR/bin/micromamba
+    - $MICROMAMBA_EXECUTABLE --version
     - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=$TEST_PYTHON_VERSION
     - bash -c 'echo $CI_COMMIT_REF_NAME'
     # The following lines allow to install the dev version of the API and envs in the album environment, based on the current branch name
@@ -114,8 +116,10 @@ workflow:
     - echo $tmpdir
     - echo $tmpdir > /tmp/tmpdir
     - mkdir -p $tmpdir/bin/
-    - curl -Ls https://micro.mamba.pm/api/micromamba/osx-64/$MICROMAMBA_CI_VERSION | tar -xvj -C $tmpdir/bin/ --strip-components=1 bin/micromamba
+    - curl -fsSL --retry 5 --retry-delay 3 https://micro.mamba.pm/api/micromamba/osx-64/$MICROMAMBA_CI_VERSION -o $tmpdir/micromamba.tar.bz2
+    - tar -xvjf $tmpdir/micromamba.tar.bz2 -C $tmpdir/bin/ --strip-components=1 bin/micromamba
     - MICROMAMBA_EXECUTABLE=$tmpdir/bin/micromamba
+    - $MICROMAMBA_EXECUTABLE --version
     - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=$TEST_PYTHON_VERSION
     - bash -c 'echo $CI_COMMIT_REF_NAME'
     # The following lines allow to install the dev version of the API and envs in the album environment, based on the current branch name
@@ -282,9 +286,11 @@ docker deploy:
     - docker login -u "$DOCKER_DEPLOY_USER" -p "$DOCKER_DEPLOY_TOKEN" docker.io
     # building deploy tag
     - tag=$(echo $DOCKER_DEPLOY_USER/album:$VERSION)
+    - latest_tag=$(echo $DOCKER_DEPLOY_USER/album:latest)
     - echo "Building image with tag $tag"
-    - docker build -t $tag .
+    - docker build -t $tag -t $latest_tag .
     - docker push $tag
+    - docker push $latest_tag
   rules:
     - if: $ALBUM_DEV_CORE_API == "True" || $ALBUM_DEV_CORE_ENV == "True"
       when: never
