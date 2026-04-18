@@ -1,6 +1,5 @@
 from album.runner.album_logging import get_active_logger
-from album.runner.api import get_args
-from album.runner.api import setup
+from album.runner.api import get_args, setup
 
 
 def album_run():
@@ -18,21 +17,21 @@ def album_run():
     la1 = args.lambda_arg1
     la2 = args.lambda_arg2
 
-    get_active_logger().info("integer_arg1: %s %s" % (type(ia1), ia1))
+    get_active_logger().info(f"integer_arg1: {type(ia1)} {ia1}")
 
-    get_active_logger().info("integer_arg2: %s %s" % (type(ia2), ia2))
+    get_active_logger().info(f"integer_arg2: {type(ia2)} {ia2}")
 
-    get_active_logger().info("string_arg1: %s %s" % (type(sa1), sa1))
+    get_active_logger().info(f"string_arg1: {type(sa1)} {sa1}")
 
-    get_active_logger().info("file_arg1: %s %s" % (type(fa1), fa1))
+    get_active_logger().info(f"file_arg1: {type(fa1)} {fa1}")
 
-    get_active_logger().info("directory_arg1: %s %s" % (type(da1), da1))
+    get_active_logger().info(f"directory_arg1: {type(da1)} {da1}")
 
-    get_active_logger().info("boolean_arg1: %s %s" % (type(ba1), ba1))
+    get_active_logger().info(f"boolean_arg1: {type(ba1)} {ba1}")
 
-    get_active_logger().info("lambda_arg1: %s %s" % (type(la1), la1))
+    get_active_logger().info(f"lambda_arg1: {type(la1)} {la1}")
 
-    get_active_logger().info("lambda_arg2: %s %s" % (type(la2), la2))
+    get_active_logger().info(f"lambda_arg2: {type(la2)} {la2}")
 
     get_active_logger().info("solution8_arguments_run_end")
 
@@ -54,7 +53,7 @@ setup(
     name="solution8_arguments",
     title="solution7",
     version="0.1.0",
-    album_api_version="0.6.1",
+    album_api_version="0.7.1",
     args=[
         {
             "name": "integer_arg1",

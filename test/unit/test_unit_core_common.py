@@ -3,20 +3,20 @@ import os
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
-from test.test_common import TestCommon
+from test.test_common import TEST_ALBUM_API_VERSION, TestCommon
 from typing import Generator
 from unittest.mock import patch
 
 import git
-from album.runner import album_logging
-from album.runner.album_logging import pop_active_logger
-from album.runner.core.model.solution import Solution
 
 from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoDefaultUrl
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import force_remove
+from album.runner import album_logging
+from album.runner.album_logging import pop_active_logger
+from album.runner.core.model.solution import Solution
 
 
 class TestUnitCoreCommon(TestCommon):
@@ -49,7 +49,7 @@ class TestUnitCoreCommon(TestCommon):
             "name": "tsn",
             "description": "d1",
             "version": "tsv",
-            "album_api_version": "0.6.1",
+            "album_api_version": TEST_ALBUM_API_VERSION,
             "album_version": "mhv1",
             "license": "l1",
             "changelog": "ch1",
@@ -72,7 +72,7 @@ class TestUnitCoreCommon(TestCommon):
             "name": "tsn",
             "description": "d1",
             "version": "tsv",
-            "album_api_version": "0.6.1",
+            "album_api_version": TEST_ALBUM_API_VERSION,
             "album_version": "mhv1",
             "license": "l1",
             "changelog": "ch1",

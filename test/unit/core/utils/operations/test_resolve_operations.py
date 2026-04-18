@@ -1,25 +1,28 @@
 import unittest.mock
+import zipfile
 from copy import deepcopy
 from pathlib import Path
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 from unittest import mock
 from unittest.mock import patch
 
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.resolve_operations import (
-    get_doi_from_input,
-    get_cgnv_from_input,
-    get_gnv_from_input,
-    get_attributes_from_string,
+    _parse_zenodo_url,
+    check_doi,
     check_file_or_url,
     dict_to_coordinates,
-    get_zip_name_prefix,
+    get_attributes_from_string,
+    get_cgnv_from_input,
+    get_doi_from_input,
+    get_gnv_from_input,
     get_zip_name,
-    check_doi,
+    get_zip_name_prefix,
     parse_doi_service_url,
-    _parse_zenodo_url,
+    prepare_path,
+    retrieve_zenodo_record_archive_url,
 )
 from album.runner.core.model.coordinates import Coordinates
-from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestResolveOperations(TestUnitCoreCommon):
@@ -158,10 +161,7 @@ class TestResolveOperations(TestUnitCoreCommon):
         with self.assertRaises(NotImplementedError):
             parse_doi_service_url(url5)
 
-    @patch(
-        "album.core.utils.operations.resolve_operations.retrieve_zenodo_record_download_zip"
-    )
-    def test__parse_zenodo_url(self, rzrdz):
+    def test__parse_zenodo_url(self):
         # prepare
         url1 = "https://zenodo.org/record/5571504"
         url2 = "https://zenod.org/record/5571504"
@@ -171,10 +171,10 @@ class TestResolveOperations(TestUnitCoreCommon):
         url6 = "https://zenodo.org/record/5571504/1234"
 
         # call
-        _parse_zenodo_url(url1)
+        result = _parse_zenodo_url(url1)
 
-        # assert
-        rzrdz.assert_called_once_with("5571504")
+        # assert — should return the files-archive URL
+        self.assertEqual("https://zenodo.org/api/records/5571504/files-archive", result)
 
         # call expect error
         with self.assertRaises(ValueError):
@@ -188,10 +188,16 @@ class TestResolveOperations(TestUnitCoreCommon):
         with self.assertRaises(ValueError):
             _parse_zenodo_url(url6)
 
-    @unittest.skip("Needs to be implemented!")
-    def test_retrieve_zenodo_record_download_zip(self):
-        # todo: implement
-        pass
+    def test__parse_zenodo_url_subdomain(self):
+        url = "https://sandbox.zenodo.org/record/9999"
+        result = _parse_zenodo_url(url)
+        self.assertEqual(
+            "https://sandbox.zenodo.org/api/records/9999/files-archive", result
+        )
+
+    def test_retrieve_zenodo_record_archive_url(self):
+        result = retrieve_zenodo_record_archive_url("https://zenodo.org", "5571504")
+        self.assertEqual("https://zenodo.org/api/records/5571504/files-archive", result)
 
     @patch("album.core.utils.operations.resolve_operations.download")
     @patch("album.core.utils.operations.resolve_operations.prepare_path")
@@ -249,7 +255,9 @@ class TestResolveOperations(TestUnitCoreCommon):
             str(zipfile),
             Path(self.tmp_dir.name).joinpath(DefaultValues.cache_path_tmp_prefix.value),
         )
-        self.assertEqual(unzip_archive_mock.return_value, case_zip)
+        self.assertEqual(
+            unzip_archive_mock.return_value.joinpath("solution.py"), case_zip
+        )
 
         unzip_archive_mock.assert_called_once_with(
             zipfile,
@@ -334,13 +342,72 @@ class TestResolveOperations(TestUnitCoreCommon):
             self.tmp_dir.name,
             cache,
         )
-        self.assertEqual(Path(self.tmp_dir.name), case_folder)
+        self.assertEqual(Path(self.tmp_dir.name).joinpath("solution.py"), case_folder)
 
         rand_folder_name_mock.assert_called_once()
 
         unzip_archive_mock.assert_not_called()
         download_mock.assert_not_called()
         check_zip_mock.assert_not_called()
+
+    def test_prepare_path_nested_zenodo_zip(self):
+        """prepare_path must handle Zenodo deposit archives that contain an
+        inner solution.zip (with directory structure) plus preview files."""
+        tmp = Path(self.tmp_dir.name)
+
+        # Build inner solution.zip (what _get_release_files produces)
+        inner_zip_path = tmp.joinpath("inner", "solution.zip")
+        inner_zip_path.parent.mkdir(parents=True)
+        with zipfile.ZipFile(inner_zip_path, "w") as zf:
+            zf.writestr("solution.py", "from album.runner.api import setup\nsetup()")
+            zf.writestr("solution.yml", "group: g\nname: n\nversion: '0.1.0'")
+            zf.writestr("src/main/java/Main.java", "class Main {}")
+
+        # Build outer archive (what Zenodo /files-archive returns)
+        outer_zip_path = tmp.joinpath("outer", "archive.zip")
+        outer_zip_path.parent.mkdir(parents=True)
+        with zipfile.ZipFile(outer_zip_path, "w") as zf:
+            zf.write(inner_zip_path, "solution.zip")
+            zf.writestr("solution.yml", "group: g\nname: n\nversion: '0.1.0'")
+            zf.writestr("cover.png", "fake")
+
+        cache_dir = tmp.joinpath("cache")
+        cache_dir.mkdir()
+
+        result = prepare_path(outer_zip_path, cache_dir)
+
+        # Must resolve to solution.py
+        self.assertIsNotNone(result)
+        self.assertEqual("solution.py", result.name)
+        self.assertTrue(result.exists(), "solution.py must exist: %s" % result)
+
+        # The nested directory structure must be preserved
+        solution_dir = result.parent
+        nested_java = solution_dir.joinpath("src", "main", "java", "Main.java")
+        self.assertTrue(
+            nested_java.exists(),
+            "Nested file not extracted: %s" % nested_java,
+        )
+
+    def test_prepare_path_flat_zip_still_works(self):
+        """prepare_path must still work with a simple zip containing solution.py
+        directly (no inner solution.zip — backward compatibility)."""
+        tmp = Path(self.tmp_dir.name)
+
+        flat_zip_path = tmp.joinpath("flat", "solution.zip")
+        flat_zip_path.parent.mkdir(parents=True)
+        with zipfile.ZipFile(flat_zip_path, "w") as zf:
+            zf.writestr("solution.py", "from album.runner.api import setup\nsetup()")
+            zf.writestr("solution.yml", "group: g\nname: n\nversion: '0.1.0'")
+
+        cache_dir = tmp.joinpath("cache")
+        cache_dir.mkdir()
+
+        result = prepare_path(flat_zip_path, cache_dir)
+
+        self.assertIsNotNone(result)
+        self.assertEqual("solution.py", result.name)
+        self.assertTrue(result.exists())
 
     def test_dict_to_coordinates(self):
         self.assertEqual(

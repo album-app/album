@@ -6,7 +6,7 @@ from typing import Dict, Final, List
 import album.core
 
 # outside of the class to be able to use it in the default values
-DEFAULT_SOLUTION_PYTHON_VERSION: Final[str] = "3.9"
+DEFAULT_SOLUTION_PYTHON_VERSION: Final[str] = "3.10"
 
 # outside of the class. Dictionary as enum values are not hashable
 # always use with deepcopy, as it is mutable
@@ -25,7 +25,7 @@ class DefaultValues(Enum):
 
     # runner
     runner_api_package_version = (
-        "0.6.1"  # set explicitly to None to install no runner_api_package
+        "0.7.1"  # set explicitly to None to install no runner_api_package
     )
     runner_api_package_name = "album-solution-api"
     runner_pip_version = "pip"

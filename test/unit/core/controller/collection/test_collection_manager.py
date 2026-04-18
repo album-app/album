@@ -1,16 +1,14 @@
 import unittest
 from pathlib import Path
+from test.unit.test_unit_core_common import TestCatalogAndCollectionCommon
 from unittest import mock
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
-from album.core.controller.collection.collection_manager import CollectionManager
 from album.core.model.catalog import Catalog
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.resolve_result import ResolveResult
 from album.runner.core.model.coordinates import Coordinates
 from album.runner.core.model.solution import Solution
-from test.unit.test_unit_core_common import TestCatalogAndCollectionCommon
 
 
 class TestCollectionManager(TestCatalogAndCollectionCommon):
@@ -294,6 +292,32 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         _search_mock.assert_not_called()
         _search_doi_mock.assert_called_once_with("10.5072/zenodo.931388")
         check_doi_mock.assert_called_once_with("10.5072/zenodo.931388", mock.ANY)
+
+    @patch("album.core.controller.collection.collection_manager.check_doi")
+    @patch(
+        "album.core.controller.collection.collection_manager.check_file_or_url",
+        return_value=None,
+    )
+    def test__resolve_case_doi_directory(self, _, check_doi_mock):
+        """check_doi (via prepare_path) returns a path to solution.py inside
+        the unzipped Zenodo archive.  _resolve must use it as-is."""
+        # prepare
+        input = "doi:10.5072/zenodo.931388"
+        unzipped_dir = Path(self.tmp_dir.name).joinpath("unzipped")
+        unzipped_dir.mkdir()
+        solution_file = unzipped_dir.joinpath("solution.py")
+        solution_file.touch()
+
+        # mocks — check_doi already returns the solution.py path
+        _search_doi_mock = MagicMock(return_value=None)
+        self.album_controller.collection_manager()._search_doi = _search_doi_mock
+        check_doi_mock.return_value = solution_file
+
+        # call
+        resolve_result = self.album_controller.collection_manager()._resolve(input)
+
+        # assert — path is the solution.py returned by check_doi
+        self.assertEqual(solution_file, resolve_result.path())
 
     @patch(
         "album.core.controller.collection.collection_manager.check_file_or_url",

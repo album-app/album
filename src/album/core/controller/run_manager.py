@@ -1,3 +1,4 @@
+from importlib.metadata import entry_points
 from queue import Queue
 from typing import List, Optional
 
@@ -74,12 +75,10 @@ class RunManager(IRunManager):
         if "dependencies" in resolve_result.loaded_solution().setup():
             deps = resolve_result.loaded_solution().setup()["dependencies"]
             if "plugins" in deps:
-                import pkg_resources
-
                 module_logger().debug(
                     "Processing solution plugins: %s" % deps["plugins"]
                 )
-                available_plugins = pkg_resources.iter_entry_points("plugins_album")
+                available_plugins = entry_points(group="plugins_album")
                 for plugin in deps["plugins"]:
                     found = False
                     for entry_point in available_plugins:

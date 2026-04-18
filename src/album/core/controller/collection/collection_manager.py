@@ -2,9 +2,6 @@ import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from album.runner import album_logging
-from album.runner.core.api.model.coordinates import ICoordinates
-
 from album.core.api.controller.collection.catalog_handler import ICatalogHandler
 from album.core.api.controller.collection.collection_manager import ICollectionManager
 from album.core.api.controller.collection.solution_handler import ISolutionHandler
@@ -26,6 +23,8 @@ from album.core.utils.operations.resolve_operations import (
     get_attributes_from_string,
     get_doi_from_input,
 )
+from album.runner import album_logging
+from album.runner.core.api.model.coordinates import ICoordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -255,21 +254,23 @@ class CollectionManager(ICollectionManager):
     def _resolve(self, str_input: str) -> ICollectionSolution:
         str_input = str(str_input)
 
+        # A single-file solution is when the user points directly at a .py
+        # file (not a zip, directory, URL, or DOI).  Only single files may
+        # have an arbitrary name; inside a folder / zip the file is always
+        # called solution.py.  Determine this *before* check_file_or_url
+        # transforms the path (prepare_path now always returns a file path).
+        _input_path = Path(str_input)
+        single_file = _input_path.is_file() and not _input_path.is_dir()
+
         # always first resolve outside any catalog, excluding a DOI which should be first resolved inside a catalog
         path = check_file_or_url(
             str_input, self.album.configuration().cache_path_download()
         )
 
-        single_file = False
-
         doi = get_doi_from_input(str_input)
         if path:
             if not path.exists():
                 raise FileNotFoundError(path)
-            single_file = path.is_file() and not path.is_dir()
-
-            if not single_file:
-                path = path.joinpath(DefaultValues.solution_default_name.value)
 
             # will load the solution behind the path to get meta-information
             solution_entry = self._search_for_local_file(path)
@@ -290,7 +291,8 @@ class CollectionManager(ICollectionManager):
                         catalog, dict_to_coordinates(solution_entry.setup())
                     )
                 else:
-                    # download DOI
+                    # download DOI — check_doi / prepare_path returns the
+                    # path to solution.py inside the unzipped Zenodo archive
                     path = check_doi(doi["doi"], self.album.configuration().tmp_path())
                     catalog = self.album.catalogs().get_cache_catalog()
             else:  # case no doi

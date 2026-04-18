@@ -7,11 +7,11 @@ from test.unit.test_unit_core_common import (
 from unittest.mock import MagicMock, patch
 
 import git
-from album.runner.core.model.coordinates import Coordinates
 
 from album.core.controller.deploy_manager import DeployManager
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
+from album.runner.core.model.coordinates import Coordinates
 
 
 class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
@@ -247,6 +247,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
             "pushOptions",
             "myEmail",
             "myName",
+            files_to_remove=[str(Path("solutions", "tsg", "tsn"))],
         )
 
     def test__deploy_routine_in_local_src(self):

@@ -209,6 +209,8 @@ def add_files_commit_and_push(
     username: str = "",
     push_option_list: Union[List[str], None] = None,
     force: bool = False,
+    force_with_lease: bool = False,
+    allow_empty: bool = False,
 ) -> None:
     """Add files in a given path to a git head and commits.
 
@@ -229,9 +231,17 @@ def add_files_commit_and_push(
             The git email to use. (Default: systems git configuration)
         force:
             whether to use force push or not
+        force_with_lease:
+            whether to use --force-with-lease (safe force push after rebase).
+            Mutually exclusive with *force* — if both are set, force wins.
+        allow_empty:
+            If True, create an empty commit when there are no file changes
+            instead of raising.  This is useful when the push itself must
+            happen (e.g. to deliver push options like auto-merge) even
+            though no files were modified.
 
     Raises:
-        RuntimeError when no files are in the index
+        RuntimeError when no files are in the index and allow_empty is False
 
     """
     if push_option_list is None or push_option_list == []:
@@ -244,31 +254,36 @@ def add_files_commit_and_push(
     if email or username:
         configure_git(repo, email, username)
 
-    if _add_files(repo, file_paths):
+    # build push command
+    cmd_option = ["--set-upstream"]
+    cmd = cmd_option + push_options_
+    if force:
+        cmd = cmd + ["-f"]
+    elif force_with_lease:
+        cmd = cmd + ["--force-with-lease"]
 
-        # build command
-        cmd_option = ["--set-upstream"]
-        cmd = cmd_option + push_options_
-        if force:
-            cmd = cmd + ["-f"]
+    remote_name = get_remote_name(repo)
 
-        remote_name = get_remote_name(repo)
+    cmd = cmd + [remote_name, head]
 
-        cmd = cmd + [remote_name, head]
+    has_changes = _add_files(repo, file_paths)
 
+    if has_changes:
         module_logger().debug(
             "Running command: repo.git.push(%s)..." % (", ".join(str(x) for x in cmd))
         )
-
-        # commit
         repo.git.commit(m=commit_message)
-
-        if push:
-            module_logger().info("Preparing pushing...")
-            repo.git.push(cmd)
-
+    elif allow_empty:
+        module_logger().info(
+            "No file changes; creating empty commit to deliver push options."
+        )
+        repo.git.commit(m=commit_message, allow_empty=True)
     else:
         raise RuntimeError("Diff shows no changes to the repository. Aborting...")
+
+    if push:
+        module_logger().info("Preparing pushing...")
+        repo.git.push(cmd)
 
 
 def add_tag(repo: Repo, tag: str) -> None:
@@ -292,6 +307,82 @@ def get_remote_name(repo: Repo) -> str:
     except AttributeError:
         remote_name = "origin"
     return remote_name
+
+
+def rebase_branch_onto_main(repo: Repo, main_branch: str = "main") -> None:
+    """Fetch and rebase the currently checked-out branch onto the main branch.
+
+    Uses ``-X theirs`` so that any text-level conflicts are resolved in
+    favour of the branch's commits (which are being replayed).  This
+    brings the branch's fork point up-to-date with main and produces a
+    linear history, preventing three-way merge conflicts when the branch
+    is later merged back into main (e.g. via GitLab auto-merge).
+
+    Safe to call when the branch is already up-to-date — git rebase is a
+    no-op in that case.
+
+    Args:
+        repo:
+            The git repository (must have the target branch checked out).
+        main_branch:
+            Name of the main/default branch to rebase onto (default: ``"main"``).
+    """
+    remote_name = get_remote_name(repo)
+    module_logger().info(
+        f"Fetching {remote_name}/{main_branch} to incorporate latest changes..."
+    )
+    repo.git.fetch(remote_name, main_branch)
+    module_logger().info(f"Rebasing current branch onto {remote_name}/{main_branch}...")
+    try:
+        repo.git.rebase(
+            f"{remote_name}/{main_branch}",
+            "-X",
+            "theirs",
+        )
+        module_logger().info(f"Rebase onto {remote_name}/{main_branch} succeeded.")
+    except git.GitCommandError as e:
+        if "is up to date" in str(e).lower():
+            module_logger().info("Branch is already up-to-date with %s." % main_branch)
+        else:
+            raise
+
+
+def assert_main_not_advanced(repo: Repo, main_branch: str = "main") -> None:
+    """Fail fast if the main branch has advanced since this branch diverged.
+
+    Fetches the latest main from the remote and compares the merge-base of
+    the current HEAD with ``remote/main``.  If the merge-base is *not* the
+    same commit as the remote main HEAD, another deploy (or any other push)
+    must have landed on main while this pipeline was running.  In that case
+    the index data on this branch is stale and silently pushing would
+    overwrite the concurrent changes — so we raise ``RuntimeError`` to let
+    the pipeline fail and be safely re-run.
+
+    Args:
+        repo:
+            The git repository (must have the target branch checked out).
+        main_branch:
+            Name of the main/default branch (default: ``"main"``).
+
+    Raises:
+        RuntimeError: If main has advanced since the branch's fork point.
+    """
+    remote_name = get_remote_name(repo)
+    repo.git.fetch(remote_name, main_branch)
+    remote_ref = f"{remote_name}/{main_branch}"
+    merge_base = repo.git.merge_base("HEAD", remote_ref).strip()
+    remote_head = repo.git.rev_parse(remote_ref).strip()
+    if merge_base != remote_head:
+        raise RuntimeError(
+            "Main branch '%s' has advanced since this pipeline's "
+            "update_index step (merge-base=%s, main HEAD=%s). "
+            "A concurrent deploy may have merged. "
+            "Please re-run the pipeline."
+            % (main_branch, merge_base[:12], remote_head[:12])
+        )
+    module_logger().info(
+        f"Branch is up-to-date with {remote_name}/{main_branch} — safe to merge."
+    )
 
 
 def remove_files(head: Head, file_paths: List[str]) -> None:
@@ -423,7 +514,10 @@ def download_repository(
         module_logger().info(
             f"Download repository from {repo_url} in {git_folder_path}..."
         )
-        repo = git.Repo.clone_from(repo_url, git_folder_path)
+        # todo: hard-link throws error, no-local forces copy
+        repo = git.Repo.clone_from(
+            repo_url, git_folder_path, multi_options=["--no-local"]
+        )
 
     return repo
 
@@ -466,6 +560,7 @@ def clone_repository_sparse(
         depth=1,
         no_tags=True,
         single_branch=True,
+        multi_options=["--no-local"],
     )
     yield repo
     repo.close()
@@ -493,7 +588,7 @@ def clone_repository(
             raise RuntimeError('Target folder "%s" not empty!' % str(target_repo_path))
 
     create_path_recursively(target_repo_path)
-    repo = git.Repo.clone_from(src, target_repo_path)
+    repo = git.Repo.clone_from(src, target_repo_path, multi_options=["--no-local"])
 
     yield repo
     repo.close()

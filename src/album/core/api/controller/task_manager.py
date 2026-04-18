@@ -1,6 +1,7 @@
 """Interface for a task manager."""
+
 from abc import ABCMeta, abstractmethod
-from typing import Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from album.core.api.model.task import ITask
 
@@ -22,7 +23,7 @@ class ITaskManager:
 
     @abstractmethod
     def create_and_register_task(
-        self, method: Callable, args: Optional[List[str]]
+        self, method: Callable, args: Optional[Tuple[Any, ...]]
     ) -> str:
         """Create a task and register it with the task manager."""
         raise NotImplementedError

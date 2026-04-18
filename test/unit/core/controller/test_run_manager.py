@@ -1,10 +1,10 @@
 import unittest
+from test.unit.test_unit_core_common import EmptyTestClass, TestUnitCoreCommon
 from unittest import mock
-from unittest.mock import MagicMock, patch, create_autospec
+from unittest.mock import MagicMock, create_autospec, patch
 
 from album.core.controller.run_manager import RunManager
 from album.core.model.resolve_result import ResolveResult
-from test.unit.test_unit_core_common import TestUnitCoreCommon, EmptyTestClass
 
 
 class TestRunManager(TestUnitCoreCommon):
@@ -25,7 +25,9 @@ class TestRunManager(TestUnitCoreCommon):
         run_queue = MagicMock(return_value=None)
         self.album_controller.script_manager().run_queue = run_queue
 
-        resolve_result = ResolveResult("", None, None, None, self.active_solution)
+        resolve_result = ResolveResult(
+            "", None, None, self.active_solution.coordinates(), self.active_solution
+        )
 
         resolve_installed_and_load = MagicMock(return_value=resolve_result)
         self.album_controller.collection_manager().resolve_installed_and_load = (
@@ -39,15 +41,15 @@ class TestRunManager(TestUnitCoreCommon):
         build_queue.assert_called_once()
         run_queue.assert_called_once()
 
-    @patch("pkg_resources.iter_entry_points")
-    def test_load_plugins(self, iter_entry_points):
+    @patch("album.core.controller.run_manager.entry_points")
+    def test_load_plugins(self, mock_entry_points):
         entry_point = EmptyTestClass()
         entry_point.name = "plugin-name"
         entry_point_load = MagicMock()
         entry_point_load_return = MagicMock()
         entry_point_load.return_value = entry_point_load_return
         entry_point.load = entry_point_load
-        iter_entry_points.return_value = [entry_point]
+        mock_entry_points.return_value = [entry_point]
         resolve_result = create_autospec(ResolveResult)
         self.active_solution._setup["dependencies"] = {}
         self.active_solution._setup["dependencies"]["plugins"] = [{"id": "plugin-name"}]
@@ -57,9 +59,9 @@ class TestRunManager(TestUnitCoreCommon):
             mock.ANY, resolve_result.coordinates.return_value, {}
         )
 
-    @patch("pkg_resources.iter_entry_points")
-    def test_load_plugins_not_found(self, iter_entry_points):
-        iter_entry_points.return_value = []
+    @patch("album.core.controller.run_manager.entry_points")
+    def test_load_plugins_not_found(self, mock_entry_points):
+        mock_entry_points.return_value = []
         resolve_result = create_autospec(ResolveResult)
         self.active_solution._setup["dependencies"] = {}
         self.active_solution._setup["dependencies"]["plugins"] = [{"id": "plugin-name"}]
@@ -67,15 +69,15 @@ class TestRunManager(TestUnitCoreCommon):
         with self.assertRaises(LookupError):
             self.album_controller.run_manager().load_plugins(resolve_result)
 
-    @patch("pkg_resources.iter_entry_points")
-    def test_load_plugins_with_args(self, iter_entry_points):
+    @patch("album.core.controller.run_manager.entry_points")
+    def test_load_plugins_with_args(self, mock_entry_points):
         entry_point = EmptyTestClass()
         entry_point.name = "plugin-name"
         entry_point_load = MagicMock()
         entry_point_load_return = MagicMock()
         entry_point_load.return_value = entry_point_load_return
         entry_point.load = entry_point_load
-        iter_entry_points.return_value = [entry_point]
+        mock_entry_points.return_value = [entry_point]
         resolve_result = create_autospec(ResolveResult)
         self.active_solution._setup["dependencies"] = {}
         self.active_solution._setup["dependencies"]["plugins"] = [

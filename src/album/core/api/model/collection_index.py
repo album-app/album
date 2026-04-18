@@ -1,10 +1,10 @@
 """Module for the collection index interface."""
+
 from abc import ABCMeta, abstractmethod
 from typing import Any, Dict, List, Optional
 
-from album.runner.core.api.model.coordinates import ICoordinates
-
 from album.core.api.model.database import IDatabase
+from album.runner.core.api.model.coordinates import ICoordinates
 
 
 class ICollectionIndex(IDatabase):
@@ -37,12 +37,12 @@ class ICollectionIndex(IDatabase):
         raise NotImplementedError
 
     @abstractmethod
-    def get_name(self, close: bool = True) -> str:
+    def get_name(self, close: bool = True) -> Optional[str]:
         """Return the name of the collection index."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_version(self, close: bool = True) -> str:
+    def get_version(self, close: bool = True) -> Optional[str]:
         """Return the version of the collection index."""
         raise NotImplementedError
 

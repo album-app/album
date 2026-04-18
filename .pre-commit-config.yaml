@@ -104,6 +104,13 @@ repos:
       - id: script-must-have-extension
         name: Check executable files use .sh extension
         types: [shell, executable]
+  - repo: local
+    hooks:
+      - id: forbid-symlinks
+        name: Forbid symlinks
+        entry: bash -c 'echo "Symlinks are not allowed:" && echo "$@" && exit 1' --
+        language: system
+        types: [symlink]
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.19.1
     hooks:

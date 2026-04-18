@@ -1,9 +1,8 @@
 from typing import Callable, List, Optional
 
-from album.runner.core.api.model.coordinates import ICoordinates
-
 from album.core.api.controller.event_manager import IEventManager
 from album.core.api.model.event import IEvent
+from album.runner.core.api.model.coordinates import ICoordinates
 
 
 class EventManager(IEventManager):
@@ -11,7 +10,7 @@ class EventManager(IEventManager):
 
     class EventCallback:
         def __init__(
-            self, event_name: str, method: Callable, solution_id: ICoordinates
+            self, event_name: str, method: Callable, solution_id: Optional[ICoordinates]
         ):
             self.event_name = event_name
             self.method = method

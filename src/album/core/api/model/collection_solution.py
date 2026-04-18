@@ -1,13 +1,13 @@
 """This module contains the ICollectionSolution interface."""
+
 from abc import abstractmethod
 from pathlib import Path
 from typing import Optional
 
-from album.runner.core.api.model.coordinates import ICoordinates
-from album.runner.core.api.model.solution import ISolution
-
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
 
 
 class ICollectionSolution:

@@ -1,8 +1,7 @@
 import tempfile
 
 from album.runner.album_logging import get_active_logger
-from album.runner.api import get_args
-from album.runner.api import setup
+from album.runner.api import get_args, setup
 
 
 def album_run():
@@ -49,7 +48,7 @@ def album_test():
     get_active_logger().info("solution6_noparent_test_test")
 
     # here we load sys.argv
-    file = open(args.file, "r")
+    file = open(args.file)
     file_content = file.readlines()
     file.close()
     # and we do a test
@@ -66,7 +65,7 @@ setup(
     name="solution6_noparent_test",
     title="solution six, no parent, nice test routine",
     version="0.1.0",
-    album_api_version="0.6.1",
+    album_api_version="0.7.1",
     args=[
         {
             "name": "file",
