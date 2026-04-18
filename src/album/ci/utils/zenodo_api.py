@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from abc import ABC
 from enum import Enum, unique
 from typing import Any, SupportsIndex
@@ -12,9 +13,12 @@ import requests
 from requests import Response
 
 from album.core.utils.operations.url_operations import ResponseStatus
+from album.runner import album_logging
+
+module_logger = album_logging.get_active_logger
 
 
-class InvalidResponseStatusError(BaseException):
+class InvalidResponseStatusError(Exception):
     """Raised when the response status is not the one expected."""
 
 
@@ -118,7 +122,7 @@ class ZenodoEntry(ABC):  # noqa: B024
         Raises:
             AttributeError: When key not found if required.
         """
-        if key in entry_dict.keys():
+        if entry_dict is not None and key in entry_dict.keys():
             return entry_dict[key]
         if required:
             raise AttributeError("Key %s not found but required" % key)
@@ -179,12 +183,12 @@ class ZenodoMetadata(ZenodoEntry):
     def default_values(
         cls,
         title: str,
-        creators: list[str],
+        creators: list[dict[str, Any]],
         description: str,
-        license_: str,
-        version: str,
-        related_identifiers: str,
-        references: str,
+        license_: str | None,
+        version: str | None,
+        related_identifiers: list[dict[str, str]],
+        references: list[str],
     ):
         """Get the default metadata object."""
         default_values = {
@@ -452,7 +456,7 @@ class ZenodoDeposit(ZenodoEntry):
             try:
                 zenodo_metadata = ZenodoMetadata(zenodo_metadata)
             except AttributeError:
-                print("Please provide a valid dictionary as input!")
+                module_logger().error("Please provide a valid dictionary as input!")
                 return False
 
         link = self.base_url + "/api/deposit/depositions/%s" % self.id
@@ -495,18 +499,38 @@ class ZenodoDeposit(ZenodoEntry):
     # ############# Deposits actions #############
 
     def publish(self) -> bool:
-        """Publish an unpublished repo.
+        """Publish an unpublished deposit.
+
+        If the deposit has already been published (e.g. from a previous
+        pipeline run), Zenodo responds with 403 Forbidden.  In that case
+        the method reloads the deposit state and returns ``True`` so the
+        caller can proceed with post-publish steps (tagging, etc.).
 
         Returns:
-             True if success.
+             True if success (or already published).
 
         Raises:
             InvalidResponseStatusError: If query response status other than expected.
         """
-        # todo: check if already published
-
         link = self.base_url + "/api/deposit/depositions/%s/actions/publish" % self.id
         r = requests.post(link, params=self.params)
+
+        if r.status_code in (
+            ResponseStatus.Forbidden.value,
+            ResponseStatus.Conflict.value,
+        ):
+            # Deposit may already be published — reload and check.
+            self.reload()
+            if self.submitted:
+                module_logger().info(
+                    "Deposit %s is already published. Skipping publish step." % self.id
+                )
+                return True
+            # Not published but still forbidden — genuine auth / state error.
+            raise InvalidResponseStatusError(
+                "Publish failed for deposit %s with status %s."
+                % (self.id, r.status_code)
+            )
 
         response_dict = ZenodoAPI.validate_response(r, ResponseStatus.Accepted)
 
@@ -518,8 +542,21 @@ class ZenodoDeposit(ZenodoEntry):
     def new_version(self) -> list[ZenodoDeposit]:
         """Create a new version of the deposit.
 
+        If a new version draft already exists (e.g. from a re-run of a CI
+        pipeline), Zenodo responds with 403 Forbidden.  In that case the
+        method falls back to retrieving the existing draft via the
+        ``latest_draft`` link that is present on the published deposit.
+
+        If Zenodo responds with 400 BadRequest, the full error details are
+        logged (they were previously hidden) and a draft-retrieval fallback
+        is attempted.  If no draft exists, the original error is re-raised
+        so the real cause (rate limit, metadata issue, etc.) is visible.
+
+        If Zenodo responds with 429 TooManyRequests, the request is retried
+        after the ``Retry-After`` header interval (up to 3 attempts).
+
         Returns:
-             True if success.
+             A list containing the new version draft deposit.
 
         Raises:
             InvalidResponseStatusError: If query response status other than expected.
@@ -529,13 +566,96 @@ class ZenodoDeposit(ZenodoEntry):
             draft_id, _ = os.path.splitext(os.path.basename(latest_draft_l))
             return draft_id
 
+        def _try_retrieve_existing_draft():
+            """Try to return an existing draft via the latest_draft link.
+
+            After a failed ``new_version`` POST the server may have created
+            the draft but returned an error.  Reload the deposit so the
+            ``latest_draft`` link reflects the current server state.
+            """
+            try:
+                self.reload()
+            except Exception:
+                pass  # best-effort; fall through to link check
+            latest_draft_link = self.links.get("latest_draft") if self.links else None
+            if latest_draft_link:
+                latest_draft_id = extract_draft_id(latest_draft_link)
+                drafts = ZenodoAPI(
+                    self.base_url, self.params["access_token"]
+                ).deposit_get(latest_draft_id, status=DepositStatus.DRAFT)
+                if drafts:
+                    return drafts
+            return None
+
         link = (
             self.base_url + "/api/deposit/depositions/%s/actions/newversion" % self.id
         )
 
-        r = requests.post(link, params=self.params)
+        # Retry loop for transient 429 TooManyRequests responses.
+        max_retries = 3
+        r: Response = requests.post(link, params=self.params)
+        for attempt in range(1, max_retries + 1):
+            if r.status_code != ResponseStatus.TooManyRequests.value:
+                break
+            retry_after = int(r.headers.get("Retry-After", 60))
+            module_logger().warning(
+                "Zenodo rate limit hit (429) on new_version for deposit %s. "
+                "Retrying in %ds (attempt %d/%d)..."
+                % (self.id, retry_after, attempt, max_retries)
+            )
+            time.sleep(retry_after)
+            r = requests.post(link, params=self.params)
 
-        response_dict = ZenodoAPI.validate_response(r, ResponseStatus.OK)
+        if r.status_code == ResponseStatus.TooManyRequests.value:
+            module_logger().error(
+                "Zenodo rate limit (429) persists after %d retries for "
+                "deposit %s." % (max_retries, self.id)
+            )
+
+        if r.status_code == ResponseStatus.Forbidden.value:
+            # A new version draft already exists — retrieve it instead.
+            module_logger().info(
+                "New version draft already exists for deposit %s (403). "
+                "Attempting to retrieve existing draft..." % self.id
+            )
+            drafts = _try_retrieve_existing_draft()
+            if drafts:
+                return drafts
+            raise InvalidResponseStatusError(
+                "New version draft already exists for deposit %s but no "
+                "latest_draft link found to retrieve it." % self.id
+            )
+
+        if r.status_code == ResponseStatus.BadRequest.value:
+            # 400 BadRequest — could be "draft already exists" on InvenioRDM,
+            # or a genuine validation / rate-limit error.  Log full details
+            # first, then attempt draft retrieval as a fallback.
+            try:
+                body = r.json()
+                message = body.get("message", "(no message)")
+                errors = body.get("errors", [])
+            except Exception:
+                message = r.text[:500]
+                errors = []
+            module_logger().error(
+                "Zenodo returned 400 BadRequest for new_version on deposit %s. "
+                "Message: %s | Errors: %s" % (self.id, message, errors)
+            )
+            drafts = _try_retrieve_existing_draft()
+            if drafts:
+                module_logger().info(
+                    "Found existing draft %s — treating 400 as "
+                    "'draft already exists'." % drafts[0].id
+                )
+                return drafts
+            # No draft found — the 400 is a genuine error, not "draft exists".
+            raise InvalidResponseStatusError(
+                "Zenodo returned 400 BadRequest for new_version on deposit "
+                "%s and no existing draft was found. Message: %s | Errors: %s"
+                % (self.id, message, errors)
+            )
+
+        response_dict = ZenodoAPI.validate_response(r, ResponseStatus.Created)
 
         # update object according to response
         self._init(response_dict, self.base_url, self.params["access_token"])
@@ -636,7 +756,7 @@ class ZenodoDeposit(ZenodoEntry):
                  The new version of the file.
 
         Returns:
-             The new created @ZenodoFile object.
+              The new created @ZenodoFile object.
 
         Raises:
             InvalidResponseStatusError: If query response status other than expected.
@@ -673,7 +793,7 @@ class ZenodoDeposit(ZenodoEntry):
                  The new version of the file.
 
         Returns:
-             The updated @ZenodoFile object.
+              The updated @ZenodoFile object.
 
         Raises:
             InvalidResponseStatusError: If query response status other than expected.
@@ -698,7 +818,7 @@ class ZenodoRecord(ZenodoDeposit):
 
     def print_stats(self) -> None:
         """Print the dictionary."""
-        print(self.stats.to_dict())
+        module_logger().info("Record stats: %s" % self.stats.to_dict())
 
 
 class ZenodoRecordStats(ZenodoEntry):
@@ -746,7 +866,7 @@ class ZenodoAPI:
             access_token:
                 The authentication token needed to perform operations.
         """
-        self.base_url = base_url
+        self.base_url = base_url.rstrip("/")
         self.params = {"access_token": ""}
 
         if access_token:
@@ -794,20 +914,124 @@ class ZenodoAPI:
                 )
             return {"": True}
         else:
-            print("Error: %s" % status_code.name)
+            module_logger().error("Zenodo API error: %s" % status_code.name)
             if status_code == ResponseStatus.Forbidden:
-                print("Forbidden operation. Is your access token valid?")
+                module_logger().error(
+                    "Forbidden operation. Is your access token valid?"
+                )
             if status_code != ResponseStatus.InternalServerError:
                 json_response = response.json()
-                print("Detailed message: %s" % json_response["message"])
-                if hasattr(json_response, "errors"):
-                    print("Errors: %s" % json_response["errors"])
+                module_logger().error("Detailed message: %s" % json_response["message"])
+                if "errors" in json_response:
+                    module_logger().error("Errors: %s" % json_response["errors"])
 
         raise InvalidResponseStatusError(
             "Error '%s' occurred. See Log for detailed information!" % status_code.name
         )
 
     # ############# Deposits #############
+
+    # --- Status filter mapping ---
+    # Zenodo's by-ID endpoint ignores the ``status`` query parameter and
+    # returns the deposit regardless of its state.  The mapping below
+    # translates each ``DepositStatus`` to the expected value of the
+    # ``submitted`` field on the returned ``ZenodoDeposit``, so we can
+    # filter client-side.
+    _STATUS_TO_SUBMITTED = {
+        DepositStatus.DRAFT: False,
+        DepositStatus.PUBLISHED: True,
+    }
+
+    def deposit_get_by_id(
+        self,
+        deposit_id: str,
+        status: DepositStatus | None = None,
+    ) -> list[ZenodoDeposit]:
+        """Fetch a single deposit by its ID.
+
+        Args:
+            deposit_id:
+                The numeric deposit ID.
+            status:
+                Optional status filter.  When given, the deposit is only
+                returned if its state matches (client-side check, because
+                the Zenodo by-ID endpoint ignores the ``status`` query
+                parameter).  When ``None``, the deposit is returned
+                regardless of state.
+
+        Returns:
+            A list containing the deposit, or an empty list if not found
+            or filtered out by *status*.
+        """
+        link = self.base_url + "/api/deposit/depositions/%s" % deposit_id
+
+        module_logger().debug(
+            "GET {} (status={})".format(link, status.value if status else "any")
+        )
+        r = requests.get(link, params=self.params)
+
+        response_dict = self.validate_response(r, ResponseStatus.OK)
+
+        deposit = ZenodoDeposit(
+            response_dict, self.base_url, self.params["access_token"]
+        )
+
+        # Client-side status filter.
+        if status is not None:
+            expected_submitted = self._STATUS_TO_SUBMITTED[status]
+            if bool(deposit.submitted) != expected_submitted:
+                module_logger().debug(
+                    "Deposit %s filtered out: submitted=%s but status=%s requested."
+                    % (deposit.id, deposit.submitted, status.value)
+                )
+                return []
+
+        module_logger().debug("deposit_get_by_id returned deposit %s." % deposit.id)
+        return [deposit]
+
+    def deposit_search(
+        self,
+        q: str = "",
+        status: DepositStatus = DepositStatus.PUBLISHED,
+        sort: SortOrder = SortOrder.BEST_MATCH,
+    ) -> list[ZenodoDeposit]:
+        """Search deposits using query parameters (server-side filtering).
+
+        Args:
+            q:
+                The search query.  Keywords to search for in deposit metadata.
+            status:
+                Deposit status filter (applied server-side by Zenodo).
+            sort:
+                Sorting of the result.
+
+        Returns:
+            A list of matching ``ZenodoDeposit`` objects.  Empty if none found.
+        """
+        link = self.base_url + "/api/deposit/depositions"
+        params = {
+            **{"q": q, "status": status.value, "sort": sort.value},
+            **self.params,
+        }
+
+        module_logger().debug(f"GET {link} (q={q!r}, status={status.value})")
+        r = requests.get(link, params=params)
+
+        response_dict = self.validate_response(r, ResponseStatus.OK)
+
+        deposit_list: list[ZenodoDeposit] = []
+        if isinstance(response_dict, list):
+            for deposit_dict in response_dict:
+                deposit_list.append(
+                    ZenodoDeposit(
+                        deposit_dict, self.base_url, self.params["access_token"]
+                    )
+                )
+
+        module_logger().debug(
+            "deposit_search returned %d result(s)." % len(deposit_list)
+        )
+        return deposit_list
 
     def deposit_get(
         self,
@@ -816,50 +1040,14 @@ class ZenodoAPI:
         status: DepositStatus = DepositStatus.PUBLISHED,
         sort: SortOrder = SortOrder.BEST_MATCH,
     ) -> list[ZenodoDeposit]:
-        """Retrieve a deposit.
+        """Retrieve a deposit by ID or search.
 
-        Args:
-            deposit_id:
-                The id of the deposit. If None specified other params define a search request.
-            q:
-                The search query. Holds keywords to search for in the deposit metadata.
-            status:
-                The deposit status. See @DepositStatus
-            sort:
-                Sorting of the result. See @SortOrder
-
-        Returns:
-            A list of @ZenodoDeposit found. Empty if none found.
+        Deprecated: prefer ``deposit_get_by_id`` or ``deposit_search`` directly.
+        This method dispatches to one of them for backward compatibility.
         """
-        link = self.base_url + "/api/deposit/depositions"
-
         if deposit_id:
-            link = link + "/%s" % deposit_id
-            params = self.params
-        else:
-            params = {
-                **{"q": q, "status": status.value, "sort": sort.value},
-                **self.params,
-            }
-
-        r = requests.get(link, params=params)
-
-        response_dict = self.validate_response(r, ResponseStatus.OK)
-
-        deposit_list = []
-        if isinstance(response_dict, list):
-            for deposit_dict in response_dict:
-                deposit_list.append(
-                    ZenodoDeposit(
-                        deposit_dict, self.base_url, self.params["access_token"]
-                    )
-                )
-        else:
-            deposit_list.append(
-                ZenodoDeposit(response_dict, self.base_url, self.params["access_token"])
-            )
-
-        return deposit_list
+            return self.deposit_get_by_id(deposit_id, status=status)
+        return self.deposit_search(q=q, status=status, sort=sort)
 
     def deposit_create(self) -> ZenodoDeposit:
         """Create an empty deposit (already uploaded).
@@ -869,11 +1057,16 @@ class ZenodoAPI:
         """
         link = self.base_url + "/api/deposit/depositions"
 
+        module_logger().info("Creating new empty deposit on Zenodo...")
         r = requests.post(link, params=self.params, json={})
 
         response_dict = self.validate_response(r, ResponseStatus.Created)
 
-        return ZenodoDeposit(response_dict, self.base_url, self.params["access_token"])
+        deposit = ZenodoDeposit(
+            response_dict, self.base_url, self.params["access_token"]
+        )
+        module_logger().info("Empty deposit created: id=%s" % deposit.id)
+        return deposit
 
     def deposit_create_with_prereserve_doi(
         self, metadata: ZenodoMetadata | dict[str, Any]
@@ -936,9 +1129,20 @@ class ZenodoAPI:
                 **self.params,
             }
 
+        module_logger().debug(
+            "GET {} (record_id={})".format(link, record_id or "(search)")
+        )
         r = requests.get(link, params=params)
 
         response_dict = self.validate_response(r, ResponseStatus.OK)
+
+        # InvenioRDM (new Zenodo) wraps search results in
+        # {"hits": {"hits": [record, ...], "total": N}, "links": {...}}.
+        # Unwrap so the downstream list-vs-single-record logic works.
+        if isinstance(response_dict, dict) and "hits" in response_dict:
+            inner = response_dict["hits"]
+            if isinstance(inner, dict) and "hits" in inner:
+                response_dict = inner["hits"]  # list of record dicts
 
         record_list = []
         if isinstance(response_dict, list):

@@ -2,13 +2,12 @@ import queue
 import threading
 from logging import LogRecord
 from threading import Thread
-from typing import Any, Callable, Dict, List, Optional, Union
-
-from album.runner import album_logging
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from album.core.api.controller.task_manager import ITaskManager
 from album.core.api.model.task import ITask
 from album.core.model.task import LogHandler, Task
+from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
@@ -60,13 +59,15 @@ class TaskManager(ITaskManager):
         for record in records:
             res.append(
                 {
-                    "asctime": None
-                    if not hasattr(record, "asctime")
-                    else str(record.asctime),
+                    "asctime": (
+                        None if not hasattr(record, "asctime") else str(record.asctime)
+                    ),
                     "name": None if not hasattr(record, "name") else str(record.name),
-                    "levelname": None
-                    if not hasattr(record, "levelname")
-                    else str(record.levelname),
+                    "levelname": (
+                        None
+                        if not hasattr(record, "levelname")
+                        else str(record.levelname)
+                    ),
                     "msg": None if not hasattr(record, "msg") else str(record.msg),
                 }
             )
@@ -81,7 +82,7 @@ class TaskManager(ITaskManager):
         #     sleep(1)
 
     def create_and_register_task(
-        self, method: Callable, args: Optional[List[str]]
+        self, method: Callable, args: Optional[Tuple[Any, ...]]
     ) -> str:
         task = Task(method, args)
         return self.register_task(task)
@@ -90,12 +91,12 @@ class TaskManager(ITaskManager):
         if not self.workers_initialized:
             self._initialize_workers()
         task.set_id(str(self.task_count))
-        module_logger().info(f"TaskManager: registering task {task.id()}")
+        module_logger().info(f"TaskManager: registering task {task.task_id()}")
         task.set_status(ITask.Status.WAITING)
         self.task_count += 1
-        self.tasks[task.id()] = task
+        self.tasks[task.task_id()] = task
         self.server_queue.put(task)
-        return task.id()
+        return task.task_id()
 
     def _run_queue_entry(self, i: int, parent_thread: int) -> None:
         album_logging.configure_logging(
@@ -107,8 +108,8 @@ class TaskManager(ITaskManager):
             self.server_queue.task_done()
 
     def _handle_task(self, task: ITask) -> None:
-        module_logger().info(f"TaskManager: starting task {task.id()}...")
-        logger = album_logging.configure_logging("task" + str(task.id()))
+        module_logger().info(f"TaskManager: starting task {task.task_id()}...")
+        logger = album_logging.configure_logging("task" + str(task.task_id()))
         handler = LogHandler()
         task.set_log_handler(handler)
         logger.addHandler(handler)
@@ -121,7 +122,7 @@ class TaskManager(ITaskManager):
             task.set_status(ITask.Status.FAILED)
         logger.removeHandler(handler)
         album_logging.pop_active_logger()
-        module_logger().info(f"TaskManager: finished task {task.id()}.")
+        module_logger().info(f"TaskManager: finished task {task.task_id()}.")
 
     def finish_tasks(self) -> None:
         self.server_queue.join()

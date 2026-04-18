@@ -1,5 +1,4 @@
-from album.runner.api import get_args
-from album.runner.api import setup
+from album.runner.api import get_args, setup
 
 
 def album_run():
@@ -23,7 +22,7 @@ setup(
     name="solution5_app2",
     title="solution five on app two",
     version="0.1.0",
-    album_api_version="0.6.1",
+    album_api_version="0.7.1",
     args=[
         {
             "name": "file_solution5_app2",

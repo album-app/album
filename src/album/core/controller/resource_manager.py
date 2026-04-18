@@ -6,19 +6,22 @@ from typing import Any, Dict, Union
 
 import validators
 import yaml
-from album.environments.utils.file_operations import write_dict_to_yml
-from album.environments.utils.subcommand import SubProcessError
-from album.environments.utils.url_operations import download_resource
-from album.runner import album_logging
-from album.runner.core.api.model.solution import ISolution
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.resource_manager import IResourceManager
 from album.core.api.model.catalog import ICatalog
 from album.core.model.default_values import DEFAULT_SOLUTION_ENV_CONTENT, DefaultValues
-from album.core.utils.export.changelog import create_changelog_file
+from album.core.utils.export.changelog import (
+    create_changelog_file,
+    get_changelog_file_name,
+)
 from album.core.utils.operations.file_operations import copy
 from album.core.utils.operations.solution_operations import get_deploy_dict
+from album.environments.utils.file_operations import write_dict_to_yml
+from album.environments.utils.subcommand import SubProcessError
+from album.environments.utils.url_operations import download_resource
+from album.runner import album_logging
+from album.runner.core.api.model.solution import ISolution
 
 module_logger = album_logging.get_active_logger
 
@@ -61,11 +64,20 @@ class ResourceManager(IResourceManager):
                 active_solution, catalog_solution_local_src_path
             )
         )
-        res.append(
-            create_changelog_file(
-                active_solution, catalog, catalog_solution_local_src_path
-            )
+
+        # Only generate a CHANGELOG.md when the user's deploy path did not
+        # already provide one.  If the deploy_path was a directory containing
+        # a CHANGELOG.md, the os.walk copy above already placed it in the
+        # target and its path is already in ``res``.
+        changelog_target = catalog_solution_local_src_path.joinpath(
+            get_changelog_file_name()
         )
+        if not changelog_target.exists():
+            res.append(
+                create_changelog_file(
+                    active_solution, catalog, catalog_solution_local_src_path
+                )
+            )
 
         if not no_conda_lock:
             c_lock_manager = (

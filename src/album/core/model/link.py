@@ -7,7 +7,7 @@ import platform
 from pathlib import Path
 
 
-class Link(type(Path())):
+class Link(type(Path())):  # type: ignore[misc]
     """Link model implementation."""
 
     _link = None

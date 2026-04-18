@@ -1,8 +1,9 @@
 """Interface for a task that can be executed by the task manager."""
+
 from abc import ABCMeta, abstractmethod
 from enum import IntEnum, unique
 from logging import Handler, LogRecord
-from typing import Callable, List, Optional
+from typing import Any, Callable, Optional, Tuple
 
 
 class ILogHandler(Handler):
@@ -37,7 +38,7 @@ class ITask:
         UNDEFINED = 4
 
     @abstractmethod
-    def id(self) -> str:
+    def task_id(self) -> str:
         """Get the ID of the task."""
         raise NotImplementedError
 
@@ -47,7 +48,7 @@ class ITask:
         raise NotImplementedError
 
     @abstractmethod
-    def args(self) -> List[str]:
+    def args(self) -> Tuple[Any, ...]:
         """Get the arguments that should be passed to the method."""
         raise NotImplementedError
 

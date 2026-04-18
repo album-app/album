@@ -1,4 +1,5 @@
 """Module for resolving solutions from different sources."""
+
 import errno
 import os
 import re
@@ -6,14 +7,9 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
-from album.environments.utils.url_operations import download_resource
-from album.runner import album_logging
-from album.runner.core.api.model.coordinates import ICoordinates
-from album.runner.core.model.coordinates import Coordinates
-
-from album.ci.utils.zenodo_api import ZenodoAPI, ZenodoFile
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
+from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import (
     check_zip,
     create_path_recursively,
@@ -26,6 +22,10 @@ from album.core.utils.operations.url_operations import (
     is_url,
     retrieve_redirect_url,
 )
+from album.environments.utils.url_operations import download_resource
+from album.runner import album_logging
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.model.coordinates import Coordinates
 
 module_logger = album_logging.get_active_logger
 
@@ -204,37 +204,26 @@ def parse_doi_service_url(url: str) -> str:
 
 
 def _parse_zenodo_url(url: str):
-    """Parse the zenodo URL and return the download link for the zip file."""
+    """Parse the zenodo URL and return the download link for the record archive."""
     g = re.search(r"(https:\/\/[a-zA-Z.]*zenodo[.]org\/)(record)[\/]([0-9]*)$", url)
 
     if g:
+        base_url = g.group(1).rstrip("/")
         record_id = g.group(3)
 
-        return retrieve_zenodo_record_download_zip(record_id)
+        return retrieve_zenodo_record_archive_url(base_url, record_id)
     else:
         raise ValueError("Unknown zenodo URL format!...")
 
 
-def retrieve_zenodo_record_download_zip(record_id: str) -> str:
-    """Retrieve the download link for the zip file in the zenodo record."""
-    query = ZenodoAPI()
+def retrieve_zenodo_record_archive_url(base_url: str, record_id: str) -> str:
+    """Build the Zenodo files-archive download URL for a record.
 
-    record = query.records_get(record_id)[0]
-
-    file_dl = None
-    for file in record.files:
-        if isinstance(file, ZenodoFile):
-            if re.search(
-                "[.]zip$", file.key
-            ):  # there is only a single zip file in the record
-                file_dl = file.get_download_link()
-
-    if not file_dl:
-        raise ValueError(
-            'No valid zip file found int the zenodo record with id "%s"!' % record_id
-        )
-
-    return file_dl
+    Zenodo provides a zip archive of all files in a record via the
+    ``/api/records/{id}/files-archive`` endpoint.  This works regardless
+    of whether the uploader uploaded a zip or individual files.
+    """
+    return f"{base_url}/api/records/{record_id}/files-archive"
 
 
 def check_file_or_url(
@@ -269,18 +258,27 @@ def prepare_path(
     p = Path(path)
     tmp_cache_dir_ = Path(tmp_cache_dir)
     if p.exists():
-        # copying to tmp-dir necessary for cloning
         target_folder = tmp_cache_dir_.joinpath(rand_folder_name())
-        if p.is_file():  # zip or file
-            if check_zip(p):  # zip file
+        if p.is_file():
+            if check_zip(p):  # zip file — unzip and point to solution.py inside
                 p = unzip_archive(p, target_folder)
-                # p = p.joinpath(DefaultValues.solution_default_name.value)
-            else:  # python file
-                # do not copy specified single file anywhere
+                # Zenodo deposit archives contain solution.zip (with full
+                # directory structure) plus individual preview files.  If
+                # solution.py is not at the top level but solution.zip is,
+                # extract the inner zip to get the actual solution files.
+                solution_file = p.joinpath(DefaultValues.solution_default_name.value)
+                inner_zip = p.joinpath(DefaultValues.solution_zip_default_name.value)
+                if (
+                    not solution_file.exists()
+                    and inner_zip.is_file()
+                    and check_zip(inner_zip)
+                ):
+                    unzip_archive(inner_zip, p)
+                p = p.joinpath(DefaultValues.solution_default_name.value)
+            else:  # single python file — return as-is (can have any name)
                 pass
-        # elif p.is_dir():  # folder
-        #     # p = copy_folder(p, target_folder, copy_root_folder=False)
-        #     p = p.joinpath(DefaultValues.solution_default_name.value)
+        elif p.is_dir():  # folder — solution.py must exist inside
+            p = p.joinpath(DefaultValues.solution_default_name.value)
 
         return p
     return None
@@ -288,7 +286,7 @@ def prepare_path(
 
 def dict_to_coordinates(solution_attr: Dict[str, Any]) -> ICoordinates:
     """Convert a dictionary to coordinates."""
-    if not all([k in solution_attr.keys() for k in ["name", "version", "group"]]):
+    if not all(k in solution_attr.keys() for k in ["name", "version", "group"]):
         raise ValueError(
             "Cannot resolve solution! Group, name and version must be specified!"
         )
@@ -315,7 +313,7 @@ def build_resolve_string(
     """Build a string representation of the solution to be resolved."""
     if "doi" in resolve_solution_dict.keys():
         resolve_solution = resolve_solution_dict["doi"]
-    elif all([x in resolve_solution_dict.keys() for x in ["group", "name", "version"]]):
+    elif all(x in resolve_solution_dict.keys() for x in ["group", "name", "version"]):
         resolve_solution = ":".join(
             [
                 resolve_solution_dict["group"],

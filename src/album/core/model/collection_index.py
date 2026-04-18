@@ -1,10 +1,9 @@
 """Implementation of the collection index Interface."""
+
 import pkgutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-
-from album.runner.core.api.model.coordinates import ICoordinates
 
 from album.core.api.model.collection_index import ICollectionIndex
 from album.core.model.catalog_index import CatalogIndex
@@ -12,6 +11,7 @@ from album.core.model.database import Database
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import get_dict_entry
 from album.core.utils.operations.solution_operations import get_solution_hash
+from album.runner.core.api.model.coordinates import ICoordinates
 
 
 class CollectionIndex(ICollectionIndex, Database):
@@ -80,7 +80,7 @@ class CollectionIndex(ICollectionIndex, Database):
         if close:
             self.close_current_connection()
 
-    def get_name(self, close: bool = True) -> str:
+    def get_name(self, close: bool = True) -> Optional[str]:
         cursor = self.get_cursor()
 
         r = cursor.execute("SELECT * FROM catalog_collection").fetchone()
@@ -92,7 +92,7 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return cur_name
 
-    def get_version(self, close: bool = True) -> str:
+    def get_version(self, close: bool = True) -> Optional[str]:
         cursor = self.get_cursor()
 
         r = cursor.execute("SELECT * FROM catalog_collection").fetchone()

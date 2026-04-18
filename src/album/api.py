@@ -1,8 +1,9 @@
 """The Album API provides a high-level interface to interact with the Album core."""
+
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.model.catalog import ICatalog
@@ -25,12 +26,12 @@ class Album:
     class Builder:
         """Builder for the Album class."""
 
-        _base_cache_path: Optional[Union[str, Path]] = None
-        _log_format: Optional[str] = None
-        _log_format_time: Optional[str] = None
-        _log_level: Optional[LogLevel] = None
+        _base_cache_path: str | Path | None = None
+        _log_format: str | None = None
+        _log_format_time: str | None = None
+        _log_level: LogLevel | None = None
 
-        def base_cache_path(self, base_cache_path: Union[str, Path]) -> Album.Builder:
+        def base_cache_path(self, base_cache_path: str | Path) -> Album.Builder:
             """Set the base cache path."""
             self._base_cache_path = base_cache_path
             return self
@@ -83,11 +84,11 @@ class Album:
         """Load or create the collection."""
         self._controller.collection_manager().load_or_create()
 
-    def get_index_as_dict(self) -> Dict[str, Any]:
+    def get_index_as_dict(self) -> dict[str, Any]:
         """Get the index as a dictionary."""
         return self._controller.collection_manager().get_index_as_dict()
 
-    def get_catalogs_as_dict(self) -> Dict[str, Any]:
+    def get_catalogs_as_dict(self) -> dict[str, Any]:
         """Get all catalogs as a dictionary."""
         return self._controller.collection_manager().catalogs().get_all_as_dict()
 
@@ -107,11 +108,11 @@ class Album:
         """Test a solution."""
         return self._controller.test_manager().test(solution_to_resolve, args)
 
-    def load(self, path) -> Optional[ISolution]:
+    def load(self, path) -> ISolution | None:
         """Load a solution from a path."""
         return self._controller.state_manager().load(path)
 
-    def search(self, keywords) -> List[Tuple[Any, Any]]:
+    def search(self, keywords) -> list[tuple[Any, Any]]:
         """Search through album catalogs to find closest matching solution."""
         return self._controller.search_manager().search(keywords)
 
@@ -164,7 +165,7 @@ class Album:
         deploy_path: str,
         catalog_name: str,
         dry_run: bool,
-        push_options: Optional[List[str]] = None,
+        push_options: list[str] | None = None,
         git_email: str = "",
         git_name: str = "",
         force_deploy: bool = False,
@@ -217,7 +218,7 @@ class Album:
         solution_to_resolve: str,
         catalog_name: str,
         dry_run: bool,
-        push_options: Optional[List[str]] = None,
+        push_options: list[str] | None = None,
         git_email: str = "",
         git_name: str = "",
     ):
@@ -349,7 +350,7 @@ class Album:
         """Publish an event to the event manager."""
         return self._controller.event_manager().publish(event)
 
-    def get_task_status(self, task_id) -> Dict[str, Union[str, List[Dict[str, str]]]]:
+    def get_task_status(self, task_id) -> dict[str, str | list[dict[str, str]]]:
         """Get the status of a task managed by the task manager."""
         task = self._controller.task_manager().get_task(task_id)
         if task is None:
@@ -357,7 +358,7 @@ class Album:
         return self._controller.task_manager().get_status(task)
 
     def create_and_register_task(
-        self, method: Callable, args: Optional[List[str]]
+        self, method: Callable, args: tuple[Any, ...] | None
     ) -> str:
         """Create and register a task managed by the task manager."""
         return self._controller.task_manager().create_and_register_task(method, args)
@@ -367,7 +368,7 @@ class Album:
         return self._controller.task_manager().finish_tasks()
 
     def _run_async(
-        self, method: Callable, args: Optional[List[str]], run_async: bool = False
+        self, method: Callable, args: tuple[Any, ...] | None, run_async: bool = False
     ):
         """Run a method asynchronously or synchronously."""
         if run_async:
@@ -375,4 +376,4 @@ class Album:
                 method, args
             )
         else:
-            return method(*args)
+            return method(*(args or ()))

@@ -2,13 +2,13 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from test.unit.test_unit_core_common import TestGitCommon
 from unittest.mock import patch
 
 import album.core.utils.operations.git_operations as git_op
 from album.core.model.default_values import DefaultValues
 from album.environments.utils.file_operations import copy
 from album.runner.core.model.solution import Solution
-from test.unit.test_unit_core_common import TestGitCommon
 
 
 class TestGitOperations(TestGitCommon):
@@ -125,7 +125,7 @@ class TestGitOperations(TestGitCommon):
                 active_solution.coordinates().group(),
                 active_solution.coordinates().name(),
                 active_solution.coordinates().version(),
-                "%s%s" % (active_solution.coordinates().name(), ".py"),
+                "{}{}".format(active_solution.coordinates().name(), ".py"),
             )
             copy(tmp_file.name, tmp_file_in_repo)
 
@@ -166,6 +166,38 @@ class TestGitOperations(TestGitCommon):
                 git_op.add_files_commit_and_push(
                     new_head, [self.commit_file], "a_wonderful_cmt_msg", push=False
                 )
+
+    @patch(
+        "album.core.utils.operations.solution_operations.get_deploy_dict",
+        return_value={},
+    )
+    def test_add_files_commit_and_push_no_diff_allow_empty(self, _):
+        """allow_empty=True must create an empty commit instead of raising."""
+        attrs_dict = {
+            "name": "test_solution_name",
+            "group": "mygroup",
+            "version": "myversion",
+        }
+        Solution(attrs_dict)
+
+        with self.setup_tmp_repo(commit_solution_file=False) as repo:
+            new_head = repo.create_head("test_solution_name")
+            new_head.checkout()
+
+            initial_commit_count = len(list(repo.iter_commits()))
+
+            git_op.add_files_commit_and_push(
+                new_head,
+                [self.commit_file],
+                "empty_commit_msg",
+                push=False,
+                allow_empty=True,
+            )
+
+            # an empty commit must have been created
+            commits = list(repo.iter_commits())
+            self.assertEqual(initial_commit_count + 1, len(commits))
+            self.assertEqual("empty_commit_msg\n", commits[0].message)
 
     def test_init_repository_clean_repository(self):
         tmp_file = tempfile.NamedTemporaryFile(delete=False)

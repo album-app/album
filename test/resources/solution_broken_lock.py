@@ -51,7 +51,7 @@ setup(
     license="UNLICENSE",
     documentation="",
     covers=[{"description": "Dummy cover image.", "source": "cover.png"}],
-    album_api_version="0.4.1",
+    album_api_version="0.4.1",  # deliberately old — tests broken conda-lock scenario
     args=[],
     install=install,
     run=run,

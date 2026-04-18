@@ -1,6 +1,5 @@
 from album.runner.album_logging import get_active_logger
-from album.runner.api import get_args, get_cache_path
-from album.runner.api import setup
+from album.runner.api import get_args, get_cache_path, setup
 
 
 def album_install():
@@ -31,7 +30,7 @@ setup(
     name="solution1_app1",
     title="solution one on app one",
     version="0.1.0",
-    album_api_version="0.6.1",
+    album_api_version="0.7.1",
     args=[
         {
             "name": "file_solution1_app1",

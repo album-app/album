@@ -37,17 +37,21 @@ class ZenodoManager:
         file_basename = os.path.basename(file)
 
         if file_basename in deposit.files:  # File does exist
-            module_logger().debug(
-                "Update file %s in Zenodo deposit with id %s..."
+            module_logger().info(
+                "Updating file '%s' in Zenodo deposit %s..."
                 % (file_basename, deposit.id)
             )
             deposit.update_file(file_basename, file)
         else:
-            module_logger().debug(
-                "Create file %s in Zenodo deposit with id %s..."
+            module_logger().info(
+                "Creating file '%s' in Zenodo deposit %s..."
                 % (file_basename, deposit.id)
             )
             deposit.create_file(file)
+
+        module_logger().info(
+            f"File '{file_basename}' uploaded to deposit {deposit.id}."
+        )
 
         return deposit
 
@@ -70,14 +74,14 @@ class ZenodoManager:
         file_basename = os.path.basename(file)
 
         if file_basename in deposit.files:  # File does exist
-            module_logger().debug(
-                "Update file %s in Zenodo deposit with id %s..."
+            module_logger().info(
+                "Deleting file '%s' from Zenodo deposit %s..."
                 % (file_basename, deposit.id)
             )
             deposit.delete_file(file_basename)
         else:
             module_logger().warning(
-                "Cannot find file %s in Zenodo deposit with id %s."
+                "Cannot find file '%s' in Zenodo deposit %s — nothing to delete."
                 % (file_basename, deposit.id)
             )
 
@@ -111,13 +115,31 @@ class ZenodoManager:
 
         """
         if deposit_id:  # case deposit already exists
+            module_logger().info("Querying existing deposit with id %s..." % deposit_id)
             deposit = self._zenodo_get_deposit_by_id(deposit_id)[0]
+
+            # Update the deposit metadata to reflect new version information.
+            # This is crucial for new version drafts which inherit metadata
+            # from the published version (e.g. old version number).
+            module_logger().info(
+                "Updating metadata for deposit %s (title=%s, version=%s)..."
+                % (deposit.id, metadata.title, metadata.version)
+            )
+            deposit.update(metadata)
 
             self._check_deposit(deposit, metadata.title, expected_files)
 
         else:
-            module_logger().debug("Query new deposit with DOI...")
+            module_logger().info(
+                "No deposit_id provided — creating new deposit with DOI..."
+            )
             deposit = self.query.deposit_create_with_prereserve_doi(metadata)
+            pre_doi = (
+                deposit.metadata.prereserve_doi.get("doi", "?")
+                if deposit.metadata
+                else "?"
+            )
+            module_logger().info(f"New deposit created: id={deposit.id}, doi={pre_doi}")
 
         return deposit
 
@@ -136,12 +158,23 @@ class ZenodoManager:
         expected_files: Union[Iterable, None] = None,
     ) -> ZenodoDeposit:
         """Query zenodo to get the unpublished deposit by id."""
-        deposit = self._zenodo_get_unpublished(deposit_id)[0]
+        module_logger().info(
+            "Querying unpublished (draft) deposit %s (expected name=%s)..."
+            % (deposit_id, deposit_name)
+        )
+        deposits = self._zenodo_get_unpublished(deposit_id)
 
-        # raise error when not found
-        if not deposit:
-            raise RuntimeError("Deposit with id %s not found!" % deposit_id)
+        if not deposits:
+            raise RuntimeError(
+                "No draft deposit with id %s found — "
+                "it may already be published." % deposit_id
+            )
 
+        deposit = deposits[0]
+
+        module_logger().info(
+            f"Unpublished deposit {deposit.id} found (title={deposit.title})."
+        )
         self._check_deposit(deposit, deposit_name, expected_files)
 
         return deposit
@@ -170,28 +203,184 @@ class ZenodoManager:
     def _zenodo_get_deposit_by_id(self, deposit_id: str) -> List[ZenodoDeposit]:
         """Get a deposit by id."""
         # get published deposit
+        module_logger().info(
+            "Looking up deposit %s (checking published first)..." % deposit_id
+        )
         deposit = self._zenodo_get_published(deposit_id)
 
         # get unpublished deposit
         if not deposit:
+            module_logger().info(
+                "No published deposit %s — checking for unpublished draft..."
+                % deposit_id
+            )
             deposit = self._zenodo_get_unpublished(deposit_id)
 
         # raise error when not found
         if not deposit:
             raise RuntimeError("Deposit with id %s not found!" % deposit_id)
 
+        module_logger().info(
+            "Deposit %s resolved (submitted=%s)."
+            % (deposit[0].id, deposit[0].submitted)
+        )
         return deposit
+
+    def get_published_deposit(
+        self, deposit_id: str, doi: Union[str, None] = None
+    ) -> Union[ZenodoDeposit, None]:
+        """Return the published deposit if it exists, WITHOUT creating a new version.
+
+        This is used for re-run detection: if a deposit is already published
+        for the same version, the upload step can be skipped entirely.
+
+        Args:
+            deposit_id: The numeric deposit / record ID.
+            doi: Optional full DOI string (e.g. ``10.5281/zenodo.19553456``). Used as a search fallback
+            when the direct lookup by ID fails, which happens on new Zenodo (InvenioRDM)
+            where the numeric DOI suffix may not match the record's API PID.
+        """
+        module_logger().info("Checking published state of deposit %s..." % deposit_id)
+        # Try the deposit API first.
+        try:
+            deposit = self.query.deposit_get_by_id(
+                deposit_id, status=zenodo_api.DepositStatus.PUBLISHED
+            )
+            if deposit:
+                module_logger().info(
+                    "Deposit %s is published (via deposit API)." % deposit_id
+                )
+                return deposit[0]
+        except Exception:
+            module_logger().info(
+                "Deposit API returned error for %s — trying records API..." % deposit_id
+            )
+
+        # Fallback 1: direct records API lookup by ID.
+        try:
+            records = self.query.records_get(record_id=deposit_id)
+            if records:
+                module_logger().info("Deposit %s found via records API." % deposit_id)
+                return records[0]
+        except Exception:
+            module_logger().info(
+                "Records API direct lookup returned no result for %s." % deposit_id
+            )
+
+        # Fallback 2: search by DOI.  On new Zenodo (InvenioRDM) the numeric
+        # DOI suffix and the record's API PID can differ; direct lookup
+        # returns 404 but the search index still finds the record by DOI.
+        if doi:
+            module_logger().info("Trying records search by DOI %s..." % doi)
+            try:
+                records = self.query.records_get(q='doi:"%s"' % doi)
+                if records:
+                    module_logger().info(
+                        "Deposit found via DOI search (doi=%s, id=%s)."
+                        % (doi, records[0].id)
+                    )
+                    print("Deposit found via DOI search: id=%s" % records[0].id)
+                    return records[0]
+            except Exception:
+                module_logger().info(
+                    "Records search by DOI %s returned no result." % doi
+                )
+
+        module_logger().info("Deposit %s is not published." % deposit_id)
+        return None
+
+    def get_latest_version_by_concept(
+        self, conceptrecid: str
+    ) -> Union[ZenodoDeposit, None]:
+        """Return the latest published version under a concept record ID.
+
+        Zenodo's records API automatically redirects a concept record ID
+        to the latest published version.  This allows checking what the
+        newest version is without knowing its specific deposit ID.
+
+        Returns:
+            The latest published ``ZenodoRecord`` (or ``ZenodoDeposit``),
+            or ``None`` if the lookup fails.
+        """
+        module_logger().info(
+            "Querying latest version under concept record %s..." % conceptrecid
+        )
+        try:
+            records = self.query.records_get(record_id=conceptrecid)
+            if records:
+                latest = records[0]
+                # The records API stores the semantic version in
+                # metadata.version, not at the top level.
+                version = getattr(latest, "version", None)
+                if not version and latest.metadata:
+                    version = getattr(latest.metadata, "version", None)
+                module_logger().info(
+                    "Latest version under concept %s: deposit=%s, version=%s"
+                    % (conceptrecid, latest.id, version)
+                )
+                return latest
+        except Exception:
+            module_logger().info(
+                "Could not resolve concept record %s via records API." % conceptrecid
+            )
+        return None
+
+    def resolve_concept_record_id(
+        self, deposit_id: str, conceptdoi: Union[str, None] = None
+    ) -> Union[str, None]:
+        """Derive the concept record ID for a deposit.
+
+        Tries two strategies:
+        1. Parse ``conceptdoi`` (format ``<prefix>/zenodo.<conceptrecid>``).
+        2. Query the deposit API for ``deposit_id`` and read ``conceptrecid``.
+
+        Returns:
+            The concept record ID as a string, or ``None`` if unavailable.
+        """
+        # Strategy 1: parse from conceptdoi
+        if conceptdoi and "zenodo" in conceptdoi.lower():
+            conceptrecid = conceptdoi.rsplit(".", 1)[-1]
+            module_logger().info(
+                "Derived conceptrecid=%s from conceptdoi=%s"
+                % (conceptrecid, conceptdoi)
+            )
+            return conceptrecid
+
+        # Strategy 2: query the deposit and read conceptrecid
+        if deposit_id:
+            try:
+                deposit = self.query.deposit_get_by_id(deposit_id)
+                if deposit and deposit[0].conceptrecid:
+                    conceptrecid = str(deposit[0].conceptrecid)
+                    module_logger().info(
+                        "Resolved conceptrecid=%s from deposit %s"
+                        % (conceptrecid, deposit_id)
+                    )
+                    return conceptrecid
+            except Exception:
+                module_logger().info(
+                    "Could not resolve conceptrecid from deposit %s." % deposit_id
+                )
+
+        module_logger().info(
+            "No concept record ID available (deposit_id=%s, conceptdoi=%s)."
+            % (deposit_id, conceptdoi)
+        )
+        return None
 
     def _zenodo_get_unpublished(self, deposit_id: str) -> List[ZenodoDeposit]:
         """Get an unpublished deposit by id."""
-        deposit = self.query.deposit_get(
+        module_logger().debug(
+            "Querying Zenodo deposit API for draft deposit %s..." % deposit_id
+        )
+        deposit = self.query.deposit_get_by_id(
             deposit_id, status=zenodo_api.DepositStatus.DRAFT
         )
 
         if deposit:
             deposit_ = deposit[0]
 
-            module_logger().debug("Deposit with id %s found..." % deposit_.id)
+            module_logger().info("Draft deposit %s found." % deposit_.id)
 
             if (
                 deposit_.metadata is None
@@ -199,21 +388,27 @@ class ZenodoManager:
                 or "doi" not in deposit_.metadata.prereserve_doi.keys()
             ):
                 raise RuntimeError("Deposit has no prereserved DOI! Invalid deposit!")
+        else:
+            module_logger().debug("No draft deposit found for id %s." % deposit_id)
 
         return deposit
 
     def _zenodo_get_published(self, deposit_id: str) -> List[ZenodoDeposit]:
         """Get a published deposit by id."""
-        deposit = self.query.deposit_get(deposit_id)
+        module_logger().debug(
+            "Querying Zenodo deposit API for published deposit %s..." % deposit_id
+        )
+        deposit = self.query.deposit_get_by_id(deposit_id)
 
         if deposit and deposit[0].submitted:
             deposit_ = deposit[0]
 
-            module_logger().debug(
-                "Deposit with id %s found but it has already been published. Querying new version..."
+            module_logger().info(
+                "Deposit %s is already published — requesting new version draft..."
                 % deposit_.id
             )
 
             deposit = deposit_.new_version()
+            module_logger().info("New version draft created: id=%s" % deposit[0].id)
 
         return deposit

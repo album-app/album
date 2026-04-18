@@ -3,21 +3,15 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
-from album.environments.api.environment_api import IEnvironmentAPI
-from album.environments.api.model.environment import IEnvironment
-from album.environments.initialization import init_environment_handler
-from album.environments.model.environment import Environment
-from album.environments.utils.file_operations import (
-    get_dict_from_yml,
-    write_dict_to_yml,
-)
-
 from album.core import __version__ as album_version
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.environment_manager import IEnvironmentManager
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_solution import ICollectionSolution
-from album.core.model.default_values import DEFAULT_SOLUTION_ENV_CONTENT, DefaultValues
+from album.core.model.default_values import (
+    DEFAULT_SOLUTION_ENV_CONTENT,
+    DefaultValues,
+)
 from album.core.model.link import Link
 from album.core.utils.operations.file_operations import (
     construct_cache_link_target,
@@ -26,6 +20,14 @@ from album.core.utils.operations.file_operations import (
 )
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.core.utils.operations.solution_operations import set_environment_paths
+from album.environments.api.environment_api import IEnvironmentAPI
+from album.environments.api.model.environment import IEnvironment
+from album.environments.initialization import init_environment_handler
+from album.environments.model.environment import Environment
+from album.environments.utils.file_operations import (
+    get_dict_from_yml,
+    write_dict_to_yml,
+)
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 
@@ -308,6 +310,9 @@ class EnvironmentManager(IEnvironmentManager):
         if not album_api_version:
             album_api_version = DefaultValues.runner_api_package_version.value
 
+        # track whether the environment comes from the solution or from defaults
+        has_user_environment = yaml_dict is not None
+
         if not yaml_dict:
             yaml_dict = deepcopy(DEFAULT_SOLUTION_ENV_CONTENT)
 
@@ -321,12 +326,19 @@ class EnvironmentManager(IEnvironmentManager):
         if self._album.migration_manager().is_migration_needed_solution_api(
             album_api_version
         ):
-            (
-                runner_package_name,
-                album_api_version,
-            ) = (
-                self._album.migration_manager().get_conda_available_outdated_runner_name_and_version()
-            )
+            config = self._album.migration_manager().get_outdated_environment_config()
+            runner_package_name = config["runner_package_name"]
+            album_api_version = config["runner_version"]
+            # Only pin Python and setuptools when using the default environment.
+            # User-provided environments are left untouched — the user owns
+            # their dependency specification and we should not risk conflicts
+            # with their conda/pip dependency layout.
+            if not has_user_environment:
+                EnvironmentManager._apply_outdated_environment_pins(
+                    yaml_dict,
+                    config["python_version"],
+                    config["extra_pins"],
+                )
 
         yaml_dict = self._append_framework_to_dependencies(
             yaml_dict, album_api_version, runner_package_name
@@ -359,6 +371,29 @@ class EnvironmentManager(IEnvironmentManager):
         return EnvironmentManager._append_framework_via_conda_to_yml(
             content, album_api_version, runner_package_name
         )
+
+    @staticmethod
+    def _apply_outdated_environment_pins(
+        yaml_dict: Dict[str, Any],
+        python_version: str,
+        extra_pins: List[str],
+    ) -> None:
+        """Replace the Python version and add extra dependency pins for the default environment of outdated solutions.
+
+        Only called when the solution does NOT provide its own environment file, so we are safe to modify the
+        auto-generated dependency list.
+        """
+        if "dependencies" not in yaml_dict or not yaml_dict["dependencies"]:
+            yaml_dict["dependencies"] = []
+        yaml_dict["dependencies"] = [
+            (
+                "python=%s" % python_version
+                if isinstance(dep, str) and dep.startswith("python=")
+                else dep
+            )
+            for dep in yaml_dict["dependencies"]
+        ]
+        yaml_dict["dependencies"].extend(extra_pins)
 
     @staticmethod
     def _append_framework_via_conda_to_yml(

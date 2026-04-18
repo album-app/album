@@ -29,7 +29,7 @@ setup(
     group="group",
     name="solution19_latest_API",
     version="0.1.0",
-    album_api_version="0.6.1",
+    album_api_version="0.7.1",
     args=[
         {
             "name": "testArg1",

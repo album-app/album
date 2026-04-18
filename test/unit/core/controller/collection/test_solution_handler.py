@@ -6,9 +6,6 @@ from test.unit.core.controller.collection.test_collection_manager import (
 from test.unit.test_unit_core_common import EmptyTestClass
 from unittest.mock import MagicMock, create_autospec, patch
 
-from album.runner.core.model.coordinates import Coordinates
-from album.runner.core.model.solution import Solution
-
 from album.core.api.model.catalog_updates import ChangeType
 from album.core.model.catalog import Catalog
 from album.core.model.catalog_index import CatalogIndex
@@ -17,6 +14,8 @@ from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import get_link_target
+from album.runner.core.model.coordinates import Coordinates
+from album.runner.core.model.solution import Solution
 
 
 class TestSolutionHandler(TestCatalogAndCollectionCommon):
@@ -54,8 +53,13 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
 
         catalog = EmptyTestClass()
         catalog.catalog_id = lambda: 5
+        loaded_solution = Solution(self.solution_default_dict)
         solution = ResolveResult(
-            Path("path").joinpath("solution.py"), catalog, None, None
+            Path("path").joinpath("solution.py"),
+            catalog,
+            None,
+            Coordinates("tsg", "tsn", "tsv"),
+            loaded_solution=loaded_solution,
         )
 
         # mock
@@ -72,53 +76,13 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
 
         # assert
         add_or_replace_solution.assert_called_once_with(
-            5, None, self.solution_default_dict
+            5, Coordinates("tsg", "tsn", "tsv"), self.solution_default_dict
         )
         get_solution_path.assert_called_once_with(
             catalog, Coordinates("tsg", "tsn", "tsv")
         )
         copy_folder_mock.assert_called_once_with(
             Path("path"), Path("myCopyPath"), copy_root_folder=False
-        )
-        copy_mock.assert_not_called()
-
-    @patch("album.core.controller.collection.solution_handler.copy")
-    @patch("album.core.controller.collection.solution_handler.copy_folder")
-    @patch("album.core.controller.collection.solution_handler.get_deploy_dict")
-    def test_add_or_replace_file_call(
-        self, get_deploy_dict_mock, copy_folder_mock, copy_mock
-    ):
-        self.setup_solution_no_env()
-
-        get_deploy_dict_mock.return_value = self.solution_default_dict
-
-        catalog = EmptyTestClass()
-        catalog.catalog_id = lambda: 5
-        self.active_solution = ResolveResult(
-            "path", catalog, None, None, single_file_solution=True
-        )
-
-        # mock
-        add_or_replace_solution = MagicMock()
-        self.album_controller.collection_manager().get_collection_index().add_or_replace_solution = (
-            add_or_replace_solution
-        )
-
-        get_solution_path = MagicMock(return_value=Path("myCopyPath"))
-        self.solution_handler.get_solution_package_path = get_solution_path
-
-        # call
-        self.solution_handler.add_or_replace(catalog, self.active_solution)
-
-        # assert
-        add_or_replace_solution.assert_called_once_with(
-            5, solution.coordinates(), self.solution_default_dict
-        )
-        get_solution_path.assert_called_once_with(
-            catalog, Coordinates("tsg", "tsn", "tsv")
-        )
-        copy_folder_mock.assert_called_once_with(
-            solution.path(), Path("myCopyPath"), copy_root_folder=False
         )
         copy_mock.assert_not_called()
 
