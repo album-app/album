@@ -62,6 +62,21 @@ class TestArgumentParsing(unittest.TestCase):
         args = parser.parse_known_args()
         self.assertEqual(["--input", "/other/path"], args[1])
 
+    def test_deploy_force_deploy_flag(self):
+        parser = argument_parsing.create_parser()
+
+        # without the flag force_deploy must be off (matches Album.deploy default)
+        sys.argv = ["", "deploy", "test/path", "catalog-name"]
+        args = parser.parse_known_args()
+        self.assertEqual(deploy, args[0].func)
+        self.assertFalse(args[0].force_deploy)
+
+        # the flag enables force deploy, as its help text says
+        sys.argv = ["", "deploy", "test/path", "catalog-name", "--force-deploy"]
+        args = parser.parse_known_args()
+        self.assertEqual(deploy, args[0].func)
+        self.assertTrue(args[0].force_deploy)
+
     def assertSubcommandParsed(self, parser, name, method, arguments=None):
         sys.argv = ["", name]
         if arguments:
