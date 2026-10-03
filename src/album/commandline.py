@@ -145,14 +145,19 @@ def index(album_instance: Album, args: Namespace):
 
 def _merge_scripts(script1, script2_content, tmp_dir):
     """Merge two scripts into one."""
-    with open(script1) as fp:
+    with open(script1, encoding="utf-8") as fp:
         data = fp.read()
 
     data += "\n"
     data += script2_content.decode("utf-8")
 
     with tempfile.NamedTemporaryFile(
-        "w", suffix=".py", prefix="solution_repl", dir=tmp_dir, delete=False
+        "w",
+        suffix=".py",
+        prefix="solution_repl",
+        dir=tmp_dir,
+        delete=False,
+        encoding="utf-8",
     ) as tmp_file:
         tmp_file.write(data)
     return tmp_file.name
