@@ -18,7 +18,7 @@ class StateManager(IStateManager):
 
     def load(self, path: str) -> ISolution:
         get_active_logger().debug(f"Loading solution from {path}...")
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             solution = f.read()
         exec(solution)
         active_solution = self._get_active_solution()
