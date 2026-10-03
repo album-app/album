@@ -64,7 +64,7 @@ def write_dict_to_json(
     json_file = Path(json_file)
     create_path_recursively(json_file.parent)
 
-    with open(json_file, "w+") as json_f:
+    with open(json_file, "w+", encoding="utf-8") as json_f:
         json_f.write(json.dumps(d))
 
     return True
@@ -74,7 +74,7 @@ def get_dict_from_json(json_file: Union[str, Path]) -> Dict[str, Any]:
     """Read dictionary from JSON file."""
     json_file = Path(json_file)
 
-    with open(json_file) as json_f:
+    with open(json_file, encoding="utf-8") as json_f:
         d = json.load(json_f)
 
     return d
@@ -136,7 +136,7 @@ def copy_in_file(file_content: str, file_path: Union[str, Path]) -> Path:
     create_path_recursively(file_path.parent)
     if file_path.is_file():
         file_path.unlink()
-    with open(file_path, "w") as script_file:
+    with open(file_path, "w", encoding="utf-8") as script_file:
         script_file.write(file_content)
     return file_path
 
