@@ -294,8 +294,7 @@ class TestInstallManager(TestUnitCoreCommon):
         "album.core.controller.install_manager.dict_to_coordinates",
         return_value=Coordinates("g1", "n1", "v1"),
     )
-    @patch("album.core.controller.install_manager.get_parent_dict", return_value=False)
-    def test_clean_unfinished_installations_env_exists(self, _, __):
+    def test_clean_unfinished_installations_env_exists(self, _):
         # mocks
         remove_dc = MagicMock()
         self.album_controller.install_manager()._remove_disc_content_from_solution = (
@@ -310,7 +309,7 @@ class TestInstallManager(TestUnitCoreCommon):
             return_value=[
                 CollectionIndex.CollectionSolution(
                     {"group": "g1", "name": "n1", "version": "v1"},  # setup
-                    {"catalog_id": 1},  # internal
+                    {"catalog_id": 1, "parent": None},  # internal
                 )
             ]
         )
@@ -355,8 +354,11 @@ class TestInstallManager(TestUnitCoreCommon):
         "album.core.controller.install_manager.dict_to_coordinates",
         return_value=Coordinates("g1", "n1", "v1"),
     )
-    @patch("album.core.controller.install_manager.get_parent_dict", return_value=True)
-    def test_clean_unfinished_installations_parent(self, _, __):
+    def test_clean_unfinished_installations_parent(self, _):
+        parent_entry = CollectionIndex.CollectionSolution(
+            {"group": "g0", "name": "n0", "version": "v0"}, {"catalog_id": 1}
+        )
+
         # mocks
         remove_dc = MagicMock()
         self.album_controller.install_manager()._remove_disc_content_from_solution = (
@@ -371,7 +373,7 @@ class TestInstallManager(TestUnitCoreCommon):
             return_value=[
                 CollectionIndex.CollectionSolution(
                     {"group": "g1", "name": "n1", "version": "v1"},  # setup
-                    {"catalog_id": 1},  # internal
+                    {"catalog_id": 1, "parent": parent_entry},  # internal
                 )
             ]
         )
@@ -496,6 +498,157 @@ class TestInstallManager(TestUnitCoreCommon):
         # assert
         set_environment.assert_called_once()
         remove_environment.assert_called_once_with("myEnv")
+
+
+class TestInstallManagerCollectionParent(TestUnitCoreCommon):
+    """Parent detection for solutions built from their collection entry.
+
+    Such solutions carry no "dependencies", their parent is only known from the
+    collection index.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.setup_collection()
+        # the real environment manager needs micromamba
+        self.album_controller._environment_manager = MagicMock()
+        self.environment_manager = self.album_controller.environment_manager()
+        self.install_manager: InstallManager = self.album_controller.install_manager()
+        self.catalog = (
+            self.album_controller.collection_manager().catalogs().get_cache_catalog()
+        )
+        self.parent_entry = CollectionIndex.CollectionSolution(
+            {"group": "gp", "name": "np", "version": "vp", "doi": None},  # setup
+            {"catalog_id": 1, "parent": None, "children": []},  # internal
+        )
+
+    def _mock_clean_unfinished_installations(
+        self, unfinished_entry: CollectionIndex.CollectionSolution
+    ) -> MagicMock:
+        collection_manager = self.album_controller.collection_manager()
+        collection_index = collection_manager.get_collection_index()
+        collection_index.get_unfinished_installation_solutions = MagicMock(
+            return_value=[unfinished_entry]
+        )
+        collection_manager.catalogs().get_by_id = MagicMock(return_value=self.catalog)
+        collection_manager.solutions().set_cache_paths = MagicMock()
+        self.install_manager._remove_disc_content_from_solution = MagicMock()
+        remove_solution = MagicMock()
+        collection_manager.solutions().remove_solution = remove_solution
+        return remove_solution
+
+    def test_clean_unfinished_installations_child(self):
+        child_entry = CollectionIndex.CollectionSolution(
+            {"group": "g1", "name": "n1", "version": "v1"},  # setup
+            {"catalog_id": 1, "parent": self.parent_entry},  # internal
+        )
+        remove_solution = self._mock_clean_unfinished_installations(child_entry)
+
+        # call
+        self.install_manager.clean_unfinished_installations()
+
+        # assert - the child runs in the environment of its parent, which stays
+        self.environment_manager.set_environment.assert_not_called()
+        self.environment_manager.remove_environment.assert_not_called()
+        remove_solution.assert_called_once()
+
+    def test_clean_unfinished_installations_no_parent(self):
+        entry = CollectionIndex.CollectionSolution(
+            {"group": "g1", "name": "n1", "version": "v1"},  # setup
+            {"catalog_id": 1, "parent": None},  # internal
+        )
+        remove_solution = self._mock_clean_unfinished_installations(entry)
+        self.environment_manager.set_environment.return_value = "myEnv"
+
+        # call
+        self.install_manager.clean_unfinished_installations()
+
+        # assert
+        self.environment_manager.set_environment.assert_called_once()
+        self.environment_manager.remove_environment.assert_called_once_with("myEnv")
+        remove_solution.assert_called_once()
+
+    def test_uninstall_rm_dep_solution_not_loaded(self):
+        child_entry = CollectionIndex.CollectionSolution(
+            {"group": "g1", "name": "n1", "version": "v1", "doi": None},  # setup
+            {"catalog_id": 1, "parent": self.parent_entry, "children": []},  # internal
+        )
+        resolve_result = ResolveResult(
+            path=Path("aPath"),
+            catalog=self.catalog,
+            collection_entry=child_entry,
+            coordinates=Coordinates("g1", "n1", "v1"),
+        )
+
+        # mocks
+        collection_manager = self.album_controller.collection_manager()
+        # the solution file cannot be loaded, the solution is built from its entry
+        collection_manager.resolve_installed_and_load = MagicMock(
+            side_effect=ValueError
+        )
+        collection_manager.resolve_installed = MagicMock(return_value=resolve_result)
+        get_by_id = MagicMock(return_value=self.catalog)
+        collection_manager.catalogs().get_by_id = get_by_id
+        self.install_manager._remove_disc_content_from_solution = MagicMock()
+        remove_solution = MagicMock()
+        collection_manager.solutions().remove_solution = remove_solution
+
+        # the recursive call uninstalling the parent ends up in this mock
+        uninstall = self.install_manager.uninstall
+        uninstall_parent = MagicMock()
+        self.install_manager.uninstall = uninstall_parent
+
+        # call
+        uninstall("g1:n1:v1", rm_dep=True)
+
+        # assert
+        remove_solution.assert_called_once()
+        self.environment_manager.remove_environment.assert_not_called()
+        get_by_id.assert_called_once_with(1)
+        uninstall_parent.assert_called_once_with(
+            "%s:gp:np:vp" % self.catalog.name(), True
+        )
+
+    def test_remove_dependencies_parent_declared_in_solution(self):
+        # solution loaded from its file: the declared parent is used, as before
+        solution = Solution(
+            {
+                "group": "g1",
+                "name": "n1",
+                "version": "v1",
+                "dependencies": {"parent": {"resolve_solution": "gp:np:vp"}},
+            }
+        )
+        get_by_id = MagicMock()
+        self.album_controller.collection_manager().catalogs().get_by_id = get_by_id
+        uninstall = MagicMock()
+        self.install_manager.uninstall = uninstall
+
+        # call
+        self.install_manager._remove_dependencies(solution, True, self.parent_entry)
+
+        # assert
+        uninstall.assert_called_once_with("gp:np:vp", True)
+        get_by_id.assert_not_called()
+
+    def test_remove_dependencies_no_parent_declared_in_solution(self):
+        # solution loaded from its file without parent: nothing to remove, as before
+        solution = Solution(
+            {
+                "group": "g1",
+                "name": "n1",
+                "version": "v1",
+                "dependencies": {"environment_file": "env.yml"},
+            }
+        )
+        uninstall = MagicMock()
+        self.install_manager.uninstall = uninstall
+
+        # call
+        self.install_manager._remove_dependencies(solution, True, self.parent_entry)
+
+        # assert
+        uninstall.assert_not_called()
 
 
 if __name__ == "__main__":
