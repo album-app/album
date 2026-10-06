@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
+from packaging.version import InvalidVersion, Version
 
 from album.core.api.model.catalog_index import ICatalogIndex
 from album.core.model.database import Database
@@ -19,6 +20,23 @@ from album.core.utils.operations.solution_operations import (
 )
 
 module_logger = album_logging.get_active_logger
+
+
+def _sort_newest_first(solutions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Sort solution entries by version, newest first.
+
+    Versions are compared as PEP 440 versions when every entry parses, so that
+    "0.10.0" sorts above "0.9.0". If any version does not parse, the entries
+    are returned in the given (lexicographic) order.
+    """
+    try:
+        return sorted(
+            solutions,
+            key=lambda solution: Version(str(solution["version"])),
+            reverse=True,
+        )
+    except InvalidVersion:
+        return solutions
 
 
 class CatalogIndex(ICatalogIndex, Database):
@@ -580,7 +598,7 @@ class CatalogIndex(ICatalogIndex, Database):
         if close:
             self.close_current_connection()
 
-        return solutions
+        return _sort_newest_first(solutions)
 
     def _update_solution(
         self,
