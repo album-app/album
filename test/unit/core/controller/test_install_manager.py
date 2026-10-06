@@ -275,6 +275,116 @@ class TestInstallManager(TestUnitCoreCommon):
         # TODO implement
         pass
 
+    def _prepare_uninstall(self, load_error=None, parent=None):
+        # an installed solution as it is stored in the collection
+        collection_entry = CollectionIndex.CollectionSolution(
+            {"group": "tsg", "name": "tsn", "version": "tsv"},  # setup
+            {"parent": parent, "children": []},  # internal
+        )
+        resolve_result = ResolveResult(
+            path=Path(self.tmp_dir.name).joinpath("solution.py"),
+            catalog=self.album_controller.collection_manager()
+            .catalogs()
+            .get_cache_catalog(),
+            collection_entry=collection_entry,
+            coordinates=Coordinates("tsg", "tsn", "tsv"),
+        )
+
+        # mocks
+        if load_error:
+            resolve_installed_and_load = MagicMock(side_effect=load_error)
+        else:
+            resolve_installed_and_load = MagicMock(return_value=resolve_result)
+        self.album_controller.collection_manager().resolve_installed_and_load = (
+            resolve_installed_and_load
+        )
+
+        resolve_installed = MagicMock(return_value=resolve_result)
+        self.album_controller.collection_manager().resolve_installed = resolve_installed
+
+        self.set_environment = MagicMock(return_value="myEnv")
+        self.environment_manager.set_environment = self.set_environment
+
+        self.remove_environment = MagicMock(return_value=True)
+        self.environment_manager.remove_environment = self.remove_environment
+
+        self.run_solution_uninstall_routine = MagicMock()
+        self.install_manager._run_solution_uninstall_routine = (
+            self.run_solution_uninstall_routine
+        )
+
+        self.remove_solution = MagicMock()
+        self.album_controller.solutions().remove_solution = self.remove_solution
+
+        self.install_manager._remove_disc_content_from_solution = MagicMock()
+
+        return resolve_result
+
+    @patch(
+        "album.core.controller.install_manager.EnvironmentManager.remove_disc_content_from_environment"
+    )
+    def test_uninstall_loaded(self, remove_disc_content_from_environment):
+        r = self._prepare_uninstall()
+
+        # call
+        self.install_manager.uninstall("tsg:tsn:tsv")
+
+        # assert
+        self.set_environment.assert_called_once_with(r)
+        self.run_solution_uninstall_routine.assert_called_once_with(r)
+        self.remove_environment.assert_called_once_with("myEnv")
+        remove_disc_content_from_environment.assert_called_once_with("myEnv")
+        self.remove_solution.assert_called_once_with(r.catalog(), r.coordinates())
+
+    @patch(
+        "album.core.controller.install_manager.EnvironmentManager.remove_disc_content_from_environment"
+    )
+    def test_uninstall_solution_cannot_be_loaded(
+        self, remove_disc_content_from_environment
+    ):
+        # no setup() call in the file, file missing, file broken
+        for load_error in [
+            ValueError("Cannot load solution!"),
+            FileNotFoundError("solution.py"),
+            SyntaxError("invalid syntax"),
+        ]:
+            with self.subTest(load_error=type(load_error).__name__):
+                remove_disc_content_from_environment.reset_mock()
+                r = self._prepare_uninstall(load_error=load_error)
+
+                # call
+                self.install_manager.uninstall("tsg:tsn:tsv")
+
+                # assert
+                self.set_environment.assert_called_once_with(r)
+                self.run_solution_uninstall_routine.assert_not_called()
+                self.remove_environment.assert_called_once_with("myEnv")
+                remove_disc_content_from_environment.assert_called_once_with("myEnv")
+                self.remove_solution.assert_called_once_with(
+                    r.catalog(), r.coordinates()
+                )
+
+    @patch(
+        "album.core.controller.install_manager.EnvironmentManager.remove_disc_content_from_environment"
+    )
+    def test_uninstall_solution_cannot_be_loaded_parent(
+        self, remove_disc_content_from_environment
+    ):
+        # the solution runs in the environment of its parent, which must be kept
+        r = self._prepare_uninstall(
+            load_error=ValueError("Cannot load solution!"),
+            parent=CollectionIndex.CollectionSolution(),
+        )
+
+        # call
+        self.install_manager.uninstall("tsg:tsn:tsv")
+
+        # assert
+        self.run_solution_uninstall_routine.assert_not_called()
+        self.remove_environment.assert_not_called()
+        remove_disc_content_from_environment.assert_not_called()
+        self.remove_solution.assert_called_once_with(r.catalog(), r.coordinates())
+
     @unittest.skip("Needs to be implemented!")
     def test__uninstall(self):
         # TODO implement
