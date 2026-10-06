@@ -266,8 +266,10 @@ class Catalog(ICatalog):
             str(self._src), str(path), force_download=force_retrieve, update=update
         )
 
-        yield repo
-        repo.close()
+        try:
+            yield repo
+        finally:
+            repo.close()
 
     def get_meta_information(self) -> Dict[str, str]:
         return {"name": self._name, "version": self._version, "type": self._type}
