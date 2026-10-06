@@ -281,9 +281,9 @@ def create_deploy_parser(parser):
     p.add_argument(
         "--force-deploy",
         required=False,
-        help="When specified,force deploys a solution to a catalog."
+        help="When specified, force deploys a solution to a catalog."
         " Useful if the solution has already been deployed once.",
-        action="store_false",
+        action="store_true",
     )
     p.add_argument(
         "--changelog",
