@@ -1,3 +1,4 @@
+from copy import deepcopy
 from io import StringIO
 from pathlib import Path
 from test.unit.test_unit_core_common import TestCatalogAndCollectionCommon
@@ -189,7 +190,7 @@ dependencies:
         )
 
         expected_content_with_setuptools = (
-            """['channels:\\n', '- conda-forge\\n', 'dependencies:\\n', '- python=3.8\\n', '- pip\\n', '- conda-forge::setuptools\\n', '- conda-forge::%s=%s\\n', '- conda-forge::setuptools>=59.7.0\\n', 'name: Dummy-Solution18\\n']"""
+            """['channels:\\n', '- conda-forge\\n', 'dependencies:\\n', '- python=3.8\\n', '- pip\\n', '- conda-forge::setuptools\\n', '- conda-forge::%s=%s\\n', 'name: Dummy-Solution18\\n']"""
             % (
                 DefaultValues.runner_api_package_name.value,
                 DefaultValues.runner_api_package_version.value,
@@ -412,6 +413,80 @@ dependencies:
     def test__handle_env_file_string_error(self):
         with self.assertRaises(TypeError):
             self.resource_manager._handle_env_file_string(1, Path(self.tmp_dir.name))
+
+    def test__handle_env_file_string_valid_path_yaml_extension(self):
+        # an environment file on disk may use either YAML extension
+        env_file = Path(self.tmp_dir.name).joinpath("environment.yaml")
+        with open(env_file, mode="w", encoding="utf-8") as tmp_file:
+            tmp_file.write("""name: test_to_be_copied""")
+        test_yml = Path(self.tmp_dir.name).joinpath("test.yml")
+
+        # call
+        self.resource_manager.handle_env_file_dependency(str(env_file), test_yml)
+
+        # assert
+        with open(test_yml, encoding="utf-8") as f:
+            content = f.read()
+
+        self.assertEqual("name: test_to_be_copied", content)
+
+    def test__handle_env_file_string_path_unknown_extension(self):
+        env_file = Path(self.tmp_dir.name).joinpath("environment.txt")
+        with open(env_file, mode="w", encoding="utf-8") as tmp_file:
+            tmp_file.write("""name: test""")
+
+        with self.assertRaises(TypeError):
+            self.resource_manager._handle_env_file_string(
+                str(env_file), Path(self.tmp_dir.name).joinpath("test.yml")
+            )
+
+    def test__append_setuptools_to_yml_keeps_existing_spec(self):
+        for spec in [
+            "setuptools",
+            "setuptools>=60",
+            "setuptools<58",
+            "setuptools=70.*",
+            "setuptools==69.5.1",
+            "setuptools!=70.0.0",
+            "setuptools~=69.0",
+            "setuptools 70.*",
+            "setuptools[version='>=60']",
+            "conda-forge::setuptools",
+            "conda-forge::setuptools>=60",
+            # album's own pin, so a second call adds nothing
+            "conda-forge::setuptools>=59.7.0",
+        ]:
+            with self.subTest(spec=spec):
+                content = {"dependencies": ["python=3.10", spec]}
+
+                result = ResourceManager._append_setuptools_to_yml(content)
+
+                self.assertEqual(["python=3.10", spec], result["dependencies"])
+
+    def test__append_setuptools_to_yml_appends_pin(self):
+        pin = "conda-forge::setuptools>=59.7.0"
+        for dependencies in [
+            None,
+            [],
+            ["python=3.10"],
+            # other packages whose name only starts with "setuptools"
+            ["setuptools-scm"],
+            ["setuptools_scm>=8"],
+            ["conda-forge::setuptools-git-versioning"],
+            # a nested pip list is installed by pip after the conda solve
+            ["pip", {"pip": ["setuptools>=60"]}],
+        ]:
+            with self.subTest(dependencies=dependencies):
+                content = {"dependencies": deepcopy(dependencies)}
+
+                result = ResourceManager._append_setuptools_to_yml(content)
+
+                self.assertEqual((dependencies or []) + [pin], result["dependencies"])
+
+        with self.subTest(dependencies="missing"):
+            self.assertEqual(
+                {"dependencies": [pin]}, ResourceManager._append_setuptools_to_yml({})
+            )
 
     def test__handle_env_file_stream_valid(self):
         # create tmp yml file named test.yml
