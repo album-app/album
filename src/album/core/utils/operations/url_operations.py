@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import tempfile
 from enum import Enum, unique
@@ -52,17 +53,29 @@ def is_git_ssh_address(str_input: str) -> bool:
 
 
 def download(str_input: str, base: str) -> Path:
-    """Download a solution file into a temporary file."""
+    """Download a solution file into a temporary file.
+
+    Raises:
+        ConnectionError: If the resource does not answer with status 200.
+
+    """
     Path(base).mkdir(exist_ok=True, parents=True)
 
     with _get_session() as s:
         r = s.get(str_input, allow_redirects=True, stream=True)
 
-        new_file, tmp_file_name = tempfile.mkstemp(dir=base)
-        with open(tmp_file_name, "wb") as out:
+        if r.status_code != ResponseStatus.OK.value:
+            raise ConnectionError(
+                "Could not download resource %s! Server responded with status %s."
+                % (str_input, r.status_code)
+            )
+
+        fd, tmp_file_name = tempfile.mkstemp(dir=base)
+        with os.fdopen(fd, "wb") as out:
             out.write(r.content)
         if check_zip(tmp_file_name):
-            new_file, tmp_file_name_zip = tempfile.mkstemp(dir=base, suffix=".zip")
+            fd_zip, tmp_file_name_zip = tempfile.mkstemp(dir=base, suffix=".zip")
+            os.close(fd_zip)  # only the name is needed, copy() writes the content
             copy(tmp_file_name, tmp_file_name_zip)
             return Path(tmp_file_name_zip)
         return Path(tmp_file_name)
