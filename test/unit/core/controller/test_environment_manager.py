@@ -1,4 +1,5 @@
 import io
+import os
 import tempfile
 import unittest
 import unittest.mock
@@ -11,6 +12,7 @@ from album.runner.core.model.coordinates import Coordinates
 from album.runner.core.model.solution import Solution
 
 from album.core.model.catalog import Catalog
+from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 
 
@@ -245,3 +247,53 @@ class TestEnvironmentManager(TestUnitCoreCommon):
         self.assertEqual(res["name"], self.test_environment_name)
 
         create_path_mock.assert_called_once()
+
+
+class TestEnvironmentManagerFrameworkCheck(TestUnitCoreCommon):
+    """Tests for the framework sanity check, independent of any package manager."""
+
+    def setUp(self):
+        super().setUp()
+        # the check only concerns the configured package name, so do not set up
+        # a package manager (no micromamba download, no network access)
+        with patch(
+            "album.core.controller.environment_manager.init_environment_handler"
+        ):
+            self.environment_manager = self.album_controller.environment_manager()
+
+    def test__append_framework_to_dependencies_ignores_cwd(self):
+        # a folder named like the runner package in the current working directory
+        # (e.g. a checkout of album-solution-api) must not be mistaken for a
+        # "folder" framework definition
+        framework_name = DefaultValues.runner_api_package_name.value
+        cwd = os.getcwd()
+        os.chdir(self.tmp_dir.name)
+        try:
+            Path(framework_name).mkdir()
+            r = self.environment_manager._append_framework_to_dependencies(
+                {"dependencies": ["python=3.10"]}, "0.7.1", framework_name
+            )
+        finally:
+            os.chdir(cwd)
+
+        self.assertEqual(
+            ["python=3.10", "conda-forge::%s=0.7.1" % framework_name],
+            r["dependencies"],
+        )
+
+    @patch("album.core.controller.environment_manager.DefaultValues")
+    def test__append_framework_to_dependencies_invalid_name(self, default_values):
+        for framework_name in [
+            "path/to/album-solution-api",
+            "album-solution-api.zip",
+            "https://example.org/album-solution-api",
+        ]:
+            with self.subTest(framework_name=framework_name):
+                default_values.runner_api_package_name.value = framework_name
+                with self.assertRaises(ValueError) as context:
+                    self.environment_manager._append_framework_to_dependencies(
+                        {"dependencies": []}, "0.7.1", framework_name
+                    )
+                self.assertIn(
+                    "Framework is not properly defined", str(context.exception)
+                )
