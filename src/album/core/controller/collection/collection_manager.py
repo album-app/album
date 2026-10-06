@@ -541,34 +541,20 @@ class CollectionManager(ICollectionManager):
             )
             return cache_matches[0]
         elif len(cache_matches) > 1:
-            latest_installed_solution = self._get_latest_installed_solution(
-                cache_matches
-            )
-            if latest_installed_solution:
-                module_logger().warn(
-                    call_not_reproducible
-                    % dict_to_coordinates(latest_installed_solution.setup())
-                )
-            return latest_installed_solution
+            candidates = cache_matches
         elif len(non_cache_matches) > 0:
-            latest_installed_solution = self._get_latest_installed_solution(
-                non_cache_matches
+            candidates = non_cache_matches
+        else:
+            return None
+        # prefer the latest installed candidate, fall back to the latest version
+        latest_solution = self._get_latest_installed_solution(candidates)
+        if latest_solution is None:
+            latest_solution = self._get_latest_solution(candidates)
+        if latest_solution:
+            module_logger().warn(
+                call_not_reproducible % dict_to_coordinates(latest_solution.setup())
             )
-            if latest_installed_solution:
-                module_logger().warn(
-                    call_not_reproducible
-                    % dict_to_coordinates(latest_installed_solution.setup())
-                )
-                return latest_installed_solution
-            else:
-                latest_solution = self._get_latest_solution(non_cache_matches)
-                if latest_solution:
-                    module_logger().warn(
-                        call_not_reproducible
-                        % dict_to_coordinates(latest_solution.setup())
-                    )
-                    return latest_solution
-        return None
+        return latest_solution
 
     def _solutions_as_list(
         self, solutions: List[ICollectionIndex.ICollectionSolution]
@@ -597,6 +583,8 @@ class CollectionManager(ICollectionManager):
     def _get_latest_solution(
         solutions: List[ICollectionIndex.ICollectionSolution],
     ) -> Optional[ICollectionIndex.ICollectionSolution]:
+        if not solutions:
+            return None
         latest_solution = solutions[0]
         for solution in solutions:
             if MMVersion.from_string(

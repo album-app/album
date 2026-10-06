@@ -425,6 +425,25 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         d["doi"] = attrs.get("doi", None)
         return d
 
+    def _get_collection_solution(self, version, catalog_id, installed=False):
+        return CollectionIndex.CollectionSolution(
+            setup=self._get_expected_attrs_setup(
+                {
+                    "group": "grp3",
+                    "name": "name3",
+                    "version": version,
+                }
+            ),
+            internal=self._get_expected_attrs_internal(
+                {
+                    "collection_id": "collection_id",
+                    "solution_id": "solution_id",
+                    "catalog_id": catalog_id,
+                },
+                installed=installed,
+            ),
+        )
+
     @patch(
         "album.core.controller.collection.collection_manager.CollectionManager._get_latest_solution"
     )
@@ -557,6 +576,15 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
 
         # assert
         self.assertEqual(latest_solution, Solution_030)
+
+    def test__get_latest_solution_empty_list(self):
+        # call
+        latest_solution = (
+            self.album_controller.collection_manager()._get_latest_solution([])
+        )
+
+        # assert
+        self.assertIsNone(latest_solution)
 
     def test__handle_multiple_solution_matches(self):
         # prepare
@@ -697,6 +725,74 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         self.assertEqual(latest_solution_no_cache, solution_020)
         self.assertEqual(latest_solution_one_cache, solution_040)
         self.assertEqual(latest_solution_two_cache, solution_050_cache)
+
+    def test__handle_multiple_solution_matches_cache_none_installed(self):
+        # prepare
+        collection_manager = self.album_controller.collection_manager()
+        cache_id = collection_manager.catalogs().get_cache_catalog().catalog_id()
+        solution_010 = self._get_collection_solution("0.1.0", cache_id, installed=False)
+        solution_020 = self._get_collection_solution("0.2.0", cache_id, installed=False)
+
+        # call
+        latest_solution = collection_manager._handle_multiple_solution_matches(
+            [solution_020, solution_010]
+        )
+
+        # assert
+        self.assertEqual(solution_020, latest_solution)
+        self.assertIn(
+            "Resolving ambiguous input to grp3:name3:0.2.0", self.get_logs()[-1]
+        )
+
+    def test__handle_multiple_solution_matches_non_cache_none_installed(self):
+        # prepare
+        collection_manager = self.album_controller.collection_manager()
+        solution_010 = self._get_collection_solution(
+            "0.1.0", "catalog_id", installed=False
+        )
+        solution_020 = self._get_collection_solution(
+            "0.2.0", "catalog_id", installed=False
+        )
+
+        # call
+        latest_solution = collection_manager._handle_multiple_solution_matches(
+            [solution_020, solution_010]
+        )
+
+        # assert
+        self.assertEqual(solution_020, latest_solution)
+        self.assertIn(
+            "Resolving ambiguous input to grp3:name3:0.2.0", self.get_logs()[-1]
+        )
+
+    def test__handle_multiple_solution_matches_prefers_installed(self):
+        # prepare
+        collection_manager = self.album_controller.collection_manager()
+        cache_id = collection_manager.catalogs().get_cache_catalog().catalog_id()
+        solution_010_cache = self._get_collection_solution(
+            "0.1.0", cache_id, installed=True
+        )
+        solution_020_cache = self._get_collection_solution(
+            "0.2.0", cache_id, installed=False
+        )
+        solution_010 = self._get_collection_solution(
+            "0.1.0", "catalog_id", installed=True
+        )
+        solution_020 = self._get_collection_solution(
+            "0.2.0", "catalog_id", installed=False
+        )
+
+        # call
+        latest_cache_solution = collection_manager._handle_multiple_solution_matches(
+            [solution_010_cache, solution_020_cache]
+        )
+        latest_solution = collection_manager._handle_multiple_solution_matches(
+            [solution_010, solution_020]
+        )
+
+        # assert
+        self.assertEqual(solution_010_cache, latest_cache_solution)
+        self.assertEqual(solution_010, latest_solution)
 
     def test__solutions_as_list(self):
         # prepare
