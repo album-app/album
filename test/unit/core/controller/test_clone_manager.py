@@ -9,6 +9,7 @@ from album.core.utils.operations.git_operations import (
     create_bare_repository,
     clone_repository)
 from album.core.utils.operations.file_operations import create_path_recursively
+from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 
@@ -27,6 +28,56 @@ class TestCondaManager(TestUnitCoreCommon):
     def test_clone(self):
         # todo: implement
         pass
+
+    def test_clone_template(self):
+        # mocks
+        _clone_catalog_template = MagicMock(return_value=True)
+        self.clone_manager._clone_catalog_template = _clone_catalog_template
+
+        # call
+        self.clone_manager.clone(
+            "template:catalog", self.tmp_dir.name, "test_catalog", "mail", "user"
+        )
+
+        # assert
+        _clone_catalog_template.assert_called_once_with(
+            "catalog", Path(self.tmp_dir.name), "test_catalog", "mail", "user"
+        )
+
+    @patch("album.core.controller.clone_manager.download_resource")
+    @patch("album.core.controller.clone_manager.is_downloadable", return_value=False)
+    def test_clone_template_not_downloadable(
+        self, is_downloadable_mock, download_resource_mock
+    ):
+        # call and assert
+        with self.assertRaises(LookupError) as context:
+            self.clone_manager.clone(
+                "template:unknown-template", self.tmp_dir.name, "test_catalog"
+            )
+
+        self.assertIn("unknown-template", str(context.exception))
+        self.assertIn(
+            DefaultValues.catalog_template_url.value, str(context.exception)
+        )
+        is_downloadable_mock.assert_called_once()
+        download_resource_mock.assert_not_called()
+
+    def test_clone_template_resolve_error(self):
+        # mocks
+        cause = ValueError("invalid template")
+        self.clone_manager._clone_catalog_template = MagicMock(side_effect=cause)
+
+        # call and assert
+        with self.assertRaises(LookupError) as context:
+            self.clone_manager.clone(
+                "template:broken-template", self.tmp_dir.name, "test_catalog"
+            )
+
+        self.assertIn("broken-template", str(context.exception))
+        self.assertIn(
+            DefaultValues.catalog_template_url.value, str(context.exception)
+        )
+        self.assertIs(context.exception.__cause__, cause)
 
     @patch("album.core.controller.clone_manager.copy_folder", return_value=False)
     def test__clone_solution(self, copy_folder_mock):
