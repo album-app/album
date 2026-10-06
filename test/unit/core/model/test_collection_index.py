@@ -385,6 +385,7 @@ class TestCollectionIndex(TestUnitCoreCommon):
             "description": "myDescription",
         }
         arg_minimal = {"name": "myName", "description": "myDescription"}
+        arg_no_description = {"name": "myName"}
 
         # assert
         self.assertIsNone(self.test_catalog_collection_index._exists_argument(arg, 1))
@@ -397,11 +398,15 @@ class TestCollectionIndex(TestUnitCoreCommon):
         self.assertIsNone(
             self.test_catalog_collection_index._exists_argument(arg_minimal, 1)
         )
+        self.assertIsNone(
+            self.test_catalog_collection_index._exists_argument(arg_no_description, 1)
+        )
 
         r1 = self.test_catalog_collection_index._insert_argument(arg, 1)
         r2 = self.test_catalog_collection_index._insert_argument(arg_no_type, 1)
         r3 = self.test_catalog_collection_index._insert_argument(arg_no_default, 1)
         r4 = self.test_catalog_collection_index._insert_argument(arg_minimal, 1)
+        r5 = self.test_catalog_collection_index._insert_argument(arg_no_description, 1)
 
         self.assertEqual(
             r1, self.test_catalog_collection_index._exists_argument(arg, 1)
@@ -414,6 +419,10 @@ class TestCollectionIndex(TestUnitCoreCommon):
         )
         self.assertEqual(
             r4, self.test_catalog_collection_index._exists_argument(arg_minimal, 1)
+        )
+        self.assertEqual(
+            r5,
+            self.test_catalog_collection_index._exists_argument(arg_no_description, 1),
         )
 
     def test__exists_custom(self):
@@ -859,6 +868,22 @@ class TestCollectionIndex(TestUnitCoreCommon):
         self.assertEqual(3, r._internal["collection_id"])
         self.assertEqual(3, r._internal["solution_id"])
         self.assertDictEqual(expected, r._setup)
+
+    def test_get_solution_argument_without_description(self):
+        self.test_catalog_collection_index.insert_solution(
+            "cat1",
+            self._get_solution_attrs(
+                1, "grp1", "name1", "version1", None, {"args": [{"name": "a1"}]}
+            ),
+        )
+
+        # call
+        r = self.test_catalog_collection_index.get_solution_by_collection_id(1)
+
+        # assert
+        self.assertEqual(
+            [{"name": "a1", "type": None, "description": ""}], r._setup["args"]
+        )
 
     @unittest.skip("Needs to be implemented!")
     def test_get_solution_by_doi(self):

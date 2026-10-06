@@ -253,22 +253,26 @@ class TestCatalogIndex(TestUnitCoreCommon):
             "description": "myDescription",
         }
         arg_minimal = {"name": "myName", "description": "myDescription"}
+        arg_no_description = {"name": "myName"}
 
         # assert
         self.assertIsNone(self.catalog_index._exists_argument(arg))
         self.assertIsNone(self.catalog_index._exists_argument(arg_no_type))
         self.assertIsNone(self.catalog_index._exists_argument(arg_no_default))
         self.assertIsNone(self.catalog_index._exists_argument(arg_minimal))
+        self.assertIsNone(self.catalog_index._exists_argument(arg_no_description))
 
         r1 = self.catalog_index._insert_argument(arg)
         r2 = self.catalog_index._insert_argument(arg_no_type)
         r3 = self.catalog_index._insert_argument(arg_no_default)
         r4 = self.catalog_index._insert_argument(arg_minimal)
+        r5 = self.catalog_index._insert_argument(arg_no_description)
 
         self.assertEqual(r1, self.catalog_index._exists_argument(arg))
         self.assertEqual(r2, self.catalog_index._exists_argument(arg_no_type))
         self.assertEqual(r3, self.catalog_index._exists_argument(arg_no_default))
         self.assertEqual(r4, self.catalog_index._exists_argument(arg_minimal))
+        self.assertEqual(r5, self.catalog_index._exists_argument(arg_no_description))
 
     def test__exists_custom(self):
         self.is_empty_or_full(empty=True)
@@ -335,6 +339,32 @@ class TestCatalogIndex(TestUnitCoreCommon):
 
         # assert
         self.assertEqual("tsn", solution["name"])
+
+    def test_get_solution_argument_without_description(self):
+        solution_dict = self.solution_default_dict.copy()
+        solution_dict["args"] = [{"name": "a1"}]
+        solution_id = self.catalog_index._insert_solution(solution_dict)
+
+        # a second solution with the same argument must reuse the stored row
+        solution_dict2 = solution_dict.copy()
+        solution_dict2["group"] = "anotherGroup"
+        self.catalog_index._insert_solution(solution_dict2)
+
+        # call
+        solution = self.catalog_index.get_solution(solution_id)
+
+        # assert
+        self.assertEqual(
+            [{"name": "a1", "type": None, "description": ""}], solution["args"]
+        )
+        self.assertEqual(
+            1,
+            len(
+                self.catalog_index.get_cursor()
+                .execute("SELECT * FROM argument")
+                .fetchall()
+            ),
+        )
 
     def test_get_solution_by_group_name_version(self):
         solution_id1, _ = self.fill_solution()

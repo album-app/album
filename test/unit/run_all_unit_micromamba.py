@@ -40,6 +40,7 @@ from test.unit.core.utils.operations import (
     test_git_operations,
     test_resolve_operations,
     test_solution_operations,
+    test_view_operations,
 )
 
 
@@ -87,6 +88,7 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_url_operations))
     suite.addTests(loader.loadTestsFromModule(test_solution_operations))
     suite.addTests(loader.loadTestsFromModule(test_dict_operations))
+    suite.addTests(loader.loadTestsFromModule(test_view_operations))
 
     # album.core.utils.export
     suite.addTests(loader.loadTestsFromModule(test_docker))

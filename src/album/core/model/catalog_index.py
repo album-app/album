@@ -308,7 +308,8 @@ class CatalogIndex(ICatalogIndex, Database):
         exc_str = "SELECT * FROM argument WHERE name=:argument_name AND description=:argument_description "
         exc_val = {
             "argument_name": argument["name"],
-            "argument_description": argument["description"],
+            # "description" is optional in the solution schema and stored as ""
+            "argument_description": get_dict_entry(argument, "description") or "",
         }
         argument_type = get_dict_entry(argument, "type")
         argument_default_value = get_dict_entry(argument, "default")
@@ -360,7 +361,7 @@ class CatalogIndex(ICatalogIndex, Database):
                 argument_id,
                 argument["name"],
                 get_dict_entry(argument, "type"),
-                get_dict_entry(argument, "description"),
+                get_dict_entry(argument, "description") or "",  # optional in the schema
                 get_dict_entry(argument, "default"),
                 get_dict_entry(argument, "required"),
             ),

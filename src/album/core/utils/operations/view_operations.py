@@ -46,6 +46,10 @@ def get_solution_as_string(solution: ISolution, solution_path: str) -> str:
             if "required" in arg:
                 r = " (required: True)" if arg["required"] else " (required: False)"
 
+            d = ""
+            if "description" in arg:
+                d = f" {arg['description']}" if arg["description"] else ""
+
             t = ""
             if "type" in arg:
                 t = f" (type: {arg['type']})" if arg["type"] else ""
@@ -54,9 +58,7 @@ def get_solution_as_string(solution: ISolution, solution_path: str) -> str:
             if "default" in arg:
                 f = f" (default: {arg['default']})" if arg["default"] else ""
 
-            res += "  --{n}:{r} {d}{t}{f}\n".format(
-                n=arg["name"], d=arg["description"], r=r, t=t, f=f
-            )
+            res += "  --{n}:{r}{d}{t}{f}\n".format(n=arg["name"], r=r, d=d, t=t, f=f)
     return res
 
 
