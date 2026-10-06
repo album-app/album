@@ -40,19 +40,23 @@ class CloneManager(ICloneManager):
         git_name: Optional[str] = None,
     ) -> None:
         if path.startswith("template:"):
+            template_name = path[len("template:") :]  # noqa: E203
+            error_message = (
+                "Cannot resolve %s - make sure it's a valid name of a template located in %s!"
+                % (template_name, DefaultValues.catalog_template_url.value)
+            )
             try:
-                self._clone_catalog_template(
-                    path[len("template:") :],  # noqa: E203
+                cloned = self._clone_catalog_template(
+                    template_name,
                     Path(target_dir),
                     name,
                     git_email,
                     git_name,
                 )
-            except (LookupError, ValueError):
-                raise LookupError(
-                    "Cannot resolve %s - make sure it's a valid name of a template located in %s!",
-                    (path, DefaultValues.catalog_template_url.value),
-                )
+            except (LookupError, ValueError) as e:
+                raise LookupError(error_message) from e
+            if not cloned:
+                raise LookupError(error_message)
         else:
             target_path = Path(target_dir).joinpath(name)
             self._clone_solution(Path(path), target_path)
