@@ -97,7 +97,7 @@ class Database(IDatabase, ABC):
         ).fetchone()
 
         if close:
-            cursor.connection.close()
+            self.close_current_connection()
 
         return int(r[table_name_id]) + 1
 
@@ -112,7 +112,7 @@ class Database(IDatabase, ABC):
                 break
 
         if close:
-            cursor.connection.close()
+            self.close_current_connection()
 
         return created
 
