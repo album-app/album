@@ -370,7 +370,7 @@ class InstallManager(IInstallManager):
             )
 
         if rm_dep:  # remove dependencies (parent of the solution) last
-            self._remove_dependencies(resolve_result.loaded_solution(), rm_dep)
+            self._remove_dependencies(resolve_result.loaded_solution(), rm_dep, parent)
 
         module_logger().info('Uninstalled "%s"!' % resolve_result.coordinates().name())
 
@@ -426,11 +426,31 @@ class InstallManager(IInstallManager):
                 % resolve_result.loaded_solution().coordinates().name()
             )
 
-    def _remove_dependencies(self, solution: ISolution, rm_dep: bool = False) -> None:
+    def _remove_dependencies(
+        self,
+        solution: ISolution,
+        rm_dep: bool = False,
+        parent_entry: Optional[ICollectionIndex.ICollectionSolution] = None,
+    ) -> None:
         parent = get_parent_dict(solution)
         if parent:
             # recursive call to remove the parent
             resolve_solution = build_resolve_string(parent)
+            self.uninstall(resolve_solution, rm_dep)
+        elif parent_entry and not solution.setup().dependencies:
+            # solution built from its collection entry (its file could not be loaded)
+            # carries no "dependencies": take the parent from the collection index
+            catalog = self.album.catalogs().get_by_id(
+                parent_entry.internal()["catalog_id"]
+            )
+            resolve_solution = build_resolve_string(
+                {
+                    "group": parent_entry.setup()["group"],
+                    "name": parent_entry.setup()["name"],
+                    "version": parent_entry.setup()["version"],
+                },
+                catalog,
+            )
             self.uninstall(resolve_solution, rm_dep)
 
     def clean_unfinished_installations(self) -> None:
@@ -458,8 +478,10 @@ class InstallManager(IInstallManager):
             self.album.solutions().set_cache_paths(
                 resolve.loaded_solution(), resolve.catalog()
             )
-            # only remove environment when solution has its own environment
-            if not get_parent_dict(resolve.loaded_solution()):
+            # only remove environment when solution has its own environment. The
+            # solution is built from its collection entry, which carries no
+            # "dependencies", so the parent is taken from the collection index.
+            if not collection_solution.internal().get("parent"):
                 self._clean_unfinished_installations_environment(resolve)
 
             self._remove_disc_content_from_solution(resolve)
