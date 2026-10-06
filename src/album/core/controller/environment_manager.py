@@ -359,10 +359,16 @@ class EnvironmentManager(IEnvironmentManager):
             return content
 
         # Check if framework is properly defined. No zip, https or folder allowed.
+        # Only inspect the configured string itself. Probing the filesystem
+        # (e.g. Path(...).is_dir()) depends on the current working directory and
+        # rejects a valid package name whenever a folder of the same name exists
+        # there, such as a checkout of album-solution-api.
+        framework_name = DefaultValues.runner_api_package_name.value
         if (
-            Path(DefaultValues.runner_api_package_name.value).is_dir()
-            or DefaultValues.runner_api_package_name.value.endswith(".zip")
-            or DefaultValues.runner_api_package_name.value.startswith("https")
+            "/" in framework_name
+            or os.sep in framework_name
+            or framework_name.endswith(".zip")
+            or framework_name.startswith("https")
         ):
             raise ValueError(
                 "Framework is not properly defined. No zip, https or folder allowed."
