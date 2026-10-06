@@ -255,6 +255,129 @@ WHERE version = '0.0.1'"""
         # assert
         self.assertEqual(prep_schema, called_schema)
 
+    def test_migrate_catalog_collection_db_broken_migration(self):
+        # prepare
+        # the name differs from the default so a hard-coded restore name would be caught
+        collection_db_path = Path(self.tmp_dir.name).joinpath("my_collection.db")
+        shutil.copyfile(
+            Path(self.tmp_dir.name).joinpath("catalog_collection.db"),
+            collection_db_path,
+        )
+        collection_meta_path = Path(self.tmp_dir.name).joinpath(
+            "catalog_collection.json"
+        )
+        original_db_bytes = collection_db_path.read_bytes()
+        original_meta_bytes = collection_meta_path.read_bytes()
+        broken_schema = """CREATE TABLE IF NOT EXISTS test_table (
+    spalte_1 INTEGER DEFAULT 0
+);
+INSERT INTO does_not_exist VALUES (1)"""
+        self.migration_manager._load_catalog_collection_migration_schema = MagicMock(
+            return_value=broken_schema
+        )
+
+        # call & assert
+        with self.assertRaises(RuntimeError) as context:
+            self.migration_manager.migrate_catalog_collection_db(
+                collection_db_path,
+                MMVersion.from_string("0.0.1"),
+                MMVersion.from_string("0.1.0"),
+            )
+
+        self.assertIsInstance(context.exception.__cause__, sqlite3.OperationalError)
+        self.assertIn("catalog collection database", str(context.exception))
+        self.assertEqual(original_db_bytes, collection_db_path.read_bytes())
+        self.assertFalse(self._table_exists(collection_db_path, "test_table"))
+        self.assertEqual(original_meta_bytes, collection_meta_path.read_bytes())
+
+    def test_migrate_catalog_collection_db_missing_schema(self):
+        # prepare
+        collection_db_path = Path(self.tmp_dir.name).joinpath("catalog_collection.db")
+        original_db_bytes = collection_db_path.read_bytes()
+        self.migration_manager._load_catalog_collection_migration_schema = MagicMock(
+            side_effect=FileNotFoundError("no migration script")
+        )
+        execute_migration_script = MagicMock()
+        self.migration_manager._execute_migration_script = execute_migration_script
+
+        # call & assert
+        with self.assertRaises(FileNotFoundError):
+            self.migration_manager.migrate_catalog_collection_db(
+                collection_db_path,
+                MMVersion.from_string("0.0.1"),
+                MMVersion.from_string("0.1.0"),
+            )
+
+        execute_migration_script.assert_not_called()
+        self.assertEqual(original_db_bytes, collection_db_path.read_bytes())
+
+    def test_migrate_catalog_index_db_broken_migration(self):
+        # prepare
+        # the name differs from the default so a hard-coded restore name would be caught
+        catalog_index_path = Path(self.tmp_dir.name).joinpath("my_catalog_index.db")
+        shutil.copyfile(
+            Path(self.tmp_dir.name).joinpath("album_catalog_index.db"),
+            catalog_index_path,
+        )
+        catalog_meta_path = Path(self.tmp_dir.name).joinpath("album_catalog_index.json")
+        original_db_bytes = catalog_index_path.read_bytes()
+        original_meta_bytes = catalog_meta_path.read_bytes()
+        broken_schema = """CREATE TABLE IF NOT EXISTS test_table (
+    spalte_1 INTEGER DEFAULT 0
+);
+INSERT INTO does_not_exist VALUES (1)"""
+        self.migration_manager._load_catalog_index_migration_schema = MagicMock(
+            return_value=broken_schema
+        )
+
+        # call & assert
+        with self.assertRaises(RuntimeError) as context:
+            self.migration_manager.migrate_catalog_index_db(
+                catalog_index_path,
+                MMVersion.from_string("0.0.1"),
+                MMVersion.from_string("0.1.0"),
+            )
+
+        self.assertIsInstance(context.exception.__cause__, sqlite3.OperationalError)
+        self.assertIn("catalog index database", str(context.exception))
+        self.assertEqual(original_db_bytes, catalog_index_path.read_bytes())
+        self.assertFalse(self._table_exists(catalog_index_path, "test_table"))
+        self.assertEqual(original_meta_bytes, catalog_meta_path.read_bytes())
+
+    def test_migrate_catalog_index_db_missing_schema(self):
+        # prepare
+        catalog_index_path = Path(self.tmp_dir.name).joinpath("album_catalog_index.db")
+        original_db_bytes = catalog_index_path.read_bytes()
+        self.migration_manager._load_catalog_index_migration_schema = MagicMock(
+            side_effect=FileNotFoundError("no migration script")
+        )
+        execute_migration_script = MagicMock()
+        self.migration_manager._execute_migration_script = execute_migration_script
+
+        # call & assert
+        with self.assertRaises(FileNotFoundError):
+            self.migration_manager.migrate_catalog_index_db(
+                catalog_index_path,
+                MMVersion.from_string("0.0.1"),
+                MMVersion.from_string("0.1.0"),
+            )
+
+        execute_migration_script.assert_not_called()
+        self.assertEqual(original_db_bytes, catalog_index_path.read_bytes())
+
+    @staticmethod
+    def _table_exists(database: Path, table_name: str) -> bool:
+        con = sqlite3.connect(database)
+        try:
+            cur = con.cursor()
+            cur.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                (table_name,),
+            )
+            return cur.fetchone() is not None
+        finally:
+            con.close()
+
     def test_execute_migration_script(self):
         # prepare
         check_script = """SELECT name FROM sqlite_master WHERE type='table' AND name='test_table';"""

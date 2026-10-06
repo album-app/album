@@ -35,7 +35,10 @@ class IMigrationManager:
         curr_version: IMMVersion,
         target_version: IMMVersion,
     ) -> Path:
-        """Migrate a given collection index to the target version."""
+        """Migrate a given collection index to the target version.
+
+        Raises a RuntimeError if the migration fails. The database is restored from its backup first.
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -45,7 +48,10 @@ class IMigrationManager:
         curr_version: IMMVersion,
         target_version: IMMVersion,
     ) -> Path:
-        """Migrate the index of a given catalog to the current framework version if possible."""
+        """Migrate the index of a given catalog to the current framework version if possible.
+
+        Raises a RuntimeError if the migration fails. The database is restored from its backup first.
+        """
         raise NotImplementedError
 
     @abstractmethod
