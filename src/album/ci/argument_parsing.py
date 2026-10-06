@@ -208,9 +208,9 @@ class AlbumCIParser(AlbumAP):
         parser.add_argument(
             "--force-retrieve",
             required=False,
-            help="If True, download path for the catalog will be force emptied before retrieving the catalog.",
+            help="If given, download path for the catalog will be force emptied before retrieving the catalog.",
             default=False,
-            type=bool,
+            action="store_true",
         )
 
         return parser
