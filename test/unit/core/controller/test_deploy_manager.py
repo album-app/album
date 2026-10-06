@@ -148,6 +148,101 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
                 catalog, self.active_solution, "myDeployPath", False, False, None
             )
 
+    def _setup_undeploy_mocks(self, index_versions):
+        repo = EmptyTestClass()
+        repo.working_tree_dir = self.tmp_dir.name
+
+        catalog = MagicMock()
+        catalog.name.return_value = "test_cat"
+        catalog.is_cache.return_value = False
+        catalog.retrieve_catalog.return_value.__enter__.return_value = repo
+        catalog.index.return_value.get_all_solution_versions.return_value = [
+            {"group": "grp", "name": "seg", "version": v} for v in index_versions
+        ]
+        self.album_controller.catalogs().get_by_name = MagicMock(return_value=catalog)
+        self.album_controller.migration_manager().load_index = MagicMock()
+        self.album_controller.migration_manager().refresh_index = MagicMock()
+
+        self.deploy_manager._remove_db_entry_and_files = MagicMock()
+        self.deploy_manager._remove_db_entry_and_revert_files = MagicMock()
+        self.deploy_manager._remove_db_entry_and_tag = MagicMock()
+
+        return repo, catalog
+
+    @patch("album.core.controller.deploy_manager.get_tags")
+    def test_undeploy_only_version_ignores_prefix_sharing_solution(self, get_tags):
+        # the tag of "grp-seg-tools" is newer than the only tag of "grp-seg"
+        get_tags.return_value = ["grp-seg-tools-1.0.0", "grp-seg-1.0.0"]
+        repo, catalog = self._setup_undeploy_mocks(["1.0.0"])
+
+        # call
+        self.deploy_manager.undeploy("grp:seg:1.0.0", "test_cat", False)
+
+        # assert: no previous version, so files and db entry are removed
+        coordinates = Coordinates("grp", "seg", "1.0.0")
+        catalog.remove.assert_called_once_with(coordinates)
+        self.deploy_manager._remove_db_entry_and_files.assert_called_once_with(
+            repo, coordinates, False, [], "", ""
+        )
+        self.deploy_manager._remove_db_entry_and_revert_files.assert_not_called()
+        self.deploy_manager._remove_db_entry_and_tag.assert_not_called()
+
+    @patch("album.core.controller.deploy_manager.get_tags")
+    def test_undeploy_current_version_reverts_to_previous(self, get_tags):
+        get_tags.return_value = [
+            "grp-seg-tools-1.0.0",
+            "grp-seg-1.0.0",
+            "grp-seg-0.9.0",
+        ]
+        repo, _ = self._setup_undeploy_mocks(["1.0.0", "0.9.0"])
+
+        # call
+        self.deploy_manager.undeploy("grp:seg:1.0.0", "test_cat", False)
+
+        # assert
+        self.deploy_manager._remove_db_entry_and_revert_files.assert_called_once_with(
+            repo,
+            Coordinates("grp", "seg", "1.0.0"),
+            "grp-seg-0.9.0",
+            False,
+            [],
+            "",
+            "",
+        )
+        self.deploy_manager._remove_db_entry_and_files.assert_not_called()
+        self.deploy_manager._remove_db_entry_and_tag.assert_not_called()
+
+    @patch("album.core.controller.deploy_manager.get_tags")
+    def test_undeploy_previous_version_removes_tag_only(self, get_tags):
+        get_tags.return_value = [
+            "grp-seg-tools-1.0.0",
+            "grp-seg-1.0.0",
+            "grp-seg-0.9.0",
+        ]
+        repo, _ = self._setup_undeploy_mocks(["1.0.0", "0.9.0"])
+
+        # call
+        self.deploy_manager.undeploy("grp:seg:0.9.0", "test_cat", False)
+
+        # assert
+        self.deploy_manager._remove_db_entry_and_tag.assert_called_once_with(
+            repo, Coordinates("grp", "seg", "0.9.0"), False, [], "", ""
+        )
+        self.deploy_manager._remove_db_entry_and_files.assert_not_called()
+        self.deploy_manager._remove_db_entry_and_revert_files.assert_not_called()
+
+    @patch("album.core.controller.deploy_manager.get_tags")
+    def test_undeploy_unknown_version(self, get_tags):
+        get_tags.return_value = ["grp-seg-tools-1.0.0", "grp-seg-1.0.0"]
+        self._setup_undeploy_mocks(["1.0.0"])
+
+        with self.assertRaises(LookupError):
+            self.deploy_manager.undeploy("grp:seg:0.9.0", "test_cat", False)
+
+        self.deploy_manager._remove_db_entry_and_files.assert_not_called()
+        self.deploy_manager._remove_db_entry_and_revert_files.assert_not_called()
+        self.deploy_manager._remove_db_entry_and_tag.assert_not_called()
+
     @patch("album.core.controller.deploy_manager.add_tag")
     def test__deploy_to_direct_catalog(self, _):
         # prepare
@@ -313,6 +408,73 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         ).joinpath("myCatalogName")
         # call & assert
         self.assertEqual(expected, self.deploy_manager.get_download_path(catalog))
+
+    @staticmethod
+    def _catalog_knowing_versions(versions):
+        catalog = MagicMock()
+        catalog.index.return_value.get_all_solution_versions.return_value = [
+            {"group": "grp", "name": "seg", "version": v} for v in versions
+        ]
+        return catalog
+
+    @patch("album.core.controller.deploy_manager.get_tags")
+    def test__get_tags_for_coordinates(self, get_tags):
+        # tags as get_tags returns them: newest commit first
+        get_tags.return_value = [
+            "grp-seg-tools-1.0.0",
+            "grp-seg-1.0.0",
+            "grp-seg-0.9.0",
+        ]
+        catalog = self._catalog_knowing_versions(["0.9.0", "1.0.0"])
+        repo = EmptyTestClass()
+
+        # call
+        tags = self.deploy_manager._get_tags_for_coordinates(
+            repo, catalog, Coordinates("grp", "seg", "1.0.0")
+        )
+
+        # assert: the prefix-sharing solution is ignored, newest version first
+        self.assertEqual(["grp-seg-1.0.0", "grp-seg-0.9.0"], tags)
+        get_tags.assert_called_once_with(repo)
+        catalog.index.return_value.get_all_solution_versions.assert_called_once_with(
+            "grp", "seg"
+        )
+
+    @patch("album.core.controller.deploy_manager.get_tags")
+    def test__get_tags_for_coordinates_version_order(self, get_tags):
+        # commit order differs from version order; 2.0.0 is in the index but not
+        # tagged; "tsv" is not a PEP 440 version
+        get_tags.return_value = [
+            "grp-seg-0.9.0",
+            "grp-seg-tsv",
+            "grp-seg-1.0.0",
+            "grp-seg-0.10.0",
+            "grp-seg-tools-1.0.0",
+        ]
+        catalog = self._catalog_knowing_versions(
+            ["0.10.0", "0.9.0", "1.0.0", "2.0.0", "tsv"]
+        )
+
+        # call
+        tags = self.deploy_manager._get_tags_for_coordinates(
+            EmptyTestClass(), catalog, Coordinates("grp", "seg", "1.0.0")
+        )
+
+        # assert
+        self.assertEqual(
+            ["grp-seg-1.0.0", "grp-seg-0.10.0", "grp-seg-0.9.0", "grp-seg-tsv"], tags
+        )
+
+    @patch("album.core.controller.deploy_manager.get_tags")
+    def test__get_tags_for_coordinates_index_not_loaded(self, get_tags):
+        catalog = MagicMock()
+        catalog.index.return_value = None
+
+        with self.assertRaises(RuntimeError):
+            self.deploy_manager._get_tags_for_coordinates(
+                EmptyTestClass(), catalog, Coordinates("grp", "seg", "1.0.0")
+            )
+        get_tags.assert_not_called()
 
     def test__get_absolute_prefix_path(self):
         # fixme: definitely fix me! smth. is wrong
