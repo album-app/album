@@ -1155,8 +1155,60 @@ class TestCollectionIndex(TestUnitCoreCommon):
             CatalogIndex.get_solution_column_keys(),
         )
 
+        # assert: nothing to update, last_execution stays untouched
         r = self.test_catalog_collection_index.get_solution_by_collection_id(2)
-        self.assertIsNotNone(r._internal["last_execution"])
+        self.assertIsNone(r._internal["last_execution"])
+
+    def test_update_solution_keeps_last_execution(self):
+        self.test_catalog_collection_index.insert_solution(
+            1, self._get_solution_attrs(1, "grp", "name", "version")
+        )
+        coordinates = Coordinates("grp", "name", "version")
+        last_execution = datetime(2021, 6, 14, 4, 42, 59).isoformat()
+        self.test_catalog_collection_index.update_solution(
+            1,
+            coordinates,
+            {"last_execution": last_execution},
+            CollectionIndex.get_collection_column_keys(),
+        )
+
+        # call - the attributes SolutionHandler.set_installed writes
+        install_date = datetime(2022, 1, 2, 3, 4, 5).isoformat()
+        self.test_catalog_collection_index.update_solution(
+            1,
+            coordinates,
+            {
+                "installed": 1,
+                "installation_unfinished": 0,
+                "install_date": install_date,
+            },
+            CollectionIndex.get_collection_column_keys(),
+        )
+
+        # assert
+        r = self.test_catalog_collection_index.get_solution_by_collection_id(1)
+        self.assertEqual(1, r._internal["installed"])
+        self.assertEqual(install_date, r._internal["install_date"])
+        self.assertEqual(last_execution, r._internal["last_execution"])
+
+    def test_update_solution_last_execution(self):
+        self.test_catalog_collection_index.insert_solution(
+            1, self._get_solution_attrs(1, "grp", "name", "version")
+        )
+        last_execution = datetime(2021, 6, 14, 4, 42, 59).isoformat()
+
+        # call
+        self.test_catalog_collection_index.update_solution(
+            1,
+            Coordinates("grp", "name", "version"),
+            {"last_execution": last_execution},
+            CollectionIndex.get_collection_column_keys(),
+        )
+
+        # assert
+        r = self.test_catalog_collection_index.get_solution_by_collection_id(1)
+        self.assertEqual(last_execution, r._internal["last_execution"])
+        self.assertEqual(0, r._internal["installed"])
 
     def test_add_or_replace_solution(self):
         self.test_catalog_collection_index.insert_catalog(

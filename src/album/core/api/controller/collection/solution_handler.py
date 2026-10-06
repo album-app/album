@@ -165,3 +165,8 @@ class ISolutionHandler:
     def set_installation_unfinished(self, catalog: ICatalog, coordinates: ICoordinates):
         """Set the installation status of a solution to unfinished."""
         raise NotImplementedError
+
+    @abstractmethod
+    def set_last_execution(self, catalog: ICatalog, coordinates: ICoordinates) -> None:
+        """Record the current time as the last execution of a solution in a catalog."""
+        raise NotImplementedError
