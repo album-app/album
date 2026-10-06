@@ -132,7 +132,7 @@ class ResourceManager(IResourceManager):
             download_resource(env_file, yml_path)
         # 2. string from solution file
         elif "dependencies:" in env_file and "\n" in env_file:
-            with open(str(yml_path), "w+") as yml_file:
+            with open(str(yml_path), "w+", encoding="utf-8") as yml_file:
                 yml_file.writelines(env_file)
         # 3. existing env.yml
         elif (
@@ -149,7 +149,7 @@ class ResourceManager(IResourceManager):
 
     @staticmethod
     def _handle_env_file_stream(env_file_stream: StringIO, yml_path: Path) -> None:
-        with open(str(yml_path), "w+") as f:
+        with open(str(yml_path), "w+", encoding="utf-8") as f:
             env_file_stream.seek(0)
             f.writelines(env_file_stream.readlines())
 
@@ -171,7 +171,7 @@ class ResourceManager(IResourceManager):
         else:
             # No env file specified, build default solution env file
             write_dict_to_yml(yml_path, deepcopy(DEFAULT_SOLUTION_ENV_CONTENT))
-        with open(yml_path) as yml_file:
+        with open(yml_path, encoding="utf-8") as yml_file:
             yml_dict = yaml.load(yml_file, Loader=yaml.FullLoader)
 
         runner_package_name = DefaultValues.runner_api_package_name.value

@@ -237,7 +237,7 @@ class MigrationManager(IMigrationManager):
         schema = (
             files("album.core.schema.migrations.catalog_collection")
             .joinpath(resource_name)
-            .read_text()
+            .read_text(encoding="utf-8")
         )
 
         return schema
@@ -254,7 +254,7 @@ class MigrationManager(IMigrationManager):
         schema = (
             files("album.core.schema.migrations.catalog_index")
             .joinpath(resource_name)
-            .read_text()
+            .read_text(encoding="utf-8")
         )
 
         return schema

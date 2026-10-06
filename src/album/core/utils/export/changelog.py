@@ -82,7 +82,7 @@ def create_changelog_file(
     content = get_changelog_content(active_solution, catalog)
 
     create_path_recursively(changelog_path.parent)
-    with open(str(changelog_path), "w+") as yml_f:
+    with open(str(changelog_path), "w+", encoding="utf-8") as yml_f:
         yml_f.write(content)
 
     return changelog_path

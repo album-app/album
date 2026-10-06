@@ -186,7 +186,9 @@ class CatalogHandler(ICatalogHandler):
             + '"}'
         )
         with open(
-            local_path_.joinpath(DefaultValues.catalog_index_metafile_json.value), "w"
+            local_path_.joinpath(DefaultValues.catalog_index_metafile_json.value),
+            "w",
+            encoding="utf-8",
         ) as meta:
             meta.writelines(meta_data)
 

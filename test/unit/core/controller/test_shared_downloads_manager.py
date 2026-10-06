@@ -1,3 +1,4 @@
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -5,11 +6,15 @@ from test.unit.test_unit_core_common import TestUnitCoreCommon
 from unittest.mock import patch
 
 from album.core.controller.shared_downloads_manager import DownloadManager
+from album.environments.utils.file_operations import get_dict_from_yml
 
 
 class TestDownloadManager(TestUnitCoreCommon):
     def setUp(self):
         super().setUp()
+        self.download_manager: DownloadManager = (
+            self.album_controller.download_manager()
+        )
 
     def tearDown(self):
         super().tearDown()
@@ -135,6 +140,43 @@ class TestDownloadManager(TestUnitCoreCommon):
         # assert
         retrieve_mock.assert_not_called()
         file_hash_mock.assert_not_called()
+
+    def test_prepare_resource_file_content_utf8(self):
+        description = "Zellkerngröße in µm (顕微鏡)"
+        resource_file = (
+            "resources:\n"
+            "  model:\n"
+            '    name: "model.zip"\n'
+            '    url: "https://example.org/model.zip"\n'
+            "    hash: null\n"
+            '    description: "%s"\n' % description
+        )
+        cache_path = Path(self.tmp_dir.name).joinpath("icache")
+
+        json_path = self.download_manager._prepare_resource_file(
+            {"resource_file": resource_file}, cache_path, "tsg_tsn_tsv"
+        )
+
+        self.assertEqual(
+            cache_path.joinpath("tsg_tsn_tsv_resource_file.json"), json_path
+        )
+        # the non-ASCII characters survive, independent of the platform encoding
+        resources_dict = json.loads(json_path.read_bytes().decode("utf-8"))
+        self.assertEqual(
+            description, resources_dict["resources"]["model"]["description"]
+        )
+        # album reads the json file back with get_dict_from_yml
+        self.assertEqual(resources_dict, get_dict_from_yml(json_path))
+
+    def test_prepare_resource_file_content_invalid(self):
+        cache_path = Path(self.tmp_dir.name).joinpath("icache")
+
+        with self.assertRaises(TypeError):
+            self.download_manager._prepare_resource_file(
+                {"resource_file": "- resources: none\n"}, cache_path, "tsg_tsn_tsv"
+            )
+
+        self.assertFalse(cache_path.joinpath("tsg_tsn_tsv_resource_file.json").exists())
 
 
 if __name__ == "__main__":

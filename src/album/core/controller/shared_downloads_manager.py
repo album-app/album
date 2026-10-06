@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import pooch
 import validators
+import yaml
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.shared_downloads_manager import IDownloadManager
@@ -125,15 +126,21 @@ class DownloadManager(IDownloadManager):
                         yaml_path = download_resource(resource_file, json_path)
                         resources_dict = get_dict_from_yml(yaml_path)
                         # save resources_dict as json file in the same location
-                        with open(str(json_path).replace(".yml", ".json"), "w+") as f:
+                        with open(
+                            str(json_path).replace(".yml", ".json"),
+                            "w+",
+                            encoding="utf-8",
+                        ) as f:
                             json.dump(resources_dict, f, indent=4)
                     # case file content
                     elif "resources:" in resource_file and "\n" in resource_file:
-                        with open(json_path, "w+") as f:
-                            f.write(resource_file)
-                        resources_dict = get_dict_from_yml(json_path)
+                        # parse the string directly, a file round trip would
+                        # depend on the platform default encoding
+                        resources_dict = yaml.safe_load(resource_file)
+                        if not isinstance(resources_dict, dict):
+                            raise TypeError("resource_file content is invalid!")
                         # save resources_dict as json file in the same location
-                        with open(str(json_path), "w+") as f:
+                        with open(str(json_path), "w+", encoding="utf-8") as f:
                             json.dump(resources_dict, f, indent=4)
                     # case Path
                     elif (
@@ -142,7 +149,7 @@ class DownloadManager(IDownloadManager):
                     ):
                         resources_dict = get_dict_from_yml(resource_file)
                         # save resources_dict as json file in the same location
-                        with open(str(json_path), "w+") as f:
+                        with open(str(json_path), "w+", encoding="utf-8") as f:
                             json.dump(resources_dict, f, indent=4)
                     else:
                         raise TypeError(
@@ -151,7 +158,7 @@ class DownloadManager(IDownloadManager):
                         )
                 # case dict
                 elif isinstance(resource_file, dict):
-                    with open(str(json_path), "w+") as f:
+                    with open(str(json_path), "w+", encoding="utf-8") as f:
                         json.dump(resource_file, f, indent=4)
 
                 else:
@@ -244,7 +251,7 @@ class DownloadManager(IDownloadManager):
             )
 
         # write dict to json
-        with open(json_path, "w") as f:
+        with open(json_path, "w", encoding="utf-8") as f:
             json.dump(resources_dict, f, indent=4)
 
         return resources_dict

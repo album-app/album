@@ -10,6 +10,7 @@ from album.core.utils.operations.file_operations import (
     create_empty_file_recursively,
     create_path_recursively,
     write_dict_to_json,
+    get_dict_from_json,
     force_remove,
     zip_folder,
     unzip_archive,
@@ -50,6 +51,20 @@ class TestFileOperations(TestUnitCoreCommon):
         self.assertTrue(tmp_json_file.stat().st_size > 0)
         d_loaded = json.load(open(tmp_json_file))
         self.assertEqual(d_loaded, d)
+
+    def test_get_dict_from_json_write_dict_to_json_utf8(self):
+        tmp_json_file = Path(self.tmp_dir.name).joinpath("test_utf8.json")
+        d = {"description": "Zellkerngröße in µm (顕微鏡)"}
+        # write the non-ASCII characters unescaped, as UTF-8 bytes
+        tmp_json_file.write_bytes(json.dumps(d, ensure_ascii=False).encode("utf-8"))
+
+        # read must not depend on the platform default encoding (e.g. cp1252)
+        self.assertEqual(d, get_dict_from_json(tmp_json_file))
+
+        # write and read back
+        write_dict_to_json(tmp_json_file, d)
+        self.assertEqual(d, json.loads(tmp_json_file.read_bytes().decode("utf-8")))
+        self.assertEqual(d, get_dict_from_json(tmp_json_file))
 
     def test_folder_empty(self):
         self.assertTrue(folder_empty(Path(self.tmp_dir.name).joinpath("myFolder")))

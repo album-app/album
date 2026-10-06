@@ -60,7 +60,7 @@ def to_raw_dict(changelog_path: str) -> Dict[str, Any]:
     changes: Dict[str, Any] = {}
     # As URLs can be defined before actual usage, maintain a separate dict
     urls = {}
-    with open(changelog_path) as change_log:
+    with open(changelog_path, encoding="utf-8") as change_log:
         current_release: Dict[str, Any] = {"raw": ""}
         for line in change_log:
             clean_line = line.strip(" \n")
