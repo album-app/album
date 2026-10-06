@@ -562,7 +562,8 @@ class CollectionIndex(ICollectionIndex, Database):
         )
         exc_val = {
             "argument_name": argument["name"],
-            "argument_description": argument["description"],
+            # "description" is optional in the solution schema and stored as ""
+            "argument_description": get_dict_entry(argument, "description") or "",
             "catalog_id": catalog_id,
         }
         argument_type = get_dict_entry(argument, "type")
@@ -622,7 +623,7 @@ class CollectionIndex(ICollectionIndex, Database):
                 catalog_id,
                 argument["name"],
                 get_dict_entry(argument, "type"),
-                argument["description"],
+                get_dict_entry(argument, "description") or "",  # optional in the schema
                 get_dict_entry(argument, "default"),
                 get_dict_entry(argument, "required"),
             ),
