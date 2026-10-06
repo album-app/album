@@ -17,6 +17,7 @@ from test.unit.core.controller import (
     test_clone_manager,
     test_migration_manager,
     test_environment_manager,
+    test_shared_downloads_manager,
 )
 from test.unit.core.controller.collection import (
     test_collection_manager,
@@ -68,6 +69,7 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_test_manager))
     suite.addTests(loader.loadTestsFromModule(test_script_manager))
     suite.addTests(loader.loadTestsFromModule(test_event_manager))
+    suite.addTests(loader.loadTestsFromModule(test_shared_downloads_manager))
 
     # album.core.model
     suite.addTests(loader.loadTestsFromModule(test_catalog))
