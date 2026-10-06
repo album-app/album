@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from test.unit.test_unit_core_common import TestGitCommon
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import album.core.utils.operations.git_operations as git_op
 from album.core.model.default_values import DefaultValues
@@ -267,10 +267,42 @@ class TestGitOperations(TestGitCommon):
         # ToDo: implement
         pass
 
+    @patch("git.Repo.clone_from")
+    def test_clone_repository_sparse_closes_repo_on_error(self, clone_from_mock):
+        repo_mock = MagicMock()
+        clone_from_mock.return_value = repo_mock
+        target = Path(self.tmp_dir.name).joinpath("testCloneSparse")
+
+        # run
+        with self.assertRaises(ValueError) as context:
+            with git_op.clone_repository_sparse("bla", "main", target) as repo:
+                self.assertIs(repo_mock, repo)
+                raise ValueError("error inside the with body")
+
+        # check
+        self.assertEqual("error inside the with body", str(context.exception))
+        repo_mock.close.assert_called_once()
+
     @unittest.skip("Needs to be implemented!")
     def test_clone_repository(self):
         # ToDo: implement
         pass
+
+    @patch("git.Repo.clone_from")
+    def test_clone_repository_closes_repo_on_error(self, clone_from_mock):
+        repo_mock = MagicMock()
+        clone_from_mock.return_value = repo_mock
+        target = Path(self.tmp_dir.name).joinpath("testClone")
+
+        # run
+        with self.assertRaises(ValueError) as context:
+            with git_op.clone_repository(Path("bla"), target) as repo:
+                self.assertIs(repo_mock, repo)
+                raise ValueError("error inside the with body")
+
+        # check
+        self.assertEqual("error inside the with body", str(context.exception))
+        repo_mock.close.assert_called_once()
 
     @unittest.skip("Needs to be implemented!")
     def test_create_bare_repository(self):

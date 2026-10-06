@@ -562,8 +562,10 @@ def clone_repository_sparse(
         single_branch=True,
         multi_options=["--no-local"],
     )
-    yield repo
-    repo.close()
+    try:
+        yield repo
+    finally:
+        repo.close()
 
 
 @contextmanager
@@ -590,8 +592,10 @@ def clone_repository(
     create_path_recursively(target_repo_path)
     repo = git.Repo.clone_from(src, target_repo_path, multi_options=["--no-local"])
 
-    yield repo
-    repo.close()
+    try:
+        yield repo
+    finally:
+        repo.close()
 
 
 def init_repository(path: Union[Path, str]) -> Repo:

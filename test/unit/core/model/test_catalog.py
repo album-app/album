@@ -217,6 +217,26 @@ class TestCatalog(TestCatalogAndCollectionCommon):
         self.assertFalse(blocking_file.exists())
         self.assertTrue(dl_path.stat().st_size > 0)
 
+    @patch("album.core.model.catalog.download_repository")
+    def test_retrieve_catalog_closes_repo_on_error(self, download_repository_mock):
+        # prepare
+        repo_mock = MagicMock()
+        download_repository_mock.return_value = repo_mock
+        dl_path = Path(self.tmp_dir.name).joinpath("test")
+
+        # call
+        with self.assertRaises(ValueError) as context:
+            with self.catalog.retrieve_catalog(dl_path) as repo:
+                self.assertIs(repo_mock, repo)
+                raise ValueError("error inside the with body")
+
+        # assert
+        self.assertEqual("error inside the with body", str(context.exception))
+        repo_mock.close.assert_called_once()
+        download_repository_mock.assert_called_once_with(
+            str(self.catalog._src), str(dl_path), force_download=False, update=True
+        )
+
     def test_get_meta_information(self):
         self.assertEqual(
             self.catalog.get_meta_information(),
