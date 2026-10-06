@@ -72,6 +72,23 @@ class TestGitOperations(TestGitCommon):
 
             self.assertTrue("does not hold pattern" in str(context.exception))
 
+    def test_retrieve_files_from_head_single_commit(self):
+        with self.setup_tmp_repo() as repo:
+            # an orphan branch starts a new history, its only commit has no parent
+            repo.git.checkout("--orphan", "orphan_branch")
+            repo.git.commit("-m", "single commit", "--no-verify")
+            self.assertEqual(0, len(repo.heads["orphan_branch"].commit.parents))
+
+            with self.assertRaises(RuntimeError) as context:
+                git_op.retrieve_files_from_head_last_commit(
+                    repo.heads["orphan_branch"], "solutions"
+                )
+
+            self.assertTrue(
+                "Cannot execute diff since there is only a single commit!"
+                in str(context.exception)
+            )
+
     def test__add_files(self):
         tmp_file = tempfile.NamedTemporaryFile(delete=False)
         tmp_file.close()
