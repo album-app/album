@@ -1,7 +1,6 @@
 """Implementation of the collection index Interface."""
 
 import pkgutil
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -1363,21 +1362,27 @@ class CollectionIndex(ICollectionIndex, Database):
         supported_attrs: List[str],
         close: bool = True,
     ):
-        exec_str = "UPDATE collection SET last_execution=:cur_date"
         exec_args = {
-            "cur_date": datetime.now().isoformat(),
             "catalog_id": catalog_id,
             "group": coordinates.group(),
             "name": coordinates.name(),
             "version": coordinates.version(),
         }
 
+        # write only the given attributes, last_execution is set explicitly on run
+        set_clauses = []
         for key in supported_attrs:
             if key in solution_attrs:
                 col = self._as_db_col(key)
-                exec_str += f", {col}=:{key}"
+                set_clauses.append(f"{col}=:{key}")
                 exec_args[key] = get_dict_entry(solution_attrs, key)
 
+        if not set_clauses:  # nothing to update
+            if close:
+                self.close_current_connection()
+            return
+
+        exec_str = "UPDATE collection SET " + ", ".join(set_clauses)
         exec_str += ' WHERE catalog_id=:catalog_id AND "group"=:group AND name=:name AND version=:version'
 
         cursor = self.get_cursor()

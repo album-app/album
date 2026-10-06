@@ -474,6 +474,24 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         # todo: implement
         pass
 
+    @patch("album.core.controller.collection.solution_handler.datetime")
+    def test_set_last_execution(self, datetime_mock):
+        # prepare
+        datetime_mock.now.return_value.isoformat.return_value = "2021-06-14T04:42:59"
+        c = Coordinates("a", "b", "c")
+
+        # mock
+        update_solution = MagicMock()
+        self.solution_handler.update_solution = update_solution
+
+        # call
+        self.solution_handler.set_last_execution(self.catalog, c)
+
+        # assert
+        update_solution.assert_called_once_with(
+            self.catalog, c, {"last_execution": "2021-06-14T04:42:59"}
+        )
+
     @unittest.skip("Needs to be implemented!")
     def test_is_installed(self):
         # todo: implement

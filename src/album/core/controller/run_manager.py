@@ -59,6 +59,10 @@ class RunManager(IRunManager):
         # runs the queue
         try:
             self.album.script_manager().run_queue(que)
+            if resolve_result.catalog():
+                self.album.solutions().set_last_execution(
+                    resolve_result.catalog(), resolve_result.coordinates()
+                )
         finally:
             self.album.event_manager().publish(
                 Event(DefaultValues.after_run_event_name.value),

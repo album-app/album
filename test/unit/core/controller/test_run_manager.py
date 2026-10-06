@@ -41,6 +41,77 @@ class TestRunManager(TestUnitCoreCommon):
         build_queue.assert_called_once()
         run_queue.assert_called_once()
 
+    def test_run_sets_last_execution(self):
+        # mocks
+        build_queue = MagicMock(return_value=None)
+        self.album_controller.script_manager().build_queue = build_queue
+
+        run_queue = MagicMock(return_value=None)
+        self.album_controller.script_manager().run_queue = run_queue
+
+        set_last_execution = MagicMock(return_value=None)
+        self.album_controller.solutions().set_last_execution = set_last_execution
+
+        calls = MagicMock()
+        calls.attach_mock(run_queue, "run_queue")
+        calls.attach_mock(set_last_execution, "set_last_execution")
+
+        catalog = EmptyTestClass()
+        coordinates = self.active_solution.coordinates()
+        resolve_result = ResolveResult(
+            "", catalog, None, coordinates, self.active_solution
+        )
+
+        resolve_installed_and_load = MagicMock(return_value=resolve_result)
+        self.album_controller.collection_manager().resolve_installed_and_load = (
+            resolve_installed_and_load
+        )
+
+        # call
+        self.run_manager.run("", False)
+
+        # assert
+        set_last_execution.assert_called_once_with(catalog, coordinates)
+        self.assertEqual(
+            [
+                mock.call.run_queue(mock.ANY),
+                mock.call.set_last_execution(catalog, coordinates),
+            ],
+            calls.mock_calls,
+        )
+
+    def test_run_failed_does_not_set_last_execution(self):
+        # mocks
+        build_queue = MagicMock(return_value=None)
+        self.album_controller.script_manager().build_queue = build_queue
+
+        run_queue = MagicMock(side_effect=RuntimeError("run failed"))
+        self.album_controller.script_manager().run_queue = run_queue
+
+        set_last_execution = MagicMock(return_value=None)
+        self.album_controller.solutions().set_last_execution = set_last_execution
+
+        resolve_result = ResolveResult(
+            "",
+            EmptyTestClass(),
+            None,
+            self.active_solution.coordinates(),
+            self.active_solution,
+        )
+
+        resolve_installed_and_load = MagicMock(return_value=resolve_result)
+        self.album_controller.collection_manager().resolve_installed_and_load = (
+            resolve_installed_and_load
+        )
+
+        # call
+        with self.assertRaises(RuntimeError):
+            self.run_manager.run("", False)
+
+        # assert
+        run_queue.assert_called_once()
+        set_last_execution.assert_not_called()
+
     @patch("album.core.controller.run_manager.entry_points")
     def test_load_plugins(self, mock_entry_points):
         entry_point = EmptyTestClass()

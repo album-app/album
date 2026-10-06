@@ -230,6 +230,11 @@ class SolutionHandler(ISolutionHandler):
             catalog, coordinates, {"installed": 0, "installation_unfinished": 1}
         )
 
+    def set_last_execution(self, catalog: ICatalog, coordinates: ICoordinates) -> None:
+        self.update_solution(
+            catalog, coordinates, {"last_execution": datetime.now().isoformat()}
+        )
+
     def is_installed(self, catalog: ICatalog, coordinates: ICoordinates) -> bool:
         try:
             index = self._get_collection_index()
