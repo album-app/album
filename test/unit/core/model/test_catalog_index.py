@@ -358,6 +358,32 @@ class TestCatalogIndex(TestUnitCoreCommon):
         # assert
         self.assertEqual(solution_id1, solution["solution_id"])
 
+    def test_get_all_solution_versions(self):
+        for version in ["0.9.0", "1.0.0", "0.10.0"]:
+            solution_dict = self.solution_default_dict.copy()
+            solution_dict["version"] = version
+            self.catalog_index._insert_solution(solution_dict)
+
+        # call
+        solutions = self.catalog_index.get_all_solution_versions("tsg", "tsn")
+
+        # assert
+        self.assertEqual(
+            ["1.0.0", "0.10.0", "0.9.0"], [s["version"] for s in solutions]
+        )
+
+    def test_get_all_solution_versions_non_pep440_fallback(self):
+        for version in ["0.9.0", "0.10.0", "tsv"]:
+            solution_dict = self.solution_default_dict.copy()
+            solution_dict["version"] = version
+            self.catalog_index._insert_solution(solution_dict)
+
+        # call
+        solutions = self.catalog_index.get_all_solution_versions("tsg", "tsn")
+
+        # assert - one unparsable version keeps the lexicographic order
+        self.assertEqual(["tsv", "0.9.0", "0.10.0"], [s["version"] for s in solutions])
+
     def test__update_solution(self):
         # prepare
         self.assertTrue(self.catalog_index.is_table_empty("solution"))
