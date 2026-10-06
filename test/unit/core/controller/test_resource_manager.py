@@ -164,38 +164,35 @@ dependencies:
         self.assertIn("My handwritten changelog", committed_changelog.read_text())
 
     @patch("album.core.controller.resource_manager.download_resource")
-    @patch(
-        "album.core.model.environment.create_path_recursively",
-        return_value="createdPath",
-    )
-    def test_write_solution_env_file(self, create_path_mock, download_mock):
+    def test_write_solution_env_file(self, download_mock):
         # prepare
         solution_no_env = Solution(self.get_solution_dict_with_dependecies())
         solution_no_env.setup()["dependencies"]["environment_file"] = ""
         framework = "conda-forge::{}={}".format(
-            DefaultValues.runner_api_packet_name.value,
-            DefaultValues.runner_api_packet_version.value,
+            DefaultValues.runner_api_package_name.value,
+            DefaultValues.runner_api_package_version.value,
         )
         expected_content_no_env = (
-            """['channels:\\n', 'dependencies:\\n', '- python=3.9\\n', '- conda-forge::%s=%s\\n', '- conda-forge::setuptools>=59.7.0\\n']"""
+            """['channels:\\n', '- conda-forge\\n', 'dependencies:\\n', '- python=%s\\n', '- conda-forge::%s=%s\\n', '- conda-forge::setuptools>=59.7.0\\n']"""
             % (
-                DefaultValues.runner_api_packet_name.value,
-                DefaultValues.runner_api_packet_version.value,
+                DefaultValues.default_solution_python_version.value,
+                DefaultValues.runner_api_package_name.value,
+                DefaultValues.runner_api_package_version.value,
             )
         )
         expected_content = (
             """['channels:\\n', '- conda-forge\\n', 'dependencies:\\n', '- python=3.8\\n', '- pip\\n', '- conda-forge::%s=%s\\n', '- conda-forge::setuptools>=59.7.0\\n', 'name: Dummy-Solution18\\n']"""
             % (
-                DefaultValues.runner_api_packet_name.value,
-                DefaultValues.runner_api_packet_version.value,
+                DefaultValues.runner_api_package_name.value,
+                DefaultValues.runner_api_package_version.value,
             )
         )
 
         expected_content_with_setuptools = (
             """['channels:\\n', '- conda-forge\\n', 'dependencies:\\n', '- python=3.8\\n', '- pip\\n', '- conda-forge::setuptools\\n', '- conda-forge::%s=%s\\n', '- conda-forge::setuptools>=59.7.0\\n', 'name: Dummy-Solution18\\n']"""
             % (
-                DefaultValues.runner_api_packet_name.value,
-                DefaultValues.runner_api_packet_version.value,
+                DefaultValues.runner_api_package_name.value,
+                DefaultValues.runner_api_package_version.value,
             )
         )
 
@@ -238,8 +235,8 @@ dependencies:
 """
         )
 
-        solution_faulty_dict = Solution(self.get_solution_dict_with_dependecies())
-        solution_faulty_dict.setup()["dependencies"]["environment_file"] = {
+        solution_env_dict = Solution(self.get_solution_dict_with_dependecies())
+        solution_env_dict.setup()["dependencies"]["environment_file"] = {
             "name": "Dummy-Solution18"
         }
 
@@ -289,12 +286,22 @@ dependencies:
         with open(Path(self.tmp_dir.name).joinpath("environment.yml")) as f:
             self.assertEqual(expected_content, repr(f.readlines()))
 
-        with self.assertRaises(RuntimeError):
-            self.resource_manager.write_solution_environment_file(
-                solution_faulty_dict, Path(self.tmp_dir.name)
+        # a dict is taken as the content of the environment file
+        self.resource_manager.write_solution_environment_file(
+            solution_env_dict, Path(self.tmp_dir.name)
+        )
+        with open(Path(self.tmp_dir.name).joinpath("environment.yml")) as f:
+            self.assertEqual(
+                [
+                    "dependencies:\n",
+                    f"- {framework}\n",
+                    "- conda-forge::setuptools>=59.7.0\n",
+                    "name: Dummy-Solution18\n",
+                ],
+                f.readlines(),
             )
 
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(TypeError):
             self.resource_manager.write_solution_environment_file(
                 solution_faulty_env_file, Path(self.tmp_dir.name)
             )
