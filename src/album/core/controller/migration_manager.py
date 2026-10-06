@@ -119,9 +119,14 @@ class MigrationManager(IMigrationManager):
                         )
                         Path(collection_index_path).unlink()
                         shutil.copy(
-                            Path(tmp_dir).joinpath("catalog_collection.db"),
+                            Path(tmp_dir).joinpath(Path(collection_index_path).name),
                             collection_index_path,
                         )
+                        raise RuntimeError(
+                            "Could not migrate the catalog collection database from "
+                            "version %s to %s. The database has been restored from its "
+                            "backup." % (curr_version, target_version)
+                        ) from e
             else:
                 raise Exception(
                     "Your catalog collection database is newer than the current version of your Album. "
@@ -150,13 +155,18 @@ class MigrationManager(IMigrationManager):
                         self._update_catalog_index_version(catalog_index_path)
                     except Exception as e:
                         module_logger().error(
-                            "Could not migrate the catalog collection database: %s" % e
+                            "Could not migrate the catalog index database: %s" % e
                         )
                         Path(catalog_index_path).unlink()
                         shutil.copy(
-                            Path(tmp_dir).joinpath("album_catalog_index.db"),
+                            Path(tmp_dir).joinpath(Path(catalog_index_path).name),
                             catalog_index_path,
                         )
+                        raise RuntimeError(
+                            "Could not migrate the catalog index database from "
+                            "version %s to %s. The database has been restored from its "
+                            "backup." % (curr_version, target_version)
+                        ) from e
             else:
                 raise Exception(
                     "Your catalog index database is newer than the current version of your Album. "
@@ -252,10 +262,13 @@ class MigrationManager(IMigrationManager):
     @staticmethod
     def _execute_migration_script(database: Path, schema: str) -> None:
         connection = sqlite3.connect(database)
-        cursor = connection.cursor()
-        cursor.executescript(schema)
-        connection.commit()
-        connection.close()
+        try:
+            cursor = connection.cursor()
+            cursor.executescript(schema)
+            connection.commit()
+        finally:
+            # close even on failure, otherwise the restore cannot replace the database on Windows
+            connection.close()
 
     def _update_catalog_collection_version(self) -> None:
         catalog_collection_json_path = (
