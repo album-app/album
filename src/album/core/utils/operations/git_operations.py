@@ -141,10 +141,11 @@ def retrieve_files_from_head_last_commit(head, pattern, option="", number_of_fil
     pattern = str(pattern)
     parent = head.commit.parents[0] if head.commit.parents else None
     module_logger().debug("Found head commit: %s..." % parent)
-    module_logger().debug("Summary message: %s..." % parent.summary)
 
     if not parent:
         raise RuntimeError("Cannot execute diff since there is only a single commit!")
+
+    module_logger().debug("Summary message: %s..." % parent.summary)
 
     diff = head.commit.diff(parent)
 
@@ -487,7 +488,9 @@ def download_repository(
         git_folder_path:
             The complete path to clone to
         force_download:
-            Boolean, indicates whether to force delete existing folder before cloning
+            Only takes effect when git_folder_path does not hold a repository yet (no ".git" folder).
+            Then the folder and everything left in it is deleted before cloning.
+            An existing repository is never deleted or cloned again, it is only reset if update is set.
         update:
             Flag to indicate whether to hard reset the repo upon initialization or not.
 

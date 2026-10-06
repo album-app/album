@@ -252,6 +252,23 @@ class Catalog(ICatalog):
         force_retrieve: bool = False,
         update: bool = True,
     ) -> Generator[Repo, None, None]:
+        """Clone or open the repository of the catalog and yield it.
+
+        Args:
+            path:
+                The path to retrieve the catalog repository to. Defaults to the path of the catalog.
+            force_retrieve:
+                Only takes effect when the path does not hold a repository yet.
+                Then everything left in the path is deleted before cloning.
+                An existing repository is never deleted or cloned again, it is only reset if update is set.
+            update:
+                Only takes effect when the path already holds a repository.
+                Then the repository is reset to the state of its remote, discarding all local changes.
+
+        Raises:
+            RuntimeError when the catalog is a cache catalog without a source.
+
+        """
         if self.is_cache():
             raise RuntimeError("Cannot retrieve a cache catalog as no source exists!")
 
