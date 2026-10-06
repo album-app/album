@@ -293,9 +293,11 @@ class InstallManager(IInstallManager):
                 solution_to_resolve
             )
             loaded = True
-        except ValueError:
-            module_logger().info(
-                "Cannot load solution. Cannot call uninstall routine. Proceed without..."
+        except Exception as e:
+            # a broken or missing solution file can raise anything when loaded
+            module_logger().warning(
+                "Cannot load solution (%s). Cannot call uninstall routine. "
+                "Proceed without..." % str(e)
             )
             resolve_result = self.album.collection_manager().resolve_installed(
                 solution_to_resolve
@@ -333,13 +335,14 @@ class InstallManager(IInstallManager):
                     "Inspect log for more information!" % resolve_result.coordinates()
                 )
 
-        # get the environment
+        # get the environment. Only the collection entry is needed for this,
+        # so the environment is also removed when the solution could not be loaded.
         environment = None
         try:
+            environment = self.album.environment_manager().set_environment(
+                resolve_result
+            )
             if loaded:
-                environment = self.album.environment_manager().set_environment(
-                    resolve_result
-                )
                 self._run_solution_uninstall_routine(resolve_result)
 
             if not parent:
