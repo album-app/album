@@ -168,6 +168,9 @@ class DownloadManager(IDownloadManager):
     def _retrieve_resources_from_dict(resources_dict: Dict[str, Any]) -> None:
         """Download the files specified in the dictionary.
 
+        A resource that fails to download is reported as an error and skipped,
+        the remaining resources are still processed.
+
         Args:
             resources_dict:
                 Resources dictionary with resolved paths in regard to scope.
@@ -179,20 +182,25 @@ class DownloadManager(IDownloadManager):
             if "os" in resource_value and not resource_value["os"] == sys.platform:
                 continue
 
+            # a missing hash is allowed, it only disables the integrity check
+            known_hash = resource_value.get("hash")
             try:
                 fpath = pooch.retrieve(
                     url=resource_value["url"],
-                    known_hash=resource_value["hash"],
+                    known_hash=known_hash,
                     fname=resource_value["name"],
                     path=str(resource_value["path"]),
                     progressbar=True,
                 )
             except Exception as e:
-                get_active_logger().error(f"Failed to download resource: {e}")
-                fpath = None
+                get_active_logger().error(
+                    f"Failed to download resource {resource_value.get('name')}: {e}"
+                )
+                # nothing was obtained, so there is no file to report or to hash
+                continue
 
             get_active_logger().info(f"Downloaded a resource to {fpath}")
-            if resource_value["hash"] is None:
+            if known_hash is None:
                 get_active_logger().info(
                     f"Resource {resource_value['name']} has no hash provided in the resource file. \n"
                     "Therefore, if the requested file already exists in the target directory, "
