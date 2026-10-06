@@ -348,6 +348,33 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         _search_mock.assert_called_once_with(this_input)
         _search_doi_mock.assert_not_called()
 
+    @patch("album.core.controller.collection.collection_manager.check_doi")
+    @patch(
+        "album.core.controller.collection.collection_manager.check_file_or_url",
+        return_value=None,
+    )
+    def test__resolve_case_relative_path_not_a_doi(self, _, check_doi_mock):
+        """A non-existing relative path with one slash is not a DOI (issue #263,
+        1.12) and must end in a lookup error instead of a DOI download."""
+        # prepare
+        this_input = "mygroup/solution.py"
+
+        # mocks
+        _search_mock = MagicMock(return_value=None)
+        self.album_controller.collection_manager()._search = _search_mock
+
+        _search_doi_mock = MagicMock(return_value=None)
+        self.album_controller.collection_manager()._search_doi = _search_doi_mock
+
+        # call
+        with self.assertRaises(LookupError):
+            self.album_controller.collection_manager()._resolve(this_input)
+
+        # assert mocks
+        _search_mock.assert_called_once_with(this_input)
+        _search_doi_mock.assert_not_called()
+        check_doi_mock.assert_not_called()
+
     @unittest.skip("Needs to be implemented!")
     def test__search_local_file(self):
         # todo: implement

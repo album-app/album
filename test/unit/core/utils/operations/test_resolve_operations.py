@@ -34,14 +34,23 @@ class TestResolveOperations(TestUnitCoreCommon):
 
     def test_get_doi_from_input(self):
         solution = {
-            "doi": "prefix/suffix",
+            "doi": "10.5281/zenodo.5571504",
         }
-        self.assertEqual(solution, get_doi_from_input("doi:prefix/suffix"))
-        self.assertEqual(solution, get_doi_from_input("prefix/suffix"))
+        self.assertEqual(solution, get_doi_from_input("doi:10.5281/zenodo.5571504"))
+        self.assertEqual(solution, get_doi_from_input("10.5281/zenodo.5571504"))
         self.assertIsNone(get_doi_from_input("prefixOnly"))
         self.assertIsNone(get_doi_from_input("doi:"))
         self.assertIsNone(get_doi_from_input(":"))
         self.assertIsNone(get_doi_from_input("grp:name:version"))
+        # a relative path with one slash is not a DOI (album issue #263, 1.12)
+        self.assertIsNone(get_doi_from_input("mygroup/solution.py"))
+        self.assertIsNone(get_doi_from_input("a/b"))
+        self.assertIsNone(get_doi_from_input("prefix/suffix"))
+        self.assertIsNone(get_doi_from_input("doi:prefix/suffix"))
+        # the suffix must not be empty or contain further colons or slashes
+        self.assertIsNone(get_doi_from_input("10.5281/"))
+        self.assertIsNone(get_doi_from_input("10.5281/zenodo.5571504/extra"))
+        self.assertIsNone(get_doi_from_input("10.5281/zenodo:5571504"))
 
     @unittest.skip("Needs to be implemented!")
     def test_is_pathname_valid(self):
@@ -112,6 +121,28 @@ class TestResolveOperations(TestUnitCoreCommon):
 
         get_doi_from_input_mock.assert_called_once()
         get_gnv_from_input_mock.assert_called_once()
+
+    def test_get_attributes_from_string_unpatched(self):
+        # DOI, gnv and cgnv inputs are told apart by the real parsers
+        self.assertEqual(
+            {"doi": "10.5281/zenodo.5571504"},
+            get_attributes_from_string("doi:10.5281/zenodo.5571504"),
+        )
+        self.assertEqual(
+            {"doi": "10.5281/zenodo.5571504"},
+            get_attributes_from_string("10.5281/zenodo.5571504"),
+        )
+        self.assertEqual(
+            {"group": "grp", "name": "name", "version": "version"},
+            get_attributes_from_string("grp:name:version"),
+        )
+        self.assertEqual(
+            {"catalog": "cat", "group": "grp", "name": "name", "version": "version"},
+            get_attributes_from_string("cat:grp:name:version"),
+        )
+        # a mistyped relative path is not a DOI and is rejected as invalid format
+        with self.assertRaises(ValueError):
+            get_attributes_from_string("mygroup/solution.py")
 
     @patch("album.core.utils.operations.resolve_operations.prepare_path")
     @patch("album.core.utils.operations.resolve_operations.download_resource")

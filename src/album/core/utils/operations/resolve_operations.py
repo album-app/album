@@ -90,8 +90,23 @@ def get_cgnv_from_input(str_input: str) -> Optional[Dict[str, str]]:
 
 
 def get_doi_from_input(str_input: str) -> Optional[Dict[str, str]]:
-    """Parse the DOI from string input."""
-    s = re.search(r"^(^doi:)?([^:\/]*\/[^:\/]*)$", str_input)
+    """Parse the DOI from string input.
+
+    A DOI always starts with the directory indicator ``10.`` followed by a
+    registrant code of four to nine digits, a slash and a suffix. Requiring
+    this prefix keeps relative paths such as ``mygroup/solution.py`` from
+    being mistaken for a DOI. An optional ``doi:`` scheme is stripped.
+
+    Args:
+        str_input:
+            The string input, e.g. ``10.5281/zenodo.5571504`` or
+            ``doi:10.5281/zenodo.5571504``.
+
+    Returns:
+        Dictionary with the key ``doi`` or None if the input is not a DOI.
+
+    """
+    s = re.search(r"^(doi:)?(10\.\d{4,9}/[^:/\s]+)$", str_input)
     if s:
         return {"doi": s.group(2)}
     return None
