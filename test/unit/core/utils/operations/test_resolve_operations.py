@@ -137,6 +137,28 @@ class TestResolveOperations(TestUnitCoreCommon):
         dl_mock.assert_called_once_with(parse_doi_mock.return_value, mock.ANY)
         prepare_mock.assert_called_once_with("myDownloadFile", mock.ANY)
 
+    @patch("album.core.utils.operations.resolve_operations.prepare_path")
+    @patch("album.core.utils.operations.resolve_operations.download_resource")
+    @patch("album.core.utils.operations.resolve_operations.retrieve_redirect_url")
+    def test_check_doi_records_url(self, retrieve_url_mock, dl_mock, prepare_mock):
+        # prepare: doi.org redirects to zenodo.org/record/<id>, which Zenodo in
+        # turn redirects to zenodo.org/records/<id>; retrieve_redirect_url hands
+        # back that final url, so the real parsing chain must accept it.
+        doi = "10.5281/zenodo.5571504"
+        # mocks
+        retrieve_url_mock.return_value = "https://zenodo.org/records/5571504"
+        dl_mock.return_value = "myDownloadFile"
+        prepare_mock.return_value = "whatever"
+
+        # call
+        check_doi(doi, "myTempDir")
+
+        # assert
+        dl_mock.assert_called_once_with(
+            "https://zenodo.org/api/records/5571504/files-archive", mock.ANY
+        )
+        prepare_mock.assert_called_once_with("myDownloadFile", mock.ANY)
+
     @patch(
         "album.core.utils.operations.resolve_operations._parse_zenodo_url",
         return_value="link",
@@ -188,8 +210,32 @@ class TestResolveOperations(TestUnitCoreCommon):
         with self.assertRaises(ValueError):
             _parse_zenodo_url(url6)
 
+    def test__parse_zenodo_url_records(self):
+        # prepare: the path form Zenodo redirects /record/<id> to
+        url1 = "https://zenodo.org/records/5571504"
+        url2 = "https://zenodo.org/recordss/5571504"
+        url3 = "https://zenodo.org/records/5571504/1234"
+
+        # call
+        result = _parse_zenodo_url(url1)
+
+        # assert
+        self.assertEqual("https://zenodo.org/api/records/5571504/files-archive", result)
+
+        # call expect error
+        with self.assertRaises(ValueError):
+            _parse_zenodo_url(url2)
+        with self.assertRaises(ValueError):
+            _parse_zenodo_url(url3)
+
     def test__parse_zenodo_url_subdomain(self):
         url = "https://sandbox.zenodo.org/record/9999"
+        result = _parse_zenodo_url(url)
+        self.assertEqual(
+            "https://sandbox.zenodo.org/api/records/9999/files-archive", result
+        )
+
+        url = "https://sandbox.zenodo.org/records/9999"
         result = _parse_zenodo_url(url)
         self.assertEqual(
             "https://sandbox.zenodo.org/api/records/9999/files-archive", result

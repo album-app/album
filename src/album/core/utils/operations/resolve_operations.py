@@ -204,8 +204,13 @@ def parse_doi_service_url(url: str) -> str:
 
 
 def _parse_zenodo_url(url: str):
-    """Parse the zenodo URL and return the download link for the record archive."""
-    g = re.search(r"(https:\/\/[a-zA-Z.]*zenodo[.]org\/)(record)[\/]([0-9]*)$", url)
+    """Parse the zenodo URL and return the download link for the record archive.
+
+    Both the legacy ``/record/<id>`` and the current ``/records/<id>`` path forms
+    are accepted: Zenodo redirects the former to the latter, and the URL handed
+    in here is the final one after all redirects (see ``retrieve_redirect_url``).
+    """
+    g = re.search(r"(https:\/\/[a-zA-Z.]*zenodo[.]org\/)(records?)[\/]([0-9]*)$", url)
 
     if g:
         base_url = g.group(1).rstrip("/")
