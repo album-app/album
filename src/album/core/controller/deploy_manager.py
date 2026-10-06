@@ -1,8 +1,9 @@
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple, Union
 
 from git import Repo
+from packaging.version import InvalidVersion, Version
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.deploy_manager import IDeployManager
@@ -24,7 +25,6 @@ from album.core.utils.operations.git_operations import (
 )
 from album.core.utils.operations.resolve_operations import (
     as_tag,
-    as_tag_unversioned,
     dict_to_coordinates,
     get_attributes_from_string,
 )
@@ -133,7 +133,9 @@ class DeployManager(IDeployManager):
             self.album.migration_manager().load_index(catalog)
 
             # get versions from catalog
-            ordered_version_tags = self._get_tags_for_coordinates(repo, coordinates)
+            ordered_version_tags = self._get_tags_for_coordinates(
+                repo, catalog, coordinates
+            )
             current_version_tag = (
                 ordered_version_tags[0] if len(ordered_version_tags) > 0 else None
             )
@@ -453,10 +455,40 @@ class DeployManager(IDeployManager):
         return self.album.configuration().tmp_path()
 
     @staticmethod
-    def _get_tags_for_coordinates(repo: Repo, coordinates: ICoordinates) -> List[str]:
-        tags = get_tags(repo)
-        tag_start = as_tag_unversioned(coordinates)
-        return [tag for tag in tags if tag.startswith(tag_start)]
+    def _get_tags_for_coordinates(
+        repo: Repo, catalog: ICatalog, coordinates: ICoordinates
+    ) -> List[str]:
+        """Get the tags of all deployed versions of a solution, newest version first.
+
+        Only tags of versions the catalog index knows are returned, so that the tags
+        of solutions whose names merely share a prefix (e.g. "grp-seg-tools" for
+        "grp-seg") are not mixed in.
+        """
+        index = catalog.index()
+        if index is None:
+            raise RuntimeError("Catalog index not loaded!")
+        versions = index.get_all_solution_versions(
+            coordinates.group(), coordinates.name()
+        )
+        repo_tags = set(get_tags(repo))
+        deployed = [dict_to_coordinates(entry) for entry in versions]
+        deployed = [c for c in deployed if as_tag(c) in repo_tags]
+        deployed.sort(
+            key=lambda c: DeployManager._version_sort_key(c.version()), reverse=True
+        )
+        return [as_tag(c) for c in deployed]
+
+    @staticmethod
+    def _version_sort_key(version: str) -> Tuple[int, Union[Version, str]]:
+        """Sort key ordering PEP 440 versions numerically, other versions by string.
+
+        Parsable versions rank above unparsable ones, so the second tuple element is
+        only ever compared between values of the same type.
+        """
+        try:
+            return 1, Version(version)
+        except InvalidVersion:
+            return 0, version
 
     @staticmethod
     def _add_to_downloaded_catalog(
