@@ -1,4 +1,5 @@
 """Module containing the commandline functions for the `album` commandline tool."""
+
 import os
 import pkgutil
 import sys

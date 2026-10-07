@@ -6,16 +6,16 @@ from unittest.mock import patch
 
 from album import argument_parsing
 from album.commandline import (
-    search,
-    remove_catalog,
     add_catalog,
-    uninstall,
-    install,
-    repl,
-    deploy,
-    run,
-    test,
     clone,
+    deploy,
+    install,
+    remove_catalog,
+    repl,
+    run,
+    search,
+    test,
+    uninstall,
 )
 
 

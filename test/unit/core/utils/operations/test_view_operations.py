@@ -1,8 +1,7 @@
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 
-from album.runner.core.model.solution import Solution
-
 from album.core.utils.operations.view_operations import get_solution_as_string
+from album.runner.core.model.solution import Solution
 
 
 class TestViewOperations(TestUnitCoreCommon):

@@ -1,13 +1,14 @@
 """View operations for the Album CLI."""
+
 import enum
 import logging
 from argparse import Namespace
 from typing import Any, Dict, List, Optional, Tuple
 
 import colorlog
-from album.runner.core.api.model.solution import ISolution
 
 from album.core.api.model.catalog_updates import ICatalogUpdates
+from album.runner.core.api.model.solution import ISolution
 
 
 def get_solution_as_string(solution: ISolution, solution_path: str) -> str:
