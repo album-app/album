@@ -224,8 +224,8 @@ class ResourceManager(IResourceManager):
         dependencies = "conda-forge::setuptools>=59.7.0"
         if "dependencies" not in content or not content["dependencies"]:
             content["dependencies"] = []
-        # Keep a setuptools spec the solution already declares. A second spec for the
-        # same package is combined with it by the solver and can make it unsatisfiable.
+        # Keep a setuptools spec the solution already declares. conda-lock keeps only
+        # the last spec per package, so an appended pin would silently replace it.
         if not any(
             ResourceManager._is_setuptools_spec(dependency)
             for dependency in content["dependencies"]
