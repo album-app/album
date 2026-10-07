@@ -35,6 +35,7 @@ from test.unit.core.model import (
     test_mmversion,
 )
 from test.unit.core.utils.export import test_changelog, test_docker
+from test.unit.core.utils.runner import test_backwards_compatibility_0_6_1
 from test.unit.core.utils.operations import test_dict_operations
 from test.unit.core.utils.operations import (
     test_url_operations,
@@ -97,6 +98,9 @@ def main():
     # album.core.utils.export
     suite.addTests(loader.loadTestsFromModule(test_docker))
     suite.addTests(loader.loadTestsFromModule(test_changelog))
+
+    # album.core.utils.runner (the frozen <= 0.6.1 solution runner)
+    suite.addTests(loader.loadTestsFromModule(test_backwards_compatibility_0_6_1))
 
     # album.ci
     suite.addTests(loader.loadTestsFromModule(test_ci_argument_parsing))
