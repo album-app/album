@@ -268,7 +268,12 @@ class Album:
         return self._controller.clone_manager().clone(path, target_dir, name)
 
     def close(self):
-        """Close the album instance."""
+        """Close the album instance.
+
+        Closes the catalog collection and removes the temporary folder of this album
+        instance. Other album instances using the same base path keep their temporary
+        folders. close() is also called when the instance is garbage collected.
+        """
         if self.logger_pushed:
             pop_active_logger()
         self._controller.close()
