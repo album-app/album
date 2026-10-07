@@ -1,11 +1,16 @@
 """Implements the IConfiguration interface."""
 
+import os
+import time
+import uuid
+import weakref
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
 from album.core.api.model.configuration import IConfiguration
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import (
+    create_path_recursively,
     create_paths_recursively,
     get_dict_from_json,
 )
@@ -22,6 +27,7 @@ class Configuration(IConfiguration):
         self._base_cache_path = None
         self._conda_executable = None
         self._tmp_path = None
+        self._tmp_root_path = None
         self._cache_path_envs = None
         self._catalog_collection_path = None
         self._installation_path = None
@@ -39,6 +45,11 @@ class Configuration(IConfiguration):
         return self._cache_path_download
 
     def tmp_path(self) -> Path:
+        if self._tmp_path is not None:
+            # recreate the folder when it was removed (e.g. by close()) and refresh its
+            # modification time, so other instances never consider it a stale leftover
+            create_path_recursively(self._tmp_path)
+            os.utime(self._tmp_path)
         return self._tmp_path
 
     def environments_path(self) -> Path:
@@ -77,9 +88,12 @@ class Configuration(IConfiguration):
         self._installation_path = self._base_cache_path.joinpath(
             DefaultValues.installation_folder_prefix.value
         )
-        self._tmp_path = self._base_cache_path.joinpath(
+        # every instance gets its own temporary folder, other album instances using
+        # the same base path might still work in theirs
+        self._tmp_root_path = self._base_cache_path.joinpath(
             DefaultValues.cache_path_tmp_prefix.value
         )
+        self._tmp_path = self._tmp_root_path.joinpath(uuid.uuid4().hex)
         self._lnk_path = self._base_cache_path.joinpath(
             DefaultValues.link_folder_prefix.value
         )
@@ -87,7 +101,7 @@ class Configuration(IConfiguration):
             DefaultValues.shared_globally_suffix.value
         )
 
-        self._empty_tmp()
+        self._remove_stale_tmp()
         create_paths_recursively(
             [
                 self._tmp_path,
@@ -99,6 +113,12 @@ class Configuration(IConfiguration):
                 self._shared_globally_path,
             ]
         )
+        # remove the temporary folder also when the instance is never closed
+        weakref.finalize(self, force_remove, self._tmp_path)
+
+    def close(self) -> None:
+        if self._tmp_path is not None:
+            force_remove(self._tmp_path)
 
     def get_solution_path_suffix(self, coordinates: ICoordinates) -> Path:
         return Path("").joinpath(
@@ -148,9 +168,15 @@ class Configuration(IConfiguration):
             DefaultValues.default_catalog_name.value: DefaultValues.default_catalog_src_branch.value
         }
 
-    def _empty_tmp(self) -> None:
-        # Following two commented functions should not be done since there could be links in
-        # tmp_user or tmp_internal which have to be resolved when deleting them!
-        # force_remove(self._cache_path_tmp_user)
-        # force_remove(self._cache_path_tmp_internal)
-        force_remove(self._tmp_path)
+    def _remove_stale_tmp(self) -> None:
+        if not self._tmp_root_path.is_dir():
+            return
+        stale_before = time.time() - DefaultValues.stale_tmp_age_in_seconds.value
+        for path in self._tmp_root_path.iterdir():
+            try:
+                if path.lstat().st_mtime < stale_before:
+                    force_remove(path)
+            except OSError as e:
+                module_logger().warning(
+                    f"Could not remove stale temporary folder {str(path)}: {e}"
+                )

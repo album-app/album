@@ -1,4 +1,5 @@
 """Configuration of the album framework installation instance."""
+
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
@@ -26,7 +27,11 @@ class IConfiguration:
 
     @abstractmethod
     def tmp_path(self) -> Path:
-        """Get the path for solution unspecific temporary files of album."""
+        """Get the path for solution unspecific temporary files of album.
+
+        The folder is unique to this configuration instance, so that several album
+        instances can use the same base path at the same time.
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -57,6 +62,23 @@ class IConfiguration:
     @abstractmethod
     def setup(self, base_cache_path: Union[None, str, Path] = None) -> None:
         """Set up the configuration."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def close(self) -> None:
+        """Remove the temporary folder of this configuration instance.
+
+        Only the folder returned by tmp_path() is removed, together with its content.
+        The temporary folders of other album instances using the same base path are
+        not touched. Calling close() more than once is harmless, and a later call of
+        tmp_path() creates the folder again.
+
+        The album controller calls close() when it is closed. If close() is never
+        called, the folder is removed when this instance is garbage collected or the
+        interpreter exits. Folders left behind by crashed processes are removed by
+        setup() of another instance once they have not been modified for
+        DefaultValues.stale_tmp_age_in_seconds.
+        """
         raise NotImplementedError
 
     @abstractmethod
