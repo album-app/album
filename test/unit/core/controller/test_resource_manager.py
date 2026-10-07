@@ -169,10 +169,6 @@ dependencies:
         # prepare
         solution_no_env = Solution(self.get_solution_dict_with_dependecies())
         solution_no_env.setup()["dependencies"]["environment_file"] = ""
-        framework = "conda-forge::{}={}".format(
-            DefaultValues.runner_api_package_name.value,
-            DefaultValues.runner_api_package_version.value,
-        )
         expected_content_no_env = (
             """['channels:\\n', '- conda-forge\\n', 'dependencies:\\n', '- python=%s\\n', '- conda-forge::%s=%s\\n', '- conda-forge::setuptools>=59.7.0\\n']"""
             % (
@@ -238,7 +234,9 @@ dependencies:
 
         solution_env_dict = Solution(self.get_solution_dict_with_dependecies())
         solution_env_dict.setup()["dependencies"]["environment_file"] = {
-            "name": "Dummy-Solution18"
+            "name": "Dummy-Solution18",
+            "channels": ["conda-forge"],
+            "dependencies": ["python=3.8", "pip"],
         }
 
         solution_faulty_env_file = Solution(self.get_solution_dict_with_dependecies())
@@ -292,15 +290,7 @@ dependencies:
             solution_env_dict, Path(self.tmp_dir.name)
         )
         with open(Path(self.tmp_dir.name).joinpath("environment.yml")) as f:
-            self.assertEqual(
-                [
-                    "dependencies:\n",
-                    f"- {framework}\n",
-                    "- conda-forge::setuptools>=59.7.0\n",
-                    "name: Dummy-Solution18\n",
-                ],
-                f.readlines(),
-            )
+            self.assertEqual(expected_content, repr(f.readlines()))
 
         with self.assertRaises(TypeError):
             self.resource_manager.write_solution_environment_file(
