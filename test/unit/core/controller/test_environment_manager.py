@@ -7,13 +7,15 @@ from pathlib import Path
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 from unittest.mock import MagicMock, patch
 
+from album.core.model.catalog import Catalog
+from album.core.model.default_values import (
+    DEFAULT_SOLUTION_ENV_CONTENT,
+    DefaultValues,
+)
+from album.core.model.resolve_result import ResolveResult
 from album.environments.utils.file_operations import get_dict_from_yml
 from album.runner.core.model.coordinates import Coordinates
 from album.runner.core.model.solution import Solution
-
-from album.core.model.catalog import Catalog
-from album.core.model.default_values import DefaultValues
-from album.core.model.resolve_result import ResolveResult
 
 
 class TestEnvironmentManager(TestUnitCoreCommon):
@@ -133,6 +135,26 @@ class TestEnvironmentManager(TestUnitCoreCommon):
         self.environment_manager._prepare_env_file(
             {}, Path(self.tmp_dir.name), None, None
         )
+
+    def test__prepare_env_file_default_environment_excludes_defaults_channel(self):
+        r = self.environment_manager._prepare_env_file(
+            None, Path(self.tmp_dir.name), "env_name", None
+        )
+
+        channels = get_dict_from_yml(r)["channels"]
+        self.assertEqual(["conda-forge", "nodefaults"], channels)
+        # the shared content, which deploy hands to conda-lock, stays without it
+        self.assertEqual(["conda-forge"], DEFAULT_SOLUTION_ENV_CONTENT["channels"])
+
+    def test__prepare_env_file_solution_environment_keeps_its_channels(self):
+        env_file = {"channels": ["bioconda", "conda-forge"], "dependencies": []}
+
+        r = self.environment_manager._prepare_env_file(
+            {"environment_file": env_file}, Path(self.tmp_dir.name), "env_name", None
+        )
+
+        channels = get_dict_from_yml(r)["channels"]
+        self.assertEqual(["bioconda", "conda-forge"], channels)
 
     @patch(
         "album.core.controller.environment_manager.create_path_recursively",
