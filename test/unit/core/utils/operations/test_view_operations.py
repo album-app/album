@@ -1,6 +1,9 @@
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 
-from album.core.utils.operations.view_operations import get_solution_as_string
+from album.core.utils.operations.view_operations import (
+    filter_latest_solutions,
+    get_solution_as_string,
+)
 from album.runner.core.model.solution import Solution
 
 
@@ -10,6 +13,37 @@ class TestViewOperations(TestUnitCoreCommon):
 
     def tearDown(self) -> None:
         super().tearDown()
+
+    def test_filter_latest_solutions(self):
+        def solution(group, name, version):
+            return {"setup": {"group": group, "name": name, "version": version}}
+
+        index_dict = {
+            "catalogs": [
+                {
+                    "name": "c1",
+                    "solutions": [
+                        solution("g", "a", "0.2.0"),
+                        solution("g", "a", "0.10.0"),
+                        solution("g", "a", "0.1.0-SNAPSHOT"),
+                        solution("g", "b", "0.1.0-SNAPSHOT"),
+                    ],
+                },
+                {"name": "c2", "solutions": [solution("g", "a", "0.1.0")]},
+            ]
+        }
+
+        filter_latest_solutions(index_dict)
+
+        # numeric order; a version that is not PEP 440 (SNAPSHOT) ranks below the others
+        self.assertEqual(
+            [solution("g", "a", "0.10.0"), solution("g", "b", "0.1.0-SNAPSHOT")],
+            index_dict["catalogs"][0]["solutions"],
+        )
+        # each catalog on its own
+        self.assertEqual(
+            [solution("g", "a", "0.1.0")], index_dict["catalogs"][1]["solutions"]
+        )
 
     def test_get_solution_as_string(self):
         solution_dict = self.solution_default_dict.copy()

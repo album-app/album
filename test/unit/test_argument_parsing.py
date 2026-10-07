@@ -38,6 +38,15 @@ class TestArgumentParsing(unittest.TestCase):
 
         self.assertEqual(e.exception.code, 2)
 
+    def test_index_all(self):
+        parser = argument_parsing.create_parser()
+
+        sys.argv = ["", "index"]
+        self.assertFalse(parser.parse_known_args()[0].all)
+
+        sys.argv = ["", "index", "--all"]
+        self.assertTrue(parser.parse_known_args()[0].all)
+
     def test_create_parser(self):
         parser = argument_parsing.create_parser()
 
