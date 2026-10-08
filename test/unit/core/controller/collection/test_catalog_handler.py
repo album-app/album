@@ -15,7 +15,11 @@ from album.core.model.catalog_index import CatalogIndex
 from album.core.model.catalog_updates import CatalogUpdates, ChangeType, SolutionChange
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import folder_empty, write_dict_to_json
+from album.core.utils.operations.file_operations import (
+    folder_empty,
+    get_dict_from_json,
+    write_dict_to_json,
+)
 from album.runner.core.model.coordinates import Coordinates
 
 
@@ -131,6 +135,64 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
 
         # assert
         _retrieve_catalog_meta_information.assert_not_called()
+        self.assertIn(
+            'Catalog "aNiceCatalog" with source "%s" is already in the collection.'
+            % catalog_src.resolve(),
+            self.get_logs_as_string(),
+        )
+
+    def _add_by_src_with_name_of(self, existing_name, deletable):
+        """Add a new source whose metadata declares the name of an added catalog."""
+        # prepare
+        catalog_src, _ = self.setup_empty_catalog("aNiceCatalog")
+        existing_catalog = (
+            self.album_controller.collection_manager()
+            .get_collection_index()
+            .get_catalog_by_name(existing_name)
+        )
+        self.assertNotEqual(str(catalog_src.resolve()), existing_catalog["src"])
+        self.assertEqual(deletable, bool(existing_catalog["deletable"]))
+
+        # mocks
+        # the new catalog declares the name of a catalog that is already added
+        self.catalog_handler._retrieve_catalog_meta_information = MagicMock(
+            return_value=self.get_catalog_meta_dict(name=existing_name)
+        )
+        _create_catalog_from_src = MagicMock()
+        self.catalog_handler._create_catalog_from_src = _create_catalog_from_src
+
+        # call
+        r = self.catalog_handler.add_by_src(str(catalog_src))
+
+        # assert
+        _create_catalog_from_src.assert_not_called()
+        self.assertEqual(existing_catalog["catalog_id"], r.catalog_id())
+        logs = self.get_logs_as_string()
+        self.assertIn(
+            'Cannot add catalog from source "%s": another catalog with the name'
+            ' "%s" is already in the collection (source "%s").'
+            % (catalog_src.resolve(), existing_name, existing_catalog["src"]),
+            logs,
+        )
+        self.assertNotIn("is already in the collection. Doing nothing", logs)
+        return logs
+
+    # Info: this is rather a small integration test.
+    def test_add_by_src_name_already_present_with_other_src(self):
+        logs = self._add_by_src_with_name_of("test_catalog2", deletable=True)
+
+        self.assertIn("Remove that catalog first to add this one.", logs)
+        self.assertNotIn("cannot be removed", logs)
+
+    # Info: this is rather a small integration test.
+    def test_add_by_src_name_already_present_not_deletable(self):
+        logs = self._add_by_src_with_name_of("test_catalog", deletable=False)
+
+        # removing a catalog that is not deletable fails, so do not suggest it
+        self.assertIn(
+            "That catalog cannot be removed, so this one cannot be added.", logs
+        )
+        self.assertNotIn("Remove that catalog first", logs)
 
     def test__add_to_index(self):
         # prepare
@@ -246,6 +308,36 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
                 '{"name": "myNewCatalogName", "version": "0.1.0", "type": "direct"}',
                 metafile[0],
             )
+
+    def test_create_new_metadata_special_characters_in_name(self):
+        names = [
+            'my "quoted" catalog',  # was written as invalid JSON
+            "C:\\build",  # backslash + b was read back as a backspace
+            "catalog \\x",  # was written as an invalid JSON escape
+        ]
+        for i, name in enumerate(names):
+            with self.subTest(name=name):
+                # prepare
+                local_path = Path(self.tmp_dir.name).joinpath("catalog%s" % i)
+                expected = {
+                    "name": name,
+                    "version": DefaultValues.catalog_index_db_version.value,
+                    "type": "direct",
+                }
+
+                # call
+                r = self.catalog_handler.create_new_metadata(local_path, name, "direct")
+
+                # assert
+                self.assertEqual(expected, r)
+                self.assertEqual(
+                    expected,
+                    get_dict_from_json(
+                        local_path.joinpath(
+                            DefaultValues.catalog_index_metafile_json.value
+                        )
+                    ),
+                )
 
     def test__update(self):
         # mocks
