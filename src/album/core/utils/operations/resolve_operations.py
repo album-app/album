@@ -356,14 +356,19 @@ def build_resolve_string(
 def get_parent(
     parent_collection_entry: ICollectionIndex.ICollectionSolution,
 ) -> ICollectionIndex.ICollectionSolution:
-    """Given a collection entry (aka row of the collection table) this method returns the corresponding parent."""
-    if parent_collection_entry.internal()["parent"]:
-        parent = parent_collection_entry.internal()["parent"]
-        while parent.internal()["parent"]:
-            parent = parent["parent"]
+    """Return the solution at the top of the parent chain of a collection entry.
 
-        return parent
-    return parent_collection_entry
+    A parent can have a parent itself (solA -> parentB -> parentC). Only the solution at
+    the top of the chain, parentC, gets an environment, and every solution below it runs
+    in that one. The collection index nests the chain: the entry in internal()["parent"]
+    carries its own parent the same way.
+
+    Returns the entry itself when it has no parent.
+    """
+    parent = parent_collection_entry
+    while parent.internal()["parent"]:
+        parent = parent.internal()["parent"]
+    return parent
 
 
 def as_tag(coordinates: ICoordinates) -> str:

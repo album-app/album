@@ -18,7 +18,10 @@ from album.core.utils.operations.file_operations import (
     create_path_recursively,
     remove_link,
 )
-from album.core.utils.operations.resolve_operations import dict_to_coordinates
+from album.core.utils.operations.resolve_operations import (
+    dict_to_coordinates,
+    get_parent,
+)
 from album.core.utils.operations.solution_operations import set_environment_paths
 from album.environments.api.environment_api import IEnvironmentAPI
 from album.environments.api.model.environment import IEnvironment
@@ -189,10 +192,13 @@ class EnvironmentManager(IEnvironmentManager):
             environment = Environment(None, env_name, None)
             self.set_environment_path(environment)
 
-        # solution runs in the parents environment - we need to resolve first to get info about parents environment
+        # solution runs in the environment of the solution at the top of its parent
+        # chain: a parent can have a parent itself, and only the top one has an
+        # environment (InstallManager._install_active_solution creates no other)
         else:
-            coordinates = dict_to_coordinates(parent.setup())
-            catalog = self._album.catalogs().get_by_id(parent.internal()["catalog_id"])
+            root = get_parent(db_entry)
+            coordinates = dict_to_coordinates(root.setup())
+            catalog = self._album.catalogs().get_by_id(root.internal()["catalog_id"])
             env_name = self.get_environment_name(coordinates, catalog)
             environment = Environment(None, env_name, None)
             self.set_environment_path(environment)
