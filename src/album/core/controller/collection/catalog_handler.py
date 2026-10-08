@@ -94,7 +94,17 @@ class CatalogHandler(ICatalogHandler):
                 MMVersion.from_string(DefaultValues.catalog_index_db_version.value),
             )
 
-        self._add_to_index(catalog)
+        try:
+            self._add_to_index(catalog)
+        except RuntimeError:
+            # another album process added this catalog since the check above
+            catalog_dict = self._get_collection_index().get_catalog_by_src(
+                source
+            ) or self._get_collection_index().get_catalog_by_name(catalog.name())
+            if not catalog_dict:
+                raise
+            module_logger().warning("Cannot add catalog twice! Doing nothing...")
+            return self._as_catalog(catalog_dict)
         self._create_catalog_cache_if_missing(catalog)
         self.album.migration_manager().load_index(catalog)
 

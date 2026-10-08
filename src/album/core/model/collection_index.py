@@ -126,8 +126,20 @@ class CollectionIndex(ICollectionIndex, Database):
         close: bool = True,
     ) -> int:
         next_id = self.next_id("catalog")
-        cursor = self.get_cursor()
+        # next_id holds the write lock until the insert is committed, so no other album
+        # process can add a catalog with this name or source between this check and the insert
+        try:
+            if self.get_catalog_by_name(name, close=False):
+                raise RuntimeError(self._duplicate_catalog_message(name, src, "name"))
+            if self.get_catalog_by_src(src, close=False):
+                raise RuntimeError(self._duplicate_catalog_message(name, src, "source"))
+        except Exception:
+            # do not keep the write lock taken by next_id
+            if close:
+                self.close_current_connection()
+            raise
 
+        cursor = self.get_cursor()
         cursor.execute(
             "INSERT INTO catalog VALUES (?, ?, ?, ?, ?, ?, ?)",
             (next_id, name, src, path, branch_name, catalog_type, deletable),
@@ -137,6 +149,13 @@ class CollectionIndex(ICollectionIndex, Database):
             self.close_current_connection()
 
         return next_id
+
+    @staticmethod
+    def _duplicate_catalog_message(name: str, src: str, taken: str) -> str:
+        return (
+            'Cannot add catalog "%s" (%s): the collection already contains a catalog '
+            "with this %s." % (name, src, taken)
+        )
 
     def get_catalog(
         self, catalog_id: int, close: bool = True
@@ -165,7 +184,7 @@ class CollectionIndex(ICollectionIndex, Database):
         cursor = self.get_cursor()
 
         r = cursor.execute(
-            "SELECT * FROM catalog WHERE name=:catalog_name",
+            "SELECT * FROM catalog WHERE name=:catalog_name ORDER BY catalog_id",
             {
                 "catalog_name": catalog_name,
             },
@@ -186,7 +205,7 @@ class CollectionIndex(ICollectionIndex, Database):
         cursor = self.get_cursor()
 
         r = cursor.execute(
-            "SELECT * FROM catalog WHERE path=:catalog_path",
+            "SELECT * FROM catalog WHERE path=:catalog_path ORDER BY catalog_id",
             {
                 "catalog_path": catalog_path,
             },
@@ -207,7 +226,7 @@ class CollectionIndex(ICollectionIndex, Database):
         cursor = self.get_cursor()
 
         r = cursor.execute(
-            "SELECT * FROM catalog WHERE src=:catalog_src",
+            "SELECT * FROM catalog WHERE src=:catalog_src ORDER BY catalog_id",
             {
                 "catalog_src": catalog_src,
             },
@@ -308,7 +327,6 @@ class CollectionIndex(ICollectionIndex, Database):
     def insert_solution(
         self, catalog_id: int, solution_attrs: Dict[str, Any], close: bool = True
     ) -> int:
-        collection_id = self.next_id("collection")
         hash_val = get_dict_entry(solution_attrs, "hash", allow_none=True)
 
         # there must be a hash value
@@ -316,7 +334,13 @@ class CollectionIndex(ICollectionIndex, Database):
             hash_val = get_solution_hash(
                 solution_attrs, CatalogIndex.get_solution_column_keys()
             )
+        # read the required attributes before next_id takes the write lock, so that a
+        # missing one does not leave the lock held by this connection
+        group = solution_attrs["group"]
+        name = solution_attrs["name"]
+        version = solution_attrs["version"]
 
+        collection_id = self.next_id("collection")
         cursor = self.get_cursor()
         cursor.execute(
             "INSERT INTO collection VALUES "
@@ -324,10 +348,10 @@ class CollectionIndex(ICollectionIndex, Database):
             (
                 collection_id,
                 get_dict_entry(solution_attrs, "solution_id"),
-                solution_attrs["group"],
-                solution_attrs["name"],
+                group,
+                name,
                 get_dict_entry(solution_attrs, "title"),
-                solution_attrs["version"],
+                version,
                 get_dict_entry(solution_attrs, "timestamp"),
                 get_dict_entry(solution_attrs, "description"),
                 get_dict_entry(solution_attrs, "doi"),

@@ -1,13 +1,15 @@
+import sqlite3
+import threading
 import unittest
 from datetime import datetime
 from pathlib import Path
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 from unittest.mock import MagicMock
 
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.collection_index import CollectionIndex
-from album.runner.core.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
-from test.unit.test_unit_core_common import TestUnitCoreCommon
+from album.runner.core.model.coordinates import Coordinates
 
 
 class TestCollectionIndex(TestUnitCoreCommon):
@@ -71,8 +73,9 @@ class TestCollectionIndex(TestUnitCoreCommon):
         )
 
         # call
-        self.test_catalog_collection_index.update_name_version("myName",
-                                                               DefaultValues.catalog_collection_db_version.value)
+        self.test_catalog_collection_index.update_name_version(
+            "myName", DefaultValues.catalog_collection_db_version.value
+        )
 
         # assert
         self.assertEqual("myName", self.test_catalog_collection_index.get_name())
@@ -115,6 +118,121 @@ class TestCollectionIndex(TestUnitCoreCommon):
         r = self.get_test_catalog_dict(1)
 
         self.assertEqual([r], self.test_catalog_collection_index.get_all_catalogs())
+
+    def assert_write_lock_free(self):
+        connection = sqlite3.connect(
+            str(self.test_catalog_collection_index.get_path()), timeout=0
+        )
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            connection.rollback()
+        finally:
+            connection.close()
+
+    def test_insert_catalog_duplicate_name(self):
+        self.test_catalog_collection_index.insert_catalog(
+            "myName1", "mySrc1", "myPath1", True, None, "direct"
+        )
+
+        with self.assertRaises(RuntimeError) as context:
+            self.test_catalog_collection_index.insert_catalog(
+                "myName1", "mySrc2", "myPath2", True, None, "direct"
+            )
+
+        self.assertIn('"myName1"', str(context.exception))
+        self.assertIn(
+            "already contains a catalog with this name", str(context.exception)
+        )
+        self.assertEqual(
+            [self.get_test_catalog_dict(1)],
+            self.test_catalog_collection_index.get_all_catalogs(),
+        )
+        self.assert_write_lock_free()
+
+    def test_insert_catalog_duplicate_src(self):
+        self.test_catalog_collection_index.insert_catalog(
+            "myName1", "mySrc1", "myPath1", True, None, "direct"
+        )
+
+        with self.assertRaises(RuntimeError) as context:
+            self.test_catalog_collection_index.insert_catalog(
+                "myName2", "mySrc1", "myPath2", True, None, "direct"
+            )
+
+        self.assertIn("mySrc1", str(context.exception))
+        self.assertIn(
+            "already contains a catalog with this source", str(context.exception)
+        )
+        self.assertEqual(
+            [self.get_test_catalog_dict(1)],
+            self.test_catalog_collection_index.get_all_catalogs(),
+        )
+        self.assert_write_lock_free()
+
+    def test_insert_catalog_releases_the_lock_if_the_check_fails(self):
+        self.test_catalog_collection_index.get_catalog_by_name = MagicMock(
+            side_effect=sqlite3.OperationalError("disk I/O error")
+        )
+
+        with self.assertRaises(sqlite3.OperationalError):
+            self.test_catalog_collection_index.insert_catalog(
+                "myName1", "mySrc1", "myPath1", True, None, "direct"
+            )
+
+        self.assert_write_lock_free()
+
+    def test_insert_catalog_concurrent_duplicate(self):
+        # a second album process with its own connection to the same collection
+        other_process_index = CollectionIndex(
+            "test_catalog_collection", self.test_catalog_collection_index.get_path()
+        )
+        # the first process inserted the catalog but has not committed yet
+        self.test_catalog_collection_index.insert_catalog(
+            "myName1", "mySrc1", "myPath1", True, None, "direct", close=False
+        )
+        errors = []
+
+        def insert_same_catalog():
+            try:
+                other_process_index.insert_catalog(
+                    "myName1", "mySrc2", "myPath2", True, None, "direct"
+                )
+            except RuntimeError as e:
+                errors.append(e)
+            finally:
+                other_process_index.close_current_connection()
+
+        thread = threading.Thread(target=insert_same_catalog)
+        try:
+            thread.start()
+
+            # the check of the second process waits for the write lock of the first one
+            thread.join(0.5)
+            self.assertTrue(thread.is_alive())
+            self.test_catalog_collection_index.close_current_connection()
+            thread.join(10)
+
+            self.assertFalse(thread.is_alive())
+            self.assertEqual(1, len(errors))
+            self.assertIn("already contains a catalog with this name", str(errors[0]))
+            self.assertEqual(
+                [self.get_test_catalog_dict(1)],
+                self.test_catalog_collection_index.get_all_catalogs(),
+            )
+        finally:
+            self.test_catalog_collection_index.close_current_connection()
+            thread.join(10)
+            other_process_index.close()
+
+    def test_insert_solution_missing_attribute_takes_no_lock(self):
+        solution_attrs = self._get_solution_attrs(1, "grp", "name", "version")
+        del solution_attrs["name"]
+
+        with self.assertRaises(KeyError):
+            self.test_catalog_collection_index.insert_solution(1, solution_attrs)
+
+        # nothing was written, so the cached connection must not hold the write lock
+        self.assert_write_lock_free()
 
     def test_get_catalog(self):
         self.test_catalog_collection_index.insert_catalog(
