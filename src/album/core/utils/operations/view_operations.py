@@ -117,7 +117,7 @@ def get_updates_as_string(updates: Dict[str, ICatalogUpdates]) -> str:
         if len(change.solution_changes()) > 0:
             res += "  Catalog solution changes:\n"
             for i, item in enumerate(change.solution_changes()):
-                if i is len(change.solution_changes()) - 1:
+                if i == len(change.solution_changes()) - 1:
                     res += "  └─ [{n}] {c}\n".format(
                         n=item.change_type().name,
                         c=item.coordinates(),
@@ -189,7 +189,7 @@ def get_index_as_string(index_dict: Dict[str, Any]) -> str:
                     installed = " "
                     if solution["internal"]["installed"]:
                         installed = "x"
-                    if i is len(catalog["solutions"]) - 1:
+                    if i == len(catalog["solutions"]) - 1:
                         res += "   └─ [{i}] {g}:{n}:{v}\n".format(
                             i=installed,
                             g=solution["setup"]["group"],

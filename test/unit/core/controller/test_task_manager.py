@@ -2,6 +2,8 @@ import platform
 import sys
 import threading
 import unittest.mock
+import warnings
+from pathlib import Path
 from threading import Thread
 from time import sleep
 
@@ -85,6 +87,30 @@ class TestTaskManager(TestUnitCoreCommon):
                 "Running command: echo test...", task.log_handler().records()[0].msg
             )
         self.assertEqual("test", task.log_handler().records()[1].msg)
+
+    def test__initialize_workers_starts_daemon_threads(self):
+        task_manager = TaskManager()
+        threads_before = set(threading.enumerate())
+
+        # call
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            task_manager._initialize_workers()
+
+        # assert
+        workers = [t for t in threading.enumerate() if t not in threads_before]
+        self.assertEqual(task_manager.num_fetch_threads, len(workers))
+        self.assertTrue(all(worker.daemon for worker in workers))
+        # daemon=True instead of the deprecated Thread.setDaemon()
+        self.assertEqual(
+            [],
+            [
+                str(w.message)
+                for w in caught
+                if issubclass(w.category, DeprecationWarning)
+                and Path(w.filename).name == "task_manager.py"
+            ],
+        )
 
     def _log_to_active_logger_via_thread(self):
         thread = Thread(

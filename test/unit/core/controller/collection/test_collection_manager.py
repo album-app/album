@@ -1,4 +1,5 @@
 import unittest
+import warnings
 from pathlib import Path
 from test.unit.test_unit_core_common import TestCatalogAndCollectionCommon
 from unittest import mock
@@ -865,6 +866,70 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         # assert
         self.assertEqual(solution_010_cache, latest_cache_solution)
         self.assertEqual(solution_010, latest_solution)
+
+    def test_resolution_notices_use_logger_warning(self):
+        # every "not reproducible" / "ambiguous input" notice of the resolution goes
+        # through Logger.warning(), not the deprecated Logger.warn() alias
+        collection_manager = self.album_controller.collection_manager()
+        catalog_collection = collection_manager.catalog_collection
+        cache_id = collection_manager.catalogs().get_cache_catalog().catalog_id()
+        cache_solution = self._get_collection_solution("0.1.0", cache_id)
+        solution_010 = self._get_collection_solution("0.1.0", "catalog_id")
+        solution_020 = self._get_collection_solution("0.2.0", "catalog_id")
+
+        # call
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            with patch.object(
+                catalog_collection, "get_solutions_by_name", return_value=[solution_010]
+            ):
+                guessed_by_name = collection_manager._guess("name3")
+            with patch.object(
+                catalog_collection,
+                "get_solutions_by_name_version",
+                return_value=[solution_010],
+            ):
+                guessed_by_name_version = collection_manager._guess("name3:0.1.0")
+            with (
+                patch.object(
+                    catalog_collection, "get_solutions_by_name_version", return_value=[]
+                ),
+                patch.object(
+                    catalog_collection,
+                    "get_solutions_by_grp_name",
+                    return_value=[solution_010],
+                ),
+            ):
+                guessed_by_grp_name = collection_manager._guess("grp3:name3")
+            single_cache_match = collection_manager._handle_multiple_solution_matches(
+                [cache_solution, solution_010]
+            )
+            latest_match = collection_manager._handle_multiple_solution_matches(
+                [solution_010, solution_020]
+            )
+
+        # assert
+        self.assertEqual(solution_010, guessed_by_name)
+        self.assertEqual(solution_010, guessed_by_name_version)
+        self.assertEqual(solution_010, guessed_by_grp_name)
+        self.assertEqual(cache_solution, single_cache_match)
+        self.assertEqual(solution_020, latest_match)
+        self.assertEqual(
+            [],
+            [
+                str(w.message)
+                for w in caught
+                if issubclass(w.category, DeprecationWarning)
+                and Path(w.filename).name == "collection_manager.py"
+            ],
+        )
+        notices = [
+            log
+            for log in self.get_logs()
+            if "This call is not fully reproducible" in log
+            or "Resolving ambiguous input" in log
+        ]
+        self.assertEqual(5, len(notices))
 
     def test__solutions_as_list(self):
         # prepare

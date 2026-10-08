@@ -21,6 +21,7 @@ from album.core.utils.operations.file_operations import (
     get_link_target,
     construct_cache_link_target,
     list_files_recursively,
+    get_dict_entry,
 )
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 
@@ -65,6 +66,19 @@ class TestFileOperations(TestUnitCoreCommon):
         write_dict_to_json(tmp_json_file, d)
         self.assertEqual(d, json.loads(tmp_json_file.read_bytes().decode("utf-8")))
         self.assertEqual(d, get_dict_from_json(tmp_json_file))
+
+    def test_get_dict_entry(self):
+        self.assertEqual("v", get_dict_entry({"k": "v"}, "k"))
+        self.assertIsNone(get_dict_entry({}, "k"))
+
+    def test_get_dict_entry_missing_key_not_allowed(self):
+        with self.assertRaises(KeyError) as context:
+            get_dict_entry({}, "k", allow_none=False, message="k is missing")
+
+        self.assertEqual("k is missing", context.exception.args[0])
+        # the original lookup error stays attached as the explicit cause
+        self.assertIsInstance(context.exception.__cause__, KeyError)
+        self.assertEqual("k", context.exception.__cause__.args[0])
 
     def test_folder_empty(self):
         self.assertTrue(folder_empty(Path(self.tmp_dir.name).joinpath("myFolder")))

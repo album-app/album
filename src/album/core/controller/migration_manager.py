@@ -309,10 +309,10 @@ class MigrationManager(IMigrationManager):
                     versions.append(
                         MMVersion.from_string(file.name.split("_")[-1].split(".")[0])
                     )
-                except (ValueError, IndexError):
+                except (ValueError, IndexError) as err:
                     raise ValueError(
                         "Could not parse version from file name: %s" % file
-                    )
+                    ) from err
         versions.sort()
         return versions
 
@@ -330,10 +330,10 @@ class MigrationManager(IMigrationManager):
                     versions.append(
                         MMVersion.from_string(file.name.split("_")[-1].split(".")[0])
                     )
-                except (ValueError, IndexError):
+                except (ValueError, IndexError) as err:
                     raise ValueError(
                         "Could not parse version from file name: %s" % file
-                    )
+                    ) from err
         versions.sort()
         return versions
 
