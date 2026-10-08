@@ -19,8 +19,11 @@ from album.core.model.catalog import Catalog, retrieve_index_files_from_src
 from album.core.model.catalog_updates import CatalogUpdates, SolutionChange
 from album.core.model.default_values import DefaultValues
 from album.core.model.mmversion import MMVersion
-from album.core.utils.operations.dict_operations import str_to_dict
-from album.core.utils.operations.file_operations import force_remove, get_dict_from_json
+from album.core.utils.operations.file_operations import (
+    force_remove,
+    get_dict_from_json,
+    write_dict_to_json,
+)
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.environments.utils.file_operations import copy
 from album.runner import album_logging
@@ -67,7 +70,10 @@ class CatalogHandler(ICatalogHandler):
 
         catalog_dict = self._get_collection_index().get_catalog_by_src(source)
         if catalog_dict:
-            module_logger().warning("Cannot add catalog twice! Doing nothing...")
+            module_logger().warning(
+                'Catalog "%s" with source "%s" is already in the collection.'
+                " Doing nothing..." % (catalog_dict["name"], source)
+            )
             return self._as_catalog(catalog_dict)
 
         catalog_meta_information = self._retrieve_catalog_meta_information(
@@ -77,7 +83,17 @@ class CatalogHandler(ICatalogHandler):
             catalog_meta_information["name"]
         )
         if catalog_dict:
-            module_logger().warning("Cannot add catalog twice! Doing nothing...")
+            if catalog_dict["deletable"]:
+                hint = "Remove that catalog first to add this one."
+            else:
+                # e.g. the cache catalog, removing it fails
+                hint = "That catalog cannot be removed, so this one cannot be added."
+            module_logger().warning(
+                'Cannot add catalog from source "%s": another catalog with the name'
+                ' "%s" is already in the collection (source "%s"). %s'
+                " Doing nothing..."
+                % (source, catalog_dict["name"], catalog_dict["src"], hint)
+            )
             return self._as_catalog(catalog_dict)
 
         catalog = self._create_catalog_from_src(
@@ -187,23 +203,19 @@ class CatalogHandler(ICatalogHandler):
         if not local_path_.exists():
             local_path_.mkdir(parents=True)
 
-        meta_data = (
-            '{"name": "'
-            + name
-            + '", "version": "'
-            + DefaultValues.catalog_index_db_version.value
-            + '", "type": "'
-            + catalog_type
-            + '"}'
-        )
-        with open(
+        # let json escape the values, so a name containing quotes or
+        # backslashes still produces a valid metadata file
+        meta_data = {
+            "name": name,
+            "version": DefaultValues.catalog_index_db_version.value,
+            "type": catalog_type,
+        }
+        write_dict_to_json(
             local_path_.joinpath(DefaultValues.catalog_index_metafile_json.value),
-            "w",
-            encoding="utf-8",
-        ) as meta:
-            meta.writelines(meta_data)
+            meta_data,
+        )
 
-        return str_to_dict(meta_data)
+        return meta_data
 
     def _update(self, catalog: ICatalog) -> bool:
         r = self.album.migration_manager().refresh_index(catalog)
