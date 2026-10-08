@@ -4,12 +4,12 @@ import sys
 from pathlib import Path
 from shutil import copy
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
+from test.test_common import record_requests_to_remotes
 from unittest.mock import patch
-
-from album.environments.utils.subcommand import SubProcessError
 
 from album.core.api.model.catalog_updates import ChangeType
 from album.core.model.default_values import DefaultValues
+from album.environments.utils.subcommand import SubProcessError
 from album.runner.core.model.coordinates import Coordinates
 
 
@@ -19,6 +19,51 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
 
     def tearDown(self) -> None:
         super().tearDown()
+
+    @patch(
+        "album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file"
+    )
+    def test_requests_to_the_catalog_repository(self, conda_lock_mock):
+        conda_lock_mock.return_value = None
+        path, _ = self.setup_empty_catalog("test_catalog")
+        catalogs = self.album_controller.collection_manager().catalogs()
+        deploy_manager = self.album_controller.deploy_manager()
+        git_user = {
+            "git_email": DefaultValues.catalog_git_email.value,
+            "git_name": DefaultValues.catalog_git_user.value,
+        }
+
+        # meta information, index
+        with record_requests_to_remotes() as requests:
+            catalog = catalogs.add_by_src(path)
+        self.assertEqual(2, len(requests), requests)
+
+        # clone, push of commit and tag
+        with record_requests_to_remotes() as requests:
+            deploy_manager.deploy(
+                str(self.get_test_solution_path("solution11_minimal.py")),
+                catalog.name(),
+                False,
+                **git_user,
+            )
+        self.assertEqual(2, len(requests), requests)
+
+        # fetch, remote HEAD, push of commit and tag
+        with record_requests_to_remotes() as requests:
+            deploy_manager.deploy(
+                str(self.get_test_solution_path("solution11_changed_version.py")),
+                catalog.name(),
+                False,
+                **git_user,
+            )
+        self.assertEqual(3, len(requests), requests)
+
+        # fetch, remote HEAD, push of commit and deletion of the tag
+        with record_requests_to_remotes() as requests:
+            deploy_manager.undeploy(
+                "group:name:0.2.0", catalog.name(), False, **git_user
+            )
+        self.assertEqual(3, len(requests), requests)
 
     @patch(
         "album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file"

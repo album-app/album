@@ -9,8 +9,6 @@ from test.unit.test_unit_core_common import EmptyTestClass
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
-from album.runner.core.model.coordinates import Coordinates
-
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.catalog import Catalog
 from album.core.model.catalog_index import CatalogIndex
@@ -18,6 +16,7 @@ from album.core.model.catalog_updates import CatalogUpdates, ChangeType, Solutio
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import folder_empty, write_dict_to_json
+from album.runner.core.model.coordinates import Coordinates
 
 
 class TestCatalogHandler(TestCatalogAndCollectionCommon):
@@ -899,7 +898,7 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
 
             # assert
             get_solutions_by_catalog_mock.assert_called_once_with(5)
-            load_index_mock.assert_called_once_with(c1)
+            load_index_mock.assert_called_once_with(c1, True)
             get_all_solutions_mock.assert_called_once()
             _compare_solutions_mock.assert_called_once_with([], r_val)
 
@@ -956,7 +955,7 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
 
         # assert
         self.assertEqual(2, apply_change_mock.call_count)
-        _get_div_b_cat_and_coll_mock.assert_called_once_with("n")
+        _get_div_b_cat_and_coll_mock.assert_called_once_with("n", True)
         self.assertEqual(c_updates, u)
 
     def test__compare_solutions(self):

@@ -13,13 +13,11 @@ from album.core.utils.export.changelog import process_changelog_file
 from album.core.utils.operations.file_operations import folder_empty
 from album.core.utils.operations.git_operations import (
     add_files_commit_and_push,
-    add_tag,
     checkout_main,
     clean_repository,
     create_new_head,
     get_tags,
     remove_files,
-    remove_tag,
     retrieve_default_mr_push_options,
     revert,
 )
@@ -28,7 +26,7 @@ from album.core.utils.operations.resolve_operations import (
     dict_to_coordinates,
     get_attributes_from_string,
 )
-from album.environments.utils.file_operations import force_remove
+from album.environments.utils.file_operations import copy, force_remove
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
@@ -124,13 +122,20 @@ class DeployManager(IDeployManager):
         with catalog.retrieve_catalog(
             self.get_download_path(catalog), force_retrieve=True
         ) as repo:
-            # load index
+            # load index of the retrieved repository: downloading it again could make git ask
+            # for credentials again. The meta file holds the version of the index.
             catalog.set_index_path(
                 Path(repo.working_tree_dir).joinpath(
                     DefaultValues.catalog_index_file_name.value
                 )
             )
-            self.album.migration_manager().load_index(catalog)
+            copy(
+                Path(repo.working_tree_dir).joinpath(
+                    DefaultValues.catalog_index_metafile_json.value
+                ),
+                catalog.get_meta_file_path(),
+            )
+            self.album.migration_manager().load_index(catalog, refresh=False)
 
             # get versions from catalog
             ordered_version_tags = self._get_tags_for_coordinates(
@@ -175,9 +180,6 @@ class DeployManager(IDeployManager):
                         repo, coordinates, dry_run, _push_options, git_email, git_name
                     )
 
-        # refresh the local index of the catalog
-        self.album.migration_manager().refresh_index(catalog)
-
         exit_msg = (
             "Successfully pretended to remove %s from %s."
             if dry_run
@@ -207,13 +209,20 @@ class DeployManager(IDeployManager):
 
         # a catalog is always a repository
         with catalog.retrieve_catalog(dl_path, force_retrieve=True) as repo:
-            # load index
+            # load index of the retrieved repository: downloading it again could make git ask
+            # for credentials again. The meta file holds the version of the index.
             catalog.set_index_path(
                 Path(repo.working_tree_dir).joinpath(
                     DefaultValues.catalog_index_file_name.value
                 )
             )
-            self.album.migration_manager().load_index(catalog)
+            copy(
+                Path(repo.working_tree_dir).joinpath(
+                    DefaultValues.catalog_index_metafile_json.value
+                ),
+                catalog.get_meta_file_path(),
+            )
+            self.album.migration_manager().load_index(catalog, refresh=False)
 
             # requires a loaded index
             process_changelog_file(catalog, active_solution, deploy_path)
@@ -292,8 +301,8 @@ class DeployManager(IDeployManager):
                     push_options,
                     git_email,
                     git_name,
+                    tag=as_tag(active_solution.coordinates()),
                 )
-                add_tag(repo, as_tag(active_solution.coordinates()))
             except Exception as e:
                 module_logger().error(
                     "Pushing to catalog failed! Rolling back deployment..."
@@ -304,14 +313,10 @@ class DeployManager(IDeployManager):
                         export.unlink()
                 finally:
                     raise e
-
-            # refresh the local index of the catalog
-            self.album.migration_manager().refresh_index(catalog)
         else:
             module_logger().info(
                 "Would commit the changes and push to %s..." % catalog.src()
             )
-            module_logger().info("Would refresh the index from src")
 
     def _deploy_to_request_catalog(
         self,
@@ -429,7 +434,7 @@ class DeployManager(IDeployManager):
             if "zenodo" in doi.lower():
                 setup["deposit_id"] = doi.rsplit(".", 1)[-1]
                 module_logger().info(
-                    "Derived deposit_id={} from doi={}".format(setup["deposit_id"], doi)
+                    f"Derived deposit_id={setup['deposit_id']} from doi={doi}"
                 )
 
     def _deploy_routine_in_local_src(
@@ -588,6 +593,7 @@ class DeployManager(IDeployManager):
         push_option: Optional[List[str]] = None,
         email: str = "",
         username: str = "",
+        tag: str = "",
     ) -> None:
         if push_option is None:
             push_option = []
@@ -609,6 +615,7 @@ class DeployManager(IDeployManager):
             email=email,
             username=username,
             force=False,
+            tag=tag,
         )
 
     def _remove_db_entry_and_files(
@@ -711,8 +718,6 @@ class DeployManager(IDeployManager):
 
             commit_msg = "Removing %s" % DeployManager.retrieve_head_name(coordinates)
 
-            remove_tag(repo, as_tag(coordinates))
-
             remove_files(head, files_to_remove)
 
             add_files_commit_and_push(
@@ -724,6 +729,7 @@ class DeployManager(IDeployManager):
                 email=git_email,
                 username=git_name,
                 force=False,
+                delete_tag=as_tag(coordinates),
             )
         except Exception as e:
             module_logger().error(
