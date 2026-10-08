@@ -160,6 +160,36 @@ class TestRunManager(TestUnitCoreCommon):
             mock.ANY, resolve_result.coordinates.return_value, {"my-arg": "arg-value"}
         )
 
+    @patch("album.core.controller.run_manager.entry_points")
+    def test_load_plugins_warns_deprecated(self, mock_entry_points):
+        entry_point = EmptyTestClass()
+        entry_point.name = "plugin-name"
+        entry_point_load = MagicMock()
+        entry_point.load = entry_point_load
+        mock_entry_points.return_value = [entry_point]
+        resolve_result = create_autospec(ResolveResult)
+        self.active_solution._setup["dependencies"] = {}
+        self.active_solution._setup["dependencies"]["plugins"] = [{"id": "plugin-name"}]
+        resolve_result.loaded_solution = lambda: self.active_solution
+
+        self.album_controller.run_manager().load_plugins(resolve_result)
+
+        # deprecated, not removed: the plugin is still activated (#266)
+        entry_point_load.return_value.assert_called_once()
+        logs = self.get_logs_as_string()
+        self.assertIn("uses solution plugins (plugin-name)", logs)
+        self.assertIn("deprecated", logs)
+        self.assertIn("https://gitlab.com/album-app/album/-/issues/266", logs)
+
+    def test_load_plugins_no_plugins_no_warning(self):
+        resolve_result = create_autospec(ResolveResult)
+        self.active_solution._setup["dependencies"] = {"environment_file": "env"}
+        resolve_result.loaded_solution = lambda: self.active_solution
+
+        self.album_controller.run_manager().load_plugins(resolve_result)
+
+        self.assertNotIn("solution plugins", self.get_logs_as_string())
+
 
 if __name__ == "__main__":
     unittest.main()

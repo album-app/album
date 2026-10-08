@@ -74,11 +74,26 @@ class RunManager(IRunManager):
         )
 
     def load_plugins(self, resolve_result: ICollectionSolution):
-        # process solution plugins
+        """Activate the solution plugins a solution declares in its dependencies.
+
+        Deprecated: solution plugins will be removed in a future release, together
+        with album-socket and album-client, see
+        https://gitlab.com/album-app/album/-/issues/266. Until then they still load,
+        with a warning.
+        """
         module_logger().debug("Processing plugins...")
         if "dependencies" in resolve_result.loaded_solution().setup():
             deps = resolve_result.loaded_solution().setup()["dependencies"]
             if "plugins" in deps:
+                module_logger().warning(
+                    'Solution "%s" uses solution plugins (%s). Solution plugins are '
+                    "deprecated and will be removed in a future release of album, see "
+                    "https://gitlab.com/album-app/album/-/issues/266"
+                    % (
+                        resolve_result.loaded_solution().coordinates().name(),
+                        ", ".join(str(plugin.get("id")) for plugin in deps["plugins"]),
+                    )
+                )
                 module_logger().debug(
                     "Processing solution plugins: %s" % deps["plugins"]
                 )
