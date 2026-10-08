@@ -2,9 +2,9 @@ fail_fast: false
 default_language_version:
   python: python3
 default_stages:
-  - commit
-  - push
-minimum_pre_commit_version: 2.20.0
+  - pre-commit
+  - pre-push
+minimum_pre_commit_version: 3.2.0
 repos:
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.15.0
@@ -120,7 +120,7 @@ repos:
     rev: v3.19.1
     hooks:
       - id: pyupgrade
-        args: [--py3-plus, --py38-plus, --keep-runtime-typing]
+        args: [--py38-plus, --keep-runtime-typing]
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.10.0
     hooks:
@@ -135,8 +135,3 @@ repos:
     hooks:
       - id: doc8
         exclude: ^docs/
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.19.1
-    hooks:
-      - id: pyupgrade
-        args: [--py36-plus]
