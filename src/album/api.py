@@ -131,7 +131,25 @@ class Album:
         argv=None,
         run_async=False,
     ):
-        """Install a solution to the disk."""
+        """Install a solution to the disk.
+
+        Args:
+            solution_to_resolve:
+                The solution to install
+            allow_recursive:
+                Allow the environment of the solution to install a different album
+                version than the running one (album in album). Without it, such a
+                solution is not installed (ValueError). The same or an unversioned
+                album is always allowed, with a warning. Has no effect for a
+                solution with a parent: the parent environment is checked without it.
+            argv:
+                Not used, the install routine of a solution takes no arguments.
+                Kept so that existing positional and keyword calls keep working.
+            run_async:
+                If True, register the installation as a task with the task manager
+                and return the task id instead of installing right away.
+
+        """
         return self._run_async(
             self._controller.install_manager().install,
             (solution_to_resolve, allow_recursive, argv),
@@ -146,12 +164,16 @@ class Album:
         Thereby uninstalling its environment and deleting all its downloads.
 
         Args:
-            argv:
-                Arguments which should be appended to the script call
             solution_to_resolve:
                 The solution to remove
             rm_dep:
                 Boolean to indicate whether to remove parents too.
+            argv:
+                Not used, the uninstall routine of a solution takes no arguments.
+                Kept so that existing positional and keyword calls keep working.
+            run_async:
+                If True, register the removal as a task with the task manager
+                and return the task id instead of removing right away.
 
         """
         return self._run_async(

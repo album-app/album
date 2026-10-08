@@ -29,6 +29,51 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
     def test_solutions(self):
         self.assertIsNotNone(self.album_controller.collection_manager().solutions())
 
+    @patch("album.core.controller.collection.collection_manager.CatalogHandler")
+    @patch("album.core.controller.collection.collection_manager.SolutionHandler")
+    def test_close(self, solution_handler_class, catalog_handler_class):
+        collection_manager = self.album_controller.collection_manager()
+        solution_handler = collection_manager.solutions()
+        catalog_handler = collection_manager.catalogs()
+        collection_index = collection_manager.get_collection_index()
+        collection_index_close = MagicMock(wraps=collection_index.close)
+        collection_index.close = collection_index_close
+
+        # call
+        collection_manager.close()
+
+        # assert: the index (the database) is closed
+        collection_index_close.assert_called_once_with()
+        self.assertFalse(collection_manager.collection_loaded)
+        with self.assertRaises(LookupError):
+            collection_manager.get_collection_index()
+
+        # assert: the handlers hold no resources, they are kept and not rebuilt
+        self.assertIs(solution_handler, collection_manager.solutions())
+        self.assertIs(catalog_handler, collection_manager.catalogs())
+        solution_handler_class.assert_not_called()
+        catalog_handler_class.assert_not_called()
+
+        # closing again does nothing
+        collection_manager.close()
+        collection_index_close.assert_called_once_with()
+
+    def test_close_and_load_again(self):
+        collection_manager = self.album_controller.collection_manager()
+        catalog_handler = collection_manager.catalogs()
+        catalog_names = [catalog.name() for catalog in catalog_handler.get_all()]
+        collection_manager.close()
+
+        # call
+        collection_manager.load_or_create()
+
+        # assert: the kept handler works on the reopened index
+        self.assertIs(catalog_handler, collection_manager.catalogs())
+        self.assertTrue(catalog_names)
+        self.assertEqual(
+            catalog_names, [catalog.name() for catalog in catalog_handler.get_all()]
+        )
+
     def test_get_index_as_dict(self):
         expected_dict = {
             "base": str(self.album_controller.configuration().base_cache_path()),

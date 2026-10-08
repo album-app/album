@@ -41,12 +41,9 @@ class CollectionManager(ICollectionManager):
         self.close()
 
     def close(self) -> None:
-        if self.solution_handler is not None:
-            del self.solution_handler
-            self.solution_handler = SolutionHandler(self.album)
-        if self.catalog_handler is not None:
-            del self.catalog_handler
-            self.catalog_handler = CatalogHandler(self.album)
+        # Only the collection index holds a resource (the database). The handlers
+        # keep nothing but the controller, so they stay and work again after the
+        # next load_or_create().
         if self.catalog_collection is not None:
             self.catalog_collection.close()
             self.catalog_collection = None
