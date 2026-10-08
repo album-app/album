@@ -325,7 +325,7 @@ unit tests linux micromamba:
   extends: .linux_base_template_micromamba
   stage: test
   script:
-    - $MICROMAMBA_EXECUTABLE run -n album coverage run --omit './test/*' -m unittest test/unit/run_all_unit_micromamba.py
+    - $MICROMAMBA_EXECUTABLE run -n album coverage run --omit './test/*' -m test.unit.run_all_unit_micromamba
     - $MICROMAMBA_EXECUTABLE run -n album coverage report
     - mv .coverage unit.coverage # rename coverage file
   artifacts:
@@ -336,7 +336,7 @@ integration tests linux micromamba:
   extends: .linux_base_template_micromamba
   stage: test
   script:
-    - $MICROMAMBA_EXECUTABLE run -n album coverage run --omit './test/*' -m unittest test/integration/run_all_integration_micromamba.py
+    - $MICROMAMBA_EXECUTABLE run -n album coverage run --omit './test/*' -m test.integration.run_all_integration_micromamba
     - $MICROMAMBA_EXECUTABLE run -n album coverage report
     - mv .coverage integration.coverage # rename coverage file
   artifacts:
@@ -349,13 +349,13 @@ unit tests macos micromamba:
   extends: .macos_base_template_micromamba
   stage: test
   script:
-    - $MICROMAMBA_EXECUTABLE run -n album python -m unittest test/unit/run_all_unit_micromamba.py
+    - $MICROMAMBA_EXECUTABLE run -n album python -m test.unit.run_all_unit_micromamba
 
 integration tests macos micromamba:
   extends: .macos_base_template_micromamba
   stage: test
   script:
-    - $MICROMAMBA_EXECUTABLE run -n album python -m unittest test/integration/run_all_integration_micromamba.py
+    - $MICROMAMBA_EXECUTABLE run -n album python -m test.integration.run_all_integration_micromamba
 
 # Windows Tests with coverage
 
@@ -363,7 +363,7 @@ unit tests windows micromamba:
   extends: .windows_base_template_micromamba
   stage: test
   script:
-    - '.\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX coverage run --omit .\test\* -m unittest test\unit\run_all_unit_micromamba.py'
+    - '.\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX coverage run --omit .\test\* -m test.unit.run_all_unit_micromamba'
     - 'if ($lastexitcode -ne 0) {exit(1)} else { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX coverage report }'
     - 'if ($lastexitcode -ne 0) {exit(1)} else { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX coverage xml } '
     - 'if ($lastexitcode -ne 0) {exit(1)} else { Rename-Item -Path ".coverage" -NewName "unit.coverage" }'
@@ -377,7 +377,7 @@ integration tests windows micromamba:
   extends: .windows_base_template_micromamba
   stage: test
   script:
-    - '.\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX coverage run --omit .\test\* -m unittest test\integration\run_all_integration_micromamba.py '
+    - '.\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX coverage run --omit .\test\* -m test.integration.run_all_integration_micromamba'
     - 'if ($lastexitcode -ne 0) {exit(1)} else { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX coverage report }'
     - 'if ($lastexitcode -ne 0) {exit(1)} else { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX coverage xml } '
     - 'if ($lastexitcode -ne 0) {exit(1)} else { Rename-Item -Path ".coverage" -NewName "integration.coverage" }'
