@@ -62,7 +62,11 @@ class ICollectionIndex(IDatabase):
         catalog_type: str,
         close: bool = True,
     ) -> int:
-        """Insert a catalog into the collection index."""
+        """Insert a catalog into the collection index.
+
+        Raises a RuntimeError if the collection already contains a catalog with this name or
+        source.
+        """
         raise NotImplementedError
 
     @abstractmethod

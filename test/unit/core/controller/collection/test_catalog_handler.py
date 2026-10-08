@@ -64,6 +64,9 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
 
     def test_add_initial_catalogs(self):
         # mocks
+        # setUp already created the cache catalog, a second one would be rejected
+        create_cache_catalog_mock = MagicMock()
+        self.catalog_handler.create_cache_catalog = create_cache_catalog_mock
         add_by_src_mock = MagicMock()
         self.catalog_handler.add_by_src = add_by_src_mock
 
@@ -71,6 +74,7 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
         self.catalog_handler.add_initial_catalogs()
 
         # assert
+        create_cache_catalog_mock.assert_called_once()
         self.assertEqual(1, add_by_src_mock.call_count)
 
     # Info: this is rather a small integration test.
@@ -131,6 +135,43 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
 
         # assert
         _retrieve_catalog_meta_information.assert_not_called()
+
+    def test_add_by_src_added_concurrently(self):
+        # prepare
+        catalog_src, _ = self.setup_empty_catalog("aNiceCatalog")
+        collection_index = (
+            self.album_controller.collection_manager().get_collection_index()
+        )
+        retrieve_catalog_meta_information = (
+            self.catalog_handler._retrieve_catalog_meta_information
+        )
+
+        def retrieve_while_another_process_adds_the_catalog(source, branch_name):
+            meta_information = retrieve_catalog_meta_information(source, branch_name)
+            collection_index.insert_catalog(
+                "aNiceCatalog",
+                str(catalog_src.resolve()),
+                "anotherPath",
+                True,
+                "main",
+                "direct",
+            )
+            return meta_information
+
+        self.catalog_handler._retrieve_catalog_meta_information = (
+            retrieve_while_another_process_adds_the_catalog
+        )
+
+        # call
+        catalog = self.catalog_handler.add_by_src(str(catalog_src))
+
+        # assert: the catalog of the other process is returned and not added again
+        self.assertEqual(5, catalog.catalog_id())
+        self.assertEqual(Path("anotherPath"), Path(catalog.path()))
+        self.assertEqual(
+            len(self.catalog_list) + 1, len(collection_index.get_all_catalogs())
+        )
+        self.assertIn("Cannot add catalog twice!", self.captured_output.getvalue())
 
     def test__add_to_index(self):
         # prepare
