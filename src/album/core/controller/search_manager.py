@@ -50,7 +50,7 @@ class SearchManager(ISearchManager):
         unique_id: str,
     ) -> None:
         if isinstance(entry, str):
-            solution_result = keyword in entry
+            solution_result = keyword.casefold() in entry.casefold()
             if solution_result:
                 if unique_id in match_score.keys():
                     match_score[unique_id] = match_score[unique_id] + 1
