@@ -39,9 +39,9 @@ class DefaultValues(Enum):
 
     # deployment & cloning
     catalog_git_user = "album"  # username used for initial push to a new catalog
-    catalog_git_email = (
-        album.core.__email__
-    )  # email used for initial push to a new catalog
+    # email used for initial push to a new catalog: the first one of album's authors,
+    # a git identity takes a single address
+    catalog_git_email = album.core.__email__.partition(",")[0]
 
     # catalog
     cache_catalog_name = (
@@ -85,6 +85,9 @@ class DefaultValues(Enum):
         "installations"  # base folder prefix where installations live
     )
     cache_path_tmp_prefix = "tmp"  # base folder prefix where solution unspecific internal temporary files live
+    stale_tmp_age_in_seconds = (
+        7 * 24 * 60 * 60
+    )  # temporary folders not modified for this long are leftovers and get removed
     link_folder_prefix = (
         "lnk"  # base folder prefix where all internal link destinations live
     )

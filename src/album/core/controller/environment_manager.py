@@ -315,6 +315,12 @@ class EnvironmentManager(IEnvironmentManager):
 
         if not yaml_dict:
             yaml_dict = deepcopy(DEFAULT_SOLUTION_ENV_CONTENT)
+            # Keep the Anaconda "defaults" channels out, even when the user's conda
+            # configuration (e.g. ~/.condarc) lists them. Not part of
+            # DEFAULT_SOLUTION_ENV_CONTENT, which deploy also hands to conda-lock:
+            # conda-lock overrides the channels anyway, and before 2.0 it took
+            # "nodefaults" for a channel name.
+            yaml_dict["channels"].append("nodefaults")
 
         # safety check to avoid album in album issues
         self._check_album_in_album(yaml_dict, allow_recursive)

@@ -1,50 +1,51 @@
 import time
 import unittest
-
 from test.unit import test_argument_parsing
 from test.unit.ci import test_ci_argument_parsing, test_ci_commandline
 from test.unit.ci.controller import test_release_manager, test_zenodo_manager
 from test.unit.ci.utils import test_continuous_integration
-from test.unit.core.controller import test_event_manager
-from test.unit.core.controller import test_script_manager
+from test.unit.core import test_core_metadata
 from test.unit.core.controller import (
-    test_search_manager,
-    test_install_manager,
-    test_run_manager,
-    test_deploy_manager,
-    test_test_manager,
-    test_task_manager,
     test_clone_manager,
-    test_migration_manager,
+    test_deploy_manager,
     test_environment_manager,
+    test_event_manager,
+    test_install_manager,
+    test_migration_manager,
     test_resource_manager,
-    test_state_manager,
+    test_run_manager,
+    test_script_manager,
+    test_search_manager,
     test_shared_downloads_manager,
+    test_state_manager,
+    test_task_manager,
+    test_test_manager,
 )
 from test.unit.core.controller.collection import (
-    test_collection_manager,
     test_catalog_handler,
+    test_collection_manager,
     test_solution_handler,
 )
 from test.unit.core.model import (
     test_catalog,
-    test_configuration,
     test_catalog_index,
     test_collection_index,
-    test_task,
+    test_configuration,
     test_database,
     test_mmversion,
+    test_task,
 )
 from test.unit.core.utils.export import test_changelog, test_docker
-from test.unit.core.utils.operations import test_dict_operations
 from test.unit.core.utils.operations import (
-    test_url_operations,
+    test_dict_operations,
     test_file_operations,
     test_git_operations,
     test_resolve_operations,
     test_solution_operations,
+    test_url_operations,
     test_view_operations,
 )
+from test.unit.core.utils.runner import test_backwards_compatibility_0_6_1
 
 
 def main():
@@ -54,6 +55,9 @@ def main():
 
     # album
     suite.addTests(loader.loadTestsFromModule(test_argument_parsing))
+
+    # album core
+    suite.addTests(loader.loadTestsFromModule(test_core_metadata))
 
     # album core.controller.collection
     suite.addTests(loader.loadTestsFromModule(test_collection_manager))
@@ -99,6 +103,9 @@ def main():
     # album.core.utils.export
     suite.addTests(loader.loadTestsFromModule(test_docker))
     suite.addTests(loader.loadTestsFromModule(test_changelog))
+
+    # album.core.utils.runner (the frozen <= 0.6.1 solution runner)
+    suite.addTests(loader.loadTestsFromModule(test_backwards_compatibility_0_6_1))
 
     # album.ci
     suite.addTests(loader.loadTestsFromModule(test_ci_argument_parsing))

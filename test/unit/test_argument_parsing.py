@@ -6,16 +6,16 @@ from unittest.mock import patch
 
 from album import argument_parsing
 from album.commandline import (
-    search,
-    remove_catalog,
     add_catalog,
-    uninstall,
-    install,
-    repl,
-    deploy,
-    run,
-    test,
     clone,
+    deploy,
+    install,
+    remove_catalog,
+    repl,
+    run,
+    search,
+    test,
+    uninstall,
 )
 
 
@@ -37,6 +37,15 @@ class TestArgumentParsing(unittest.TestCase):
             argument_parsing.main()
 
         self.assertEqual(e.exception.code, 2)
+
+    def test_index_all(self):
+        parser = argument_parsing.create_parser()
+
+        sys.argv = ["", "index"]
+        self.assertFalse(parser.parse_known_args()[0].all)
+
+        sys.argv = ["", "index", "--all"]
+        self.assertTrue(parser.parse_known_args()[0].all)
 
     def test_create_parser(self):
         parser = argument_parsing.create_parser()

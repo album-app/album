@@ -131,8 +131,14 @@ def create_test_parser(parser):
 
 def create_index_parser(parser):
     """Create a parser for the index command."""
-    parser.create_command_parser(
+    p = parser.create_command_parser(
         "index", index, "print the index of the local album collection."
+    )
+    p.add_argument(
+        "--all",
+        required=False,
+        help="Show all versions of each solution, including outdated ones.",
+        action="store_true",
     )
 
 

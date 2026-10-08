@@ -2,8 +2,11 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from test.test_common import record_requests_to_remotes
 from test.unit.test_unit_core_common import TestGitCommon
 from unittest.mock import MagicMock, patch
+
+import git
 
 import album.core.utils.operations.git_operations as git_op
 from album.core.model.default_values import DefaultValues
@@ -215,6 +218,50 @@ class TestGitOperations(TestGitCommon):
             commits = list(repo.iter_commits())
             self.assertEqual(initial_commit_count + 1, len(commits))
             self.assertEqual("empty_commit_msg\n", commits[0].message)
+
+    def test_add_files_commit_and_push_tag_and_delete_tag(self):
+        with self.setup_tmp_repo() as repo:
+            remote = git.Repo(repo.remote().url)
+            new_file = Path(repo.working_tree_dir).joinpath("new_file")
+
+            # the commit and its tag go in one push
+            new_file.write_text("deployed")
+            with record_requests_to_remotes() as requests:
+                git_op.add_files_commit_and_push(
+                    repo.heads["main"], [new_file], "deploy", push=True, tag="t"
+                )
+            self.assertEqual(1, len(requests), requests)
+            self.assertEqual(repo.head.commit, remote.heads["main"].commit)
+            self.assertEqual(repo.head.commit, remote.tags["t"].commit)
+
+            # the commit and the deletion of the tag go in one push
+            new_file.write_text("undeployed")
+            with record_requests_to_remotes() as requests:
+                git_op.add_files_commit_and_push(
+                    repo.heads["main"],
+                    [new_file],
+                    "undeploy",
+                    push=True,
+                    delete_tag="t",
+                )
+            self.assertEqual(1, len(requests), requests)
+            self.assertEqual(repo.head.commit, remote.heads["main"].commit)
+            self.assertEqual([], remote.tags)
+            self.assertEqual([], repo.tags)
+
+    def test_get_local_remote_ref_head_asks_remote_only_when_needed(self):
+        with self.setup_tmp_repo() as repo:
+            repo.git.remote("set-head", "origin", "main")  # as recorded by a clone
+
+            with record_requests_to_remotes() as requests:
+                head = git_op.get_local_remote_ref_head(repo)
+            self.assertEqual(repo.heads["main"], head)
+            self.assertEqual([], requests)
+
+            with record_requests_to_remotes() as requests:
+                head = git_op.get_local_remote_ref_head(repo, ask_remote=True)
+            self.assertEqual(repo.heads["main"], head)
+            self.assertEqual(1, len(requests), requests)
 
     def test_init_repository_clean_repository(self):
         tmp_file = tempfile.NamedTemporaryFile(delete=False)

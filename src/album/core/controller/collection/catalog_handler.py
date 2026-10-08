@@ -1,11 +1,10 @@
 """Implementation of the ICatalogHandler interface."""
+
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Optional
 
 import validators
-from album.environments.utils.file_operations import copy
-from album.runner import album_logging
 
 from album.core.api.controller.collection.catalog_handler import ICatalogHandler
 from album.core.api.controller.controller import IAlbumController
@@ -23,6 +22,8 @@ from album.core.model.mmversion import MMVersion
 from album.core.utils.operations.dict_operations import str_to_dict
 from album.core.utils.operations.file_operations import force_remove, get_dict_from_json
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
+from album.environments.utils.file_operations import copy
+from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
@@ -97,9 +98,9 @@ class CatalogHandler(ICatalogHandler):
         self._create_catalog_cache_if_missing(catalog)
         self.album.migration_manager().load_index(catalog)
 
+        # the index was just downloaded, downloading it again could make git ask for credentials
         module_logger().info("Catching catalog content..")
-        self._update(catalog)
-        self._update_collection_from_catalog(catalog)
+        self._update_collection_from_catalog(catalog, refresh=False)
         module_logger().info("Added catalog %s!" % source)
 
         return catalog
@@ -437,7 +438,7 @@ class CatalogHandler(ICatalogHandler):
         return res
 
     def _get_divergence_between_catalog_and_collection(
-        self, catalog: ICatalog
+        self, catalog: ICatalog, refresh: bool = True
     ) -> ICatalogUpdates:
         if catalog.is_cache():
             # cache catalog is always up to date since src and path are the same
@@ -446,7 +447,7 @@ class CatalogHandler(ICatalogHandler):
         solutions_in_collection = self._get_collection_index().get_solutions_by_catalog(
             catalog.catalog_id()
         )
-        self.album.migration_manager().load_index(catalog)
+        self.album.migration_manager().load_index(catalog, refresh)
         index = catalog.index()
         if index is None:
             raise RuntimeError(
@@ -470,9 +471,11 @@ class CatalogHandler(ICatalogHandler):
         return res
 
     def _update_collection_from_catalog(
-        self, catalog: ICatalog, override: bool = False
+        self, catalog: ICatalog, override: bool = False, refresh: bool = True
     ) -> ICatalogUpdates:
-        divergence = self._get_divergence_between_catalog_and_collection(catalog)
+        divergence = self._get_divergence_between_catalog_and_collection(
+            catalog, refresh
+        )
         # TODO apply changes to catalog attributes
         for change in divergence.solution_changes():
             self.album.solutions().apply_change(divergence.catalog(), change, override)

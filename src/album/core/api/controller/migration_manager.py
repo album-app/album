@@ -55,8 +55,12 @@ class IMigrationManager:
         raise NotImplementedError
 
     @abstractmethod
-    def load_index(self, catalog: ICatalog) -> None:
-        """Load the index from file or src. If a file and src exists routine tries to update the index."""
+    def load_index(self, catalog: ICatalog, refresh: bool = True) -> None:
+        """Load the index from file or src. If a file and src exists routine tries to update the index.
+
+        Without refresh, the index files the catalog points to are loaded as they are, without
+        downloading them from the src first.
+        """
         raise NotImplementedError
 
     @abstractmethod

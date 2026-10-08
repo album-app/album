@@ -1,13 +1,15 @@
 """View operations for the Album CLI."""
+
 import enum
 import logging
 from argparse import Namespace
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import colorlog
-from album.runner.core.api.model.solution import ISolution
+from packaging.version import InvalidVersion, Version
 
 from album.core.api.model.catalog_updates import ICatalogUpdates
+from album.runner.core.api.model.solution import ISolution
 
 
 def get_solution_as_string(solution: ISolution, solution_path: str) -> str:
@@ -139,6 +141,33 @@ def get_updates_as_string(updates: Dict[str, ICatalogUpdates]) -> str:
         ):
             res += "  No changes.\n"
     return res
+
+
+def filter_latest_solutions(index_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """Keep only the highest-version solution per group:name within each catalog."""
+    if "catalogs" not in index_dict:
+        return index_dict
+    for catalog in index_dict["catalogs"]:
+        latest: Dict[tuple, Any] = {}
+        for solution in catalog.get("solutions", []):
+            key = (solution["setup"]["group"], solution["setup"]["name"])
+            if key not in latest or _version_sort_key(
+                solution["setup"]["version"]
+            ) > _version_sort_key(latest[key]["setup"]["version"]):
+                latest[key] = solution
+        catalog["solutions"] = list(latest.values())
+    return index_dict
+
+
+def _version_sort_key(version: str) -> Tuple[int, Union[Version, str]]:
+    """Order PEP 440 versions numerically, others (e.g. 0.1.0-SNAPSHOT) by string, below them.
+
+    The same order as DeployManager._version_sort_key.
+    """
+    try:
+        return 1, Version(version)
+    except InvalidVersion:
+        return 0, version
 
 
 def get_index_as_string(index_dict: Dict[str, Any]) -> str:

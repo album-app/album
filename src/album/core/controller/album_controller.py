@@ -143,6 +143,8 @@ class AlbumController(IAlbumController):
     def close(self) -> None:
         if self._collection_manager:
             self._collection_manager.close()
+        if self._configuration:
+            self._configuration.close()
 
     def download_manager(self) -> IDownloadManager:
         if not self._download_manager:

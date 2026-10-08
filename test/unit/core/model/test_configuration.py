@@ -1,8 +1,9 @@
+import os
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from test.unit.test_unit_core_common import TestUnitCoreCommon
-from unittest.mock import patch
 
 from album.core.model.configuration import Configuration, DefaultValues
 from album.core.utils.operations.file_operations import create_path_recursively
@@ -22,6 +23,7 @@ class TestConfiguration(TestUnitCoreCommon):
         create_path_recursively(c_path)
         leftover_file = c_path.joinpath("a_leftover_file")
         leftover_file.touch()
+        self._make_stale(leftover_file)
 
         # assert preparation
         self.assertTrue(leftover_file.exists())
@@ -35,6 +37,10 @@ class TestConfiguration(TestUnitCoreCommon):
 
         # leftovers should be removed by now
         self.assertFalse(leftover_file.exists())
+
+        # the instance has its own temporary folder inside the tmp folder
+        self.assertEqual([conf._tmp_path], list(c_path.iterdir()))
+        self.assertEqual(conf._tmp_path, conf.tmp_path())
 
         # check if all recursive paths are created
         self.assertTrue(base_path.exists())
@@ -98,15 +104,78 @@ class TestConfiguration(TestUnitCoreCommon):
         # todo: implement
         pass
 
-    @patch("album.core.model.configuration.force_remove")
-    def test_empty_tmp(self, force_remove_mock):
-        force_remove_mock.return_value = None
+    def test_setup_keeps_tmp_of_other_instance(self):
+        # prepare
+        base_path = Path(self.tmp_dir.name).joinpath("base_path")
+        conf = Configuration()
+        conf.setup(base_cache_path=base_path)
+        file_in_use = conf.tmp_path().joinpath("file_in_use")
+        file_in_use.touch()
+
+        # call
+        other_conf = Configuration()
+        other_conf.setup(base_cache_path=base_path)
+
+        # assert
+        self.assertNotEqual(conf.tmp_path(), other_conf.tmp_path())
+        self.assertEqual(conf.tmp_path().parent, other_conf.tmp_path().parent)
+        self.assertTrue(file_in_use.exists())
+
+    def test_close(self):
+        # prepare
+        base_path = Path(self.tmp_dir.name).joinpath("base_path")
+        conf = Configuration()
+        conf.setup(base_cache_path=base_path)
+        other_conf = Configuration()
+        other_conf.setup(base_cache_path=base_path)
+        tmp_path = conf.tmp_path()
+        other_tmp_path = other_conf.tmp_path()
+        tmp_path.joinpath("a_file").touch()
+
+        # call
+        conf.close()
+
+        # assert
+        self.assertFalse(tmp_path.exists())
+        self.assertTrue(other_tmp_path.exists())
+
+        # closing twice is fine, the folder is created again when it is used
+        conf.close()
+        self.assertTrue(conf.tmp_path().exists())
+
+    def test_close_album_controller(self):
+        # prepare
+        tmp_path = self.album_controller.configuration().tmp_path()
+
+        # call
+        self.album_controller.close()
+
+        # assert
+        self.assertFalse(tmp_path.exists())
+
+    def test_remove_stale_tmp(self):
+        # prepare
+        base_path = Path(self.tmp_dir.name).joinpath("base_path")
+        tmp_root_path = base_path.joinpath(DefaultValues.cache_path_tmp_prefix.value)
+        stale_folder = tmp_root_path.joinpath("stale_folder")
+        fresh_folder = tmp_root_path.joinpath("fresh_folder")
+        create_path_recursively(stale_folder.joinpath("content"))
+        create_path_recursively(fresh_folder.joinpath("content"))
+        self._make_stale(stale_folder)
+
         # call
         conf = Configuration()
-        conf._cache_path_tmp_user = Path(self.tmp_dir.name)
-        conf._empty_tmp()
+        conf.setup(base_cache_path=base_path)
 
-        force_remove_mock.assert_called_once()
+        # assert
+        self.assertFalse(stale_folder.exists())
+        self.assertTrue(fresh_folder.joinpath("content").exists())
+        self.assertTrue(conf._tmp_path.exists())
+
+    @staticmethod
+    def _make_stale(path):
+        stale_time = time.time() - DefaultValues.stale_tmp_age_in_seconds.value - 60
+        os.utime(path, (stale_time, stale_time))
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 """Module containing the commandline functions for the `album` commandline tool."""
+
 import os
 import pkgutil
 import sys
@@ -11,6 +12,7 @@ from album.core.utils.operations.solution_operations import (
     serialize_json,
 )
 from album.core.utils.operations.view_operations import (
+    filter_latest_solutions,
     get_index_as_string,
     get_search_result_as_string,
     get_solution_as_string,
@@ -135,6 +137,8 @@ def clone(album_instance: Album, args: Namespace):
 def index(album_instance: Album, args: Namespace):
     """Call function corresponding to the `index` subcommand of `album`."""
     index_dict = album_instance.get_index_as_dict()
+    if not getattr(args, "all", False):
+        filter_latest_solutions(index_dict)
     print_json = _get_print_json(args)
     if print_json:
         print(_as_json(index_dict))
