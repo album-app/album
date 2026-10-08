@@ -174,9 +174,10 @@ class MigrationManager(IMigrationManager):
                 )
         return catalog_index_path
 
-    def load_index(self, catalog: ICatalog) -> None:
+    def load_index(self, catalog: ICatalog, refresh: bool = True) -> None:
         with TemporaryDirectory(dir=self.album.configuration().tmp_path()) as tmp_dir:
-            catalog.update_index_cache(tmp_dir)
+            if refresh:
+                catalog.update_index_cache(tmp_dir)
             index_version = MMVersion.from_string(
                 get_dict_entry(
                     get_dict_from_json(catalog.get_meta_file_path()), "version"
@@ -229,10 +230,9 @@ class MigrationManager(IMigrationManager):
     def _load_catalog_collection_migration_schema(
         curr_version: IMMVersion, target_version: IMMVersion
     ) -> str:
-        resource_name = "migrate_catalog_collection_{}_to_{}.sql".format(
-            str(curr_version).replace(".", ""),
-            str(target_version).replace(".", ""),
-        )
+        curr = str(curr_version).replace(".", "")
+        target = str(target_version).replace(".", "")
+        resource_name = f"migrate_catalog_collection_{curr}_to_{target}.sql"
 
         schema = (
             files("album.core.schema.migrations.catalog_collection")
@@ -246,10 +246,9 @@ class MigrationManager(IMigrationManager):
     def _load_catalog_index_migration_schema(
         curr_version: IMMVersion, target_version: IMMVersion
     ) -> str:
-        resource_name = "migrate_catalog_index_{}_to_{}.sql".format(
-            str(curr_version).replace(".", ""),
-            str(target_version).replace(".", ""),
-        )
+        curr = str(curr_version).replace(".", "")
+        target = str(target_version).replace(".", "")
+        resource_name = f"migrate_catalog_index_{curr}_to_{target}.sql"
 
         schema = (
             files("album.core.schema.migrations.catalog_index")

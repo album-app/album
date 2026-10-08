@@ -64,7 +64,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         return_value="Chanelog",
     )
     def test__deploy_direct(self, process_changelog_file):
-        catalog_src_path, _ = self.setup_empty_catalog("test_cat")
+        catalog_src_path, catalog_clone_path = self.setup_empty_catalog("test_cat")
         catalog = Catalog(
             0,
             "test_cat",
@@ -74,7 +74,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         catalog._type = "direct"
 
         # mock
-        retrieve_catalog = MagicMock(return_value=git.Repo.init(path=self.tmp_dir.name))
+        retrieve_catalog = MagicMock(return_value=git.Repo(catalog_clone_path))
         catalog.retrieve_catalog = retrieve_catalog
 
         _deploy_to_direct_catalog = MagicMock()
@@ -101,7 +101,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         return_value="Chanelog",
     )
     def test__deploy_request(self, process_changelog_file):
-        catalog_src_path, _ = self.setup_empty_catalog("test_cat")
+        catalog_src_path, catalog_clone_path = self.setup_empty_catalog("test_cat")
         catalog = Catalog(
             0,
             "test_cat",
@@ -111,7 +111,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         catalog._type = "request"
 
         # mock
-        retrieve_catalog = MagicMock(return_value=git.Repo.init(path=self.tmp_dir.name))
+        retrieve_catalog = MagicMock(return_value=git.Repo(catalog_clone_path))
         catalog.retrieve_catalog = retrieve_catalog
 
         _deploy_to_direct_catalog = MagicMock()
@@ -151,8 +151,14 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
     def _setup_undeploy_mocks(self, index_versions):
         repo = EmptyTestClass()
         repo.working_tree_dir = self.tmp_dir.name
+        Path(self.tmp_dir.name).joinpath(
+            DefaultValues.catalog_index_metafile_json.value
+        ).touch()
 
         catalog = MagicMock()
+        catalog.get_meta_file_path.return_value = Path(self.tmp_dir.name).joinpath(
+            "cache", DefaultValues.catalog_index_metafile_json.value
+        )
         catalog.name.return_value = "test_cat"
         catalog.is_cache.return_value = False
         catalog.retrieve_catalog.return_value.__enter__.return_value = repo
@@ -243,8 +249,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         self.deploy_manager._remove_db_entry_and_revert_files.assert_not_called()
         self.deploy_manager._remove_db_entry_and_tag.assert_not_called()
 
-    @patch("album.core.controller.deploy_manager.add_tag")
-    def test__deploy_to_direct_catalog(self, _):
+    def test__deploy_to_direct_catalog(self):
         # prepare
         catalog = EmptyTestClass()
         catalog.src = lambda: "mySrc"
@@ -295,8 +300,9 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
             None,
             "myEmail",
             "myName",
+            tag="tsg-tsn-tsv",
         )
-        refresh_index.assert_called_once()
+        refresh_index.assert_not_called()
 
     @patch(
         "album.core.controller.deploy_manager.retrieve_default_mr_push_options",
@@ -543,9 +549,8 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
     @patch("album.core.controller.deploy_manager.checkout_main", return_value="head")
     @patch("album.core.controller.deploy_manager.add_files_commit_and_push")
     @patch("album.core.controller.deploy_manager.remove_files")
-    @patch("album.core.controller.deploy_manager.add_tag")
     def test__push_directly(
-        self, add_tag, remove_files, add_files_commit_and_push, checkout_main
+        self, remove_files, add_files_commit_and_push, checkout_main
     ):
         repo = EmptyTestClass()
         file_paths = [Path("a"), Path("b"), Path("c")]
@@ -575,4 +580,5 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
             push_option_list=[],
             username=None,
             force=False,
+            tag="",
         )

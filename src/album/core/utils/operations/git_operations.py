@@ -212,6 +212,8 @@ def add_files_commit_and_push(
     force: bool = False,
     force_with_lease: bool = False,
     allow_empty: bool = False,
+    tag: str = "",
+    delete_tag: str = "",
 ) -> None:
     """Add files in a given path to a git head and commits.
 
@@ -240,6 +242,12 @@ def add_files_commit_and_push(
             instead of raising.  This is useful when the push itself must
             happen (e.g. to deliver push options like auto-merge) even
             though no files were modified.
+        tag:
+            Tag the new commit and push the tag in the same push as the branch. Every push
+            can make git ask for credentials, so one push means one authentication. The push
+            is atomic: the remote gets the commit and the tag both or neither.
+        delete_tag:
+            Delete this tag locally and, in the same atomic push, on the remote.
 
     Raises:
         RuntimeError when no files are in the index and allow_empty is False
@@ -281,6 +289,15 @@ def add_files_commit_and_push(
         repo.git.commit(m=commit_message, allow_empty=True)
     else:
         raise RuntimeError("Diff shows no changes to the repository. Aborting...")
+
+    if tag:
+        repo.git.tag("-a", tag, "-f", "-m", "")
+        cmd = cmd + [f"+refs/tags/{tag}:refs/tags/{tag}"]  # "+" overwrites it
+    if delete_tag:
+        repo.git.tag("-d", delete_tag)
+        cmd = cmd + [f":refs/tags/{delete_tag}"]
+    if tag or delete_tag:
+        cmd = ["--atomic"] + cmd
 
     if push:
         module_logger().info("Preparing pushing...")
@@ -624,8 +641,9 @@ def init_repository(path: Union[Path, str]) -> Repo:
     # update the remote to get latest changes on all remotes (pushes, HEAD pointer change, reverts, etc.)
     repo.remote().update()
 
-    # remove all eventual changes made local
-    remote_head = get_local_remote_ref_head(repo)
+    # remove all eventual changes made local. The fetch does not update the remote HEAD,
+    # ask the remote for it to follow a change of its default branch.
+    remote_head = get_local_remote_ref_head(repo, ask_remote=True)
     checkout_main(repo, remote_head.name)
     clean_repository(repo, remote_head.name)
 
@@ -671,14 +689,28 @@ def clean_repository(repo: Repo, target_head_name: str = "") -> None:
     repo.git.clean("-fd")
 
 
-def get_local_remote_ref_head(repo: Repo) -> Head:
-    """Get the local remote reference head of the repository."""
+def get_local_remote_ref_head(repo: Repo, ask_remote: bool = False) -> Head:
+    """Get the local remote reference head of the repository.
+
+    The remote HEAD known locally (set by the clone) is used. Only with ask_remote, or when it
+    is not known, the remote is asked, as every request to it can make git ask for credentials.
+    """
     if repo.remote().refs:
-        try:
-            remote_head = repo.git.remote(["set-head", "origin", "-a"])
-            remote_main_name = remote_head.split(" ")[-1]
-        except git.GitCommandError:
-            remote_main_name = "main"
+        remote_main_name = ""
+        if not ask_remote:
+            try:
+                # e.g. "origin/main"
+                remote_main_name = repo.git.symbolic_ref(
+                    "--short", "refs/remotes/origin/HEAD"
+                ).split("/", 1)[1]
+            except git.GitCommandError:
+                pass  # not known locally
+        if not remote_main_name:
+            try:
+                remote_head = repo.git.remote(["set-head", "origin", "-a"])
+                remote_main_name = remote_head.split(" ")[-1]
+            except git.GitCommandError:
+                remote_main_name = "main"
         # Sanitize the name, as it might contain ' or " when it is "main"
         # E.g. when the branch is called "main",  remote_main_name="'origin/HEAD' is unchanged and points to 'main'"
         remote_main_name = remote_main_name.strip("'\"")
