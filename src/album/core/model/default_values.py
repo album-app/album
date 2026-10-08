@@ -39,9 +39,9 @@ class DefaultValues(Enum):
 
     # deployment & cloning
     catalog_git_user = "album"  # username used for initial push to a new catalog
-    catalog_git_email = (
-        album.core.__email__
-    )  # email used for initial push to a new catalog
+    # email used for initial push to a new catalog: the first one of album's authors,
+    # a git identity takes a single address
+    catalog_git_email = album.core.__email__.partition(",")[0]
 
     # catalog
     cache_catalog_name = (
