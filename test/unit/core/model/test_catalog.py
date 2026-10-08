@@ -31,7 +31,7 @@ class TestCatalog(TestCatalogAndCollectionCommon):
             d = self.get_solution_dict()
 
             for key in ["group", "name", "version", "doi", "deposit_id"]:
-                d[key] = "%s%s" % (key, str(i))
+                d[key] = f"{key}{i}"
 
             solution = Solution(d)
 
@@ -126,7 +126,7 @@ class TestCatalog(TestCatalogAndCollectionCommon):
 
         d = {}
         for key in CatalogIndex.get_solution_column_keys():
-            d[key] = "%s%s" % (key, "new")
+            d[key] = "{}{}".format(key, "new")
 
         solution = Solution(d)
 
@@ -143,7 +143,7 @@ class TestCatalog(TestCatalogAndCollectionCommon):
 
         d = {}
         for key in CatalogIndex.get_solution_column_keys():
-            d[key] = "%s%s" % (key, "0")
+            d[key] = "{}{}".format(key, "0")
 
         solution = Solution(d)
 
@@ -162,7 +162,7 @@ class TestCatalog(TestCatalogAndCollectionCommon):
 
         d = {}
         for key in CatalogIndex.get_solution_column_keys():
-            d[key] = "%s%s" % (key, "0")
+            d[key] = "{}{}".format(key, "0")
 
         solution = Solution(d)
 
@@ -178,7 +178,7 @@ class TestCatalog(TestCatalogAndCollectionCommon):
 
         d = {}
         for key in CatalogIndex.get_solution_column_keys():
-            d[key] = "%s%s" % (key, "0")
+            d[key] = "{}{}".format(key, "0")
 
         # call
         self.catalog.remove(dict_to_coordinates(d))
@@ -192,7 +192,7 @@ class TestCatalog(TestCatalogAndCollectionCommon):
 
         d = {}
         for key in CatalogIndex.get_solution_column_keys():
-            d[key] = "%s%s" % (key, "new")
+            d[key] = "{}{}".format(key, "new")
 
         # call
         self.catalog.remove(dict_to_coordinates(d))

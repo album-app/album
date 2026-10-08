@@ -3,7 +3,7 @@ import threading
 import os
 
 
-class GlobalExceptionWatcher(object):
+class GlobalExceptionWatcher:
     def _store_excepthook(self, args):
         """
         Uses as an exception handlers which stores any uncaught exceptions.
