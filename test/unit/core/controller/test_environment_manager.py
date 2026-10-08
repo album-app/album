@@ -8,6 +8,7 @@ from test.unit.test_unit_core_common import TestUnitCoreCommon
 from unittest.mock import MagicMock, patch
 
 from album.core.model.catalog import Catalog
+from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import (
     DEFAULT_SOLUTION_ENV_CONTENT,
     DefaultValues,
@@ -96,10 +97,69 @@ class TestEnvironmentManager(TestUnitCoreCommon):
         # assert
         create_function.assert_called_once()
 
-    @unittest.skip("Needs to be implemented!")
+    def _resolve_result_with_parents(self, *parents):
+        """Return a resolve result whose collection entry has the given parent chain.
+
+        Each parent is a (catalog_id, name) pair, the direct parent first.
+        """
+        parent_entry = None
+        for catalog_id, name in reversed(parents):
+            parent_entry = CollectionIndex.CollectionSolution(
+                {"group": "g", "name": name, "version": "1.0.0"},
+                {"catalog_id": catalog_id, "parent": parent_entry},
+            )
+        return ResolveResult(
+            path=None,
+            catalog=self.catalog,
+            collection_entry=CollectionIndex.CollectionSolution(
+                {"group": "testid", "name": "test", "version": "1.0.0"},
+                {"catalog_id": "testid", "parent": parent_entry},
+            ),
+            coordinates=self.active_solution.coordinates(),
+            loaded_solution=self.active_solution,
+        )
+
     def test_set_environment(self):
-        # ToDo: implement!
-        pass
+        # a solution without a parent runs in its own environment
+        environment = self.environment_manager.set_environment(
+            self._resolve_result_with_parents()
+        )
+
+        self.assertEqual("testname_testid_test_1.0.0", environment.name())
+        self.assertEqual(
+            environment.path(),
+            self.active_solution.installation().environment_path(),
+        )
+
+    @patch("album.core.controller.collection.catalog_handler.CatalogHandler.get_by_id")
+    def test_set_environment_parent(self, get_by_id):
+        get_by_id.side_effect = lambda catalog_id: Catalog(
+            catalog_id, "catalog%s" % catalog_id, "path"
+        )
+
+        # a solution with a parent runs in the environment of the parent
+        environment = self.environment_manager.set_environment(
+            self._resolve_result_with_parents((1, "parent"))
+        )
+
+        self.assertEqual("catalog1_g_parent_1.0.0", environment.name())
+        get_by_id.assert_called_once_with(1)
+
+    @patch("album.core.controller.collection.catalog_handler.CatalogHandler.get_by_id")
+    def test_set_environment_parent_with_parent(self, get_by_id):
+        get_by_id.side_effect = lambda catalog_id: Catalog(
+            catalog_id, "catalog%s" % catalog_id, "path"
+        )
+
+        # the parent has a parent itself, so it has no environment: the solution runs
+        # in the one of the solution at the top of the chain. It used to get the
+        # environment name of its direct parent, which does not exist (#264).
+        environment = self.environment_manager.set_environment(
+            self._resolve_result_with_parents((1, "parent"), (2, "grandparent"))
+        )
+
+        self.assertEqual("catalog2_g_grandparent_1.0.0", environment.name())
+        get_by_id.assert_called_once_with(2)
 
     @unittest.skip("Needs to be implemented!")
     def test_remove_environment(self):

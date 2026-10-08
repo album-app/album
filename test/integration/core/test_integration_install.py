@@ -561,6 +561,27 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         )
         self.assertNotIn("ERROR", self.get_logs_as_string())
 
+        # every solution of the chain runs in the environment of app1, the only one
+        # created. get_environment_path is patched above, so the environment name is
+        # what tells them apart. solution12_solution1_app1 used to resolve to an
+        # environment named after solution1_app1, which does not exist (#264).
+        environment_manager = self.album_controller.environment_manager()
+        app1_environment_name = environment_manager.get_environment_name(
+            Coordinates("group", "app1", "0.1.0"),
+            self.album_controller.catalogs().get_cache_catalog(),
+        )
+        for name in ["app1", "solution1_app1", "solution12_solution1_app1"]:
+            resolve_result = (
+                self.album_controller.collection_manager().resolve_installed_and_load(
+                    "group:%s:0.1.0" % name
+                )
+            )
+            self.assertEqual(
+                app1_environment_name,
+                environment_manager.set_environment(resolve_result).name(),
+                name,
+            )
+
         # assert solution was added to local catalog
         collection = self.album_controller.collection_manager().catalog_collection
         self.assertEqual(

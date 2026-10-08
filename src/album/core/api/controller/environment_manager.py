@@ -28,9 +28,13 @@ class IEnvironmentManager:
 
     @abstractmethod
     def set_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
-        """Resolve the environment the active solution runs in.
+        """Resolve the environment the solution runs in and set its path on the solution.
 
-        Returns the resolve result of the parent of the active solution.
+        A solution without a parent runs in its own environment. A solution with a
+        parent runs in the environment of the solution at the top of its parent chain:
+        a parent can have a parent itself, and only the top one has an environment.
+
+        Returns the environment.
 
         """
         raise NotImplementedError

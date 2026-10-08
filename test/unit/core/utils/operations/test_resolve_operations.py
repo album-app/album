@@ -6,6 +6,7 @@ from test.unit.test_unit_core_common import TestUnitCoreCommon
 from unittest import mock
 from unittest.mock import patch
 
+from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.resolve_operations import (
     _parse_zenodo_url,
@@ -16,6 +17,7 @@ from album.core.utils.operations.resolve_operations import (
     get_cgnv_from_input,
     get_doi_from_input,
     get_gnv_from_input,
+    get_parent,
     get_zip_name,
     get_zip_name_prefix,
     parse_doi_service_url,
@@ -499,6 +501,19 @@ class TestResolveOperations(TestUnitCoreCommon):
         sol_dict.pop("version")
         with self.assertRaises(ValueError):
             self.assertTrue(dict_to_coordinates(sol_dict))
+
+    def test_get_parent(self):
+        entry_c = CollectionIndex.CollectionSolution({"name": "c"}, {"parent": None})
+        entry_b = CollectionIndex.CollectionSolution({"name": "b"}, {"parent": entry_c})
+        entry_a = CollectionIndex.CollectionSolution({"name": "a"}, {"parent": entry_b})
+
+        # no parent: the entry itself
+        self.assertIs(entry_c, get_parent(entry_c))
+        # one level: the parent
+        self.assertIs(entry_c, get_parent(entry_b))
+        # a parent with a parent of its own: the top of the chain. This raised
+        # "TypeError: 'CollectionSolution' object is not subscriptable" (#264).
+        self.assertIs(entry_c, get_parent(entry_a))
 
     @patch(
         "album.core.utils.operations.resolve_operations.get_zip_name_prefix",
