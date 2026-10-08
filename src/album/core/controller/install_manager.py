@@ -65,38 +65,34 @@ class InstallManager(IInstallManager):
         resolve_result: ICollectionSolution,
         parent: bool = False,
         allow_recursive: bool = False,
-    ):
-        # Load solution
+    ) -> None:
         if not resolve_result.catalog():
             raise RuntimeError(
                 "Solution cannot be installed without being associated with a catalog!"
             )
-        elif not parent and self._resolve_result_is_installed(resolve_result):
-            module_logger().warning(
-                'Solution "%s" already installed. Skipping...'
-                % resolve_result.loaded_solution().coordinates().name()
-            )
-            return
-        elif parent and self._resolve_result_is_installed(resolve_result):
-            return resolve_result  # solution already installed
-        else:
-            module_logger().debug(
-                'solution loaded from catalog "%s": %s...'
-                % (
-                    resolve_result.catalog().name(),
-                    str(resolve_result.loaded_solution().coordinates()),
+
+        # an installed solution is skipped, not reinstalled: with a warning when it
+        # was requested directly, silently when it is the parent of another solution
+        if self._resolve_result_is_installed(resolve_result):
+            if not parent:
+                module_logger().warning(
+                    'Solution "%s" already installed. Skipping...'
+                    % resolve_result.loaded_solution().coordinates().name()
                 )
+            return
+
+        module_logger().debug(
+            'solution loaded from catalog "%s": %s...'
+            % (
+                resolve_result.catalog().name(),
+                str(resolve_result.loaded_solution().coordinates()),
             )
+        )
         if not parent:
             module_logger().info(
                 'Installing "%s"...'
                 % resolve_result.loaded_solution().coordinates().name()
             )
-            # fail when already installed
-            if self._resolve_result_is_installed(resolve_result):
-                raise RuntimeError(
-                    "Solution already installed. Uninstall solution first!"
-                )
         else:
             module_logger().info(
                 'Installing parent solution "%s"...'

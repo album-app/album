@@ -130,6 +130,10 @@ class DefaultValues(Enum):
     before_run_event_name = "before-run"
     after_run_event_name = "after-run"
 
-    # server
+    # server. Not used by album core itself, but the album-server and album-socket
+    # plugins read DefaultValues.server_port when they are imported. Both plugins are
+    # deprecated, album-server in https://gitlab.com/album-app/album/-/issues/268
+    # and album-socket in https://gitlab.com/album-app/album/-/issues/266. Remove
+    # both entries once both plugins are archived.
     server_port = 5476  # default port used to launch server
     server_host = "127.0.0.1"  # default host used to launch server. Set to 0.0.0.0 when used in docker

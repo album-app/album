@@ -22,7 +22,23 @@ class IInstallManager:
         allow_recursive: bool = False,
         argv: Optional[List[str]] = None,
     ) -> ISolution:
-        """Install an album solution."""
+        """Install an album solution.
+
+        Args:
+            solution_to_resolve:
+                The path, DOI or group-name-version information of the solution
+                to install.
+            allow_recursive:
+                Allow the environment of the solution to install a different album
+                version than the running one (album in album). Without it, such a
+                solution is not installed (ValueError). The same or an unversioned
+                album is always allowed, with a warning. Has no effect for a
+                solution with a parent: the parent environment is checked without it.
+            argv:
+                Not used. The install routine of a solution takes no arguments.
+                Kept so that existing positional and keyword calls keep working.
+
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -37,12 +53,13 @@ class IInstallManager:
          Thereby uninstalling its environment and deleting all its downloads.
 
         Args:
-            argv:
-                Arguments which should be appended to the script call.
             solution_to_resolve:
                 The path, DOI or group-name-version information of the solution to remove.
             rm_dep:
                 Boolean to indicate whether to remove parents too.
+            argv:
+                Not used. The uninstall routine of a solution takes no arguments.
+                Kept so that existing positional and keyword calls keep working.
 
         """
         raise NotImplementedError

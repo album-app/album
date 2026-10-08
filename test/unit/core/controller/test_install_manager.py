@@ -54,10 +54,112 @@ class TestInstallManager(TestUnitCoreCommon):
         # TODO implement
         pass
 
-    @unittest.skip("Needs to be implemented!")
-    def test__install_resolve_result(self):
-        # TODO implement
-        pass
+    def _prepare_install_loaded_resolve_result(self, installed, catalog=True):
+        resolve_result = ResolveResult(
+            path=Path("aPath"),
+            catalog=(
+                self.album_controller.collection_manager()
+                .catalogs()
+                .get_cache_catalog()
+                if catalog
+                else None
+            ),
+            loaded_solution=self.active_solution,
+            collection_entry=None,
+            coordinates=self.active_solution.coordinates(),
+        )
+
+        # mocks
+        self.is_installed = MagicMock(return_value=installed)
+        self.install_manager._resolve_result_is_installed = self.is_installed
+
+        self.register = MagicMock()
+        self.install_manager._register = self.register
+
+        self.install_active_solution = MagicMock()
+        self.install_manager._install_active_solution = self.install_active_solution
+
+        self.set_installation_unfinished = MagicMock()
+        self.album_controller.solutions().set_installation_unfinished = (
+            self.set_installation_unfinished
+        )
+
+        self.set_installed = MagicMock()
+        self.album_controller.solutions().set_installed = self.set_installed
+
+        return resolve_result
+
+    @patch("album.core.controller.install_manager.clean_resolve_tmp")
+    def test__install_loaded_resolve_result(self, clean_resolve_tmp):
+        r = self._prepare_install_loaded_resolve_result(installed=False)
+
+        # call
+        self.install_manager._install_loaded_resolve_result(r)
+
+        # assert
+        self.is_installed.assert_called_once_with(r)  # checked once, not re-checked
+        self.register.assert_called_once_with(r)
+        clean_resolve_tmp.assert_called_once()  # cache catalog
+        self.set_installation_unfinished.assert_called_once_with(
+            r.catalog(), r.coordinates()
+        )
+        self.install_active_solution.assert_called_once_with(r, False)
+        self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
+        self.assertIn('Installing "tsn"...', self.get_logs_as_string())
+
+    @patch("album.core.controller.install_manager.clean_resolve_tmp")
+    def test__install_loaded_resolve_result_parent(self, clean_resolve_tmp):
+        r = self._prepare_install_loaded_resolve_result(installed=False)
+
+        # call
+        self.install_manager._install_loaded_resolve_result(r, parent=True)
+
+        # assert
+        self.is_installed.assert_called_once_with(r)
+        self.register.assert_called_once_with(r)
+        clean_resolve_tmp.assert_not_called()  # only cleaned for the child
+        self.install_active_solution.assert_called_once_with(r, False)
+        self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
+        self.assertIn('Installing parent solution "tsn"...', self.get_logs_as_string())
+
+    def test__install_loaded_resolve_result_already_installed(self):
+        r = self._prepare_install_loaded_resolve_result(installed=True)
+
+        # call: skipped with a warning, does not raise
+        self.install_manager._install_loaded_resolve_result(r)
+
+        # assert
+        self.is_installed.assert_called_once_with(r)
+        self.register.assert_not_called()
+        self.install_active_solution.assert_not_called()
+        self.set_installed.assert_not_called()
+        self.assertIn(
+            'Solution "tsn" already installed. Skipping...', self.get_logs_as_string()
+        )
+
+    def test__install_loaded_resolve_result_parent_already_installed(self):
+        r = self._prepare_install_loaded_resolve_result(installed=True)
+
+        # call: skipped silently
+        self.install_manager._install_loaded_resolve_result(r, parent=True)
+
+        # assert
+        self.is_installed.assert_called_once_with(r)
+        self.register.assert_not_called()
+        self.install_active_solution.assert_not_called()
+        self.set_installed.assert_not_called()
+        self.assertNotIn("already installed", self.get_logs_as_string())
+
+    def test__install_loaded_resolve_result_no_catalog(self):
+        r = self._prepare_install_loaded_resolve_result(installed=False, catalog=False)
+
+        # call
+        with self.assertRaises(RuntimeError):
+            self.install_manager._install_loaded_resolve_result(r)
+
+        # assert
+        self.is_installed.assert_not_called()
+        self.register.assert_not_called()
 
     @unittest.skip("Needs to be implemented!")
     def test__register(self):

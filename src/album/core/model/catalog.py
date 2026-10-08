@@ -79,7 +79,8 @@ class Catalog(ICatalog):
             path:
                 The absolute path to the catalog.
             src:
-                The source of the catalog (Default: None)
+                The source of the catalog (Default: "", no source: such a catalog is
+                treated as a cache catalog, see is_cache()).
                 Can be a URL, a git-link, a path to a network-device or a path to any other storage system.
             deletable:
                 Boolean to indicate whether the catalog is deletable or not. Relevant for a collection of catalogs.
@@ -124,9 +125,12 @@ class Catalog(ICatalog):
             self._catalog_index.close()
 
     def is_cache(self) -> bool:
+        if not self._src:
+            # no source (None or the default ""): nothing to download from,
+            # the catalog only lives in its path, like the cache catalog
+            return True
         return (
-            self._src is None
-            or self.is_local()
+            self.is_local()
             and self._path.exists()
             and os.path.samefile(str(self._src), self._path)
         )
