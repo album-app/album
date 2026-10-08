@@ -16,6 +16,8 @@ class ISearchManager:
         """Search subcommand of album.
 
         Searches through album catalogs to find the closest matching solution.
+        Keywords are matched case-insensitively as substrings of the solution
+        attributes.
 
         """
         raise NotImplementedError
