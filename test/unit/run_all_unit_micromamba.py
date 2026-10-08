@@ -12,6 +12,7 @@ from test.unit.core.controller import (
     test_event_manager,
     test_install_manager,
     test_migration_manager,
+    test_resource_manager,
     test_run_manager,
     test_script_manager,
     test_search_manager,
@@ -69,6 +70,7 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_environment_manager))
     suite.addTests(loader.loadTestsFromModule(test_install_manager))
     suite.addTests(loader.loadTestsFromModule(test_migration_manager))
+    suite.addTests(loader.loadTestsFromModule(test_resource_manager))
     suite.addTests(loader.loadTestsFromModule(test_run_manager))
     suite.addTests(loader.loadTestsFromModule(test_search_manager))
     suite.addTests(loader.loadTestsFromModule(test_task_manager))

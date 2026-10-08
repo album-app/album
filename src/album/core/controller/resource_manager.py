@@ -1,4 +1,5 @@
 import os
+import re
 from copy import deepcopy
 from io import StringIO
 from pathlib import Path
@@ -24,6 +25,12 @@ from album.runner import album_logging
 from album.runner.core.api.model.solution import ISolution
 
 module_logger = album_logging.get_active_logger
+
+# A conda dependency naming the setuptools package: "setuptools", optionally behind a
+# channel ("conda-forge::setuptools") and followed by a version constraint
+# ("setuptools>=60", "setuptools=70.*", "setuptools 70.*", "setuptools[version='>=60']").
+# Other packages starting with the same letters, like "setuptools-scm", do not match.
+_SETUPTOOLS_SPEC = re.compile(r"^(?:\S+::)?setuptools(?:$|[\s=<>!~\[])")
 
 
 class ResourceManager(IResourceManager):
@@ -134,11 +141,11 @@ class ResourceManager(IResourceManager):
         elif "dependencies:" in env_file and "\n" in env_file:
             with open(str(yml_path), "w+", encoding="utf-8") as yml_file:
                 yml_file.writelines(env_file)
-        # 3. existing env.yml
+        # 3. existing environment file (.yml or .yaml)
         elif (
             Path(env_file).is_file()
             and Path(env_file).stat().st_size > 0
-            and str(env_file).endswith(".yml")
+            and str(env_file).endswith((".yml", ".yaml"))
         ):
             copy(env_file, yml_path)
         else:
@@ -217,6 +224,19 @@ class ResourceManager(IResourceManager):
         dependencies = "conda-forge::setuptools>=59.7.0"
         if "dependencies" not in content or not content["dependencies"]:
             content["dependencies"] = []
-        if "setuptools" not in content["dependencies"]:
+        # Keep a setuptools spec the solution already declares. conda-lock keeps only
+        # the last spec per package, so an appended pin would silently replace it.
+        if not any(
+            ResourceManager._is_setuptools_spec(dependency)
+            for dependency in content["dependencies"]
+        ):
             content["dependencies"].append(dependencies)
         return content
+
+    @staticmethod
+    def _is_setuptools_spec(dependency: Any) -> bool:
+        # Only conda entries count. A nested "pip:" list is a dict here, and pip
+        # installs it after the conda solve.
+        return isinstance(dependency, str) and bool(
+            _SETUPTOOLS_SPEC.match(dependency.strip())
+        )
