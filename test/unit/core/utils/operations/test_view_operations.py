@@ -1,10 +1,20 @@
 from test.unit.test_unit_core_common import TestUnitCoreCommon
+from unittest.mock import MagicMock
 
+from album.core.api.model.catalog_updates import ChangeType
+from album.core.model.catalog_updates import CatalogUpdates, SolutionChange
 from album.core.utils.operations.view_operations import (
     filter_latest_solutions,
+    get_index_as_string,
     get_solution_as_string,
+    get_updates_as_string,
 )
+from album.runner.core.model.coordinates import Coordinates
 from album.runner.core.model.solution import Solution
+
+# More entries than CPython caches small ints for (-5..256): from index 257 on, the
+# enumerate() counter and len(...) - 1 are equal but no longer the same object.
+MANY = 300
 
 
 class TestViewOperations(TestUnitCoreCommon):
@@ -80,3 +90,52 @@ class TestViewOperations(TestUnitCoreCommon):
         # assert
         self.assertIn("Run parameters:", res)
         self.assertIn("  --a1:\n", res)
+
+    def test_get_updates_as_string_marks_last_of_many_solution_changes(self):
+        catalog = MagicMock()
+        catalog.name.return_value = "cat"
+        changes = [
+            SolutionChange(
+                Coordinates("grp", "name%s" % i, "0.1.0"), ChangeType.CHANGED, "log"
+            )
+            for i in range(MANY)
+        ]
+
+        # call
+        res = get_updates_as_string(
+            {"cat": CatalogUpdates(catalog, solution_changes=changes)}
+        )
+
+        # assert
+        self.assertEqual(1, res.count("└─"))
+        self.assertEqual(MANY - 1, res.count("├─"))
+        self.assertIn("  └─ [CHANGED] grp:name%s:0.1.0\n" % (MANY - 1), res)
+
+    def test_get_index_as_string_marks_last_of_many_solutions(self):
+        solutions = [
+            {
+                "setup": {"group": "grp", "name": "name%s" % i, "version": "0.1.0"},
+                "internal": {"installed": False},
+            }
+            for i in range(MANY)
+        ]
+        index_dict = {
+            "base": "myBase",
+            "catalogs": [
+                {
+                    "name": "cat",
+                    "src": "mySrc",
+                    "catalog_id": 1,
+                    "deletable": True,
+                    "solutions": solutions,
+                }
+            ],
+        }
+
+        # call
+        res = get_index_as_string(index_dict)
+
+        # assert
+        self.assertEqual(1, res.count("   └─ ["))
+        self.assertEqual(MANY - 1, res.count("   ├─ ["))
+        self.assertIn("   └─ [ ] grp:name%s:0.1.0\n" % (MANY - 1), res)

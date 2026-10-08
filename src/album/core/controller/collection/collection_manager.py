@@ -484,7 +484,7 @@ class CollectionManager(ICollectionManager):
         if len(input_parts) == 1:
             solutions = self.catalog_collection.get_solutions_by_name(input_parts[0])
             if len(solutions) == 1:
-                module_logger().warn(
+                module_logger().warning(
                     call_not_reproducible % dict_to_coordinates(solutions[0].setup())
                 )
                 return solutions[0]
@@ -497,7 +497,7 @@ class CollectionManager(ICollectionManager):
                 input_parts[0], input_parts[1]
             )
             if len(solutions) == 1:
-                module_logger().warn(
+                module_logger().warning(
                     call_not_reproducible % dict_to_coordinates(solutions[0].setup())
                 )
                 return solutions[0]
@@ -508,7 +508,7 @@ class CollectionManager(ICollectionManager):
                     input_parts[0], input_parts[1]
                 )
                 if len(solutions) == 1:
-                    module_logger().warn(
+                    module_logger().warning(
                         call_not_reproducible
                         % dict_to_coordinates(solutions[0].setup())
                     )
@@ -533,7 +533,7 @@ class CollectionManager(ICollectionManager):
             if solution.internal()["catalog_id"] != cache_id
         ]
         if len(cache_matches) == 1:
-            module_logger().warn(
+            module_logger().warning(
                 call_not_reproducible % dict_to_coordinates(cache_matches[0].setup())
             )
             return cache_matches[0]
@@ -548,7 +548,7 @@ class CollectionManager(ICollectionManager):
         if latest_solution is None:
             latest_solution = self._get_latest_solution(candidates)
         if latest_solution:
-            module_logger().warn(
+            module_logger().warning(
                 call_not_reproducible % dict_to_coordinates(latest_solution.setup())
             )
         return latest_solution

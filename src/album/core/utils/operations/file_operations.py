@@ -49,10 +49,10 @@ def get_dict_entry(
     """
     try:
         val = d[key]
-    except KeyError:
+    except KeyError as err:
         val = None
         if not allow_none:
-            raise KeyError(message)
+            raise KeyError(message) from err
 
     return val
 

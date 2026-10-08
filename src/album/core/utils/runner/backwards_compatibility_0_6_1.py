@@ -652,7 +652,7 @@ class SolutionScript:
         if solution.setup().run and callable(solution.setup().run):
             solution.setup().run()
         else:
-            get_active_logger().warn(
+            get_active_logger().warning(
                 'No "run" routine configured for solution "%s".' % solution.setup().name
             )
         if solution.setup().close and callable(solution.setup().close):

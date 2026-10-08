@@ -467,8 +467,16 @@ WHERE name = 'album_collection'"""
         ]
         mock_resource_filename.return_value = list_mock
         # call & assert
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValueError) as context:
             self.migration_manager._read_collection_database_versions_from_scripts()
+        self.assertIn(
+            "Could not parse version from file name: "
+            "migrate_catalog_collection_000_to_10.sql",
+            str(context.exception),
+        )
+        # the parse error behind the message stays attached as the explicit cause:
+        # "10" has no third digit
+        self.assertIsInstance(context.exception.__cause__, IndexError)
 
     @patch("album.core.controller.migration_manager.files")
     def test_read_broken_catalog_database_versions_from_scripts(
@@ -482,5 +490,14 @@ WHERE name = 'album_collection'"""
         ]
         mock_resource_filename.return_value = list_mock
         # call & assert
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValueError) as context:
             self.migration_manager._read_catalog_database_versions_from_scripts()
+        self.assertIn(
+            "Could not parse version from file name: "
+            "migrate_catalog_index_000_to_01s.sql",
+            str(context.exception),
+        )
+        # the parse error behind the message stays attached as the explicit cause:
+        # int("s") fails
+        self.assertIsInstance(context.exception.__cause__, ValueError)
+        self.assertIn("'s'", str(context.exception.__cause__))
