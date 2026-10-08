@@ -1,3 +1,5 @@
-__version__ = "0.1.0"
-__author__ = "Kyle Harrington, Jan Philipp Albrecht, Deborah Schmidt"
-__email__ = "album@kyleharrington.com"
+"""Catalog administration (``album-catalog-admin``), shipped with album."""
+
+from album.core import __author__, __email__, __version__
+
+__all__ = ["__author__", "__email__", "__version__"]

@@ -177,7 +177,8 @@ prepare release:
     - DeployDocker
   script:
     - echo "preparing release"
-    - VERSION=$(cat pyproject.toml | grep "version=*" | awk '{gsub(/"/, "", $3); print $3}')
+    - VERSION=$(awk -F'"' '/^version *=/ {print $2; exit}' pyproject.toml) # version = "..." of [project], the only place it is written down
+    - test -n "$VERSION" || (echo "No version line found in pyproject.toml" && exit 1)
     - TAG=v$VERSION
     - echo "prepare to release version $VERSION with tag $TAG"
     - echo "VERSION=$VERSION" >> variables.env
