@@ -1,15 +1,10 @@
+"""Command line interface of album-ci (album-catalog-admin), which manages deploy requests to a catalog."""
+
 import os
 import sys
 import traceback
 from argparse import ArgumentParser
 from typing import Callable
-
-from album.runner import album_logging
-from album.runner.album_logging import (
-    debug_settings,
-    get_active_logger,
-    pop_active_logger,
-)
 
 from album.api import Album
 from album.argument_parsing import ArgumentParser as AlbumAP
@@ -23,6 +18,12 @@ from album.ci.commandline import (
     zenodo_upload,
 )
 from album.ci.controller.release_manager import ReleaseManager
+from album.runner import album_logging
+from album.runner.album_logging import (
+    debug_settings,
+    get_active_logger,
+    pop_active_logger,
+)
 
 module_logger = get_active_logger
 
@@ -70,10 +71,12 @@ def _handle_exception(e) -> None:
 
 
 def create_album_instance() -> Album:
+    """Create the album instance the release manager works with."""
     return Album.Builder().build()
 
 
 def create_parser() -> ArgumentParser:
+    """Create the parser with all album-ci commands."""
     parser = AlbumCIParser()
 
     parser.create_git_command_parser(
@@ -122,7 +125,8 @@ def create_parser() -> ArgumentParser:
     p = parser.create_branch_command_parser(
         "update",
         update_index,
-        "Updates the index of the catalog repository to include the solution of a catalog repository deployment branch.",
+        "Updates the index of the catalog repository to include the solution of a catalog repository "
+        "deployment branch.",
     )
     p.add_argument(
         "--doi",
@@ -153,7 +157,10 @@ def create_parser() -> ArgumentParser:
 
 
 class AlbumCIParser(AlbumAP):
+    """Parser of album-ci with one subparser per command."""
+
     def __init__(self):
+        """Create the parent parser, the main parser and its subparsers."""
         super().__init__()
         self.parent_parser = self.create_parent_parser()
         self.parser = self.create_parser()
@@ -177,7 +184,7 @@ class AlbumCIParser(AlbumAP):
         return parent_parser
 
     def create_parser(self) -> ArgumentParser:
-        """Creates the main parser for the album framework."""
+        """Create the main parser for the album framework."""
         parser = ArgumentParser(
             add_help=True,
             description="album-catalog-admin for managing catalog-deploy requests to a catalog via commandline or CI",
@@ -188,7 +195,7 @@ class AlbumCIParser(AlbumAP):
     def create_catalog_command_parser(
         self, command_name: str, command_function: Callable, command_help: str
     ) -> ArgumentParser:
-        """Creates a subparser with all necessary arguments for the catalog deployment management"""
+        """Create a subparser with all necessary arguments for the catalog deployment management."""
         parser = self.subparsers.add_parser(
             command_name, help=command_help, parents=[self.parent_parser]
         )
@@ -208,7 +215,8 @@ class AlbumCIParser(AlbumAP):
         parser.add_argument(
             "--force-retrieve",
             required=False,
-            help="If given, download path for the catalog will be force emptied before retrieving the catalog.",
+            help="If the path does not hold a git repository yet, delete everything in it before cloning the "
+            "catalog. An existing repository is used as it is.",
             default=False,
             action="store_true",
         )
@@ -218,6 +226,7 @@ class AlbumCIParser(AlbumAP):
     def create_git_command_parser(
         self, command_name: str, command_function: Callable, command_help: str
     ) -> ArgumentParser:
+        """Create a catalog command subparser with the git user arguments."""
         parser = self.create_catalog_command_parser(
             command_name, command_function, command_help
         )
@@ -245,6 +254,7 @@ class AlbumCIParser(AlbumAP):
     def create_branch_command_parser(
         self, command_name: str, command_function: Callable, command_help: str
     ) -> ArgumentParser:
+        """Create a git command subparser with the branch name argument."""
         parser = self.create_git_command_parser(
             command_name, command_function, command_help
         )
@@ -259,6 +269,7 @@ class AlbumCIParser(AlbumAP):
     def create_zenodo_command_parser(
         self, command_name: str, command_function: Callable, command_help: str
     ) -> ArgumentParser:
+        """Create a branch command subparser with the Zenodo arguments."""
         parser = self.create_branch_command_parser(
             command_name, command_function, command_help
         )
@@ -283,6 +294,7 @@ class AlbumCIParser(AlbumAP):
     def create_pipeline_command_parser(
         self, command_name: str, command_function: Callable, command_help: str
     ) -> ArgumentParser:
+        """Create a branch command subparser with the dry-run and push options."""
         parser = self.create_branch_command_parser(
             command_name, command_function, command_help
         )

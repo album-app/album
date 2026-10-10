@@ -140,12 +140,14 @@ def retrieve_files_from_head_last_commit(head, pattern, option="", number_of_fil
     """
     pattern = str(pattern)
     parent = head.commit.parents[0] if head.commit.parents else None
-    module_logger().debug("Found head commit: %s..." % parent)
 
     if not parent:
         raise RuntimeError("Cannot execute diff since there is only a single commit!")
 
-    module_logger().debug("Summary message: %s..." % parent.summary)
+    module_logger().debug(
+        f"Comparing head commit {head.commit} with its parent {parent}..."
+    )
+    module_logger().debug("Summary message of the parent: %s..." % parent.summary)
 
     diff = head.commit.diff(parent)
 

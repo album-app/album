@@ -1,14 +1,15 @@
 """This module contains the interface for the Catalog class."""
+
 from abc import ABCMeta, abstractmethod
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, Generator, List, Optional, Union
 
-from album.runner.core.api.model.coordinates import ICoordinates
-from album.runner.core.api.model.solution import ISolution
 from git import Repo
 
 from album.core.api.model.catalog_index import ICatalogIndex
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
 
 
 class ICatalog:
@@ -96,7 +97,7 @@ class ICatalog:
         raise NotImplementedError
 
     @abstractmethod
-    def type(self) -> str:
+    def type(self) -> str:  # noqa: A003
         """Get the type of the catalog."""
         raise NotImplementedError
 
@@ -132,7 +133,23 @@ class ICatalog:
         force_retrieve: bool = False,
         update: bool = True,
     ) -> Generator[Repo, None, None]:
-        """Retrieve the catalog."""
+        """Clone or open the repository of the catalog and yield it.
+
+        Args:
+            path:
+                The path to retrieve the catalog repository to. Defaults to the path of the catalog.
+            force_retrieve:
+                Only takes effect when the path does not hold a repository yet.
+                Then everything left in the path is deleted before cloning.
+                An existing repository is never deleted or cloned again, it is only reset if update is set.
+            update:
+                Only takes effect when the path already holds a repository.
+                Then the repository is reset to the state of its remote, discarding all local changes.
+
+        Raises:
+            RuntimeError when the catalog is a cache catalog without a source.
+
+        """
         yield
         raise NotImplementedError
 

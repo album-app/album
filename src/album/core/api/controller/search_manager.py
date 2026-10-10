@@ -1,6 +1,7 @@
 """Interface for search manager class."""
+
 from abc import ABCMeta, abstractmethod
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Union
 
 
 class ISearchManager:
@@ -12,12 +13,16 @@ class ISearchManager:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def search(self, keywords: List[str]) -> List[Tuple[Any, Any]]:
+    def search(self, keywords: Union[str, List[str]]) -> List[Tuple[Any, Any]]:
         """Search subcommand of album.
 
         Searches through album catalogs to find the closest matching solution.
         Keywords are matched case-insensitively as substrings of the solution
         attributes.
+
+        Args:
+            keywords:
+                A list of keywords, or a string holding keywords separated by whitespace.
 
         """
         raise NotImplementedError

@@ -70,10 +70,7 @@ class CatalogHandler(ICatalogHandler):
 
         catalog_dict = self._get_collection_index().get_catalog_by_src(source)
         if catalog_dict:
-            module_logger().warning(
-                'Catalog "%s" with source "%s" is already in the collection.'
-                " Doing nothing..." % (catalog_dict["name"], source)
-            )
+            self._warn_already_in_collection(catalog_dict, source)
             return self._as_catalog(catalog_dict)
 
         catalog_meta_information = self._retrieve_catalog_meta_information(
@@ -83,17 +80,8 @@ class CatalogHandler(ICatalogHandler):
             catalog_meta_information["name"]
         )
         if catalog_dict:
-            if catalog_dict["deletable"]:
-                hint = "Remove that catalog first to add this one."
-            else:
-                # e.g. the cache catalog, removing it fails
-                hint = "That catalog cannot be removed, so this one cannot be added."
-            module_logger().warning(
-                'Cannot add catalog from source "%s": another catalog with the name'
-                ' "%s" is already in the collection (source "%s"). %s'
-                " Doing nothing..."
-                % (source, catalog_dict["name"], catalog_dict["src"], hint)
-            )
+            # a name clash, or this source added by another album process since the check above
+            self._warn_already_in_collection(catalog_dict, source)
             return self._as_catalog(catalog_dict)
 
         catalog = self._create_catalog_from_src(
@@ -119,7 +107,7 @@ class CatalogHandler(ICatalogHandler):
             ) or self._get_collection_index().get_catalog_by_name(catalog.name())
             if not catalog_dict:
                 raise
-            module_logger().warning("Cannot add catalog twice! Doing nothing...")
+            self._warn_already_in_collection(catalog_dict, source)
             return self._as_catalog(catalog_dict)
         self._create_catalog_cache_if_missing(catalog)
         self.album.migration_manager().load_index(catalog)
@@ -130,6 +118,28 @@ class CatalogHandler(ICatalogHandler):
         module_logger().info("Added catalog %s!" % source)
 
         return catalog
+
+    @staticmethod
+    def _warn_already_in_collection(catalog_dict: Dict[str, Any], source: str) -> None:
+        """Explain why the catalog in the collection is returned instead of adding the source."""
+        if catalog_dict["src"] == source:
+            module_logger().warning(
+                'Catalog "%s" with source "%s" is already in the collection.'
+                " Doing nothing..." % (catalog_dict["name"], source)
+            )
+            return
+
+        if catalog_dict["deletable"]:
+            hint = "Remove that catalog first to add this one."
+        else:
+            # e.g. the cache catalog, removing it fails
+            hint = "That catalog cannot be removed, so this one cannot be added."
+        module_logger().warning(
+            'Cannot add catalog from source "%s": another catalog with the name'
+            ' "%s" is already in the collection (source "%s"). %s'
+            " Doing nothing..."
+            % (source, catalog_dict["name"], catalog_dict["src"], hint)
+        )
 
     def _add_to_index(self, catalog: ICatalog) -> int:
         catalog_id = self._get_collection_index().insert_catalog(
