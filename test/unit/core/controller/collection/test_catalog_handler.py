@@ -233,7 +233,54 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
         self.assertEqual(
             len(self.catalog_list) + 1, len(collection_index.get_all_catalogs())
         )
-        self.assertIn("Cannot add catalog twice!", self.captured_output.getvalue())
+        # same source: not reported as a name clash with itself
+        logs = self.captured_output.getvalue()
+        self.assertIn(
+            'Catalog "aNiceCatalog" with source "%s" is already in the collection.'
+            % catalog_src.resolve(),
+            logs,
+        )
+        self.assertNotIn("another catalog with the name", logs)
+
+    def test_add_by_src_added_concurrently_after_the_checks(self):
+        # prepare
+        catalog_src, _ = self.setup_empty_catalog("aNiceCatalog")
+        collection_index = (
+            self.album_controller.collection_manager().get_collection_index()
+        )
+        create_catalog_from_src = self.catalog_handler._create_catalog_from_src
+
+        def create_while_another_process_adds_the_catalog(*args):
+            catalog = create_catalog_from_src(*args)
+            collection_index.insert_catalog(
+                "aNiceCatalog",
+                str(catalog_src.resolve()),
+                "anotherPath",
+                True,
+                "main",
+                "direct",
+            )
+            return catalog
+
+        self.catalog_handler._create_catalog_from_src = (
+            create_while_another_process_adds_the_catalog
+        )
+
+        # call: inserting the catalog fails on the unique key
+        catalog = self.catalog_handler.add_by_src(str(catalog_src))
+
+        # assert: the catalog of the other process is returned and not added again
+        self.assertEqual(Path("anotherPath"), Path(catalog.path()))
+        self.assertEqual(
+            len(self.catalog_list) + 1, len(collection_index.get_all_catalogs())
+        )
+        logs = self.captured_output.getvalue()
+        self.assertIn(
+            'Catalog "aNiceCatalog" with source "%s" is already in the collection.'
+            % catalog_src.resolve(),
+            logs,
+        )
+        self.assertNotIn("another catalog with the name", logs)
 
     def test__add_to_index(self):
         # prepare

@@ -112,8 +112,14 @@ class Album:
         """Load a solution from a path."""
         return self._controller.state_manager().load(path)
 
-    def search(self, keywords) -> list[tuple[Any, Any]]:
-        """Search through album catalogs to find closest matching solution."""
+    def search(self, keywords: str | list[str]) -> list[tuple[Any, Any]]:
+        """Search through album catalogs to find closest matching solution.
+
+        Args:
+            keywords:
+                A list of keywords, or a string holding keywords separated by whitespace.
+
+        """
         return self._controller.search_manager().search(keywords)
 
     def run(self, solution_to_resolve: str, argv=None, run_async=False):

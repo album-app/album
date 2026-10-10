@@ -63,6 +63,34 @@ class TestSearchManager(TestUnitCoreCommon):
 
         self.assertEqual([], self._search(solutions, ["segmentation"]))
 
+    def test_search_string_is_split_into_keywords(self):
+        solutions = [
+            {
+                "group": "grp",
+                "name": "threshold",
+                "version": "0.1.0",
+                "description": "blur, then threshold",
+            },
+            {
+                "group": "grp",
+                "name": "blur",
+                "version": "0.1.0",
+                "description": "gaussian blur",
+                "args": [{"name": "sigma", "description": "blur radius"}],
+            },
+        ]
+
+        # a string is split at whitespace, not searched character by character
+        self.assertEqual(
+            self._search(solutions, ["threshold", "radius"]),
+            self._search(solutions, "threshold radius"),
+        )
+        self.assertEqual(
+            self._search(solutions, ["blur"]), self._search(solutions, " blur\n")
+        )
+        self.assertEqual([], self._search(solutions, "segmentation"))
+        self.assertEqual([], self._search(solutions, ""))
+
     def test_search_keyword_is_case_insensitive(self):
         solutions = [
             {
