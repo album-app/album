@@ -402,22 +402,118 @@ WHERE name = 'album_collection'"""
         con.close()
 
     def test_update_catalog_collection_version(self):
-        # call
-        self.migration_manager._update_catalog_collection_version()
+        # call: the version of a migration step, not the final version 0.1.0
+        self.migration_manager._update_catalog_collection_version(
+            MMVersion.from_string("0.0.1")
+        )
 
         # assert
         with open(Path(self.tmp_dir.name).joinpath("catalog_collection.json")) as file:
-            self.assertTrue(json.load(file)["catalog_collection_version"] == "0.1.0")
+            self.assertEqual("0.0.1", json.load(file)["catalog_collection_version"])
 
     def test_update_catalog_index_version(self):
-        # call
+        # call: the version of a migration step, not the final version 0.1.0
         self.migration_manager._update_catalog_index_version(
-            Path(self.tmp_dir.name).joinpath("album_catalog_index.json")
+            Path(self.tmp_dir.name).joinpath("album_catalog_index.json"),
+            MMVersion.from_string("0.0.1"),
         )
 
         # assert
         with open(Path(self.tmp_dir.name).joinpath("album_catalog_index.json")) as file:
-            self.assertTrue(json.load(file)["version"] == "0.1.0")
+            self.assertEqual("0.0.1", json.load(file)["version"])
+
+    # a chain of two steps, 0.0.0 -> 0.0.1 -> 0.1.0 (see setUp), whose second script fails
+    _step_one_schema = "CREATE TABLE step_one (spalte_1 INTEGER DEFAULT 0);"
+    _step_two_schema = """CREATE TABLE step_two (spalte_1 INTEGER DEFAULT 0);
+INSERT INTO does_not_exist VALUES (1)"""
+
+    def _schema_of_step(self, curr_version, target_version):
+        if str(target_version) == "0.0.1":
+            return self._step_one_schema
+        return self._step_two_schema
+
+    def test_migrate_collection_index_second_step_fails(self):
+        # prepare
+        collection_db_path = Path(self.tmp_dir.name).joinpath("catalog_collection.db")
+        collection_meta_path = Path(self.tmp_dir.name).joinpath(
+            "catalog_collection.json"
+        )
+        collection_index = MagicMock()
+        collection_index.get_path.return_value = collection_db_path
+        self.migration_manager._load_catalog_collection_migration_schema = MagicMock(
+            side_effect=self._schema_of_step
+        )
+
+        # call
+        with self.assertRaises(RuntimeError) as context:
+            self.migration_manager.migrate_collection_index(
+                collection_index, MMVersion.from_string("0.0.0")
+            )
+
+        # assert: the database is restored to the state after step one,
+        # and the meta file says so, not the final version 0.1.0
+        self.assertIn("from version 0.0.1 to 0.1.0", str(context.exception))
+        self.assertTrue(self._table_exists(collection_db_path, "step_one"))
+        self.assertFalse(self._table_exists(collection_db_path, "step_two"))
+        with open(collection_meta_path) as file:
+            self.assertEqual("0.0.1", json.load(file)["catalog_collection_version"])
+
+    def test_load_catalog_index_second_step_fails(self):
+        # prepare
+        catalog_index_path = Path(self.tmp_dir.name).joinpath("album_catalog_index.db")
+        catalog_meta_path = Path(self.tmp_dir.name).joinpath("album_catalog_index.json")
+        self.migration_manager._load_catalog_index_migration_schema = MagicMock(
+            side_effect=self._schema_of_step
+        )
+
+        # call
+        with self.assertRaises(RuntimeError) as context:
+            self.migration_manager._load_catalog_index(
+                self.catalog, MMVersion.from_string("0.0.0")
+            )
+
+        # assert: the database is restored to the state after step one,
+        # and the meta file says so, not the final version 0.1.0
+        self.assertIn("from version 0.0.1 to 0.1.0", str(context.exception))
+        self.assertTrue(self._table_exists(catalog_index_path, "step_one"))
+        self.assertFalse(self._table_exists(catalog_index_path, "step_two"))
+        with open(catalog_meta_path) as file:
+            self.assertEqual("0.0.1", json.load(file)["version"])
+
+    def test_migration_closes_the_index_before_the_first_step(self):
+        # an open connection keeps a failed step from restoring the database on Windows
+        calls = []
+        index = MagicMock()
+        index.close.side_effect = lambda: calls.append("close")
+        catalog = MagicMock()
+        catalog.index.return_value = index
+        self.migration_manager.migrate_catalog_collection_db = MagicMock(
+            side_effect=lambda *args: calls.append("migrate")
+        )
+        self.migration_manager.migrate_catalog_index_db = MagicMock(
+            side_effect=lambda *args: calls.append("migrate")
+        )
+
+        self.migration_manager.migrate_collection_index(
+            index, MMVersion.from_string("0.0.0")
+        )
+        self.assertEqual(["close", "migrate", "migrate"], calls)
+
+        calls.clear()
+        self.migration_manager._load_catalog_index(
+            catalog, MMVersion.from_string("0.0.0")
+        )
+        self.assertEqual(["close", "migrate", "migrate"], calls)
+
+        # nothing to migrate: the index stays open
+        calls.clear()
+        self.migration_manager.migrate_collection_index(
+            index, MMVersion.from_string("0.1.0")
+        )
+        self.migration_manager._load_catalog_index(
+            catalog, MMVersion.from_string("0.1.0")
+        )
+        self.assertEqual([], calls)
 
     @patch("album.core.controller.migration_manager.files")
     def test_read_collection_database_versions_from_scripts(

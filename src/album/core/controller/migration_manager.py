@@ -47,6 +47,8 @@ class MigrationManager(IMigrationManager):
         )
         if not current_version == target_version:
             if current_version < target_version:
+                # an open connection would keep a failed step from restoring the database on Windows
+                collection_index.close()
                 for vers in range(
                     self.collection_db_versions.index(current_version),
                     self.collection_db_versions.index(target_version),
@@ -78,6 +80,8 @@ class MigrationManager(IMigrationManager):
         )
         if not current_version == target_version:
             if current_version < target_version:
+                # an open connection would keep a failed step from restoring the database on Windows
+                catalog_index.close()
                 for vers in range(
                     self.catalog_db_versions.index(current_version),
                     self.catalog_db_versions.index(target_version),
@@ -112,7 +116,7 @@ class MigrationManager(IMigrationManager):
                     )
                     try:
                         self._execute_migration_script(collection_index_path, schema)
-                        self._update_catalog_collection_version()
+                        self._update_catalog_collection_version(target_version)
                     except Exception as e:
                         module_logger().error(
                             "Could not migrate the catalog collection database: %s" % e
@@ -152,7 +156,9 @@ class MigrationManager(IMigrationManager):
                     )
                     try:
                         self._execute_migration_script(catalog_index_path, schema)
-                        self._update_catalog_index_version(catalog_index_path)
+                        self._update_catalog_index_version(
+                            catalog_index_path, target_version
+                        )
                     except Exception as e:
                         module_logger().error(
                             "Could not migrate the catalog index database: %s" % e
@@ -269,23 +275,28 @@ class MigrationManager(IMigrationManager):
             # close even on failure, otherwise the restore cannot replace the database on Windows
             connection.close()
 
-    def _update_catalog_collection_version(self) -> None:
+    def _update_catalog_collection_version(self, db_version: IMMVersion) -> None:
+        # the version of the migration step, not the final one: if a later step fails,
+        # the meta file must still match the database restored from that step's backup
         catalog_collection_json_path = (
             self.album.configuration().get_catalog_collection_meta_path()
         )
         self.album.collection_manager().write_version_to_json(
             catalog_collection_json_path,
             DefaultValues.catalog_collection_name.value,
-            DefaultValues.catalog_collection_db_version.value,
+            str(db_version),
         )
 
     @staticmethod
-    def _update_catalog_index_version(catalog_index_path: Path) -> None:
+    def _update_catalog_index_version(
+        catalog_index_path: Path, db_version: IMMVersion
+    ) -> None:
+        # the version of the migration step, see _update_catalog_collection_version
         catalog_index_json_path = Path(catalog_index_path).parent.joinpath(
             DefaultValues.catalog_index_metafile_json.value
         )
         index_dict = get_dict_from_json(catalog_index_json_path)
-        index_dict["version"] = DefaultValues.catalog_index_db_version.value
+        index_dict["version"] = str(db_version)
         write_dict_to_json(catalog_index_json_path, index_dict)
 
     @staticmethod
