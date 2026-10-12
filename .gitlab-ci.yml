@@ -77,7 +77,8 @@ workflow:
     - tar -xvjf /tmp/micromamba.tar.bz2 -C $CI_PROJECT_DIR/bin/ --strip-components=1 bin/micromamba
     - MICROMAMBA_EXECUTABLE=$CI_PROJECT_DIR/bin/micromamba
     - $MICROMAMBA_EXECUTABLE --version
-    - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=$TEST_PYTHON_VERSION
+    # OLDEST_PYTHON_VERSION is only set by the job testing the oldest supported Python
+    - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=${OLDEST_PYTHON_VERSION:-$TEST_PYTHON_VERSION}
     - bash -c 'echo $CI_COMMIT_REF_NAME'
     # The following lines allow to install the dev version of the API and envs in the album environment, based on the current branch name
     - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_runner* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No api_change_runner branch"'
@@ -331,6 +332,17 @@ unit tests linux micromamba:
   artifacts:
     paths:
       - unit.coverage
+
+# The oldest Python of requires-python in pyproject.toml; all other jobs use TEST_PYTHON_VERSION.
+# A job cannot override TEST_PYTHON_VERSION itself: the value in the project's CI/CD settings
+# takes precedence over variables defined in this file.
+unit tests linux micromamba oldest python:
+  extends: .linux_base_template_micromamba
+  stage: test
+  variables:
+    OLDEST_PYTHON_VERSION: "3.10"
+  script:
+    - $MICROMAMBA_EXECUTABLE run -n album python -m test.unit.run_all_unit_micromamba
 
 integration tests linux micromamba:
   extends: .linux_base_template_micromamba
