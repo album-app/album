@@ -167,13 +167,15 @@ class CollectionManager(ICollectionManager):
 
     def resolve_installed_and_load(self, resolve_solution: str) -> ICollectionSolution:
         resolve_result = self.resolve_installed(resolve_solution)
+        self.load_resolve_result(resolve_result)
 
+        return resolve_result
+
+    def load_resolve_result(self, resolve_result: ICollectionSolution) -> None:
         loaded_solution = self.album.state_manager().load(resolve_result.path())
         self.solution_handler.set_cache_paths(loaded_solution, resolve_result.catalog())
 
         resolve_result.set_loaded_solution(loaded_solution)
-
-        return resolve_result
 
     def resolve_and_load(self, resolve_solution: str) -> ICollectionSolution:
         resolve_result = self._resolve(resolve_solution)

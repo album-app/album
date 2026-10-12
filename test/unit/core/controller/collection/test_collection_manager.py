@@ -174,6 +174,30 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
             self.album_controller.configuration().cache_path_download(),
         )
 
+    @patch("album.core.controller.state_manager.StateManager.load")
+    def test_load_resolve_result(self, load_mock):
+        # prepare
+        collection_manager = self.album_controller.collection_manager()
+        solution = Solution({"group": "grp", "name": "name", "version": "version"})
+        load_mock.return_value = solution
+        catalog = collection_manager.catalogs().get_cache_catalog()
+        resolve_result = ResolveResult(
+            path=Path("aPath"),
+            catalog=catalog,
+            collection_entry=None,
+            coordinates=Coordinates("grp", "name", "version"),
+        )
+        set_cache_paths = MagicMock()
+        collection_manager.solution_handler.set_cache_paths = set_cache_paths
+
+        # call
+        collection_manager.load_resolve_result(resolve_result)
+
+        # assert
+        load_mock.assert_called_once_with(Path("aPath"))
+        set_cache_paths.assert_called_once_with(solution, catalog)
+        self.assertIs(solution, resolve_result.loaded_solution())
+
     @unittest.skip("Needs to be implemented!")
     def test_resolve_require_installation_and_load_valid_path(self):
         # todo: implement

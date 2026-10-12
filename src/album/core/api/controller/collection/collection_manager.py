@@ -1,14 +1,14 @@
 """The Album Catalog Collection interface class."""
+
 from abc import ABCMeta, abstractmethod
 from typing import Any, Dict
-
-from album.runner.core.api.model.coordinates import ICoordinates
 
 from album.core.api.controller.collection.catalog_handler import ICatalogHandler
 from album.core.api.controller.collection.solution_handler import ISolutionHandler
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
 from album.core.api.model.collection_solution import ICollectionSolution
+from album.runner.core.api.model.coordinates import ICoordinates
 
 
 class ICollectionManager:
@@ -68,6 +68,20 @@ class ICollectionManager:
 
         Returns:
             The resolve result, including the loaded solution.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def load_resolve_result(self, resolve_result: ICollectionSolution) -> None:
+        """Load the solution file of a resolve result and set the solution's cache paths.
+
+        Unlike retrieve_and_load_resolve_result, nothing is downloaded: the file of an
+        installed solution is expected to be present. Lets a caller tell a failed lookup
+        (resolve_installed) apart from a solution file that cannot be loaded.
+
+        Args:
+            resolve_result:
+                The resolve result, for example from resolve_installed.
         """
         raise NotImplementedError
 
