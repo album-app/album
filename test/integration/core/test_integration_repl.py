@@ -1,9 +1,7 @@
 import os
+import re
 import subprocess
 import sys
-
-import pexpect
-
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 
 
@@ -17,31 +15,35 @@ class TestIntegrationRepl(TestIntegrationCoreCommon):
     def test_repl(self):
         solution_path = self.get_test_solution_path("solution8_arguments.py")
         self.fake_install(solution_path)
+        resolve_result = (
+            self.album_controller.collection_manager().resolve_installed_and_load(
+                solution_path
+            )
+        )
+        environment = self.album_controller.environment_manager().set_environment(
+            resolve_result
+        )
         env = os.environ.copy()
         env["ALBUM_BASE_CACHE_PATH"] = str(
             self.album_controller.configuration().base_cache_path()
         )
-        if hasattr(pexpect, "spawn"):
-            cmd = ["-m", "album", "repl", solution_path]
-            child = pexpect.spawn(sys.executable, cmd, env=env)
-            child.sendline("import album")
-            child.sendline("import os")
-            self.assertEqual(0, child.expect(r">>>"))
-            child.sendline("from album.runner.api import get_environment_path")
-            self.assertEqual(0, child.expect(r">>>"))
-            child.sendline("print(os.path.basename(get_environment_path()))")
-            self.assertEqual(0, child.expect(r"0"))
-            child.sendline("exit()")
-            child.close()
-        else:
-            cmd = ["album", "repl", solution_path]
 
-            p = subprocess.Popen(
-                cmd,
-                env=env,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            p.communicate(b"exit()\r")
-            self.assertEqual(0, p.returncode)
+        # call - the REPL reads its input line by line, it needs no terminal
+        process = subprocess.run(
+            [sys.executable, "-m", "album", "repl", solution_path],
+            env=env,
+            input=b"from album.runner.api import get_environment_path\n"
+            b"print('REPL', 'environment:', get_environment_path())\n"
+            b"exit()\n",
+            capture_output=True,
+            timeout=600,
+        )
+
+        # assert - the REPL ran in the environment of the solution
+        output = (process.stdout + process.stderr).decode(errors="replace")
+        self.assertEqual(0, process.returncode, output)
+        self.assertEqual(
+            [str(environment.path())],
+            re.findall(r"REPL environment: (.*?)\r?$", output, re.MULTILINE),
+            output,
+        )
