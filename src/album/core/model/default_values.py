@@ -20,7 +20,7 @@ class DefaultValues(Enum):
     """Add an entry here to initialize default attributes for a album framework installation instance."""
 
     album_cite_doi = "arXiv:2110.00601"  # album DOI
-    album_cite_text = "Albrecht, Schmidt, Harrington. Album: a framework for scientific data processing with software solutions of heterogeneous tools."  # noqa: E501
+    album_cite_text = "Albrecht, Schmidt, Rieckert, Otto, Harrington. Album: executable building blocks for scientific imaging routines, from sharing to LLM-assisted orchestration."  # noqa: E501
     album_cite_url = "https://album.solutions"  # album url
 
     # runner

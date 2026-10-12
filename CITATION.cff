@@ -1,0 +1,49 @@
+# Everyone with a merged contribution to album is listed under "authors": the core team first,
+# then the contributors in the order of their first contribution. Add yourself with your first
+# merge request. The publication about album is the preferred citation.
+cff-version: 1.2.0
+message: "If you use album, please cite it using these metadata."
+type: software
+title: album
+abstract: "Album is a framework for unifying computational tools across frameworks, languages, and environments."
+authors:
+  - family-names: Harrington
+    given-names: Kyle
+  - family-names: Albrecht
+    given-names: Jan Philipp
+  - family-names: Schmidt
+    given-names: Deborah
+  - family-names: Rieckert
+    given-names: Lucas
+  - family-names: Kutra
+    given-names: Dominik
+  - family-names: Otto
+    given-names: Maximilian
+  - family-names: Proft
+    given-names: Sebastian
+repository-code: "https://gitlab.com/album-app/album"
+url: "https://album.solutions"
+license: MIT
+keywords:
+  - virtual environments
+  - imaging
+  - data analysis
+preferred-citation:
+  type: article
+  title: "Album: executable building blocks for scientific imaging routines, from sharing to LLM-assisted orchestration"
+  authors:
+    - family-names: Albrecht
+      given-names: Jan Philipp
+    - family-names: Schmidt
+      given-names: Deborah
+    - family-names: Rieckert
+      given-names: Lucas
+    - family-names: Otto
+      given-names: Maximilian
+    - family-names: Harrington
+      given-names: Kyle
+  year: 2026
+  month: 4
+  journal: arXiv preprint
+  doi: "10.48550/arXiv.2110.00601"
+  url: "https://arxiv.org/abs/2110.00601v2"
