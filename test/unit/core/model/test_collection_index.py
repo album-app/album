@@ -953,6 +953,96 @@ class TestCollectionIndex(TestUnitCoreCommon):
         self.assertEqual([], r1)
         self.assertListEqual(expected, r2)
 
+    def _insert_two_versions_in_two_catalogs(self):
+        """Insert grp:name:0.1.0 and grp:name:0.2.0 into the catalogs 1 and 2."""
+        for solution_id, (catalog_id, version) in enumerate(
+            [(1, "0.1.0"), (1, "0.2.0"), (2, "0.1.0"), (2, "0.2.0")]
+        ):
+            self.test_catalog_collection_index.insert_solution(
+                catalog_id,
+                self._get_solution_attrs(
+                    solution_id, "grp", "name", version, attrs={"description": "d"}
+                ),
+            )
+
+    def _descriptions(self):
+        """Map (catalog_id, version) to the description of each solution entry."""
+        return {
+            (r._internal["catalog_id"], r._setup["version"]): r._setup["description"]
+            for r in self.test_catalog_collection_index.get_all_solutions()
+        }
+
+    def test_update_solution_identity_in_attrs(self):
+        self._insert_two_versions_in_two_catalogs()
+
+        # the attributes of a loaded solution hold its group, name and version,
+        # matching the entry: only that entry changes
+        self.test_catalog_collection_index.update_solution(
+            1,
+            Coordinates("grp", "name", "0.1.0"),
+            {
+                "catalog_id": 1,
+                "group": "grp",
+                "name": "name",
+                "version": "0.1.0",
+                "description": "updated",
+            },
+            CollectionIndex.get_collection_column_keys(),
+        )
+
+        self.assertEqual(
+            {
+                (1, "0.1.0"): "updated",
+                (1, "0.2.0"): "d",
+                (2, "0.1.0"): "d",
+                (2, "0.2.0"): "d",
+            },
+            self._descriptions(),
+        )
+
+    def test_update_solution_other_identity_in_attrs(self):
+        self._insert_two_versions_in_two_catalogs()
+
+        # an update does not move an entry, and the attributes must not
+        # redirect it to another entry (they used to replace the WHERE values)
+        for other_identity in [
+            {"version": "0.2.0"},
+            {"name": "renamed"},
+            {"group": "other"},
+            {"catalog_id": 2},
+        ]:
+            with self.subTest(other_identity=other_identity):
+                with self.assertRaises(ValueError):
+                    self.test_catalog_collection_index.update_solution(
+                        1,
+                        Coordinates("grp", "name", "0.1.0"),
+                        dict(other_identity, description="updated"),
+                        CollectionIndex.get_collection_column_keys(),
+                    )
+
+                self.assertNotIn("updated", self._descriptions().values())
+
+    def test_update_solution_failed_write(self):
+        # e.g. "database is locked": the failed transaction is not kept
+        # on the cached connection, and nothing is committed
+        cursor = MagicMock()
+        cursor.execute.side_effect = sqlite3.OperationalError("database is locked")
+        self.test_catalog_collection_index.get_cursor = MagicMock(return_value=cursor)
+        close_current_connection = MagicMock()
+        self.test_catalog_collection_index.close_current_connection = (
+            close_current_connection
+        )
+
+        with self.assertRaises(sqlite3.OperationalError):
+            self.test_catalog_collection_index.update_solution(
+                1,
+                Coordinates("grp", "name", "0.1.0"),
+                {"last_execution": datetime(2026, 10, 9).isoformat()},
+                ["last_execution"],
+            )
+
+        close_current_connection.assert_called_once_with(commit=False)
+
     @unittest.skip("Needs to be implemented!")
     def test_get_solutions_by_catalog(self):
         pass
