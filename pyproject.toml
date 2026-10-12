@@ -41,15 +41,19 @@ dependencies = [
     "validators>=0.18.2",
     "gitpython>=3.1.13",
     "requests>=2.25.1",
-    "pexpect>=4.8.0",
     "jsonschema>=4.0.0",
     "colorlog>=6.6.0",
     'pywin32>=303 ; platform_system== "Windows"',
     "packaging>=21.3",
-    "pre-commit>=2.20.0",
     "pooch>=1.4.0",
 ]
 
+# Only needed to develop album, never installed with it.
+# Install with "pip install --group dev" (pip >= 25.1).
+[dependency-groups]
+dev = [
+    "pre-commit>=3.2.0", # runs the hooks of .pre-commit-config.yaml
+]
 
 [project.urls]
 Documentation = "https://docs.album.solutions/en/latest/"
