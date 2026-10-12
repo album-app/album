@@ -285,7 +285,7 @@ class TestInstallManager(TestUnitCoreCommon):
 
         # assert
         _install_parent.assert_called_once_with(
-            "aParent", "1.0.1", Coordinates("tsg", "tsn", "tsv")
+            "aParent", "1.0.1", Coordinates("tsg", "tsn", "tsv"), allow_recursive=False
         )
         run_solution_install_routine.assert_called_once_with(r)
         install_environment.assert_not_called()
@@ -294,6 +294,13 @@ class TestInstallManager(TestUnitCoreCommon):
         internal_cache_path.assert_called_once()
         package_path.assert_called_once()
         data_path.assert_called_once()
+
+        # the solution runs in the environment of its parent, the flag goes there
+        _install_parent.reset_mock()
+        self.install_manager._install_active_solution(r, allow_recursive=True)
+        _install_parent.assert_called_once_with(
+            "aParent", "1.0.1", Coordinates("tsg", "tsn", "tsv"), allow_recursive=True
+        )
 
     @unittest.skip("Needs to be implemented!")
     def test_run_solution_install_routine(self):
@@ -334,9 +341,19 @@ class TestInstallManager(TestUnitCoreCommon):
         )
 
         # asert
-        _install.assert_called_once_with(r, parent=True)
+        _install.assert_called_once_with(r, parent=True, allow_recursive=False)
         resolve.assert_called_once()
         build_resolve_string_mock.assert_called_once_with({"myDictKey": "myDeps"})
+
+        # allow_recursive reaches the installation of the parent
+        _install.reset_mock()
+        self.install_manager._install_parent(
+            {"myDictKey": "myDeps"},
+            "5.1.0",
+            Coordinates("a", "b", "c"),
+            allow_recursive=True,
+        )
+        _install.assert_called_once_with(r, parent=True, allow_recursive=True)
 
     @patch(
         "album.core.controller.install_manager.build_resolve_string",

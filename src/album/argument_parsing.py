@@ -246,7 +246,10 @@ def create_install_parser(parser):
     p.add_argument(
         "--allow-recursive",
         required=False,
-        help="Parameter to indicate to allow album in album installation.",
+        help="Install even if the solution environment requires a different album version (album in album). "
+        "Both albums then share the base path and collection database unless configured otherwise, "
+        "which can break the database or the solution's runner. The same or an unpinned album version "
+        "is always accepted, with a warning.",
         action="store_true",
     )
 

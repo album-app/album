@@ -1,7 +1,12 @@
 import os
+import re
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
+
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.utils import canonicalize_name
+from packaging.version import InvalidVersion, Version
 
 from album.core import __version__ as album_version
 from album.core.api.controller.controller import IAlbumController
@@ -109,74 +114,103 @@ class EnvironmentManager(IEnvironmentManager):
         return environment
 
     @staticmethod
-    def _get_pypi_package_name_version(str_: str) -> Tuple[str, str]:
-        if "==" in str_:
-            p = str_.split("==")[0]
-            v = str_.split("==")[-1]
-        elif "~=" in str_:
-            p = str_.split("~=")[0]
-            v = str_.split("~=")[-1]
-        else:
-            p = str_
-            v = ""
-        return p, v
+    def _is_running_album_version(version_str: str) -> bool:
+        try:
+            return Version(version_str) == Version(album_version)
+        except InvalidVersion:
+            return version_str == album_version
+
+    @staticmethod
+    def _conda_album_dependency(dependency: str) -> Optional[bool]:
+        """Check a conda dependency (a match spec) for album.
+
+        Returns None if the dependency is not album, True if it is album without a
+        version or with exactly the running version, and False for any other version
+        spec, e.g. another version or a range.
+        """
+        # e.g. "album", "album=0.1.0", "album 0.1.0 py_0", "conda-forge::album>=0.1"
+        spec = dependency.strip().split("::")[-1]
+        match = re.match(r"([A-Za-z0-9_.\-]+)\s*(.*)$", spec)
+        if not match or match.group(1).lower() != "album":
+            return None
+        version_spec = match.group(2).strip()
+        bracket = re.match(
+            r"^\[\s*version\s*=\s*[\"']?([^\"'\],]*)[\"']?\s*\]$", version_spec
+        )
+        if bracket:  # album[version='0.1.0']
+            version_spec = bracket.group(1).strip()
+        if not version_spec:
+            return True
+        # one exact version, as "=0.1.0", "==0.1.0" or "0.1.0", optionally followed by a build
+        exact = re.match(
+            r"^(?:==?)?\s*([0-9][0-9A-Za-z._+!\-]*)(?:[=\s].*)?$", version_spec
+        )
+        if not exact:
+            return False
+        return EnvironmentManager._is_running_album_version(exact.group(1))
+
+    @staticmethod
+    def _pip_album_dependency(dependency: str) -> Optional[bool]:
+        """Check a pip dependency (a requirement) for album, see _conda_album_dependency."""
+        try:
+            requirement = Requirement(dependency)
+        except InvalidRequirement:  # e.g. an option like "--index-url ..."
+            return None
+        if canonicalize_name(requirement.name) != "album":
+            return None
+        if requirement.url:  # album @ git+https://...
+            return False
+        specifiers = list(requirement.specifier)
+        if not specifiers:
+            return True
+        if (
+            len(specifiers) == 1
+            and specifiers[0].operator in ("==", "===")
+            and "*" not in specifiers[0].version
+        ):
+            return EnvironmentManager._is_running_album_version(specifiers[0].version)
+        return False
 
     def _check_album_in_album(
         self, yml_dict: Dict[str, Any], allow_recursive: bool = False
     ) -> None:
-        album_installed_version = None
-        if "dependencies" in yml_dict:
-            for dep in yml_dict["dependencies"]:
-                # check for pip dependencies
-                if isinstance(dep, dict):
-                    if "pip" in dep:
-                        for pip_dep in dep["pip"]:
-                            if (
-                                "album"
-                                == self._get_pypi_package_name_version(pip_dep)[0]
-                            ):
-                                album_installed_version = (
-                                    self._get_pypi_package_name_version(pip_dep)[-1]
-                                )
-                                # check if unversioned
-                                album_installed_version = (
-                                    album_version
-                                    if album_installed_version == ""
-                                    else album_installed_version
-                                )
-                                break
-                if isinstance(dep, str):
-                    if "album" == dep.split("=")[0]:
-                        album_installed_version = dep.split("=")[-1]
-                        # check if unversioned
-                        album_installed_version = (
-                            album_version
-                            if album_installed_version == "album"
-                            else album_installed_version
-                        )
-                        break
+        # every album dependency, with whether it is the running version (or unversioned)
+        album_dependencies: List[Tuple[str, bool]] = []
+        for dep in yml_dict.get("dependencies") or []:
+            if isinstance(dep, dict):
+                for pip_dep in dep.get("pip") or []:
+                    running = self._pip_album_dependency(str(pip_dep))
+                    if running is not None:
+                        album_dependencies.append(("pip: %s" % pip_dep, running))
+            elif isinstance(dep, str):
+                running = self._conda_album_dependency(dep)
+                if running is not None:
+                    album_dependencies.append((dep, running))
 
-        if album_installed_version == album_version:
+        if not album_dependencies:
+            return
+
+        other_versions = [dep for dep, running in album_dependencies if not running]
+        if not other_versions:
             module_logger().warning(
                 "Album is planned to be installed in the solution environment. "
-                "This might cause issues when sharing the same database!"
+                "This might cause issues when sharing the same database! "
                 "Only proceed if you know what you are doing!"
             )
-        if album_installed_version is not None and (
-            album_installed_version != album_version
-        ):
-            str_ = (
-                "Album is planned to be installed in the solution environment with a different version."
-                " They might be incompatible! It is recommended to update the parent solution!"
-                " If you know what you are doing, set allow_recursive during installation!"
-            )
-            if not allow_recursive:
-                module_logger().error(str_)
-                raise ValueError(str_)
-            else:
-                module_logger().info(
-                    "Potentially incompatible installation of album in album detected!"
-                )
+            return
+
+        str_ = (
+            "Album is planned to be installed in the solution environment with a different version"
+            ' ("%s", running album %s).' % ('", "'.join(other_versions), album_version)
+            + " They might be incompatible! It is recommended to update the parent solution!"
+            " If you know what you are doing, set allow_recursive during installation!"
+        )
+        if not allow_recursive:
+            module_logger().error(str_)
+            raise ValueError(str_)
+        module_logger().info(
+            "Potentially incompatible installation of album in album detected!"
+        )
 
     def set_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
         db_entry = collection_solution.database_entry()

@@ -7,6 +7,7 @@ from pathlib import Path
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 from unittest.mock import MagicMock, patch
 
+from album.core import __version__ as album_version
 from album.core.model.catalog import Catalog
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import (
@@ -160,6 +161,83 @@ class TestEnvironmentManager(TestUnitCoreCommon):
 
         self.assertEqual("catalog2_g_grandparent_1.0.0", environment.name())
         get_by_id.assert_called_once_with(2)
+
+    def _check_album_in_album_logs(self, dependencies, allow_recursive=False):
+        """Run the album-in-album check and return the log lines it adds."""
+        before = len(self.get_logs())
+        self.environment_manager._check_album_in_album(
+            {"dependencies": dependencies}, allow_recursive
+        )
+        return "\n".join(self.get_logs()[before:])
+
+    def test__check_album_in_album(self):
+        running = album_version
+        no_album = [
+            None,
+            [],
+            ["python=3.10"],
+            ["album-solution-api=0.7.1", "albumentations", "conda-forge::album-gui"],
+            [{"pip": ["album-gui", "albumentations==1.0", "--index-url https://x"]}],
+        ]
+        # album without a version, or exactly the running one: allowed with a warning
+        same_version = [
+            "album",
+            "conda-forge/label/dev::album",
+            "album=%s" % running,
+            "album==%s" % running,
+            "album %s" % running,
+            "album %s py_0" % running,
+            "album=%s=py_0" % running,
+            "conda-forge::album=%s" % running,
+            "album[version='%s']" % running,
+            {"pip": ["album"]},
+            {"pip": ["album==%s" % running]},
+        ]
+        # any other version spec: rejected without allow_recursive
+        other_version = [
+            "album=0.1.0",
+            "album==0.1.0",
+            "album>=0.1.0",
+            "album<1",
+            "album 0.1.0",
+            "album=0.1.*",
+            "conda-forge::album=0.1.0",
+            "album[version='>=0.1']",
+            {"pip": ["album==0.1.0"]},
+            {"pip": ["album>=0.1.0"]},
+            {"pip": ["album~=%s" % running]},  # a range, may install another version
+            {"pip": ["album @ git+https://gitlab.com/album-app/album.git"]},
+        ]
+
+        for dependencies in no_album:
+            with self.subTest(dependencies=dependencies):
+                logs = self._check_album_in_album_logs(dependencies)
+                self.assertNotIn("Album is planned", logs)
+
+        for dependency in same_version:
+            with self.subTest(dependency=dependency):
+                logs = self._check_album_in_album_logs(["python=3.10", dependency])
+                self.assertIn(
+                    "sharing the same database! Only proceed if you know what you are doing!",
+                    logs,
+                )
+
+        for dependency in other_version:
+            with self.subTest(dependency=dependency):
+                with self.assertRaises(ValueError) as context:
+                    self._check_album_in_album_logs(["python=3.10", dependency])
+                self.assertIn("running album %s" % running, str(context.exception))
+                self.assertIn(
+                    "set allow_recursive during installation", str(context.exception)
+                )
+
+                logs = self._check_album_in_album_logs(
+                    ["python=3.10", dependency], allow_recursive=True
+                )
+                self.assertIn(
+                    "Potentially incompatible installation of album in album detected!",
+                    logs,
+                )
 
     @unittest.skip("Needs to be implemented!")
     def test_remove_environment(self):
