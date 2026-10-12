@@ -1,4 +1,5 @@
 """Interface handling the installation and uninstallation process of a solution."""
+
 from abc import ABCMeta, abstractmethod
 from typing import List, Optional
 
@@ -32,8 +33,8 @@ class IInstallManager:
                 Allow the environment of the solution to install a different album
                 version than the running one (album in album). Without it, such a
                 solution is not installed (ValueError). The same or an unversioned
-                album is always allowed, with a warning. Has no effect for a
-                solution with a parent: the parent environment is checked without it.
+                album is always allowed, with a warning. A solution with a parent runs
+                in the environment of its parent, so there it applies to the parent.
             argv:
                 Not used. The install routine of a solution takes no arguments.
                 Kept so that existing positional and keyword calls keep working.

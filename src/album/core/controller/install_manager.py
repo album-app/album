@@ -1,7 +1,5 @@
 from typing import Any, Dict, List, Optional
 
-from album.environments.utils.subcommand import SubProcessError
-
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.install_manager import IInstallManager
 from album.core.api.model.collection_index import ICollectionIndex
@@ -18,6 +16,7 @@ from album.core.utils.operations.solution_operations import (
     get_deploy_dict,
     get_parent_dict,
 )
+from album.environments.utils.subcommand import SubProcessError
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
@@ -180,6 +179,7 @@ class InstallManager(IInstallManager):
                     parent,
                     collection_solution.loaded_solution().setup().album_api_version,
                     collection_solution.coordinates(),
+                    allow_recursive=allow_recursive,
                 )
             except Exception as e:
                 module_logger().error("Exception when installing parent:")
@@ -246,6 +246,7 @@ class InstallManager(IInstallManager):
         parent_dict: Dict[str, Any],
         api_version: str,
         child_coordinates: ICoordinates,
+        allow_recursive: bool = False,
     ) -> ICollectionSolution:
         resolve_solution = build_resolve_string(parent_dict)
         resolve_result_parent = self.album.collection_manager().resolve_and_load(
@@ -273,8 +274,11 @@ class InstallManager(IInstallManager):
                 )
             )
 
-        # recursive installation call. Not failing for already installed solutions. parent set to "True"
-        self._install_loaded_resolve_result(resolve_result_parent, parent=True)
+        # recursive installation call. Not failing for already installed solutions. parent set to "True".
+        # The child runs in the environment of its parent, so the album-in-album check applies there.
+        self._install_loaded_resolve_result(
+            resolve_result_parent, parent=True, allow_recursive=allow_recursive
+        )
         return resolve_result_parent
 
     def uninstall(
