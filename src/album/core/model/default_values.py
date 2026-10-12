@@ -97,6 +97,13 @@ class DefaultValues(Enum):
 
     shared_globally_suffix = "shared_downloads"  # suffix for shared globally downloads
 
+    # base folder prefix of the lock files, one per solution, locked while the solution
+    # is installed, uninstalled or downloaded (see ISolutionHandler.get_solution_lock)
+    lock_folder_prefix = "locks"
+    install_lock_timeout_in_seconds = (
+        2 * 60 * 60
+    )  # how long to wait for another album process to finish installing or uninstalling a solution
+
     # solutions
     solution_default_name = (
         "solution.py"  # default name how solution.py files are called

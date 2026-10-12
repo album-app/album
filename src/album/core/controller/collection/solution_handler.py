@@ -1,13 +1,9 @@
 import os
+import threading
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Dict, Optional
-
-from album.environments.utils.file_operations import copy, copy_folder
-from album.runner import album_logging
-from album.runner.core.api.model.coordinates import ICoordinates
-from album.runner.core.api.model.solution import ISolution
 
 from album.core.api.controller.collection.solution_handler import ISolutionHandler
 from album.core.api.controller.controller import IAlbumController
@@ -18,6 +14,7 @@ from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.model.link import Link
+from album.core.utils.file_lock import FileLock
 from album.core.utils.operations.file_operations import (
     construct_cache_link_target,
     force_remove,
@@ -32,6 +29,10 @@ from album.core.utils.operations.resolve_operations import (
     get_zip_name,
 )
 from album.core.utils.operations.solution_operations import get_deploy_dict
+from album.environments.utils.file_operations import copy, copy_folder
+from album.runner import album_logging
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
 
 module_logger = album_logging.get_active_logger
 
@@ -44,6 +45,8 @@ class SolutionHandler(ISolutionHandler):
 
     def __init__(self, album: IAlbumController):
         self.album = album
+        self._locks: Dict[Path, FileLock] = {}
+        self._locks_creation = threading.Lock()
 
     def add_or_replace(self, catalog: ICatalog, solution: ICollectionSolution) -> None:
         deploy_dict = get_deploy_dict(solution.loaded_solution())
@@ -280,6 +283,32 @@ class SolutionHandler(ISolutionHandler):
         return self.get_solution_package_path(catalog, coordinates).joinpath(
             DefaultValues.solution_default_name.value
         )
+
+    def get_solution_lock(
+        self, catalog: ICatalog, coordinates: ICoordinates
+    ) -> FileLock:
+        lock_file = (
+            self.album.configuration()
+            .base_cache_path()
+            .joinpath(
+                DefaultValues.lock_folder_prefix.value,
+                catalog.name(),
+                coordinates.group(),
+                coordinates.name(),
+                "%s.lock" % coordinates.version(),
+            )
+        )
+        # one lock per solution, which the thread holding it acquires again instead of
+        # waiting for itself
+        with self._locks_creation:
+            if lock_file not in self._locks:
+                self._locks[lock_file] = FileLock(
+                    lock_file,
+                    timeout=DefaultValues.install_lock_timeout_in_seconds.value,
+                    description=f'installing or uninstalling "{catalog.name()}:{coordinates}" '
+                    "or a solution depending on it",
+                )
+            return self._locks[lock_file]
 
     def get_solution_zip_suffix(self, coordinates: ICoordinates) -> Path:
         return Path("").joinpath(

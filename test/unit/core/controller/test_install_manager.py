@@ -1,14 +1,65 @@
+import sys
+import threading
+import time
 import unittest.mock
+from contextlib import ExitStack
 from copy import deepcopy
 from pathlib import Path
+from test.test_common import TEST_ALBUM_API_VERSION
 from test.unit.test_unit_core_common import EmptyTestClass, TestUnitCoreCommon
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, call, patch
 
+from album.core.api.model.catalog import ICatalog
+from album.core.controller.album_controller import AlbumController
 from album.core.controller.install_manager import InstallManager
 from album.core.model.collection_index import CollectionIndex
+from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
+from album.core.utils.file_lock import FileLock
 from album.runner.core.model.coordinates import Coordinates
 from album.runner.core.model.solution import Solution
+
+# the solution of the tests, as set up by setup_solution_no_env()
+SOLUTION = Coordinates("tsg", "tsn", "tsv")
+
+
+def lock_path(
+    album_controller: AlbumController, catalog: ICatalog, coordinates: Coordinates
+) -> Path:
+    return (
+        album_controller.configuration()
+        .base_cache_path()
+        .joinpath(
+            DefaultValues.lock_folder_prefix.value,
+            catalog.name(),
+            coordinates.group(),
+            coordinates.name(),
+            "%s.lock" % coordinates.version(),
+        )
+    )
+
+
+def lock_of_other_process(
+    album_controller: AlbumController, catalog: ICatalog, coordinates: Coordinates
+) -> FileLock:
+    # what another album process using the same base path holds while it installs
+    # or uninstalls the solution
+    return FileLock(
+        lock_path(album_controller, catalog, coordinates),
+        timeout=0,
+        description="testing",
+    )
+
+
+def lock_is_free(
+    album_controller: AlbumController, catalog: ICatalog, coordinates: Coordinates
+) -> bool:
+    # as seen by another album process using the same base path
+    lock = lock_of_other_process(album_controller, catalog, coordinates)
+    if not lock.acquire(blocking=False):
+        return False
+    lock.release()
+    return True
 
 
 class TestInstallManager(TestUnitCoreCommon):
@@ -18,10 +69,28 @@ class TestInstallManager(TestUnitCoreCommon):
         self.setup_solution_no_env()
         self.install_manager: InstallManager = self.album_controller.install_manager()
         self.environment_manager = self.album_controller.environment_manager()
+        self.catalog = (
+            self.album_controller.collection_manager().catalogs().get_cache_catalog()
+        )
+        # waiting for the lock of the solution fails the test after 0.2 s instead of
+        # after two hours
+        self._solution_lock()._timeout = 0.2
         self.assertEqual(self.album_controller, self.install_manager.album)
 
     def tearDown(self) -> None:
         super().tearDown()
+
+    def _solution_lock(self, coordinates: Coordinates = SOLUTION) -> FileLock:
+        # the lock of the solution held by this album instance
+        return self.album_controller.solutions().get_solution_lock(
+            self.catalog, coordinates
+        )
+
+    def _lock_of_other_process(self, coordinates: Coordinates = SOLUTION) -> FileLock:
+        return lock_of_other_process(self.album_controller, self.catalog, coordinates)
+
+    def _lock_is_free(self, coordinates: Coordinates = SOLUTION) -> bool:
+        return lock_is_free(self.album_controller, self.catalog, coordinates)
 
     def test_install(self):
         # create mocks
@@ -54,9 +123,14 @@ class TestInstallManager(TestUnitCoreCommon):
         # TODO implement
         pass
 
-    def _prepare_install_loaded_resolve_result(self, installed, catalog=True):
+    def _prepare_install_loaded_resolve_result(
+        self, installed, catalog=True, path: Path = None
+    ):
+        if path is None:
+            path = Path(self.tmp_dir.name).joinpath("solution.py")
+            path.touch()
         resolve_result = ResolveResult(
-            path=Path("aPath"),
+            path=path,
             catalog=(
                 self.album_controller.collection_manager()
                 .catalogs()
@@ -72,6 +146,11 @@ class TestInstallManager(TestUnitCoreCommon):
         # mocks
         self.is_installed = MagicMock(return_value=installed)
         self.install_manager._resolve_result_is_installed = self.is_installed
+
+        self.clean_unfinished_installation = MagicMock()
+        self.install_manager._clean_unfinished_installation = (
+            self.clean_unfinished_installation
+        )
 
         self.register = MagicMock()
         self.install_manager._register = self.register
@@ -96,14 +175,17 @@ class TestInstallManager(TestUnitCoreCommon):
         # call
         self.install_manager._install_loaded_resolve_result(r)
 
-        # assert
-        self.is_installed.assert_called_once_with(r)  # checked once, not re-checked
+        # assert - checked before waiting for the lock and again holding it
+        self.assertEqual([call(r), call(r)], self.is_installed.call_args_list)
+        self.clean_unfinished_installation.assert_called_once_with(
+            r.catalog(), r.coordinates()
+        )
         self.register.assert_called_once_with(r)
         clean_resolve_tmp.assert_called_once()  # cache catalog
         self.set_installation_unfinished.assert_called_once_with(
             r.catalog(), r.coordinates()
         )
-        self.install_active_solution.assert_called_once_with(r, False)
+        self.install_active_solution.assert_called_once_with(r, ANY, False)
         self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
         self.assertIn('Installing "tsn"...', self.get_logs_as_string())
 
@@ -115,12 +197,178 @@ class TestInstallManager(TestUnitCoreCommon):
         self.install_manager._install_loaded_resolve_result(r, parent=True)
 
         # assert
-        self.is_installed.assert_called_once_with(r)
+        self.assertEqual([call(r), call(r)], self.is_installed.call_args_list)
         self.register.assert_called_once_with(r)
         clean_resolve_tmp.assert_not_called()  # only cleaned for the child
-        self.install_active_solution.assert_called_once_with(r, False)
+        self.install_active_solution.assert_called_once_with(r, ANY, False)
         self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
         self.assertIn('Installing parent solution "tsn"...', self.get_logs_as_string())
+
+    @patch("album.core.controller.install_manager.clean_resolve_tmp")
+    def test__install_loaded_resolve_result_holds_lock(self, _):
+        r = self._prepare_install_loaded_resolve_result(installed=False)
+        lock_free = []
+        for step in [
+            self.clean_unfinished_installation,
+            self.register,
+            self.install_active_solution,
+            self.set_installed,
+        ]:
+            step.side_effect = lambda *args: lock_free.append(self._lock_is_free())
+
+        # call
+        self.install_manager._install_loaded_resolve_result(r)
+
+        # assert
+        self.assertEqual([False, False, False, False], lock_free)
+        self.assertTrue(self._lock_is_free())
+
+    def test__install_loaded_resolve_result_releases_lock_on_failure(self):
+        r = self._prepare_install_loaded_resolve_result(installed=False)
+        self.install_active_solution.side_effect = RuntimeError("Installation failed!")
+
+        # call
+        with self.assertRaises(RuntimeError):
+            self.install_manager._install_loaded_resolve_result(r)
+
+        # assert
+        self.assertTrue(self._lock_is_free())
+
+    def test__install_loaded_resolve_result_removes_failed_installation(self):
+        r = self._prepare_install_loaded_resolve_result(installed=False)
+        error = RuntimeError("Installation failed!")
+        self.install_active_solution.side_effect = error
+        lock_free = []
+        self.clean_unfinished_installation.side_effect = lambda *args: (
+            lock_free.append(self._lock_is_free())
+        )
+
+        # call
+        with self.assertRaises(RuntimeError) as context:
+            self.install_manager._install_loaded_resolve_result(r)
+
+        # assert - a leftover is removed before installing, the failed installation
+        # right after it failed, both holding the lock
+        self.assertIs(error, context.exception)
+        self.assertEqual(
+            [call(r.catalog(), r.coordinates()), call(r.catalog(), r.coordinates())],
+            self.clean_unfinished_installation.call_args_list,
+        )
+        self.assertEqual([False, False], lock_free)
+        self.set_installed.assert_not_called()
+        self.assertTrue(self._lock_is_free())
+
+    def test__install_loaded_resolve_result_interrupted(self):
+        r = self._prepare_install_loaded_resolve_result(installed=False)
+        self.install_active_solution.side_effect = KeyboardInterrupt()
+
+        # call
+        with self.assertRaises(KeyboardInterrupt):
+            self.install_manager._install_loaded_resolve_result(r)
+
+        # assert - removed as well
+        self.assertEqual(2, self.clean_unfinished_installation.call_count)
+        self.assertTrue(self._lock_is_free())
+
+    def test__install_loaded_resolve_result_not_marked_installed(self):
+        r = self._prepare_install_loaded_resolve_result(installed=False)
+        self.set_installed.side_effect = RuntimeError("Database is locked!")
+
+        # call
+        with self.assertRaises(RuntimeError):
+            self.install_manager._install_loaded_resolve_result(r)
+
+        # assert - not left installed but marked unfinished
+        self.assertEqual(2, self.clean_unfinished_installation.call_count)
+
+    def test__install_loaded_resolve_result_failed_installation_not_removed(self):
+        r = self._prepare_install_loaded_resolve_result(installed=False)
+        self.install_active_solution.side_effect = RuntimeError("Installation failed!")
+        # the failed installation cannot be removed
+        self.clean_unfinished_installation.side_effect = [None, PermissionError("busy")]
+
+        # call - raises the error of the installation
+        with self.assertRaisesRegex(RuntimeError, "Installation failed!"):
+            self.install_manager._install_loaded_resolve_result(r)
+
+        # assert - it stays marked unfinished, the next installation removes it
+        self.assertIn(
+            'Cannot remove the unfinished installation of "tsg:tsn:tsv": busy',
+            self.get_logs_as_string(),
+        )
+        self.assertTrue(self._lock_is_free())
+
+    def test__install_loaded_resolve_result_waits_for_other_process(self):
+        r = self._prepare_install_loaded_resolve_result(installed=False)
+
+        # another album process using the same base path installs the solution
+        with self._lock_of_other_process():
+            # call
+            with self.assertRaises(TimeoutError):
+                self.install_manager._install_loaded_resolve_result(r)
+
+        # assert - its installation in progress is not touched
+        self.clean_unfinished_installation.assert_not_called()
+        self.register.assert_not_called()
+        self.install_active_solution.assert_not_called()
+        self.assertIn(
+            "Waiting for another album process or thread to finish installing or "
+            'uninstalling "%s:tsg:tsn:tsv" or a solution depending on it'
+            % self.catalog.name(),
+            self.get_logs_as_string(),
+        )
+
+    @patch("album.core.controller.install_manager.clean_resolve_tmp")
+    def test__install_loaded_resolve_result_other_solution_locked(self, _):
+        r = self._prepare_install_loaded_resolve_result(installed=False)
+
+        # another album process using the same base path installs another solution
+        with self._lock_of_other_process(Coordinates("tsg", "other", "tsv")):
+            # call
+            self.install_manager._install_loaded_resolve_result(r)
+
+        # assert - installed without waiting
+        self.install_active_solution.assert_called_once()
+        self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
+        self.assertNotIn("Waiting", self.get_logs_as_string())
+
+    def test__install_loaded_resolve_result_installed_while_waiting(self):
+        r = self._prepare_install_loaded_resolve_result(installed=False)
+        # another album process installed it while this one waited for the lock
+        self.is_installed.side_effect = [False, True]
+
+        # call
+        self.install_manager._install_loaded_resolve_result(r)
+
+        # assert
+        self.clean_unfinished_installation.assert_not_called()
+        self.register.assert_not_called()
+        self.install_active_solution.assert_not_called()
+        self.assertIn(
+            'Solution "tsn" already installed. Skipping...', self.get_logs_as_string()
+        )
+
+    @patch("album.core.controller.install_manager.clean_resolve_tmp")
+    def test__install_loaded_resolve_result_solution_files_removed(self, _):
+        # e.g. by another album process that failed to install the solution while
+        # this one waited for the lock, or with an unfinished installation
+        r = self._prepare_install_loaded_resolve_result(
+            installed=False, path=Path(self.tmp_dir.name).joinpath("gone.py")
+        )
+        retrieve_and_load_resolve_result = MagicMock()
+        self.album_controller.collection_manager().retrieve_and_load_resolve_result = (
+            retrieve_and_load_resolve_result
+        )
+        set_cache_paths = MagicMock()
+        self.album_controller.solutions().set_cache_paths = set_cache_paths
+
+        # call
+        self.install_manager._install_loaded_resolve_result(r)
+
+        # assert - retrieved and loaded again
+        retrieve_and_load_resolve_result.assert_called_once_with(r)
+        set_cache_paths.assert_called_once_with(r.loaded_solution(), r.catalog())
+        self.install_active_solution.assert_called_once()
 
     def test__install_loaded_resolve_result_already_installed(self):
         r = self._prepare_install_loaded_resolve_result(installed=True)
@@ -214,7 +462,7 @@ class TestInstallManager(TestUnitCoreCommon):
         )
 
         # call
-        self.install_manager._install_active_solution(r)
+        self.install_manager._install_active_solution(r, ExitStack())
 
         # assert
         run_solution_install_routine.assert_called_once_with(r)
@@ -281,11 +529,16 @@ class TestInstallManager(TestUnitCoreCommon):
         )
 
         # call
-        self.install_manager._install_active_solution(r)
+        locks = ExitStack()
+        self.install_manager._install_active_solution(r, locks)
 
         # assert
         _install_parent.assert_called_once_with(
-            "aParent", "1.0.1", Coordinates("tsg", "tsn", "tsv"), allow_recursive=False
+            "aParent",
+            "1.0.1",
+            Coordinates("tsg", "tsn", "tsv"),
+            locks,
+            allow_recursive=False,
         )
         run_solution_install_routine.assert_called_once_with(r)
         install_environment.assert_not_called()
@@ -297,9 +550,13 @@ class TestInstallManager(TestUnitCoreCommon):
 
         # the solution runs in the environment of its parent, the flag goes there
         _install_parent.reset_mock()
-        self.install_manager._install_active_solution(r, allow_recursive=True)
+        self.install_manager._install_active_solution(r, locks, allow_recursive=True)
         _install_parent.assert_called_once_with(
-            "aParent", "1.0.1", Coordinates("tsg", "tsn", "tsv"), allow_recursive=True
+            "aParent",
+            "1.0.1",
+            Coordinates("tsg", "tsn", "tsv"),
+            locks,
+            allow_recursive=True,
         )
 
     @unittest.skip("Needs to be implemented!")
@@ -307,15 +564,8 @@ class TestInstallManager(TestUnitCoreCommon):
         # TODO implement
         pass
 
-    @patch(
-        "album.core.controller.install_manager.build_resolve_string",
-        return_value="myResolveString",
-    )
-    def test__install_parent(self, build_resolve_string_mock):
-        # mocks
-        _install = MagicMock(return_value=None)
-        self.install_manager._install_loaded_resolve_result = _install
-
+    def _prepare_install_parent(self, catalog=True) -> ResolveResult:
+        self.parent_coordinates = Coordinates("myGroup", "myName", "myVersion")
         s = Solution(
             {
                 "group": "myGroup",
@@ -329,65 +579,122 @@ class TestInstallManager(TestUnitCoreCommon):
 
         s._setup = R()
         r = ResolveResult(
-            "", None, None, Coordinates("myGroup", "myName", "myVersion"), s
+            "", self.catalog if catalog else None, None, self.parent_coordinates, s
         )
 
-        resolve = MagicMock(return_value=r)
-        self.album_controller.collection_manager().resolve_and_load = resolve
+        # mocks
+        self.install_holding_lock = MagicMock(return_value=None)
+        self.install_manager._install_holding_lock = self.install_holding_lock
+
+        self.resolve_and_load = MagicMock(return_value=r)
+        self.album_controller.collection_manager().resolve_and_load = (
+            self.resolve_and_load
+        )
+        return r
+
+    @patch(
+        "album.core.controller.install_manager.build_resolve_string",
+        return_value="myResolveString",
+    )
+    def test__install_parent(self, build_resolve_string_mock):
+        r = self._prepare_install_parent()
+        lock_free_during_install = []
+        self.install_holding_lock.side_effect = lambda *args, **kwargs: (
+            lock_free_during_install.append(self._lock_is_free(r.coordinates()))
+        )
 
         # call
-        self.install_manager._install_parent(
-            {"myDictKey": "myDeps"}, "5.1.0", Coordinates("a", "b", "c")
-        )
+        with ExitStack() as locks:
+            self.install_manager._install_parent(
+                {"myDictKey": "myDeps"}, "5.1.0", Coordinates("a", "b", "c"), locks
+            )
+
+            # assert - the parent stays locked until the child is installed into its
+            # environment, the locks are then released
+            self.assertFalse(self._lock_is_free(r.coordinates()))
+        self.assertTrue(self._lock_is_free(r.coordinates()))
 
         # asert
-        _install.assert_called_once_with(r, parent=True, allow_recursive=False)
-        resolve.assert_called_once()
+        self.install_holding_lock.assert_called_once_with(
+            r, parent=True, allow_recursive=False, locks=locks
+        )
+        self.assertEqual([False], lock_free_during_install)
+        self.resolve_and_load.assert_called_once()
         build_resolve_string_mock.assert_called_once_with({"myDictKey": "myDeps"})
 
         # allow_recursive reaches the installation of the parent
-        _install.reset_mock()
-        self.install_manager._install_parent(
-            {"myDictKey": "myDeps"},
-            "5.1.0",
-            Coordinates("a", "b", "c"),
-            allow_recursive=True,
+        self.install_holding_lock.reset_mock()
+        with ExitStack() as locks:
+            self.install_manager._install_parent(
+                {"myDictKey": "myDeps"},
+                "5.1.0",
+                Coordinates("a", "b", "c"),
+                locks,
+                allow_recursive=True,
+            )
+        self.install_holding_lock.assert_called_once_with(
+            r, parent=True, allow_recursive=True, locks=locks
         )
-        _install.assert_called_once_with(r, parent=True, allow_recursive=True)
+
+    @patch(
+        "album.core.controller.install_manager.build_resolve_string",
+        return_value="myResolveString",
+    )
+    def test__install_parent_waits_for_other_process(self, _):
+        r = self._prepare_install_parent()
+        self._solution_lock(r.coordinates())._timeout = 0.2
+
+        # another album process installs the parent, or another child of it
+        with self._lock_of_other_process(r.coordinates()):
+            # call
+            with ExitStack() as locks:
+                with self.assertRaises(TimeoutError):
+                    self.install_manager._install_parent(
+                        {"myDictKey": "myDeps"},
+                        "5.1.0",
+                        Coordinates("a", "b", "c"),
+                        locks,
+                    )
+
+        # assert
+        self.install_holding_lock.assert_not_called()
+
+    @patch(
+        "album.core.controller.install_manager.build_resolve_string",
+        return_value="myResolveString",
+    )
+    def test__install_parent_own_parent(self, _):
+        # the parent is a child of the solution being installed, e.g. the parent of
+        # its parent
+        r = self._prepare_install_parent()
+
+        with ExitStack() as locks:
+            locks.enter_context(self._solution_lock(r.coordinates()))
+            # call
+            with self.assertRaises(ValueError):
+                self.install_manager._install_parent(
+                    {"myDictKey": "myDeps"}, "5.1.0", Coordinates("a", "b", "c"), locks
+                )
+
+        # assert
+        self.install_holding_lock.assert_not_called()
+        self.assertTrue(self._lock_is_free(r.coordinates()))
 
     @patch(
         "album.core.controller.install_manager.build_resolve_string",
         return_value="myResolveString",
     )
     def test__install_parent_eq_child(self, build_resolve_string_mock):
-        # mocks
-        _install = MagicMock(return_value=None)
-        self.install_manager._install_loaded_resolve_result = _install
-
-        s = Solution(
-            {
-                "group": "myGroup",
-                "name": "myName",
-                "version": "myVersion",
-            }
-        )
-
-        class R:
-            album_api_version = "5.1.0"
-
-        s._setup = R()
-        r = ResolveResult(
-            "", None, None, Coordinates("myGroup", "myName", "myVersion"), s
-        )
-
-        resolve = MagicMock(return_value=r)
-        self.album_controller.collection_manager().resolve_and_load = resolve
+        r = self._prepare_install_parent(catalog=False)
 
         # call
         with self.assertRaises(ValueError):
             self.install_manager._install_parent(
-                {"myDictKey": "myDeps"}, "5.1.0", s.coordinates()
+                {"myDictKey": "myDeps"}, "5.1.0", r.coordinates(), ExitStack()
             )
+
+        # assert
+        self.install_holding_lock.assert_not_called()
 
     @unittest.skip("Needs to be implemented!")
     def test_uninstall(self):
@@ -449,7 +756,10 @@ class TestInstallManager(TestUnitCoreCommon):
         self.install_manager.uninstall("tsg:tsn:tsv")
 
         # assert
-        self.resolve_installed.assert_called_once_with("tsg:tsn:tsv")
+        # looked up to know which solution to lock, and again holding the lock
+        self.assertEqual(
+            [call("tsg:tsn:tsv")] * 2, self.resolve_installed.call_args_list
+        )
         self.load_resolve_result.assert_called_once_with(r)
         self.set_environment.assert_called_once_with(r)
         self.run_solution_uninstall_routine.assert_called_once_with(r)
@@ -483,6 +793,84 @@ class TestInstallManager(TestUnitCoreCommon):
     @patch(
         "album.core.controller.install_manager.EnvironmentManager.remove_disc_content_from_environment"
     )
+    def test_uninstall_holds_lock(self, _):
+        self._prepare_uninstall()
+        lock_free_during_uninstall = []
+        self.remove_solution.side_effect = lambda *args: (
+            lock_free_during_uninstall.append(self._lock_is_free())
+        )
+
+        # call
+        self.install_manager.uninstall("tsg:tsn:tsv")
+
+        # assert
+        self.assertEqual([False], lock_free_during_uninstall)
+        self.assertTrue(self._lock_is_free())
+
+    def test_uninstall_waits_for_other_process(self):
+        self._prepare_uninstall()
+
+        # another album process using the same base path installs or uninstalls it
+        with self._lock_of_other_process():
+            # call
+            with self.assertRaises(TimeoutError):
+                self.install_manager.uninstall("tsg:tsn:tsv")
+
+        # assert
+        self.remove_environment.assert_not_called()
+        self.remove_solution.assert_not_called()
+
+    @patch(
+        "album.core.controller.install_manager.EnvironmentManager.remove_disc_content_from_environment"
+    )
+    def test_uninstall_other_solution_locked(self, _):
+        self._prepare_uninstall()
+
+        # another album process using the same base path installs another solution
+        with self._lock_of_other_process(Coordinates("tsg", "other", "tsv")):
+            # call
+            self.install_manager.uninstall("tsg:tsn:tsv")
+
+        # assert - uninstalled without waiting
+        self.remove_solution.assert_called_once()
+        self.assertNotIn("Waiting", self.get_logs_as_string())
+
+    def test_uninstall_rm_dep_locks_child_and_parent(self):
+        child = ResolveResult(
+            Path("child"), self.catalog, None, Coordinates("tsg", "child", "tsv")
+        )
+        parent = ResolveResult(
+            Path("parent"), self.catalog, None, Coordinates("tsg", "parent", "tsv")
+        )
+        self.album_controller.collection_manager().resolve_installed = MagicMock(
+            side_effect=lambda solution_to_resolve: (
+                child if solution_to_resolve == "child" else parent
+            )
+        )
+        locks_free = {}
+
+        def _uninstall(solution_to_resolve, rm_dep):
+            locks_free[solution_to_resolve] = (
+                self._lock_is_free(child.coordinates()),
+                self._lock_is_free(parent.coordinates()),
+            )
+            if solution_to_resolve == "child":
+                # removing the parent is a recursive uninstall call
+                self.install_manager.uninstall("parent", rm_dep)
+
+        self.install_manager._uninstall = _uninstall
+
+        # call
+        self.install_manager.uninstall("child", True)
+
+        # assert - the child stays locked while its parent is uninstalled
+        self.assertEqual({"child": (False, True), "parent": (False, False)}, locks_free)
+        self.assertTrue(self._lock_is_free(child.coordinates()))
+        self.assertTrue(self._lock_is_free(parent.coordinates()))
+
+    @patch(
+        "album.core.controller.install_manager.EnvironmentManager.remove_disc_content_from_environment"
+    )
     def test_uninstall_solution_cannot_be_loaded(
         self, remove_disc_content_from_environment
     ):
@@ -500,7 +888,10 @@ class TestInstallManager(TestUnitCoreCommon):
                 self.install_manager.uninstall("tsg:tsn:tsv")
 
                 # assert
-                self.resolve_installed.assert_called_once_with("tsg:tsn:tsv")
+                # looked up to know which solution to lock, and again holding the lock
+                self.assertEqual(
+                    [call("tsg:tsn:tsv")] * 2, self.resolve_installed.call_args_list
+                )
                 self.assertIn("Cannot load solution", self.get_logs_as_string())
                 self.set_environment.assert_called_once_with(r)
                 self.run_solution_uninstall_routine.assert_not_called()
@@ -561,16 +952,18 @@ class TestInstallManager(TestUnitCoreCommon):
         self.album_controller.collection_manager().solutions().set_cache_paths = (
             set_cache_paths
         )
-        get_unfinished_installation_solutions = MagicMock(
-            return_value=[
-                CollectionIndex.CollectionSolution(
-                    {"group": "g1", "name": "n1", "version": "v1"},  # setup
-                    {"catalog_id": 1, "parent": None},  # internal
-                )
-            ]
+        entry = CollectionIndex.CollectionSolution(
+            {"group": "g1", "name": "n1", "version": "v1"},  # setup
+            {"catalog_id": 1, "parent": None, "installation_unfinished": 1},  # internal
         )
+        get_unfinished_installation_solutions = MagicMock(return_value=[entry])
         self.album_controller.collection_manager().get_collection_index().get_unfinished_installation_solutions = (
             get_unfinished_installation_solutions
+        )
+        # looked up again holding the lock of the solution
+        get_solution = MagicMock(return_value=entry)
+        self.album_controller.collection_manager().get_collection_index().get_solution_by_catalog_grp_name_version = (
+            get_solution
         )
 
         get_by_id_mock = MagicMock(
@@ -599,12 +992,20 @@ class TestInstallManager(TestUnitCoreCommon):
         self.install_manager.clean_unfinished_installations()
 
         # assert
+        get_solution.assert_called_once_with(
+            self.catalog.catalog_id(), Coordinates("g1", "n1", "v1")
+        )
         remove_dc.assert_called_once()
         set_cache_paths.assert_called_once()
         get_by_id_mock.assert_called_once_with(1)
         retrieve_and_load_resolve_result.assert_not_called()
         _clean_unfinished_installations_environment.assert_called_once()
         remove_solution.assert_called_once()
+        self.assertIn(
+            'Removing the unfinished installation of "g1:n1:v1"...',
+            self.get_logs_as_string(),
+        )
+        self.assertTrue(self._lock_is_free(Coordinates("g1", "n1", "v1")))
 
     @patch(
         "album.core.controller.install_manager.dict_to_coordinates",
@@ -625,16 +1026,21 @@ class TestInstallManager(TestUnitCoreCommon):
         self.album_controller.collection_manager().solutions().set_cache_paths = (
             set_cache_paths
         )
-        get_unfinished_installation_solutions = MagicMock(
-            return_value=[
-                CollectionIndex.CollectionSolution(
-                    {"group": "g1", "name": "n1", "version": "v1"},  # setup
-                    {"catalog_id": 1, "parent": parent_entry},  # internal
-                )
-            ]
+        entry = CollectionIndex.CollectionSolution(
+            {"group": "g1", "name": "n1", "version": "v1"},  # setup
+            {
+                "catalog_id": 1,
+                "parent": parent_entry,
+                "installation_unfinished": 1,
+            },  # internal
         )
+        get_unfinished_installation_solutions = MagicMock(return_value=[entry])
         self.album_controller.collection_manager().get_collection_index().get_unfinished_installation_solutions = (
             get_unfinished_installation_solutions
+        )
+        # looked up again holding the lock of the solution
+        self.album_controller.collection_manager().get_collection_index().get_solution_by_catalog_grp_name_version = MagicMock(
+            return_value=entry
         )
 
         get_by_id_mock = MagicMock(
@@ -715,6 +1121,88 @@ class TestInstallManager(TestUnitCoreCommon):
         _clean_unfinished_installations_environment.assert_not_called()
         set_uninstalled.assert_not_called()
 
+    def _mock_unfinished_installation(self, unfinished_now: int = 1) -> MagicMock:
+        # g1:n1:v1 is marked unfinished, and still is when it is looked up again
+        # holding its lock unless unfinished_now is 0
+        collection_index = (
+            self.album_controller.collection_manager().get_collection_index()
+        )
+        collection_index.get_unfinished_installation_solutions = MagicMock(
+            return_value=[
+                CollectionIndex.CollectionSolution(
+                    {"group": "g1", "name": "n1", "version": "v1"},  # setup
+                    {
+                        "catalog_id": 1,
+                        "parent": None,
+                        "installation_unfinished": 1,
+                    },  # internal
+                )
+            ]
+        )
+        collection_index.get_solution_by_catalog_grp_name_version = MagicMock(
+            return_value=CollectionIndex.CollectionSolution(
+                {"group": "g1", "name": "n1", "version": "v1"},  # setup
+                {
+                    "catalog_id": 1,
+                    "parent": None,
+                    "installation_unfinished": unfinished_now,
+                },  # internal
+            )
+        )
+        self.album_controller.collection_manager().catalogs().get_by_id = MagicMock(
+            return_value=self.catalog
+        )
+        self.album_controller.collection_manager().solutions().set_cache_paths = (
+            MagicMock()
+        )
+        self.install_manager._clean_unfinished_installations_environment = MagicMock()
+        self.install_manager._remove_disc_content_from_solution = MagicMock()
+        remove_solution = MagicMock()
+        self.album_controller.collection_manager().solutions().remove_solution = (
+            remove_solution
+        )
+        return remove_solution
+
+    def test_clean_unfinished_installations_in_progress(self):
+        remove_solution = self._mock_unfinished_installation()
+
+        # another album process using the same base path installs it right now
+        with self._lock_of_other_process(Coordinates("g1", "n1", "v1")):
+            start = time.monotonic()
+            # call
+            self.install_manager.clean_unfinished_installations()
+
+            # assert - not removed, without waiting for the other process
+            self.assertLess(time.monotonic() - start, 1)
+        remove_solution.assert_not_called()
+        self.install_manager._remove_disc_content_from_solution.assert_not_called()
+        self.install_manager._clean_unfinished_installations_environment.assert_not_called()
+        self.assertNotIn("Removing the unfinished", self.get_logs_as_string())
+
+    def test_clean_unfinished_installations_in_progress_in_this_thread(self):
+        remove_solution = self._mock_unfinished_installation()
+
+        # this thread installs it right now
+        with self._solution_lock(Coordinates("g1", "n1", "v1")):
+            # call
+            self.install_manager.clean_unfinished_installations()
+
+        # assert
+        remove_solution.assert_not_called()
+        self.install_manager._remove_disc_content_from_solution.assert_not_called()
+
+    def test_clean_unfinished_installations_finished_meanwhile(self):
+        # the installation finished before the lock was acquired
+        remove_solution = self._mock_unfinished_installation(unfinished_now=0)
+
+        # call
+        self.install_manager.clean_unfinished_installations()
+
+        # assert
+        remove_solution.assert_not_called()
+        self.install_manager._remove_disc_content_from_solution.assert_not_called()
+        self.assertTrue(self._lock_is_free(Coordinates("g1", "n1", "v1")))
+
     def test__clean_unfinished_installations_environment_env_deleted(self):
         # mocks
         set_environment = MagicMock(return_value="myEnv")
@@ -786,6 +1274,10 @@ class TestInstallManagerCollectionParent(TestUnitCoreCommon):
         collection_index.get_unfinished_installation_solutions = MagicMock(
             return_value=[unfinished_entry]
         )
+        # looked up again holding the lock of the solution
+        collection_index.get_solution_by_catalog_grp_name_version = MagicMock(
+            return_value=unfinished_entry
+        )
         collection_manager.catalogs().get_by_id = MagicMock(return_value=self.catalog)
         collection_manager.solutions().set_cache_paths = MagicMock()
         self.install_manager._remove_disc_content_from_solution = MagicMock()
@@ -796,7 +1288,11 @@ class TestInstallManagerCollectionParent(TestUnitCoreCommon):
     def test_clean_unfinished_installations_child(self):
         child_entry = CollectionIndex.CollectionSolution(
             {"group": "g1", "name": "n1", "version": "v1"},  # setup
-            {"catalog_id": 1, "parent": self.parent_entry},  # internal
+            {
+                "catalog_id": 1,
+                "parent": self.parent_entry,
+                "installation_unfinished": 1,
+            },  # internal
         )
         remove_solution = self._mock_clean_unfinished_installations(child_entry)
 
@@ -811,7 +1307,7 @@ class TestInstallManagerCollectionParent(TestUnitCoreCommon):
     def test_clean_unfinished_installations_no_parent(self):
         entry = CollectionIndex.CollectionSolution(
             {"group": "g1", "name": "n1", "version": "v1"},  # setup
-            {"catalog_id": 1, "parent": None},  # internal
+            {"catalog_id": 1, "parent": None, "installation_unfinished": 1},  # internal
         )
         remove_solution = self._mock_clean_unfinished_installations(entry)
         self.environment_manager.set_environment.return_value = "myEnv"
@@ -903,6 +1399,368 @@ class TestInstallManagerCollectionParent(TestUnitCoreCommon):
 
         # assert
         uninstall.assert_not_called()
+
+
+def use_win_shell_per_thread(test):
+    """Create Windows links (shortcuts) with a COM shell of the calling thread.
+
+    Album creates them with one global Wscript.Shell, created by the first thread
+    needing it. Using it from other threads fails with a com_error or crashes the
+    process with an access violation. That happens without the install lock as well.
+    """
+    if sys.platform != "win32":
+        return test
+
+    # COM is initialized for the thread importing pythoncom first, keep that the
+    # main thread, which creates links in other tests
+    import pythoncom
+    import win32com.client
+
+    shells = threading.local()
+
+    def get_win_shell():
+        if not hasattr(shells, "shell"):
+            pythoncom.CoInitialize()
+            shells.shell = win32com.client.Dispatch("Wscript.Shell")
+        return shells.shell
+
+    return patch(
+        "album.core.utils.operations.file_operations._get_global_win_shell",
+        get_win_shell,
+    )(test)
+
+
+class TestInstallManagerParallel(TestUnitCoreCommon):
+    """Album instances and processes installing into the same base path at the same time.
+
+    Like two terminals calling "album install", see issue #186.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.setup_collection()
+        # the second album instance, using the same base path
+        self.other_controller = AlbumController(base_cache_path=Path(self.tmp_dir.name))
+        with patch(
+            "album.core.model.configuration.Configuration.get_initial_catalogs",
+            return_value={},
+        ):
+            self.other_controller.collection_manager().load_or_create()
+        # the real environment manager needs micromamba
+        self.album_controller._environment_manager = MagicMock()
+        self.other_controller._environment_manager = MagicMock()
+        self.catalog = self.album_controller.catalogs().get_cache_catalog()
+
+    def tearDown(self) -> None:
+        self.other_controller.close()
+        super().tearDown()
+
+    def _write_solution(self, name: str, parent: str = None) -> str:
+        dependencies = (
+            ', dependencies={"parent": {"resolve_solution": "group:%s:0.1.0"}}' % parent
+            if parent
+            else ""
+        )
+        path = Path(self.tmp_dir.name).joinpath("%s.py" % name)
+        path.write_text(
+            "from album.runner.api import setup\n\n"
+            'setup(group="group", name="%s", version="0.1.0", album_api_version="%s"%s)\n'
+            % (name, TEST_ALBUM_API_VERSION, dependencies),
+            encoding="utf-8",
+        )
+        return str(path)
+
+    def _is_installed(self, name: str) -> bool:
+        return self.album_controller.solutions().is_installed(
+            self.catalog, Coordinates("group", name, "0.1.0")
+        )
+
+    def _unfinished_installations(self) -> list:
+        return (
+            self.album_controller.collection_manager()
+            .get_collection_index()
+            .get_unfinished_installation_solutions()
+        )
+
+    def _lock_of_other_process(self, name: str) -> FileLock:
+        return lock_of_other_process(
+            self.album_controller, self.catalog, Coordinates("group", name, "0.1.0")
+        )
+
+    def _wait_at_most(
+        self, controller: AlbumController, name: str, seconds: float
+    ) -> None:
+        # waiting longer for the lock of the solution fails the test, instead of
+        # after two hours
+        controller.solutions().get_solution_lock(
+            self.catalog, Coordinates("group", name, "0.1.0")
+        )._timeout = seconds
+
+    def test_install_installed_solution_does_not_wait(self):
+        first = self._write_solution("first")
+        install_manager = self.album_controller.install_manager()
+        install_manager.install(first)
+        self._wait_at_most(self.album_controller, "first", 0.2)
+
+        # another album process holds the lock of the installed solution, e.g. to
+        # install a child solution into its environment
+        with self._lock_of_other_process("first"):
+            # call - an installed solution, by path or by coordinates
+            for solution_to_resolve in [first, "group:first:0.1.0"]:
+                solution = install_manager.install(solution_to_resolve)
+
+                # assert - returned right away
+                self.assertEqual("first", solution.coordinates().name())
+
+        self.assertIn(
+            'Solution "first" already installed. Skipping...',
+            self.get_logs_as_string(),
+        )
+        install_environment = (
+            self.album_controller.environment_manager().install_environment
+        )
+        install_environment.assert_called_once()
+
+    def test_install_does_not_wait_for_other_solution(self):
+        second = self._write_solution("second")
+        install_manager = self.album_controller.install_manager()
+        self._wait_at_most(self.album_controller, "second", 0.2)
+
+        # another album process installs another solution right now
+        with self._lock_of_other_process("first"):
+            # call
+            install_manager.install(second)
+
+        # assert - installed without waiting
+        self.assertTrue(self._is_installed("second"))
+        self.assertNotIn("Waiting", self.get_logs_as_string())
+
+    def test_install_same_solution_waits(self):
+        first = self._write_solution("first")
+        install_manager = self.album_controller.install_manager()
+        self._wait_at_most(self.album_controller, "first", 0.2)
+
+        # another album process installs the same solution right now
+        with self._lock_of_other_process("first"):
+            # call
+            with self.assertRaises(TimeoutError):
+                install_manager.install(first)
+
+        # assert
+        self.assertFalse(self._is_installed("first"))
+        install_environment = (
+            self.album_controller.environment_manager().install_environment
+        )
+        install_environment.assert_not_called()
+
+        # it can be installed once the other process has finished
+        install_manager.install(first)
+        self.assertTrue(self._is_installed("first"))
+
+    def test_install_unfinished_solution_waits(self):
+        first = self._write_solution("first")
+        install_manager = self.album_controller.install_manager()
+        install_manager.install(first)
+        self._wait_at_most(self.album_controller, "first", 0.2)
+        # another album process is installing it right now
+        self.album_controller.solutions().set_installation_unfinished(
+            self.catalog, Coordinates("group", "first", "0.1.0")
+        )
+
+        with self._lock_of_other_process("first"):
+            # call
+            with self.assertRaises(TimeoutError):
+                install_manager.install(first)
+
+        # assert - not taken for installed, not removed as unfinished
+        self.assertFalse(self._is_installed("first"))
+        self.assertEqual(1, len(self._unfinished_installations()))
+
+    def test_install_removes_installation_left_unfinished(self):
+        first = self._write_solution("first")
+        second = self._write_solution("second")
+        install_manager = self.album_controller.install_manager()
+        install_manager.install(first)
+        # an album process ended (e.g. was killed) while installing it, its lock is free
+        self.album_controller.solutions().set_installation_unfinished(
+            self.catalog, Coordinates("group", "first", "0.1.0")
+        )
+
+        # call
+        install_manager.install(second)
+
+        # assert
+        self.assertTrue(self._is_installed("second"))
+        self.assertEqual([], self._unfinished_installations())
+        self.assertIsNone(
+            self.album_controller.collection_manager()
+            .get_collection_index()
+            .get_solution_by_catalog_grp_name_version(
+                self.catalog.catalog_id(), Coordinates("group", "first", "0.1.0")
+            )
+        )
+        environment_manager = self.album_controller.environment_manager()
+        environment_manager.remove_environment.assert_called_once()
+        self.assertIn(
+            'Removing the unfinished installation of "group:first:0.1.0"...',
+            self.get_logs_as_string(),
+        )
+
+    def test_install_failed_removed_right_away(self):
+        first = self._write_solution("first")
+        install_manager = self.album_controller.install_manager()
+        environment_manager = self.album_controller.environment_manager()
+        environment_manager.install_environment.side_effect = RuntimeError(
+            "Cannot create environment!"
+        )
+
+        # call
+        with self.assertRaises(RuntimeError):
+            install_manager.install(first)
+
+        # assert - nothing is left for the next installation (e.g. by another album
+        # process) to remove
+        self.assertEqual([], self._unfinished_installations())
+        self.assertIsNone(
+            self.album_controller.collection_manager()
+            .get_collection_index()
+            .get_solution_by_catalog_grp_name_version(
+                self.catalog.catalog_id(), Coordinates("group", "first", "0.1.0")
+            )
+        )
+        environment_manager.remove_environment.assert_called_once()
+        self.assertTrue(
+            lock_is_free(
+                self.album_controller,
+                self.catalog,
+                Coordinates("group", "first", "0.1.0"),
+            )
+        )
+
+        # it can be installed again
+        environment_manager.install_environment.side_effect = None
+        install_manager.install(first)
+        self.assertTrue(self._is_installed("first"))
+
+    @use_win_shell_per_thread
+    def test_install_in_parallel(self):
+        first = self._write_solution("first")
+        second = self._write_solution("second")
+        first_installing = threading.Event()
+        second_installed = threading.Event()
+        errors = []
+
+        def create_first_environment(*args):
+            # the first installation is in progress (marked "unfinished") while the
+            # second album instance installs another solution, not waiting for it
+            first_installing.set()
+            if not second_installed.wait(30):
+                errors.append("the second installation waited for the first one")
+
+        self.album_controller.environment_manager().install_environment.side_effect = (
+            create_first_environment
+        )
+
+        # the second album instance must not remove the first installation
+        other_install_manager = self.other_controller.install_manager()
+        remove_disc_content = MagicMock()
+        other_install_manager._remove_disc_content_from_solution = remove_disc_content
+
+        def install(controller, path, installed=None):
+            try:
+                controller.install_manager().install(path)
+                if installed:
+                    installed.set()
+            except Exception as e:
+                errors.append(e)
+
+        # waiting for a lock that is not released fails the test, not after two hours
+        self._wait_at_most(self.album_controller, "first", 30)
+        self._wait_at_most(self.other_controller, "second", 30)
+        first_thread = threading.Thread(
+            target=install, args=(self.album_controller, first), daemon=True
+        )
+        second_thread = threading.Thread(
+            target=install,
+            args=(self.other_controller, second, second_installed),
+            daemon=True,
+        )
+
+        # call
+        first_thread.start()
+        self.assertTrue(first_installing.wait(30))
+        second_thread.start()
+        second_thread.join(60)
+        first_thread.join(60)
+
+        # assert
+        self.assertFalse(first_thread.is_alive())
+        self.assertFalse(second_thread.is_alive())
+        self.assertEqual([], errors)
+        self.assertTrue(self._is_installed("first"))
+        self.assertTrue(self._is_installed("second"))
+        self.assertEqual([], self._unfinished_installations())
+        remove_disc_content.assert_not_called()
+        other_environment_manager = self.other_controller.environment_manager()
+        other_environment_manager.remove_environment.assert_not_called()
+        other_environment_manager.install_environment.assert_called_once()
+
+    @use_win_shell_per_thread
+    def test_install_children_of_the_same_parent(self):
+        parent = self._write_solution("parent")
+        first_child = self._write_solution("child1", parent="parent")
+        second_child = self._write_solution("child2", parent="parent")
+        self.album_controller.install_manager().install(parent)
+        first_child_installing = threading.Event()
+        first_child_may_finish = threading.Event()
+        second_child_installing = threading.Event()
+        errors = []
+
+        def install_first_child_routine(*args):
+            # the first child is installed into the environment of the parent
+            first_child_installing.set()
+            first_child_may_finish.wait(30)
+
+        self.album_controller.install_manager()._run_solution_install_routine = (
+            MagicMock(side_effect=install_first_child_routine)
+        )
+        self.other_controller.install_manager()._run_solution_install_routine = (
+            MagicMock(side_effect=lambda *args: second_child_installing.set())
+        )
+
+        def install(controller, path):
+            try:
+                controller.install_manager().install(path)
+            except Exception as e:
+                errors.append(e)
+
+        # waiting for a lock that is not released fails the test, not after two hours
+        for controller in [self.album_controller, self.other_controller]:
+            self._wait_at_most(controller, "parent", 30)
+        first_thread = threading.Thread(
+            target=install, args=(self.album_controller, first_child), daemon=True
+        )
+        second_thread = threading.Thread(
+            target=install, args=(self.other_controller, second_child), daemon=True
+        )
+
+        # call
+        first_thread.start()
+        self.assertTrue(first_child_installing.wait(30))
+        second_thread.start()
+
+        # assert - the second child waits for the parent until the first is installed
+        self.assertFalse(second_child_installing.wait(1))
+        first_child_may_finish.set()
+        first_thread.join(60)
+        second_thread.join(60)
+        self.assertTrue(second_child_installing.is_set())
+        self.assertFalse(first_thread.is_alive())
+        self.assertFalse(second_thread.is_alive())
+        self.assertEqual([], errors)
+        for name in ["parent", "child1", "child2"]:
+            self.assertTrue(self._is_installed(name), name)
+        self.assertEqual([], self._unfinished_installations())
 
 
 if __name__ == "__main__":

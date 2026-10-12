@@ -3,6 +3,7 @@ import sys
 import unittest
 from pathlib import Path
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
+from typing import Optional
 from unittest.mock import patch
 
 from album.core.model.default_values import DefaultValues
@@ -16,6 +17,28 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
 
     def tearDown(self) -> None:
         super().tearDown()
+
+    def _environment_exists(self, environment_name: str) -> bool:
+        environment_manager = self.album_controller.environment_manager()
+        return (
+            environment_manager.get_environment_handler()
+            .get_package_manager()
+            .environment_exists(
+                environment_manager.get_environment_path(environment_name, create=False)
+            )
+        )
+
+    @staticmethod
+    def _solution_package(catalog) -> Optional[Path]:
+        # the folder of group:faultySolution:0.1.0 in the catalog, None when it is gone
+        return get_link_target(
+            catalog.path().joinpath(
+                DefaultValues.catalog_solutions_prefix.value,
+                "group",
+                "faultySolution",
+                "0.1.0",
+            )
+        )
 
     @patch(
         "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
@@ -147,38 +170,34 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
                 self.get_test_solution_path("solution13_faulty_routine.py")
             )
 
-        # the environment stays
+        # the failed installation is removed right away: its environment, and the
+        # solution added to the local catalog
         local_catalog = (
             self.album_controller.collection_manager().catalogs().get_cache_catalog()
         )
         local_catalog_name = str(local_catalog.name())
-        leftover_env_name = local_catalog_name + "_group_faultySolution_0.1.0"
-        env_path = self.album_controller.environment_manager().get_environment_path(
-            leftover_env_name, create=False
+        self.assertFalse(
+            self._environment_exists(local_catalog_name + "_group_faultySolution_0.1.0")
         )
-        self.assertTrue(
-            self.album_controller.environment_manager()
-            .get_environment_handler()
-            .get_package_manager()
-            .environment_exists(env_path)
+        self.assertIsNone(self._solution_package(local_catalog))
+        self.assertEqual(
+            [],
+            self.album_controller.collection_manager().catalog_collection.get_unfinished_installation_solutions(),
         )
 
-        # check file is copied
-        self.assertTrue(
-            self.album_controller.collection_manager()
-            .solutions()
-            .get_solution_file(
-                local_catalog, Coordinates("group", "faultySolution", "0.1.0")
-            )
-            .exists()
-        )
+        # try to install faulty solution again, from the catalog. The album process
+        # ends before it can remove the failed installation (e.g. it is killed)
+        with patch(
+            "album.core.controller.install_manager.InstallManager._remove_failed_installation"
+        ):
+            with self.assertRaises(RuntimeError):
+                self.album_controller.install_manager().install(
+                    "group:faultySolution:0.1.0"
+                )
 
-        # try to install faulty solution again
-        with self.assertRaises(RuntimeError):
-            self.album_controller.install_manager().install(
-                "group:faultySolution:0.1.0"
-            )
-
+        # the environment stays
+        leftover_env_name = str(catalog.name()) + "_group_faultySolution_0.1.0"
+        self.assertTrue(self._environment_exists(leftover_env_name))
         self.assertTrue(
             self.album_controller.collection_manager()
             .solutions()
@@ -191,12 +210,7 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         self.album_controller.install_manager().install(self.get_test_solution_path())
 
         # check cleaned up
-        self.assertFalse(
-            self.album_controller.environment_manager()
-            .get_environment_handler()
-            .get_package_manager()
-            .environment_exists(leftover_env_name)
-        )
+        self.assertFalse(self._environment_exists(leftover_env_name))
         self.assertEqual(
             [],
             self.album_controller.collection_manager().catalog_collection.get_unfinished_installation_solutions(),
@@ -214,32 +228,26 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
                 self.get_test_solution_path("solution14_faulty_environment.py")
             )
 
-        # the environment stays
+        # no environment is left
         local_catalog = (
             self.album_controller.collection_manager().catalogs().get_cache_catalog()
         )
         local_catalog_name = str(local_catalog.name())
-        leftover_env_name = local_catalog_name + "_solution14_faulty_environment_0.1.0"
         self.assertFalse(
-            self.album_controller.environment_manager()
-            .get_environment_handler()
-            .get_package_manager()
-            .environment_exists(leftover_env_name)
+            self._environment_exists(local_catalog_name + "_group_faultySolution_0.1.0")
         )
 
-        # check file is copied
-        local_file = (
+        # the failed installation is removed right away, with the solution added to
+        # the local catalog
+        self.assertIsNone(self._solution_package(local_catalog))
+        self.assertIsNone(
             self.album_controller.collection_manager()
-            .solutions()
-            .get_solution_file(
-                local_catalog, Coordinates("group", "faultySolution", "0.1.0")
+            .get_collection_index()
+            .get_solution_by_catalog_grp_name_version(
+                local_catalog.catalog_id(),
+                Coordinates("group", "faultySolution", "0.1.0"),
             )
         )
-        self.assertTrue(local_file.exists())
-
-        self.album_controller.install_manager().clean_unfinished_installations()
-
-        self.assertFalse(local_file.exists())
         self.assertEqual(
             [],
             self.album_controller.collection_manager().catalog_collection.get_unfinished_installation_solutions(),
@@ -251,11 +259,15 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
             self.album_controller.collection_manager().catalog_collection.get_unfinished_installation_solutions(),
         )
 
-        # call
-        with self.assertRaises(RuntimeError):
-            self.album_controller.install_manager().install(
-                self.get_test_solution_path("solution14_faulty_environment.py")
-            )
+        # call - the album process ends before it can remove its failed installation
+        # (e.g. it is killed), the installation is left unfinished
+        with patch(
+            "album.core.controller.install_manager.InstallManager._remove_failed_installation"
+        ):
+            with self.assertRaises(RuntimeError):
+                self.album_controller.install_manager().install(
+                    self.get_test_solution_path("solution14_faulty_environment.py")
+                )
 
         local_catalog = (
             self.album_controller.collection_manager().catalogs().get_cache_catalog()

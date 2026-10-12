@@ -1,4 +1,5 @@
 """File operations module."""
+
 import json
 import os
 import platform
@@ -241,9 +242,8 @@ def construct_cache_link_target(
         if shortcut.exists():
             return _get_shortcut_target(shortcut)
         if create:
-            point_to = root.joinpath(_next_free_pointer_number(root))
+            point_to = _create_free_pointer_folder(root)
 
-            create_path_recursively(point_to)
             create_path_recursively(shortcut.parent)
 
             _create_shortcut(shortcut, target=point_to)
@@ -258,28 +258,41 @@ def construct_cache_link_target(
 
             return r
         if create:
-            point_to = root.joinpath(_next_free_pointer_number(root))
+            point_to = _create_free_pointer_folder(root)
 
-            create_path_recursively(point_to)
             create_path_recursively(Path(point_from).parent)
 
             # point_from -> point_to
-            os.symlink(str(point_to), point_from, target_is_directory=True)
+            try:
+                os.symlink(str(point_to), point_from, target_is_directory=True)
+            except FileExistsError:
+                if not os.path.islink(point_from):
+                    raise
+                # another album process created the same link at the same time
+                force_remove(point_to)
+                return Path(point_from).resolve()
             return point_to.resolve()
 
     return Path("")
 
 
-def _next_free_pointer_number(root: Union[str, Path]) -> str:
-    """Determine the next free point_to number."""
+def _create_free_pointer_folder(root: Union[str, Path]) -> Path:
+    """Create the point_to folder with the lowest free number in root.
+
+    Creating the folder claims its number, so album processes creating links at the
+    same time never point them to the same folder.
+    """
     root = Path(root)
+    create_path_recursively(root)
 
-    # determine next free point_to number
     i = 0
-    while root.joinpath("%s" % i).exists():
-        i += 1
-
-    return str(i)
+    while True:
+        point_to = root.joinpath("%s" % i)
+        try:
+            point_to.mkdir()
+            return point_to
+        except FileExistsError:  # in use, or just claimed by another album process
+            i += 1
 
 
 def get_link_target(link: Union[str, Path]) -> Optional[Path]:

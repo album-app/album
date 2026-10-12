@@ -1,15 +1,16 @@
 """Solution handler interface."""
+
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-
-from album.runner.core.api.model.coordinates import ICoordinates
-from album.runner.core.api.model.solution import ISolution
 
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.catalog_updates import ISolutionChange
 from album.core.api.model.collection_index import ICollectionIndex
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.model.link import Link
+from album.core.utils.file_lock import FileLock
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
 
 
 class ISolutionHandler:
@@ -123,6 +124,30 @@ class ISolutionHandler:
 
         Returns:
             The path where the file is supposed to be once the zip is extracted during installation.
+
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_solution_lock(
+        self, catalog: ICatalog, coordinates: ICoordinates
+    ) -> FileLock:
+        """Get the lock held while a solution is installed, uninstalled or downloaded.
+
+        Album instances, processes and threads using the same base path share it: it locks
+        a file of the solution in the folder DefaultValues.lock_folder_prefix of the base
+        path. Every solution has its own lock, so they only wait for each other when they
+        use the same solution. Installing a solution also holds the locks of its parents,
+        see IInstallManager.
+
+        Args:
+            catalog:
+                The catalog this solution belongs to.
+            coordinates:
+                The group affiliation, name, and version of the solution.
+
+        Returns:
+            The lock of the solution, the same one on every call.
 
         """
         raise NotImplementedError
