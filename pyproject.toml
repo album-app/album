@@ -61,6 +61,11 @@ Homepage = "https://album.solutions/"
 DeveloperDocumentation = "https://gitlab.com/album-app/album/-/wikis/home"
 Repository = "https://gitlab.com/album-app/album"
 Tracker= "https://gitlab.com/album-app/album/-/issues"
+Changelog = "https://gitlab.com/album-app/album/-/blob/main/CHANGELOG.md"
+Paper = "https://arxiv.org/abs/2110.00601"
+conda-forge = "https://anaconda.org/conda-forge/album"
+Docker = "https://hub.docker.com/r/albumsolutions/album"
+"Helmholtz RSD" = "https://helmholtz.software/software/album"
 
 [tool.setuptools.packages.find]
 where = ["src"]
