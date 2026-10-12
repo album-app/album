@@ -1387,16 +1387,29 @@ class CollectionIndex(ICollectionIndex, Database):
         supported_attrs: List[str],
         close: bool = True,
     ):
-        exec_args = {
+        identity = {
             "catalog_id": catalog_id,
             "group": coordinates.group(),
             "name": coordinates.name(),
             "version": coordinates.version(),
         }
+        for key in identity:
+            if key in solution_attrs and str(solution_attrs[key]) != str(identity[key]):
+                raise ValueError(
+                    'Cannot update the collection entry of %s in catalog %s with %s "%s": an update '
+                    "does not change the catalog, group, name or version of an entry."
+                    % (coordinates, catalog_id, key, solution_attrs[key])
+                )
+
+        # own names for the WHERE parameters, so that no attribute can replace them
+        exec_args = {"where_" + key: value for key, value in identity.items()}
 
         # write only the given attributes, last_execution is set explicitly on run
         set_clauses = []
         for key in supported_attrs:
+            # the entry is found by these, an update does not change them
+            if key in identity:
+                continue
             if key in solution_attrs:
                 col = self._as_db_col(key)
                 set_clauses.append(f"{col}=:{key}")
@@ -1408,10 +1421,19 @@ class CollectionIndex(ICollectionIndex, Database):
             return
 
         exec_str = "UPDATE collection SET " + ", ".join(set_clauses)
-        exec_str += ' WHERE catalog_id=:catalog_id AND "group"=:group AND name=:name AND version=:version'
+        exec_str += (
+            ' WHERE catalog_id=:where_catalog_id AND "group"=:where_group'
+            " AND name=:where_name AND version=:where_version"
+        )
 
         cursor = self.get_cursor()
-        cursor.execute(exec_str, exec_args)
+        try:
+            cursor.execute(exec_str, exec_args)
+        except Exception:
+            # e.g. "database is locked": do not keep the failed transaction on this connection
+            if close:
+                self.close_current_connection(commit=False)
+            raise
 
         if close:
             self.close_current_connection()

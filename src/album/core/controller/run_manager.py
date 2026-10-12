@@ -60,9 +60,17 @@ class RunManager(IRunManager):
         try:
             self.album.script_manager().run_queue(que)
             if resolve_result.catalog():
-                self.album.solutions().set_last_execution(
-                    resolve_result.catalog(), resolve_result.coordinates()
-                )
+                try:
+                    self.album.solutions().set_last_execution(
+                        resolve_result.catalog(), resolve_result.coordinates()
+                    )
+                except Exception as e:
+                    # e.g. "database is locked" with many album processes on one base path:
+                    # the solution has finished, failing to record the run must not fail it
+                    module_logger().warning(
+                        "%s has finished, but the run could not be recorded in the collection: %s"
+                        % (resolve_result.coordinates(), e)
+                    )
         finally:
             self.album.event_manager().publish(
                 Event(DefaultValues.after_run_event_name.value),

@@ -1,9 +1,11 @@
+import sqlite3
 import unittest
 from test.unit.test_unit_core_common import EmptyTestClass, TestUnitCoreCommon
 from unittest import mock
 from unittest.mock import MagicMock, create_autospec, patch
 
 from album.core.controller.run_manager import RunManager
+from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 
 
@@ -78,6 +80,50 @@ class TestRunManager(TestUnitCoreCommon):
                 mock.call.set_last_execution(catalog, coordinates),
             ],
             calls.mock_calls,
+        )
+
+    def test_run_last_execution_not_recorded(self):
+        # mocks
+        self.album_controller.script_manager().build_queue = MagicMock()
+        run_queue = MagicMock(return_value=None)
+        self.album_controller.script_manager().run_queue = run_queue
+
+        # e.g. many album processes on one base path hold the collection database
+        set_last_execution = MagicMock(
+            side_effect=sqlite3.OperationalError("database is locked")
+        )
+        self.album_controller.solutions().set_last_execution = set_last_execution
+
+        publish = MagicMock()
+        self.album_controller.event_manager().publish = publish
+
+        resolve_result = ResolveResult(
+            "",
+            EmptyTestClass(),
+            None,
+            self.active_solution.coordinates(),
+            self.active_solution,
+        )
+        self.album_controller.collection_manager().resolve_installed_and_load = (
+            MagicMock(return_value=resolve_result)
+        )
+
+        # call: the solution has finished, so the run does not fail
+        self.run_manager.run("", False)
+
+        # assert
+        run_queue.assert_called_once()
+        set_last_execution.assert_called_once()
+        self.assertIn(
+            "the run could not be recorded in the collection: database is locked",
+            self.get_logs_as_string(),
+        )
+        self.assertEqual(
+            [
+                DefaultValues.before_run_event_name.value,
+                DefaultValues.after_run_event_name.value,
+            ],
+            [c.args[0].name() for c in publish.call_args_list],
         )
 
     def test_run_failed_does_not_set_last_execution(self):
