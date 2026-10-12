@@ -1,7 +1,5 @@
 from typing import Any, Dict, List, Optional
 
-from album.environments.utils.subcommand import SubProcessError
-
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.install_manager import IInstallManager
 from album.core.api.model.collection_index import ICollectionIndex
@@ -18,6 +16,7 @@ from album.core.utils.operations.solution_operations import (
     get_deploy_dict,
     get_parent_dict,
 )
+from album.environments.utils.subcommand import SubProcessError
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
@@ -283,20 +282,20 @@ class InstallManager(IInstallManager):
         rm_dep: bool = False,
         argv: Optional[List[str]] = None,
     ) -> None:
+        # a solution that is not found or not installed cannot be uninstalled, that error is for the caller
+        resolve_result = self.album.collection_manager().resolve_installed(
+            solution_to_resolve
+        )
+
         loaded = False
         try:
-            resolve_result = self.album.collection_manager().resolve_installed_and_load(
-                solution_to_resolve
-            )
+            self.album.collection_manager().load_resolve_result(resolve_result)
             loaded = True
         except Exception as e:
             # a broken or missing solution file can raise anything when loaded
             module_logger().warning(
                 "Cannot load solution (%s). Cannot call uninstall routine. "
                 "Proceed without..." % str(e)
-            )
-            resolve_result = self.album.collection_manager().resolve_installed(
-                solution_to_resolve
             )
 
         module_logger().info(

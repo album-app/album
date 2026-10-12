@@ -393,16 +393,16 @@ class TestInstallManager(TestUnitCoreCommon):
         )
 
         # mocks
-        if load_error:
-            resolve_installed_and_load = MagicMock(side_effect=load_error)
-        else:
-            resolve_installed_and_load = MagicMock(return_value=resolve_result)
-        self.album_controller.collection_manager().resolve_installed_and_load = (
-            resolve_installed_and_load
+        self.resolve_installed = MagicMock(return_value=resolve_result)
+        self.album_controller.collection_manager().resolve_installed = (
+            self.resolve_installed
         )
 
-        resolve_installed = MagicMock(return_value=resolve_result)
-        self.album_controller.collection_manager().resolve_installed = resolve_installed
+        # without a load error the solution file loads, here a no-op
+        self.load_resolve_result = MagicMock(side_effect=load_error)
+        self.album_controller.collection_manager().load_resolve_result = (
+            self.load_resolve_result
+        )
 
         self.set_environment = MagicMock(return_value="myEnv")
         self.environment_manager.set_environment = self.set_environment
@@ -432,11 +432,36 @@ class TestInstallManager(TestUnitCoreCommon):
         self.install_manager.uninstall("tsg:tsn:tsv")
 
         # assert
+        self.resolve_installed.assert_called_once_with("tsg:tsn:tsv")
+        self.load_resolve_result.assert_called_once_with(r)
         self.set_environment.assert_called_once_with(r)
         self.run_solution_uninstall_routine.assert_called_once_with(r)
         self.remove_environment.assert_called_once_with("myEnv")
         remove_disc_content_from_environment.assert_called_once_with("myEnv")
         self.remove_solution.assert_called_once_with(r.catalog(), r.coordinates())
+        self.assertNotIn("Cannot load solution", self.get_logs_as_string())
+
+    def test_uninstall_not_installed_or_not_found(self):
+        # the lookup fails: nothing to uninstall, the caller gets that error right away
+        for lookup_error in [
+            ValueError("Solution seems not to be installed!"),
+            LookupError("Cannot find solution tsg:tsn:tsv!"),
+        ]:
+            with self.subTest(lookup_error=type(lookup_error).__name__):
+                self._prepare_uninstall()
+                self.resolve_installed.side_effect = lookup_error
+
+                # call
+                with self.assertRaises(type(lookup_error)) as context:
+                    self.install_manager.uninstall("tsg:tsn:tsv")
+
+                # assert: not resolved a second time, no warning about loading
+                self.assertIs(lookup_error, context.exception)
+                self.resolve_installed.assert_called_once_with("tsg:tsn:tsv")
+                self.load_resolve_result.assert_not_called()
+                self.set_environment.assert_not_called()
+                self.remove_solution.assert_not_called()
+                self.assertNotIn("Cannot load solution", self.get_logs_as_string())
 
     @patch(
         "album.core.controller.install_manager.EnvironmentManager.remove_disc_content_from_environment"
@@ -458,6 +483,8 @@ class TestInstallManager(TestUnitCoreCommon):
                 self.install_manager.uninstall("tsg:tsn:tsv")
 
                 # assert
+                self.resolve_installed.assert_called_once_with("tsg:tsn:tsv")
+                self.assertIn("Cannot load solution", self.get_logs_as_string())
                 self.set_environment.assert_called_once_with(r)
                 self.run_solution_uninstall_routine.assert_not_called()
                 self.remove_environment.assert_called_once_with("myEnv")
@@ -795,10 +822,8 @@ class TestInstallManagerCollectionParent(TestUnitCoreCommon):
         # mocks
         collection_manager = self.album_controller.collection_manager()
         # the solution file cannot be loaded, the solution is built from its entry
-        collection_manager.resolve_installed_and_load = MagicMock(
-            side_effect=ValueError
-        )
         collection_manager.resolve_installed = MagicMock(return_value=resolve_result)
+        collection_manager.load_resolve_result = MagicMock(side_effect=ValueError)
         get_by_id = MagicMock(return_value=self.catalog)
         collection_manager.catalogs().get_by_id = get_by_id
         self.install_manager._remove_disc_content_from_solution = MagicMock()
