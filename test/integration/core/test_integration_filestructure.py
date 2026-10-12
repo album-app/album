@@ -4,9 +4,8 @@ from pathlib import Path
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 from unittest.mock import patch
 
-from album.environments.model.environment import Environment
-
 from album.core.utils.operations.file_operations import get_link_target
+from album.environments.model.environment import Environment
 
 
 class TestIntegrationFileStructure(TestIntegrationCoreCommon):
@@ -61,22 +60,24 @@ class TestIntegrationFileStructure(TestIntegrationCoreCommon):
         self.album_controller.install_manager().uninstall(solution)
         self.check_files_do_not_exist(base, "group", "name", "0.1.0", size=0)
 
-        # install a solution that fails during install
+        # install a solution that fails during install, it is removed right away
         solution = self.get_test_solution_path("solution13_faulty_routine.py")
         with self.assertRaises(RuntimeError):
             self.album_controller.install_manager().install(solution)
-        self.check_files_exist(base, "group", "faultySolution", "0.1.0", size=1)
+        self.check_files_do_not_exist(base, "group", "faultySolution", "0.1.0", size=0)
 
         # install the working solution again (other coordinates)
         solution = self.get_test_solution_path("solution11_minimal.py")
         self.album_controller.install_manager().install(solution)
         self.check_files_exist(base, "group", "name", "0.1.0", size=1, id="0")
 
-        # install a solution that fails during install
+        # install a solution that fails during install, it is removed right away
         solution = self.get_test_solution_path("solution13_faulty_routine.py")
         with self.assertRaises(RuntimeError):
             self.album_controller.install_manager().install(solution)
-        self.check_files_exist(base, "group", "faultySolution", "0.1.0", size=2, id="1")
+        self.check_files_do_not_exist(
+            base, "group", "faultySolution", "0.1.0", size=1, id="1"
+        )
 
         # install a fixed version with the same coordinates
         solution = self.get_test_solution_path("solution13_faulty_routine_fixed.py")

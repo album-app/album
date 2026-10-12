@@ -3,27 +3,28 @@ import os
 import pathlib
 import platform
 import stat
+import threading
 import unittest.mock
 from pathlib import Path
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 from album.core.utils.operations.file_operations import (
+    _create_free_pointer_folder,
+    construct_cache_link_target,
     create_empty_file_recursively,
     create_path_recursively,
-    write_dict_to_json,
-    get_dict_from_json,
-    force_remove,
-    zip_folder,
-    unzip_archive,
-    zip_paths,
-    rand_folder_name,
     folder_empty,
-    _next_free_pointer_number,
-    get_link_target,
-    construct_cache_link_target,
-    list_files_recursively,
+    force_remove,
     get_dict_entry,
+    get_dict_from_json,
+    get_link_target,
+    list_files_recursively,
+    rand_folder_name,
+    unzip_archive,
+    write_dict_to_json,
+    zip_folder,
+    zip_paths,
 )
-from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestFileOperations(TestUnitCoreCommon):
@@ -268,7 +269,47 @@ class TestFileOperations(TestUnitCoreCommon):
             Path(self.tmp_dir.name).joinpath("point_to", "0").resolve(), r.resolve()
         )
 
-    def test__next_free_pointer_number(self):
+    @unittest.skipIf(
+        platform.system().lower() == "windows",
+        "Linking in windows currently not tested!",
+    )
+    def test_construct_cache_link_target_created_at_the_same_time(self):
+        point_from = Path(self.tmp_dir.name).joinpath("point_from")
+        other_target = Path(self.tmp_dir.name).joinpath("point_to", "other")
+        other_target.mkdir(parents=True)
+        symlink = os.symlink
+
+        def link_created_by_other_process_first(src, dst, target_is_directory=False):
+            symlink(str(other_target), dst, target_is_directory=True)
+            symlink(src, dst, target_is_directory=target_is_directory)
+
+        # call
+        with unittest.mock.patch(
+            "album.core.utils.operations.file_operations.os.symlink",
+            side_effect=link_created_by_other_process_first,
+        ):
+            r = construct_cache_link_target(
+                Path(self.tmp_dir.name), point_from, "point_to"
+            )
+
+        # assert - the link of the other process is used, the folder claimed is removed
+        self.assertEqual(other_target.resolve(), r)
+        self.assertEqual(other_target.resolve(), point_from.resolve())
+        self.assertFalse(Path(self.tmp_dir.name).joinpath("point_to", "0").exists())
+
+    @unittest.skipIf(
+        platform.system().lower() == "windows",
+        "Linking in windows currently not tested!",
+    )
+    def test_construct_cache_link_target_point_from_not_a_link(self):
+        point_from = Path(self.tmp_dir.name).joinpath("point_from")
+        point_from.mkdir()
+
+        # call
+        with self.assertRaises(FileExistsError):
+            construct_cache_link_target(Path(self.tmp_dir.name), point_from, "point_to")
+
+    def test__create_free_pointer_folder(self):
         p0 = Path(self.tmp_dir.name).joinpath("0")
         p1 = Path(self.tmp_dir.name).joinpath("1")
         p2isMissing = Path(self.tmp_dir.name).joinpath("3")
@@ -277,9 +318,42 @@ class TestFileOperations(TestUnitCoreCommon):
         p1.touch()
         p2isMissing.mkdir()
 
-        r = _next_free_pointer_number(self.tmp_dir.name)
+        r = _create_free_pointer_folder(self.tmp_dir.name)
 
-        self.assertEqual("2", r)
+        self.assertEqual(Path(self.tmp_dir.name).joinpath("2"), r)
+        self.assertTrue(r.is_dir())
+
+    def test__create_free_pointer_folder_creates_root(self):
+        root = Path(self.tmp_dir.name).joinpath("not", "there")
+
+        r = _create_free_pointer_folder(root)
+
+        self.assertEqual(root.joinpath("0"), r)
+        self.assertTrue(r.is_dir())
+
+    def test__create_free_pointer_folder_at_the_same_time(self):
+        # like album processes creating links for different solutions at the same time
+        root = Path(self.tmp_dir.name).joinpath("point_to")
+        created = []
+        start = threading.Barrier(8)
+
+        def create_folders():
+            start.wait(10)
+            for _ in range(25):
+                created.append(_create_free_pointer_folder(root))
+
+        threads = [threading.Thread(target=create_folders) for _ in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(30)
+
+        # every folder is handed out once
+        self.assertEqual(200, len(created))
+        self.assertEqual(
+            {root.joinpath(str(i)) for i in range(200)},
+            set(created),
+        )
 
     @unittest.skipIf(
         platform.system().lower() == "windows",

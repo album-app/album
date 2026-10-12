@@ -244,8 +244,10 @@ class CollectionManager(ICollectionManager):
         resolve_result = self._resolve(str_input)
 
         if not Path(resolve_result.path()).exists():
-            self.solution_handler.retrieve_solution(
-                resolve_result.catalog(), resolve_result.coordinates()
+            self._retrieve_missing_solution(
+                resolve_result.catalog(),
+                resolve_result.coordinates(),
+                resolve_result.path(),
             )
 
         return resolve_result
@@ -458,14 +460,27 @@ class CollectionManager(ICollectionManager):
             if not db_entry:
                 raise LookupError("Solution not found!")
 
-            self.solution_handler.retrieve_solution(
+            self._retrieve_missing_solution(
                 resolve_result.catalog(),
                 dict_to_coordinates(db_entry.setup()),
+                resolve_result.path(),
             )
         resolve_result.set_loaded_solution(
             self.album.state_manager().load(resolve_result.path())
         )
         resolve_result.set_coordinates(resolve_result.loaded_solution().coordinates())
+
+    def _retrieve_missing_solution(
+        self,
+        catalog: ICatalog,
+        coordinates: ICoordinates,
+        solution_file: Optional[Path],
+    ) -> None:
+        # another album process retrieving or installing the same solution holds its
+        # lock while it writes the solution files, and might have written them already
+        with self.solution_handler.get_solution_lock(catalog, coordinates):
+            if not solution_file or not Path(solution_file).exists():
+                self.solution_handler.retrieve_solution(catalog, coordinates)
 
     @staticmethod
     def write_version_to_json(path: Path, name: str, version: str) -> None:

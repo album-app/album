@@ -1,7 +1,10 @@
+from contextlib import ExitStack
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.install_manager import IInstallManager
+from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.controller.environment_manager import EnvironmentManager
@@ -50,14 +53,44 @@ class InstallManager(IInstallManager):
 
     def _resolve_result_is_installed(self, resolve_result: ICollectionSolution) -> bool:
         if resolve_result.database_entry():  # we know the solution is in the collection
-            return (
-                self.album.collection_manager()
-                .get_collection_index()
-                .is_installed(
-                    resolve_result.catalog().catalog_id(), resolve_result.coordinates()
-                )
+            # not installed when another album process removed it from the collection
+            # since it was resolved
+            return self.album.solutions().is_installed(
+                resolve_result.catalog(), resolve_result.coordinates()
             )
         return False
+
+    def _skip_installed(
+        self, resolve_result: ICollectionSolution, parent: bool
+    ) -> bool:
+        # an installed solution is skipped, not reinstalled: with a warning when it
+        # was requested directly, silently when it is the parent of another solution
+        if not self._resolve_result_is_installed(resolve_result):
+            return False
+        if not parent:
+            module_logger().warning(
+                'Solution "%s" already installed. Skipping...'
+                % resolve_result.loaded_solution().coordinates().name()
+            )
+        return True
+
+    def _lock_for_installation(
+        self, resolve_result: ICollectionSolution, locks: ExitStack
+    ) -> None:
+        """Wait for the lock of the solution, and hold it until the locks are released.
+
+        Another album process or thread installing or uninstalling the same solution
+        holds it, or one installing a solution into its environment.
+        """
+        lock = self.album.solutions().get_solution_lock(
+            resolve_result.catalog(), resolve_result.coordinates()
+        )
+        if lock.is_held_by_current_thread():
+            # this thread is installing it already, as a child of itself
+            raise ValueError(
+                'Solution "%s" cannot be its own parent!' % resolve_result.coordinates()
+            )
+        locks.enter_context(lock)
 
     def _install_loaded_resolve_result(
         self,
@@ -70,15 +103,39 @@ class InstallManager(IInstallManager):
                 "Solution cannot be installed without being associated with a catalog!"
             )
 
-        # an installed solution is skipped, not reinstalled: with a warning when it
-        # was requested directly, silently when it is the parent of another solution
-        if self._resolve_result_is_installed(resolve_result):
-            if not parent:
-                module_logger().warning(
-                    'Solution "%s" already installed. Skipping...'
-                    % resolve_result.loaded_solution().coordinates().name()
-                )
+        # checked before waiting for the lock: installing an installed solution does not
+        # wait for album processes installing a solution into its environment
+        if self._skip_installed(resolve_result, parent):
             return
+
+        # the locks of the solution and of its parents are held until it is installed
+        with ExitStack() as locks:
+            self._lock_for_installation(resolve_result, locks)
+            self._install_holding_lock(resolve_result, parent, allow_recursive, locks)
+
+    def _install_holding_lock(
+        self,
+        resolve_result: ICollectionSolution,
+        parent: bool,
+        allow_recursive: bool,
+        locks: ExitStack,
+    ) -> None:
+        # checked again: while this one waited for the lock, another album process might
+        # have installed the solution, or failed to and removed the solution files
+        if self._skip_installed(resolve_result, parent):
+            return
+        # holding the lock, no other installation of the solution is in progress: an
+        # unfinished one was left by an album process that ended before finishing it
+        self._clean_unfinished_installation(
+            resolve_result.catalog(), resolve_result.coordinates()
+        )
+        if not Path(resolve_result.path()).exists():
+            self.album.collection_manager().retrieve_and_load_resolve_result(
+                resolve_result
+            )
+            self.album.solutions().set_cache_paths(
+                resolve_result.loaded_solution(), resolve_result.catalog()
+            )
 
         module_logger().debug(
             'solution loaded from catalog "%s": %s...'
@@ -110,13 +167,19 @@ class InstallManager(IInstallManager):
             resolve_result.catalog(), resolve_result.coordinates()
         )
 
-        # run installation recursively
-        self._install_active_solution(resolve_result, allow_recursive)
+        try:
+            # run installation recursively
+            self._install_active_solution(resolve_result, locks, allow_recursive)
 
-        # mark as installed and remove "installation unfinished"
-        self.album.solutions().set_installed(
-            resolve_result.catalog(), resolve_result.coordinates()
-        )
+            # mark as installed and remove "installation unfinished"
+            self.album.solutions().set_installed(
+                resolve_result.catalog(), resolve_result.coordinates()
+            )
+        except BaseException:
+            # also when interrupted (e.g. Ctrl+C): what was installed is removed right
+            # away, still holding the lock, instead of by the next installation
+            self._remove_failed_installation(resolve_result)
+            raise
         if parent:
             module_logger().info(
                 "Installed parent solution %s!" % resolve_result.coordinates().name()
@@ -167,7 +230,10 @@ class InstallManager(IInstallManager):
         )
 
     def _install_active_solution(
-        self, collection_solution: ICollectionSolution, allow_recursive: bool = False
+        self,
+        collection_solution: ICollectionSolution,
+        locks: ExitStack,
+        allow_recursive: bool = False,
     ) -> Optional[ICollectionSolution]:
         parent_resolve_result = None
 
@@ -179,6 +245,7 @@ class InstallManager(IInstallManager):
                     parent,
                     collection_solution.loaded_solution().setup().album_api_version,
                     collection_solution.coordinates(),
+                    locks,
                     allow_recursive=allow_recursive,
                 )
             except Exception as e:
@@ -246,6 +313,7 @@ class InstallManager(IInstallManager):
         parent_dict: Dict[str, Any],
         api_version: str,
         child_coordinates: ICoordinates,
+        locks: ExitStack,
         allow_recursive: bool = False,
     ) -> ICollectionSolution:
         resolve_solution = build_resolve_string(parent_dict)
@@ -274,10 +342,17 @@ class InstallManager(IInstallManager):
                 )
             )
 
+        # the child is installed into the environment of its parent, which is locked until
+        # the child is installed: no album process uninstalls the parent meanwhile
+        self._lock_for_installation(resolve_result_parent, locks)
+
         # recursive installation call. Not failing for already installed solutions. parent set to "True".
         # The child runs in the environment of its parent, so the album-in-album check applies there.
-        self._install_loaded_resolve_result(
-            resolve_result_parent, parent=True, allow_recursive=allow_recursive
+        self._install_holding_lock(
+            resolve_result_parent,
+            parent=True,
+            allow_recursive=allow_recursive,
+            locks=locks,
         )
         return resolve_result_parent
 
@@ -287,7 +362,18 @@ class InstallManager(IInstallManager):
         rm_dep: bool = False,
         argv: Optional[List[str]] = None,
     ) -> None:
-        # a solution that is not found or not installed cannot be uninstalled, that error is for the caller
+        # resolved to know which solution to lock. Holding the lock it is resolved again,
+        # as another album process might have uninstalled it while this one waited.
+        # A solution that is not found or not installed cannot be uninstalled, that error is for the caller
+        resolve_result = self.album.collection_manager().resolve_installed(
+            solution_to_resolve
+        )
+        with self.album.solutions().get_solution_lock(
+            resolve_result.catalog(), resolve_result.coordinates()
+        ):
+            self._uninstall(solution_to_resolve, rm_dep)
+
+    def _uninstall(self, solution_to_resolve: str, rm_dep: bool = False) -> None:
         resolve_result = self.album.collection_manager().resolve_installed(
             solution_to_resolve
         )
@@ -463,33 +549,79 @@ class InstallManager(IInstallManager):
             catalog = self.album.catalogs().get_by_id(
                 collection_solution.internal()["catalog_id"]
             )
-            path = self.album.solutions().get_solution_file(
-                catalog, dict_to_coordinates(collection_solution.setup())
-            )
             coordinates = dict_to_coordinates(collection_solution.setup())
 
-            resolve = ResolveResult(
-                path=path,
-                catalog=catalog,
-                collection_entry=collection_solution,
-                coordinates=coordinates,
+            # an installation in progress holds the lock of its solution, and the
+            # operating system releases it when the album process ends. An unfinished
+            # installation whose lock is free was left by a process that ended before
+            # finishing it.
+            lock = self.album.solutions().get_solution_lock(catalog, coordinates)
+            if lock.is_held_by_current_thread() or not lock.acquire(blocking=False):
+                module_logger().debug(
+                    'Solution "%s" is being installed. Not removing it...' % coordinates
+                )
+                continue
+            try:
+                self._clean_unfinished_installation(catalog, coordinates)
+            finally:
+                lock.release()
+
+    def _remove_failed_installation(self, resolve_result: ICollectionSolution) -> None:
+        try:
+            self._clean_unfinished_installation(
+                resolve_result.catalog(), resolve_result.coordinates()
+            )
+        except Exception as e:
+            # it stays marked unfinished, the next installation removes it
+            module_logger().warning(
+                'Cannot remove the unfinished installation of "%s": %s'
+                % (resolve_result.coordinates(), e)
             )
 
-            self.album.solutions().set_cache_paths(
-                resolve.loaded_solution(), resolve.catalog()
-            )
-            # only remove environment when solution has its own environment. The
-            # solution is built from its collection entry, which carries no
-            # "dependencies", so the parent is taken from the collection index.
-            if not collection_solution.internal().get("parent"):
-                self._clean_unfinished_installations_environment(resolve)
+    def _clean_unfinished_installation(
+        self, catalog: ICatalog, coordinates: ICoordinates
+    ) -> None:
+        # only called holding the lock of the solution, so no installation of it is in
+        # progress. It is looked up again: before the lock was acquired, the installation
+        # might have finished, or the solution might have been removed.
+        collection_solution = (
+            self.album.collection_manager()
+            .get_collection_index()
+            .get_solution_by_catalog_grp_name_version(catalog.catalog_id(), coordinates)
+        )
+        if (
+            collection_solution is None
+            or not collection_solution.internal()["installation_unfinished"]
+        ):
+            return
 
-            self._remove_disc_content_from_solution(resolve)
+        module_logger().info(
+            'Removing the unfinished installation of "%s"...' % coordinates
+        )
+        path = self.album.solutions().get_solution_file(catalog, coordinates)
 
-            if resolve.catalog().is_cache():
-                self.album.solutions().remove_solution(resolve.catalog(), coordinates)
-            else:
-                self.album.solutions().set_uninstalled(resolve.catalog(), coordinates)
+        resolve = ResolveResult(
+            path=path,
+            catalog=catalog,
+            collection_entry=collection_solution,
+            coordinates=coordinates,
+        )
+
+        self.album.solutions().set_cache_paths(
+            resolve.loaded_solution(), resolve.catalog()
+        )
+        # only remove environment when solution has its own environment. The
+        # solution is built from its collection entry, which carries no
+        # "dependencies", so the parent is taken from the collection index.
+        if not collection_solution.internal().get("parent"):
+            self._clean_unfinished_installations_environment(resolve)
+
+        self._remove_disc_content_from_solution(resolve)
+
+        if resolve.catalog().is_cache():
+            self.album.solutions().remove_solution(resolve.catalog(), coordinates)
+        else:
+            self.album.solutions().set_uninstalled(resolve.catalog(), coordinates)
 
     def _clean_unfinished_installations_environment(
         self, resolve: ICollectionSolution

@@ -527,6 +527,39 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         ).joinpath("solution.py")
         self.assertEqual(res.resolve(), file)
 
+    def test_get_solution_lock(self):
+        # call
+        lock = self.solution_handler.get_solution_lock(
+            self.catalog, Coordinates("g", "n", "v")
+        )
+
+        # assert - a lock file per solution in the lock folder of the base path
+        self.assertEqual(
+            self.album_controller.configuration()
+            .base_cache_path()
+            .joinpath(
+                DefaultValues.lock_folder_prefix.value, "test", "g", "n", "v.lock"
+            ),
+            lock._path,
+        )
+        # the same lock every time, which the thread holding it acquires again
+        self.assertIs(
+            lock,
+            self.solution_handler.get_solution_lock(
+                self.catalog, Coordinates("g", "n", "v")
+            ),
+        )
+        with lock:
+            with self.solution_handler.get_solution_lock(
+                self.catalog, Coordinates("g", "n", "v")
+            ):
+                pass
+        # another solution has another lock
+        other_lock = self.solution_handler.get_solution_lock(
+            self.catalog, Coordinates("g", "n", "v2")
+        )
+        self.assertNotEqual(lock._path, other_lock._path)
+
     def test_get_solution_zip_suffix(self):
         res = Path("").joinpath(
             DefaultValues.catalog_solutions_prefix.value, "g", "n", "v", "g_n_v.zip"

@@ -7,13 +7,31 @@ from album.runner.core.api.model.solution import ISolution
 
 
 class IInstallManager:
-    """Interface handling the installation and uninstallation process of a solution."""
+    """Interface handling the installation and uninstallation process of a solution.
+
+    Installing or uninstalling a solution holds the lock of that solution, see
+    ISolutionHandler.get_solution_lock. Installing it also holds the locks of its
+    parents, whose environment it is installed into. Album processes and threads using
+    the same base path install other solutions at the same time, they only wait for
+    each other when they install or uninstall the same solution or one of its parents.
+    They wait for at most DefaultValues.install_lock_timeout_in_seconds before raising a
+    TimeoutError. Installing a solution that is already installed does not wait.
+
+    An installation that fails or is interrupted is removed right away. One left
+    unfinished by an album process that ended before finishing it (e.g. it was killed)
+    is removed by the next installation, see clean_unfinished_installations.
+    """
 
     __metaclass__ = ABCMeta
 
     @abstractmethod
     def clean_unfinished_installations(self):
-        """Remove traces of any installation that was started but not finished."""
+        """Remove traces of any installation that was started but not finished.
+
+        Installations in progress in another album process or thread hold the lock of
+        their solution and are not removed. The lock is released when the process ends,
+        so the installations removed are those of processes that ended before finishing.
+        """
         raise NotImplementedError
 
     @abstractmethod

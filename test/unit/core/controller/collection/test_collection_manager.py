@@ -1,3 +1,5 @@
+import threading
+import time
 import unittest
 import warnings
 from pathlib import Path
@@ -8,6 +10,7 @@ from unittest.mock import MagicMock, patch
 from album.core.model.catalog import Catalog
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.resolve_result import ResolveResult
+from album.core.utils.file_lock import FileLock
 from album.runner.core.model.coordinates import Coordinates
 from album.runner.core.model.solution import Solution
 
@@ -234,6 +237,63 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
             resolve_catalog, Coordinates("a", "b", "c")
         )
         self.assertEqual(resolve, r)
+
+    def _prepare_resolve_download(self):
+        self.resolve_catalog = Catalog("aNiceId", "aNiceName", "aValidPath")
+        self.resolve_path = Path(self.tmp_dir.name).joinpath("myResolvedSolution")
+        self.album_controller.collection_manager()._resolve = MagicMock(
+            return_value=ResolveResult(
+                path=self.resolve_path,
+                catalog=self.resolve_catalog,
+                collection_entry={},
+                coordinates=Coordinates("a", "b", "c"),
+            )
+        )
+        lock = self.solution_handler.get_solution_lock(
+            self.resolve_catalog, Coordinates("a", "b", "c")
+        )
+        lock._timeout = 10  # instead of waiting for two hours when it is not released
+        return lock
+
+    def test_resolve_download_holds_lock(self):
+        lock = self._prepare_resolve_download()
+        held_while_retrieving = []
+        self.solution_handler.retrieve_solution = MagicMock(
+            side_effect=lambda *args: held_while_retrieving.append(
+                lock.is_held_by_current_thread()
+            )
+        )
+
+        # call
+        self.album_controller.collection_manager().resolve("myInput")
+
+        # assert - another album process does not retrieve it at the same time
+        self.assertEqual([True], held_while_retrieving)
+        self.assertFalse(lock.is_held_by_current_thread())
+
+    def test_resolve_download_retrieved_while_waiting(self):
+        lock = self._prepare_resolve_download()
+        retrieve_solution = MagicMock()
+        self.solution_handler.retrieve_solution = retrieve_solution
+        locked = threading.Event()
+
+        def retrieve_in_other_process():
+            # another lock on the same file
+            with FileLock(lock._path, timeout=10, description="testing"):
+                locked.set()
+                time.sleep(0.2)
+                self.resolve_path.touch()
+
+        other_process = threading.Thread(target=retrieve_in_other_process)
+        other_process.start()
+        self.assertTrue(locked.wait(10))
+
+        # call
+        self.album_controller.collection_manager().resolve("myInput")
+        other_process.join(10)
+
+        # assert - retrieved by the other album process, not a second time
+        retrieve_solution.assert_not_called()
 
     def test_resolve_download_file_exists(self):
         # prepare
