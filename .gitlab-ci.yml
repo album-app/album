@@ -42,9 +42,9 @@ workflow:
     - '.\micromamba_installation\Library\bin\micromamba.exe create -y -n album python=$env:TEST_PYTHON_VERSION -c conda-forge' # created under $env:WINDOWS_MAMBA_ENV_PREFIX
     - 'Write-Output "CI_COMMIT_REF_NAME: $env:CI_COMMIT_REF_NAME"'
     #- "$Env:MAMBA_ROOT_PREFIX=(Join-Path -Path (Get-Location) -ChildPath micromamba)"
-    # The following lines allow to install the dev version of the API and envs in the album environment, based on the current branch name
-    - 'if($env:CI_COMMIT_REF_NAME -match "api_change_runner*") { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX pip install git+https://gitlab.com/album-app/album-solution-api.git@dev}'
-    - 'if($env:CI_COMMIT_REF_NAME -match "api_change_env*") { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX pip install git+https://gitlab.com/album-app/album-environments.git@dev}'
+    # The following lines install the dev version of the API and envs in the album environment when the branch name contains api_change_runner or api_change_env, anywhere and both at once
+    - 'if($env:CI_COMMIT_REF_NAME -match "api_change_runner") { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX pip install git+https://gitlab.com/album-app/album-solution-api.git@dev}'
+    - 'if($env:CI_COMMIT_REF_NAME -match "api_change_env") { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX pip install git+https://gitlab.com/album-app/album-environments.git@dev}'
     # The following allows to install the dev version of the API and envs via CI variables on any branch
     - 'if($env:ALBUM_DEV_CORE_API -match "True") { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX pip install git+https://gitlab.com/album-app/album-solution-api.git@dev}'
     - 'if($env:ALBUM_DEV_CORE_ENV -match "True") { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX pip install git+https://gitlab.com/album-app/album-environments.git@dev}'
@@ -80,9 +80,9 @@ workflow:
     # OLDEST_PYTHON_VERSION is only set by the job testing the oldest supported Python
     - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=${OLDEST_PYTHON_VERSION:-$TEST_PYTHON_VERSION}
     - bash -c 'echo $CI_COMMIT_REF_NAME'
-    # The following lines allow to install the dev version of the API and envs in the album environment, based on the current branch name
-    - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_runner* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No api_change_runner branch"'
-    - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_env* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No api_change_env branch"'
+    # The following lines install the dev version of the API and envs in the album environment when the branch name contains api_change_runner or api_change_env, anywhere and both at once
+    - bash -c '[[ $CI_COMMIT_REF_NAME == *api_change_runner* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No api_change_runner branch"'
+    - bash -c '[[ $CI_COMMIT_REF_NAME == *api_change_env* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No api_change_env branch"'
     # The following allows to install the dev version of the API and envs via CI variables on any branch
     - bash -c '[[ $ALBUM_DEV_CORE_ENV == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "ALBUM_DEV_CORE_ENV not active"'
     - bash -c '[[ $ALBUM_DEV_CORE_API == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "ALBUM_DEV_CORE_API not active"'
@@ -123,9 +123,9 @@ workflow:
     - $MICROMAMBA_EXECUTABLE --version
     - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=$TEST_PYTHON_VERSION
     - bash -c 'echo $CI_COMMIT_REF_NAME'
-    # The following lines allow to install the dev version of the API and envs in the album environment, based on the current branch name
-    - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_runner* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No api_change_runner branch"'
-    - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_env* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No api_change_env branch"'
+    # The following lines install the dev version of the API and envs in the album environment when the branch name contains api_change_runner or api_change_env, anywhere and both at once
+    - bash -c '[[ $CI_COMMIT_REF_NAME == *api_change_runner* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No api_change_runner branch"'
+    - bash -c '[[ $CI_COMMIT_REF_NAME == *api_change_env* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No api_change_env branch"'
     # The following allows to install the dev version of the API and envs via CI variables on any branch
     - bash -c '[[ $ALBUM_DEV_CORE_ENV == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "ALBUM_DEV_CORE_ENV not active"'
     - bash -c '[[ $ALBUM_DEV_CORE_API == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "ALBUM_DEV_CORE_API not active"'
