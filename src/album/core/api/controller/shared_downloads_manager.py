@@ -1,66 +1,70 @@
+"""Interface for downloading the resources of solutions and sharing them between solutions."""
+
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Optional
 
 from album.core.api.model.collection_solution import ICollectionSolution
+from album.runner.core.api.model.solution import ISolution
 
 
 class IDownloadManager:
     """
     Interface handling the file download and sharing locations of files requested by solutions.
+
+    A solution declares its resources in the ``resource_file`` entry of its dependencies. It takes
+    the same forms as the ``environment_file``: the content as a string, a url, a path to a file
+    on the disk, a ``StringIO`` or a dictionary. Example:
+
+        resources:
+            model:
+                name: model.pt
+                url: https://example.org/model.pt
+                hash: "sha256:9d88224e3be283730af0f4388573eb3019bb0aa40c0b77a8350019fb34afe9d8"
+                scope: catalog
+            viewer:
+                name: viewer-linux-x64.tar.xz
+                url: https://example.org/viewer-linux-x64.tar.xz
+                os: linux
+                scope: solution
+
+    Only ``name`` and ``url`` are required. The ``hash`` pins the content of a resource, a
+    download with a different content fails. A resource with an ``os`` (``linux``, ``win32`` or
+    ``darwin``) is only downloaded on that platform. The ``scope`` decides who shares a resource:
+    all solutions (``global``, the default), the solutions of the same catalog (``catalog``) or
+    nobody (``solution``, removed with the solution).
     """
 
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def download_resources_from_yaml(self, solution: ICollectionSolution) -> bool:
+    def download_resources(
+        self, collection_solution: ICollectionSolution
+    ) -> Optional[Path]:
         """
-        Downloads the resources of a solution that are specified in the solution's YAML file.
+        Download the resources of a solution that are meant for the current platform.
 
-        In the following example resource yaml, the path where the resource should be stored is dependent on the scope, e.g. a resource with scope `solution` should be stored in the solution folder of the app_path.
-        Only fitting OS resources should be stored and downloaded.
-        When no scope is given, it will be in the global shared_downloads folder.
-        Example:
-        resource_yaml = '''
-        resources:
-            file1:
-                name: blender-3.3.1-linux-x64.tar.xz
-                url: https://download.blender.org/release/Blender3.3/blender-3.3.1-linux-x64.tar.xz
-                hash:
-                os: linux
-                scope: catalog
+        A shared resource is stored in a folder named after its content, so solutions only share
+        a file when they ask for the same content. The paths of all resources are written to a
+        json file in the internal cache of the solution, where the solution reads them with
+        ``get_resources_dict()``. Resources for other platforms get no path.
 
-            file2:
-                name: blender-3.3.1-windows-x64.zip
-                url: https://download.blender.org/release/Blender3.3/blender-3.3.1-windows-x64.zip
-                hash: md5:1234
-                os: win32
-                scope: solution
+        Returns:
+            The path of the json file, or None if the solution declares no resources.
 
-            file3:
-                name: blender-3.3.1-macos-x64.dmg
-                url: https://download.blender.org/release/Blender3.3/blender-3.3.1-macos-x64.dmg
-                hash: sha256:1234
-                os: darwin
-        '''
-
+        Raises:
+            TypeError: if the resource file has none of the accepted forms.
+            ValueError: if the content of the resource file is invalid.
+            RuntimeError: if a resource cannot be downloaded or does not match its hash.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def get_download_paths(
-        self, collection_solution: ICollectionSolution
-    ) -> Tuple[Dict[str, Any], Path]:
+    def check_resources(self, solution: ISolution) -> None:
         """
-        Converts a resource YAML to a dictionary and inserts the download paths of the resources to the dictionary.
-        """
-        raise NotImplementedError
+        Check the resource file of a solution before it is deployed.
 
-    @staticmethod
-    def clean_up_downloads(
-        scope_to_clear: str, catalog_name: Optional[str] = None
-    ) -> bool:
-        """
-        Removes all downloaded resources of specified scope. Either `global`or `catalog` to remove shared resources. SOlution resources will be removed upon uninstallation.
+        Raises the same errors as the installation would for an invalid resource file, and warns
+        about resources that work for the deployer only or that are shared without a hash.
         """
         raise NotImplementedError

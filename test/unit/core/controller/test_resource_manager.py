@@ -332,6 +332,26 @@ dependencies:
         with self.assertRaises(TypeError):
             self.resource_manager.handle_env_file_dependency(1, Path(self.tmp_dir.name))
 
+    def test_handle_resource_file_dependency(self):
+        yml = Path(self.tmp_dir.name).joinpath("resources.yml")
+
+        # the content of a resource file is recognized by "resources:"
+        self.resource_manager.handle_resource_file_dependency(
+            "resources:\n  a: {}\n", yml
+        )
+        with open(yml, encoding="utf-8") as f:
+            self.assertEqual("resources:\n  a: {}\n", f.read())
+
+        # the content of an environment file is not a resource file
+        with self.assertRaises(TypeError) as e:
+            self.resource_manager.handle_resource_file_dependency(
+                "dependencies:\n  - python\n", yml
+            )
+        self.assertIn(
+            "resource_file must either contain the content of the resource file",
+            str(e.exception),
+        )
+
     @patch("album.core.controller.resource_manager.download_resource")
     def test__handle_env_file_string_valid_url(self, download_mock):
         test_yml_to_be_downloaded = Path(self.tmp_dir.name).joinpath("test_dl.yml")

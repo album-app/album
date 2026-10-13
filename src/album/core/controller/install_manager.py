@@ -47,8 +47,6 @@ class InstallManager(IInstallManager):
             resolve_result, parent=False, allow_recursive=allow_recursive
         )
 
-        # TODO: run install and download in parallel, enable resource feature
-        # self.album.download_manager().download_resources_from_yaml(resolve_result)
         return resolve_result.loaded_solution()
 
     def _resolve_result_is_installed(self, resolve_result: ICollectionSolution) -> bool:
@@ -168,6 +166,10 @@ class InstallManager(IInstallManager):
         )
 
         try:
+            # download the resources before the environment is built, so a broken resource
+            # fails early. The install routine can use them.
+            self.album.download_manager().download_resources(resolve_result)
+
             # run installation recursively
             self._install_active_solution(resolve_result, locks, allow_recursive)
 

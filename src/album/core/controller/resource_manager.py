@@ -120,28 +120,51 @@ class ResourceManager(IResourceManager):
     def handle_env_file_dependency(
         self, env_file: Union[str, Dict[str, Any], StringIO], yml_path: Path
     ) -> None:
-        if isinstance(env_file, str):
-            self._handle_env_file_string(env_file, yml_path)
-        elif isinstance(env_file, StringIO):
-            self._handle_env_file_stream(env_file, yml_path)
-        elif isinstance(env_file, dict):
-            self._handle_env_file_dict(env_file, yml_path)
-        else:
-            raise TypeError(
-                "environment_file must either contain the content of the environment file, "
-                "contain the url to a valid file or point to a file on the disk!"
+        self._handle_file_dependency(
+            env_file, yml_path, "environment_file", "dependencies:"
+        )
+
+    def handle_resource_file_dependency(
+        self, resource_file: Union[str, Dict[str, Any], StringIO], yml_path: Path
+    ) -> None:
+        self._handle_file_dependency(
+            resource_file, yml_path, "resource_file", "resources:"
+        )
+
+    def _handle_file_dependency(
+        self,
+        file_dependency: Union[str, Dict[str, Any], StringIO],
+        yml_path: Path,
+        dependency: str,
+        content_marker: str,
+    ) -> None:
+        if isinstance(file_dependency, str):
+            self._handle_env_file_string(
+                file_dependency, yml_path, dependency, content_marker
             )
+        elif isinstance(file_dependency, StringIO):
+            self._handle_env_file_stream(file_dependency, yml_path)
+        elif isinstance(file_dependency, dict):
+            self._handle_env_file_dict(file_dependency, yml_path)
+        else:
+            raise TypeError(self._invalid_file_dependency_message(dependency))
 
     @staticmethod
-    def _handle_env_file_string(env_file: str, yml_path: Path) -> None:
+    def _handle_env_file_string(
+        env_file: str,
+        yml_path: Path,
+        dependency: str = "environment_file",
+        content_marker: str = "dependencies:",
+    ) -> None:
+        """Write a file dependency given as a string to yml_path. Used for the environment and the resource file."""
         # 1. Link
         if validators.url(env_file):
             download_resource(env_file, yml_path)
         # 2. string from solution file
-        elif "dependencies:" in env_file and "\n" in env_file:
+        elif content_marker in env_file and "\n" in env_file:
             with open(str(yml_path), "w+", encoding="utf-8") as yml_file:
                 yml_file.writelines(env_file)
-        # 3. existing environment file (.yml or .yaml)
+        # 3. existing file (.yml or .yaml)
         elif (
             Path(env_file).is_file()
             and Path(env_file).stat().st_size > 0
@@ -150,9 +173,16 @@ class ResourceManager(IResourceManager):
             copy(env_file, yml_path)
         else:
             raise TypeError(
-                "environment_file must either contain the content of the environment file, "
-                "contain the url to a valid file or point to a file on the disk!"
+                ResourceManager._invalid_file_dependency_message(dependency)
             )
+
+    @staticmethod
+    def _invalid_file_dependency_message(dependency: str) -> str:
+        return (
+            "%s must either contain the content of the %s, "
+            "contain the url to a valid file or point to a file on the disk!"
+            % (dependency, dependency.replace("_", " "))
+        )
 
     @staticmethod
     def _handle_env_file_stream(env_file_stream: StringIO, yml_path: Path) -> None:

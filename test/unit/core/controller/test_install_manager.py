@@ -166,6 +166,11 @@ class TestInstallManager(TestUnitCoreCommon):
         self.set_installed = MagicMock()
         self.album_controller.solutions().set_installed = self.set_installed
 
+        self.download_resources = MagicMock()
+        self.album_controller.download_manager().download_resources = (
+            self.download_resources
+        )
+
         return resolve_result
 
     @patch("album.core.controller.install_manager.clean_resolve_tmp")
@@ -185,6 +190,7 @@ class TestInstallManager(TestUnitCoreCommon):
         self.set_installation_unfinished.assert_called_once_with(
             r.catalog(), r.coordinates()
         )
+        self.download_resources.assert_called_once_with(r)
         self.install_active_solution.assert_called_once_with(r, ANY, False)
         self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
         self.assertIn('Installing "tsn"...', self.get_logs_as_string())
@@ -200,9 +206,49 @@ class TestInstallManager(TestUnitCoreCommon):
         self.assertEqual([call(r), call(r)], self.is_installed.call_args_list)
         self.register.assert_called_once_with(r)
         clean_resolve_tmp.assert_not_called()  # only cleaned for the child
+        # a parent gets its resources, too
+        self.download_resources.assert_called_once_with(r)
         self.install_active_solution.assert_called_once_with(r, ANY, False)
         self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
         self.assertIn('Installing parent solution "tsn"...', self.get_logs_as_string())
+
+    @patch("album.core.controller.install_manager.clean_resolve_tmp")
+    def test__install_loaded_resolve_result_resources_before_environment(self, _):
+        r = self._prepare_install_loaded_resolve_result(installed=False)
+        lock_free = []
+
+        def download_resources(resolve_result):
+            # marked unfinished and holding the lock, before the environment is built
+            self.set_installation_unfinished.assert_called_once()
+            self.install_active_solution.assert_not_called()
+            lock_free.append(self._lock_is_free())
+
+        self.download_resources.side_effect = download_resources
+
+        # call
+        self.install_manager._install_loaded_resolve_result(r)
+
+        # assert
+        self.download_resources.assert_called_once_with(r)
+        self.assertEqual([False], lock_free)
+        self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
+
+    @patch("album.core.controller.install_manager.clean_resolve_tmp")
+    def test__install_loaded_resolve_result_resources_fail(self, _):
+        r = self._prepare_install_loaded_resolve_result(installed=False)
+        error = RuntimeError('Could not retrieve resource "a"')
+        self.download_resources.side_effect = error
+
+        # call
+        with self.assertRaises(RuntimeError) as context:
+            self.install_manager._install_loaded_resolve_result(r)
+
+        # assert - no environment, the failed installation is removed right away
+        self.assertIs(error, context.exception)
+        self.install_active_solution.assert_not_called()
+        self.set_installed.assert_not_called()
+        self.assertEqual(2, self.clean_unfinished_installation.call_count)
+        self.assertTrue(self._lock_is_free())
 
     @patch("album.core.controller.install_manager.clean_resolve_tmp")
     def test__install_loaded_resolve_result_holds_lock(self, _):
@@ -379,6 +425,7 @@ class TestInstallManager(TestUnitCoreCommon):
         # assert
         self.is_installed.assert_called_once_with(r)
         self.register.assert_not_called()
+        self.download_resources.assert_not_called()
         self.install_active_solution.assert_not_called()
         self.set_installed.assert_not_called()
         self.assertIn(
