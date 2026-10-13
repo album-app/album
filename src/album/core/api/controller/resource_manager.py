@@ -1,12 +1,12 @@
 """Interface for the resource manager class."""
+
 from abc import ABCMeta, abstractmethod
 from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, Union
 
-from album.runner.core.api.model.solution import ISolution
-
 from album.core.api.model.catalog import ICatalog
+from album.runner.core.api.model.solution import ISolution
 
 
 class IResourceManager:
@@ -36,4 +36,11 @@ class IResourceManager:
         self, env_file: Union[str, Dict[str, Any], StringIO], yml_path: Path
     ):
         """Handle the environment file dependency."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def handle_resource_file_dependency(
+        self, resource_file: Union[str, Dict[str, Any], StringIO], yml_path: Path
+    ):
+        """Handle the resource file dependency. It takes the same forms as the environment file."""
         raise NotImplementedError

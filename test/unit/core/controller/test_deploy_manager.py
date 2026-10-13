@@ -59,6 +59,30 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
             False,
         )
 
+    def test_deploy_invalid_resource_file(self):
+        # mock
+        self.deploy_manager._get_path_to_solution = MagicMock(
+            return_value="solutionPath"
+        )
+        self.active_solution.setup().dependencies = {
+            "resource_file": {"resources": {"a": {"name": "a.txt"}}}
+        }
+        self.album_controller.state_manager().load = MagicMock(
+            return_value=self.active_solution
+        )
+        get_by_name = MagicMock(return_value="myCatalogLoaded")
+        self.album_controller.catalogs().get_by_name = get_by_name
+        _deploy = MagicMock(return_value=None)
+        self.deploy_manager._deploy = _deploy
+
+        # call: the resource is missing its url
+        with self.assertRaises(ValueError):
+            self.deploy_manager.deploy("deployPath", "catName", False)
+
+        # assert: aborted before the catalog is touched
+        get_by_name.assert_not_called()
+        _deploy.assert_not_called()
+
     @patch(
         "album.core.controller.deploy_manager.process_changelog_file",
         return_value="Chanelog",

@@ -29,6 +29,7 @@ from test.integration.core import (
     test_integration_repl,
     test_integration_run,
     test_integration_search,
+    test_integration_shared_resources,
     test_integration_test,
     test_integration_uninstall,
 )
@@ -57,6 +58,7 @@ def load_tests(loader, standard_tests, pattern):
     suite.addTests(loader.loadTestsFromModule(test_integration_repl))
     suite.addTests(loader.loadTestsFromModule(test_integration_run))
     suite.addTests(loader.loadTestsFromModule(test_integration_search))
+    suite.addTests(loader.loadTestsFromModule(test_integration_shared_resources))
     # suite.addTests(loader.loadTestsFromModule(test_integration_task_manager)) # todo: fix me
     suite.addTests(loader.loadTestsFromModule(test_integration_test))
     suite.addTests(loader.loadTestsFromModule(test_integration_uninstall))

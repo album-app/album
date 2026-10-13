@@ -96,6 +96,9 @@ class DefaultValues(Enum):
     cache_path_envs_prefix = "envs"  # base folder prefix where environments live in
 
     shared_globally_suffix = "shared_downloads"  # suffix for shared globally downloads
+    solution_resources_prefix = (
+        "resources"  # folder in the installation of a solution for its own resources
+    )
 
     # base folder prefix of the lock files, one per solution, locked while the solution
     # is installed, uninstalled or downloaded (see ISolutionHandler.get_solution_lock)

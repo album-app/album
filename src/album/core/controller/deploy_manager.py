@@ -64,6 +64,9 @@ class DeployManager(IDeployManager):
         active_solution = self.album.state_manager().load(path_to_solution)
         active_solution.setup().changelog = changelog
 
+        # an invalid resource file would only fail when the solution gets installed
+        self.album.download_manager().check_resources(active_solution)
+
         if catalog_name:
             catalog = self.album.catalogs().get_by_name(catalog_name)
         else:
