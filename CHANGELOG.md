@@ -37,10 +37,12 @@ We use the following:
 ### Deprecated
 
 - Solution plugins (`dependencies.plugins`), and with them album-socket and album-client: a solution that declares plugins logs a warning when it runs; the plugins are still activated (!324, #266)
+- album-server (`album server`) is deprecated, and its repository is archived (#268). Running solutions remotely stays a goal (#276).
 
 ### Removed
 
 - `pexpect` and `pre-commit` are no longer runtime dependencies of album; only its tests and its developers use them (!334). Updating album does not uninstall them.
+- `DefaultValues.server_port` and `DefaultValues.server_host`: album never used them, only the album-server and album-socket plugins read them, and both are archived (!336, #268, #266).
 
 ### Fixed
 
