@@ -103,6 +103,9 @@ class DefaultValues(Enum):
     # base folder prefix of the lock files, one per solution, locked while the solution
     # is installed, uninstalled or downloaded (see ISolutionHandler.get_solution_lock)
     lock_folder_prefix = "locks"
+    # folder in the lock folder for the lock files of shared resources, one per content
+    # folder, locked while the resource is downloaded (see DownloadManager._get_resource_lock)
+    resource_lock_folder_prefix = "resources"
     install_lock_timeout_in_seconds = (
         2 * 60 * 60
     )  # how long to wait for another album process to finish installing or uninstalling a solution

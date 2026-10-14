@@ -1,8 +1,10 @@
+import argparse
 import os
 import sys
 import tempfile
 import unittest.mock
-from unittest.mock import patch
+from argparse import Namespace
+from unittest.mock import MagicMock, call, patch
 
 from album import argument_parsing
 from album.commandline import (
@@ -86,6 +88,70 @@ class TestArgumentParsing(unittest.TestCase):
         self.assertEqual(deploy, args[0].func)
         self.assertTrue(args[0].force_deploy)
 
+    def test_abbreviated_options_are_passed_to_the_solution(self):
+        parser = argument_parsing.create_parser()
+
+        # an abbreviation of --json or --log belongs to the solution
+        sys.argv = ["", "run", "test/path", "--js", "--lo", "DEBUG"]
+        args = parser.parse_known_args()
+        self.assertFalse(args[0].json)
+        self.assertEqual(["--js", "--lo", "DEBUG"], args[1])
+
+        # the full option is album's
+        sys.argv = ["", "run", "test/path", "--json"]
+        args = parser.parse_known_args()
+        self.assertTrue(args[0].json)
+        self.assertEqual([], args[1])
+
+    def test_run_install_flag(self):
+        parser = argument_parsing.create_parser()
+
+        sys.argv = ["", "run", "test/path", "--name", "x"]
+        args = parser.parse_known_args()
+        self.assertFalse(args[0].install)
+
+        # --install is album's, the rest belongs to the solution
+        sys.argv = ["", "run", "test/path", "--install", "--name", "x"]
+        args = parser.parse_known_args()
+        self.assertTrue(args[0].install)
+        self.assertEqual(["--name", "x"], args[1])
+
+    def test_undeploy_takes_coordinates(self):
+        parser = argument_parsing.create_parser()
+
+        sys.argv = ["", "undeploy", "grp:name:0.1.0", "catalog-name"]
+        args = parser.parse_known_args()
+        self.assertEqual("grp:name:0.1.0", args[0].path)
+        self.assertEqual("catalog-name", args[0].catalog)
+
+        help_text = self._get_command_parser(parser, "undeploy").format_help()
+        self.assertIn("group:name:version", help_text)
+        self.assertNotIn("path for the solution file", help_text)
+
+    def test_help_of_the_solution_argument(self):
+        parser = argument_parsing.create_parser()
+
+        for command in ["install", "run", "info", "test", "uninstall", "repl"]:
+            help_text = self._get_command_parser(parser, command).format_help()
+            self.assertIn("group:name:version", help_text, command)
+            self.assertIn("DOI", help_text, command)
+
+        self.assertIn(
+            "folder", self._get_command_parser(parser, "deploy").format_help()
+        )
+        # --uninstall-deps is a flag, it takes no True or False
+        self.assertNotIn(
+            "True, False",
+            self._get_command_parser(parser, "uninstall").format_help(),
+        )
+
+    @staticmethod
+    def _get_command_parser(parser, name):
+        subparsers = next(
+            a for a in parser._actions if isinstance(a, argparse._SubParsersAction)
+        )
+        return subparsers.choices[name]
+
     def assertSubcommandParsed(self, parser, name, method, arguments=None):
         sys.argv = ["", name]
         if arguments:
@@ -101,6 +167,52 @@ class TestArgumentParsing(unittest.TestCase):
         sys.argv = ["", name, "test/path"] + additional_args
         args = parser.parse_known_args()
         self.assertEqual(method, args[0].func)
+
+
+class TestRunCommand(unittest.TestCase):
+    def setUp(self):
+        self.album_instance = MagicMock()
+        self._argv = sys.argv
+        # what argument parsing leaves for the solution
+        sys.argv = ["", "--name", "x"]
+
+    def tearDown(self):
+        sys.argv = self._argv
+
+    def test_run_install_missing(self):
+        self.album_instance.is_installed.return_value = False
+
+        run(self.album_instance, Namespace(path="grp:name:0.1.0", install=True))
+
+        # installed first, then run with the solution arguments
+        self.assertEqual(
+            [
+                call.is_installed("grp:name:0.1.0"),
+                call.install("grp:name:0.1.0"),
+                call.run("grp:name:0.1.0", argv=["", "--name", "x"]),
+            ],
+            self.album_instance.mock_calls,
+        )
+
+    def test_run_install_installed(self):
+        self.album_instance.is_installed.return_value = True
+
+        run(self.album_instance, Namespace(path="grp:name:0.1.0", install=True))
+
+        self.album_instance.install.assert_not_called()
+        self.album_instance.run.assert_called_once_with(
+            "grp:name:0.1.0", argv=["", "--name", "x"]
+        )
+
+    def test_run_without_install(self):
+        run(self.album_instance, Namespace(path="grp:name:0.1.0", install=False))
+
+        # not even looked up: a solution that is not installed fails in run
+        self.album_instance.is_installed.assert_not_called()
+        self.album_instance.install.assert_not_called()
+        self.album_instance.run.assert_called_once_with(
+            "grp:name:0.1.0", argv=["", "--name", "x"]
+        )
 
 
 if __name__ == "__main__":

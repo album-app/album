@@ -164,6 +164,77 @@ dependencies:
         committed_changelog = Path(catalog_src_path).joinpath(suffix, "CHANGELOG.md")
         self.assertIn("My handwritten changelog", committed_changelog.read_text())
 
+    @patch(
+        "album.core.controller.resource_manager.create_changelog_file",
+        return_value="changelogfile",
+    )
+    def test_build_solution_files_skips_hidden_files(self, _):
+        # prepare
+        catalog_src_path, _ = self.setup_empty_catalog("test_cat")
+        catalog = Catalog(
+            0,
+            "test_cat",
+            src=catalog_src_path,
+            path=Path(self.tmp_dir.name).joinpath("catalog_cache_path"),
+        )
+        deploy_dir = Path(self.tmp_dir.name).joinpath("deploy_dir")
+        deployed = ["solution.py", "sub/data.txt"]
+        not_deployed = [
+            ".DS_Store",
+            ".git/config",
+            "__pycache__/solution.cpython-314.pyc",
+            "sub/.hidden",
+            "sub/.ipynb_checkpoints/notebook-checkpoint.ipynb",
+        ]
+        for name in deployed + not_deployed:
+            deploy_dir.joinpath(name).parent.mkdir(parents=True, exist_ok=True)
+            deploy_dir.joinpath(name).write_text("content")
+
+        # mock
+        self.resource_manager._create_yaml_file_in_local_src = MagicMock(
+            return_value="ymlfile"
+        )
+
+        # call
+        r = self.resource_manager.write_solution_files(
+            catalog, catalog_src_path, self.active_solution, deploy_dir, True
+        )
+
+        # assert: only the visible files are copied into the catalog
+        solution_root = Path(catalog_src_path).joinpath(
+            self.album_controller.configuration().get_solution_path_suffix_unversioned(
+                self.active_solution.coordinates()
+            )
+        )
+        self.assertCountEqual(
+            [solution_root.joinpath(name) for name in deployed]
+            + ["ymlfile", "changelogfile"],
+            r,
+        )
+        copied = [
+            p.relative_to(solution_root).as_posix()
+            for p in solution_root.rglob("*")
+            if p.is_file()
+        ]
+        self.assertCountEqual(deployed, copied)
+        # the skipped folders are named once, not every file inside them
+        self.assertIn(
+            "Not deploying hidden files and folders and Python caches: "
+            + ", ".join(
+                sorted(
+                    str(Path(p))
+                    for p in [
+                        ".DS_Store",
+                        ".git",
+                        "__pycache__",
+                        "sub/.hidden",
+                        "sub/.ipynb_checkpoints",
+                    ]
+                )
+            ),
+            self.get_logs_as_string(),
+        )
+
     @patch("album.core.controller.resource_manager.download_resource")
     def test_write_solution_env_file(self, download_mock):
         # prepare

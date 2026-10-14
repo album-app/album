@@ -18,8 +18,9 @@ We use the following:
 
 ### Added
 
-- Shared resources: the `resource_file` of a solution and of its parents is downloaded on install, checked against its `hash`, and shared between solutions that ask for the same content (scope `global`, `catalog` or `solution`) (!331). A failed download or a hash mismatch fails `album install`. `album deploy` validates the resource file. Replaces !253.
+- Shared resources: the `resource_file` of a solution and of its parents is downloaded on install, checked against its `hash`, and shared between solutions that ask for the same content (scope `global`, `catalog` or `solution`) (!331). A failed download or a hash mismatch fails `album install`. `album deploy` validates the resource file. Solutions that are installed at the same time and share a resource download it once (!337, #277). Replaces !253.
 - `CITATION.cff` lists everyone who contributed to album; the package authors in `pyproject.toml` stay the core team. The README and the citation text of released solutions cite the album paper v2 (!332).
+- `album run --install` installs the solution first if it is not installed (!337, #250)
 
 ### Changed
 
@@ -33,6 +34,9 @@ We use the following:
 - CI: the unit tests also run on Python 3.10, the oldest version album supports (!330)
 - CI: the Linux jobs install the dev versions of album-solution-api and album-environments when `api_change_runner` or `api_change_env` appears anywhere in the branch name, not only at its start (!333)
 - README with badges, a quick start, the Album suite and where Album is listed; the PyPI sidebar links to the changelog, the paper, conda-forge, Docker Hub and Helmholtz RSD (!335)
+- album only recognizes its long options in full (!337). Every argument album does not know is passed on to the solution, but an abbreviation was taken for an album option: a solution argument `--js` or `--lo` became album's `--json` or `--log`. This also applies to the commands of plugins and to `album-catalog-admin`.
+- A solution that is not installed is reported by name, with the call that installs it: `Solution "<solution>" is not installed. "album install <solution>" installs it.` `run`, `test`, `repl` and `uninstall` used to say "Solution seems not to be installed! Please install solution first!", or "Solution not found in database!" for a solution file that was never installed (!337).
+- `requires-python` has no upper bound anymore (was `<3.15`) (!337). On Python 3.15, pip skipped every album release with the bound and installed album 0.12.0, the newest release without it. Python 3.15 is not tested in CI yet.
 
 ### Deprecated
 
@@ -79,6 +83,8 @@ We use the following:
 - Database migration: every step records the final version, and the backup cannot be restored on Windows while the index is open (!326, #269)
 - `album uninstall`: a solution that is not installed or not found is reported as "Cannot load solution" and resolved twice (!327, #270)
 - `update_solution()` lets attributes redirect the update to another entry; a failed `last_execution` write fails a finished run (!328, #271)
+- Help texts: `album undeploy` asks for the path of the solution file, but takes `group:name:version` (#182); `install`, `run`, `info`, `test`, `uninstall` and `repl` only mention a path, although they also take coordinates, a DOI or a URL; `--uninstall-deps` offers True and False, but is a flag (!337)
+- `album deploy` of a folder copies hidden files and folders (`.git`, `.DS_Store`, `.ipynb_checkpoints`, ...) and `__pycache__` into the catalog (!337, #229). They are left out now, and the deploy log names them.
 
 ## [0.12.2]
 

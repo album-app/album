@@ -32,6 +32,12 @@ from album.runner.album_logging import (
     to_loglevel,
 )
 
+# help of the positional solution argument of every command that resolves a solution
+SOLUTION_HELP = (
+    "the solution: [catalog:]group:name:version (or a shorter form such as group:name), "
+    "a DOI, a URL, or the path to a solution file, folder or zip"
+)
+
 
 def main():
     """Entry points of `album`."""
@@ -231,8 +237,8 @@ def create_uninstall_parser(parser):
     p.add_argument(
         "--uninstall-deps",
         required=False,
-        help="Boolean to additionally remove all album dependencies. Choose between %s."
-        % ", ".join([str(True), str(False)]),
+        help="Also uninstall the parent solution, and its parents in turn. A parent that other "
+        "installed solutions still depend on stays installed.",
         default=False,
         action="store_true",
     )
@@ -256,7 +262,13 @@ def create_install_parser(parser):
 
 def create_deploy_parser(parser):
     """Create a parser for the deploy command."""
-    p = parser.create_file_command_parser("deploy", deploy, "deploy an album solution.")
+    p = parser.create_file_command_parser(
+        "deploy",
+        deploy,
+        "deploy an album solution.",
+        path_help="path to the solution file, or to the folder that holds solution.py and its other files",
+        path_metavar="path",
+    )
     p.add_argument(
         "catalog",
         type=str,
@@ -312,7 +324,10 @@ def create_deploy_parser(parser):
 def create_undeploy_parser(parser):
     """Create a parser for the undeploy command."""
     p = parser.create_file_command_parser(
-        "undeploy", undeploy, "undeploy an album solution."
+        "undeploy",
+        undeploy,
+        "undeploy an album solution.",
+        path_help="group:name:version of the solution to remove from the catalog",
     )
     p.add_argument(
         "catalog",
@@ -355,7 +370,13 @@ def create_repl_parser(parser):
 
 def create_run_parser(parser):
     """Create a parser for the run command."""
-    parser.create_file_command_parser("run", run, "run an album solution.")
+    p = parser.create_file_command_parser("run", run, "run an album solution.")
+    p.add_argument(
+        "--install",
+        required=False,
+        help="Install the solution first if it is not installed.",
+        action="store_true",
+    )
 
 
 def create_search_parser(parser):
@@ -367,7 +388,16 @@ def create_search_parser(parser):
 
 
 class ArgumentParser(argparse.ArgumentParser):
-    """Override default error method of all parsers to show help of subcommand."""
+    """Parser of album and its commands, the base of every album parser.
+
+    Long options are only matched in full. album passes every argument it does not know on to
+    the solution, so a solution argument such as --js must not be taken for album's --json.
+    """
+
+    def __init__(self, *args, **kwargs):
+        """Create the parser. Abbreviated long options are not recognized."""
+        kwargs.setdefault("allow_abbrev", False)
+        super().__init__(*args, **kwargs)
 
     def error(self, message):
         """Override default error method of all parsers to show help of subcommand."""
@@ -429,15 +459,23 @@ class AlbumParser(ArgumentParser):
         parser.set_defaults(func=command_function)
         return parser
 
-    def create_file_command_parser(self, command_name, command_function, command_help):
-        """Create a parser for a album command dealing with an album file.
+    def create_file_command_parser(
+        self,
+        command_name,
+        command_function,
+        command_help,
+        path_help=SOLUTION_HELP,
+        path_metavar="solution",
+    ):
+        """Create a parser for a album command dealing with a solution.
 
-        Parser is specified by a name, a function and a help description.
+        Parser is specified by a name, a function and a help description. The solution is
+        the positional argument "path", its help and its name in the usage can be set.
         """
         parser = self.create_command_parser(
             command_name, command_function, command_help
         )
-        parser.add_argument("path", type=str, help="path for the solution file")
+        parser.add_argument("path", type=str, metavar=path_metavar, help=path_help)
         return parser
 
 
