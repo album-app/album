@@ -7,6 +7,11 @@ workflow:
       when: never
     - when: always
 
+variables:
+  # PyYAML has no wheels for Python 3.15 yet, and without a compiler its build only falls back to pure Python on
+  # Linux and macOS: on Windows, setuptools raises a PlatformError PyYAML does not catch. Build it without libyaml.
+  PYYAML_FORCE_LIBYAML: "0"
+
 #----------------------------
 # templates
 #----------------------------
@@ -39,7 +44,8 @@ workflow:
     - '& $7ZIP_EXE x micromamba.tar -ttar -aoa -r Library\bin\micromamba.exe $("-o" + (Join-Path -Path (Get-Location) -ChildPath micromamba_installation))'
     - "$progressPreference = $oldProgressPreference"
     - 'Get-ChildItem Env: | Where-Object { $_.Name -match "album" -or $_.Value -match "album" } | Format-Table -AutoSize'
-    - '.\micromamba_installation\Library\bin\micromamba.exe create -y -n album python=$env:TEST_PYTHON_VERSION -c conda-forge' # created under $env:WINDOWS_MAMBA_ENV_PREFIX
+    # zstandard (a dependency of conda-lock, which album-environments needs) has no wheels for Python 3.15 on PyPI yet, and the runners have no compiler to build it
+    - '.\micromamba_installation\Library\bin\micromamba.exe create -y -n album python=$env:TEST_PYTHON_VERSION zstandard -c conda-forge' # created under $env:WINDOWS_MAMBA_ENV_PREFIX
     - 'Write-Output "CI_COMMIT_REF_NAME: $env:CI_COMMIT_REF_NAME"'
     #- "$Env:MAMBA_ROOT_PREFIX=(Join-Path -Path (Get-Location) -ChildPath micromamba)"
     # The following lines install the dev version of the API and envs in the album environment when the branch name contains api_change_runner or api_change_env, anywhere and both at once
@@ -78,7 +84,8 @@ workflow:
     - MICROMAMBA_EXECUTABLE=$CI_PROJECT_DIR/bin/micromamba
     - $MICROMAMBA_EXECUTABLE --version
     # OLDEST_PYTHON_VERSION is only set by the job testing the oldest supported Python
-    - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=${OLDEST_PYTHON_VERSION:-$TEST_PYTHON_VERSION}
+    # zstandard (a dependency of conda-lock, which album-environments needs) has no wheels for Python 3.15 on PyPI yet, and the runners have no compiler to build it
+    - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=${OLDEST_PYTHON_VERSION:-$TEST_PYTHON_VERSION} zstandard
     - bash -c 'echo $CI_COMMIT_REF_NAME'
     # The following lines install the dev version of the API and envs in the album environment when the branch name contains api_change_runner or api_change_env, anywhere and both at once
     - bash -c '[[ $CI_COMMIT_REF_NAME == *api_change_runner* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No api_change_runner branch"'
@@ -121,7 +128,8 @@ workflow:
     - tar -xvjf $tmpdir/micromamba.tar.bz2 -C $tmpdir/bin/ --strip-components=1 bin/micromamba
     - MICROMAMBA_EXECUTABLE=$tmpdir/bin/micromamba
     - $MICROMAMBA_EXECUTABLE --version
-    - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=$TEST_PYTHON_VERSION
+    # zstandard (a dependency of conda-lock, which album-environments needs) has no wheels for Python 3.15 on PyPI yet, and the runners have no compiler to build it
+    - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=$TEST_PYTHON_VERSION zstandard
     - bash -c 'echo $CI_COMMIT_REF_NAME'
     # The following lines install the dev version of the API and envs in the album environment when the branch name contains api_change_runner or api_change_env, anywhere and both at once
     - bash -c '[[ $CI_COMMIT_REF_NAME == *api_change_runner* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No api_change_runner branch"'
