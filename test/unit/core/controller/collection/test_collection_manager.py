@@ -143,10 +143,43 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
             self.album_controller.collection_manager().get_index_as_dict(),
         )
 
-    @unittest.skip("Needs to be implemented!")
-    def test_resolve_require_installation(self):
-        # todo: implement
-        pass
+    def test_resolve_installed_not_installed(self):
+        collection_manager = self.album_controller.collection_manager()
+        catalog = collection_manager.catalogs().get_cache_catalog()
+        coordinates = Coordinates("grp", "name", "version")
+        uninstalled = ResolveResult(
+            path=Path("aPath"),
+            catalog=catalog,
+            collection_entry=CollectionIndex.CollectionSolution(
+                internal={"catalog_id": 1, "installed": False},
+                setup={"group": "grp", "name": "name", "version": "version"},
+            ),
+            coordinates=coordinates,
+        )
+        # e.g. a solution file that is not part of the collection
+        without_entry = ResolveResult(
+            path=Path("aPath"),
+            catalog=catalog,
+            collection_entry=None,
+            coordinates=coordinates,
+        )
+
+        for resolve_result, error in [
+            (uninstalled, ValueError),
+            (without_entry, LookupError),
+        ]:
+            with self.subTest(error=error.__name__):
+                collection_manager._resolve = MagicMock(return_value=resolve_result)
+
+                with self.assertRaises(error) as context:
+                    collection_manager.resolve_installed("grp:name:version")
+
+                # names the solution and how to install it
+                self.assertEqual(
+                    'Solution "grp:name:version" is not installed. '
+                    '"album install grp:name:version" installs it.',
+                    str(context.exception),
+                )
 
     @patch("album.core.controller.collection.collection_manager.check_file_or_url")
     @patch("album.core.controller.state_manager.StateManager.load")

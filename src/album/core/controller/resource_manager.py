@@ -33,6 +33,15 @@ module_logger = album_logging.get_active_logger
 _SETUPTOOLS_SPEC = re.compile(r"^(?:\S+::)?setuptools(?:$|[\s=<>!~\[])")
 
 
+def _is_deployed(name: str) -> bool:
+    """Tell whether a file or folder in the folder of a solution is deployed with it.
+
+    Hidden files and folders (.git, .DS_Store, .ipynb_checkpoints, ...) and Python caches
+    are not part of the solution.
+    """
+    return not name.startswith(".") and name != "__pycache__"
+
+
 class ResourceManager(IResourceManager):
     def __init__(self, album: IAlbumController):
         self.album = album
@@ -59,12 +68,25 @@ class ResourceManager(IResourceManager):
             res.append(copy(deploy_path, solution_path))
         else:
             # todo: replace me with copy_folder function
-            for subdir, _, files in os.walk(deploy_path):
-                for file in files:
+            skipped = []
+            for subdir, dirs, files in os.walk(deploy_path):
+                for name in dirs + files:
+                    if not _is_deployed(name):
+                        skipped.append(
+                            os.path.relpath(os.path.join(subdir, name), deploy_path)
+                        )
+                # os.walk does not descend into the folders removed here
+                dirs[:] = [d for d in dirs if _is_deployed(d)]
+                for file in filter(_is_deployed, files):
                     filepath = subdir + os.sep + file
                     rel_path = os.path.relpath(filepath, deploy_path)
                     target = catalog_solution_local_src_path.joinpath(rel_path)
                     res.append(copy(filepath, target))
+            if skipped:
+                module_logger().info(
+                    "Not deploying hidden files and folders and Python caches: %s"
+                    % ", ".join(sorted(skipped))
+                )
 
         res.append(
             self._create_yaml_file_in_local_src(

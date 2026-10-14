@@ -4,7 +4,8 @@ import json
 import logging
 import pkgutil
 import sys
-from contextlib import contextmanager
+import threading
+from contextlib import AbstractContextManager, contextmanager, nullcontext
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Dict, Iterator, Optional
 
@@ -17,6 +18,7 @@ from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.shared_downloads_manager import IDownloadManager
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.model.default_values import DefaultValues
+from album.core.utils.file_lock import FileLock
 from album.core.utils.operations.file_operations import force_remove
 from album.runner.album_logging import get_active_logger
 from album.runner.core.api.model.coordinates import ICoordinates
@@ -37,6 +39,9 @@ class DownloadManager(IDownloadManager):
     def __init__(self, album: IAlbumController):
         self.album = album
         self._schema: Optional[Dict[str, Any]] = None
+        # one lock per content folder of shared resources, see _get_resource_lock
+        self._locks: Dict[Path, FileLock] = {}
+        self._locks_creation = threading.Lock()
 
     def download_resources(
         self, collection_solution: ICollectionSolution
@@ -219,9 +224,11 @@ class DownloadManager(IDownloadManager):
             content = resource["url"]
         return hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
 
-    @staticmethod
-    def _retrieve_resources_from_dict(resources_dict: Dict[str, Any]) -> None:
+    def _retrieve_resources_from_dict(self, resources_dict: Dict[str, Any]) -> None:
         """Download every resource with a path. A resource already on the disk is not downloaded again.
+
+        A shared resource is retrieved holding the lock of its content folder, so solutions
+        that are installed at the same time and share it download it once.
 
         Raises:
             RuntimeError: if a resource cannot be downloaded or does not match its hash.
@@ -235,7 +242,7 @@ class DownloadManager(IDownloadManager):
                 f'Retrieving resource "{key}" from {resource["url"]}...'
             )
             try:
-                with DownloadManager._quiet_pooch():
+                with self._get_resource_lock(resource), DownloadManager._quiet_pooch():
                     pooch.retrieve(
                         url=resource["url"],
                         known_hash=resource["hash"],
@@ -256,6 +263,37 @@ class DownloadManager(IDownloadManager):
                     'add hash: "sha256:%s" to the resource.'
                     % (key, pooch.file_hash(str(path)))
                 )
+
+    def _get_resource_lock(self, resource: Dict[str, Any]) -> AbstractContextManager:
+        """Return the lock of the content folder of a resource.
+
+        A resource with scope "solution" belongs to one installation, and the lock of its
+        solution is held while the solution is installed: it needs no lock of its own.
+        """
+        if resource["scope"] == SCOPE_SOLUTION:
+            return nullcontext()
+
+        # named after the content folder: the same content in two catalogs shares a lock
+        lock_file = (
+            self.album.configuration()
+            .base_cache_path()
+            .joinpath(
+                DefaultValues.lock_folder_prefix.value,
+                DefaultValues.resource_lock_folder_prefix.value,
+                resource["scope"],
+                "%s.lock" % Path(resource["path"]).parent.name,
+            )
+        )
+        # one lock per file, so the threads of this process wait for each other as well
+        with self._locks_creation:
+            if lock_file not in self._locks:
+                self._locks[lock_file] = FileLock(
+                    lock_file,
+                    timeout=DefaultValues.install_lock_timeout_in_seconds.value,
+                    description='downloading the shared resource "%s"'
+                    % resource["name"],
+                )
+            return self._locks[lock_file]
 
     @staticmethod
     @contextmanager

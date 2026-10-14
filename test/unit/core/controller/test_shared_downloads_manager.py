@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 import pooch
 
 from album.core.controller.shared_downloads_manager import DownloadManager
+from album.core.utils.file_lock import FileLock
 from album.runner.core.model.solution import Solution
 
 SHA256 = "9d88224e3be283730af0f4388573eb3019bb0aa40c0b77a8350019fb34afe9d8"
@@ -342,7 +343,7 @@ class TestDownloadManager(TestUnitCoreCommon):
         resources_dict = {"resources": {"a": resource}}
 
         # call
-        DownloadManager._retrieve_resources_from_dict(resources_dict)
+        self.download_manager._retrieve_resources_from_dict(resources_dict)
 
         # assert
         retrieve_mock.assert_called_once_with(
@@ -369,7 +370,7 @@ class TestDownloadManager(TestUnitCoreCommon):
         resources_dict = {"resources": {"a": resource}}
 
         # call
-        DownloadManager._retrieve_resources_from_dict(resources_dict)
+        self.download_manager._retrieve_resources_from_dict(resources_dict)
 
         # assert
         retrieve_mock.assert_called_once()
@@ -396,7 +397,7 @@ class TestDownloadManager(TestUnitCoreCommon):
 
         # call
         with self.assertRaises(RuntimeError) as e:
-            DownloadManager._retrieve_resources_from_dict(resources_dict)
+            self.download_manager._retrieve_resources_from_dict(resources_dict)
 
         # assert
         self.assertEqual(
@@ -415,7 +416,7 @@ class TestDownloadManager(TestUnitCoreCommon):
         resources_dict = {"resources": {"a": self._resource("res_a", hash="def")}}
 
         with self.assertRaises(RuntimeError) as e:
-            DownloadManager._retrieve_resources_from_dict(resources_dict)
+            self.download_manager._retrieve_resources_from_dict(resources_dict)
 
         self.assertIn("does not match the known hash", str(e.exception))
 
@@ -431,7 +432,7 @@ class TestDownloadManager(TestUnitCoreCommon):
         }
 
         # call
-        DownloadManager._retrieve_resources_from_dict(resources_dict)
+        self.download_manager._retrieve_resources_from_dict(resources_dict)
 
         # assert
         retrieve_mock.assert_not_called()
@@ -456,7 +457,7 @@ class TestDownloadManager(TestUnitCoreCommon):
                 "album.core.controller.shared_downloads_manager.pooch.retrieve",
                 side_effect=retrieve,
             ):
-                DownloadManager._retrieve_resources_from_dict(
+                self.download_manager._retrieve_resources_from_dict(
                     {"resources": {"a": self._resource("res_a", hash="md5:abc")}}
                 )
             pooch_logger.info("after")
@@ -465,6 +466,63 @@ class TestDownloadManager(TestUnitCoreCommon):
 
         self.assertEqual(
             ["before", "pooch warns", "after"], [r.getMessage() for r in records]
+        )
+
+    @patch("album.core.controller.shared_downloads_manager.pooch.file_hash")
+    def test__retrieve_resources_from_dict_locks_shared_resources(self, _):
+        resources_dict = {
+            "resources": {
+                "global": self._resource("res_a", scope="global"),
+                "catalog": self._resource("res_b", scope="catalog"),
+                "solution": self._resource("res_c", scope="solution"),
+            }
+        }
+        held = {}
+
+        def retrieve(**kwargs):
+            # which resource is retrieved, and is the lock of its content folder held?
+            key = next(
+                k
+                for k, r in resources_dict["resources"].items()
+                if r["name"] == kwargs["fname"]
+            )
+            lock = self.download_manager._get_resource_lock(
+                resources_dict["resources"][key]
+            )
+            held[key] = isinstance(lock, FileLock) and lock.is_held_by_current_thread()
+
+        # call
+        with patch(
+            "album.core.controller.shared_downloads_manager.pooch.retrieve",
+            side_effect=retrieve,
+        ):
+            self.download_manager._retrieve_resources_from_dict(resources_dict)
+
+        # assert: shared resources are retrieved holding their lock, released afterwards
+        self.assertEqual({"global": True, "catalog": True, "solution": False}, held)
+        lock = self.download_manager._get_resource_lock(
+            resources_dict["resources"]["global"]
+        )
+        self.assertFalse(lock.is_held_by_current_thread())
+        # the lock files are in the lock folder of album, named after the content folder
+        content_folder = Path(self.tmp_dir.name).name
+        lock_folder = (
+            self.album_controller.configuration()
+            .base_cache_path()
+            .joinpath("locks", "resources")
+        )
+        self.assertTrue(
+            lock_folder.joinpath("global", content_folder + ".lock").is_file()
+        )
+        self.assertTrue(
+            lock_folder.joinpath("catalog", content_folder + ".lock").is_file()
+        )
+        # the same lock for the same content folder
+        self.assertIs(
+            lock,
+            self.download_manager._get_resource_lock(
+                self._resource("other_name", scope="global")
+            ),
         )
 
     def test__show_progressbar(self):

@@ -155,13 +155,15 @@ class CollectionManager(ICollectionManager):
 
         db_entry = resolve_result.database_entry()
 
+        # a solution without a collection entry was never installed either
+        not_installed = (
+            'Solution "%s" is not installed. "album install %s" installs it.'
+        )
         if not db_entry:
-            raise LookupError("Solution not found in database!")
+            raise LookupError(not_installed % (resolve_solution, resolve_solution))
 
         if not db_entry.internal()["installed"]:
-            raise ValueError(
-                "Solution seems not to be installed! Please install solution first!"
-            )
+            raise ValueError(not_installed % (resolve_solution, resolve_solution))
 
         return resolve_result
 

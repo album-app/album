@@ -2,6 +2,7 @@ import hashlib
 import json
 import sys
 import threading
+import time
 import unittest
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -36,6 +37,9 @@ class ResourceServer:
 
     def __init__(self, folder: Path):
         requests = self.requests = []
+        # seconds to wait before each response, so that downloads overlap
+        self.delay = 0.0
+        resource_server = self
 
         class Handler(SimpleHTTPRequestHandler):
             def __init__(self, *args, **kwargs):
@@ -43,6 +47,7 @@ class ResourceServer:
 
             def do_GET(self):
                 requests.append(self.path)
+                time.sleep(resource_server.delay)
                 super().do_GET()
 
             def log_message(self, format, *args):
@@ -211,6 +216,50 @@ class TestIntegrationSharedResources(TestIntegrationCoreCommon):
         self.assertEqual(
             b"other weights", Path(resources_two["other"]["path"]).read_bytes()
         )
+
+    def test_concurrent_retrieval_downloads_once(self):
+        """Two solutions installed at the same time that share a resource (#277)."""
+        model_hash = self._serve("model.pt", b"model weights")
+        # without the lock of the content folder, both downloads would run at once
+        self.server.delay = 1.0
+        download_manager = self.album_controller.download_manager()
+
+        def resources_of(solution_name):
+            model = dict(self._resource("model.pt", hash=model_hash), os=None)
+            resources_dict = {"resources": {"model": dict(model, scope="global")}}
+            download_manager._set_paths_in_dict(
+                resources_dict,
+                Path(self.tmp_dir.name).joinpath(solution_name),
+                "cache_catalog",
+                self.shared_path,
+            )
+            return resources_dict
+
+        resources_dicts = [resources_of("one"), resources_of("two")]
+        start = threading.Barrier(len(resources_dicts))
+        errors = []
+
+        def retrieve(resources_dict):
+            start.wait()
+            try:
+                download_manager._retrieve_resources_from_dict(resources_dict)
+            except Exception as e:
+                errors.append(e)
+
+        threads = [
+            threading.Thread(target=retrieve, args=(d,)) for d in resources_dicts
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        # assert: downloaded once, both solutions get the same file
+        self.assertEqual([], errors)
+        self.assertEqual(["/model.pt"], self.server.requests)
+        paths = {d["resources"]["model"]["path"] for d in resources_dicts}
+        self.assertEqual(1, len(paths))
+        self.assertEqual(b"model weights", Path(paths.pop()).read_bytes())
 
     @patch(
         "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"

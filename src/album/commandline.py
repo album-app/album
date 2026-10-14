@@ -110,7 +110,10 @@ def info(album_instance: Album, args: Namespace):
 
 def run(album_instance: Album, args: Namespace):
     """Call function corresponding to the `run` subcommand of `album`."""
-    album_instance.run(str(args.path), argv=sys.argv)
+    solution = str(args.path)
+    if getattr(args, "install", False) and not album_instance.is_installed(solution):
+        album_instance.install(solution)
+    album_instance.run(solution, argv=sys.argv)
 
 
 def search(album_instance: Album, args: Namespace):
