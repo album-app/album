@@ -256,7 +256,9 @@ class ResourceManager(IResourceManager):
         """Find a file the solution names by its path in the folder of the solution.
 
         The folder of the solution is what album installs and deploys, so the file has to be
-        inside it and must not be hidden. A solution that is a single file has no folder.
+        inside it and must not be hidden. A solution given as a single file, solution_folder
+        None, has no folder: naming a file makes it a solution that is installed and deployed
+        as a folder.
         """
         relative = Path(os.path.normpath(file))
         example = _FILE_DEPENDENCIES[dependency][1]
@@ -271,13 +273,14 @@ class ResourceManager(IResourceManager):
                 "is hidden, and album does not deploy hidden files and folders. %s"
                 % where
             )
-        elif (
-            solution_folder is None or not solution_folder.joinpath(relative).is_file()
-        ):
+        elif solution_folder is None:
             problem = (
-                "is not in the solution folder. %s Install and deploy the solution "
-                "folder, not solution.py alone." % where
+                "is a path, so the solution has to be installed and deployed as a "
+                'folder: give the folder that holds solution.py and "%s", not '
+                "solution.py alone." % file
             )
+        elif not solution_folder.joinpath(relative).is_file():
+            problem = "is not in the solution folder. %s" % where
         elif not file.endswith((".yml", ".yaml")):
             problem = "is not a .yml or .yaml file."
         elif solution_folder.joinpath(relative).stat().st_size == 0:

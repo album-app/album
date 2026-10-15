@@ -124,7 +124,7 @@ class TestInstallManager(TestUnitCoreCommon):
         pass
 
     def _prepare_install_loaded_resolve_result(
-        self, installed, catalog=True, path: Path = None
+        self, installed, catalog=True, path: Path = None, single_file=False
     ):
         if path is None:
             path = Path(self.tmp_dir.name).joinpath("solution.py")
@@ -141,6 +141,7 @@ class TestInstallManager(TestUnitCoreCommon):
             loaded_solution=self.active_solution,
             collection_entry=None,
             coordinates=self.active_solution.coordinates(),
+            single_file_solution=single_file,
         )
 
         # mocks
@@ -211,6 +212,83 @@ class TestInstallManager(TestUnitCoreCommon):
         self.install_active_solution.assert_called_once_with(r, ANY, False)
         self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
         self.assertIn('Installing parent solution "tsn"...', self.get_logs_as_string())
+
+    def _solution_folder_with_environment_file(self):
+        folder = Path(self.tmp_dir.name).joinpath("my-solution")
+        folder.mkdir()
+        folder.joinpath("solution.py").touch()
+        folder.joinpath("environment.yml").write_text("dependencies:\n  - python\n")
+        self.active_solution.setup().dependencies = {
+            "environment_file": "environment.yml"
+        }
+        return folder
+
+    @patch("album.core.controller.install_manager.clean_resolve_tmp")
+    def test__install_loaded_resolve_result_single_file(self, _):
+        self.active_solution.setup().dependencies = {
+            "environment_file": "dependencies:\n  - python\n"
+        }
+        r = self._prepare_install_loaded_resolve_result(
+            installed=False, single_file=True
+        )
+
+        # call
+        self.install_manager._install_loaded_resolve_result(r)
+
+        # assert
+        self.register.assert_called_once_with(r)
+        self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
+
+    @patch("album.core.controller.install_manager.clean_resolve_tmp")
+    def test__install_loaded_resolve_result_environment_file_in_folder(self, _):
+        folder = self._solution_folder_with_environment_file()
+        r = self._prepare_install_loaded_resolve_result(
+            installed=False, path=folder.joinpath("solution.py")
+        )
+
+        # call
+        self.install_manager._install_loaded_resolve_result(r)
+
+        # assert
+        self.register.assert_called_once_with(r)
+        self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
+
+    def test__install_loaded_resolve_result_environment_file_missing(self):
+        folder = self._solution_folder_with_environment_file()
+        folder.joinpath("environment.yml").unlink()
+        r = self._prepare_install_loaded_resolve_result(
+            installed=False, path=folder.joinpath("solution.py")
+        )
+
+        # call
+        with self.assertRaises(TypeError) as e:
+            self.install_manager._install_loaded_resolve_result(r)
+
+        # assert: aborted before the solution is registered
+        self.assertIn(
+            'environment_file "environment.yml" is not in the solution folder',
+            str(e.exception),
+        )
+        self.register.assert_not_called()
+        self.set_installation_unfinished.assert_not_called()
+
+    def test__install_loaded_resolve_result_single_file_with_environment_file(self):
+        folder = self._solution_folder_with_environment_file()
+        r = self._prepare_install_loaded_resolve_result(
+            installed=False, path=folder.joinpath("solution.py"), single_file=True
+        )
+
+        # call: only solution.py would be installed, without the environment file
+        with self.assertRaises(TypeError) as e:
+            self.install_manager._install_loaded_resolve_result(r)
+
+        # assert: aborted before the solution is registered
+        self.assertIn(
+            "is a path, so the solution has to be installed and deployed as a folder",
+            str(e.exception),
+        )
+        self.register.assert_not_called()
+        self.set_installation_unfinished.assert_not_called()
 
     @patch("album.core.controller.install_manager.clean_resolve_tmp")
     def test__install_loaded_resolve_result_resources_before_environment(self, _):

@@ -136,11 +136,24 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
                 solution_folder.joinpath("solution.py"), "environment.yml"
             )
 
-        self.assertIn(
-            "Install and deploy the solution folder, not solution.py alone.",
+        self.assertEqual(
+            'environment_file "environment.yml" is a path, so the solution has to be '
+            "installed and deployed as a folder: give the folder that holds solution.py "
+            'and "environment.yml", not solution.py alone.',
             str(e.exception),
         )
         self.deploy_manager._deploy.assert_not_called()
+
+    def test_deploy_single_file(self):
+        solution_file = Path(self.tmp_dir.name).joinpath("solution.py")
+        solution_file.write_text("content")
+
+        # the environment is part of solution.py
+        self._deploy_with_environment_file(
+            solution_file, "channels:\n  - conda-forge\ndependencies:\n  - python\n"
+        )
+
+        self.deploy_manager._deploy.assert_called_once()
 
     @patch(
         "album.core.controller.deploy_manager.process_changelog_file",

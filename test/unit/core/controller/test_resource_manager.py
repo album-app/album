@@ -340,7 +340,12 @@ dependencies:
         for dependency, file, folder_, message in [
             ("environment_file", "../environment.yml", folder, "outside"),
             ("resource_file", str(folder.joinpath("resources.yml")), folder, "outside"),
-            ("resource_file", "resources.yml", None, "not in the solution folder"),
+            (
+                "resource_file",
+                "resources.yml",
+                None,
+                "a path, so the solution has to be installed and deployed as a folder",
+            ),
             ("environment_file", "missing.yml", folder, "not in the solution folder"),
         ]:
             with self.subTest(dependency=dependency, file=file):
@@ -417,21 +422,29 @@ dependencies:
             'folder, e.g. "environment.yml".'
         )
 
+        outside_message = "is outside the solution folder. " + where
+        hidden_message = (
+            "is hidden, and album does not deploy hidden files and folders. " + where
+        )
+        missing_message = "is not in the solution folder. " + where
+
         for file, solution_folder, message in [
-            (str(outside), folder, "is outside the solution folder. " + where),
-            ("../environment.yml", folder, "is outside the solution folder"),
-            ("envs/../../environment.yml", folder, "is outside the solution folder"),
-            (".environment.yml", folder, "is hidden, and album does not deploy"),
-            (".conda/environment.yml", folder, "is hidden"),
-            ("__pycache__/environment.yml", folder, "is hidden"),
+            (str(outside), folder, outside_message),
+            ("../environment.yml", folder, outside_message),
+            ("envs/../../environment.yml", folder, outside_message),
+            (".environment.yml", folder, hidden_message),
+            (".conda/environment.yml", folder, hidden_message),
+            ("__pycache__/environment.yml", folder, hidden_message),
+            ("missing.yml", folder, missing_message),
+            ("envs", folder, missing_message),
+            # a solution given as solution.py alone
             (
-                "missing.yml",
-                folder,
-                "is not in the solution folder. %s Install and deploy the solution "
-                "folder, not solution.py alone." % where,
+                "environment.yml",
+                None,
+                "is a path, so the solution has to be installed and deployed as a "
+                'folder: give the folder that holds solution.py and "environment.yml", '
+                "not solution.py alone.",
             ),
-            ("environment.yml", None, "is not in the solution folder"),
-            ("envs", folder, "is not in the solution folder"),
             ("environment.txt", folder, "is not a .yml or .yaml file."),
             ("empty.yml", folder, "is empty."),
         ]:
@@ -440,8 +453,9 @@ dependencies:
                     ResourceManager._get_file_in_solution_folder(
                         file, solution_folder, "environment_file"
                     )
-                expected = f'environment_file "{file}" {message}'
-                self.assertTrue(str(e.exception).startswith(expected), str(e.exception))
+                self.assertEqual(
+                    f'environment_file "{file}" {message}', str(e.exception)
+                )
 
     @patch("album.core.controller.resource_manager.download_resource")
     def test_write_solution_env_file(self, download_mock):

@@ -153,6 +153,16 @@ class InstallManager(IInstallManager):
                 % resolve_result.loaded_solution().coordinates().name()
             )
 
+        # the environment and the resource file are installed with the folder of the solution
+        self.album.resource_manager().check_files_in_solution_folder(
+            resolve_result.loaded_solution(),
+            (
+                None
+                if resolve_result.is_single_file()
+                else Path(resolve_result.path()).parent
+            ),
+        )
+
         self._register(resolve_result)
 
         if not parent:
