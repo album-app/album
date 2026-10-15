@@ -90,6 +90,9 @@ class SolutionHandler(ISolutionHandler):
         if index is None:
             raise RuntimeError("Collection index not found!")
 
+        # a solution has one parent: a link left from an earlier installation, e.g. to a
+        # parent the solution no longer declares, is replaced
+        index.remove_parent(child_entry.internal()["collection_id"], close=False)
         index.insert_collection_collection(
             parent_entry.internal()["collection_id"],
             child_entry.internal()["collection_id"],
@@ -158,7 +161,26 @@ class SolutionHandler(ISolutionHandler):
             )
 
         elif change.change_type() is ChangeType.REMOVED:
-            self.remove_solution(catalog, change.coordinates())
+            if col_index is None:
+                raise RuntimeError("Collection index not found!")
+
+            # an installed solution keeps its entry, so it can still be run and
+            # uninstalled; once it is uninstalled, the next upgrade removes it. So does an
+            # unfinished installation, whose files the next installation removes.
+            entry = col_index.get_solution_by_catalog_grp_name_version(
+                catalog.catalog_id(), change.coordinates()
+            )
+            if entry is None or not (
+                entry.internal()["installed"]
+                or entry.internal()["installation_unfinished"]
+            ):
+                self.remove_solution(catalog, change.coordinates())
+            elif entry.internal()["installed"]:
+                module_logger().warning(
+                    'Solution "%s" was removed from catalog "%s", but it is installed.'
+                    " It stays in your collection until you uninstall it."
+                    % (str(change.coordinates()), catalog.name())
+                )
 
         elif change.change_type() is ChangeType.CHANGED:
             if not sol_stat:
@@ -176,7 +198,7 @@ class SolutionHandler(ISolutionHandler):
                 change.coordinates(),
                 cat_index.get_solution_by_coordinates(change.coordinates()),
             )
-            if installed:
+            if installed or sol_stat["installation_unfinished"]:
                 # set old (install) status and parents again
                 self._set_old_db_stat(catalog, change)
 
@@ -367,6 +389,7 @@ class SolutionHandler(ISolutionHandler):
         """Everything that should NOT change internally when an UPDATE change is performed on a solution."""
         r = {
             "installed": internal_status["installed"],
+            "installation_unfinished": internal_status["installation_unfinished"],
             "install_date": internal_status["install_date"],
             "last_execution": internal_status["last_execution"],
         }

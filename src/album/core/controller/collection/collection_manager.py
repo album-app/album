@@ -23,6 +23,7 @@ from album.core.utils.operations.resolve_operations import (
     get_attributes_from_string,
     get_doi_from_input,
 )
+from album.core.utils.operations.solution_operations import version_sort_key
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 
@@ -601,10 +602,7 @@ class CollectionManager(ICollectionManager):
     ) -> Optional[ICollectionIndex.ICollectionSolution]:
         if not solutions:
             return None
-        latest_solution = solutions[0]
-        for solution in solutions:
-            if MMVersion.from_string(
-                solution.setup()["version"]
-            ) > MMVersion.from_string(latest_solution.setup()["version"]):
-                latest_solution = solution
-        return latest_solution
+        return max(
+            solutions,
+            key=lambda solution: version_sort_key(str(solution.setup()["version"])),
+        )

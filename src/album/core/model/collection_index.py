@@ -327,6 +327,16 @@ class CollectionIndex(ICollectionIndex, Database):
     def insert_solution(
         self, catalog_id: int, solution_attrs: Dict[str, Any], close: bool = True
     ) -> int:
+        return self._insert_solution(catalog_id, solution_attrs, None, close=close)
+
+    def _insert_solution(
+        self,
+        catalog_id: int,
+        solution_attrs: Dict[str, Any],
+        collection_id: Optional[int],
+        close: bool = True,
+    ) -> int:
+        """Insert a solution under the given collection id, or under the next free one."""
         hash_val = get_dict_entry(solution_attrs, "hash", allow_none=True)
 
         # there must be a hash value
@@ -340,7 +350,8 @@ class CollectionIndex(ICollectionIndex, Database):
         name = solution_attrs["name"]
         version = solution_attrs["version"]
 
-        collection_id = self.next_id("collection")
+        if collection_id is None:
+            collection_id = self.next_id("collection")
         cursor = self.get_cursor()
         cursor.execute(
             "INSERT INTO collection VALUES "
@@ -907,9 +918,12 @@ class CollectionIndex(ICollectionIndex, Database):
         parent_solution = None
         cursor = self.get_cursor()
 
+        # a link to a parent that is no longer in the collection does not count. Older
+        # album versions left such links behind when they replaced or removed the parent.
         r = cursor.execute(
             "SELECT css.* FROM collection_collection css "
             "JOIN collection c ON c.collection_id = css.collection_id_child "
+            "JOIN collection p ON p.collection_id = css.collection_id_parent "
             "WHERE c.collection_id=:collection_id",
             {"collection_id": collection_id},
         ).fetchall()
@@ -1448,9 +1462,15 @@ class CollectionIndex(ICollectionIndex, Database):
         solution = self.get_solution_by_catalog_grp_name_version(
             catalog_id, coordinates, close=False
         )
-        if solution:
-            self.remove_solution(catalog_id, coordinates, close=False)
-        self.insert_solution(catalog_id, solution_attrs, close=close)
+        if not solution:
+            self.insert_solution(catalog_id, solution_attrs, close=close)
+            return
+        # replaced under the same collection id, so the solutions installed in its
+        # environment keep it as their parent. Its own link to a parent goes with the
+        # old entry: SolutionHandler.apply_change sets it again for an installed solution.
+        collection_id = solution.internal()["collection_id"]
+        self._remove_solution_entry(catalog_id, coordinates, collection_id)
+        self._insert_solution(catalog_id, solution_attrs, collection_id, close=close)
 
     def remove_solution(
         self, catalog_id: int, coordinates: ICoordinates, close: bool = True
@@ -1461,7 +1481,24 @@ class CollectionIndex(ICollectionIndex, Database):
         if not solution:
             return
         collection_id = solution.internal()["collection_id"]
+        self._remove_solution_entry(catalog_id, coordinates, collection_id)
 
+        # the solutions linked to it as their parent have no parent anymore
+        self.get_cursor().execute(
+            "DELETE FROM collection_collection WHERE collection_id_parent=:collection_id",
+            {"collection_id": collection_id},
+        )
+
+        if close:
+            self.close_current_connection()
+
+    def _remove_solution_entry(
+        self, catalog_id: int, coordinates: ICoordinates, collection_id: int
+    ) -> None:
+        """Remove the entry of a solution, with its link to its parent.
+
+        The links of the solutions that have it as their parent are kept.
+        """
         cursor = self.get_cursor()
         cursor.execute(
             "DELETE FROM collection_tag WHERE collection_id=:collection_id",
@@ -1544,9 +1581,6 @@ class CollectionIndex(ICollectionIndex, Database):
                 "version": coordinates.version(),
             },
         )
-
-        if close:
-            self.close_current_connection()
 
     def is_installed(
         self, catalog_id: int, coordinates: ICoordinates, close: bool = True

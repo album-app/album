@@ -776,6 +776,39 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         # assert
         self.assertIsNone(latest_solution)
 
+    def test__get_latest_solution_any_version(self):
+        def solution(version):
+            return CollectionIndex.CollectionSolution(
+                setup=self._get_expected_attrs_setup(
+                    {"group": "grp3", "name": "name3", "version": version}
+                ),
+                internal=self._get_expected_attrs_internal(
+                    {
+                        "collection_id": "collection_id",
+                        "solution_id": "solution_id",
+                        "catalog_id": "catalog_id",
+                    },
+                    installed=True,
+                ),
+            )
+
+        # PEP 440 versions in numeric order, others (e.g. SNAPSHOT) below them
+        for versions, latest in [
+            (["0.9.0", "0.10.0", "0.11.0-SNAPSHOT"], "0.10.0"),
+            (["1.0", "0.10.0rc1"], "1.0"),
+            (["0.1.0-SNAPSHOT", "0.2.0-SNAPSHOT"], "0.2.0-SNAPSHOT"),
+        ]:
+            with self.subTest(versions=versions):
+                # call
+                latest_solution = (
+                    self.album_controller.collection_manager()._get_latest_solution(
+                        [solution(version) for version in versions]
+                    )
+                )
+
+                # assert
+                self.assertEqual(latest, latest_solution.setup()["version"])
+
     def test__handle_multiple_solution_matches(self):
         # prepare
         solution_010 = CollectionIndex.CollectionSolution(

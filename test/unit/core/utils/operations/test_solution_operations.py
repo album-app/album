@@ -1,10 +1,12 @@
 from io import StringIO
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 
-from album.runner.core.model.solution import Solution
-
 from album.core.model.catalog_index import CatalogIndex
-from album.core.utils.operations.solution_operations import get_deploy_dict
+from album.core.utils.operations.solution_operations import (
+    get_deploy_dict,
+    version_sort_key,
+)
+from album.runner.core.model.solution import Solution
 
 
 class TestSolutionOperations(TestUnitCoreCommon):
@@ -24,6 +26,15 @@ channels:
     def test_get_deploy_dict(self):
         active_solution = Solution(self.solution_default_dict)
         self.assertEqual(self.solution_default_dict, get_deploy_dict(active_solution))
+
+    def test_version_sort_key(self):
+        versions = ["0.1.0-SNAPSHOT", "0.10.0", "1.0", "0.9.0", "0.2.0-SNAPSHOT"]
+
+        # PEP 440 versions in numeric order, others by string, below them
+        self.assertEqual(
+            ["1.0", "0.10.0", "0.9.0", "0.2.0-SNAPSHOT", "0.1.0-SNAPSHOT"],
+            sorted(versions, key=version_sort_key, reverse=True),
+        )
 
     def test_get_deploy_dict_additional_values(self):
         # base keys

@@ -1,9 +1,12 @@
 """Operations for the solution object."""
+
 import copy
 import hashlib
 import json
 from datetime import date, time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+from packaging.version import InvalidVersion, Version
 
 from album.environments.api.model.environment import IEnvironment
 from album.runner import album_logging
@@ -47,6 +50,18 @@ def get_parent_dict(solution: ISolution) -> Optional[dict]:
     if solution.setup().dependencies and "parent" in solution.setup().dependencies:
         return solution.setup().dependencies["parent"]
     return None
+
+
+def version_sort_key(version: str) -> Tuple[int, Union[Version, str]]:
+    """Sort key ordering PEP 440 versions numerically, others (e.g. 0.1.0-SNAPSHOT) by string.
+
+    Parsable versions rank above unparsable ones, so the second tuple element is
+    only ever compared between values of the same type.
+    """
+    try:
+        return 1, Version(version)
+    except InvalidVersion:
+        return 0, version
 
 
 def create_hash(string_representation: str) -> str:
