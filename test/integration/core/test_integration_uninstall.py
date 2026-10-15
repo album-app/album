@@ -1,4 +1,5 @@
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
+from unittest.mock import patch
 
 from album.core.utils.operations.file_operations import create_path_recursively
 from album.runner.core.model.coordinates import Coordinates
@@ -155,3 +156,45 @@ class TestIntegrationUninstall(TestIntegrationCoreCommon):
                 )
             ),
         )
+
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.remove_environment"
+    )
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.install_environment"
+    )
+    @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
+    def test_uninstall_deps_keeps_a_parent_other_solutions_run_in(
+        self, _, __, remove_environment
+    ):
+        install_manager = self.album_controller.install_manager()
+        install_manager.install(self.get_test_solution_path("app1.py"))
+        install_manager.install(self.get_test_solution_path("solution1_app1.py"))
+        install_manager.install(self.get_test_solution_path("solution2_app1.py"))
+
+        # app1 stays, solution2_app1 runs in its environment
+        install_manager.uninstall(
+            self.get_test_solution_path("solution1_app1.py"), rm_dep=True
+        )
+        self.assertFalse(self._is_installed("solution1_app1"))
+        self.assertTrue(self._is_installed("app1"))
+        remove_environment.assert_not_called()
+
+        # with the last solution in its environment, app1 is uninstalled as well
+        install_manager.uninstall(
+            self.get_test_solution_path("solution2_app1.py"), rm_dep=True
+        )
+        self.assertFalse(self._is_installed("solution2_app1"))
+        self.assertFalse(self._is_installed("app1"))
+        remove_environment.assert_called_once()
+
+    def _is_installed(self, name):
+        cache_catalog = self.album_controller.catalogs().get_cache_catalog()
+        entry = (
+            self.album_controller.collection_manager()
+            .get_collection_index()
+            .get_solution_by_catalog_grp_name_version(
+                cache_catalog.catalog_id(), Coordinates("group", name, "0.1.0")
+            )
+        )
+        return entry is not None and bool(entry.internal()["installed"])

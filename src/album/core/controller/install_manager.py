@@ -364,6 +364,15 @@ class InstallManager(IInstallManager):
         rm_dep: bool = False,
         argv: Optional[List[str]] = None,
     ) -> None:
+        self._lock_and_uninstall(solution_to_resolve, rm_dep, as_dependency=False)
+
+    def _uninstall_parent(self, solution_to_resolve: str, rm_dep: bool) -> None:
+        """Uninstall the parent of an uninstalled solution, unless other solutions need it."""
+        self._lock_and_uninstall(solution_to_resolve, rm_dep, as_dependency=True)
+
+    def _lock_and_uninstall(
+        self, solution_to_resolve: str, rm_dep: bool, as_dependency: bool
+    ) -> None:
         # resolved to know which solution to lock. Holding the lock it is resolved again,
         # as another album process might have uninstalled it while this one waited.
         # A solution that is not found or not installed cannot be uninstalled, that error is for the caller
@@ -373,9 +382,14 @@ class InstallManager(IInstallManager):
         with self.album.solutions().get_solution_lock(
             resolve_result.catalog(), resolve_result.coordinates()
         ):
-            self._uninstall(solution_to_resolve, rm_dep)
+            self._uninstall(solution_to_resolve, rm_dep, as_dependency)
 
-    def _uninstall(self, solution_to_resolve: str, rm_dep: bool = False) -> None:
+    def _uninstall(
+        self,
+        solution_to_resolve: str,
+        rm_dep: bool = False,
+        as_dependency: bool = False,
+    ) -> None:
         resolve_result = self.album.collection_manager().resolve_installed(
             solution_to_resolve
         )
@@ -415,7 +429,9 @@ class InstallManager(IInstallManager):
                         str(resolve_result.coordinates()),
                     )
                 )
-                if parent:
+                # the parent of a solution uninstalled with its dependencies stays while
+                # other installed solutions run in its environment
+                if as_dependency:
                     return
 
                 raise RuntimeError(
@@ -524,7 +540,7 @@ class InstallManager(IInstallManager):
         if parent:
             # recursive call to remove the parent
             resolve_solution = build_resolve_string(parent)
-            self.uninstall(resolve_solution, rm_dep)
+            self._uninstall_parent(resolve_solution, rm_dep)
         elif parent_entry and not solution.setup().dependencies:
             # solution built from its collection entry (its file could not be loaded)
             # carries no "dependencies": take the parent from the collection index
@@ -539,7 +555,7 @@ class InstallManager(IInstallManager):
                 },
                 catalog,
             )
-            self.uninstall(resolve_solution, rm_dep)
+            self._uninstall_parent(resolve_solution, rm_dep)
 
     def clean_unfinished_installations(self) -> None:
         collection_solution_list = (

@@ -1,9 +1,8 @@
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional
 
 from git import Repo
-from packaging.version import InvalidVersion, Version
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.deploy_manager import IDeployManager
@@ -26,6 +25,7 @@ from album.core.utils.operations.resolve_operations import (
     dict_to_coordinates,
     get_attributes_from_string,
 )
+from album.core.utils.operations.solution_operations import version_sort_key
 from album.environments.utils.file_operations import copy, force_remove
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
@@ -481,22 +481,8 @@ class DeployManager(IDeployManager):
         repo_tags = set(get_tags(repo))
         deployed = [dict_to_coordinates(entry) for entry in versions]
         deployed = [c for c in deployed if as_tag(c) in repo_tags]
-        deployed.sort(
-            key=lambda c: DeployManager._version_sort_key(c.version()), reverse=True
-        )
+        deployed.sort(key=lambda c: version_sort_key(c.version()), reverse=True)
         return [as_tag(c) for c in deployed]
-
-    @staticmethod
-    def _version_sort_key(version: str) -> Tuple[int, Union[Version, str]]:
-        """Sort key ordering PEP 440 versions numerically, other versions by string.
-
-        Parsable versions rank above unparsable ones, so the second tuple element is
-        only ever compared between values of the same type.
-        """
-        try:
-            return 1, Version(version)
-        except InvalidVersion:
-            return 0, version
 
     @staticmethod
     def _add_to_downloaded_catalog(

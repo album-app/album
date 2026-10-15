@@ -748,11 +748,11 @@ class TestInstallManager(TestUnitCoreCommon):
         # TODO implement
         pass
 
-    def _prepare_uninstall(self, load_error=None, parent=None):
+    def _prepare_uninstall(self, load_error=None, parent=None, children=None):
         # an installed solution as it is stored in the collection
         collection_entry = CollectionIndex.CollectionSolution(
             {"group": "tsg", "name": "tsn", "version": "tsv"},  # setup
-            {"parent": parent, "children": []},  # internal
+            {"parent": parent, "children": children or []},  # internal
         )
         resolve_result = ResolveResult(
             path=Path(self.tmp_dir.name).joinpath("solution.py"),
@@ -896,14 +896,14 @@ class TestInstallManager(TestUnitCoreCommon):
         )
         locks_free = {}
 
-        def _uninstall(solution_to_resolve, rm_dep):
+        def _uninstall(solution_to_resolve, rm_dep, as_dependency):
             locks_free[solution_to_resolve] = (
                 self._lock_is_free(child.coordinates()),
                 self._lock_is_free(parent.coordinates()),
             )
             if solution_to_resolve == "child":
                 # removing the parent is a recursive uninstall call
-                self.install_manager.uninstall("parent", rm_dep)
+                self.install_manager._uninstall_parent("parent", rm_dep)
 
         self.install_manager._uninstall = _uninstall
 
@@ -968,6 +968,33 @@ class TestInstallManager(TestUnitCoreCommon):
         self.remove_environment.assert_not_called()
         remove_disc_content_from_environment.assert_not_called()
         self.remove_solution.assert_called_once_with(r.catalog(), r.coordinates())
+
+    def test_uninstall_solution_other_solutions_run_in(self):
+        # whether or not the solution has a parent itself
+        for parent in [None, CollectionIndex.CollectionSolution()]:
+            with self.subTest(has_parent=parent is not None):
+                self._prepare_uninstall(
+                    parent=parent, children=[{"collection_id_child": 2}]
+                )
+                self.install_manager._get_child_solution_coordinates = MagicMock(
+                    return_value=[Coordinates("tsg", "child", "tsv")]
+                )
+
+                # asked for directly, it cannot be uninstalled
+                with self.assertRaises(RuntimeError):
+                    self.install_manager.uninstall("tsg:tsn:tsv")
+
+                # as the parent of a solution uninstalled with its dependencies, it stays
+                self.install_manager._uninstall_parent("tsg:tsn:tsv", True)
+
+                self.assertIn(
+                    "The following solutions depend on this installation: "
+                    "tsg:child:tsv. Not uninstalling tsg:tsn:tsv",
+                    self.get_logs_as_string(),
+                )
+                self.run_solution_uninstall_routine.assert_not_called()
+                self.remove_environment.assert_not_called()
+                self.remove_solution.assert_not_called()
 
     @unittest.skip("Needs to be implemented!")
     def test__uninstall(self):
@@ -1391,12 +1418,11 @@ class TestInstallManagerCollectionParent(TestUnitCoreCommon):
         collection_manager.solutions().remove_solution = remove_solution
 
         # the recursive call uninstalling the parent ends up in this mock
-        uninstall = self.install_manager.uninstall
         uninstall_parent = MagicMock()
-        self.install_manager.uninstall = uninstall_parent
+        self.install_manager._uninstall_parent = uninstall_parent
 
         # call
-        uninstall("g1:n1:v1", rm_dep=True)
+        self.install_manager.uninstall("g1:n1:v1", rm_dep=True)
 
         # assert
         remove_solution.assert_called_once()
@@ -1418,14 +1444,14 @@ class TestInstallManagerCollectionParent(TestUnitCoreCommon):
         )
         get_by_id = MagicMock()
         self.album_controller.collection_manager().catalogs().get_by_id = get_by_id
-        uninstall = MagicMock()
-        self.install_manager.uninstall = uninstall
+        uninstall_parent = MagicMock()
+        self.install_manager._uninstall_parent = uninstall_parent
 
         # call
         self.install_manager._remove_dependencies(solution, True, self.parent_entry)
 
         # assert
-        uninstall.assert_called_once_with("gp:np:vp", True)
+        uninstall_parent.assert_called_once_with("gp:np:vp", True)
         get_by_id.assert_not_called()
 
     def test_remove_dependencies_no_parent_declared_in_solution(self):
@@ -1438,14 +1464,14 @@ class TestInstallManagerCollectionParent(TestUnitCoreCommon):
                 "dependencies": {"environment_file": "env.yml"},
             }
         )
-        uninstall = MagicMock()
-        self.install_manager.uninstall = uninstall
+        uninstall_parent = MagicMock()
+        self.install_manager._uninstall_parent = uninstall_parent
 
         # call
         self.install_manager._remove_dependencies(solution, True, self.parent_entry)
 
         # assert
-        uninstall.assert_not_called()
+        uninstall_parent.assert_not_called()
 
 
 def use_win_shell_per_thread(test):

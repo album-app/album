@@ -659,10 +659,11 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         ).joinpath("solution.py")
         self.assertTrue(solution_child_path.exists())
 
-        self.album_controller.install_manager().uninstall(
-            self.get_test_solution_path("solution1_app1.py")
-        )
-        self.assertNotIn("ERROR", self.get_logs_as_string())
+        # solution12_solution1_app1 runs in the environment solution1_app1 shares
+        with self.assertRaises(RuntimeError):
+            self.album_controller.install_manager().uninstall(
+                self.get_test_solution_path("solution1_app1.py")
+            )
         self.assertIn(
             "The following solutions depend on this installation",
             self.get_logs_as_string(),
