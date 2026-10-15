@@ -59,7 +59,7 @@ album run album:template-python --name "your name"
 
 Continue with the [quick start](https://docs.album.solutions/en/latest/quick-start.html), learn how
 to [write your own solution](https://docs.album.solutions/en/latest/solution-development.html), or
-browse the public catalogs on [album.solutions](https://album.solutions/catalogs).
+browse the public catalogs on [album.solutions](https://album.solutions/#catalogs).
 
 ## The Album suite
 
