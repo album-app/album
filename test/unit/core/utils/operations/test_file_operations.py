@@ -1,8 +1,8 @@
 import json
 import os
 import pathlib
-import platform
 import stat
+import sys
 import threading
 import unittest.mock
 from pathlib import Path
@@ -255,7 +255,7 @@ class TestFileOperations(TestUnitCoreCommon):
         )
 
     @unittest.skipIf(
-        platform.system().lower() == "windows",
+        sys.platform == "win32",
         "Linking in windows currently not tested!",
     )
     def test_construct_cache_link_target(self):
@@ -270,7 +270,7 @@ class TestFileOperations(TestUnitCoreCommon):
         )
 
     @unittest.skipIf(
-        platform.system().lower() == "windows",
+        sys.platform == "win32",
         "Linking in windows currently not tested!",
     )
     def test_construct_cache_link_target_created_at_the_same_time(self):
@@ -298,7 +298,7 @@ class TestFileOperations(TestUnitCoreCommon):
         self.assertFalse(Path(self.tmp_dir.name).joinpath("point_to", "0").exists())
 
     @unittest.skipIf(
-        platform.system().lower() == "windows",
+        sys.platform == "win32",
         "Linking in windows currently not tested!",
     )
     def test_construct_cache_link_target_point_from_not_a_link(self):
@@ -356,7 +356,7 @@ class TestFileOperations(TestUnitCoreCommon):
         )
 
     @unittest.skipIf(
-        platform.system().lower() == "windows",
+        sys.platform == "win32",
         "Linking in windows currently not tested!",
     )
     def test_get_link_target(self):

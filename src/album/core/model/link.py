@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-import platform
+import sys
 from pathlib import Path
 
 
@@ -24,9 +24,8 @@ class Link(type(Path())):  # type: ignore[misc]
     def dispose(self) -> None:
         """Dispose the link."""
         if self._link:
-            operation_system = platform.system().lower()
             link = os.path.normpath(self._link)
-            if "windows" in operation_system:
+            if sys.platform == "win32":
                 link += ".lnk"
             if os.path.exists(link) or os.path.islink(link):
                 os.remove(link)
