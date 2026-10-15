@@ -38,6 +38,7 @@ We use the following:
 - album only recognizes its long options in full (!337). Every argument album does not know is passed on to the solution, but an abbreviation was taken for an album option: a solution argument `--js` or `--lo` became album's `--json` or `--log`. This also applies to the commands of plugins and to `album-catalog-admin`.
 - A solution that is not installed is reported by name, with the call that installs it: `Solution "<solution>" is not installed. "album install <solution>" installs it.` `run`, `test`, `repl` and `uninstall` used to say "Solution seems not to be installed! Please install solution first!", or "Solution not found in database!" for a solution file that was never installed (!337).
 - `requires-python` has no upper bound anymore (was `<3.15`) (!337). On Python 3.15, pip skipped every album release with the bound and installed album 0.12.0, the newest release without it. Python 3.15 is not tested in CI yet.
+- album checks the operating system the same way everywhere, with `sys.platform` (`sys.platform == "win32"` for Windows), instead of `sys.platform` in some places and `platform.system()` in others (!342, #241). Nothing changes for users.
 
 ### Deprecated
 
