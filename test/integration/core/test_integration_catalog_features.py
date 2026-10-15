@@ -365,6 +365,203 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         )
         self.assertEqual("app1", parent.setup()["name"])
 
+    def _deploy(self, catalog, solution_file, force_deploy=False):
+        self.album_controller.deploy_manager().deploy(
+            self.get_test_solution_path(solution_file),
+            catalog_name=catalog.name(),
+            changelog="deploy",
+            dry_run=False,
+            force_deploy=force_deploy,
+            git_email=DefaultValues.catalog_git_email.value,
+            git_name=DefaultValues.catalog_git_user.value,
+            no_conda_lock=True,
+        )
+
+    def _undeploy(self, catalog, solution):
+        self.album_controller.deploy_manager().undeploy(
+            solution,
+            catalog_name=catalog.name(),
+            dry_run=False,
+            git_email=DefaultValues.catalog_git_email.value,
+            git_name=DefaultValues.catalog_git_user.value,
+        )
+
+    def _update_and_upgrade(self, catalog, override=False):
+        catalogs = self.album_controller.collection_manager().catalogs()
+        catalogs.update_any(catalog.name())
+        return catalogs.update_collection(catalog.name(), override=override)[
+            catalog.name()
+        ]
+
+    def _get_entry(self, catalog, name):
+        return (
+            self.album_controller.collection_manager()
+            .get_collection_index()
+            .get_solution_by_catalog_grp_name_version(
+                catalog.catalog_id(), Coordinates("group", name, "0.1.0")
+            )
+        )
+
+    def _install_child_of_app1(self):
+        catalog_src, _ = self.setup_empty_catalog("my-catalog")
+        catalog = (
+            self.album_controller.collection_manager()
+            .catalogs()
+            .add_by_src(catalog_src)
+        )
+        self._deploy(catalog, "app1.py")
+        self._deploy(catalog, "solution1_app1.py")
+        self._update_and_upgrade(catalog)
+        self.album_controller.install_manager().install("group:solution1_app1:0.1.0")
+        return catalog
+
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.remove_environment"
+    )
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.install_environment"
+    )
+    @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
+    def test_upgrade_changed_parent_keeps_its_children(self, _, __, remove_environment):
+        catalog = self._install_child_of_app1()
+        parent_id = self._get_entry(catalog, "app1").internal()["collection_id"]
+
+        # the parent is deployed again with the same version
+        self._deploy(catalog, "app1_changed.py", force_deploy=True)
+        updates = self._update_and_upgrade(catalog)
+        self.assertEqual(
+            [(Coordinates("group", "app1", "0.1.0"), ChangeType.CHANGED)],
+            [(c.coordinates(), c.change_type()) for c in updates.solution_changes()],
+        )
+
+        parent = self._get_entry(catalog, "app1")
+        self.assertEqual(
+            "app one, deployed again with the same version", parent.setup()["title"]
+        )
+        self.assertEqual(parent_id, parent.internal()["collection_id"])
+        self.assertTrue(parent.internal()["installed"])
+
+        # the child still runs in the environment of the parent
+        child = self._get_entry(catalog, "solution1_app1")
+        self.assertEqual(
+            parent_id, child.internal()["parent"].internal()["collection_id"]
+        )
+        environment = self.album_controller.environment_manager().set_environment(
+            self.album_controller.collection_manager().resolve_installed_and_load(
+                "group:solution1_app1:0.1.0"
+            )
+        )
+        self.assertEqual(
+            self.album_controller.environment_manager().get_environment_name(
+                Coordinates("group", "app1", "0.1.0"), catalog
+            ),
+            environment.name(),
+        )
+
+        # and the parent cannot be uninstalled before the child
+        with self.assertRaises(RuntimeError):
+            self.album_controller.install_manager().uninstall("group:app1:0.1.0")
+        remove_environment.assert_not_called()
+
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.remove_environment"
+    )
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.install_environment"
+    )
+    @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
+    def test_upgrade_keeps_installed_solutions_removed_from_the_catalog(
+        self, _, __, remove_environment
+    ):
+        catalog = self._install_child_of_app1()
+
+        self._undeploy(catalog, "group:solution1_app1:0.1.0")
+        self._undeploy(catalog, "group:app1:0.1.0")
+        updates = self._update_and_upgrade(catalog)
+        self.assertEqual(
+            [ChangeType.REMOVED, ChangeType.REMOVED],
+            [c.change_type() for c in updates.solution_changes()],
+        )
+        self.assertIn(
+            'Solution "group:app1:0.1.0" was removed from catalog "my-catalog", '
+            "but it is installed. It stays in your collection until you uninstall it.",
+            self.get_logs_as_string(),
+        )
+
+        # both stay installed, the child in the environment of the parent
+        parent = self._get_entry(catalog, "app1")
+        child = self._get_entry(catalog, "solution1_app1")
+        self.assertTrue(parent.internal()["installed"])
+        self.assertTrue(child.internal()["installed"])
+        self.assertEqual(
+            parent.internal()["collection_id"],
+            child.internal()["parent"].internal()["collection_id"],
+        )
+
+        # they are uninstalled like any other solution, the child first
+        with self.assertRaises(RuntimeError):
+            self.album_controller.install_manager().uninstall("group:app1:0.1.0")
+        self.album_controller.install_manager().uninstall("group:solution1_app1:0.1.0")
+        self.album_controller.install_manager().uninstall("group:app1:0.1.0")
+        remove_environment.assert_called_once()
+
+        # the next upgrade removes them from the collection
+        self._update_and_upgrade(catalog)
+        self.assertIsNone(self._get_entry(catalog, "app1"))
+        self.assertIsNone(self._get_entry(catalog, "solution1_app1"))
+        self.assertTrue(
+            self.album_controller.collection_manager()
+            .get_collection_index()
+            .is_table_empty("collection_collection")
+        )
+
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.remove_environment"
+    )
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.install_environment"
+    )
+    @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
+    def test_install_again_after_upgrade_override_changed_the_parent(self, _, __, ___):
+        catalog = self._install_child_of_app1()
+        self._deploy(catalog, "app2.py")
+
+        # the child is deployed again with the same version, but another parent
+        self._deploy(catalog, "solution1_app1_changed_parent.py", force_deploy=True)
+        self._update_and_upgrade(catalog, override=True)
+        child = self._get_entry(catalog, "solution1_app1")
+        self.assertEqual("app1", child.internal()["parent"].setup()["name"])
+
+        # installed again, it runs in the environment of its new parent
+        self.album_controller.install_manager().uninstall("group:solution1_app1:0.1.0")
+        self.album_controller.install_manager().install("group:solution1_app1:0.1.0")
+        child = self._get_entry(catalog, "solution1_app1")
+        self.assertEqual("app2", child.internal()["parent"].setup()["name"])
+
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.remove_environment"
+    )
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.install_environment"
+    )
+    @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
+    def test_install_again_a_solution_that_lost_its_parent(self, _, __, ___):
+        catalog = self._install_child_of_app1()
+        # older album versions left the link pointing to a parent entry they had replaced
+        index = self.album_controller.collection_manager().get_collection_index()
+        index.get_cursor().execute(
+            "UPDATE collection_collection SET collection_id_parent = 99"
+        )
+        index.close_current_connection()
+        self.assertIsNone(
+            self._get_entry(catalog, "solution1_app1").internal()["parent"]
+        )
+
+        self.album_controller.install_manager().uninstall("group:solution1_app1:0.1.0")
+        self.album_controller.install_manager().install("group:solution1_app1:0.1.0")
+        child = self._get_entry(catalog, "solution1_app1")
+        self.assertEqual("app1", child.internal()["parent"].setup()["name"])
+
     @patch(
         "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
     )

@@ -148,6 +148,8 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         child_entry.internal = lambda: {"collection_id": 10, "catalog_id": 1}
 
         # mock
+        remove_parent = MagicMock()
+        self.solution_handler._get_collection_index().remove_parent = remove_parent
         insert_collection_collection = MagicMock()
         self.solution_handler._get_collection_index().insert_collection_collection = (
             insert_collection_collection
@@ -156,7 +158,8 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         # call
         self.solution_handler.set_parent(parent_entry, child_entry)
 
-        # assert
+        # assert: a link to an earlier parent is replaced
+        remove_parent.assert_called_once_with(10, close=False)
         insert_collection_collection.assert_called_once_with(5, 10, 0, 1)
 
     def test_remove_parent(self):
@@ -266,11 +269,69 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         remove_solution.assert_called_once()
         retrieve_solution.assert_not_called()
 
+    def _apply_change_REMOVED_to(self, installed, installation_unfinished):
+        coordinates = Coordinates("g", "n", "v")
+        change = SolutionChange(coordinates, ChangeType.REMOVED)
+
+        # mocks
+        entry = EmptyTestClass()
+        entry.internal = lambda: {
+            "installed": installed,
+            "installation_unfinished": installation_unfinished,
+        }
+        get_solution_by_catalog_grp_name_version = MagicMock(return_value=entry)
+        self.album_controller.collection_manager().get_collection_index().get_solution_by_catalog_grp_name_version = (
+            get_solution_by_catalog_grp_name_version
+        )
+
+        remove_solution = MagicMock()
+        self.solution_handler.remove_solution = remove_solution
+
+        # call
+        self.solution_handler.apply_change(self.catalog, change, override=False)
+
+        get_solution_by_catalog_grp_name_version.assert_called_once_with(
+            self.catalog.catalog_id(), coordinates
+        )
+        return remove_solution
+
+    def test_apply_change_REMOVED_not_installed(self):
+        remove_solution = self._apply_change_REMOVED_to(
+            installed=0, installation_unfinished=0
+        )
+
+        remove_solution.assert_called_once_with(
+            self.catalog, Coordinates("g", "n", "v")
+        )
+
+    def test_apply_change_REMOVED_installed(self):
+        remove_solution = self._apply_change_REMOVED_to(
+            installed=1, installation_unfinished=0
+        )
+
+        # it stays until it is uninstalled
+        remove_solution.assert_not_called()
+        self.assertIn(
+            'Solution "g:n:v" was removed from catalog "test", but it is installed.',
+            self.get_logs_as_string(),
+        )
+
+    def test_apply_change_REMOVED_installation_unfinished(self):
+        remove_solution = self._apply_change_REMOVED_to(
+            installed=0, installation_unfinished=1
+        )
+
+        # it stays until the next installation removes its files
+        remove_solution.assert_not_called()
+        self.assertNotIn("was removed from catalog", self.get_logs_as_string())
+
     def test_apply_change_CHANGED_no_override(self):
         # prepare
         coordinates = Coordinates("g", "n", "v")
         change = SolutionChange(
-            coordinates, ChangeType.CHANGED, solution_status={"installed": False}
+            coordinates,
+            ChangeType.CHANGED,
+            solution_status={"installed": False, "installation_unfinished": False},
         )
 
         # mocks
@@ -302,11 +363,47 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         _set_old_db_stat.assert_not_called()
         retrieve_solution.assert_not_called()
 
+    def test_apply_change_CHANGED_installation_unfinished(self):
+        # prepare
+        coordinates = Coordinates("g", "n", "v")
+        change = SolutionChange(
+            coordinates,
+            ChangeType.CHANGED,
+            solution_status={"installed": False, "installation_unfinished": True},
+        )
+
+        # mocks
+        empty_catalog = EmptyTestClass()
+        empty_catalog.get_solution_by_coordinates = MagicMock()
+        empty_catalog.close = MagicMock()
+        self.catalog._catalog_index = empty_catalog
+
+        add_or_replace_solution = MagicMock()
+        self.album_controller.collection_manager().get_collection_index().add_or_replace_solution = (
+            add_or_replace_solution
+        )
+
+        _set_old_db_stat = MagicMock()
+        self.solution_handler._set_old_db_stat = _set_old_db_stat
+
+        retrieve_solution = MagicMock()
+        self.solution_handler.retrieve_solution = retrieve_solution
+
+        # call
+        self.solution_handler.apply_change(self.catalog, change, override=True)
+
+        # assert: still marked unfinished, so the next installation removes its files
+        add_or_replace_solution.assert_called_once()
+        _set_old_db_stat.assert_called_once_with(self.catalog, change)
+        retrieve_solution.assert_not_called()
+
     def test_apply_change_CHANGED_override_uninstalled(self):
         # prepare
         coordinates = Coordinates("g", "n", "v")
         change = SolutionChange(
-            coordinates, ChangeType.CHANGED, solution_status={"installed": False}
+            coordinates,
+            ChangeType.CHANGED,
+            solution_status={"installed": False, "installation_unfinished": False},
         )
 
         # mocks

@@ -1419,36 +1419,84 @@ class TestCollectionIndex(TestUnitCoreCommon):
         self.assertEqual(0, r._internal["installed"])
 
     def test_add_or_replace_solution(self):
-        self.test_catalog_collection_index.insert_catalog(
-            "myName1", "mySrc1", "myPath1", True, None, "direct"
-        )
-        self.test_catalog_collection_index.insert_solution(
-            1, self._get_solution_attrs(1, "grp1", "name1", "version1")
-        )
+        index = self.test_catalog_collection_index
+        index.insert_catalog("myName1", "mySrc1", "myPath1", True, None, "direct")
+        coordinates = Coordinates("grp1", "name1", "version1")
 
-        # mocks
-        get_solution_by_catalog_grp_name_version = MagicMock()
-        self.test_catalog_collection_index.get_solution_by_catalog_grp_name_version = (
-            get_solution_by_catalog_grp_name_version
+        # not in the collection: added
+        index.add_or_replace_solution(
+            1, coordinates, self._get_solution_attrs(1, "grp1", "name1", "version1")
         )
+        self.assertEqual(1, len(index.get_all_solutions()))
 
-        remove_solution = MagicMock()
-        self.test_catalog_collection_index.remove_solution = remove_solution
+        # in the collection: replaced
+        index.add_or_replace_solution(
+            1,
+            coordinates,
+            self._get_solution_attrs(
+                1, "grp1", "name1", "version1", attrs={"title": "t2", "tags": ["t2"]}
+            ),
+        )
+        solutions = index.get_all_solutions()
+        self.assertEqual(1, len(solutions))
+        self.assertEqual("t2", solutions[0].setup()["title"])
+        self.assertEqual(["t2"], solutions[0].setup()["tags"])
 
-        insert_solution = MagicMock()
-        self.test_catalog_collection_index.insert_solution = insert_solution
+    def test_add_or_replace_solution_keeps_collection_id_and_children(self):
+        index = self.test_catalog_collection_index
+        index.insert_catalog("myName1", "mySrc1", "myPath1", True, None, "direct")
+        index.insert_solution(1, self._get_solution_attrs(1, "grp", "parent", "v1"))
+        index.insert_solution(1, self._get_solution_attrs(2, "grp", "replaced", "v1"))
+        index.insert_solution(1, self._get_solution_attrs(3, "grp", "child", "v1"))
+        index.insert_collection_collection(1, 2, 1, 1)  # replaced has parent 1
+        index.insert_collection_collection(2, 3, 1, 1)  # child has parent replaced
 
         # call
-        self.test_catalog_collection_index.add_or_replace_solution(
-            1, Coordinates("grp1", "name1", "version1"), self.get_solution_dict()
+        index.add_or_replace_solution(
+            1,
+            Coordinates("grp", "replaced", "v1"),
+            self._get_solution_attrs(
+                2, "grp", "replaced", "v1", attrs={"title": "changed"}
+            ),
         )
 
         # assert
-        insert_solution.assert_called_once_with(1, self.get_solution_dict(), close=True)
-        get_solution_by_catalog_grp_name_version.assert_called_once()
-        remove_solution.assert_called_once_with(
-            1, Coordinates("grp1", "name1", "version1"), close=False
+        replaced = index.get_solution_by_catalog_grp_name_version(
+            1, Coordinates("grp", "replaced", "v1")
         )
+        self.assertEqual(2, replaced.internal()["collection_id"])
+        self.assertEqual("changed", replaced.setup()["title"])
+        self.assertEqual(2, index.get_parent_of_solution(3).internal()["collection_id"])
+        # its own link to a parent goes with the old entry
+        self.assertIsNone(index.get_parent_of_solution(2))
+        self.assertEqual(4, index.next_id("collection"))
+
+    def test_remove_solution_removes_links_of_its_children(self):
+        index = self.test_catalog_collection_index
+        index.insert_catalog("myName1", "mySrc1", "myPath1", True, None, "direct")
+        index.insert_solution(1, self._get_solution_attrs(1, "grp", "parent", "v1"))
+        index.insert_solution(1, self._get_solution_attrs(2, "grp", "child", "v1"))
+        index.insert_collection_collection(1, 2, 1, 1)  # child has parent 1
+
+        # call
+        index.remove_solution(1, Coordinates("grp", "parent", "v1"))
+
+        # assert
+        self.assertIsNone(index.get_parent_of_solution(2))
+        self.assertTrue(index.is_table_empty("collection_collection"))
+
+    def test_get_parent_of_solution_ignores_link_to_missing_parent(self):
+        index = self.test_catalog_collection_index
+        index.insert_catalog("myName1", "mySrc1", "myPath1", True, None, "direct")
+        index.insert_solution(1, self._get_solution_attrs(1, "grp", "parent", "v1"))
+        index.insert_solution(1, self._get_solution_attrs(2, "grp", "child", "v1"))
+        # left behind by older album versions, which replaced or removed the parent
+        index.insert_collection_collection(99, 2, 1, 1)
+
+        self.assertIsNone(index.get_parent_of_solution(2))
+
+        index.insert_collection_collection(1, 2, 1, 1)
+        self.assertEqual(1, index.get_parent_of_solution(2).internal()["collection_id"])
 
     def test_remove_solution(self):
         self.is_empty_or_full(empty=True)
