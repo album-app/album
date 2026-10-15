@@ -322,15 +322,40 @@ class TestEnvironmentManager(TestUnitCoreCommon):
             tmp_file.write("""name: test""")
 
         r = self.environment_manager._prepare_env_file(
-            {"environment_file": str(test_yml)},
+            {"environment_file": "test.yml"},
             Path(self.tmp_dir.name),
             "env_name",
             None,
+            solution_folder=Path(self.tmp_dir.name),
         )
 
         self.assertEqual(Path(self.tmp_dir.name).joinpath("env_name.yml"), r)
 
         create_path_mock.assert_called_once()
+
+    def test_create_environment_environment_file_from_package_path(self):
+        # an installed solution: its files are in its package path
+        package_path = Path(self.tmp_dir.name).joinpath("package")
+        package_path.mkdir()
+        package_path.joinpath("environment.yml").write_text(
+            "channels:\n  - bioconda\ndependencies:\n  - python=3.12\n"
+        )
+        cache = Path(self.tmp_dir.name).joinpath("cache")
+        create_environment = MagicMock()
+        self.environment_manager._environment_handler.create_environment_prefer_lock_file = (
+            create_environment
+        )
+
+        self.environment_manager.create_environment(
+            cache,
+            {"environment_file": "environment.yml"},
+            "env_name",
+            "0.7.3",
+            package_path,
+        )
+
+        environment_file = create_environment.call_args[0][0].yaml_file()
+        self.assertEqual(["bioconda"], get_dict_from_yml(environment_file)["channels"])
 
     @patch(
         "album.core.controller.environment_manager.create_path_recursively",

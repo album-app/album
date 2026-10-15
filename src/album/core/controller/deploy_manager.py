@@ -64,8 +64,13 @@ class DeployManager(IDeployManager):
         active_solution = self.album.state_manager().load(path_to_solution)
         active_solution.setup().changelog = changelog
 
+        # the environment and the resource file are deployed with the folder of the solution
+        solution_folder = _deploy_path if _deploy_path.is_dir() else None
+        self.album.resource_manager().check_files_in_solution_folder(
+            active_solution, solution_folder
+        )
         # an invalid resource file would only fail when the solution gets installed
-        self.album.download_manager().check_resources(active_solution)
+        self.album.download_manager().check_resources(active_solution, solution_folder)
 
         if catalog_name:
             catalog = self.album.catalogs().get_by_name(catalog_name)

@@ -10,7 +10,6 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Dict, Iterator, Optional
 
 import pooch
-import validators
 import yaml
 from jsonschema import ValidationError, validate
 
@@ -47,7 +46,9 @@ class DownloadManager(IDownloadManager):
         self, collection_solution: ICollectionSolution
     ) -> Optional[Path]:
         solution = collection_solution.loaded_solution()
-        resources_dict = self._load_resources(solution)
+        resources_dict = self._load_resources(
+            solution, solution.installation().package_path()
+        )
         if resources_dict is None:
             return None
 
@@ -62,23 +63,12 @@ class DownloadManager(IDownloadManager):
         # the json file is only written when every resource is available
         return self._write_resources_json(resources_dict, solution)
 
-    def check_resources(self, solution: ISolution) -> None:
-        resources_dict = self._load_resources(solution)
+    def check_resources(
+        self, solution: ISolution, solution_folder: Optional[Path] = None
+    ) -> None:
+        resources_dict = self._load_resources(solution, solution_folder)
         if resources_dict is None:
             return
-
-        # a string that is neither a url nor the content of the file is a path, see ResourceManager
-        resource_file = solution.setup().dependencies["resource_file"]
-        if (
-            isinstance(resource_file, str)
-            and not validators.url(resource_file)
-            and not ("resources:" in resource_file and "\n" in resource_file)
-        ):
-            module_logger().warning(
-                'The resource_file of "%s" points to the file %s. The solution can only be '
-                "installed where this path exists. Add the content of the file to the solution "
-                "or use a url instead." % (solution.coordinates(), resource_file)
-            )
 
         for key, resource in resources_dict["resources"].items():
             if resource["scope"] != SCOPE_SOLUTION and not resource["hash"]:
@@ -89,8 +79,12 @@ class DownloadManager(IDownloadManager):
                     % (key, solution.coordinates())
                 )
 
-    def _load_resources(self, solution: ISolution) -> Optional[Dict[str, Any]]:
+    def _load_resources(
+        self, solution: ISolution, solution_folder: Optional[Path] = None
+    ) -> Optional[Dict[str, Any]]:
         """Read and validate the resource file of a solution, filled up with the default values.
+
+        A resource file given as a path is taken from solution_folder, the folder of the solution.
 
         Returns:
             The resources dictionary, or None if the solution declares no resource file.
@@ -107,7 +101,7 @@ class DownloadManager(IDownloadManager):
         )
         try:
             self.album.resource_manager().handle_resource_file_dependency(
-                dependencies["resource_file"], yml_path
+                dependencies["resource_file"], yml_path, solution_folder
             )
             with open(yml_path, encoding="utf-8") as yml_file:
                 resources_dict = yaml.safe_load(yml_file)

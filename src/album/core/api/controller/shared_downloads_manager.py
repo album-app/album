@@ -13,8 +13,8 @@ class IDownloadManager:
     Interface handling the file download and sharing locations of files requested by solutions.
 
     A solution declares its resources in the ``resource_file`` entry of its dependencies. It takes
-    the same forms as the ``environment_file``: the content as a string, a url, a path to a file
-    on the disk, a ``StringIO`` or a dictionary. Example:
+    the same forms as the ``environment_file``: the content as a string, a url, the path of a .yml
+    file in the folder of the solution, relative to it, a ``StringIO`` or a dictionary. Example:
 
         resources:
             model:
@@ -60,11 +60,14 @@ class IDownloadManager:
         raise NotImplementedError
 
     @abstractmethod
-    def check_resources(self, solution: ISolution) -> None:
+    def check_resources(
+        self, solution: ISolution, solution_folder: Optional[Path] = None
+    ) -> None:
         """
         Check the resource file of a solution before it is deployed.
 
         Raises the same errors as the installation would for an invalid resource file, and warns
-        about resources that work for the deployer only or that are shared without a hash.
+        about resources that are shared without a hash. A resource file given as a path is taken
+        from solution_folder, the folder of the solution.
         """
         raise NotImplementedError

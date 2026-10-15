@@ -83,6 +83,65 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         get_by_name.assert_not_called()
         _deploy.assert_not_called()
 
+    def _deploy_with_environment_file(self, deploy_path, environment_file):
+        self.active_solution.setup().dependencies = {
+            "environment_file": environment_file
+        }
+        self.album_controller.state_manager().load = MagicMock(
+            return_value=self.active_solution
+        )
+        self.album_controller.catalogs().get_by_name = MagicMock(
+            return_value="myCatalogLoaded"
+        )
+        self.deploy_manager._deploy = MagicMock(return_value=None)
+
+        self.deploy_manager.deploy(str(deploy_path), "catName", True)
+
+    def test_deploy_environment_file_in_solution_folder(self):
+        solution_folder = Path(self.tmp_dir.name).joinpath("solution")
+        solution_folder.mkdir()
+        solution_folder.joinpath("environment.yml").write_text("dependencies: []\n")
+
+        self._deploy_with_environment_file(solution_folder, "environment.yml")
+
+        self.deploy_manager._deploy.assert_called_once()
+
+    def test_deploy_environment_file_outside_solution_folder(self):
+        solution_folder = Path(self.tmp_dir.name).joinpath("solution")
+        solution_folder.mkdir()
+        Path(self.tmp_dir.name).joinpath("environment.yml").write_text(
+            "dependencies: []\n"
+        )
+
+        with self.assertRaises(TypeError) as e:
+            self._deploy_with_environment_file(solution_folder, "../environment.yml")
+
+        self.assertIn(
+            'environment_file "../environment.yml" is outside the solution folder',
+            str(e.exception),
+        )
+        # aborted before the catalog is touched
+        self.album_controller.catalogs().get_by_name.assert_not_called()
+        self.deploy_manager._deploy.assert_not_called()
+
+    def test_deploy_single_file_with_environment_file(self):
+        solution_folder = Path(self.tmp_dir.name).joinpath("solution")
+        solution_folder.mkdir()
+        solution_folder.joinpath("solution.py").write_text("content")
+        solution_folder.joinpath("environment.yml").write_text("dependencies: []\n")
+
+        # only solution.py is deployed, the environment file would be missing
+        with self.assertRaises(TypeError) as e:
+            self._deploy_with_environment_file(
+                solution_folder.joinpath("solution.py"), "environment.yml"
+            )
+
+        self.assertIn(
+            "Install and deploy the solution folder, not solution.py alone.",
+            str(e.exception),
+        )
+        self.deploy_manager._deploy.assert_not_called()
+
     @patch(
         "album.core.controller.deploy_manager.process_changelog_file",
         return_value="Chanelog",

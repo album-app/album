@@ -122,11 +122,11 @@ class TestDownloadManager(TestUnitCoreCommon):
             resource_dict,
             resource_yml,
             StringIO(resource_yml),
-            str(resource_path),
+            "resources.yml",
         ]:
             with self.subTest(resource_file=type(resource_file).__name__):
                 resources_dict = self.download_manager._load_resources(
-                    self._solution(resource_file)
+                    self._solution(resource_file), Path(self.tmp_dir.name)
                 )
                 self.assertEqual(expected, resources_dict)
 
@@ -613,6 +613,26 @@ class TestDownloadManager(TestUnitCoreCommon):
             ["a"], list(json.loads(json_path.read_text(encoding="utf-8"))["resources"])
         )
 
+    @patch("album.core.controller.shared_downloads_manager.pooch.retrieve")
+    def test_download_resources_resource_file_from_package_path(self, _):
+        package_path = Path(self.tmp_dir.name).joinpath("package")
+        package_path.mkdir()
+        package_path.joinpath("resources.yml").write_text(
+            "resources:\n  a:\n    name: a.txt\n    url: https://e.org/a\n    hash: %s\n"
+            % SHA256,
+            encoding="utf-8",
+        )
+        solution = self._solution("resources.yml")
+        solution.installation().set_package_path(package_path)
+
+        json_path = self.download_manager.download_resources(
+            self._collection_solution(solution)
+        )
+
+        self.assertEqual(
+            ["a"], list(json.loads(json_path.read_text(encoding="utf-8"))["resources"])
+        )
+
     # check_resources
 
     def test_check_resources_no_resource_file(self):
@@ -652,19 +672,39 @@ class TestDownloadManager(TestUnitCoreCommon):
         self.assertNotIn('"model"', logs)
         self.assertNotIn('"viewer_', logs)
 
-    def test_check_resources_local_path(self):
+    def test_check_resources_file_in_solution_folder(self):
+        Path(self.tmp_dir.name).joinpath("resources.yml").write_text(
+            "resources:\n  a:\n    name: a.txt\n    url: https://e.org/a\n    scope: solution\n",
+            encoding="utf-8",
+        )
+
+        self.download_manager.check_resources(
+            self._solution("resources.yml"), Path(self.tmp_dir.name)
+        )
+
+        self.assertNotIn("WARNING", self.get_logs_as_string())
+
+    def test_check_resources_file_outside_solution_folder(self):
         resource_path = Path(self.tmp_dir.name).joinpath("resources.yml")
         resource_path.write_text(
             "resources:\n  a:\n    name: a.txt\n    url: https://e.org/a\n    scope: solution\n",
             encoding="utf-8",
         )
+        solution_folder = Path(self.tmp_dir.name).joinpath("solution")
+        solution_folder.mkdir()
 
-        self.download_manager.check_resources(self._solution(str(resource_path)))
-
-        self.assertIn(
-            'The resource_file of "tsg:tsn:tsv" points to the file %s' % resource_path,
-            self.get_logs_as_string(),
-        )
+        for resource_file, folder in [
+            (str(resource_path), solution_folder),
+            ("../resources.yml", solution_folder),
+            # a solution deployed as a single file has no folder for it
+            ("resources.yml", None),
+        ]:
+            with self.subTest(resource_file=resource_file):
+                with self.assertRaises(TypeError) as e:
+                    self.download_manager.check_resources(
+                        self._solution(resource_file), folder
+                    )
+                self.assertIn('resource_file "%s" is' % resource_file, str(e.exception))
 
     def test_check_resources_invalid(self):
         with self.assertRaises(ValueError):

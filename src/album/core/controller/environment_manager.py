@@ -102,7 +102,12 @@ class EnvironmentManager(IEnvironmentManager):
         allow_recursive: bool = False,
     ) -> IEnvironment:
         env_file = self._prepare_env_file(
-            dependencies, cache, env_name, album_api_version, allow_recursive
+            dependencies,
+            cache,
+            env_name,
+            album_api_version,
+            allow_recursive,
+            solution_folder=solution_package_path,
         )
         env_path = self.get_environment_path(env_name, create=True)
         environment = Environment(env_file, env_name, env_path)
@@ -332,6 +337,7 @@ class EnvironmentManager(IEnvironmentManager):
         env_name: str,
         album_api_version: Optional[str] = "",
         allow_recursive: bool = False,
+        solution_folder: Optional[Path] = None,
     ) -> Path:
         yaml_path = cache_path.joinpath("{n}{s}".format(n=env_name, s=".yml"))
         create_path_recursively(yaml_path.parent)
@@ -340,8 +346,9 @@ class EnvironmentManager(IEnvironmentManager):
             if "environment_file" in dependencies_dict:
                 env_file = dependencies_dict["environment_file"]
 
+                # a path is relative to the folder of the solution
                 self._album.resource_manager().handle_env_file_dependency(
-                    env_file, yaml_path
+                    env_file, yaml_path, solution_folder
                 )
 
                 yaml_dict = get_dict_from_yml(yaml_path)
