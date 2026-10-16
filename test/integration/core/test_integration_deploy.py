@@ -348,6 +348,8 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
             git_email=DefaultValues.catalog_git_email.value,
             git_name=DefaultValues.catalog_git_user.value,
             force_deploy=True,
+            # the same version for other content
+            no_replicability=True,
         )
         self.assertNotIn("ERROR", self.get_logs_as_string())
         self.album_controller.collection_manager().catalogs().update_any(catalog.name())

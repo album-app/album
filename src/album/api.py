@@ -240,6 +240,7 @@ class Album:
         force_deploy: bool = False,
         changelog: str = "",
         no_conda_lock: bool = False,
+        no_replicability: bool = False,
     ):
         """Deploy a solution.
 
@@ -268,6 +269,10 @@ class Album:
                 The change associated with this version of a solution compared to the last version.
             no_conda_lock:
                 Do not lock the conda environment when deploying.
+            no_replicability:
+                Deploy also a solution that is not technically replicable, e.g. one with a
+                resource url without a hash. Without it, such a solution is refused. The
+                reasons are stored with the solution in solution.yml.
 
         """
         return self._controller.deploy_manager().deploy(
@@ -280,6 +285,7 @@ class Album:
             force_deploy=force_deploy,
             changelog=changelog,
             no_conda_lock=no_conda_lock,
+            no_replicability=no_replicability,
         )
 
     def undeploy(

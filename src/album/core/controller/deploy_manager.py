@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -8,6 +9,7 @@ from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.deploy_manager import IDeployManager
 from album.core.api.model.catalog import ICatalog
 from album.core.model.default_values import DefaultValues
+from album.core.model.replicability import ReplicabilityReason
 from album.core.utils.export.changelog import process_changelog_file
 from album.core.utils.operations.file_operations import folder_empty
 from album.core.utils.operations.git_operations import (
@@ -24,8 +26,12 @@ from album.core.utils.operations.resolve_operations import (
     as_tag,
     dict_to_coordinates,
     get_attributes_from_string,
+    get_doi_from_input,
 )
-from album.core.utils.operations.solution_operations import version_sort_key
+from album.core.utils.operations.solution_operations import (
+    get_parent_dict,
+    version_sort_key,
+)
 from album.environments.utils.file_operations import copy, force_remove
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
@@ -49,6 +55,7 @@ class DeployManager(IDeployManager):
         force_deploy: bool = False,
         changelog: str = "",
         no_conda_lock: bool = False,
+        no_replicability: bool = False,
     ):
         _push_options = push_options if push_options is not None else []
         if dry_run:
@@ -70,7 +77,10 @@ class DeployManager(IDeployManager):
             active_solution, solution_folder
         )
         # an invalid resource file would only fail when the solution gets installed
-        self.album.download_manager().check_resources(active_solution, solution_folder)
+        reasons = self.album.download_manager().check_resources(
+            active_solution, solution_folder
+        )
+        reasons += self._get_replicability_reasons(active_solution, no_conda_lock)
 
         if catalog_name:
             catalog = self.album.catalogs().get_by_name(catalog_name)
@@ -87,6 +97,8 @@ class DeployManager(IDeployManager):
             git_email,
             git_name,
             no_conda_lock,
+            no_replicability,
+            reasons,
         )
 
         if dry_run:
@@ -206,6 +218,8 @@ class DeployManager(IDeployManager):
         git_email: str = "",
         git_name: str = "",
         no_conda_lock: bool = False,
+        no_replicability: bool = False,
+        reasons: Optional[List[ReplicabilityReason]] = None,
     ) -> None:
         # check for cache catalog only
         if catalog.is_cache():
@@ -232,7 +246,10 @@ class DeployManager(IDeployManager):
             )
             self.album.migration_manager().load_index(catalog, refresh=False)
 
-            # requires a loaded index
+            # requires a loaded index, decided before anything is written
+            self._check_replicability(
+                catalog, active_solution, reasons or [], no_replicability, force_deploy
+            )
             process_changelog_file(catalog, active_solution, deploy_path)
 
             # carry forward doi from the catalog index so it survives
@@ -364,6 +381,91 @@ class DeployManager(IDeployManager):
             git_name,
             files_to_remove=[solution_root],
         )
+
+    @staticmethod
+    def _get_replicability_reasons(
+        solution: ISolution, no_conda_lock: bool
+    ) -> List[ReplicabilityReason]:
+        """Return what keeps the parent and the environment of a solution from replicability."""
+        reasons = []
+        parent = get_parent_dict(solution)
+        if (
+            parent
+            and "doi" not in parent
+            and not all(key in parent for key in ["group", "name", "version"])
+        ):
+            # anything else than a DOI or [catalog:]group:name:version, e.g. a path, a url
+            # or a reference without version, can differ where the solution is installed
+            resolve_solution = str(parent.get("resolve_solution", ""))
+            if not get_doi_from_input(resolve_solution) and not re.fullmatch(
+                r"[^:/\\\s]+(:[^:/\\\s]+){2,3}", resolve_solution
+            ):
+                reasons.append(
+                    ReplicabilityReason(
+                        'its parent "%s" is not given by a DOI or by group:name:version'
+                        % resolve_solution,
+                        needs_flag=True,
+                    )
+                )
+        if no_conda_lock:
+            reasons.append(
+                ReplicabilityReason(
+                    "it is deployed without a lock file (--no-conda-lock), its environment "
+                    "is solved again when it is installed"
+                )
+            )
+        return reasons
+
+    @staticmethod
+    def _check_replicability(
+        catalog: ICatalog,
+        active_solution: ISolution,
+        reasons: List[ReplicabilityReason],
+        no_replicability: bool,
+        force_deploy: bool,
+    ) -> None:
+        """Refuse a solution that is not technically replicable, unless no_replicability.
+
+        The reasons are stored with the solution, in solution.yml.
+        """
+        coordinates = active_solution.coordinates()
+        index = catalog.index()
+        replaces = (
+            index is not None
+            and index.get_solution_by_coordinates(coordinates) is not None
+            and (force_deploy or catalog.type() == "request")
+        )
+        if replaces:
+            if coordinates.version().endswith("SNAPSHOT"):
+                module_logger().warning(
+                    'Version %s of "%s" replaces the one deployed before.'
+                    % (coordinates.version(), coordinates)
+                )
+            else:
+                reasons = reasons + [
+                    ReplicabilityReason(
+                        "version %s replaces the one deployed before, the same version "
+                        "stands for other content then" % coordinates.version(),
+                        needs_flag=True,
+                    )
+                ]
+
+        refused = [reason.text for reason in reasons if reason.needs_flag]
+        if refused and not no_replicability:
+            raise RuntimeError(
+                '"%s" is not technically replicable:\n%s\nDeploy it with '
+                "--no-replicability to deploy it anyway: the reasons are stored with the "
+                "solution, and installing it shows them."
+                % (coordinates, "\n".join("- %s" % text for text in refused))
+            )
+        for reason in reasons:
+            module_logger().warning(
+                f'Not technically replicable, "{coordinates}": {reason.text}'
+            )
+        if reasons:
+            active_solution.setup().replicability = {
+                "reasons": [reason.text for reason in reasons]
+            }
 
     @staticmethod
     def _carry_forward_doi(catalog: ICatalog, active_solution: ISolution) -> None:

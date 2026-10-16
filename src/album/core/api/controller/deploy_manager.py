@@ -1,4 +1,5 @@
 """Interface for the deploy manager."""
+
 from abc import ABCMeta, abstractmethod
 from typing import List, Optional
 
@@ -31,6 +32,7 @@ class IDeployManager:
         force_deploy: bool = False,
         changelog: str = "",
         no_conda_lock: bool = False,
+        no_replicability: bool = False,
     ):
         """Deploy a solution.
 
@@ -59,6 +61,10 @@ class IDeployManager:
                 The change associated with this version of a solution compared to the last version.
             no_conda_lock:
                 Do not create a conda lock file for the deployment.
+            no_replicability:
+                Deploy also a solution that is not technically replicable, e.g. one with a
+                resource url without a hash. Without it, such a solution is refused. The
+                reasons are stored with the solution in solution.yml.
 
         """
         raise NotImplementedError

@@ -78,6 +78,7 @@ class ResourceManager(IResourceManager):
         else:
             # todo: replace me with copy_folder function
             skipped = []
+            sizes = {}
             for subdir, dirs, files in os.walk(deploy_path):
                 for name in dirs + files:
                     if not _is_deployed(name):
@@ -94,11 +95,13 @@ class ResourceManager(IResourceManager):
                         continue
                     target = catalog_solution_local_src_path.joinpath(rel_path)
                     res.append(copy(filepath, target))
+                    sizes[Path(rel_path).as_posix()] = os.path.getsize(filepath)
             if skipped:
                 module_logger().info(
                     "Not deploying hidden files and folders and Python caches: %s"
                     % ", ".join(sorted(skipped))
                 )
+            self._warn_about_size(coordinates, sizes)
 
         res.append(
             self._create_yaml_file_in_local_src(
@@ -168,6 +171,29 @@ class ResourceManager(IResourceManager):
                 )
                 raise e
         return res
+
+    @staticmethod
+    def _warn_about_size(coordinates: Any, sizes: Dict[str, int]) -> None:
+        """Warn when the files deployed from the folder of a solution fill the catalog.
+
+        Only a warning: a catalog repository might store large files, e.g. with Git LFS.
+        """
+        total = sum(sizes.values())
+        if total <= DefaultValues.deploy_size_warning_in_mb.value * 1024 * 1024:
+            return
+        largest = sorted(sizes.items(), key=lambda item: item[1], reverse=True)[:10]
+        module_logger().warning(
+            'The files of "%s" take %.1f MB in the catalog: %s. Large files fill the '
+            "repository of the catalog; as a resource, e.g. with a DOI on Zenodo, they "
+            "stay out of it."
+            % (
+                coordinates,
+                total / 1024 / 1024,
+                ", ".join(
+                    f"{name} {size / 1024 / 1024:.1f} MB" for name, size in largest
+                ),
+            )
+        )
 
     def check_file_dependencies(
         self,

@@ -356,6 +356,15 @@ def create_deploy_parser(parser):
         help="When specified, the conda.lock file will not be created.",
         action="store_true",
     )
+    p.add_argument(
+        "--no-replicability",
+        required=False,
+        help="Deploy also a solution that is not technically replicable, e.g. one with a "
+        "resource url without a hash, a parent given by a path, or a version that replaces "
+        "one deployed before. Without it, album deploy names the reasons and stops. They are "
+        "stored with the solution, and installing it shows them.",
+        action="store_true",
+    )
 
 
 def create_undeploy_parser(parser):

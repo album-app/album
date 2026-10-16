@@ -84,6 +84,7 @@ def deploy(album_instance: Album, args: Namespace):
         args.force_deploy,
         args.changelog,
         args.no_conda_lock,
+        args.no_replicability,
     )
 
 

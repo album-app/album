@@ -122,6 +122,8 @@ class DefaultValues(Enum):
     solution_environment_default_name = "solution.environment.yml"
     solution_conda_lock_default_name = "solution.conda-lock.yml"
     solution_resources_default_name = "solution.resources.yml"
+    # album deploy warns when the files of a solution take more in the catalog repository
+    deploy_size_warning_in_mb = 5
 
     # lnk folder prefixes
     lnk_package_prefix = (
