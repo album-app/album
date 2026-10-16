@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 import pooch
 
 from album.core.controller.shared_downloads_manager import DownloadManager
+from album.core.model.replicability import ReplicabilityReason
 from album.core.utils.file_lock import FileLock
 from album.runner.core.model.solution import Solution
 
@@ -663,19 +664,25 @@ class TestDownloadManager(TestUnitCoreCommon):
 
         self.assertNotIn("WARNING", self.get_logs_as_string())
 
-    def test_check_resources_pinned(self):
-        self.download_manager.check_resources(
+    def test_check_resources_replicability(self):
+        reasons = self.download_manager.check_resources(
             self._solution(
                 {
                     "resources": {
-                        "a": {
-                            "name": "a.txt",
-                            "url": "https://e.org/a",
+                        "doi_pinned": {
+                            "name": "a.zip",
+                            "url": "doi:10.5281/zenodo.123/a.zip",
                             "hash": SHA256,
                         },
-                        "b": {
-                            "name": "b.txt",
-                            "url": "https://e.org/b",
+                        "doi": {"name": "b.zip", "url": "doi:10.5281/zenodo.123/b.zip"},
+                        "url_pinned": {
+                            "name": "c.txt",
+                            "url": "https://e.org/c",
+                            "hash": SHA256,
+                        },
+                        "url": {
+                            "name": "d.txt",
+                            "url": "https://e.org/d",
                             "scope": "solution",
                         },
                     }
@@ -683,17 +690,29 @@ class TestDownloadManager(TestUnitCoreCommon):
             )
         )
 
-        self.assertNotIn("WARNING", self.get_logs_as_string())
-
-    def test_check_resources_unpinned_shared(self):
-        self.download_manager.check_resources(self._solution(RESOURCE_FILE))
-
+        # a hash pins the content; from a url, a solution can only be deployed with
+        # --no-replicability without it
+        self.assertEqual(
+            [
+                ReplicabilityReason(
+                    'resource "doi" has no hash, its content is not verified'
+                ),
+                ReplicabilityReason(
+                    'resource "url" is downloaded from https://e.org/d without a hash, '
+                    "its content can change",
+                    needs_flag=True,
+                ),
+            ],
+            reasons,
+        )
+        # a url can become unavailable, a DOI does not
         logs = self.get_logs_as_string()
         self.assertIn(
-            'Resource "readme" of "tsg:tsn:tsv" is shared, but has no hash', logs
+            'Resource "url_pinned" of "tsg:tsn:tsv" is downloaded from https://e.org/c, '
+            "which can become unavailable. A DOI, e.g. on Zenodo, keeps it available.",
+            logs,
         )
-        self.assertNotIn('"model"', logs)
-        self.assertNotIn('"viewer_', logs)
+        self.assertNotIn('"doi_pinned"', logs)
 
     def test_check_resources_file_in_solution_folder(self):
         Path(self.tmp_dir.name).joinpath("resources.yml").write_text(

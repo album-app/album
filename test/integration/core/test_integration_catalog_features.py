@@ -343,6 +343,8 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
             changelog="something changed... in the neighborhood... who you gonna call?",
             dry_run=False,
             force_deploy=True,
+            # the same version for other content
+            no_replicability=True,
             git_email=DefaultValues.catalog_git_email.value,
             git_name=DefaultValues.catalog_git_user.value,
         )
@@ -376,6 +378,8 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
             git_email=DefaultValues.catalog_git_email.value,
             git_name=DefaultValues.catalog_git_user.value,
             no_conda_lock=True,
+            # deployed again with the same version: for other content
+            no_replicability=force_deploy,
         )
 
     def _undeploy(self, catalog, solution):
@@ -1068,6 +1072,68 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         self.assertTrue(self._get_entry(catalog, "app1").internal()["installed"])
         self.assertTrue(
             self._get_entry(catalog, "solution1_app1").internal()["installed"]
+        )
+
+    def test_deploy_no_replicability(self):
+        catalog_src, _ = self.setup_empty_catalog("my-catalog")
+        catalog = (
+            self.album_controller.collection_manager()
+            .catalogs()
+            .add_by_src(catalog_src)
+        )
+        folder = Path(self.tmp_dir.name).joinpath("unpinned")
+        folder.mkdir()
+        folder.joinpath("solution.py").write_text(
+            "from album.runner.api import setup\n\n"
+            "resources = '''resources:\n  data:\n    name: data.csv\n"
+            "    url: https://example.org/data.csv\n'''\n\n"
+            'setup(group="group", name="unpinned", version="0.1.0", '
+            'album_api_version="0.7.1", dependencies={"resource_file": resources})\n',
+            encoding="utf-8",
+        )
+
+        def deploy(no_replicability):
+            self.album_controller.deploy_manager().deploy(
+                str(folder),
+                catalog_name=catalog.name(),
+                changelog="deploy",
+                dry_run=False,
+                git_email=DefaultValues.catalog_git_email.value,
+                git_name=DefaultValues.catalog_git_user.value,
+                no_conda_lock=True,
+                no_replicability=no_replicability,
+            )
+
+        # a resource from a url without a hash: refused
+        with self.assertRaises(RuntimeError) as e:
+            deploy(no_replicability=False)
+        url_reason = (
+            'resource "data" is downloaded from https://example.org/data.csv without a '
+            "hash, its content can change"
+        )
+        self.assertIn(url_reason, str(e.exception))
+
+        # deployed with the flag, the reasons stored with the solution
+        deploy(no_replicability=True)
+        solution_yml = (
+            self.album_controller.deploy_manager()
+            .get_download_path(catalog)
+            .joinpath(
+                self.configuration.get_solution_path_suffix_unversioned(
+                    Coordinates("group", "unpinned", "0.1.0")
+                ),
+                "solution.yml",
+            )
+        )
+        self.assertEqual(
+            {
+                "reasons": [
+                    url_reason,
+                    "it is deployed without a lock file (--no-conda-lock), its "
+                    "environment is solved again when it is installed",
+                ]
+            },
+            get_dict_from_yml(solution_yml)["replicability"],
         )
 
     @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")

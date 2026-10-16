@@ -2,9 +2,10 @@
 
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from album.core.api.model.collection_solution import ICollectionSolution
+from album.core.model.replicability import ReplicabilityReason
 from album.runner.core.api.model.solution import ISolution
 
 
@@ -63,12 +64,16 @@ class IDownloadManager:
     @abstractmethod
     def check_resources(
         self, solution: ISolution, solution_folder: Optional[Path] = None
-    ) -> None:
+    ) -> List[ReplicabilityReason]:
         """
         Check the resource file of a solution before it is deployed.
 
-        Raises the same errors as the installation would for an invalid resource file, and warns
-        about resources that are shared without a hash. A relative path of the resource file
-        starts at solution_folder, the folder of the solution.
+        Raises the same errors as the installation would for an invalid resource file. A
+        relative path of the resource file starts at solution_folder, the folder of the
+        solution. Warns about a resource from a url, which can become unavailable.
+
+        Returns:
+            What keeps the resources from being technically replicable: a resource without a
+            hash, and, only deployed with --no-replicability, one from a url without a hash.
         """
         raise NotImplementedError

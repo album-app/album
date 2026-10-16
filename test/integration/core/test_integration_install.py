@@ -533,6 +533,8 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
             catalog_name=catalog.name(),
             dry_run=False,
             force_deploy=True,
+            # the same version for other content
+            no_replicability=True,
         )
         self.album_controller.collection_manager().catalogs().update_collection(
             catalog.name()

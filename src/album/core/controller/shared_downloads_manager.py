@@ -7,7 +7,7 @@ import sys
 import threading
 from contextlib import AbstractContextManager, contextmanager, nullcontext
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 import pooch
 import yaml
@@ -17,6 +17,7 @@ from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.shared_downloads_manager import IDownloadManager
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.model.default_values import DefaultValues
+from album.core.model.replicability import ReplicabilityReason
 from album.core.utils.file_lock import FileLock
 from album.core.utils.operations.file_operations import force_remove
 from album.core.utils.operations.solution_operations import get_solution_folder
@@ -82,19 +83,36 @@ class DownloadManager(IDownloadManager):
 
     def check_resources(
         self, solution: ISolution, solution_folder: Optional[Path] = None
-    ) -> None:
+    ) -> List[ReplicabilityReason]:
         resources_dict = self._load_resources(solution, solution_folder)
         if resources_dict is None:
-            return
+            return []
 
+        reasons = []
         for key, resource in resources_dict["resources"].items():
-            if resource["scope"] != SCOPE_SOLUTION and not resource["hash"]:
-                module_logger().warning(
-                    'Resource "%s" of "%s" is shared, but has no hash. Every solution sharing '
-                    "it will use the content that was downloaded first, whatever the url "
-                    'returns later. Pin the content with a "hash".'
-                    % (key, solution.coordinates())
+            from_doi = resource["url"].startswith("doi:")
+            if resource["hash"]:
+                if not from_doi:
+                    module_logger().warning(
+                        'Resource "%s" of "%s" is downloaded from %s, which can become '
+                        "unavailable. A DOI, e.g. on Zenodo, keeps it available."
+                        % (key, solution.coordinates(), resource["url"])
+                    )
+            elif from_doi:
+                reasons.append(
+                    ReplicabilityReason(
+                        'resource "%s" has no hash, its content is not verified' % key
+                    )
                 )
+            else:
+                reasons.append(
+                    ReplicabilityReason(
+                        'resource "%s" is downloaded from %s without a hash, its content '
+                        "can change" % (key, resource["url"]),
+                        needs_flag=True,
+                    )
+                )
+        return reasons
 
     def _load_resources(
         self,

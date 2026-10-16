@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 from album.core.controller.resource_manager import ResourceManager
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
+from album.environments.utils.file_operations import get_dict_from_yml
 from album.runner.core.model.solution import Solution
 
 
@@ -423,6 +424,47 @@ dependencies:
             solution_root.joinpath("solution.environment.yml").read_text(),
         )
         self.assertFalse(solution_root.joinpath("solution.conda-lock.yml").exists())
+
+    @patch(
+        "album.core.controller.resource_manager.create_changelog_file",
+        return_value="changelogfile",
+    )
+    def test_build_solution_files_warns_about_size(self, _):
+        megabyte = "x" * 1024 * 1024
+
+        # all files of the solution together, the largest named
+        self._deploy_folder({"model.pt": megabyte * 4, "data.csv": megabyte * 2}, None)
+
+        self.assertIn(
+            'The files of "tsg:tsn:tsv" take 6.0 MB in the catalog: model.pt 4.0 MB, '
+            "data.csv 2.0 MB, solution.py 0.0 MB. Large files fill the repository of the "
+            "catalog; as a resource, e.g. with a DOI on Zenodo, they stay out of it.",
+            self.get_logs_as_string(),
+        )
+
+    @patch(
+        "album.core.controller.resource_manager.create_changelog_file",
+        return_value="changelogfile",
+    )
+    def test_build_solution_files_small(self, _):
+        self._deploy_folder({"data.csv": "x" * 1024 * 1024}, None)
+
+        self.assertNotIn("take", self.get_logs_as_string())
+
+    def test__create_yaml_file_in_local_src_replicability(self):
+        # stored by album deploy for a solution that is not technically replicable
+        self.active_solution.setup().replicability = {
+            "reasons": ['resource "a" has no hash, its content is not verified']
+        }
+
+        yml = ResourceManager._create_yaml_file_in_local_src(
+            self.active_solution, Path(self.tmp_dir.name)
+        )
+
+        self.assertEqual(
+            {"reasons": ['resource "a" has no hash, its content is not verified']},
+            get_dict_from_yml(yml)["replicability"],
+        )
 
     def test_check_file_dependencies(self):
         folder = Path(self.tmp_dir.name).joinpath("solution")

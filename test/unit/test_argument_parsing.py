@@ -89,6 +89,17 @@ class TestArgumentParsing(unittest.TestCase):
         self.assertEqual(deploy, args[0].func)
         self.assertTrue(args[0].force_deploy)
 
+    def test_deploy_no_replicability_flag(self):
+        parser = argument_parsing.create_parser()
+
+        sys.argv = ["", "deploy", "test/path", "catalog-name"]
+        args = parser.parse_known_args()
+        self.assertFalse(args[0].no_replicability)
+
+        sys.argv = ["", "deploy", "test/path", "catalog-name", "--no-replicability"]
+        args = parser.parse_known_args()
+        self.assertTrue(args[0].no_replicability)
+
     def test_abbreviated_options_are_passed_to_the_solution(self):
         parser = argument_parsing.create_parser()
 

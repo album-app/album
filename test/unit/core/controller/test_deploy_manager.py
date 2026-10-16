@@ -11,6 +11,7 @@ import git
 from album.core.controller.deploy_manager import DeployManager
 from album.core.model.catalog import Catalog
 from album.core.model.default_values import DefaultValues
+from album.core.model.replicability import ReplicabilityReason
 from album.runner.core.model.coordinates import Coordinates
 
 
@@ -57,6 +58,8 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
             "",
             "",
             False,
+            False,
+            [],
         )
 
     def test_deploy_invalid_resource_file(self):
@@ -161,6 +164,164 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         )
 
         self.deploy_manager._deploy.assert_called_once()
+
+    def test__get_replicability_reasons(self):
+        replicable = [
+            {"doi": "10.5281/zenodo.123"},
+            {"group": "g", "name": "n", "version": "0.1.0"},
+            {"resolve_solution": "doi:10.5281/zenodo.123"},
+            {"resolve_solution": "g:n:0.1.0"},
+            {"resolve_solution": "catalog:g:n:0.1.0"},
+        ]
+        for parent in replicable:
+            with self.subTest(parent=parent):
+                self.active_solution.setup().dependencies = {"parent": parent}
+                self.assertEqual(
+                    [],
+                    DeployManager._get_replicability_reasons(
+                        self.active_solution, False
+                    ),
+                )
+
+        # can differ where the solution is installed
+        for resolve_solution in [
+            "../parent",
+            "/home/me/parent/solution.py",
+            "https://example.org/parent.py",
+            "g:n",
+        ]:
+            with self.subTest(resolve_solution=resolve_solution):
+                self.active_solution.setup().dependencies = {
+                    "parent": {"resolve_solution": resolve_solution}
+                }
+                self.assertEqual(
+                    [
+                        ReplicabilityReason(
+                            'its parent "%s" is not given by a DOI or by '
+                            "group:name:version" % resolve_solution,
+                            needs_flag=True,
+                        )
+                    ],
+                    DeployManager._get_replicability_reasons(
+                        self.active_solution, False
+                    ),
+                )
+
+        # deployed without a lock file: stored with the solution, without the flag
+        self.active_solution.setup().dependencies = None
+        self.assertEqual(
+            [
+                ReplicabilityReason(
+                    "it is deployed without a lock file (--no-conda-lock), its "
+                    "environment is solved again when it is installed"
+                )
+            ],
+            DeployManager._get_replicability_reasons(self.active_solution, True),
+        )
+
+    def _catalog_with_version(self, deployed, catalog_type="direct"):
+        catalog = MagicMock()
+        catalog.type.return_value = catalog_type
+        catalog.index.return_value.get_solution_by_coordinates.return_value = (
+            {"version": "0.1.0"} if deployed else None
+        )
+        return catalog
+
+    def test__check_replicability(self):
+        no_hash = ReplicabilityReason('resource "a" has no hash')
+        url = ReplicabilityReason('resource "b" is an url', needs_flag=True)
+
+        # replicable: nothing stored
+        DeployManager._check_replicability(
+            self._catalog_with_version(False), self.active_solution, [], False, False
+        )
+        self.assertIsNone(self.active_solution.setup().replicability)
+
+        # stored, deployed without the flag
+        DeployManager._check_replicability(
+            self._catalog_with_version(False),
+            self.active_solution,
+            [no_hash],
+            False,
+            False,
+        )
+        self.assertEqual(
+            {"reasons": ['resource "a" has no hash']},
+            self.active_solution.setup().replicability,
+        )
+        self.assertIn(
+            'Not technically replicable, "tsg:tsn:tsv": resource "a" has no hash',
+            self.get_logs_as_string(),
+        )
+
+        # refused without the flag, naming what needs it
+        with self.assertRaises(RuntimeError) as e:
+            DeployManager._check_replicability(
+                self._catalog_with_version(False),
+                self.active_solution,
+                [no_hash, url],
+                False,
+                False,
+            )
+        self.assertEqual(
+            '"tsg:tsn:tsv" is not technically replicable:\n- resource "b" is an url\n'
+            "Deploy it with --no-replicability to deploy it anyway: the reasons are "
+            "stored with the solution, and installing it shows them.",
+            str(e.exception),
+        )
+
+        # deployed and stored with the flag
+        DeployManager._check_replicability(
+            self._catalog_with_version(False),
+            self.active_solution,
+            [no_hash, url],
+            True,
+            False,
+        )
+        self.assertEqual(
+            {"reasons": ['resource "a" has no hash', 'resource "b" is an url']},
+            self.active_solution.setup().replicability,
+        )
+
+    def test__check_replicability_replaces_version(self):
+        reason = (
+            "version tsv replaces the one deployed before, the same version stands "
+            "for other content then"
+        )
+        # --force-deploy to a direct catalog, a merge request to a request catalog
+        for catalog_type, force_deploy in [("direct", True), ("request", False)]:
+            with self.subTest(catalog_type=catalog_type):
+                with self.assertRaises(RuntimeError) as e:
+                    DeployManager._check_replicability(
+                        self._catalog_with_version(True, catalog_type),
+                        self.active_solution,
+                        [],
+                        False,
+                        force_deploy,
+                    )
+                self.assertIn(reason, str(e.exception))
+
+        DeployManager._check_replicability(
+            self._catalog_with_version(True), self.active_solution, [], True, True
+        )
+        self.assertEqual(
+            {"reasons": [reason]}, self.active_solution.setup().replicability
+        )
+
+    def test__check_replicability_replaces_snapshot(self):
+        self.active_solution._coordinates = Coordinates("tsg", "tsn", "0.1.0-SNAPSHOT")
+
+        # a snapshot is meant to be deployed again
+        DeployManager._check_replicability(
+            self._catalog_with_version(True), self.active_solution, [], False, True
+        )
+
+        self.assertIsNone(self.active_solution.setup().replicability)
+        self.assertIn(
+            'Version 0.1.0-SNAPSHOT of "tsg:tsn:0.1.0-SNAPSHOT" replaces the one '
+            "deployed before.",
+            self.get_logs_as_string(),
+        )
 
     @patch(
         "album.core.controller.deploy_manager.process_changelog_file",
