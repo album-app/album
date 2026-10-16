@@ -107,6 +107,31 @@ class EnvironmentManager(IEnvironmentManager):
         set_environment_paths(collection_solution.loaded_solution(), environment)
         return environment
 
+    def check_lock_file(
+        self,
+        coordinates: ICoordinates,
+        solution_folder: Optional[Path],
+        no_conda_lock: bool = False,
+    ) -> None:
+        lock_file = (
+            solution_folder.joinpath(
+                DefaultValues.solution_conda_lock_default_name.value
+            )
+            if solution_folder is not None
+            else None
+        )
+        if no_conda_lock or lock_file is None or not lock_file.is_file():
+            return
+        try:
+            self._environment_handler.get_conda_lock_manager().conda_lock_executable()
+        except RuntimeError as e:
+            raise RuntimeError(
+                f'"{coordinates}" is installed from its lock file, but conda-lock, which '
+                "installs it, is not found. Set ENVIRONMENT_CONDA_LOCK_PATH to the "
+                "conda-lock executable, or install it with --no-conda-lock to solve its "
+                "environment instead."
+            ) from e
+
     def _warn_without_lock_file(
         self,
         coordinates: ICoordinates,
@@ -127,15 +152,7 @@ class EnvironmentManager(IEnvironmentManager):
                 "lock file (--no-conda-lock), its environment is solved now."
             )
         elif lock_file.is_file():
-            try:
-                self._environment_handler.get_conda_lock_manager().conda_lock_executable()
-            except RuntimeError as e:
-                raise RuntimeError(
-                    f'"{coordinates}" is installed from its lock file, but conda-lock, which '
-                    "installs it, is not found. Set ENVIRONMENT_CONDA_LOCK_PATH to the "
-                    "conda-lock executable, or install it with --no-conda-lock to solve its "
-                    "environment instead."
-                ) from e
+            self.check_lock_file(coordinates, solution_package_path)
         elif not get_replicability_reasons(solution_package_path):
             # a solution deployed without a lock file says so in the reasons shown already
             module_logger().warning(

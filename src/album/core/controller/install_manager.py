@@ -170,6 +170,13 @@ class InstallManager(IInstallManager):
                 self._check_parents_to_install_again(
                     name, to_install, children_to_install
                 )
+                if not get_parent_dict(to_install.loaded_solution()):
+                    # its environment is installed again, from its lock file if it has one
+                    self.album.environment_manager().check_lock_file(
+                        to_install.coordinates(),
+                        get_solution_folder(to_install),
+                        no_conda_lock,
+                    )
                 self._stage_resources(tmp_dir, name, to_install, children_to_install)
             except Exception as e:
                 raise RuntimeError(

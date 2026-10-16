@@ -826,6 +826,55 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
             )
         )
 
+    @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.remove_disc_content_from_environment"
+    )
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.remove_environment"
+    )
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
+    @patch("album.environments.controller.package_manager.PackageManager.install")
+    def test_install_reinstall_lock_file_without_conda_lock(
+        self, install, get_environment_path, remove_environment, *_
+    ):
+        get_environment_path.return_value = Path(self.tmp_dir.name).joinpath("env")
+        path = self.get_test_solution_path("solution_with_lock_file")
+        install_manager = self.album_controller.install_manager()
+        install_manager.install(path, no_conda_lock=True)
+        install.reset_mock()
+
+        with patch(
+            "album.environments.controller.conda_lock_manager.CondaLockManager.conda_lock_executable",
+            side_effect=RuntimeError("No conda-lock executable found!"),
+        ):
+            # installing it again from its lock file would fail
+            with self.assertRaises(RuntimeError) as e:
+                install_manager.install(path, reinstall=True)
+            self.assertEqual(
+                'Cannot install "cache_catalog:group:Dummy-Solution-Lock:0.1.0" again, '
+                'nothing was changed: "group:Dummy-Solution-Lock:0.1.0" is installed from '
+                "its lock file, but conda-lock, which installs it, is not found. Set "
+                "ENVIRONMENT_CONDA_LOCK_PATH to the conda-lock executable, or install it "
+                "with --no-conda-lock to solve its environment instead.",
+                str(e.exception),
+            )
+            remove_environment.assert_not_called()
+
+            # solved instead
+            install_manager.install(path, reinstall=True, no_conda_lock=True)
+
+        remove_environment.assert_called_once()
+        install.assert_called_once()
+        self.assertTrue(
+            self.album_controller.solutions().is_installed(
+                self.album_controller.catalogs().get_cache_catalog(),
+                Coordinates("group", "Dummy-Solution-Lock", "0.1.0"),
+            )
+        )
+
     @patch("album.environments.controller.package_manager.PackageManager.create")
     def test_install_solution_with_lock_file(self, old_install):
         self.album_controller.install_manager().install(
