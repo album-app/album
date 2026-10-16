@@ -1075,6 +1075,79 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
             self._get_entry(catalog, "solution1_app1").internal()["installed"]
         )
 
+    def _deploy_changed(self, catalog, solution_file, old, new):
+        """Deploy a test solution again with the same version, with old replaced by new."""
+        path = Path(self.tmp_dir.name).joinpath(solution_file)
+        content = Path(self.get_test_solution_path(solution_file)).read_text("utf-8")
+        self.assertIn(old, content)
+        path.write_text(content.replace(old, new), encoding="utf-8")
+        self._deploy(catalog, str(path), force_deploy=True)
+        self._update_and_upgrade(catalog)
+
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.remove_environment"
+    )
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.install_environment"
+    )
+    @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
+    def test_install_reinstall_parent_not_found(self, _, __, remove_environment):
+        catalog = self._install_child_of_app1()
+        self._deploy_changed(
+            catalog, "solution1_app1.py", '"name": "app1"', '"name": "app_gone"'
+        )
+
+        with self.assertRaises(RuntimeError) as e:
+            self.album_controller.install_manager().install(
+                "my-catalog:group:solution1_app1:0.1.0", reinstall=True
+            )
+
+        self.assertEqual(
+            'Cannot install "my-catalog:group:solution1_app1:0.1.0" again, nothing was '
+            'changed: its parent "group:app_gone:0.1.0" is not found.',
+            str(e.exception),
+        )
+        remove_environment.assert_not_called()
+        self.assertTrue(
+            self._get_entry(catalog, "solution1_app1").internal()["installed"]
+        )
+
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.remove_environment"
+    )
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.install_environment"
+    )
+    @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
+    def test_install_reinstall_parent_with_another_api_version(
+        self, _, __, remove_environment
+    ):
+        catalog = self._install_child_of_app1()
+        # the parent is installed again with its child: checked in its new copy
+        self._deploy_changed(
+            catalog,
+            "app1.py",
+            'album_api_version="0.7.1"',
+            'album_api_version="0.7.2"',
+        )
+
+        with self.assertRaises(RuntimeError) as e:
+            self.album_controller.install_manager().install(
+                "my-catalog:group:app1:0.1.0", reinstall=True
+            )
+
+        self.assertEqual(
+            'Cannot install "my-catalog:group:app1:0.1.0" again, nothing was changed: '
+            '"my-catalog:group:solution1_app1:0.1.0", which runs in its environment: its '
+            'parent "group:app1:0.1.0" has API version 0.7.2, not 0.7.1.',
+            str(e.exception),
+        )
+        remove_environment.assert_not_called()
+        self.assertTrue(self._get_entry(catalog, "app1").internal()["installed"])
+        self.assertTrue(
+            self._get_entry(catalog, "solution1_app1").internal()["installed"]
+        )
+
     def test_deploy_no_replicability(self):
         catalog_src, _ = self.setup_empty_catalog("my-catalog")
         catalog = (

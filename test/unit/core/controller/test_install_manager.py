@@ -972,6 +972,15 @@ class TestInstallManager(TestUnitCoreCommon):
             self.get_logs_as_string(),
         )
 
+        # checked before a reinstall: the warning comes when it is installed
+        self.captured_output.seek(0)
+        self.captured_output.truncate(0)
+        self.assertEqual(
+            "found first",
+            self.install_manager._resolve_parent(parent, child, catalog, warn=False),
+        )
+        self.assertNotIn("Not technically replicable", self.get_logs_as_string())
+
         # a solution installed from a file, a parent given by its DOI: as before
         cache_catalog = MagicMock()
         cache_catalog.is_cache.return_value = True

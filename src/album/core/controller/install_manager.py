@@ -152,20 +152,23 @@ class InstallManager(IInstallManager):
                         download,
                         self._staged(tmp_dir, download_catalog, download),
                     )
-                # installing them checks their files, once they are uninstalled
+                # installing them checks their files and parents, once they are uninstalled
+                to_install = (
+                    self.album.collection_manager().resolve_and_load(source)
+                    if catalog.is_cache()
+                    else self._load_staged(tmp_dir, catalog, coordinates)
+                )
+                children_to_install = [
+                    (child_name, self._load_staged(tmp_dir, child_catalog, child))
+                    for (child_catalog, child), child_name in zip(
+                        children, children_names
+                    )
+                ]
                 self._check_files_to_install_again(
-                    name,
-                    (
-                        self.album.collection_manager().resolve_and_load(source)
-                        if catalog.is_cache()
-                        else self._load_staged(tmp_dir, catalog, coordinates)
-                    ),
-                    [
-                        (child_name, self._load_staged(tmp_dir, child_catalog, child))
-                        for (child_catalog, child), child_name in zip(
-                            children, children_names
-                        )
-                    ],
+                    name, to_install, children_to_install
+                )
+                self._check_parents_to_install_again(
+                    name, to_install, children_to_install
                 )
             except Exception as e:
                 raise RuntimeError(
@@ -262,6 +265,56 @@ class InstallManager(IInstallManager):
                 raise TypeError(
                     f'{runs_in}{e} Uninstall "{solution_name}" and install it by hand.'
                 ) from e
+
+    def _check_parents_to_install_again(
+        self,
+        name: str,
+        solution: ICollectionSolution,
+        children: List[Tuple[str, ICollectionSolution]],
+    ) -> None:
+        """Check the parents of a solution and of its children before a reinstall uninstalls them.
+
+        Installing one of them again fails if the parent it names is not found, or its API
+        version is another one, after the reinstall has uninstalled them. A parent that is
+        installed again with them is checked in its new copy.
+        """
+        again = {
+            (
+                to_install.catalog().catalog_id(),
+                str(to_install.coordinates()),
+            ): to_install
+            for _, to_install in [(name, solution)] + children
+        }
+        for solution_name, to_install in [(name, solution)] + children:
+            parent_dict = get_parent_dict(to_install.loaded_solution())
+            if not parent_dict:
+                continue
+            runs_in = (
+                ""
+                if solution_name == name
+                else f'"{solution_name}", which runs in its environment: '
+            )
+            try:
+                parent = self._resolve_parent(
+                    parent_dict,
+                    to_install.coordinates(),
+                    to_install.catalog(),
+                    warn=False,
+                )
+            except LookupError as e:
+                raise LookupError(
+                    f'{runs_in}its parent "{build_resolve_string(parent_dict)}" is not '
+                    "found."
+                ) from e
+            parent_solution = again.get(
+                (parent.catalog().catalog_id(), str(parent.coordinates())), parent
+            ).loaded_solution()
+            api_version = to_install.loaded_solution().setup().album_api_version
+            if parent_solution.setup().album_api_version != api_version:
+                raise RuntimeError(
+                    f'{runs_in}its parent "{parent.coordinates()}" has API version '
+                    f"{parent_solution.setup().album_api_version}, not {api_version}."
+                )
 
     def _local_source(
         self,
@@ -871,12 +924,13 @@ class InstallManager(IInstallManager):
         parent_dict: Dict[str, Any],
         child_coordinates: ICoordinates,
         catalog: Optional[ICatalog],
+        warn: bool = True,
     ) -> ICollectionSolution:
         """Resolve the parent of a solution of catalog.
 
         A parent given by group, name and version is looked up in the catalog of the
         solution first. Found in any catalog, which one it is depends on the catalogs of
-        the installing album.
+        the installing album; album warns about it unless warn is False.
         """
         if (
             catalog is not None
@@ -889,11 +943,12 @@ class InstallManager(IInstallManager):
                     catalog, dict_to_coordinates(parent_dict)
                 )
             except LookupError:
-                module_logger().warning(
-                    f'Not technically replicable, "{child_coordinates}": its parent '
-                    f'"{dict_to_coordinates(parent_dict)}" is not in its catalog '
-                    f'"{catalog.name()}", album takes the one it finds first.'
-                )
+                if warn:
+                    module_logger().warning(
+                        f'Not technically replicable, "{child_coordinates}": its parent '
+                        f'"{dict_to_coordinates(parent_dict)}" is not in its catalog '
+                        f'"{catalog.name()}", album takes the one it finds first.'
+                    )
         return self.album.collection_manager().resolve_and_load(
             build_resolve_string(parent_dict)
         )
