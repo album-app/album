@@ -634,6 +634,28 @@ class TestDownloadManager(TestUnitCoreCommon):
             ["a"], list(json.loads(json_path.read_text(encoding="utf-8"))["resources"])
         )
 
+    @patch("album.core.controller.shared_downloads_manager.pooch.retrieve")
+    def test_download_resources_resource_list_written_by_deploy(self, _):
+        # a deployed solution: the resource file it names is not on this computer
+        package_path = Path(self.tmp_dir.name).joinpath("package")
+        package_path.mkdir()
+        package_path.joinpath("solution.resources.yml").write_text(
+            "resources:\n  b:\n    name: b.txt\n    url: https://e.org/b\n    hash: %s\n"
+            % SHA256,
+            encoding="utf-8",
+        )
+        solution = self._solution("/not/on/this/computer/resources.yml")
+        solution.installation().set_package_path(package_path)
+        collection_solution = self._collection_solution(solution)
+        collection_solution.is_single_file.return_value = False
+        collection_solution.path.return_value = package_path.joinpath("solution.py")
+
+        json_path = self.download_manager.download_resources(collection_solution)
+
+        self.assertEqual(
+            ["b"], list(json.loads(json_path.read_text(encoding="utf-8"))["resources"])
+        )
+
     # check_resources
 
     def test_check_resources_no_resource_file(self):

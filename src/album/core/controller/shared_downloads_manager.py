@@ -47,8 +47,24 @@ class DownloadManager(IDownloadManager):
         self, collection_solution: ICollectionSolution
     ) -> Optional[Path]:
         solution = collection_solution.loaded_solution()
+        # a deployed solution is installed from the resource list album deploy wrote next
+        # to it, not from the resource file it names
+        package_path = solution.installation().package_path()
+        resource_snapshot = (
+            Path(package_path).joinpath(
+                DefaultValues.solution_resources_default_name.value
+            )
+            if package_path
+            else None
+        )
         resources_dict = self._load_resources(
-            solution, get_solution_folder(collection_solution)
+            solution,
+            get_solution_folder(collection_solution),
+            (
+                resource_snapshot
+                if resource_snapshot is not None and resource_snapshot.is_file()
+                else None
+            ),
         )
         if resources_dict is None:
             return None
@@ -81,11 +97,15 @@ class DownloadManager(IDownloadManager):
                 )
 
     def _load_resources(
-        self, solution: ISolution, solution_folder: Optional[Path] = None
+        self,
+        solution: ISolution,
+        solution_folder: Optional[Path] = None,
+        resource_snapshot: Optional[Path] = None,
     ) -> Optional[Dict[str, Any]]:
         """Read and validate the resource file of a solution, filled up with the default values.
 
-        A relative path of the resource file starts at solution_folder, the folder of the solution.
+        A relative path of the resource file starts at solution_folder, the folder of the
+        solution. resource_snapshot, the resource list album deploy wrote, is read instead.
 
         Returns:
             The resources dictionary, or None if the solution declares no resource file.
@@ -93,6 +113,11 @@ class DownloadManager(IDownloadManager):
         dependencies = solution.setup().dependencies
         if not dependencies or "resource_file" not in dependencies:
             return None
+        resource_file = (
+            str(resource_snapshot)
+            if resource_snapshot is not None
+            else dependencies["resource_file"]
+        )
 
         # bring every form of the resource file to a yml file first
         yml_path = (
@@ -102,7 +127,7 @@ class DownloadManager(IDownloadManager):
         )
         try:
             self.album.resource_manager().handle_resource_file_dependency(
-                dependencies["resource_file"], yml_path, solution_folder
+                resource_file, yml_path, solution_folder
             )
             with open(yml_path, encoding="utf-8") as yml_file:
                 resources_dict = yaml.safe_load(yml_file)

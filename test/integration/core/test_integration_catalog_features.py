@@ -7,6 +7,7 @@ from unittest.mock import patch
 from album.core.model.catalog_updates import ChangeType
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.solution_operations import get_deploy_dict
+from album.environments.utils.file_operations import get_dict_from_yml
 from album.runner.core.model.coordinates import Coordinates
 from album.runner.core.model.solution import Solution
 
@@ -1067,6 +1068,59 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         self.assertTrue(self._get_entry(catalog, "app1").internal()["installed"])
         self.assertTrue(
             self._get_entry(catalog, "solution1_app1").internal()["installed"]
+        )
+
+    @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
+    @patch(
+        "album.environments.environment_api.EnvironmentAPI.create_environment_prefer_lock_file"
+    )
+    def test_install_deployed_solution_environment_file_outside_solution_folder(
+        self, create_environment, _
+    ):
+        catalog_src, _ = self.setup_empty_catalog("my-catalog")
+        catalog = (
+            self.album_controller.collection_manager()
+            .catalogs()
+            .add_by_src(catalog_src)
+        )
+        environment_file = Path(self.tmp_dir.name).joinpath("shared", "environment.yml")
+        environment_file.parent.mkdir()
+        environment_file.write_text(
+            "channels:\n  - conda-forge\ndependencies:\n  - python=3.12\n",
+            encoding="utf-8",
+        )
+        folder = Path(self.tmp_dir.name).joinpath("my-solution")
+        folder.mkdir()
+        folder.joinpath("solution.py").write_text(
+            "from album.runner.api import setup\n\n"
+            'setup(group="group", name="shared_env", version="0.1.0", '
+            'album_api_version="0.7.1", '
+            "dependencies={'environment_file': %r})\n" % str(environment_file),
+            encoding="utf-8",
+        )
+        self.album_controller.deploy_manager().deploy(
+            str(folder),
+            catalog_name=catalog.name(),
+            changelog="deploy",
+            dry_run=False,
+            git_email=DefaultValues.catalog_git_email.value,
+            git_name=DefaultValues.catalog_git_user.value,
+            no_conda_lock=True,
+        )
+        self._update_and_upgrade(catalog)
+
+        # installed where the environment file is not
+        environment_file.unlink()
+        self.album_controller.install_manager().install(
+            "my-catalog:group:shared_env:0.1.0"
+        )
+
+        # from the environment album deploy wrote
+        environment = get_dict_from_yml(create_environment.call_args[0][0].yaml_file())
+        self.assertIn("python=3.12", environment["dependencies"])
+        self.assertIn(
+            "conda-forge::%s=0.7.1" % DefaultValues.runner_api_package_name.value,
+            environment["dependencies"],
         )
 
     @patch(

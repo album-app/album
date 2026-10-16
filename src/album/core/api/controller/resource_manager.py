@@ -33,10 +33,11 @@ class IResourceManager:
         solution_home: Path,
         solution_folder: Optional[Path] = None,
     ):
-        """Write the environment file for the solution to solution_home.
+        """Write the environment album installs for the solution to solution_home.
 
-        A relative path of an environment file starts at solution_folder, the folder of the
-        solution.
+        It is the environment of the solution with album-solution-api added, the one album
+        deploy locks, written to solution.environment.yml. A relative path of an environment
+        file starts at solution_folder, the folder of the solution.
         """
         raise NotImplementedError
 

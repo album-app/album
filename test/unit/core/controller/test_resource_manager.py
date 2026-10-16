@@ -27,8 +27,8 @@ class TestResourceManager(TestCatalogAndCollectionCommon):
     def tearDown(self):
         super().tearDown()
 
-    def write_test_env_file(self):
-        env_file = Path(self.tmp_dir.name).joinpath("environment.yml")
+    def write_test_env_file(self, name="environment.yml"):
+        env_file = Path(self.tmp_dir.name).joinpath(name)
         env_content = """name: Dummy-Solution18
 channels:
   - conda-forge
@@ -107,12 +107,17 @@ dependencies:
         expected = [
             "ymlfile",
             "changelogfile",
-            solution_root.joinpath("solution.conda-lock.yml"),
+            env_file,
+            # conda-lock writes the lock file next to the environment file
+            env_file.parent.joinpath("solution.conda-lock.yml"),
         ]
         # assert
         self.assertListEqual(expected, r)
-        # the deploy path is a single file: an environment file cannot come with it
-        self.assertIsNone(write_solution_environment_file.call_args[0][2])
+        # written next to the deployed solution; the deploy path is a single file, so
+        # relative paths cannot start anywhere
+        write_solution_environment_file.assert_called_once_with(
+            self.active_solution, solution_root, None
+        )
 
     @patch(
         "album.core.controller.resource_manager.create_changelog_file",
@@ -225,8 +230,10 @@ dependencies:
                 self.active_solution.coordinates()
             )
         )
+        # with the environment album installs, also without a lock file
+        written_by_deploy = ["solution.environment.yml"]
         self.assertCountEqual(
-            [solution_root.joinpath(name) for name in deployed]
+            [solution_root.joinpath(name) for name in deployed + written_by_deploy]
             + ["ymlfile", "changelogfile"],
             r,
         )
@@ -235,7 +242,7 @@ dependencies:
             for p in solution_root.rglob("*")
             if p.is_file()
         ]
-        self.assertCountEqual(deployed, copied)
+        self.assertCountEqual(deployed + written_by_deploy, copied)
         # the skipped folders are named once, not every file inside them
         self.assertIn(
             "Not deploying hidden files and folders and Python caches: "
@@ -299,15 +306,123 @@ dependencies:
         self.assertEqual(
             env_content, solution_root.joinpath("environment.yml").read_text()
         )
-        # conda-lock got the environment album installs, written outside the deployed files
-        locked_yml = Path(create_conda_lock_file_mock.call_args[0][0])
-        self.assertNotIn(solution_root, locked_yml.parents)
+        # next to it the environment album installs, with album-solution-api, which
+        # conda-lock locks
+        environment = solution_root.joinpath("solution.environment.yml")
+        self.assertEqual(environment, Path(create_conda_lock_file_mock.call_args[0][0]))
+        self.assertIn(environment, r)
+        self.assertIn("python=3.12", environment.read_text())
+        self.assertIn(
+            DefaultValues.runner_api_package_name.value, environment.read_text()
+        )
         lock_file = solution_root.joinpath("solution.conda-lock.yml")
         self.assertIn(lock_file, r)
-        self.assertIn("python=3.12", lock_file.read_text())
         self.assertIn(
             DefaultValues.runner_api_package_name.value, lock_file.read_text()
         )
+
+    def _deploy_folder(self, files, dependencies, no_conda_lock=True):
+        """Write the solution files of a deployment into the catalog, return them and the folder."""
+        catalog_src_path, _ = self.setup_empty_catalog("test_cat")
+        catalog = Catalog(
+            0,
+            "test_cat",
+            src=catalog_src_path,
+            path=Path(self.tmp_dir.name).joinpath("catalog_cache_path"),
+        )
+        deploy_dir = Path(self.tmp_dir.name).joinpath("deploy_dir")
+        deploy_dir.mkdir()
+        deploy_dir.joinpath("solution.py").write_text("content")
+        for name, content in files.items():
+            deploy_dir.joinpath(name).write_text(content)
+        self.active_solution.setup().dependencies = dependencies
+        self.resource_manager._create_yaml_file_in_local_src = MagicMock(
+            return_value="ymlfile"
+        )
+
+        r = self.resource_manager.write_solution_files(
+            catalog, catalog_src_path, self.active_solution, deploy_dir, no_conda_lock
+        )
+
+        solution_root = Path(catalog_src_path).joinpath(
+            self.album_controller.configuration().get_solution_path_suffix_unversioned(
+                self.active_solution.coordinates()
+            )
+        )
+        return r, solution_root
+
+    @patch(
+        "album.core.controller.resource_manager.create_changelog_file",
+        return_value="changelogfile",
+    )
+    def test_build_solution_files_environment_file_outside_solution_folder(self, _):
+        outside = Path(self.tmp_dir.name).joinpath("shared.yml")
+        outside.write_text(
+            "channels:\n  - conda-forge\ndependencies:\n  - python=3.12\n"
+        )
+
+        r, solution_root = self._deploy_folder({}, {"environment_file": str(outside)})
+
+        # it is deployed as the environment album installs, without a lock file too
+        environment = solution_root.joinpath("solution.environment.yml")
+        self.assertIn(environment, r)
+        self.assertIn("python=3.12", environment.read_text())
+        self.assertFalse(solution_root.joinpath("solution.conda-lock.yml").exists())
+
+    @patch(
+        "album.core.controller.resource_manager.create_changelog_file",
+        return_value="changelogfile",
+    )
+    def test_build_solution_files_writes_resource_list(self, _):
+        resources = "resources:\n  a:\n    name: a.txt\n    url: https://e.org/a\n"
+
+        for outside in [False, True]:
+            with self.subTest(outside=outside):
+                resource_file = "resources.yml"
+                if outside:
+                    resource_file = str(Path(self.tmp_dir.name).joinpath("shared.yml"))
+                    Path(resource_file).write_text(resources)
+
+                r, solution_root = self._deploy_folder(
+                    {"resources.yml": resources}, {"resource_file": resource_file}
+                )
+
+                resource_list = solution_root.joinpath("solution.resources.yml")
+                self.assertIn(resource_list, r)
+                self.assertEqual(resources, resource_list.read_text())
+            self.tearDown()
+            self.setUp()
+
+    @patch(
+        "album.core.controller.resource_manager.create_changelog_file",
+        return_value="changelogfile",
+    )
+    def test_build_solution_files_leaves_out_files_written_by_deploy(self, _):
+        # e.g. in a solution cloned from a catalog: they belong to another deployment
+        stale = {
+            "solution.yml": "stale",
+            "solution.environment.yml": "stale",
+            "solution.conda-lock.yml": "stale",
+            "solution.resources.yml": "stale",
+        }
+
+        r, solution_root = self._deploy_folder(stale, None)
+
+        for name in stale:
+            self.assertFalse(
+                solution_root.joinpath(name).exists()
+                and solution_root.joinpath(name).read_text() == "stale",
+                name,
+            )
+        # no lock file and no resource list in this deployment
+        self.assertNotIn(solution_root.joinpath("solution.conda-lock.yml"), r)
+        self.assertNotIn(solution_root.joinpath("solution.resources.yml"), r)
+        # this deployment's environment instead, without a lock file
+        self.assertIn(
+            DefaultValues.runner_api_package_name.value,
+            solution_root.joinpath("solution.environment.yml").read_text(),
+        )
+        self.assertFalse(solution_root.joinpath("solution.conda-lock.yml").exists())
 
     def test_check_file_dependencies(self):
         folder = Path(self.tmp_dir.name).joinpath("solution")
@@ -545,47 +660,59 @@ dependencies:
         self.resource_manager.write_solution_environment_file(
             solution_no_env, Path(self.tmp_dir.name)
         )
-        self.assertTrue(Path(self.tmp_dir.name).joinpath("environment.yml").is_file())
-        with open(Path(self.tmp_dir.name).joinpath("environment.yml")) as f:
+        self.assertTrue(
+            Path(self.tmp_dir.name).joinpath("solution.environment.yml").is_file()
+        )
+        with open(Path(self.tmp_dir.name).joinpath("solution.environment.yml")) as f:
             self.assertEqual(expected_content_no_env, repr(f.readlines()))
 
         self.resource_manager.write_solution_environment_file(
             solution_env_string, Path(self.tmp_dir.name)
         )
-        self.assertTrue(Path(self.tmp_dir.name).joinpath("environment.yml").is_file())
-        with open(Path(self.tmp_dir.name).joinpath("environment.yml")) as f:
+        self.assertTrue(
+            Path(self.tmp_dir.name).joinpath("solution.environment.yml").is_file()
+        )
+        with open(Path(self.tmp_dir.name).joinpath("solution.environment.yml")) as f:
             self.assertEqual(expected_content, repr(f.readlines()))
-        Path(self.tmp_dir.name).joinpath("environment.yml").unlink()
+        Path(self.tmp_dir.name).joinpath("solution.environment.yml").unlink()
 
         self.resource_manager.write_solution_environment_file(
             solution_env_string_setuptools, Path(self.tmp_dir.name)
         )
-        self.assertTrue(Path(self.tmp_dir.name).joinpath("environment.yml").is_file())
-        with open(Path(self.tmp_dir.name).joinpath("environment.yml")) as f:
+        self.assertTrue(
+            Path(self.tmp_dir.name).joinpath("solution.environment.yml").is_file()
+        )
+        with open(Path(self.tmp_dir.name).joinpath("solution.environment.yml")) as f:
             self.assertEqual(expected_content_with_setuptools, repr(f.readlines()))
-        Path(self.tmp_dir.name).joinpath("environment.yml").unlink()
+        Path(self.tmp_dir.name).joinpath("solution.environment.yml").unlink()
 
-        self.write_test_env_file()  # create test environment file since the download is mocked
+        self.write_test_env_file(  # since the download is mocked
+            "solution.environment.yml"
+        )
         self.resource_manager.write_solution_environment_file(
             solution_env_url, Path(self.tmp_dir.name)
         )
-        self.assertTrue(Path(self.tmp_dir.name).joinpath("environment.yml").is_file())
-        with open(Path(self.tmp_dir.name).joinpath("environment.yml")) as f:
+        self.assertTrue(
+            Path(self.tmp_dir.name).joinpath("solution.environment.yml").is_file()
+        )
+        with open(Path(self.tmp_dir.name).joinpath("solution.environment.yml")) as f:
             self.assertEqual(expected_content, repr(f.readlines()))
-        Path(self.tmp_dir.name).joinpath("environment.yml").unlink()
+        Path(self.tmp_dir.name).joinpath("solution.environment.yml").unlink()
 
         self.resource_manager.write_solution_environment_file(
             solution_string_io, Path(self.tmp_dir.name)
         )
-        self.assertTrue(Path(self.tmp_dir.name).joinpath("environment.yml").is_file())
-        with open(Path(self.tmp_dir.name).joinpath("environment.yml")) as f:
+        self.assertTrue(
+            Path(self.tmp_dir.name).joinpath("solution.environment.yml").is_file()
+        )
+        with open(Path(self.tmp_dir.name).joinpath("solution.environment.yml")) as f:
             self.assertEqual(expected_content, repr(f.readlines()))
 
         # a dict is taken as the content of the environment file
         self.resource_manager.write_solution_environment_file(
             solution_env_dict, Path(self.tmp_dir.name)
         )
-        with open(Path(self.tmp_dir.name).joinpath("environment.yml")) as f:
+        with open(Path(self.tmp_dir.name).joinpath("solution.environment.yml")) as f:
             self.assertEqual(expected_content, repr(f.readlines()))
 
         with self.assertRaises(TypeError):

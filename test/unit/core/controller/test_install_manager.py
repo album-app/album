@@ -291,6 +291,30 @@ class TestInstallManager(TestUnitCoreCommon):
         self.set_installation_unfinished.assert_not_called()
 
     @patch("album.core.controller.install_manager.clean_resolve_tmp")
+    def test__install_loaded_resolve_result_files_written_by_deploy(self, _):
+        # a deployed solution: the files it names are not on this computer, it is
+        # installed from what album deploy wrote next to it
+        folder = Path(self.tmp_dir.name).joinpath("my-solution")
+        folder.mkdir()
+        folder.joinpath("solution.py").touch()
+        folder.joinpath("solution.environment.yml").write_text("dependencies: []\n")
+        folder.joinpath("solution.resources.yml").write_text("resources: {}\n")
+        self.active_solution.setup().dependencies = {
+            "environment_file": "/not/on/this/computer/environment.yml",
+            "resource_file": "resources.yml",
+        }
+        r = self._prepare_install_loaded_resolve_result(
+            installed=False, path=folder.joinpath("solution.py")
+        )
+
+        # call
+        self.install_manager._install_loaded_resolve_result(r)
+
+        # assert
+        self.register.assert_called_once_with(r)
+        self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
+
+    @patch("album.core.controller.install_manager.clean_resolve_tmp")
     def test__install_loaded_resolve_result_resources_before_environment(self, _):
         r = self._prepare_install_loaded_resolve_result(installed=False)
         lock_free = []

@@ -358,6 +358,51 @@ class TestEnvironmentManager(TestUnitCoreCommon):
         environment_file = create_environment.call_args[0][0].yaml_file()
         self.assertEqual(["bioconda"], get_dict_from_yml(environment_file)["channels"])
 
+    def test_create_environment_environment_written_by_deploy(self):
+        # a deployed solution: the environment file it names is not on this computer
+        package_path = Path(self.tmp_dir.name).joinpath("package")
+        package_path.mkdir()
+        framework = (
+            "conda-forge::%s=0.7.1" % DefaultValues.runner_api_package_name.value
+        )
+        package_path.joinpath("solution.environment.yml").write_text(
+            "channels:\n  - bioconda\ndependencies:\n  - python=3.12\n  - %s\n"
+            % framework
+        )
+        create_environment = MagicMock()
+        self.environment_manager._environment_handler.create_environment_prefer_lock_file = (
+            create_environment
+        )
+
+        self.environment_manager.create_environment(
+            Path(self.tmp_dir.name).joinpath("cache"),
+            {"environment_file": "/not/on/this/computer/environment.yml"},
+            "env_name",
+            "0.7.1",
+            package_path,
+            solution_folder=package_path,
+        )
+
+        # taken as it is, album-solution-api is in it already
+        environment = get_dict_from_yml(create_environment.call_args[0][0].yaml_file())
+        self.assertEqual("env_name", environment["name"])
+        self.assertEqual(["bioconda"], environment["channels"])
+        self.assertEqual(["python=3.12", framework], environment["dependencies"])
+
+    def test__prepare_env_file_environment_written_by_deploy_album_in_album(self):
+        snapshot = Path(self.tmp_dir.name).joinpath("solution.environment.yml")
+        snapshot.write_text("dependencies:\n  - album=0.0.1\n")
+
+        # the album-in-album check applies to it as well
+        with self.assertRaises(ValueError):
+            self.environment_manager._prepare_env_file(
+                None,
+                Path(self.tmp_dir.name),
+                "env_name",
+                "0.7.1",
+                environment_snapshot=snapshot,
+            )
+
     @patch(
         "album.core.controller.environment_manager.create_path_recursively",
         return_value="createdPath",

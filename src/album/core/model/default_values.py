@@ -117,6 +117,11 @@ class DefaultValues(Enum):
     solution_yml_default_name = "solution.yml"  # default name of the solution.yml file
     solution_zip_default_name = "solution.zip"  # default name of the solution.zip file
     changelog_default_name = "CHANGELOG.md"  # default name of the changelog file
+    # written by album deploy next to the solution file: the environment album locks, its
+    # lock file and the resource list. A solution is installed from them when they are there.
+    solution_environment_default_name = "solution.environment.yml"
+    solution_conda_lock_default_name = "solution.conda-lock.yml"
+    solution_resources_default_name = "solution.resources.yml"
 
     # lnk folder prefixes
     lnk_package_prefix = (

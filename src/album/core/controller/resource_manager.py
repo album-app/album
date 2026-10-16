@@ -3,7 +3,6 @@ import re
 from copy import deepcopy
 from io import StringIO
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Optional, Union
 
 import validators
@@ -49,6 +48,16 @@ def _is_deployed(name: str) -> bool:
     return not name.startswith(".") and name != "__pycache__"
 
 
+# The files album deploy writes next to the solution file. A copy of them in the folder of
+# the solution, e.g. of a solution cloned from a catalog, belongs to another deployment.
+_WRITTEN_BY_DEPLOY = [
+    DefaultValues.solution_yml_default_name.value,
+    DefaultValues.solution_environment_default_name.value,
+    DefaultValues.solution_conda_lock_default_name.value,
+    DefaultValues.solution_resources_default_name.value,
+]
+
+
 class ResourceManager(IResourceManager):
     def __init__(self, album: IAlbumController):
         self.album = album
@@ -87,6 +96,9 @@ class ResourceManager(IResourceManager):
                 for file in filter(_is_deployed, files):
                     filepath = subdir + os.sep + file
                     rel_path = os.path.relpath(filepath, deploy_path)
+                    if rel_path in _WRITTEN_BY_DEPLOY:
+                        # written below for this deployment
+                        continue
                     target = catalog_solution_local_src_path.joinpath(rel_path)
                     res.append(copy(filepath, target))
             if skipped:
@@ -115,50 +127,53 @@ class ResourceManager(IResourceManager):
                 )
             )
 
+        # what installing the solution takes instead of the files it names, wherever they
+        # are: the environment album installs, the one of the solution with
+        # album-solution-api added, which conda-lock locks, and the resource list
+        solution_folder = deploy_path if deploy_path.is_dir() else None
+        environment_path = self.write_solution_environment_file(
+            active_solution, catalog_solution_local_src_path, solution_folder
+        )
+        res.append(environment_path)
+        resource_file = (active_solution.setup().dependencies or {}).get(
+            "resource_file"
+        )
+        if resource_file:
+            resources_path = catalog_solution_local_src_path.joinpath(
+                DefaultValues.solution_resources_default_name.value
+            )
+            self.handle_resource_file_dependency(
+                resource_file, resources_path, solution_folder
+            )
+            res.append(resources_path)
+
         if not no_conda_lock:
             c_lock_manager = (
                 self.album.environment_manager()
                 .get_environment_handler()
                 .get_conda_lock_manager()
             )
-            # conda-lock locks the environment album installs, the one of the solution with
-            # album-solution-api added. It is written to a folder of its own, not to the
-            # deployed files: the solution might come with an environment.yml itself.
-            with TemporaryDirectory(
-                dir=self.album.configuration().tmp_path()
-            ) as tmp_dir:
-                try:
-                    lock_path = c_lock_manager.create_conda_lock_file(
-                        self.write_solution_environment_file(
-                            active_solution,
-                            Path(tmp_dir),
-                            deploy_path if deploy_path.is_dir() else None,
-                        ),
-                        Path(c_lock_manager.conda_lock_executable()),
-                    )
-                    if lock_path:
-                        res.append(
-                            copy(
-                                lock_path,
-                                catalog_solution_local_src_path.joinpath(
-                                    Path(lock_path).name
-                                ),
-                            )
-                        )
-                except SubProcessError as e:
-                    module_logger().error(
-                        "Error creating conda lock file. This is most likely the case, "
-                        "because on of your dependency is not available for every platform album "
-                        "demands. Try using the --no-conda-lock flag for skipping the conda lock file "
-                        "creation."
-                    )
-                    raise e
-                except RuntimeError as e:
-                    module_logger().error(
-                        "Cannot create conda lock file. No conda lock executable found. "
-                        "Consider deploying without conda lock or install conda-lock!"
-                    )
-                    raise e
+            try:
+                # written next to the environment file
+                lock_path = c_lock_manager.create_conda_lock_file(
+                    environment_path, Path(c_lock_manager.conda_lock_executable())
+                )
+                if lock_path:
+                    res.append(lock_path)
+            except SubProcessError as e:
+                module_logger().error(
+                    "Error creating conda lock file. This is most likely the case, "
+                    "because on of your dependency is not available for every platform album "
+                    "demands. Try using the --no-conda-lock flag for skipping the conda lock file "
+                    "creation."
+                )
+                raise e
+            except RuntimeError as e:
+                module_logger().error(
+                    "Cannot create conda lock file. No conda lock executable found. "
+                    "Consider deploying without conda lock or install conda-lock!"
+                )
+                raise e
         return res
 
     def check_file_dependencies(
@@ -168,7 +183,9 @@ class ResourceManager(IResourceManager):
         dependencies: Optional[List[str]] = None,
     ) -> None:
         setup_dependencies = solution.setup().dependencies or {}
-        for dependency in dependencies or list(_FILE_DEPENDENCIES):
+        if dependencies is None:
+            dependencies = list(_FILE_DEPENDENCIES)
+        for dependency in dependencies:
             file_dependency = setup_dependencies.get(dependency)
             if isinstance(file_dependency, str) and self._is_path(file_dependency):
                 self._get_file(file_dependency, solution_folder, dependency)
@@ -302,11 +319,10 @@ class ResourceManager(IResourceManager):
         solution_home: Path,
         solution_folder: Optional[Path] = None,
     ) -> Path:
-        yml_path = solution_home.joinpath("environment.yml")
-        try:
-            env_file = solution.setup()["dependencies"]["environment_file"]
-        except KeyError:
-            env_file = None
+        yml_path = solution_home.joinpath(
+            DefaultValues.solution_environment_default_name.value
+        )
+        env_file = (solution.setup().dependencies or {}).get("environment_file")
 
         if env_file:
             self.handle_env_file_dependency(env_file, yml_path, solution_folder)

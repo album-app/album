@@ -695,9 +695,25 @@ class InstallManager(IInstallManager):
             )
 
     def _check_files(self, resolve_result: ICollectionSolution) -> None:
-        """Check that the environment and the resource file the solution names by path exist."""
+        """Check that the environment and the resource file the solution names by path exist.
+
+        Not for a deployed solution, which is installed from what album deploy wrote next to
+        it instead.
+        """
+        folder = get_solution_folder(resolve_result)
+        dependencies = [
+            dependency
+            for dependency, written_by_deploy in [
+                (
+                    "environment_file",
+                    DefaultValues.solution_environment_default_name.value,
+                ),
+                ("resource_file", DefaultValues.solution_resources_default_name.value),
+            ]
+            if folder is None or not folder.joinpath(written_by_deploy).is_file()
+        ]
         self.album.resource_manager().check_file_dependencies(
-            resolve_result.loaded_solution(), get_solution_folder(resolve_result)
+            resolve_result.loaded_solution(), folder, dependencies
         )
 
     def _register(self, resolve_result: ICollectionSolution):

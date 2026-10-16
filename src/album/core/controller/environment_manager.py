@@ -108,9 +108,14 @@ class EnvironmentManager(IEnvironmentManager):
     ) -> IEnvironment:
         """Create the environment of a solution.
 
-        A relative path of its environment file starts at solution_folder, the folder it is
-        installed from; None for a solution installed from a single file.
+        A deployed solution is installed from what album deploy wrote next to it: its lock
+        file, or else the environment it locked, not from the environment file it names. A
+        relative path of the environment file starts at solution_folder, the folder the
+        solution is installed from; None for a solution installed from a single file.
         """
+        environment_snapshot = solution_package_path.joinpath(
+            DefaultValues.solution_environment_default_name.value
+        )
         env_file = self._prepare_env_file(
             dependencies,
             cache,
@@ -118,10 +123,15 @@ class EnvironmentManager(IEnvironmentManager):
             album_api_version,
             allow_recursive,
             solution_folder=solution_folder,
+            environment_snapshot=(
+                environment_snapshot if environment_snapshot.is_file() else None
+            ),
         )
         env_path = self.get_environment_path(env_name, create=True)
         environment = Environment(env_file, env_name, env_path)
-        solution_lock_file = solution_package_path.joinpath("solution.conda-lock.yml")
+        solution_lock_file = solution_package_path.joinpath(
+            DefaultValues.solution_conda_lock_default_name.value
+        )
         self._environment_handler.create_environment_prefer_lock_file(
             environment, str(solution_lock_file.absolute())
         )
@@ -348,9 +358,18 @@ class EnvironmentManager(IEnvironmentManager):
         album_api_version: Optional[str] = "",
         allow_recursive: bool = False,
         solution_folder: Optional[Path] = None,
+        environment_snapshot: Optional[Path] = None,
     ) -> Path:
         yaml_path = cache_path.joinpath("{n}{s}".format(n=env_name, s=".yml"))
         create_path_recursively(yaml_path.parent)
+        if environment_snapshot is not None:
+            # the environment album deploy locked, album-solution-api added already
+            yaml_dict = get_dict_from_yml(environment_snapshot)
+            yaml_dict["name"] = env_name
+            self._check_album_in_album(yaml_dict, allow_recursive)
+            write_dict_to_yml(yaml_path, yaml_dict)
+            return yaml_path
+
         yaml_dict = None
         if dependencies_dict:
             if "environment_file" in dependencies_dict:
