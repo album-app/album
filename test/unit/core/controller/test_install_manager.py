@@ -1090,6 +1090,80 @@ class TestInstallManager(TestUnitCoreCommon):
         )
         check_file_or_url.assert_called_with("https://example.org/s.py", target)
 
+    def test__load_staged(self):
+        catalog = self.album_controller.catalogs().get_cache_catalog()
+        coordinates = Coordinates("g", "n", "v")
+        staged = self.install_manager._staged(self.tmp_dir.name, catalog, coordinates)
+        staged.mkdir(parents=True)
+        staged.joinpath("solution.py").write_text(
+            "from album.runner.api import setup\n"
+            "setup(group='g', name='n', version='v', album_api_version='%s')\n"
+            % TEST_ALBUM_API_VERSION
+        )
+
+        r = self.install_manager._load_staged(self.tmp_dir.name, catalog, coordinates)
+
+        # installed from the copy as a folder, with the files next to solution.py
+        self.assertEqual(staged.joinpath("solution.py"), r.path())
+        self.assertFalse(r.is_single_file())
+        self.assertEqual("n", r.loaded_solution().coordinates().name())
+
+    def test__check_files_to_install_again(self):
+        catalog = self.album_controller.catalogs().get_cache_catalog()
+        folder = Path(self.tmp_dir.name).joinpath("solution")
+        folder.mkdir()
+        folder.joinpath("environment.yml").write_text("dependencies: []\n")
+
+        def to_install(environment_file):
+            solution = Solution(
+                dict(
+                    self.get_solution_dict(),
+                    dependencies={"environment_file": environment_file},
+                )
+            )
+            return ResolveResult(
+                path=folder.joinpath("solution.py"),
+                catalog=catalog,
+                collection_entry=None,
+                coordinates=solution.coordinates(),
+                loaded_solution=solution,
+            )
+
+        valid = to_install("environment.yml")
+        outside = to_install("../environment.yml")
+        rule = (
+            'environment_file "../environment.yml" is outside the solution folder. Put '
+            "the file in the solution folder and give its path relative to that folder, "
+            'e.g. "environment.yml".'
+        )
+
+        # files in the folder of the solution pass
+        self.install_manager._check_files_to_install_again(
+            "cat:g:a:1", valid, [("cat:g:b:1", valid)]
+        )
+
+        for solution, children, message in [
+            (
+                outside,
+                [("cat:g:b:1", valid)],
+                rule + ' Uninstall "cat:g:a:1" and install it by hand.',
+            ),
+            # a solution running in its environment is uninstalled with it
+            (
+                valid,
+                [("cat:g:b:1", outside)],
+                '"cat:g:b:1", which runs in its environment: '
+                + rule
+                + ' Uninstall "cat:g:b:1" and install it by hand.',
+            ),
+        ]:
+            with self.subTest(message=message):
+                with self.assertRaises(TypeError) as e:
+                    self.install_manager._check_files_to_install_again(
+                        "cat:g:a:1", solution, children
+                    )
+                self.assertEqual(message, str(e.exception))
+
     def test_uninstall_solution_other_solutions_run_in(self):
         # whether or not the solution has a parent itself
         for parent in [None, CollectionIndex.CollectionSolution()]:

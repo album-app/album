@@ -1076,6 +1076,61 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         "album.core.controller.environment_manager.EnvironmentManager.install_environment"
     )
     @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
+    def test_install_reinstall_checks_files_before_uninstalling(
+        self, _, __, remove_environment
+    ):
+        folder = Path(self.tmp_dir.name).joinpath("legacy")
+        folder.mkdir()
+        folder.joinpath("environment.yml").write_text(
+            "channels:\n  - conda-forge\ndependencies:\n  - python\n", encoding="utf-8"
+        )
+        folder.joinpath("solution.py").write_text(
+            "from album.runner.api import setup\n\n"
+            'setup(group="group", name="legacy", version="0.1.0", '
+            'album_api_version="0.7.1", '
+            'dependencies={"environment_file": "environment.yml"})\n',
+            encoding="utf-8",
+        )
+        install_manager = self.album_controller.install_manager()
+        install_manager.install(str(folder))
+        cache_catalog = self.album_controller.catalogs().get_cache_catalog()
+        legacy = Coordinates("group", "legacy", "0.1.0")
+        name = f"{cache_catalog.name()}:group:legacy:0.1.0"
+
+        # installed before its environment file had to be in the solution folder
+        outside = Path(self.tmp_dir.name).joinpath("environment.yml")
+        installed_copy = self.album_controller.solutions().get_solution_file(
+            cache_catalog, legacy
+        )
+        installed_copy.write_text(
+            installed_copy.read_text(encoding="utf-8").replace(
+                '"environment.yml"', repr(str(outside))
+            ),
+            encoding="utf-8",
+        )
+
+        with self.assertRaises(RuntimeError) as e:
+            install_manager.install("group:legacy:0.1.0", reinstall=True)
+
+        self.assertEqual(
+            f'Cannot install "{name}" again, nothing was changed: environment_file '
+            f'"{outside}" is outside the solution folder. Put the file in the solution '
+            'folder and give its path relative to that folder, e.g. "environment.yml". '
+            f'Uninstall "{name}" and install it by hand.',
+            str(e.exception),
+        )
+        remove_environment.assert_not_called()
+        self.assertTrue(
+            self.album_controller.solutions().is_installed(cache_catalog, legacy)
+        )
+
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.remove_environment"
+    )
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.install_environment"
+    )
+    @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
     def test_install_reinstall_installs_the_other_children_if_one_fails(
         self, run_solution_script, __, ___
     ):

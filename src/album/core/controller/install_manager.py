@@ -9,6 +9,7 @@ from album.core.api.model.catalog import ICatalog
 from album.core.api.model.collection_index import ICollectionIndex
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.controller.environment_manager import EnvironmentManager
+from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import remove_link
 from album.core.utils.operations.resolve_operations import (
@@ -64,8 +65,9 @@ class InstallManager(IInstallManager):
     def _reinstall(self, solution_to_resolve: str, allow_recursive: bool) -> ISolution:
         """Uninstall a solution and install it again, with the solutions in its environment.
 
-        All that installing them again reads is downloaded or copied first, so a failing
-        download changes nothing. The solutions running in its environment are
+        All that installing them again reads is downloaded or copied first, and the files
+        installing them checks are checked, so a failing download or a file outside the
+        folder of a solution changes nothing. The solutions running in its environment are
         uninstalled first, deepest first, as a solution others run in cannot be
         uninstalled, and installed again after it, parents first. A solution installed
         from a file, URL or DOI running in its environment prevents the reinstall:
@@ -131,6 +133,21 @@ class InstallManager(IInstallManager):
                         download,
                         self._staged(tmp_dir, download_catalog, download),
                     )
+                # installing them checks their files, once they are uninstalled
+                self._check_files_to_install_again(
+                    name,
+                    (
+                        self.album.collection_manager().resolve_and_load(source)
+                        if catalog.is_cache()
+                        else self._load_staged(tmp_dir, catalog, coordinates)
+                    ),
+                    [
+                        (child_name, self._load_staged(tmp_dir, child_catalog, child))
+                        for (child_catalog, child), child_name in zip(
+                            children, children_names
+                        )
+                    ],
+                )
             except Exception as e:
                 raise RuntimeError(
                     f'Cannot install "{name}" again, nothing was changed: {e}'
@@ -184,6 +201,45 @@ class InstallManager(IInstallManager):
     def _staged(tmp_dir: str, catalog: ICatalog, coordinates: ICoordinates) -> Path:
         """Return the folder a solution is downloaded or copied into before a reinstall."""
         return Path(tmp_dir).joinpath(f"{catalog.name()}-{as_tag(coordinates)}")
+
+    def _load_staged(
+        self, tmp_dir: str, catalog: ICatalog, coordinates: ICoordinates
+    ) -> ICollectionSolution:
+        """Load a solution from its copy for a reinstall, installed from it as a folder."""
+        path = self._staged(tmp_dir, catalog, coordinates).joinpath(
+            DefaultValues.solution_default_name.value
+        )
+        return ResolveResult(
+            path=path,
+            catalog=catalog,
+            collection_entry=None,
+            coordinates=coordinates,
+            loaded_solution=self.album.state_manager().load(str(path)),
+        )
+
+    def _check_files_to_install_again(
+        self,
+        name: str,
+        solution: ICollectionSolution,
+        children: List[Tuple[str, ICollectionSolution]],
+    ) -> None:
+        """Check the files of a solution and its children before a reinstall uninstalls them.
+
+        Installing them checks the files after uninstalling them: a solution whose files
+        it would reject is uninstalled and installed by hand instead.
+        """
+        for solution_name, to_install in [(name, solution)] + children:
+            try:
+                self._check_files(to_install)
+            except TypeError as e:
+                runs_in = (
+                    ""
+                    if solution_name == name
+                    else f'"{solution_name}", which runs in its environment: '
+                )
+                raise TypeError(
+                    f'{runs_in}{e} Uninstall "{solution_name}" and install it by hand.'
+                ) from e
 
     def _local_source(
         self,
@@ -596,15 +652,7 @@ class InstallManager(IInstallManager):
                 % resolve_result.loaded_solution().coordinates().name()
             )
 
-        # the environment and the resource file are installed with the folder of the solution
-        self.album.resource_manager().check_files_in_solution_folder(
-            resolve_result.loaded_solution(),
-            (
-                None
-                if resolve_result.is_single_file()
-                else Path(resolve_result.path()).parent
-            ),
-        )
+        self._check_files(resolve_result)
 
         self._register(resolve_result)
 
@@ -644,6 +692,21 @@ class InstallManager(IInstallManager):
                 "Installed %s! Learn more about the solution by calling `album info %s`."
                 % (resolve_result.coordinates().name(), resolve_result.coordinates())
             )
+
+    def _check_files(self, resolve_result: ICollectionSolution) -> None:
+        """Check that the environment and the resource file are in the solution folder.
+
+        They are installed with the folder of the solution; one installed from a single
+        file has none.
+        """
+        self.album.resource_manager().check_files_in_solution_folder(
+            resolve_result.loaded_solution(),
+            (
+                None
+                if resolve_result.is_single_file()
+                else Path(resolve_result.path()).parent
+            ),
+        )
 
     def _register(self, resolve_result: ICollectionSolution):
         # register in collection
