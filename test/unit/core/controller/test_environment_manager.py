@@ -73,6 +73,44 @@ class TestEnvironmentManager(TestUnitCoreCommon):
         # assert
         mock_create_environment_from_lockfile.assert_called_once()
 
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager._prepare_env_file"
+    )
+    def test_install_environment_no_conda_lock(self, _):
+        create_environment_prefer_lock_file = MagicMock()
+        self.environment_manager._environment_handler.create_environment_prefer_lock_file = (
+            create_environment_prefer_lock_file
+        )
+        package_manager = MagicMock()
+        self.environment_manager._environment_handler.get_package_manager = MagicMock(
+            return_value=package_manager
+        )
+        self.active_solution._installation._package_path.joinpath(
+            "solution.conda-lock.yml"
+        ).touch()
+        resolve = ResolveResult(
+            path=None,
+            catalog=self.catalog,
+            collection_entry=MagicMock(),
+            coordinates=self.active_solution.coordinates(),
+            loaded_solution=self.active_solution,
+        )
+        resolve.loaded_solution().installation().internal_cache_path = MagicMock(
+            return_value=Path(self.tmp_dir.name)
+        )
+
+        # call
+        self.environment_manager.install_environment(resolve, no_conda_lock=True)
+
+        # assert - solved, not installed from the lock file
+        create_environment_prefer_lock_file.assert_not_called()
+        package_manager.install.assert_called_once()
+        self.assertIn(
+            'Not technically replicable, "testid:test:1.0.0": it is installed without its '
+            "lock file (--no-conda-lock), its environment is solved now.",
+            self.get_logs_as_string(),
+        )
+
     # FIXME: check if this is working with mamba, since its only testing the package manager install function and not the env_installer_manager
     @patch("album.environments.controller.package_manager.PackageManager.install")
     @patch(
@@ -389,6 +427,80 @@ class TestEnvironmentManager(TestUnitCoreCommon):
         self.assertEqual(["bioconda"], environment["channels"])
         self.assertEqual(["python=3.12", framework], environment["dependencies"])
 
+    def test_create_environment_no_conda_lock(self):
+        # deployed with a lock file, installed without it
+        package_path = Path(self.tmp_dir.name).joinpath("package")
+        package_path.mkdir()
+        package_path.joinpath("solution.conda-lock.yml").write_text("lock")
+        package_path.joinpath("solution.environment.yml").write_text(
+            "channels:\n  - bioconda\ndependencies:\n  - python=3.12\n"
+        )
+        create_environment_prefer_lock_file = MagicMock()
+        self.environment_manager._environment_handler.create_environment_prefer_lock_file = (
+            create_environment_prefer_lock_file
+        )
+        package_manager = MagicMock()
+        self.environment_manager._environment_handler.get_package_manager = MagicMock(
+            return_value=package_manager
+        )
+
+        self.environment_manager.create_environment(
+            Path(self.tmp_dir.name).joinpath("cache"),
+            {"environment_file": "/not/on/this/computer/environment.yml"},
+            "env_name",
+            "0.7.1",
+            package_path,
+            solution_folder=package_path,
+            no_conda_lock=True,
+        )
+
+        # solved from the environment it locked
+        create_environment_prefer_lock_file.assert_not_called()
+        environment = get_dict_from_yml(
+            package_manager.install.call_args[0][0].yaml_file()
+        )
+        self.assertEqual(["python=3.12"], environment["dependencies"])
+
+    def test_create_environment_lock_file_does_not_install(self):
+        package_path = Path(self.tmp_dir.name).joinpath("package")
+        package_path.mkdir()
+        package_path.joinpath("solution.environment.yml").write_text(
+            "dependencies:\n  - python=3.12\n"
+        )
+        # as album-environments fails, the output of the command is in the log
+        self.environment_manager._environment_handler.create_environment_prefer_lock_file = MagicMock(
+            side_effect=RuntimeError(
+                "Command failed due to: ERROR while running conda-lock install"
+            )
+        )
+        args = (
+            Path(self.tmp_dir.name).joinpath("cache"),
+            None,
+            "env_name",
+            "0.7.1",
+            package_path,
+        )
+
+        # no lock file: the error as it is
+        with self.assertRaises(RuntimeError) as e:
+            self.environment_manager.create_environment(*args)
+        self.assertEqual(
+            "Command failed due to: ERROR while running conda-lock install",
+            str(e.exception),
+        )
+
+        # from the lock file: the error names --no-conda-lock
+        package_path.joinpath("solution.conda-lock.yml").write_text("lock")
+        with self.assertRaises(RuntimeError) as e:
+            self.environment_manager.create_environment(*args)
+        self.assertEqual(
+            "Installing the environment from the lock file failed: Command failed due "
+            "to: ERROR while running conda-lock install. If the lock file does not "
+            "install on this system, install the solution with --no-conda-lock to "
+            "solve its environment instead.",
+            str(e.exception),
+        )
+
     def test__prepare_env_file_environment_written_by_deploy_album_in_album(self):
         snapshot = Path(self.tmp_dir.name).joinpath("solution.environment.yml")
         snapshot.write_text("dependencies:\n  - album=0.0.1\n")
@@ -403,7 +515,9 @@ class TestEnvironmentManager(TestUnitCoreCommon):
                 environment_snapshot=snapshot,
             )
 
-    def _warning_without_lock_file(self, lock_file, conda_lock, reasons):
+    def _warning_without_lock_file(
+        self, lock_file, conda_lock, reasons, no_conda_lock=False
+    ):
         package_path = Path(tempfile.mkdtemp(dir=self.tmp_dir.name))
         if lock_file:
             package_path.joinpath("solution.conda-lock.yml").write_text("lock")
@@ -426,7 +540,7 @@ class TestEnvironmentManager(TestUnitCoreCommon):
         self.captured_output.truncate(0)
 
         self.environment_manager._warn_without_lock_file(
-            Coordinates("g", "n", "0.1.0"), package_path
+            Coordinates("g", "n", "0.1.0"), package_path, no_conda_lock
         )
 
         return self.get_logs_as_string()
@@ -442,8 +556,15 @@ class TestEnvironmentManager(TestUnitCoreCommon):
         self.assertEqual(
             '"g:n:0.1.0" is installed from its lock file, but conda-lock, which installs '
             "it, is not found. Set ENVIRONMENT_CONDA_LOCK_PATH to the conda-lock "
-            "executable.",
+            "executable, or install it with --no-conda-lock to solve its environment "
+            "instead.",
             str(e.exception),
+        )
+        # installed without its lock file, so conda-lock is not needed
+        self.assertIn(
+            'Not technically replicable, "g:n:0.1.0": it is installed without its lock '
+            "file (--no-conda-lock), its environment is solved now.",
+            self._warning_without_lock_file(True, None, False, no_conda_lock=True),
         )
         # no lock file
         self.assertIn(

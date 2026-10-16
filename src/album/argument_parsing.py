@@ -295,6 +295,15 @@ def create_install_parser(parser):
         "anything is uninstalled.",
         action="store_true",
     )
+    p.add_argument(
+        "--no-conda-lock",
+        required=False,
+        help="Solve the environment of the solution instead of installing it from its lock file, "
+        "e.g. when the lock file does not install on this system. The environment is then not "
+        "technically replicable, album warns. A solution with a parent runs in the environment of "
+        "its parent: it applies to the parent if the parent is installed with it.",
+        action="store_true",
+    )
 
 
 def create_deploy_parser(parser):

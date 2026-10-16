@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 from test.unit.test_unit_core_common import TestUnitCoreCommon
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 from album.core.model.catalog_updates import ChangeType
 from album.core.model.default_values import DefaultValues
@@ -950,7 +950,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         install_environment.reset_mock()
 
         self.album_controller.install_manager().install(
-            "my-catalog:group:app1:0.1.0", reinstall=True
+            "my-catalog:group:app1:0.1.0", reinstall=True, no_conda_lock=True
         )
 
         # listed before anything is uninstalled
@@ -960,9 +960,10 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
             self.get_logs_as_string(),
         )
 
-        # its environment is built again, and the child installed into it again
+        # its environment is built again, without its lock file as asked, and the child
+        # installed into it again
         remove_environment.assert_called_once()
-        install_environment.assert_called_once()
+        install_environment.assert_called_once_with(ANY, False, True)
         child = self._get_entry(catalog, "solution1_app1")
         self.assertTrue(child.internal()["installed"])
         self.assertEqual("app1", child.internal()["parent"].setup()["name"])

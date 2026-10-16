@@ -61,16 +61,22 @@ class EnvironmentManager(IEnvironmentManager):
         )
 
     def install_environment(
-        self, collection_solution: ICollectionSolution, allow_recursive: bool = False
+        self,
+        collection_solution: ICollectionSolution,
+        allow_recursive: bool = False,
+        no_conda_lock: bool = False,
     ) -> IEnvironment:
         environment = self._create_environment_for_solution(
-            collection_solution, allow_recursive
+            collection_solution, allow_recursive, no_conda_lock
         )
         set_environment_paths(collection_solution.loaded_solution(), environment)
         return environment
 
     def _create_environment_for_solution(
-        self, collection_solution: ICollectionSolution, allow_recursive: bool = False
+        self,
+        collection_solution: ICollectionSolution,
+        allow_recursive: bool = False,
+        no_conda_lock: bool = False,
     ) -> IEnvironment:
         env_name = self.get_environment_name(
             collection_solution.coordinates(), collection_solution.catalog()
@@ -86,7 +92,7 @@ class EnvironmentManager(IEnvironmentManager):
             collection_solution.loaded_solution().installation().package_path()
         )
         self._warn_without_lock_file(
-            collection_solution.coordinates(), solution_package_path
+            collection_solution.coordinates(), solution_package_path, no_conda_lock
         )
         environment = self.create_environment(
             cache,
@@ -96,29 +102,39 @@ class EnvironmentManager(IEnvironmentManager):
             solution_package_path,
             allow_recursive,
             solution_folder=get_solution_folder(collection_solution),
+            no_conda_lock=no_conda_lock,
         )
         set_environment_paths(collection_solution.loaded_solution(), environment)
         return environment
 
     def _warn_without_lock_file(
-        self, coordinates: ICoordinates, solution_package_path: Path
+        self,
+        coordinates: ICoordinates,
+        solution_package_path: Path,
+        no_conda_lock: bool = False,
     ) -> None:
         """Warn when the environment of a solution is solved now, not taken from a lock file.
 
-        A lock file is not solved again without it: installing fails if conda-lock, which
-        installs it, is not found.
+        A lock file is solved again only with no_conda_lock: without it, installing fails if
+        conda-lock, which installs it, is not found.
         """
         lock_file = solution_package_path.joinpath(
             DefaultValues.solution_conda_lock_default_name.value
         )
-        if lock_file.is_file():
+        if lock_file.is_file() and no_conda_lock:
+            module_logger().warning(
+                f'Not technically replicable, "{coordinates}": it is installed without its '
+                "lock file (--no-conda-lock), its environment is solved now."
+            )
+        elif lock_file.is_file():
             try:
                 self._environment_handler.get_conda_lock_manager().conda_lock_executable()
             except RuntimeError as e:
                 raise RuntimeError(
                     f'"{coordinates}" is installed from its lock file, but conda-lock, which '
                     "installs it, is not found. Set ENVIRONMENT_CONDA_LOCK_PATH to the "
-                    "conda-lock executable."
+                    "conda-lock executable, or install it with --no-conda-lock to solve its "
+                    "environment instead."
                 ) from e
         elif not get_replicability_reasons(solution_package_path):
             # a solution deployed without a lock file says so in the reasons shown already
@@ -136,13 +152,15 @@ class EnvironmentManager(IEnvironmentManager):
         solution_package_path: Path,
         allow_recursive: bool = False,
         solution_folder: Optional[Path] = None,
+        no_conda_lock: bool = False,
     ) -> IEnvironment:
         """Create the environment of a solution.
 
         A deployed solution is installed from what album deploy wrote next to it: its lock
         file, or else the environment it locked, not from the environment file it names. A
         relative path of the environment file starts at solution_folder, the folder the
-        solution is installed from; None for a solution installed from a single file.
+        solution is installed from; None for a solution installed from a single file. With
+        no_conda_lock, the environment is solved even if the solution has a lock file.
         """
         environment_snapshot = solution_package_path.joinpath(
             DefaultValues.solution_environment_default_name.value
@@ -163,9 +181,23 @@ class EnvironmentManager(IEnvironmentManager):
         solution_lock_file = solution_package_path.joinpath(
             DefaultValues.solution_conda_lock_default_name.value
         )
-        self._environment_handler.create_environment_prefer_lock_file(
-            environment, str(solution_lock_file.absolute())
-        )
+        if no_conda_lock:
+            # solved as create_environment_prefer_lock_file does without a lock file
+            self._environment_handler.get_package_manager().install(environment)
+            return environment
+        try:
+            self._environment_handler.create_environment_prefer_lock_file(
+                environment, str(solution_lock_file.absolute())
+            )
+        except RuntimeError as e:
+            if not solution_lock_file.is_file():
+                raise
+            # the output of conda-lock is in the log, the error names only the command
+            raise RuntimeError(
+                f"Installing the environment from the lock file failed: {e}. If the lock "
+                "file does not install on this system, install the solution with "
+                "--no-conda-lock to solve its environment instead."
+            ) from e
 
         return environment
 

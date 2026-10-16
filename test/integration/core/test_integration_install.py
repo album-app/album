@@ -785,6 +785,47 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
             )
         )
 
+    @patch(
+        "album.environments.controller.conda_lock_manager.CondaLockManager.create_environment_from_lockfile"
+    )
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
+    @patch("album.environments.controller.package_manager.PackageManager.install")
+    def test_install_solution_with_lock_file_no_conda_lock(
+        self, install, get_environment_path, create_environment_from_lockfile
+    ):
+        get_environment_path.return_value = (
+            self.album_controller.environment_manager()
+            .get_environment_handler()
+            .get_package_manager()
+            .get_active_environment_path()
+        )
+
+        self.album_controller.install_manager().install(
+            self.get_test_solution_path("solution_with_lock_file"), no_conda_lock=True
+        )
+
+        # its environment is solved, not installed from its lock file
+        create_environment_from_lockfile.assert_not_called()
+        install.assert_called_once()
+        self.assertIn(
+            'Not technically replicable, "group:Dummy-Solution-Lock:0.1.0": it is '
+            "installed without its lock file (--no-conda-lock), its environment is "
+            "solved now.",
+            self.get_logs_as_string(),
+        )
+        self.assertTrue(
+            self.album_controller.collection_manager()
+            .solutions()
+            .is_installed(
+                self.album_controller.collection_manager()
+                .catalogs()
+                .get_cache_catalog(),
+                Coordinates("group", "Dummy-Solution-Lock", "0.1.0"),
+            )
+        )
+
     @patch("album.environments.controller.package_manager.PackageManager.create")
     def test_install_solution_with_lock_file(self, old_install):
         self.album_controller.install_manager().install(

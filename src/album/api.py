@@ -137,6 +137,7 @@ class Album:
         argv=None,
         run_async=False,
         reinstall: bool = False,
+        no_conda_lock: bool = False,
     ):
         """Install a solution to the disk.
 
@@ -166,11 +167,17 @@ class Album:
                 RuntimeError is raised: album leaves the environment of such a
                 solution untouched. Everything is downloaded before anything is
                 uninstalled.
+            no_conda_lock:
+                Solve the environment instead of installing it from the lock file of
+                the solution, e.g. when the lock file does not install on this system.
+                Not technically replicable, album warns. A solution with a parent runs
+                in the environment of its parent, so there it applies to the parent
+                if the parent is installed with it.
 
         """
         return self._run_async(
             self._controller.install_manager().install,
-            (solution_to_resolve, allow_recursive, argv, reinstall),
+            (solution_to_resolve, allow_recursive, argv, reinstall, no_conda_lock),
             run_async,
         )
 

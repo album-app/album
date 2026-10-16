@@ -47,6 +47,7 @@ class InstallManager(IInstallManager):
         allow_recursive: bool = False,
         argv: Optional[List[str]] = None,
         reinstall: bool = False,
+        no_conda_lock: bool = False,
     ) -> ISolution:
         # this needs to happen before any (potentially not completely installed) solution is resolved
         self.clean_unfinished_installations()
@@ -60,18 +61,25 @@ class InstallManager(IInstallManager):
         if reinstall:
             # one at a time, see ISolutionHandler.get_upgrade_lock
             with self.album.solutions().get_upgrade_lock():
-                return self._reinstall(solution_to_resolve, allow_recursive)
+                return self._reinstall(
+                    solution_to_resolve, allow_recursive, no_conda_lock
+                )
 
         resolve_result = self.album.collection_manager().resolve_and_load(
             solution_to_resolve
         )
         self._install_loaded_resolve_result(
-            resolve_result, parent=False, allow_recursive=allow_recursive
+            resolve_result,
+            parent=False,
+            allow_recursive=allow_recursive,
+            no_conda_lock=no_conda_lock,
         )
 
         return resolve_result.loaded_solution()
 
-    def _reinstall(self, solution_to_resolve: str, allow_recursive: bool) -> ISolution:
+    def _reinstall(
+        self, solution_to_resolve: str, allow_recursive: bool, no_conda_lock: bool
+    ) -> ISolution:
         """Uninstall a solution and install it again, with the solutions in its environment.
 
         All that installing them again reads is downloaded or copied first, and the files
@@ -92,7 +100,9 @@ class InstallManager(IInstallManager):
             )
         except (LookupError, ValueError):
             # not installed: installed as usual
-            return self.install(solution_to_resolve, allow_recursive)
+            return self.install(
+                solution_to_resolve, allow_recursive, no_conda_lock=no_conda_lock
+            )
         db_entry = resolve_result.database_entry()
         if db_entry is None:  # can only happen if resolve_installed method broken
             raise RuntimeError("Solution not found in collection index!")
@@ -180,7 +190,9 @@ class InstallManager(IInstallManager):
                     )
 
             try:
-                loaded_solution = self.install(source, allow_recursive)
+                loaded_solution = self.install(
+                    source, allow_recursive, no_conda_lock=no_conda_lock
+                )
             except BaseException:
                 if children_names:
                     module_logger().error(
@@ -192,7 +204,7 @@ class InstallManager(IInstallManager):
         # one that fails does not keep the others from being installed again
         for child_name in children_names:
             try:
-                self.install(child_name, allow_recursive)
+                self.install(child_name, allow_recursive, no_conda_lock=no_conda_lock)
             except Exception as e:
                 module_logger().error(f'Cannot install "{child_name}" again: {e}')
         not_installed = [
@@ -604,6 +616,7 @@ class InstallManager(IInstallManager):
         resolve_result: ICollectionSolution,
         parent: bool = False,
         allow_recursive: bool = False,
+        no_conda_lock: bool = False,
     ) -> None:
         if not resolve_result.catalog():
             raise RuntimeError(
@@ -618,7 +631,9 @@ class InstallManager(IInstallManager):
         # the locks of the solution and of its parents are held until it is installed
         with ExitStack() as locks:
             self._lock_for_installation(resolve_result, locks)
-            self._install_holding_lock(resolve_result, parent, allow_recursive, locks)
+            self._install_holding_lock(
+                resolve_result, parent, allow_recursive, locks, no_conda_lock
+            )
 
     def _install_holding_lock(
         self,
@@ -626,6 +641,7 @@ class InstallManager(IInstallManager):
         parent: bool,
         allow_recursive: bool,
         locks: ExitStack,
+        no_conda_lock: bool = False,
     ) -> None:
         # checked again: while this one waited for the lock, another album process might
         # have installed the solution, or failed to and removed the solution files
@@ -686,7 +702,9 @@ class InstallManager(IInstallManager):
             self.album.download_manager().download_resources(resolve_result)
 
             # run installation recursively
-            self._install_active_solution(resolve_result, locks, allow_recursive)
+            self._install_active_solution(
+                resolve_result, locks, allow_recursive, no_conda_lock
+            )
 
             # mark as installed and remove "installation unfinished"
             self.album.solutions().set_installed(
@@ -771,6 +789,7 @@ class InstallManager(IInstallManager):
         collection_solution: ICollectionSolution,
         locks: ExitStack,
         allow_recursive: bool = False,
+        no_conda_lock: bool = False,
     ) -> Optional[ICollectionSolution]:
         parent_resolve_result = None
 
@@ -785,6 +804,7 @@ class InstallManager(IInstallManager):
                     locks,
                     allow_recursive=allow_recursive,
                     catalog=collection_solution.catalog(),
+                    no_conda_lock=no_conda_lock,
                 )
             except Exception as e:
                 module_logger().error("Exception when installing parent:")
@@ -826,7 +846,7 @@ class InstallManager(IInstallManager):
             collection_solution.set_database_entry(db_entry)
         else:
             self.album.environment_manager().install_environment(
-                collection_solution, allow_recursive
+                collection_solution, allow_recursive, no_conda_lock
             )
 
         # ensure cache paths exist
@@ -886,6 +906,7 @@ class InstallManager(IInstallManager):
         locks: ExitStack,
         allow_recursive: bool = False,
         catalog: Optional[ICatalog] = None,
+        no_conda_lock: bool = False,
     ) -> ICollectionSolution:
         resolve_result_parent = self._resolve_parent(
             parent_dict, child_coordinates, catalog
@@ -923,6 +944,7 @@ class InstallManager(IInstallManager):
             parent=True,
             allow_recursive=allow_recursive,
             locks=locks,
+            no_conda_lock=no_conda_lock,
         )
         return resolve_result_parent
 

@@ -21,9 +21,16 @@ class IEnvironmentManager:
 
     @abstractmethod
     def install_environment(
-        self, collection_solution: ICollectionSolution, allow_recursive: bool = False
+        self,
+        collection_solution: ICollectionSolution,
+        allow_recursive: bool = False,
+        no_conda_lock: bool = False,
     ) -> IEnvironment:
-        """Install an environment for the given solution."""
+        """Install an environment for the given solution.
+
+        It is installed from the lock file of the solution, if it has one. With
+        no_conda_lock, it is solved instead.
+        """
         raise NotImplementedError
 
     @abstractmethod

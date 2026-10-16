@@ -107,6 +107,7 @@ def install(album_instance: Album, args: Namespace):
         args.allow_recursive,
         sys.argv,
         reinstall=getattr(args, "reinstall", False),
+        no_conda_lock=getattr(args, "no_conda_lock", False),
     )
 
 
