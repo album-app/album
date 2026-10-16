@@ -1,6 +1,7 @@
 from contextlib import ExitStack
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from tempfile import TemporaryDirectory
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.install_manager import IInstallManager
@@ -11,14 +12,19 @@ from album.core.controller.environment_manager import EnvironmentManager
 from album.core.model.resolve_result import ResolveResult
 from album.core.utils.operations.file_operations import remove_link
 from album.core.utils.operations.resolve_operations import (
+    as_tag,
     build_resolve_string,
+    check_file_or_url,
     clean_resolve_tmp,
     dict_to_coordinates,
 )
 from album.core.utils.operations.solution_operations import (
     get_deploy_dict,
     get_parent_dict,
+    version_sort_key,
 )
+from album.core.utils.operations.url_operations import is_url
+from album.environments.utils.file_operations import copy_folder
 from album.environments.utils.subcommand import SubProcessError
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
@@ -36,9 +42,15 @@ class InstallManager(IInstallManager):
         solution_to_resolve: str,
         allow_recursive: bool = False,
         argv: Optional[List[str]] = None,
+        reinstall: bool = False,
     ) -> ISolution:
         # this needs to happen before any (potentially not completely installed) solution is resolved
         self.clean_unfinished_installations()
+
+        if reinstall:
+            # one at a time, see ISolutionHandler.get_upgrade_lock
+            with self.album.solutions().get_upgrade_lock():
+                return self._reinstall(solution_to_resolve, allow_recursive)
 
         resolve_result = self.album.collection_manager().resolve_and_load(
             solution_to_resolve
@@ -48,6 +60,437 @@ class InstallManager(IInstallManager):
         )
 
         return resolve_result.loaded_solution()
+
+    def _reinstall(self, solution_to_resolve: str, allow_recursive: bool) -> ISolution:
+        """Uninstall a solution and install it again, with the solutions in its environment.
+
+        All that installing them again reads is downloaded or copied first, so a failing
+        download changes nothing. The solutions running in its environment are
+        uninstalled first, deepest first, as a solution others run in cannot be
+        uninstalled, and installed again after it, parents first. A solution installed
+        from a file, URL or DOI running in its environment prevents the reinstall:
+        installing that environment again could break it.
+
+        Plain installations do not take the upgrade lock: an album process installing
+        a solution into its environment while the ones there are uninstalled makes
+        uninstalling it fail, and those uninstalled before are not installed again.
+        """
+        try:
+            resolve_result = self.album.collection_manager().resolve_installed(
+                solution_to_resolve
+            )
+        except (LookupError, ValueError):
+            # not installed: installed as usual
+            return self.install(solution_to_resolve, allow_recursive)
+        db_entry = resolve_result.database_entry()
+        if db_entry is None:  # can only happen if resolve_installed method broken
+            raise RuntimeError("Solution not found in collection index!")
+        catalog, coordinates = resolve_result.catalog(), resolve_result.coordinates()
+        name = f"{catalog.name()}:{coordinates}"
+
+        # the solutions running in its environment, parents first
+        children = [
+            (
+                self.album.catalogs().get_by_id(entry.internal()["catalog_id"]),
+                dict_to_coordinates(entry.setup()),
+            )
+            for entry in reversed(self._installed_children(db_entry))
+        ]
+        local = [
+            str(child) for child_catalog, child in children if child_catalog.is_cache()
+        ]
+        if local:
+            raise RuntimeError(
+                'Cannot install "%s" again: "%s", installed from a file, URL or DOI, %s '
+                "in its environment."
+                % (name, '", "'.join(local), "runs" if len(local) == 1 else "run")
+            )
+        children_names = [
+            f"{child_catalog.name()}:{child}" for child_catalog, child in children
+        ]
+        if children_names:
+            module_logger().info(
+                'Installing "%s" again, and the solutions running in its environment: %s'
+                % (name, ", ".join(children_names))
+            )
+
+        with TemporaryDirectory(dir=self.album.configuration().tmp_path()) as tmp_dir:
+            # downloaded or copied before anything is uninstalled
+            downloads = (
+                children if catalog.is_cache() else [(catalog, coordinates)] + children
+            )
+            try:
+                source = name
+                if catalog.is_cache():
+                    source = self._local_source(
+                        solution_to_resolve, catalog, coordinates, tmp_dir
+                    )
+                for download_catalog, download in downloads:
+                    self.album.solutions().retrieve_solution(
+                        download_catalog,
+                        download,
+                        self._staged(tmp_dir, download_catalog, download),
+                    )
+            except Exception as e:
+                raise RuntimeError(
+                    f'Cannot install "{name}" again, nothing was changed: {e}'
+                ) from e
+
+            for child_name in reversed(children_names):
+                self.uninstall(child_name)
+            self.uninstall(name)
+            # where installing them reads them from. Installing a solution from a file
+            # empties album's tmp folder, tmp_dir with it, so this comes first.
+            for download_catalog, download in downloads:
+                with self.album.solutions().get_solution_lock(
+                    download_catalog, download
+                ):
+                    copy_folder(
+                        self._staged(tmp_dir, download_catalog, download),
+                        self.album.solutions().get_solution_package_path(
+                            download_catalog, download
+                        ),
+                        copy_root_folder=False,
+                    )
+
+            try:
+                loaded_solution = self.install(source, allow_recursive)
+            except BaseException:
+                if children_names:
+                    module_logger().error(
+                        'Not installed again, as installing "%s" failed: %s'
+                        % (name, ", ".join(children_names))
+                    )
+                raise
+
+        # one that fails does not keep the others from being installed again
+        for child_name in children_names:
+            try:
+                self.install(child_name, allow_recursive)
+            except Exception as e:
+                module_logger().error(f'Cannot install "{child_name}" again: {e}')
+        not_installed = [
+            child_name
+            for (child_catalog, child), child_name in zip(children, children_names)
+            if not self.album.solutions().is_installed(child_catalog, child)
+        ]
+        if not_installed:
+            raise RuntimeError(
+                f'Installed "{name}" again, but not: {", ".join(not_installed)}'
+            )
+        return loaded_solution
+
+    @staticmethod
+    def _staged(tmp_dir: str, catalog: ICatalog, coordinates: ICoordinates) -> Path:
+        """Return the folder a solution is downloaded or copied into before a reinstall."""
+        return Path(tmp_dir).joinpath(f"{catalog.name()}-{as_tag(coordinates)}")
+
+    def _local_source(
+        self,
+        solution_to_resolve: str,
+        catalog: ICatalog,
+        coordinates: ICoordinates,
+        tmp_dir: str,
+    ) -> str:
+        """Return what to install a solution from a file, URL or DOI again from.
+
+        Its copy in the collection goes with the installation, so it is copied first.
+        """
+        if Path(solution_to_resolve).exists():
+            # the file, folder or zip given
+            return solution_to_resolve
+        target = self._staged(tmp_dir, catalog, coordinates)
+        if is_url(solution_to_resolve):
+            path = check_file_or_url(solution_to_resolve, target)
+            if path is None:  # can only happen if check_file_or_url is broken
+                raise LookupError(solution_to_resolve)
+            # a zip is unpacked into a folder, a single file stays one
+            return str(path.parent if path.parent != target else path)
+        # given by its coordinates or DOI: the copy in the collection
+        copy_folder(
+            self.album.solutions().get_solution_package_path(catalog, coordinates),
+            target,
+            copy_root_folder=False,
+        )
+        return str(target)
+
+    def _installed_children(
+        self, db_entry: ICollectionIndex.ICollectionSolution
+    ) -> List[ICollectionIndex.ICollectionSolution]:
+        """Return the installed solutions running in its environment, deepest first."""
+        index = self.album.collection_manager().get_collection_index()
+        children = []
+        for link in db_entry.internal()["children"]:
+            child = index.get_solution_by_collection_id(link["collection_id_child"])
+            if child is not None and child.internal()["installed"]:
+                children.extend(self._installed_children(child))
+                children.append(child)
+        return children
+
+    def upgrade_solutions(
+        self, solutions: Optional[List[str]] = None, dry_run: bool = False
+    ) -> Dict[str, Any]:
+        # one at a time, see ISolutionHandler.get_upgrade_lock
+        with self.album.solutions().get_upgrade_lock():
+            return self._upgrade_solutions(solutions, dry_run)
+
+    def _upgrade_solutions(
+        self, solutions: Optional[List[str]], dry_run: bool
+    ) -> Dict[str, Any]:
+        result: Dict[str, Any] = {
+            "dry_run": dry_run,
+            "install": [],
+            "uninstall": [],
+            "keep": [],
+            "unused": [],
+            "failed": [],
+        }
+        targets = self._solutions_to_upgrade(solutions)
+        catalogs = {
+            catalog_id: self.album.catalogs().get_by_id(catalog_id)
+            for catalog_id, _, _ in targets
+        }
+        for catalog in catalogs.values():
+            # also refreshes the index of the catalog, which lists its new versions
+            self.album.collection_manager().catalogs().update_collection(
+                catalog.name(), dry_run=dry_run
+            )
+            self.album.migration_manager().load_index(catalog, refresh=False)
+
+        to_install = []
+        for catalog_id, group, name in sorted(targets):
+            catalog = catalogs[catalog_id]
+            index = catalog.index()
+            if index is None:
+                raise RuntimeError("Catalog %s not loaded!" % catalog.name())
+            versions = [
+                str(solution["version"])
+                for solution in index.get_all_solution_versions(group, name)
+            ]
+            installed = self._installed_versions(catalog_id, group, name)
+            if not versions or not installed:
+                continue
+            latest = max(versions, key=version_sort_key)
+            if version_sort_key(latest) > max(map(version_sort_key, installed)):
+                to_install.append((catalog_id, group, name, latest))
+
+        scope = set(targets)
+        if dry_run:
+            result["install"] = [self._as_solution(*key) for key in to_install]
+            planned = {key[:3]: key[3] for key in to_install}
+        else:
+            # installing a new version can install a new version of its parent as well:
+            # what this upgrade installed is what is installed afterwards, but not before
+            installed_before = self._all_installed()
+            for key in to_install:
+                solution = self._as_solution(*key)
+                try:
+                    self.install(solution)
+                except Exception as e:
+                    module_logger().error(f'Cannot install "{solution}": {e}')
+                    result["failed"].append({"solution": solution, "error": str(e)})
+            newly_installed = sorted(self._all_installed() - installed_before)
+            result["install"] = [self._as_solution(*key) for key in newly_installed]
+            # a newer version of a parent, installed with its child, replaces the older
+            scope.update(
+                key[:3]
+                for key in newly_installed
+                if not self.album.catalogs().get_by_id(key[0]).is_cache()
+            )
+            planned = {}
+
+        self._uninstall_replaced_versions(scope, planned, dry_run, result)
+        return result
+
+    def _solutions_to_upgrade(
+        self, solutions: Optional[List[str]]
+    ) -> Set[Tuple[int, str, str]]:
+        """Return catalog id, group and name of the installed solutions to upgrade."""
+        targets = set()
+        if solutions:
+            for solution in solutions:
+                resolve_result = self.album.collection_manager().resolve_installed(
+                    solution
+                )
+                if resolve_result.catalog().is_cache():
+                    module_logger().warning(
+                        '"%s" was installed from a file, URL or DOI, not from a catalog.'
+                        " Skipping..." % solution
+                    )
+                    continue
+                coordinates = resolve_result.coordinates()
+                targets.add(
+                    (
+                        resolve_result.catalog().catalog_id(),
+                        coordinates.group(),
+                        coordinates.name(),
+                    )
+                )
+            return targets
+
+        index = self.album.collection_manager().get_collection_index()
+        for catalog in self.album.catalogs().get_all():
+            if catalog.is_cache():
+                continue
+            for entry in index.get_all_installed_solutions_by_catalog(
+                catalog.catalog_id()
+            ):
+                targets.add(
+                    (
+                        catalog.catalog_id(),
+                        entry.setup()["group"],
+                        entry.setup()["name"],
+                    )
+                )
+        return targets
+
+    def _uninstall_replaced_versions(
+        self,
+        scope: Set[Tuple[int, str, str]],
+        planned: Dict[Tuple[int, str, str], str],
+        dry_run: bool,
+        result: Dict[str, Any],
+    ) -> None:
+        """Uninstall each version a newer one replaces, unless solutions run in it.
+
+        The newest installed version of a solution always stays. Without dry_run the
+        newer versions are installed already, with dry_run they are in planned.
+        """
+        replaced: List[
+            Tuple[Tuple[int, str, str], str, ICollectionIndex.ICollectionSolution]
+        ] = []
+        for key in scope:
+            versions: Dict[str, Optional[ICollectionIndex.ICollectionSolution]] = dict(
+                self._installed_versions(*key)
+            )
+            if key in planned:
+                versions[planned[key]] = None
+            replaced.extend(
+                (key, version, entry) for version, entry in self._replaced(versions)
+            )
+        # children first: whether a parent can go depends on the solutions running in it
+        replaced.sort(
+            key=lambda item: (-self._depth(item[2]), item[0], version_sort_key(item[1]))
+        )
+
+        removed: Set[int] = set()
+        parents = []
+        for key, version, entry in replaced:
+            solution = self._as_solution(*key, version)
+            used_by = self._runs_in(entry, removed)
+            if used_by:
+                result["keep"].append({"solution": solution, "used_by": used_by})
+                continue
+            if not dry_run:
+                try:
+                    # stays if an album process installed a solution in it meanwhile
+                    self._lock_and_uninstall(solution, False, as_dependency=True)
+                except Exception as e:
+                    # unless another album process uninstalled it meanwhile
+                    if version in self._installed_versions(*key):
+                        module_logger().error(f'Cannot uninstall "{solution}": {e}')
+                        result["failed"].append({"solution": solution, "error": str(e)})
+                    continue
+                current = self._installed_versions(*key).get(version)
+                if current is not None:
+                    used_by = self._runs_in(current, removed)
+                    result["keep"].append({"solution": solution, "used_by": used_by})
+                    continue
+            removed.add(entry.internal()["collection_id"])
+            result["uninstall"].append(solution)
+            if entry.internal()["parent"]:
+                parents.append(entry.internal()["parent"])
+
+        # parents no solution runs in anymore stay, the user might run them on their own
+        for parent in parents:
+            if parent.internal()["collection_id"] in removed:
+                continue
+            current = (
+                self.album.collection_manager()
+                .get_collection_index()
+                .get_solution_by_collection_id(parent.internal()["collection_id"])
+            )
+            if current is None or not current.internal()["installed"]:
+                continue
+            solution = self._as_solution(
+                current.internal()["catalog_id"],
+                current.setup()["group"],
+                current.setup()["name"],
+                current.setup()["version"],
+            )
+            if not self._runs_in(current, removed) and solution not in result["unused"]:
+                result["unused"].append(solution)
+
+    @staticmethod
+    def _depth(entry: ICollectionIndex.ICollectionSolution) -> int:
+        """Return the number of parents above a solution."""
+        depth = 0
+        parent = entry.internal()["parent"]
+        while parent:
+            depth += 1
+            parent = parent.internal()["parent"]
+        return depth
+
+    @staticmethod
+    def _replaced(
+        versions: Dict[str, Optional[ICollectionIndex.ICollectionSolution]],
+    ) -> List[Tuple[str, ICollectionIndex.ICollectionSolution]]:
+        """Return the installed versions older than the newest one."""
+        if not versions:
+            return []
+        newest = max(versions, key=version_sort_key)
+        return [
+            (version, entry)
+            for version, entry in versions.items()
+            if version != newest and entry is not None
+        ]
+
+    def _runs_in(
+        self, entry: ICollectionIndex.ICollectionSolution, removed: Set[int]
+    ) -> List[str]:
+        """Return the installed solutions running in its environment, except removed ones."""
+        return [
+            self._as_solution(
+                child.internal()["catalog_id"],
+                child.setup()["group"],
+                child.setup()["name"],
+                child.setup()["version"],
+            )
+            for child in self._installed_children(entry)
+            if child.internal()["collection_id"] not in removed
+        ]
+
+    def _installed_versions(
+        self, catalog_id: int, group: str, name: str
+    ) -> Dict[str, ICollectionIndex.ICollectionSolution]:
+        """Return the installed versions of a solution in a catalog."""
+        index = self.album.collection_manager().get_collection_index()
+        return {
+            entry.setup()["version"]: entry
+            for entry in index.get_solutions_by_grp_name(group, name)
+            if entry.internal()["catalog_id"] == catalog_id
+            and entry.internal()["installed"]
+        }
+
+    def _all_installed(self) -> Set[Tuple[int, str, str, str]]:
+        """Return catalog id, group, name and version of every installed solution."""
+        index = self.album.collection_manager().get_collection_index()
+        return {
+            (
+                catalog.catalog_id(),
+                entry.setup()["group"],
+                entry.setup()["name"],
+                entry.setup()["version"],
+            )
+            for catalog in self.album.catalogs().get_all()
+            for entry in index.get_all_installed_solutions_by_catalog(
+                catalog.catalog_id()
+            )
+        }
+
+    def _as_solution(self, catalog_id: int, group: str, name: str, version: str) -> str:
+        catalog_name = self.album.catalogs().get_by_id(catalog_id).name()
+        return f"{catalog_name}:{group}:{name}:{version}"
 
     def _resolve_result_is_installed(self, resolve_result: ICollectionSolution) -> bool:
         if resolve_result.database_entry():  # we know the solution is in the collection

@@ -227,14 +227,24 @@ class SolutionHandler(ISolutionHandler):
                 # set old (install) status and parents again
                 self._set_old_db_stat(catalog, change)
 
+            reinstall = (
+                f'"album install --reinstall {catalog.name()}:{change.coordinates()}"'
+                " installs it again."
+            )
             if override and not catalog.is_cache() and installed:
                 module_logger().warning(
                     'CAUTION: Solution "%s" seems to be installed.'
                     " The performed operation can leave a broken installation behind "
-                    "if dependencies got changed! Consider reinstalling the solution!"
-                    % str(change.coordinates())
+                    "if dependencies got changed! %s"
+                    % (str(change.coordinates()), reinstall)
                 )
                 self.retrieve_solution(catalog, change.coordinates())
+            elif installed:
+                # the installation stays as it was, until it is installed again
+                module_logger().warning(
+                    'Solution "%s" changed in catalog "%s" after it was installed. %s'
+                    % (str(change.coordinates()), catalog.name(), reinstall)
+                )
 
     def _set_old_db_stat(self, catalog: ICatalog, change: ISolutionChange) -> None:
         sol_stat = change.solution_status()
@@ -345,15 +355,33 @@ class SolutionHandler(ISolutionHandler):
                 "%s.lock" % coordinates.version(),
             )
         )
-        # one lock per solution, which the thread holding it acquires again instead of
+        return self._get_lock(
+            lock_file,
+            f'installing or uninstalling "{catalog.name()}:{coordinates}" '
+            "or a solution depending on it",
+        )
+
+    def get_upgrade_lock(self) -> FileLock:
+        lock_file = (
+            self.album.configuration()
+            .base_cache_path()
+            .joinpath(DefaultValues.lock_folder_prefix.value, "upgrade.lock")
+        )
+        return self._get_lock(
+            lock_file,
+            'running "album upgrade", "album upgrade-solutions" or '
+            '"album install --reinstall"',
+        )
+
+    def _get_lock(self, lock_file: Path, description: str) -> FileLock:
+        # one lock per lock file, which the thread holding it acquires again instead of
         # waiting for itself
         with self._locks_creation:
             if lock_file not in self._locks:
                 self._locks[lock_file] = FileLock(
                     lock_file,
                     timeout=DefaultValues.install_lock_timeout_in_seconds.value,
-                    description=f'installing or uninstalling "{catalog.name()}:{coordinates}" '
-                    "or a solution depending on it",
+                    description=description,
                 )
             return self._locks[lock_file]
 
@@ -363,12 +391,19 @@ class SolutionHandler(ISolutionHandler):
             get_zip_name(coordinates),
         )
 
-    def retrieve_solution(self, catalog: ICatalog, coordinates: ICoordinates) -> Path:
+    def retrieve_solution(
+        self,
+        catalog: ICatalog,
+        coordinates: ICoordinates,
+        target: Optional[Path] = None,
+    ) -> Path:
         if catalog.is_cache():  # no src to download form or src to copy from
             raise RuntimeError("Cannot download from a cache catalog!")
         else:  # src to download from
-            solution_download_target = self.get_solution_package_path(
-                catalog, coordinates
+            solution_download_target = (
+                target
+                if target is not None
+                else self.get_solution_package_path(catalog, coordinates)
             )
             self._download_solution(
                 catalog.src(), coordinates, solution_download_target

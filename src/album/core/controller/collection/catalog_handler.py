@@ -258,6 +258,13 @@ class CatalogHandler(ICatalogHandler):
     def update_collection(
         self, catalog_name=None, dry_run: bool = False, override: bool = False
     ) -> Dict[str, ICatalogUpdates]:
+        # one at a time, see ISolutionHandler.get_upgrade_lock
+        with self.album.solutions().get_upgrade_lock():
+            return self._update_collection(catalog_name, dry_run, override)
+
+    def _update_collection(
+        self, catalog_name=None, dry_run: bool = False, override: bool = False
+    ) -> Dict[str, ICatalogUpdates]:
         if dry_run:
             if catalog_name:
                 catalog = self.get_by_name(catalog_name)

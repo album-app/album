@@ -397,6 +397,43 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         _set_old_db_stat.assert_called_once_with(self.catalog, change)
         retrieve_solution.assert_not_called()
 
+    def test_apply_change_CHANGED_installed_no_override(self):
+        # prepare
+        coordinates = Coordinates("g", "n", "v")
+        change = SolutionChange(
+            coordinates,
+            ChangeType.CHANGED,
+            solution_status={"installed": True, "installation_unfinished": False},
+        )
+
+        # mocks
+        empty_catalog = EmptyTestClass()
+        empty_catalog.get_solution_by_coordinates = MagicMock()
+        empty_catalog.close = MagicMock()
+        self.catalog._catalog_index = empty_catalog
+
+        self.album_controller.collection_manager().get_collection_index().add_or_replace_solution = (
+            MagicMock()
+        )
+
+        _set_old_db_stat = MagicMock()
+        self.solution_handler._set_old_db_stat = _set_old_db_stat
+
+        retrieve_solution = MagicMock()
+        self.solution_handler.retrieve_solution = retrieve_solution
+
+        # call
+        self.solution_handler.apply_change(self.catalog, change, override=False)
+
+        # assert: the installation stays as it was, the warning says how to renew it
+        _set_old_db_stat.assert_called_once_with(self.catalog, change)
+        retrieve_solution.assert_not_called()
+        self.assertIn(
+            'Solution "g:n:v" changed in catalog "test" after it was installed. '
+            '"album install --reinstall test:g:n:v" installs it again.',
+            self.get_logs_as_string(),
+        )
+
     def test_apply_change_CHANGED_override_uninstalled(self):
         # prepare
         coordinates = Coordinates("g", "n", "v")
