@@ -1262,6 +1262,54 @@ class TestInstallManager(TestUnitCoreCommon):
 
         install.assert_called_once_with("grp:name:0.1.0", False, no_conda_lock=True)
 
+    def test__stage_resources(self):
+        stage_resources = MagicMock()
+        self.album_controller.download_manager().stage_resources = stage_resources
+        solution, child = MagicMock(), MagicMock()
+        solution.coordinates.return_value = Coordinates("g", "n", "0.1.0")
+        child.coordinates.return_value = Coordinates("g", "c", "0.1.0")
+        for to_install in [solution, child]:
+            to_install.catalog.return_value.name.return_value = "cat"
+        children = [("cat:g:c:0.1.0", child)]
+
+        self.install_manager._stage_resources(
+            self.tmp_dir.name, "cat:g:n:0.1.0", solution, children
+        )
+
+        # each into its own folder in tmp_dir
+        self.assertEqual(
+            [
+                call(
+                    solution,
+                    self.install_manager._staged_installation(
+                        self.tmp_dir.name, solution.catalog(), solution.coordinates()
+                    ),
+                ),
+                call(
+                    child,
+                    self.install_manager._staged_installation(
+                        self.tmp_dir.name, child.catalog(), child.coordinates()
+                    ),
+                ),
+            ],
+            stage_resources.call_args_list,
+        )
+
+        # a child that fails is named
+        stage_resources.side_effect = [
+            None,
+            RuntimeError('Could not retrieve resource "r" from https://e.org/r: 404'),
+        ]
+        with self.assertRaises(RuntimeError) as e:
+            self.install_manager._stage_resources(
+                self.tmp_dir.name, "cat:g:n:0.1.0", solution, children
+            )
+        self.assertEqual(
+            '"cat:g:c:0.1.0", which runs in its environment: Could not retrieve '
+            'resource "r" from https://e.org/r: 404',
+            str(e.exception),
+        )
+
     @patch("album.core.controller.install_manager.check_file_or_url")
     def test__local_source_url(self, check_file_or_url):
         catalog = self.album_controller.catalogs().get_cache_catalog()

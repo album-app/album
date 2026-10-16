@@ -170,6 +170,7 @@ class InstallManager(IInstallManager):
                 self._check_parents_to_install_again(
                     name, to_install, children_to_install
                 )
+                self._stage_resources(tmp_dir, name, to_install, children_to_install)
             except Exception as e:
                 raise RuntimeError(
                     f'Cannot install "{name}" again, nothing was changed: {e}'
@@ -188,6 +189,21 @@ class InstallManager(IInstallManager):
                         self._staged(tmp_dir, download_catalog, download),
                         self.album.solutions().get_solution_package_path(
                             download_catalog, download
+                        ),
+                        copy_root_folder=False,
+                    )
+            # their resources with the scope "solution", into their new installations
+            for again_catalog, again in [(catalog, coordinates)] + children:
+                staged_installation = self._staged_installation(
+                    tmp_dir, again_catalog, again
+                )
+                if not staged_installation.is_dir():
+                    continue
+                with self.album.solutions().get_solution_lock(again_catalog, again):
+                    copy_folder(
+                        staged_installation,
+                        self.album.solutions().get_solution_installation_path(
+                            again_catalog, again
                         ),
                         copy_root_folder=False,
                     )
@@ -225,6 +241,15 @@ class InstallManager(IInstallManager):
     def _staged(tmp_dir: str, catalog: ICatalog, coordinates: ICoordinates) -> Path:
         """Return the folder a solution is downloaded or copied into before a reinstall."""
         return Path(tmp_dir).joinpath(f"{catalog.name()}-{as_tag(coordinates)}")
+
+    @staticmethod
+    def _staged_installation(
+        tmp_dir: str, catalog: ICatalog, coordinates: ICoordinates
+    ) -> Path:
+        """Return the folder the resources of a solution are retrieved into before a reinstall."""
+        return Path(tmp_dir).joinpath(
+            "installations", f"{catalog.name()}-{as_tag(coordinates)}"
+        )
 
     def _load_staged(
         self, tmp_dir: str, catalog: ICatalog, coordinates: ICoordinates
@@ -315,6 +340,34 @@ class InstallManager(IInstallManager):
                     f'{runs_in}its parent "{parent.coordinates()}" has API version '
                     f"{parent_solution.setup().album_api_version}, not {api_version}."
                 )
+
+    def _stage_resources(
+        self,
+        tmp_dir: str,
+        name: str,
+        solution: ICollectionSolution,
+        children: List[Tuple[str, ICollectionSolution]],
+    ) -> None:
+        """Retrieve the resources of a solution and of its children before a reinstall uninstalls them.
+
+        Installing them again fails if a resource cannot be retrieved, after the reinstall
+        has uninstalled them, so they are retrieved here first. Those with the scope
+        "solution" go with the installations, they are kept in tmp_dir until then.
+        """
+        for solution_name, to_install in [(name, solution)] + children:
+            try:
+                self.album.download_manager().stage_resources(
+                    to_install,
+                    self._staged_installation(
+                        tmp_dir, to_install.catalog(), to_install.coordinates()
+                    ),
+                )
+            except Exception as e:
+                if solution_name == name:
+                    raise
+                raise RuntimeError(
+                    f'"{solution_name}", which runs in its environment: {e}'
+                ) from e
 
     def _local_source(
         self,

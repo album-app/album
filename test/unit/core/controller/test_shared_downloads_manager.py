@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 import pooch
 
 from album.core.controller.shared_downloads_manager import DownloadManager
+from album.core.model.default_values import DefaultValues
 from album.core.model.replicability import ReplicabilityReason
 from album.core.utils.file_lock import FileLock
 from album.runner.core.model.solution import Solution
@@ -656,6 +657,68 @@ class TestDownloadManager(TestUnitCoreCommon):
         self.assertEqual(
             ["b"], list(json.loads(json_path.read_text(encoding="utf-8"))["resources"])
         )
+
+    # stage_resources
+
+    @patch("album.core.controller.shared_downloads_manager.pooch.retrieve")
+    def test_stage_resources(self, retrieve_mock):
+        resources = {
+            "own": {"name": "own.bin", "url": "https://e.org/own", "scope": "solution"},
+            "new": {"name": "new.bin", "url": "https://e.org/new", "scope": "solution"},
+            "shared": {"name": "shared.bin", "url": "https://e.org/s", "hash": SHA256},
+        }
+        # a copy of a deployed solution, before it is installed again: no package path
+        folder = Path(self.tmp_dir.name).joinpath("copy")
+        folder.mkdir()
+        folder.joinpath("solution.resources.yml").write_text(
+            json.dumps({"resources": resources}), encoding="utf-8"
+        )
+        collection_solution = self._collection_solution(
+            self._solution("/not/on/this/computer/resources.yml")
+        )
+        collection_solution.is_single_file.return_value = False
+        collection_solution.path.return_value = folder.joinpath("solution.py")
+        # its installation has "own"
+        installed = Path(self.tmp_dir.name).joinpath("installed")
+        self.album_controller.solutions().get_solution_installation_path = MagicMock(
+            return_value=installed
+        )
+
+        def in_folder(root, key, scope_path):
+            return root.joinpath(
+                scope_path,
+                DownloadManager._get_content_folder_name(
+                    dict({"hash": None}, **resources[key])
+                ),
+                resources[key]["name"],
+            )
+
+        resources_prefix = DefaultValues.solution_resources_prefix.value
+        own = in_folder(installed, "own", resources_prefix)
+        own.parent.mkdir(parents=True)
+        own.write_bytes(b"own")
+        staged = Path(self.tmp_dir.name).joinpath("staged")
+
+        self.download_manager.stage_resources(collection_solution, staged)
+
+        # copied from the installation, laid out as there
+        self.assertEqual(
+            b"own", in_folder(staged, "own", resources_prefix).read_bytes()
+        )
+        # all are retrieved: pooch checks a file that is there, and downloads the others
+        self.assertEqual(
+            {
+                in_folder(staged, "own", resources_prefix),
+                in_folder(staged, "new", resources_prefix),
+                in_folder(self.shared_path, "shared", "global"),
+            },
+            {
+                Path(c.kwargs["path"]).joinpath(c.kwargs["fname"])
+                for c in retrieve_mock.call_args_list
+            },
+        )
+        # where they are is said when the solution is installed
+        self.assertNotIn("is available at", self.get_logs_as_string())
 
     # check_resources
 

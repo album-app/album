@@ -3,6 +3,7 @@ import importlib.util
 import json
 import logging
 import pkgutil
+import shutil
 import sys
 import threading
 from contextlib import AbstractContextManager, contextmanager, nullcontext
@@ -48,25 +49,7 @@ class DownloadManager(IDownloadManager):
         self, collection_solution: ICollectionSolution
     ) -> Optional[Path]:
         solution = collection_solution.loaded_solution()
-        # a deployed solution is installed from the resource list album deploy wrote next
-        # to it, not from the resource file it names
-        package_path = solution.installation().package_path()
-        resource_snapshot = (
-            Path(package_path).joinpath(
-                DefaultValues.solution_resources_default_name.value
-            )
-            if package_path
-            else None
-        )
-        resources_dict = self._load_resources(
-            solution,
-            get_solution_folder(collection_solution),
-            (
-                resource_snapshot
-                if resource_snapshot is not None and resource_snapshot.is_file()
-                else None
-            ),
-        )
+        resources_dict = self._load_resources_to_install(collection_solution)
         if resources_dict is None:
             return None
 
@@ -80,6 +63,62 @@ class DownloadManager(IDownloadManager):
 
         # the json file is only written when every resource is available
         return self._write_resources_json(resources_dict, solution)
+
+    def stage_resources(
+        self, collection_solution: ICollectionSolution, installation_path: Path
+    ) -> None:
+        resources_dict = self._load_resources_to_install(collection_solution)
+        if resources_dict is None:
+            return
+
+        catalog = collection_solution.catalog()
+        self._set_paths_in_dict(
+            resources_dict,
+            installation_path,
+            catalog.name(),
+            self.album.configuration().shared_resources_path(),
+        )
+        installed = Path(
+            self.album.solutions().get_solution_installation_path(
+                catalog, collection_solution.coordinates()
+            )
+        )
+        for resource in resources_dict["resources"].values():
+            if resource["scope"] != SCOPE_SOLUTION or resource["path"] is None:
+                continue
+            path = Path(resource["path"])
+            in_installation = installed.joinpath(path.relative_to(installation_path))
+            if in_installation.is_file():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(in_installation, path)
+        # a copy with another content than its hash is downloaded again
+        self._retrieve_resources_from_dict(resources_dict, staged=True)
+
+    def _load_resources_to_install(
+        self, collection_solution: ICollectionSolution
+    ) -> Optional[Dict[str, Any]]:
+        """Load the resources a solution is installed with, see _load_resources.
+
+        A deployed solution is installed from the resource list album deploy wrote next to
+        it, not from the resource file it names.
+        """
+        solution = collection_solution.loaded_solution()
+        solution_folder = get_solution_folder(collection_solution)
+        folder = solution_folder or solution.installation().package_path()
+        resource_snapshot = (
+            Path(folder).joinpath(DefaultValues.solution_resources_default_name.value)
+            if folder
+            else None
+        )
+        return self._load_resources(
+            solution,
+            solution_folder,
+            (
+                resource_snapshot
+                if resource_snapshot is not None and resource_snapshot.is_file()
+                else None
+            ),
+        )
 
     def check_resources(
         self, solution: ISolution, solution_folder: Optional[Path] = None
@@ -262,11 +301,15 @@ class DownloadManager(IDownloadManager):
             content = resource["url"]
         return hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
 
-    def _retrieve_resources_from_dict(self, resources_dict: Dict[str, Any]) -> None:
+    def _retrieve_resources_from_dict(
+        self, resources_dict: Dict[str, Any], staged: bool = False
+    ) -> None:
         """Download every resource with a path. A resource already on the disk is not downloaded again.
 
         A shared resource is retrieved holding the lock of its content folder, so solutions
-        that are installed at the same time and share it download it once.
+        that are installed at the same time and share it download it once. Retrieved before
+        a reinstall (staged), where it is and whether it has a hash is said when the solution
+        is installed again.
 
         Raises:
             RuntimeError: if a resource cannot be downloaded or does not match its hash.
@@ -294,6 +337,8 @@ class DownloadManager(IDownloadManager):
                     % (key, resource["url"], e)
                 ) from e
 
+            if staged:
+                continue
             module_logger().info(f'Resource "{key}" is available at {path}.')
             if resource["hash"] is None:
                 module_logger().info(

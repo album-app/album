@@ -62,6 +62,23 @@ class IDownloadManager:
         raise NotImplementedError
 
     @abstractmethod
+    def stage_resources(
+        self, collection_solution: ICollectionSolution, installation_path: Path
+    ) -> None:
+        """
+        Retrieve the resources of an installed solution before it is installed again.
+
+        A shared resource is retrieved to where it is shared, so it is there when the solution
+        is installed again. A resource with the scope ``solution`` is removed with the
+        installation of the solution, so it is retrieved into installation_path, laid out as
+        in the installation: copied from the installation if it has it, downloaded otherwise.
+
+        Raises:
+            The errors of download_resources.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def check_resources(
         self, solution: ISolution, solution_folder: Optional[Path] = None
     ) -> List[ReplicabilityReason]:
