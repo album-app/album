@@ -1,17 +1,13 @@
 import unittest
 from pathlib import Path
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 from unittest.mock import MagicMock, patch
 
 from git import GitCommandError
 
 import album
-from album.core.utils.operations.git_operations import (
-    create_bare_repository,
-    clone_repository)
-from album.core.utils.operations.file_operations import create_path_recursively
 from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
-from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestCondaManager(TestUnitCoreCommon):
@@ -56,9 +52,7 @@ class TestCondaManager(TestUnitCoreCommon):
             )
 
         self.assertIn("unknown-template", str(context.exception))
-        self.assertIn(
-            DefaultValues.catalog_template_url.value, str(context.exception)
-        )
+        self.assertIn(DefaultValues.catalog_template_url.value, str(context.exception))
         is_downloadable_mock.assert_called_once()
         download_resource_mock.assert_not_called()
 
@@ -74,9 +68,7 @@ class TestCondaManager(TestUnitCoreCommon):
             )
 
         self.assertIn("broken-template", str(context.exception))
-        self.assertIn(
-            DefaultValues.catalog_template_url.value, str(context.exception)
-        )
+        self.assertIn(DefaultValues.catalog_template_url.value, str(context.exception))
         self.assertIs(context.exception.__cause__, cause)
 
     @patch("album.core.controller.clone_manager.copy_folder", return_value=False)
@@ -103,6 +95,41 @@ class TestCondaManager(TestUnitCoreCommon):
             Path("tmp_dir"), t, copy_root_folder=False
         )
 
+    def test__clone_solution_leaves_out_files_written_by_deploy(self):
+        # a solution as deployed to a catalog
+        deployed = Path(self.tmp_dir.name).joinpath("deployed")
+        deployed.mkdir()
+        for name in [
+            "solution.py",
+            "environment.yml",
+            "CHANGELOG.md",
+            "solution.yml",
+            "solution.environment.yml",
+            "solution.conda-lock.yml",
+            "solution.resources.yml",
+        ]:
+            deployed.joinpath(name).write_text(name)
+        resolve_result = ResolveResult(
+            path=deployed.joinpath("solution.py"),
+            catalog=None,
+            loaded_solution=self.active_solution,
+            collection_entry=None,
+            coordinates=self.active_solution.coordinates(),
+        )
+        self.album_controller.collection_manager().resolve = MagicMock(
+            return_value=resolve_result
+        )
+        target = Path(self.tmp_dir.name).joinpath("new-solution")
+
+        # call
+        self.clone_manager._clone_solution(deployed, target)
+
+        # assert: the new solution gets its own when it is deployed
+        self.assertCountEqual(
+            ["solution.py", "environment.yml", "CHANGELOG.md"],
+            [p.name for p in target.iterdir()],
+        )
+
     @unittest.skip("Needs to be implemented!")
     def test__try_cloning_catalog_template(self):
         # todo: implement
@@ -112,13 +139,17 @@ class TestCondaManager(TestUnitCoreCommon):
     def test_setup_repository_from_template_with_valid_url(self, git_clone_mock):
         # mocks
         _copy_template_into_repository = MagicMock()
-        self.clone_manager._copy_template_into_repository = _copy_template_into_repository
+        self.clone_manager._copy_template_into_repository = (
+            _copy_template_into_repository
+        )
 
         # prepare
         git_https_url = "https://gitlab.com/album-app/album.git"
 
         # call
-        self.clone_manager.setup_repository_from_template(git_https_url, self.tmp_dir.name, "test_catalog")
+        self.clone_manager.setup_repository_from_template(
+            git_https_url, self.tmp_dir.name, "test_catalog"
+        )
 
         # assert
         _copy_template_into_repository.assert_called_once()
@@ -127,14 +158,18 @@ class TestCondaManager(TestUnitCoreCommon):
     def test_setup_repository_from_template_with_valid_ssh(self, git_clone_mock):
         # mocks
         _copy_template_into_repository = MagicMock()
-        self.clone_manager._copy_template_into_repository = _copy_template_into_repository
+        self.clone_manager._copy_template_into_repository = (
+            _copy_template_into_repository
+        )
 
         # prepare
         git_https_url = "git@gitlab.com:album-app/album.git"
 
         # call
-        #with patch("album.core.utils.operations.git_operations.clone_repository") as git_clone_mock:
-        self.clone_manager.setup_repository_from_template(git_https_url, self.tmp_dir.name, "test_catalog")
+        # with patch("album.core.utils.operations.git_operations.clone_repository") as git_clone_mock:
+        self.clone_manager.setup_repository_from_template(
+            git_https_url, self.tmp_dir.name, "test_catalog"
+        )
 
         # assert
         _copy_template_into_repository.assert_called_once()
@@ -143,13 +178,17 @@ class TestCondaManager(TestUnitCoreCommon):
     def test_setup_repository_from_template_with_valid_ssh_2(self, git_clone_mock):
         # mocks
         _copy_template_into_repository = MagicMock()
-        self.clone_manager._copy_template_into_repository = _copy_template_into_repository
+        self.clone_manager._copy_template_into_repository = (
+            _copy_template_into_repository
+        )
 
         # prepare
         git_https_url = "ssh://git@gitlab.com:album-app/album.git"
 
         # call
-        self.clone_manager.setup_repository_from_template(git_https_url, self.tmp_dir.name, "test_catalog")
+        self.clone_manager.setup_repository_from_template(
+            git_https_url, self.tmp_dir.name, "test_catalog"
+        )
 
         # assert
         _copy_template_into_repository.assert_called_once()
@@ -160,26 +199,37 @@ class TestCondaManager(TestUnitCoreCommon):
 
         # call and assert
         with self.assertRaises(GitCommandError):
-            self.clone_manager.setup_repository_from_template(git_https_url, self.tmp_dir.name, "test_catalog")
+            self.clone_manager.setup_repository_from_template(
+                git_https_url, self.tmp_dir.name, "test_catalog"
+            )
 
     @patch("album.core.controller.clone_manager.clone_repository")
     def test_setup_repository_from_template_with_local_path(self, git_clone_mock):
         # mocks
         _copy_template_into_repository = MagicMock()
-        self.clone_manager._copy_template_into_repository = _copy_template_into_repository
+        self.clone_manager._copy_template_into_repository = (
+            _copy_template_into_repository
+        )
 
         create_bare_repository = MagicMock()
-        album.core.controller.clone_manager.create_bare_repository = create_bare_repository
+        album.core.controller.clone_manager.create_bare_repository = (
+            create_bare_repository
+        )
 
         create_path_recursively = MagicMock()
-        album.core.controller.clone_manager.create_path_recursively = create_path_recursively
+        album.core.controller.clone_manager.create_path_recursively = (
+            create_path_recursively
+        )
 
         # call
-        self.clone_manager.setup_repository_from_template(Path(self.tmp_dir.name), self.tmp_dir.name, Path(self.tmp_dir.name).joinpath("test"), "test_catalog")
+        self.clone_manager.setup_repository_from_template(
+            Path(self.tmp_dir.name),
+            self.tmp_dir.name,
+            Path(self.tmp_dir.name).joinpath("test"),
+            "test_catalog",
+        )
 
         # assert
         _copy_template_into_repository.assert_called_once()
         create_bare_repository.assert_called_once()
         create_path_recursively.assert_called_once()
-
-

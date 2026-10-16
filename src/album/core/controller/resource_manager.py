@@ -17,7 +17,10 @@ from album.core.utils.export.changelog import (
     get_changelog_file_name,
 )
 from album.core.utils.operations.file_operations import copy
-from album.core.utils.operations.solution_operations import get_deploy_dict
+from album.core.utils.operations.solution_operations import (
+    FILES_WRITTEN_BY_DEPLOY,
+    get_deploy_dict,
+)
 from album.environments.utils.file_operations import write_dict_to_yml
 from album.environments.utils.subcommand import SubProcessError
 from album.environments.utils.url_operations import download_resource
@@ -46,16 +49,6 @@ def _is_deployed(name: str) -> bool:
     are not part of the solution.
     """
     return not name.startswith(".") and name != "__pycache__"
-
-
-# The files album deploy writes next to the solution file. A copy of them in the folder of
-# the solution, e.g. of a solution cloned from a catalog, belongs to another deployment.
-_WRITTEN_BY_DEPLOY = [
-    DefaultValues.solution_yml_default_name.value,
-    DefaultValues.solution_environment_default_name.value,
-    DefaultValues.solution_conda_lock_default_name.value,
-    DefaultValues.solution_resources_default_name.value,
-]
 
 
 class ResourceManager(IResourceManager):
@@ -96,7 +89,7 @@ class ResourceManager(IResourceManager):
                 for file in filter(_is_deployed, files):
                     filepath = subdir + os.sep + file
                     rel_path = os.path.relpath(filepath, deploy_path)
-                    if rel_path in _WRITTEN_BY_DEPLOY:
+                    if rel_path in FILES_WRITTEN_BY_DEPLOY:
                         # written below for this deployment
                         continue
                     target = catalog_solution_local_src_path.joinpath(rel_path)

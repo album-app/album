@@ -10,11 +10,21 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from packaging.version import InvalidVersion, Version
 
 from album.core.api.model.collection_solution import ICollectionSolution
+from album.core.model.default_values import DefaultValues
 from album.environments.api.model.environment import IEnvironment
 from album.runner import album_logging
 from album.runner.core.api.model.solution import ISolution
 
 module_logger = album_logging.get_active_logger
+
+# The files album deploy writes next to the solution file. A copy of them in the folder of a
+# solution, e.g. of one cloned from a catalog, belongs to another deployment.
+FILES_WRITTEN_BY_DEPLOY = [
+    DefaultValues.solution_yml_default_name.value,
+    DefaultValues.solution_environment_default_name.value,
+    DefaultValues.solution_conda_lock_default_name.value,
+    DefaultValues.solution_resources_default_name.value,
+]
 
 
 def get_solution_folder(collection_solution: ICollectionSolution) -> Optional[Path]:
