@@ -784,6 +784,7 @@ class InstallManager(IInstallManager):
                     collection_solution.coordinates(),
                     locks,
                     allow_recursive=allow_recursive,
+                    catalog=collection_solution.catalog(),
                 )
             except Exception as e:
                 module_logger().error("Exception when installing parent:")
@@ -845,6 +846,38 @@ class InstallManager(IInstallManager):
         self._run_solution_install_routine(collection_solution)
         return parent_resolve_result
 
+    def _resolve_parent(
+        self,
+        parent_dict: Dict[str, Any],
+        child_coordinates: ICoordinates,
+        catalog: Optional[ICatalog],
+    ) -> ICollectionSolution:
+        """Resolve the parent of a solution of catalog.
+
+        A parent given by group, name and version is looked up in the catalog of the
+        solution first. Found in any catalog, which one it is depends on the catalogs of
+        the installing album.
+        """
+        if (
+            catalog is not None
+            and not catalog.is_cache()
+            and "doi" not in parent_dict
+            and all(key in parent_dict for key in ["group", "name", "version"])
+        ):
+            try:
+                return self.album.collection_manager().resolve_and_load_catalog_coordinates(
+                    catalog, dict_to_coordinates(parent_dict)
+                )
+            except LookupError:
+                module_logger().warning(
+                    f'Not technically replicable, "{child_coordinates}": its parent '
+                    f'"{dict_to_coordinates(parent_dict)}" is not in its catalog '
+                    f'"{catalog.name()}", album takes the one it finds first.'
+                )
+        return self.album.collection_manager().resolve_and_load(
+            build_resolve_string(parent_dict)
+        )
+
     def _install_parent(
         self,
         parent_dict: Dict[str, Any],
@@ -852,10 +885,10 @@ class InstallManager(IInstallManager):
         child_coordinates: ICoordinates,
         locks: ExitStack,
         allow_recursive: bool = False,
+        catalog: Optional[ICatalog] = None,
     ) -> ICollectionSolution:
-        resolve_solution = build_resolve_string(parent_dict)
-        resolve_result_parent = self.album.collection_manager().resolve_and_load(
-            resolve_solution
+        resolve_result_parent = self._resolve_parent(
+            parent_dict, child_coordinates, catalog
         )
 
         # check whether child_coordinates are resolved_parent coordinates
@@ -1073,8 +1106,17 @@ class InstallManager(IInstallManager):
     ) -> None:
         parent = get_parent_dict(solution)
         if parent:
-            # recursive call to remove the parent
-            resolve_solution = build_resolve_string(parent)
+            # recursive call to remove the parent: the one it was installed into, from the
+            # catalog the collection records for it (see _resolve_parent)
+            catalog = None
+            if parent_entry and all(
+                parent.get(key) == parent_entry.setup()[key]
+                for key in ["group", "name", "version"]
+            ):
+                catalog = self.album.catalogs().get_by_id(
+                    parent_entry.internal()["catalog_id"]
+                )
+            resolve_solution = build_resolve_string(parent, catalog)
             self._uninstall_parent(resolve_solution, rm_dep)
         elif parent_entry and not solution.setup().dependencies:
             # solution built from its collection entry (its file could not be loaded)

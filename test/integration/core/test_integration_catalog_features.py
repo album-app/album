@@ -1163,6 +1163,34 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         )
         self.assertNotIn("it has no lock file", logs)
 
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.install_environment"
+    )
+    @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
+    def test_install_parent_from_another_catalog(self, _, __):
+        catalogs = self.album_controller.collection_manager().catalogs()
+        parents_src, _ = self.setup_empty_catalog("parents")
+        parents = catalogs.add_by_src(parents_src)
+        children_src, _ = self.setup_empty_catalog("children")
+        children = catalogs.add_by_src(children_src)
+        self._deploy(parents, "app1.py")
+        self._deploy(children, "solution1_app1.py")
+        self._update_and_upgrade(parents)
+        self._update_and_upgrade(children)
+
+        self.album_controller.install_manager().install(
+            "children:group:solution1_app1:0.1.0"
+        )
+
+        # not in the catalog of the solution: taken from the other one, with a warning
+        self.assertTrue(self._get_entry(parents, "app1").internal()["installed"])
+        self.assertIn(
+            'Not technically replicable, "group:solution1_app1:0.1.0": its parent '
+            '"group:app1:0.1.0" is not in its catalog "children", album takes the one '
+            "it finds first.",
+            self.get_logs_as_string(),
+        )
+
     @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
     @patch(
         "album.environments.environment_api.EnvironmentAPI.create_environment_prefer_lock_file"

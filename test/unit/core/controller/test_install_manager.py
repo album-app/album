@@ -726,6 +726,7 @@ class TestInstallManager(TestUnitCoreCommon):
             Coordinates("tsg", "tsn", "tsv"),
             locks,
             allow_recursive=False,
+            catalog=r.catalog(),
         )
         run_solution_install_routine.assert_called_once_with(r)
         install_environment.assert_not_called()
@@ -744,6 +745,7 @@ class TestInstallManager(TestUnitCoreCommon):
             Coordinates("tsg", "tsn", "tsv"),
             locks,
             allow_recursive=True,
+            catalog=r.catalog(),
         )
 
     @unittest.skip("Needs to be implemented!")
@@ -882,6 +884,57 @@ class TestInstallManager(TestUnitCoreCommon):
 
         # assert
         self.install_holding_lock.assert_not_called()
+
+    def test__resolve_parent(self):
+        collection_manager = self.album_controller.collection_manager()
+        collection_manager.resolve_and_load_catalog_coordinates = MagicMock(
+            return_value="from its catalog"
+        )
+        collection_manager.resolve_and_load = MagicMock(return_value="found first")
+        catalog = MagicMock()
+        catalog.is_cache.return_value = False
+        catalog.name.return_value = "cat"
+        parent = {"group": "gp", "name": "np", "version": "vp"}
+        child = Coordinates("g", "n", "v")
+
+        # in the catalog of the solution
+        self.assertEqual(
+            "from its catalog",
+            self.install_manager._resolve_parent(parent, child, catalog),
+        )
+        collection_manager.resolve_and_load_catalog_coordinates.assert_called_once_with(
+            catalog, Coordinates("gp", "np", "vp")
+        )
+        collection_manager.resolve_and_load.assert_not_called()
+
+        # not in it: the one album finds first
+        collection_manager.resolve_and_load_catalog_coordinates.side_effect = (
+            LookupError()
+        )
+        self.assertEqual(
+            "found first", self.install_manager._resolve_parent(parent, child, catalog)
+        )
+        collection_manager.resolve_and_load.assert_called_once_with("gp:np:vp")
+        self.assertIn(
+            'Not technically replicable, "g:n:v": its parent "gp:np:vp" is not in its '
+            'catalog "cat", album takes the one it finds first.',
+            self.get_logs_as_string(),
+        )
+
+        # a solution installed from a file, a parent given by its DOI: as before
+        cache_catalog = MagicMock()
+        cache_catalog.is_cache.return_value = True
+        for parent_dict, solution_catalog, resolved in [
+            (parent, cache_catalog, "gp:np:vp"),
+            ({"doi": "10.5281/zenodo.123"}, catalog, "10.5281/zenodo.123"),
+            (parent, None, "gp:np:vp"),
+        ]:
+            with self.subTest(parent=parent_dict, catalog=solution_catalog):
+                collection_manager.resolve_and_load.reset_mock()
+                self.install_manager._resolve_parent(
+                    parent_dict, child, solution_catalog
+                )
+                collection_manager.resolve_and_load.assert_called_once_with(resolved)
 
     @unittest.skip("Needs to be implemented!")
     def test_uninstall(self):
@@ -1709,6 +1762,32 @@ class TestInstallManagerCollectionParent(TestUnitCoreCommon):
         # assert
         uninstall_parent.assert_called_once_with("gp:np:vp", True)
         get_by_id.assert_not_called()
+
+    def test_remove_dependencies_parent_from_its_catalog(self):
+        # the parent the solution was installed into, as the collection records it
+        solution = Solution(
+            {
+                "group": "g1",
+                "name": "n1",
+                "version": "v1",
+                "dependencies": {
+                    "parent": {"group": "gp", "name": "np", "version": "vp"}
+                },
+            }
+        )
+        parent_catalog = MagicMock()
+        parent_catalog.name.return_value = "parent-catalog"
+        get_by_id = MagicMock(return_value=parent_catalog)
+        self.album_controller.collection_manager().catalogs().get_by_id = get_by_id
+        uninstall_parent = MagicMock()
+        self.install_manager._uninstall_parent = uninstall_parent
+
+        # call
+        self.install_manager._remove_dependencies(solution, True, self.parent_entry)
+
+        # assert
+        get_by_id.assert_called_once_with(1)
+        uninstall_parent.assert_called_once_with("parent-catalog:gp:np:vp", True)
 
     def test_remove_dependencies_no_parent_declared_in_solution(self):
         # solution loaded from its file without parent: nothing to remove, as before
