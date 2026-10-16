@@ -614,20 +614,21 @@ class TestDownloadManager(TestUnitCoreCommon):
         )
 
     @patch("album.core.controller.shared_downloads_manager.pooch.retrieve")
-    def test_download_resources_resource_file_from_package_path(self, _):
-        package_path = Path(self.tmp_dir.name).joinpath("package")
-        package_path.mkdir()
-        package_path.joinpath("resources.yml").write_text(
+    def test_download_resources_resource_file_from_solution_folder(self, _):
+        folder = Path(self.tmp_dir.name).joinpath("solution")
+        folder.mkdir()
+        folder.joinpath("resources.yml").write_text(
             "resources:\n  a:\n    name: a.txt\n    url: https://e.org/a\n    hash: %s\n"
             % SHA256,
             encoding="utf-8",
         )
         solution = self._solution("resources.yml")
-        solution.installation().set_package_path(package_path)
+        # installed from the folder, wherever album runs
+        collection_solution = self._collection_solution(solution)
+        collection_solution.is_single_file.return_value = False
+        collection_solution.path.return_value = folder.joinpath("solution.py")
 
-        json_path = self.download_manager.download_resources(
-            self._collection_solution(solution)
-        )
+        json_path = self.download_manager.download_resources(collection_solution)
 
         self.assertEqual(
             ["a"], list(json.loads(json_path.read_text(encoding="utf-8"))["resources"])
@@ -693,18 +694,31 @@ class TestDownloadManager(TestUnitCoreCommon):
         solution_folder = Path(self.tmp_dir.name).joinpath("solution")
         solution_folder.mkdir()
 
+        # an existing file is taken wherever it is
         for resource_file, folder in [
             (str(resource_path), solution_folder),
             ("../resources.yml", solution_folder),
-            # a solution deployed as a single file has no folder for it
-            ("resources.yml", None),
+            (str(resource_path), None),
         ]:
-            with self.subTest(resource_file=resource_file):
+            with self.subTest(resource_file=resource_file, folder=folder):
+                self.download_manager.check_resources(
+                    self._solution(resource_file), folder
+                )
+
+        for resource_file, folder, message in [
+            ("missing.yml", solution_folder, "does not exist"),
+            # a solution given as a single file has no folder for relative paths
+            ("resources.yml", None, "is a path"),
+        ]:
+            with self.subTest(resource_file=resource_file, folder=folder):
                 with self.assertRaises(TypeError) as e:
                     self.download_manager.check_resources(
                         self._solution(resource_file), folder
                     )
-                self.assertIn('resource_file "%s" is' % resource_file, str(e.exception))
+                self.assertIn(
+                    f'resource_file "{resource_file}" {message}',
+                    str(e.exception),
+                )
 
     def test_check_resources_invalid(self):
         with self.assertRaises(ValueError):

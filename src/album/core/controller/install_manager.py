@@ -22,6 +22,7 @@ from album.core.utils.operations.resolve_operations import (
 from album.core.utils.operations.solution_operations import (
     get_deploy_dict,
     get_parent_dict,
+    get_solution_folder,
     version_sort_key,
 )
 from album.core.utils.operations.url_operations import is_url
@@ -694,18 +695,9 @@ class InstallManager(IInstallManager):
             )
 
     def _check_files(self, resolve_result: ICollectionSolution) -> None:
-        """Check that the environment and the resource file are in the solution folder.
-
-        They are installed with the folder of the solution; one installed from a single
-        file has none.
-        """
-        self.album.resource_manager().check_files_in_solution_folder(
-            resolve_result.loaded_solution(),
-            (
-                None
-                if resolve_result.is_single_file()
-                else Path(resolve_result.path()).parent
-            ),
+        """Check that the environment and the resource file the solution names by path exist."""
+        self.album.resource_manager().check_file_dependencies(
+            resolve_result.loaded_solution(), get_solution_folder(resolve_result)
         )
 
     def _register(self, resolve_result: ICollectionSolution):

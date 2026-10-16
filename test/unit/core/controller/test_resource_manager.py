@@ -309,17 +309,21 @@ dependencies:
             DefaultValues.runner_api_package_name.value, lock_file.read_text()
         )
 
-    def test_check_files_in_solution_folder(self):
+    def test_check_file_dependencies(self):
         folder = Path(self.tmp_dir.name).joinpath("solution")
         folder.mkdir()
         folder.joinpath("environment.yml").write_text("dependencies:\n  - python\n")
         folder.joinpath("resources.yml").write_text("resources:\n  a: {}\n")
+        outside = Path(self.tmp_dir.name).joinpath("shared.yml")
+        outside.write_text("dependencies:\n  - python\n")
 
-        # files in the folder, content, urls and other forms pass
+        # existing files, wherever they are, content, urls and other forms pass
         for dependencies in [
             None,
             {},
             {"environment_file": "environment.yml", "resource_file": "resources.yml"},
+            {"environment_file": "../shared.yml"},
+            {"environment_file": str(outside)},
             {"environment_file": "dependencies:\n  - python\n"},
             {"environment_file": "https://example.org/environment.yml"},
             {"environment_file": {"dependencies": ["python"]}},
@@ -327,56 +331,74 @@ dependencies:
         ]:
             with self.subTest(dependencies=dependencies):
                 self.active_solution.setup().dependencies = dependencies
-                self.resource_manager.check_files_in_solution_folder(
+                self.resource_manager.check_file_dependencies(
                     self.active_solution, folder
                 )
 
-        # a solution that is a single file can only have content and urls
-        self.active_solution.setup().dependencies = {
-            "environment_file": "https://example.org/environment.yml"
-        }
-        self.resource_manager.check_files_in_solution_folder(self.active_solution, None)
+        # a solution given as a single file has no folder for relative paths
+        self.active_solution.setup().dependencies = {"environment_file": str(outside)}
+        self.resource_manager.check_file_dependencies(self.active_solution, None)
 
         for dependency, file, folder_, message in [
-            ("environment_file", "../environment.yml", folder, "outside"),
-            ("resource_file", str(folder.joinpath("resources.yml")), folder, "outside"),
             (
                 "resource_file",
                 "resources.yml",
                 None,
-                "a path, so the solution has to be installed and deployed as a folder",
+                "is a path, so the solution has to be installed and deployed as a folder",
             ),
-            ("environment_file", "missing.yml", folder, "not in the solution folder"),
+            ("environment_file", "missing.yml", folder, "does not exist"),
         ]:
             with self.subTest(dependency=dependency, file=file):
                 self.active_solution.setup().dependencies = {dependency: file}
                 with self.assertRaises(TypeError) as e:
-                    self.resource_manager.check_files_in_solution_folder(
+                    self.resource_manager.check_file_dependencies(
                         self.active_solution, folder_
                     )
-                self.assertIn(f'{dependency} "{file}" is {message}', str(e.exception))
+                self.assertIn(f'{dependency} "{file}" {message}', str(e.exception))
 
-    def test__get_file_in_solution_folder(self):
+        # only the ones asked for are checked
+        self.active_solution.setup().dependencies = {"environment_file": "missing.yml"}
+        self.resource_manager.check_file_dependencies(
+            self.active_solution, folder, ["resource_file"]
+        )
+
+    def test__get_file(self):
         folder = Path(self.tmp_dir.name).joinpath("solution")
         folder.joinpath("envs").mkdir(parents=True)
-        folder.joinpath("environment.yml").write_text("dependencies: []\n")
-        folder.joinpath("envs", "environment.yaml").write_text("dependencies: []\n")
+        folder.joinpath(".conda").mkdir()
+        for name in ["environment.yml", "envs/environment.yaml", ".conda/env.yml"]:
+            folder.joinpath(name).write_text("dependencies: []\n")
+        outside = Path(self.tmp_dir.name).joinpath("shared.yml")
+        outside.write_text("dependencies: []\n")
 
-        for file, expected in [
-            ("environment.yml", folder.joinpath("environment.yml")),
-            ("./environment.yml", folder.joinpath("environment.yml")),
-            ("envs/environment.yaml", folder.joinpath("envs", "environment.yaml")),
-            ("envs/../environment.yml", folder.joinpath("environment.yml")),
+        for file, solution_folder, expected in [
+            ("environment.yml", folder, folder.joinpath("environment.yml")),
+            ("./environment.yml", folder, folder.joinpath("environment.yml")),
+            (
+                "envs/environment.yaml",
+                folder,
+                folder.joinpath("envs", "environment.yaml"),
+            ),
+            (
+                "envs/../environment.yml",
+                folder,
+                folder.joinpath("envs/../environment.yml"),
+            ),
+            (".conda/env.yml", folder, folder.joinpath(".conda", "env.yml")),
+            # outside the folder of the solution
+            ("../shared.yml", folder, folder.joinpath("../shared.yml")),
+            (str(outside), folder, outside),
+            (str(outside), None, outside),
         ]:
             with self.subTest(file=file):
                 self.assertEqual(
                     expected,
-                    ResourceManager._get_file_in_solution_folder(
-                        file, folder, "environment_file"
+                    ResourceManager._get_file(
+                        file, solution_folder, "environment_file"
                     ),
                 )
 
-    def test__get_file_in_solution_folder_not_from_working_directory(self):
+    def test__get_file_not_from_working_directory(self):
         folder = Path(self.tmp_dir.name).joinpath("solution")
         folder.mkdir()
         working_directory = Path(self.tmp_dir.name).joinpath("working_directory")
@@ -387,56 +409,39 @@ dependencies:
         os.chdir(working_directory)
         try:
             with self.assertRaises(TypeError) as e:
-                ResourceManager._get_file_in_solution_folder(
-                    "environment.yml", folder, "environment_file"
-                )
-            self.assertIn("is not in the solution folder", str(e.exception))
+                ResourceManager._get_file("environment.yml", folder, "environment_file")
+            self.assertIn("does not exist", str(e.exception))
 
             # the one in the folder of the solution is taken, wherever album runs
             folder.joinpath("environment.yml").write_text("dependencies: []\n")
             self.assertEqual(
                 folder.joinpath("environment.yml"),
-                ResourceManager._get_file_in_solution_folder(
+                ResourceManager._get_file(
                     "environment.yml", folder, "environment_file"
                 ),
             )
         finally:
             os.chdir(cwd)
 
-    def test__get_file_in_solution_folder_invalid(self):
+    def test__get_file_invalid(self):
         folder = Path(self.tmp_dir.name).joinpath("solution")
-        for name in [
-            ".environment.yml",
-            ".conda/environment.yml",
-            "__pycache__/environment.yml",
-            "environment.txt",
-        ]:
-            folder.joinpath(name).parent.mkdir(parents=True, exist_ok=True)
-            folder.joinpath(name).write_text("dependencies: []\n")
+        folder.joinpath("envs").mkdir(parents=True)
+        folder.joinpath("environment.txt").write_text("dependencies: []\n")
         folder.joinpath("empty.yml").touch()
-        folder.joinpath("envs").mkdir()
-        outside = Path(self.tmp_dir.name).joinpath("environment.yml")
-        outside.write_text("dependencies: []\n")
-        where = (
-            "Put the file in the solution folder and give its path relative to that "
-            'folder, e.g. "environment.yml".'
-        )
-
-        outside_message = "is outside the solution folder. " + where
-        hidden_message = (
-            "is hidden, and album does not deploy hidden files and folders. " + where
-        )
-        missing_message = "is not in the solution folder. " + where
+        missing = Path(self.tmp_dir.name).joinpath("missing.yml")
 
         for file, solution_folder, message in [
-            (str(outside), folder, outside_message),
-            ("../environment.yml", folder, outside_message),
-            ("envs/../../environment.yml", folder, outside_message),
-            (".environment.yml", folder, hidden_message),
-            (".conda/environment.yml", folder, hidden_message),
-            ("__pycache__/environment.yml", folder, hidden_message),
-            ("missing.yml", folder, missing_message),
-            ("envs", folder, missing_message),
+            (
+                "missing.yml",
+                folder,
+                f"does not exist: there is no file {folder.joinpath('missing.yml')}.",
+            ),
+            (
+                "envs",
+                folder,
+                f"does not exist: there is no file {folder.joinpath('envs')}.",
+            ),
+            (str(missing), folder, "does not exist."),
             # a solution given as solution.py alone
             (
                 "environment.yml",
@@ -450,9 +455,7 @@ dependencies:
         ]:
             with self.subTest(file=file):
                 with self.assertRaises(TypeError) as e:
-                    ResourceManager._get_file_in_solution_folder(
-                        file, solution_folder, "environment_file"
-                    )
+                    ResourceManager._get_file(file, solution_folder, "environment_file")
                 self.assertEqual(
                     f'environment_file "{file}" {message}', str(e.exception)
                 )

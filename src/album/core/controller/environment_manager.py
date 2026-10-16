@@ -27,7 +27,10 @@ from album.core.utils.operations.resolve_operations import (
     dict_to_coordinates,
     get_parent,
 )
-from album.core.utils.operations.solution_operations import set_environment_paths
+from album.core.utils.operations.solution_operations import (
+    get_solution_folder,
+    set_environment_paths,
+)
 from album.environments.api.environment_api import IEnvironmentAPI
 from album.environments.api.model.environment import IEnvironment
 from album.environments.initialization import init_environment_handler
@@ -88,6 +91,7 @@ class EnvironmentManager(IEnvironmentManager):
             album_api_version,
             solution_package_path,
             allow_recursive,
+            solution_folder=get_solution_folder(collection_solution),
         )
         set_environment_paths(collection_solution.loaded_solution(), environment)
         return environment
@@ -100,14 +104,20 @@ class EnvironmentManager(IEnvironmentManager):
         album_api_version: str,
         solution_package_path: Path,
         allow_recursive: bool = False,
+        solution_folder: Optional[Path] = None,
     ) -> IEnvironment:
+        """Create the environment of a solution.
+
+        A relative path of its environment file starts at solution_folder, the folder it is
+        installed from; None for a solution installed from a single file.
+        """
         env_file = self._prepare_env_file(
             dependencies,
             cache,
             env_name,
             album_api_version,
             allow_recursive,
-            solution_folder=solution_package_path,
+            solution_folder=solution_folder,
         )
         env_path = self.get_environment_path(env_name, create=True)
         environment = Environment(env_file, env_name, env_path)

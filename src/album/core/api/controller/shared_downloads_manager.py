@@ -14,7 +14,8 @@ class IDownloadManager:
 
     A solution declares its resources in the ``resource_file`` entry of its dependencies. It takes
     the same forms as the ``environment_file``: the content as a string, a url, the path of a .yml
-    file in the folder of the solution, relative to it, a ``StringIO`` or a dictionary. Example:
+    file (a relative path starts at the folder of the solution), a ``StringIO`` or a dictionary,
+    for example:
 
         resources:
             model:
@@ -67,7 +68,7 @@ class IDownloadManager:
         Check the resource file of a solution before it is deployed.
 
         Raises the same errors as the installation would for an invalid resource file, and warns
-        about resources that are shared without a hash. A resource file given as a path is taken
-        from solution_folder, the folder of the solution.
+        about resources that are shared without a hash. A relative path of the resource file
+        starts at solution_folder, the folder of the solution.
         """
         raise NotImplementedError

@@ -113,12 +113,19 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
             "dependencies: []\n"
         )
 
+        self._deploy_with_environment_file(solution_folder, "../environment.yml")
+
+        self.deploy_manager._deploy.assert_called_once()
+
+    def test_deploy_environment_file_missing(self):
+        solution_folder = Path(self.tmp_dir.name).joinpath("solution")
+        solution_folder.mkdir()
+
         with self.assertRaises(TypeError) as e:
-            self._deploy_with_environment_file(solution_folder, "../environment.yml")
+            self._deploy_with_environment_file(solution_folder, "environment.yml")
 
         self.assertIn(
-            'environment_file "../environment.yml" is outside the solution folder',
-            str(e.exception),
+            'environment_file "environment.yml" does not exist', str(e.exception)
         )
         # aborted before the catalog is touched
         self.album_controller.catalogs().get_by_name.assert_not_called()

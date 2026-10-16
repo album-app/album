@@ -1097,7 +1097,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         legacy = Coordinates("group", "legacy", "0.1.0")
         name = f"{cache_catalog.name()}:group:legacy:0.1.0"
 
-        # installed before its environment file had to be in the solution folder
+        # its environment file, outside the folder of the solution, is gone meanwhile
         outside = Path(self.tmp_dir.name).joinpath("environment.yml")
         installed_copy = self.album_controller.solutions().get_solution_file(
             cache_catalog, legacy
@@ -1114,9 +1114,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
 
         self.assertEqual(
             f'Cannot install "{name}" again, nothing was changed: environment_file '
-            f'"{outside}" is outside the solution folder. Put the file in the solution '
-            'folder and give its path relative to that folder, e.g. "environment.yml". '
-            f'Uninstall "{name}" and install it by hand.',
+            f'"{outside}" does not exist. Uninstall "{name}" and install it by hand.',
             str(e.exception),
         )
         remove_environment.assert_not_called()

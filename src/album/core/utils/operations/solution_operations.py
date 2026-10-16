@@ -4,15 +4,31 @@ import copy
 import hashlib
 import json
 from datetime import date, time
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from packaging.version import InvalidVersion, Version
 
+from album.core.api.model.collection_solution import ICollectionSolution
 from album.environments.api.model.environment import IEnvironment
 from album.runner import album_logging
 from album.runner.core.api.model.solution import ISolution
 
 module_logger = album_logging.get_active_logger
+
+
+def get_solution_folder(collection_solution: ICollectionSolution) -> Optional[Path]:
+    """Return the folder a solution is installed from, where its relative paths start.
+
+    Once that folder is gone, as a download album removed after copying it, album's copy of
+    it. None for a solution installed from a single file, which has no folder.
+    """
+    if collection_solution.is_single_file():
+        return None
+    path = collection_solution.path()
+    if path is not None and Path(path).parent.is_dir():
+        return Path(path).parent
+    return collection_solution.loaded_solution().installation().package_path()
 
 
 def set_environment_paths(solution: ISolution, environment: IEnvironment) -> None:

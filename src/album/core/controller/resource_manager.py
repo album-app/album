@@ -4,7 +4,7 @@ from copy import deepcopy
 from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import validators
 import yaml
@@ -33,11 +33,10 @@ module_logger = album_logging.get_active_logger
 # Other packages starting with the same letters, like "setuptools-scm", do not match.
 _SETUPTOOLS_SPEC = re.compile(r"^(?:\S+::)?setuptools(?:$|[\s=<>!~\[])")
 
-# The files a solution can name in its dependencies, with the text that marks their content
-# and the file name the messages suggest.
+# The files a solution can name in its dependencies, with the text that marks their content.
 _FILE_DEPENDENCIES = {
-    "environment_file": ("dependencies:", "environment.yml"),
-    "resource_file": ("resources:", "resources.yml"),
+    "environment_file": "dependencies:",
+    "resource_file": "resources:",
 }
 
 
@@ -162,16 +161,17 @@ class ResourceManager(IResourceManager):
                     raise e
         return res
 
-    def check_files_in_solution_folder(
-        self, solution: ISolution, solution_folder: Optional[Path]
+    def check_file_dependencies(
+        self,
+        solution: ISolution,
+        solution_folder: Optional[Path],
+        dependencies: Optional[List[str]] = None,
     ) -> None:
-        dependencies = solution.setup().dependencies or {}
-        for dependency in _FILE_DEPENDENCIES:
-            file_dependency = dependencies.get(dependency)
+        setup_dependencies = solution.setup().dependencies or {}
+        for dependency in dependencies or list(_FILE_DEPENDENCIES):
+            file_dependency = setup_dependencies.get(dependency)
             if isinstance(file_dependency, str) and self._is_path(file_dependency):
-                self._get_file_in_solution_folder(
-                    file_dependency, solution_folder, dependency
-                )
+                self._get_file(file_dependency, solution_folder, dependency)
 
     def handle_env_file_dependency(
         self,
@@ -205,7 +205,7 @@ class ResourceManager(IResourceManager):
                 file_dependency,
                 yml_path,
                 dependency,
-                _FILE_DEPENDENCIES[dependency][0],
+                _FILE_DEPENDENCIES[dependency],
                 solution_folder,
             )
         elif isinstance(file_dependency, StringIO):
@@ -231,12 +231,10 @@ class ResourceManager(IResourceManager):
         elif content_marker in env_file and "\n" in env_file:
             with open(str(yml_path), "w+", encoding="utf-8") as yml_file:
                 yml_file.writelines(env_file)
-        # 3. a file in the folder of the solution
+        # 3. a file, a relative path starts at the folder of the solution
         elif ResourceManager._is_path(env_file):
             copy(
-                ResourceManager._get_file_in_solution_folder(
-                    env_file, solution_folder, dependency
-                ),
+                ResourceManager._get_file(env_file, solution_folder, dependency),
                 yml_path,
             )
         else:
@@ -250,50 +248,41 @@ class ResourceManager(IResourceManager):
         return "\n" not in file_dependency and not validators.url(file_dependency)
 
     @staticmethod
-    def _get_file_in_solution_folder(
-        file: str, solution_folder: Optional[Path], dependency: str
-    ) -> Path:
-        """Find a file the solution names by its path in the folder of the solution.
+    def _get_file(file: str, solution_folder: Optional[Path], dependency: str) -> Path:
+        """Find a file the solution names by its path.
 
-        The folder of the solution is what album installs and deploys, so the file has to be
-        inside it and must not be hidden. A solution given as a single file, solution_folder
-        None, has no folder: naming a file makes it a solution that is installed and deployed
-        as a folder.
+        A relative path starts at solution_folder, the folder of the solution. A solution
+        given as a single file, solution_folder None, has no folder: naming a file by a
+        relative path makes it a solution that is installed and deployed as a folder.
         """
-        relative = Path(os.path.normpath(file))
-        example = _FILE_DEPENDENCIES[dependency][1]
-        where = (
-            "Put the file in the solution folder and give its path relative to that "
-            'folder, e.g. "%s".' % example
-        )
-        if relative.anchor or relative.parts[:1] == ("..",):
-            problem = "is outside the solution folder. %s" % where
-        elif not all(_is_deployed(part) for part in relative.parts):
+        path = Path(file)
+        if not path.is_absolute():
+            if solution_folder is None:
+                raise TypeError(
+                    f'{dependency} "{file}" is a path, so the solution has to be installed '
+                    "and deployed as a folder: give the folder that holds solution.py and "
+                    f'"{file}", not solution.py alone.'
+                )
+            path = solution_folder.joinpath(path)
+        if not path.is_file():
             problem = (
-                "is hidden, and album does not deploy hidden files and folders. %s"
-                % where
+                "does not exist."
+                if path == Path(file)
+                else f"does not exist: there is no file {path}."
             )
-        elif solution_folder is None:
-            problem = (
-                "is a path, so the solution has to be installed and deployed as a "
-                'folder: give the folder that holds solution.py and "%s", not '
-                "solution.py alone." % file
-            )
-        elif not solution_folder.joinpath(relative).is_file():
-            problem = "is not in the solution folder. %s" % where
         elif not file.endswith((".yml", ".yaml")):
             problem = "is not a .yml or .yaml file."
-        elif solution_folder.joinpath(relative).stat().st_size == 0:
+        elif path.stat().st_size == 0:
             problem = "is empty."
         else:
-            return solution_folder.joinpath(relative)
+            return path
         raise TypeError(f'{dependency} "{file}" {problem}')
 
     @staticmethod
     def _invalid_file_dependency_message(dependency: str) -> str:
         return (
             "%s must either contain the content of the %s, "
-            "contain the url to a valid file or the path of a .yml file in the solution folder!"
+            "contain the url to a valid file or the path of a .yml file!"
             % (dependency, dependency.replace("_", " "))
         )
 

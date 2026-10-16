@@ -3,7 +3,7 @@
 from abc import ABCMeta, abstractmethod
 from io import StringIO
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from album.core.api.model.catalog import ICatalog
 from album.runner.core.api.model.solution import ISolution
@@ -35,25 +35,31 @@ class IResourceManager:
     ):
         """Write the environment file for the solution to solution_home.
 
-        An environment file given as a path is taken from solution_folder, the folder of the solution.
+        A relative path of an environment file starts at solution_folder, the folder of the
+        solution.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def check_files_in_solution_folder(
-        self, solution: ISolution, solution_folder: Optional[Path]
+    def check_file_dependencies(
+        self,
+        solution: ISolution,
+        solution_folder: Optional[Path],
+        dependencies: Optional[List[str]] = None,
     ) -> None:
-        """Check that the environment and the resource file of a solution are in its folder.
-
-        Only files given as a path are checked: they are installed and deployed with the folder
-        of the solution, so they have to be inside it and must not be hidden.
+        """Check that the environment and the resource file a solution names by its path exist.
 
         Args:
-            solution: The solution.
-            solution_folder: The folder of the solution, None for a solution that is a single file.
+            solution:
+                The solution.
+            solution_folder:
+                The folder of the solution, where relative paths start. None for a solution
+                given as a single file, which cannot name a file by a relative path.
+            dependencies:
+                The ones to check, environment_file or resource_file; both if None.
 
         Raises:
-            TypeError: if a file is not in the folder of the solution.
+            TypeError: if a file does not exist.
         """
         raise NotImplementedError
 
@@ -66,8 +72,9 @@ class IResourceManager:
     ):
         """Write the environment file of a solution to yml_path.
 
-        The environment file is its content as a string, a url, the path of a .yml file in
-        solution_folder, the folder of the solution, relative to it, a StringIO or a dictionary.
+        The environment file is its content as a string, a url, the path of a .yml file (a
+        relative path starts at solution_folder, the folder of the solution), a StringIO or a
+        dictionary.
 
         Raises:
             TypeError: if the environment file has none of these forms.

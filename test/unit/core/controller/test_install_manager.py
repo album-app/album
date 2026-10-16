@@ -266,7 +266,7 @@ class TestInstallManager(TestUnitCoreCommon):
 
         # assert: aborted before the solution is registered
         self.assertIn(
-            'environment_file "environment.yml" is not in the solution folder',
+            'environment_file "environment.yml" does not exist',
             str(e.exception),
         )
         self.register.assert_not_called()
@@ -1129,29 +1129,28 @@ class TestInstallManager(TestUnitCoreCommon):
                 loaded_solution=solution,
             )
 
+        Path(self.tmp_dir.name).joinpath("shared.yml").write_text("dependencies: []\n")
         valid = to_install("environment.yml")
-        outside = to_install("../environment.yml")
-        rule = (
-            'environment_file "../environment.yml" is outside the solution folder. Put '
-            "the file in the solution folder and give its path relative to that folder, "
-            'e.g. "environment.yml".'
+        missing = to_install("missing.yml")
+        rule = 'environment_file "missing.yml" does not exist: there is no file %s.' % (
+            folder.joinpath("missing.yml")
         )
 
-        # files in the folder of the solution pass
+        # existing files pass, also outside the folder of the solution
         self.install_manager._check_files_to_install_again(
-            "cat:g:a:1", valid, [("cat:g:b:1", valid)]
+            "cat:g:a:1", valid, [("cat:g:b:1", to_install("../shared.yml"))]
         )
 
         for solution, children, message in [
             (
-                outside,
+                missing,
                 [("cat:g:b:1", valid)],
                 rule + ' Uninstall "cat:g:a:1" and install it by hand.',
             ),
             # a solution running in its environment is uninstalled with it
             (
                 valid,
-                [("cat:g:b:1", outside)],
+                [("cat:g:b:1", missing)],
                 '"cat:g:b:1", which runs in its environment: '
                 + rule
                 + ' Uninstall "cat:g:b:1" and install it by hand.',

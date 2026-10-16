@@ -19,6 +19,7 @@ from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.model.default_values import DefaultValues
 from album.core.utils.file_lock import FileLock
 from album.core.utils.operations.file_operations import force_remove
+from album.core.utils.operations.solution_operations import get_solution_folder
 from album.runner.album_logging import get_active_logger
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
@@ -47,7 +48,7 @@ class DownloadManager(IDownloadManager):
     ) -> Optional[Path]:
         solution = collection_solution.loaded_solution()
         resources_dict = self._load_resources(
-            solution, solution.installation().package_path()
+            solution, get_solution_folder(collection_solution)
         )
         if resources_dict is None:
             return None
@@ -84,7 +85,7 @@ class DownloadManager(IDownloadManager):
     ) -> Optional[Dict[str, Any]]:
         """Read and validate the resource file of a solution, filled up with the default values.
 
-        A resource file given as a path is taken from solution_folder, the folder of the solution.
+        A relative path of the resource file starts at solution_folder, the folder of the solution.
 
         Returns:
             The resources dictionary, or None if the solution declares no resource file.

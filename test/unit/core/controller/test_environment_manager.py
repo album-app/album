@@ -352,6 +352,7 @@ class TestEnvironmentManager(TestUnitCoreCommon):
             "env_name",
             "0.7.3",
             package_path,
+            solution_folder=package_path,
         )
 
         environment_file = create_environment.call_args[0][0].yaml_file()
