@@ -11,6 +11,7 @@ from album.core.api.model.catalog import ICatalog
 from album.core.api.model.catalog_updates import ChangeType, ISolutionChange
 from album.core.api.model.collection_index import ICollectionIndex
 from album.core.api.model.collection_solution import ICollectionSolution
+from album.core.model.catalog_updates import SolutionChange
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.model.link import Link
@@ -140,8 +141,35 @@ class SolutionHandler(ISolutionHandler):
     def apply_change(
         self, catalog: ICatalog, change: ISolutionChange, override: bool
     ) -> None:
+        if change.change_type() is ChangeType.ADDED:
+            # not in the collection yet, so not installed either
+            self._apply_change(catalog, change, override)
+            return
+        # an album process installing or uninstalling the solution holds its lock: the
+        # change is applied once that process is done, to the status it left
+        with self.get_solution_lock(catalog, change.coordinates()):
+            self._apply_change(catalog, change, override)
+
+    def _apply_change(
+        self, catalog: ICatalog, change: ISolutionChange, override: bool
+    ) -> None:
         cat_index = catalog.index()
         col_index = self._get_collection_index()
+        # the status now, not the one from when the change was found
+        entry = (
+            col_index.get_solution_by_catalog_grp_name_version(
+                catalog.catalog_id(), change.coordinates()
+            )
+            if col_index is not None
+            else None
+        )
+        if entry is not None:
+            change = SolutionChange(
+                change.coordinates(),
+                change.change_type(),
+                change.change_log(),
+                entry.internal(),
+            )
         sol_stat = change.solution_status()
 
         if cat_index is None:
@@ -167,9 +195,6 @@ class SolutionHandler(ISolutionHandler):
             # an installed solution keeps its entry, so it can still be run and
             # uninstalled; once it is uninstalled, the next upgrade removes it. So does an
             # unfinished installation, whose files the next installation removes.
-            entry = col_index.get_solution_by_catalog_grp_name_version(
-                catalog.catalog_id(), change.coordinates()
-            )
             if entry is None or not (
                 entry.internal()["installed"]
                 or entry.internal()["installation_unfinished"]
