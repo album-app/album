@@ -1,7 +1,7 @@
 """Interface handling the installation and uninstallation process of a solution."""
 
 from abc import ABCMeta, abstractmethod
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from album.runner.core.api.model.solution import ISolution
 
@@ -40,6 +40,7 @@ class IInstallManager:
         solution_to_resolve: str,
         allow_recursive: bool = False,
         argv: Optional[List[str]] = None,
+        reinstall: bool = False,
     ) -> ISolution:
         """Install an album solution.
 
@@ -56,6 +57,17 @@ class IInstallManager:
             argv:
                 Not used. The install routine of a solution takes no arguments.
                 Kept so that existing positional and keyword calls keep working.
+            reinstall:
+                Install the solution again if it is installed: uninstall it and
+                install it again from its catalog, or from the file, URL or DOI
+                given. A solution installed from a file, URL or DOI and given by its
+                coordinates is installed from its copy in the collection.
+                The solutions running in its environment are uninstalled and
+                installed again with it if they come from a catalog. If one of them
+                was installed from a file, URL or DOI, nothing is changed and a
+                RuntimeError is raised: album leaves the environment of such a
+                solution untouched. Everything is downloaded before anything is
+                uninstalled.
 
         """
         raise NotImplementedError
@@ -79,6 +91,40 @@ class IInstallManager:
             argv:
                 Not used. The uninstall routine of a solution takes no arguments.
                 Kept so that existing positional and keyword calls keep working.
+
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def upgrade_solutions(
+        self, solutions: Optional[List[str]] = None, dry_run: bool = False
+    ) -> Dict[str, Any]:
+        """Install the latest version of installed solutions, and uninstall what it replaces.
+
+        The catalogs of the solutions are upgraded first, as by `album upgrade`. For each
+        solution installed from a catalog, the latest version in that catalog is
+        installed if it is newer than the installed ones, and with it its parent. An
+        older installed version is uninstalled once no installed solution runs in its
+        environment anymore. The newest installed version of a solution always stays: a
+        parent the upgraded solutions no longer run in is only uninstalled when a newer
+        version of it is installed. Solutions installed from a file, URL or DOI are not
+        upgraded.
+
+        Args:
+            solutions:
+                The installed solutions to upgrade, all of them if None or empty.
+            dry_run:
+                Only return what would be installed and uninstalled. Which parent a new
+                version runs in is only known once it is installed: a new version of a
+                parent it brings along is not listed, and an old version it still runs
+                in is kept although listed as uninstalled.
+
+        Returns:
+            "install" and "uninstall": the solutions installed and uninstalled, as
+            catalog:group:name:version. "keep": the older versions that stay, each with
+            the solutions running in it ("solution", "used_by"). "unused": installed
+            parents no solution runs in anymore. "failed": the installations and
+            uninstallations that failed ("solution", "error"). "dry_run": as given.
 
         """
         raise NotImplementedError

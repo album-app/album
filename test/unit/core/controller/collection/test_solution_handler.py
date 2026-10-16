@@ -397,6 +397,43 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         _set_old_db_stat.assert_called_once_with(self.catalog, change)
         retrieve_solution.assert_not_called()
 
+    def test_apply_change_CHANGED_installed_no_override(self):
+        # prepare
+        coordinates = Coordinates("g", "n", "v")
+        change = SolutionChange(
+            coordinates,
+            ChangeType.CHANGED,
+            solution_status={"installed": True, "installation_unfinished": False},
+        )
+
+        # mocks
+        empty_catalog = EmptyTestClass()
+        empty_catalog.get_solution_by_coordinates = MagicMock()
+        empty_catalog.close = MagicMock()
+        self.catalog._catalog_index = empty_catalog
+
+        self.album_controller.collection_manager().get_collection_index().add_or_replace_solution = (
+            MagicMock()
+        )
+
+        _set_old_db_stat = MagicMock()
+        self.solution_handler._set_old_db_stat = _set_old_db_stat
+
+        retrieve_solution = MagicMock()
+        self.solution_handler.retrieve_solution = retrieve_solution
+
+        # call
+        self.solution_handler.apply_change(self.catalog, change, override=False)
+
+        # assert: the installation stays as it was, the warning says how to renew it
+        _set_old_db_stat.assert_called_once_with(self.catalog, change)
+        retrieve_solution.assert_not_called()
+        self.assertIn(
+            'Solution "g:n:v" changed in catalog "test" after it was installed. '
+            '"album install --reinstall test:g:n:v" installs it again.',
+            self.get_logs_as_string(),
+        )
+
     def test_apply_change_CHANGED_override_uninstalled(self):
         # prepare
         coordinates = Coordinates("g", "n", "v")
@@ -516,6 +553,70 @@ class TestSolutionHandler(TestCatalogAndCollectionCommon):
         remove_solution.assert_not_called()
         _set_old_db_stat.assert_called_once_with(self.catalog, change)
         retrieve_solution.assert_called_once()
+
+    def test_apply_change_holds_the_lock_of_the_solution(self):
+        coordinates = Coordinates("g", "n", "v")
+        lock = self.solution_handler.get_solution_lock(self.catalog, coordinates)
+        held = {}
+
+        def _apply_change(catalog, change, override):
+            held[change.change_type()] = lock.is_held_by_current_thread()
+
+        self.solution_handler._apply_change = _apply_change
+
+        # call
+        for change_type in [ChangeType.ADDED, ChangeType.REMOVED, ChangeType.CHANGED]:
+            self.solution_handler.apply_change(
+                self.catalog, SolutionChange(coordinates, change_type), override=False
+            )
+
+        # assert: an installation of it in another album process is waited for
+        self.assertEqual(
+            {
+                ChangeType.ADDED: False,
+                ChangeType.REMOVED: True,
+                ChangeType.CHANGED: True,
+            },
+            held,
+        )
+
+    def test_apply_change_CHANGED_status_when_applied(self):
+        # prepare: found unfinished, finished by another album process since
+        coordinates = Coordinates("g", "n", "v")
+        change = SolutionChange(
+            coordinates,
+            ChangeType.CHANGED,
+            solution_status={"installed": 0, "installation_unfinished": 1},
+        )
+        entry = EmptyTestClass()
+        entry.internal = lambda: {"installed": 1, "installation_unfinished": 0}
+
+        # mocks
+        empty_catalog = EmptyTestClass()
+        empty_catalog.get_solution_by_coordinates = MagicMock()
+        empty_catalog.close = MagicMock()
+        self.catalog._catalog_index = empty_catalog
+
+        collection_index = (
+            self.album_controller.collection_manager().get_collection_index()
+        )
+        collection_index.get_solution_by_catalog_grp_name_version = MagicMock(
+            return_value=entry
+        )
+        collection_index.add_or_replace_solution = MagicMock()
+
+        _set_old_db_stat = MagicMock()
+        self.solution_handler._set_old_db_stat = _set_old_db_stat
+
+        # call
+        self.solution_handler.apply_change(self.catalog, change, override=False)
+
+        # assert
+        _set_old_db_stat.assert_called_once()
+        self.assertEqual(
+            {"installed": 1, "installation_unfinished": 0},
+            _set_old_db_stat.call_args[0][1].solution_status(),
+        )
 
     def test__set_old_db_stat(self):
         coordinates = Coordinates("g", "n", "v")

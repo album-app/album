@@ -23,6 +23,7 @@ from album.commandline import (
     uninstall,
     update,
     upgrade,
+    upgrade_solutions,
 )
 from album.environments.utils.subcommand import SubProcessError
 from album.runner.album_logging import (
@@ -192,6 +193,30 @@ def create_upgrade_parser(parser):
     )
 
 
+def create_upgrade_solutions_parser(parser):
+    """Create a parser for the upgrade-solutions command."""
+    p = parser.create_command_parser(
+        "upgrade-solutions",
+        upgrade_solutions,
+        "install the latest version of installed solutions from their catalogs, and uninstall the "
+        "versions it replaces once no other solution runs in them.",
+    )
+    p.add_argument(
+        "solutions",
+        nargs="*",
+        metavar="solution",
+        help="an installed solution to upgrade: [catalog:]group:name:version or a shorter form such "
+        "as group:name. Without one, all installed solutions are upgraded. Solutions installed "
+        "from a file, URL or DOI are not upgraded.",
+    )
+    p.add_argument(
+        "--dry-run",
+        required=False,
+        help="Only show what would be installed and uninstalled.",
+        action="store_true",
+    )
+
+
 def create_update_parser(parser):
     """Create a parser for the update command."""
     p = parser.create_command_parser(
@@ -256,6 +281,18 @@ def create_install_parser(parser):
         "Both albums then share the base path and collection database unless configured otherwise, "
         "which can break the database or the solution's runner. The same or an unpinned album version "
         "is always accepted, with a warning.",
+        action="store_true",
+    )
+    p.add_argument(
+        "--reinstall",
+        required=False,
+        help="Install the solution again if it is installed, e.g. after it was deployed again with the "
+        "same version. It is installed from its catalog, or from the file, URL or DOI given; a solution "
+        "installed from a file, URL or DOI and given by group:name:version is installed from its copy "
+        "in album. The solutions running in its environment are installed again with it if they come "
+        "from a catalog. If one of them was installed from a file, URL or DOI, nothing is changed: "
+        "album leaves the environment of such a solution untouched. Everything is downloaded before "
+        "anything is uninstalled.",
         action="store_true",
     )
 

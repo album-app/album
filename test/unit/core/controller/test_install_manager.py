@@ -1047,6 +1047,49 @@ class TestInstallManager(TestUnitCoreCommon):
         remove_disc_content_from_environment.assert_not_called()
         self.remove_solution.assert_called_once_with(r.catalog(), r.coordinates())
 
+    def test_upgrade_solutions_and_reinstall_hold_the_upgrade_lock(self):
+        lock = self.album_controller.solutions().get_upgrade_lock()
+        held = []
+        self.install_manager._upgrade_solutions = lambda *args: held.append(
+            lock.is_held_by_current_thread()
+        )
+        self.install_manager._reinstall = lambda *args: held.append(
+            lock.is_held_by_current_thread()
+        )
+
+        # call
+        self.install_manager.upgrade_solutions()
+        self.install_manager.install("grp:name:0.1.0", reinstall=True)
+
+        # assert
+        self.assertEqual([True, True], held)
+        self.assertFalse(lock.is_held_by_current_thread())
+
+    @patch("album.core.controller.install_manager.check_file_or_url")
+    def test__local_source_url(self, check_file_or_url):
+        catalog = self.album_controller.catalogs().get_cache_catalog()
+        coordinates = Coordinates("g", "n", "v")
+        target = self.install_manager._staged(self.tmp_dir.name, catalog, coordinates)
+
+        # downloaded now: a zip is unpacked into a folder
+        check_file_or_url.return_value = target.joinpath("unpacked", "solution.py")
+        self.assertEqual(
+            str(target.joinpath("unpacked")),
+            self.install_manager._local_source(
+                "https://example.org/s.zip", catalog, coordinates, self.tmp_dir.name
+            ),
+        )
+
+        # a single file stays one
+        check_file_or_url.return_value = target.joinpath("tmp1234")
+        self.assertEqual(
+            str(target.joinpath("tmp1234")),
+            self.install_manager._local_source(
+                "https://example.org/s.py", catalog, coordinates, self.tmp_dir.name
+            ),
+        )
+        check_file_or_url.assert_called_with("https://example.org/s.py", target)
+
     def test_uninstall_solution_other_solutions_run_in(self):
         # whether or not the solution has a parent itself
         for parent in [None, CollectionIndex.CollectionSolution()]:

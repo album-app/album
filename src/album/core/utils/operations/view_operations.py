@@ -143,6 +143,39 @@ def get_updates_as_string(updates: Dict[str, ICatalogUpdates]) -> str:
     return res
 
 
+def get_upgraded_solutions_as_string(result: Dict[str, Any]) -> str:
+    """Get the result of upgrading the installed solutions as a string."""
+    dry_run = result["dry_run"]
+    if not any(
+        result[key] for key in ["install", "uninstall", "keep", "unused", "failed"]
+    ):
+        return "The installed solutions are up to date."
+
+    installed, uninstalled, kept = (
+        ("Would install", "Would uninstall", "Would keep")
+        if dry_run
+        else ("Installed", "Uninstalled", "Kept")
+    )
+    res = ""
+    for solution in result["install"]:
+        res += f"{installed} {solution}\n"
+    for solution in result["uninstall"]:
+        res += f"{uninstalled} {solution}\n"
+    for keep in result["keep"]:
+        used_by = ", ".join(keep["used_by"])
+        res += f"{kept} {keep['solution']}, used by {used_by}\n"
+    for solution in result["unused"]:
+        res += (
+            f'No installed solution uses {solution} anymore. "album uninstall '
+            f'{solution}" removes it.\n'
+        )
+    for failure in result["failed"]:
+        res += f"Failed {failure['solution']}: {failure['error']}\n"
+    if dry_run and result["uninstall"]:
+        res += "A version a newly installed solution still runs in is kept.\n"
+    return res
+
+
 def filter_latest_solutions(index_dict: Dict[str, Any]) -> Dict[str, Any]:
     """Keep only the highest-version solution per group:name within each catalog."""
     if "catalogs" not in index_dict:

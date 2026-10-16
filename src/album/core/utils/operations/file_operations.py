@@ -2,7 +2,6 @@
 
 import json
 import os
-import platform
 import random
 import shutil
 import sys
@@ -233,10 +232,9 @@ def construct_cache_link_target(
         Path to the resolved link.
 
     """
-    operation_system = platform.system().lower()
     root = point_to_base.joinpath(point_to)
 
-    if "windows" in operation_system:
+    if sys.platform == "win32":
         point_from_ = str(point_from) + ".lnk"
         shortcut = Path(point_from_)
         if shortcut.exists():
@@ -297,8 +295,7 @@ def _create_free_pointer_folder(root: Union[str, Path]) -> Path:
 
 def get_link_target(link: Union[str, Path]) -> Optional[Path]:
     """Return the target of a link."""
-    operation_system = platform.system().lower()
-    if "windows" in operation_system:
+    if sys.platform == "win32":
         # pylnk3 is windows only
         link_ = str(link) + ".lnk"
         shortcut = Path(link_)

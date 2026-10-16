@@ -1,4 +1,4 @@
-import platform
+import sys
 from os import listdir
 from pathlib import Path
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
@@ -137,8 +137,7 @@ class TestIntegrationFileStructure(TestIntegrationCoreCommon):
         )
 
     def _link(self, link: Path):
-        operation_system = platform.system().lower()
-        if "windows" in operation_system:
+        if sys.platform == "win32":
             return Path(str(link) + ".lnk")
         else:
             return link

@@ -136,6 +136,7 @@ class Album:
         allow_recursive: bool = False,
         argv=None,
         run_async=False,
+        reinstall: bool = False,
     ):
         """Install a solution to the disk.
 
@@ -154,11 +155,51 @@ class Album:
             run_async:
                 If True, register the installation as a task with the task manager
                 and return the task id instead of installing right away.
+            reinstall:
+                Install the solution again if it is installed: uninstall it and
+                install it again from its catalog, or from the file, URL or DOI
+                given. A solution installed from a file, URL or DOI and given by its
+                coordinates is installed from its copy in the collection.
+                The solutions running in its environment are uninstalled and
+                installed again with it if they come from a catalog. If one of them
+                was installed from a file, URL or DOI, nothing is changed and a
+                RuntimeError is raised: album leaves the environment of such a
+                solution untouched. Everything is downloaded before anything is
+                uninstalled.
 
         """
         return self._run_async(
             self._controller.install_manager().install,
-            (solution_to_resolve, allow_recursive, argv),
+            (solution_to_resolve, allow_recursive, argv, reinstall),
+            run_async,
+        )
+
+    def upgrade_solutions(
+        self, solutions: list[str] | None = None, dry_run=False, run_async=False
+    ):
+        """Install the latest version of installed solutions, and uninstall what it replaces.
+
+        The catalogs of the solutions are upgraded first. An older version is uninstalled
+        once no installed solution runs in it anymore; the newest installed version of a
+        solution always stays. See IInstallManager.upgrade_solutions.
+
+        Args:
+            solutions:
+                The installed solutions to upgrade, all of them if None or empty.
+            dry_run:
+                Only return what would be installed and uninstalled.
+            run_async:
+                If True, register the upgrade as a task with the task manager and
+                return the task id instead of upgrading right away.
+
+        Returns:
+            The solutions installed, uninstalled and kept, see
+            IInstallManager.upgrade_solutions.
+
+        """
+        return self._run_async(
+            self._controller.install_manager().upgrade_solutions,
+            (solutions, dry_run),
             run_async,
         )
 

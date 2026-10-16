@@ -1,9 +1,9 @@
-import platform
 import sys
 import threading
 import unittest.mock
 import warnings
 from pathlib import Path
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 from threading import Thread
 from time import sleep
 
@@ -12,7 +12,6 @@ from album.core.model.task import Task
 from album.environments.utils import subcommand
 from album.runner import album_logging
 from album.runner.album_logging import LogLevel
-from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestTaskManager(TestUnitCoreCommon):
@@ -77,7 +76,7 @@ class TestTaskManager(TestUnitCoreCommon):
         for record in task.log_handler().records():
             print(record.msg)
         self.assertTrue(len(task.log_handler().records()) > 1)
-        if platform.system() == "Windows":
+        if sys.platform == "win32":
             self.assertEqual(
                 "Running command: cmd /c echo test...",
                 task.log_handler().records()[0].msg,
@@ -122,7 +121,7 @@ class TestTaskManager(TestUnitCoreCommon):
 
     @staticmethod
     def _log_to_active_logger_via_subcommand():
-        if platform.system() == "Windows":
+        if sys.platform == "win32":
             subcommand.run(["cmd", "/c", "echo test"])
         else:
             subcommand.run(["echo", "test"])

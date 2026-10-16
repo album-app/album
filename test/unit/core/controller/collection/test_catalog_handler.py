@@ -581,6 +581,20 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
         )
         _update_collection_from_catalog.assert_not_called()
 
+    def test_update_collection_holds_the_upgrade_lock(self):
+        lock = self.album_controller.solutions().get_upgrade_lock()
+        held = []
+        self.catalog_handler._update_collection = lambda *args: held.append(
+            lock.is_held_by_current_thread()
+        )
+
+        # call
+        self.catalog_handler.update_collection()
+
+        # assert
+        self.assertEqual([True], held)
+        self.assertFalse(lock.is_held_by_current_thread())
+
     def test_update_collection_specific_catalog(self):
         # mocks
         catalog = self.catalog_handler.get_cache_catalog()

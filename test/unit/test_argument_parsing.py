@@ -18,6 +18,7 @@ from album.commandline import (
     search,
     test,
     uninstall,
+    upgrade_solutions,
 )
 
 
@@ -116,6 +117,31 @@ class TestArgumentParsing(unittest.TestCase):
         self.assertTrue(args[0].install)
         self.assertEqual(["--name", "x"], args[1])
 
+    def test_install_reinstall_flag(self):
+        parser = argument_parsing.create_parser()
+
+        sys.argv = ["", "install", "test/path"]
+        self.assertFalse(parser.parse_known_args()[0].reinstall)
+
+        sys.argv = ["", "install", "test/path", "--reinstall"]
+        self.assertTrue(parser.parse_known_args()[0].reinstall)
+
+    def test_upgrade_solutions_parser(self):
+        # registered as an entry point in pyproject.toml, created here directly
+        album_parser = argument_parsing.AlbumParser()
+        argument_parsing.create_upgrade_solutions_parser(album_parser)
+
+        sys.argv = ["", "upgrade-solutions"]
+        args = album_parser.parser.parse_known_args()[0]
+        self.assertEqual(upgrade_solutions, args.func)
+        self.assertEqual([], args.solutions)
+        self.assertFalse(args.dry_run)
+
+        sys.argv = ["", "upgrade-solutions", "grp:a", "cat:grp:b:0.1.0", "--dry-run"]
+        args = album_parser.parser.parse_known_args()[0]
+        self.assertEqual(["grp:a", "cat:grp:b:0.1.0"], args.solutions)
+        self.assertTrue(args.dry_run)
+
     def test_undeploy_takes_coordinates(self):
         parser = argument_parsing.create_parser()
 
@@ -213,6 +239,64 @@ class TestRunCommand(unittest.TestCase):
         self.album_instance.run.assert_called_once_with(
             "grp:name:0.1.0", argv=["", "--name", "x"]
         )
+
+
+class TestInstallAndUpgradeCommands(unittest.TestCase):
+    def setUp(self):
+        self.album_instance = MagicMock()
+
+    @staticmethod
+    def _result(**changes):
+        result = {
+            "dry_run": False,
+            "install": [],
+            "uninstall": [],
+            "keep": [],
+            "unused": [],
+            "failed": [],
+        }
+        result.update(changes)
+        return result
+
+    def test_install_reinstall(self):
+        install(
+            self.album_instance,
+            Namespace(path="grp:name:0.1.0", allow_recursive=False, reinstall=True),
+        )
+
+        self.album_instance.install.assert_called_once_with(
+            "grp:name:0.1.0", False, sys.argv, reinstall=True
+        )
+
+    def test_upgrade_solutions(self):
+        self.album_instance.upgrade_solutions.return_value = self._result(
+            install=["cat:grp:a:0.2.0"]
+        )
+
+        upgrade_solutions(
+            self.album_instance,
+            Namespace(solutions=["grp:a"], dry_run=True, json=False),
+        )
+
+        self.album_instance.upgrade_solutions.assert_called_once_with(
+            ["grp:a"], dry_run=True
+        )
+
+    @patch("builtins.print")
+    def test_upgrade_solutions_failed(self, print_mock):
+        self.album_instance.upgrade_solutions.return_value = self._result(
+            failed=[{"solution": "cat:grp:a:0.2.0", "error": "broken"}]
+        )
+
+        # the result is printed, then the command fails
+        with self.assertRaises(RuntimeError) as e:
+            upgrade_solutions(
+                self.album_instance,
+                Namespace(solutions=[], dry_run=False, json=True),
+            )
+
+        self.assertIn("cat:grp:a:0.2.0", str(e.exception))
+        self.assertIn('"error": "broken"', print_mock.call_args[0][0])
 
 
 if __name__ == "__main__":
