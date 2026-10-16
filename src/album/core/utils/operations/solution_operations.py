@@ -26,6 +26,13 @@ FILES_WRITTEN_BY_DEPLOY = [
     DefaultValues.solution_resources_default_name.value,
 ]
 
+# The copy album deploy writes of the file a solution names in its dependencies. A deployed
+# solution is installed from the copy, not from the file.
+DEPLOYED_COPIES = {
+    "environment_file": DefaultValues.solution_environment_default_name.value,
+    "resource_file": DefaultValues.solution_resources_default_name.value,
+}
+
 
 def get_solution_folder(collection_solution: ICollectionSolution) -> Optional[Path]:
     """Return the folder a solution is installed from, where its relative paths start.

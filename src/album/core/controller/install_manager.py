@@ -20,6 +20,7 @@ from album.core.utils.operations.resolve_operations import (
     dict_to_coordinates,
 )
 from album.core.utils.operations.solution_operations import (
+    DEPLOYED_COPIES,
     get_deploy_dict,
     get_parent_dict,
     get_solution_folder,
@@ -224,10 +225,11 @@ class InstallManager(IInstallManager):
         solution: ICollectionSolution,
         children: List[Tuple[str, ICollectionSolution]],
     ) -> None:
-        """Check the files of a solution and its children before a reinstall uninstalls them.
+        """Check the files of a solution and of its children before a reinstall uninstalls them.
 
-        Installing them checks the files after uninstalling them: a solution whose files
-        it would reject is uninstalled and installed by hand instead.
+        Installing them again checks these files as well, but only once the reinstall has
+        uninstalled them. So they are checked here first: if one fails, nothing is
+        uninstalled, and the user has to uninstall and install that solution by hand.
         """
         for solution_name, to_install in [(name, solution)] + children:
             try:
@@ -697,20 +699,18 @@ class InstallManager(IInstallManager):
     def _check_files(self, resolve_result: ICollectionSolution) -> None:
         """Check that the environment and the resource file the solution names by path exist.
 
-        Not for a deployed solution, which is installed from what album deploy wrote next to
-        it instead.
+        Runs before anything is registered or copied; a reinstall runs it before it
+        uninstalls anything (see _check_files_to_install_again).
         """
         folder = get_solution_folder(resolve_result)
+        # A deployed solution is installed from the copy album deploy wrote next to it, so
+        # a file it names by path need not exist here, e.g. an absolute path on the computer
+        # it was deployed from. A solution installed from a single file (folder None) has no
+        # copies: a relative path asks for its folder, an absolute path has to exist.
         dependencies = [
             dependency
-            for dependency, written_by_deploy in [
-                (
-                    "environment_file",
-                    DefaultValues.solution_environment_default_name.value,
-                ),
-                ("resource_file", DefaultValues.solution_resources_default_name.value),
-            ]
-            if folder is None or not folder.joinpath(written_by_deploy).is_file()
+            for dependency, deployed_copy in DEPLOYED_COPIES.items()
+            if folder is None or not folder.joinpath(deployed_copy).is_file()
         ]
         self.album.resource_manager().check_file_dependencies(
             resolve_result.loaded_solution(), folder, dependencies

@@ -375,7 +375,7 @@ class EnvironmentManager(IEnvironmentManager):
             if "environment_file" in dependencies_dict:
                 env_file = dependencies_dict["environment_file"]
 
-                # a path is relative to the folder of the solution
+                # a relative path starts at the folder solution.py is installed from
                 self._album.resource_manager().handle_env_file_dependency(
                     env_file, yaml_path, solution_folder
                 )
