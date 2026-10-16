@@ -291,8 +291,10 @@ def create_install_parser(parser):
         "installed from a file, URL or DOI and given by group:name:version is installed from its copy "
         "in album. The solutions running in its environment are installed again with it if they come "
         "from a catalog. If one of them was installed from a file, URL or DOI, nothing is changed: "
-        "album leaves the environment of such a solution untouched. Everything is downloaded before "
-        "anything is uninstalled.",
+        "album leaves the environment of such a solution untouched. Everything is downloaded, resources "
+        "included, before anything is uninstalled, and what would make installing them again fail stops "
+        "it with nothing changed as well: a missing file, resource or parent, a parent with another API "
+        "version, or a lock file when conda-lock is not found.",
         action="store_true",
     )
     p.add_argument(

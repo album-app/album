@@ -67,8 +67,11 @@ class IInstallManager:
                 installed again with it if they come from a catalog. If one of them
                 was installed from a file, URL or DOI, nothing is changed and a
                 RuntimeError is raised: album leaves the environment of such a
-                solution untouched. Everything is downloaded before anything is
-                uninstalled.
+                solution untouched. Everything is downloaded, resources included,
+                before anything is uninstalled, and what would make installing them
+                again fail raises a RuntimeError with nothing changed as well: a
+                missing file, resource or parent, a parent with another API version,
+                or a lock file when conda-lock is not found.
             no_conda_lock:
                 Solve the environment instead of installing it from the lock file of
                 the solution, e.g. when the lock file does not install on this system.
