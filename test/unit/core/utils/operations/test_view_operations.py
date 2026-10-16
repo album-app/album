@@ -8,6 +8,7 @@ from album.core.utils.operations.view_operations import (
     get_index_as_string,
     get_solution_as_string,
     get_updates_as_string,
+    get_upgraded_solutions_as_string,
 )
 from album.runner.core.model.coordinates import Coordinates
 from album.runner.core.model.solution import Solution
@@ -23,6 +24,48 @@ class TestViewOperations(TestUnitCoreCommon):
 
     def tearDown(self) -> None:
         super().tearDown()
+
+    def test_get_upgraded_solutions_as_string(self):
+        result = {
+            "dry_run": False,
+            "install": ["c:g:a:0.2.0"],
+            "uninstall": ["c:g:a:0.1.0"],
+            "keep": [{"solution": "c:g:b:0.1.0", "used_by": ["c:g:x:1", "c:g:y:1"]}],
+            "unused": ["c:g:p:0.1.0"],
+            "failed": [{"solution": "c:g:z:0.2.0", "error": "broken"}],
+        }
+
+        self.assertEqual(
+            "Installed c:g:a:0.2.0\n"
+            "Uninstalled c:g:a:0.1.0\n"
+            "Kept c:g:b:0.1.0, used by c:g:x:1, c:g:y:1\n"
+            'No installed solution uses c:g:p:0.1.0 anymore. "album uninstall '
+            'c:g:p:0.1.0" removes it.\n'
+            "Failed c:g:z:0.2.0: broken\n",
+            get_upgraded_solutions_as_string(result),
+        )
+
+        result["dry_run"] = True
+        res = get_upgraded_solutions_as_string(result)
+        self.assertIn("Would install c:g:a:0.2.0\n", res)
+        self.assertIn("Would uninstall c:g:a:0.1.0\n", res)
+        self.assertIn("Would keep c:g:b:0.1.0, used by c:g:x:1, c:g:y:1\n", res)
+        self.assertIn("A version a newly installed solution still runs in is kept", res)
+
+    def test_get_upgraded_solutions_as_string_up_to_date(self):
+        result = {
+            "dry_run": False,
+            "install": [],
+            "uninstall": [],
+            "keep": [],
+            "unused": [],
+            "failed": [],
+        }
+
+        self.assertEqual(
+            "The installed solutions are up to date.",
+            get_upgraded_solutions_as_string(result),
+        )
 
     def test_filter_latest_solutions(self):
         def solution(group, name, version):

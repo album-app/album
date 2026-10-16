@@ -17,6 +17,7 @@ from album.core.utils.operations.view_operations import (
     get_search_result_as_string,
     get_solution_as_string,
     get_updates_as_string,
+    get_upgraded_solutions_as_string,
 )
 from album.runner.album_logging import get_active_logger
 from album.runner.core.model.solution import Solution
@@ -57,6 +58,20 @@ def upgrade(album_instance: Album, args: Namespace):
         module_logger().info(res)
 
 
+def upgrade_solutions(album_instance: Album, args: Namespace):
+    """Call function corresponding to the `upgrade-solutions` subcommand of `album`."""
+    result = album_instance.upgrade_solutions(args.solutions, dry_run=args.dry_run)
+    if _get_print_json(args):
+        print(_as_json(result))
+    else:
+        module_logger().info(get_upgraded_solutions_as_string(result))
+    if result["failed"]:
+        raise RuntimeError(
+            "Cannot upgrade every solution: %s"
+            % ", ".join(failure["solution"] for failure in result["failed"])
+        )
+
+
 def deploy(album_instance: Album, args: Namespace):
     """Call function corresponding to the `deploy` subcommand of `album`."""
     album_instance.deploy(
@@ -86,7 +101,12 @@ def undeploy(album_instance: Album, args: Namespace):
 
 def install(album_instance: Album, args: Namespace):
     """Call function corresponding to the `install` subcommand of `album`."""
-    album_instance.install(str(args.path), args.allow_recursive, sys.argv)
+    album_instance.install(
+        str(args.path),
+        args.allow_recursive,
+        sys.argv,
+        reinstall=getattr(args, "reinstall", False),
+    )
 
 
 def uninstall(album_instance: Album, args: Namespace):
