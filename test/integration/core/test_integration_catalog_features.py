@@ -1140,6 +1140,33 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
     @patch(
         "album.environments.environment_api.EnvironmentAPI.create_environment_prefer_lock_file"
     )
+    def test_install_shows_replicability_reasons(self, _, __):
+        catalog_src, _ = self.setup_empty_catalog("my-catalog")
+        catalog = (
+            self.album_controller.collection_manager()
+            .catalogs()
+            .add_by_src(catalog_src)
+        )
+        # deployed without a lock file
+        self._deploy(catalog, "app1.py")
+        self._update_and_upgrade(catalog)
+
+        self.album_controller.install_manager().install("my-catalog:group:app1:0.1.0")
+
+        # the reason album deploy stored, not a second warning of its own
+        logs = self.get_logs_as_string()
+        self.assertIn(
+            'Not technically replicable, "group:app1:0.1.0": it is deployed without a '
+            "lock file (--no-conda-lock), its environment is solved again when it is "
+            "installed",
+            logs,
+        )
+        self.assertNotIn("it has no lock file", logs)
+
+    @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
+    @patch(
+        "album.environments.environment_api.EnvironmentAPI.create_environment_prefer_lock_file"
+    )
     def test_install_deployed_solution_environment_file_outside_solution_folder(
         self, create_environment, _
     ):

@@ -28,6 +28,7 @@ from album.core.utils.operations.resolve_operations import (
     get_parent,
 )
 from album.core.utils.operations.solution_operations import (
+    get_replicability_reasons,
     get_solution_folder,
     set_environment_paths,
 )
@@ -84,6 +85,9 @@ class EnvironmentManager(IEnvironmentManager):
         solution_package_path = (
             collection_solution.loaded_solution().installation().package_path()
         )
+        self._warn_without_lock_file(
+            collection_solution.coordinates(), solution_package_path
+        )
         environment = self.create_environment(
             cache,
             dependencies,
@@ -95,6 +99,33 @@ class EnvironmentManager(IEnvironmentManager):
         )
         set_environment_paths(collection_solution.loaded_solution(), environment)
         return environment
+
+    def _warn_without_lock_file(
+        self, coordinates: ICoordinates, solution_package_path: Path
+    ) -> None:
+        """Warn when the environment of a solution is solved now, not taken from a lock file.
+
+        A lock file is not solved again without it: installing fails if conda-lock, which
+        installs it, is not found.
+        """
+        lock_file = solution_package_path.joinpath(
+            DefaultValues.solution_conda_lock_default_name.value
+        )
+        if lock_file.is_file():
+            try:
+                self._environment_handler.get_conda_lock_manager().conda_lock_executable()
+            except RuntimeError as e:
+                raise RuntimeError(
+                    f'"{coordinates}" is installed from its lock file, but conda-lock, which '
+                    "installs it, is not found. Set ENVIRONMENT_CONDA_LOCK_PATH to the "
+                    "conda-lock executable."
+                ) from e
+        elif not get_replicability_reasons(solution_package_path):
+            # a solution deployed without a lock file says so in the reasons shown already
+            module_logger().warning(
+                f'Not technically replicable, "{coordinates}": it has no lock file, its '
+                "environment is solved now."
+            )
 
     def create_environment(
         self,

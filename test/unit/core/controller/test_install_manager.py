@@ -315,6 +315,44 @@ class TestInstallManager(TestUnitCoreCommon):
         self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
 
     @patch("album.core.controller.install_manager.clean_resolve_tmp")
+    def test__install_loaded_resolve_result_shows_replicability_reasons(self, _):
+        # deployed with --no-replicability: album deploy stored the reasons
+        folder = Path(self.tmp_dir.name).joinpath("deployed")
+        folder.mkdir()
+        folder.joinpath("solution.py").touch()
+        folder.joinpath("solution.yml").write_text(
+            'replicability:\n  reasons:\n  - resource "a" has no hash\n'
+        )
+        r = self._prepare_install_loaded_resolve_result(
+            installed=False, path=folder.joinpath("solution.py")
+        )
+
+        # call
+        self.install_manager._install_loaded_resolve_result(r)
+
+        # assert
+        self.assertIn(
+            'Not technically replicable, "tsg:tsn:tsv": resource "a" has no hash',
+            self.get_logs_as_string(),
+        )
+        self.set_installed.assert_called_once()
+
+    def test_install_from_url(self):
+        self.install_manager.clean_unfinished_installations = MagicMock()
+        self.album_controller.collection_manager().resolve_and_load = MagicMock()
+        self.install_manager._install_loaded_resolve_result = MagicMock()
+
+        # call
+        self.install_manager.install("https://example.org/solution.py")
+
+        # assert
+        self.assertIn(
+            'Not technically replicable, "https://example.org/solution.py": it is '
+            "installed from a url, whose content can change.",
+            self.get_logs_as_string(),
+        )
+
+    @patch("album.core.controller.install_manager.clean_resolve_tmp")
     def test__install_loaded_resolve_result_resources_before_environment(self, _):
         r = self._prepare_install_loaded_resolve_result(installed=False)
         lock_free = []

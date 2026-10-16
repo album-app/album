@@ -1,9 +1,11 @@
 from io import StringIO
+from pathlib import Path
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 from album.core.model.catalog_index import CatalogIndex
 from album.core.utils.operations.solution_operations import (
     get_deploy_dict,
+    get_replicability_reasons,
     version_sort_key,
 )
 from album.runner.core.model.solution import Solution
@@ -54,3 +56,23 @@ channels:
         active_solution = Solution(attrs_dict)
 
         self.assertEqual(get_deploy_dict(active_solution), attrs_dict_result)
+
+    def test_get_replicability_reasons(self):
+        folder = Path(self.tmp_dir.name)
+
+        # not deployed, or deployed without reasons
+        self.assertEqual([], get_replicability_reasons(None))
+        self.assertEqual([], get_replicability_reasons(folder))
+        folder.joinpath("solution.yml").write_text(
+            "group: g\nname: n\nversion: 0.1.0\n", encoding="utf-8"
+        )
+        self.assertEqual([], get_replicability_reasons(folder))
+
+        # stored by album deploy
+        folder.joinpath("solution.yml").write_text(
+            'group: g\nreplicability:\n  reasons:\n  - resource "a" has no hash\n',
+            encoding="utf-8",
+        )
+        self.assertEqual(
+            ['resource "a" has no hash'], get_replicability_reasons(folder)
+        )

@@ -7,6 +7,7 @@ from datetime import date, time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import yaml
 from packaging.version import InvalidVersion, Version
 
 from album.core.api.model.collection_solution import ICollectionSolution
@@ -32,6 +33,25 @@ DEPLOYED_COPIES = {
     "environment_file": DefaultValues.solution_environment_default_name.value,
     "resource_file": DefaultValues.solution_resources_default_name.value,
 }
+
+
+def get_replicability_reasons(folder: Optional[Path]) -> List[str]:
+    """Return why album deploy found a solution not technically replicable.
+
+    album deploy stores the reasons in the solution.yml it writes next to the solution file.
+    A solution not deployed, or deployed before the reasons were stored, has none.
+    """
+    if folder is None:
+        return []
+    solution_yml = Path(folder).joinpath(DefaultValues.solution_yml_default_name.value)
+    if not solution_yml.is_file():
+        return []
+    with open(solution_yml, encoding="utf-8") as yml_file:
+        content = yaml.safe_load(yml_file)
+    replicability = content.get("replicability") if isinstance(content, dict) else None
+    if not isinstance(replicability, dict):
+        return []
+    return [str(reason) for reason in replicability.get("reasons") or []]
 
 
 def get_solution_folder(collection_solution: ICollectionSolution) -> Optional[Path]:

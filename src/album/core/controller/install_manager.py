@@ -23,6 +23,7 @@ from album.core.utils.operations.solution_operations import (
     DEPLOYED_COPIES,
     get_deploy_dict,
     get_parent_dict,
+    get_replicability_reasons,
     get_solution_folder,
     version_sort_key,
 )
@@ -49,6 +50,12 @@ class InstallManager(IInstallManager):
     ) -> ISolution:
         # this needs to happen before any (potentially not completely installed) solution is resolved
         self.clean_unfinished_installations()
+
+        if is_url(solution_to_resolve):
+            module_logger().warning(
+                f'Not technically replicable, "{solution_to_resolve}": it is installed from '
+                "a url, whose content can change."
+            )
 
         if reinstall:
             # one at a time, see ISolutionHandler.get_upgrade_lock
@@ -656,6 +663,10 @@ class InstallManager(IInstallManager):
             )
 
         self._check_files(resolve_result)
+        for reason in get_replicability_reasons(get_solution_folder(resolve_result)):
+            module_logger().warning(
+                f'Not technically replicable, "{resolve_result.coordinates()}": {reason}'
+            )
 
         self._register(resolve_result)
 

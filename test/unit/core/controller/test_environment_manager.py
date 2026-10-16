@@ -403,6 +403,59 @@ class TestEnvironmentManager(TestUnitCoreCommon):
                 environment_snapshot=snapshot,
             )
 
+    def _warning_without_lock_file(self, lock_file, conda_lock, reasons):
+        package_path = Path(tempfile.mkdtemp(dir=self.tmp_dir.name))
+        if lock_file:
+            package_path.joinpath("solution.conda-lock.yml").write_text("lock")
+        if reasons:
+            package_path.joinpath("solution.yml").write_text(
+                "replicability:\n  reasons:\n  - it is deployed without a lock file\n"
+            )
+        lock_manager = MagicMock()
+        if conda_lock:
+            lock_manager.conda_lock_executable.return_value = conda_lock
+        else:
+            # as the conda-lock manager of album-environments does
+            lock_manager.conda_lock_executable.side_effect = RuntimeError(
+                "No conda-lock executable found!"
+            )
+        self.environment_manager._environment_handler.get_conda_lock_manager = (
+            MagicMock(return_value=lock_manager)
+        )
+        self.captured_output.seek(0)
+        self.captured_output.truncate(0)
+
+        self.environment_manager._warn_without_lock_file(
+            Coordinates("g", "n", "0.1.0"), package_path
+        )
+
+        return self.get_logs_as_string()
+
+    def test__warn_without_lock_file(self):
+        # installed from the lock file
+        self.assertNotIn(
+            "WARNING", self._warning_without_lock_file(True, "/bin/conda-lock", False)
+        )
+        # a lock file conda-lock is not found for: not solved again without it
+        with self.assertRaises(RuntimeError) as e:
+            self._warning_without_lock_file(True, None, False)
+        self.assertEqual(
+            '"g:n:0.1.0" is installed from its lock file, but conda-lock, which installs '
+            "it, is not found. Set ENVIRONMENT_CONDA_LOCK_PATH to the conda-lock "
+            "executable.",
+            str(e.exception),
+        )
+        # no lock file
+        self.assertIn(
+            'Not technically replicable, "g:n:0.1.0": it has no lock file, its '
+            "environment is solved now.",
+            self._warning_without_lock_file(False, "/bin/conda-lock", False),
+        )
+        # deployed without a lock file: its reasons say so already
+        self.assertNotIn(
+            "WARNING", self._warning_without_lock_file(False, "/bin/conda-lock", True)
+        )
+
     @patch(
         "album.core.controller.environment_manager.create_path_recursively",
         return_value="createdPath",
