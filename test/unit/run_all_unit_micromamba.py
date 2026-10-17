@@ -46,7 +46,7 @@ from test.unit.core.model import (
     test_mmversion,
     test_task,
 )
-from test.unit.core.utils import test_file_lock
+from test.unit.core.utils import test_core_logging, test_file_lock
 from test.unit.core.utils.export import test_changelog, test_docker
 from test.unit.core.utils.operations import (
     test_dict_operations,
@@ -104,6 +104,7 @@ def load_tests(loader, standard_tests, pattern):
     suite.addTests(loader.loadTestsFromModule(test_database))
 
     # album.core.utils
+    suite.addTests(loader.loadTestsFromModule(test_core_logging))
     suite.addTests(loader.loadTestsFromModule(test_file_lock))
 
     # album.core.utils.operations

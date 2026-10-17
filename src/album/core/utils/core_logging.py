@@ -1,8 +1,17 @@
 """Core logging utilities for Album."""
+
 import logging
+import re
+import shutil
 import sys
+import time
 from typing import Optional
 
+from album.core.utils.operations.view_operations import (
+    get_logger_name_minimizer_filter,
+    get_logging_formatter,
+    get_message_filter,
+)
 from album.runner.album_logging import (
     LogLevel,
     debug_settings,
@@ -10,11 +19,63 @@ from album.runner.album_logging import (
     set_loglevel,
 )
 
-from album.core.utils.operations.view_operations import (
-    get_logger_name_minimizer_filter,
-    get_logging_formatter,
-    get_message_filter,
-)
+# Progress updates are lines a solution redraws, like the progress bars of tqdm.
+# album-environments gives their log records the attribute album_progress. Where the
+# output is no terminal (a log file, CI), one per PROGRESS_LOG_INTERVAL seconds is written.
+PROGRESS_LOG_INTERVAL = 30
+
+_ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+class ProgressLineHandler(logging.StreamHandler):
+    """Stream handler for a terminal: a progress update replaces the one before."""
+
+    progress_rows = 0  # rows of the progress update on screen
+
+    def emit(self, record: logging.LogRecord) -> None:
+        """Write the record, a progress update without a line break."""
+        try:
+            if self.progress_rows:  # erase the progress update, the record replaces it
+                # back to the first row of the update ("\x1b[<n>A": n rows up), then
+                # erase to the end of the screen ("\x1b[J")
+                up = self.progress_rows - 1
+                self.stream.write("\r" + ("\x1b[%dA" % up if up else "") + "\x1b[J")
+                self.progress_rows = 0
+            if not getattr(record, "album_progress", False):
+                super().emit(record)
+                return
+            # an update wider than the terminal wraps, it is written whole
+            line = _ANSI_ESCAPE.sub("", self.format(record))
+            columns = max(shutil.get_terminal_size().columns, 1)
+            if len(line) % columns == 0:
+                line += " "  # so the cursor ends in the last row on every terminal
+            self.stream.write(line)
+            self.flush()
+            self.progress_rows = len(line) // columns + 1
+        except RecursionError:
+            raise
+        except Exception:
+            self.handleError(record)
+
+
+class ProgressIntervalFilter(logging.Filter):
+    """Let a progress update pass at most once per interval, other records always."""
+
+    def __init__(self, interval: float):
+        """Initialize the filter with the interval in seconds."""
+        super().__init__()
+        self.interval = interval
+        self.last_progress = float("-inf")
+
+    def filter(self, record: logging.LogRecord) -> bool:  # noqa: A003
+        """Return whether the record is written."""
+        if not getattr(record, "album_progress", False):
+            return True
+        now = time.monotonic()
+        if now - self.last_progress < self.interval:
+            return False
+        self.last_progress = now
+        return True
 
 
 def configure_root_logger(
@@ -29,7 +90,12 @@ def configure_root_logger(
     logger.setLevel(log_level.name)
     # create console handler and set level to debug
     # ToDo: different handlers necessary? e.g. logging additional into a file?
-    ch = logging.StreamHandler(stream=sys.stdout)
+    ch: logging.StreamHandler
+    if hasattr(sys.stdout, "isatty") and sys.stdout.isatty():
+        ch = ProgressLineHandler(stream=sys.stdout)
+    else:
+        ch = logging.StreamHandler(stream=sys.stdout)
+        ch.addFilter(ProgressIntervalFilter(PROGRESS_LOG_INTERVAL))
     ch.setLevel(log_level.name)
 
     # add formatter to ch
