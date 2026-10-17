@@ -41,6 +41,7 @@ class IInstallManager:
         allow_recursive: bool = False,
         argv: Optional[List[str]] = None,
         reinstall: bool = False,
+        no_conda_lock: bool = False,
     ) -> ISolution:
         """Install an album solution.
 
@@ -68,6 +69,12 @@ class IInstallManager:
                 RuntimeError is raised: album leaves the environment of such a
                 solution untouched. Everything is downloaded before anything is
                 uninstalled.
+            no_conda_lock:
+                Solve the environment instead of installing it from the lock file of
+                the solution, e.g. when the lock file does not install on this system.
+                Not technically replicable, album warns. A solution with a parent runs
+                in the environment of its parent, so there it applies to the parent
+                if the parent is installed with it.
 
         """
         raise NotImplementedError

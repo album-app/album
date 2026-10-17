@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 from test.unit.test_unit_core_common import TestUnitCoreCommon
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 from album.core.model.catalog_updates import ChangeType
 from album.core.model.default_values import DefaultValues
@@ -950,7 +950,7 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         install_environment.reset_mock()
 
         self.album_controller.install_manager().install(
-            "my-catalog:group:app1:0.1.0", reinstall=True
+            "my-catalog:group:app1:0.1.0", reinstall=True, no_conda_lock=True
         )
 
         # listed before anything is uninstalled
@@ -960,9 +960,10 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
             self.get_logs_as_string(),
         )
 
-        # its environment is built again, and the child installed into it again
+        # its environment is built again, without its lock file as asked, and the child
+        # installed into it again
         remove_environment.assert_called_once()
-        install_environment.assert_called_once()
+        install_environment.assert_called_once_with(ANY, False, True)
         child = self._get_entry(catalog, "solution1_app1")
         self.assertTrue(child.internal()["installed"])
         self.assertEqual("app1", child.internal()["parent"].setup()["name"])
@@ -1134,6 +1135,61 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
                 ]
             },
             get_dict_from_yml(solution_yml)["replicability"],
+        )
+
+    @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
+    @patch(
+        "album.environments.environment_api.EnvironmentAPI.create_environment_prefer_lock_file"
+    )
+    def test_install_shows_replicability_reasons(self, _, __):
+        catalog_src, _ = self.setup_empty_catalog("my-catalog")
+        catalog = (
+            self.album_controller.collection_manager()
+            .catalogs()
+            .add_by_src(catalog_src)
+        )
+        # deployed without a lock file
+        self._deploy(catalog, "app1.py")
+        self._update_and_upgrade(catalog)
+
+        self.album_controller.install_manager().install("my-catalog:group:app1:0.1.0")
+
+        # the reason album deploy stored, not a second warning of its own
+        logs = self.get_logs_as_string()
+        self.assertIn(
+            'Not technically replicable, "group:app1:0.1.0": it is deployed without a '
+            "lock file (--no-conda-lock), its environment is solved again when it is "
+            "installed",
+            logs,
+        )
+        self.assertNotIn("it has no lock file", logs)
+
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.install_environment"
+    )
+    @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
+    def test_install_parent_from_another_catalog(self, _, __):
+        catalogs = self.album_controller.collection_manager().catalogs()
+        parents_src, _ = self.setup_empty_catalog("parents")
+        parents = catalogs.add_by_src(parents_src)
+        children_src, _ = self.setup_empty_catalog("children")
+        children = catalogs.add_by_src(children_src)
+        self._deploy(parents, "app1.py")
+        self._deploy(children, "solution1_app1.py")
+        self._update_and_upgrade(parents)
+        self._update_and_upgrade(children)
+
+        self.album_controller.install_manager().install(
+            "children:group:solution1_app1:0.1.0"
+        )
+
+        # not in the catalog of the solution: taken from the other one, with a warning
+        self.assertTrue(self._get_entry(parents, "app1").internal()["installed"])
+        self.assertIn(
+            'Not technically replicable, "group:solution1_app1:0.1.0": its parent '
+            '"group:app1:0.1.0" is not in its catalog "children", album takes the one '
+            "it finds first.",
+            self.get_logs_as_string(),
         )
 
     @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
