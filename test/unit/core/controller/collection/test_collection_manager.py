@@ -2,6 +2,7 @@ import threading
 import time
 import unittest
 import warnings
+import zipfile
 from pathlib import Path
 from test.unit.test_unit_core_common import TestCatalogAndCollectionCommon
 from unittest import mock
@@ -409,6 +410,28 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         _search_for_local_file_mock.assert_called_once_with(f)
         _search_mock.assert_not_called()
         _search_doi_mock.assert_not_called()
+
+    def test__resolve_case_local_zip(self):
+        # prepare: a zip holding solution.py and a file next to it
+        zip_path = Path(self.tmp_dir.name).joinpath("mySolution.zip")
+        with zipfile.ZipFile(zip_path, "w") as z:
+            z.writestr("solution.py", "")
+            z.writestr("data.txt", "")
+
+        # mock
+        self.album_controller.collection_manager()._search_for_local_file = MagicMock(
+            return_value=None
+        )
+
+        # call (check_file_or_url unpacks the zip)
+        resolve_result = self.album_controller.collection_manager()._resolve(
+            str(zip_path)
+        )
+
+        # assert: a zip is a solution folder, not a single file
+        self.assertFalse(resolve_result.is_single_file())
+        self.assertEqual("solution.py", resolve_result.path().name)
+        self.assertTrue(resolve_result.path().parent.joinpath("data.txt").exists())
 
     @patch("album.core.controller.collection.collection_manager.check_doi")
     @patch(
