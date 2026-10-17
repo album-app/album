@@ -4,6 +4,7 @@ from test.integration.test_integration_core_common import TestIntegrationCoreCom
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 from unittest.mock import ANY, patch
 
+from album.core import __version__ as album_version
 from album.core.model.catalog_updates import ChangeType
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.solution_operations import get_deploy_dict
@@ -948,17 +949,29 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
             self.get_logs_as_string(),
         )
         install_environment.reset_mock()
+        install_manager = self.album_controller.install_manager()
 
-        self.album_controller.install_manager().install(
+        # its child keeps it: the child might not work in its new environment
+        with self.assertRaises(RuntimeError) as e:
+            install_manager.install("my-catalog:group:app1:0.1.0", reinstall=True)
+        self.assertEqual(
+            'Cannot install "my-catalog:group:app1:0.1.0" again, nothing was changed: '
+            '"my-catalog:group:solution1_app1:0.1.0" runs in its environment, and might '
+            "not work in its new one. Uninstall it first, and install it again "
+            "afterwards.",
+            str(e.exception),
+        )
+        remove_environment.assert_not_called()
+        self.assertTrue(
+            self._get_entry(catalog, "solution1_app1").internal()["installed"]
+        )
+
+        # by hand, as the message says
+        install_manager.uninstall("my-catalog:group:solution1_app1:0.1.0")
+        install_manager.install(
             "my-catalog:group:app1:0.1.0", reinstall=True, no_conda_lock=True
         )
-
-        # listed before anything is uninstalled
-        self.assertIn(
-            'Installing "my-catalog:group:app1:0.1.0" again, and the solutions running '
-            "in its environment: my-catalog:group:solution1_app1:0.1.0",
-            self.get_logs_as_string(),
-        )
+        install_manager.install("my-catalog:group:solution1_app1:0.1.0")
 
         # its environment is built again, without its lock file as asked, and the child
         # installed into it again
@@ -1035,9 +1048,11 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         with self.assertRaises(RuntimeError) as e:
             install_manager.install("my-catalog:group:app1:0.1.0", reinstall=True)
 
-        self.assertIn(
-            '"group:solution1_app1:0.1.0", installed from a file, URL or DOI, runs in '
-            "its environment.",
+        self.assertEqual(
+            'Cannot install "my-catalog:group:app1:0.1.0" again, nothing was changed: '
+            '"cache_catalog:group:solution1_app1:0.1.0" runs in its environment, and '
+            "might not work in its new one. Uninstall it first, and install it again "
+            "afterwards.",
             str(e.exception),
         )
         # nothing changed
@@ -1057,7 +1072,15 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
     def test_install_reinstall_downloads_before_uninstalling(
         self, _, __, remove_environment
     ):
-        catalog = self._install_child_of_app1()
+        catalog_src, _ = self.setup_empty_catalog("my-catalog")
+        catalog = (
+            self.album_controller.collection_manager()
+            .catalogs()
+            .add_by_src(catalog_src)
+        )
+        self._deploy(catalog, "app1.py")
+        self._update_and_upgrade(catalog)
+        self.album_controller.install_manager().install("my-catalog:group:app1:0.1.0")
 
         with patch(
             "album.core.controller.collection.solution_handler.SolutionHandler.retrieve_solution",
@@ -1071,6 +1094,73 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         self.assertIn("nothing was changed: offline", str(e.exception))
         remove_environment.assert_not_called()
         self.assertTrue(self._get_entry(catalog, "app1").internal()["installed"])
+
+    def _deploy_changed(self, catalog, solution_file, old, new):
+        """Deploy a test solution again with the same version, with old replaced by new."""
+        path = Path(self.tmp_dir.name).joinpath(solution_file)
+        content = Path(self.get_test_solution_path(solution_file)).read_text("utf-8")
+        self.assertIn(old, content)
+        path.write_text(content.replace(old, new), encoding="utf-8")
+        self._deploy(catalog, str(path), force_deploy=True)
+        self._update_and_upgrade(catalog)
+
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.remove_environment"
+    )
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.install_environment"
+    )
+    @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
+    def test_install_reinstall_parent_not_found(self, _, __, remove_environment):
+        catalog = self._install_child_of_app1()
+        self._deploy_changed(
+            catalog, "solution1_app1.py", '"name": "app1"', '"name": "app_gone"'
+        )
+
+        with self.assertRaises(RuntimeError) as e:
+            self.album_controller.install_manager().install(
+                "my-catalog:group:solution1_app1:0.1.0", reinstall=True
+            )
+
+        self.assertEqual(
+            'Cannot install "my-catalog:group:solution1_app1:0.1.0" again, nothing was '
+            'changed: its parent "group:app_gone:0.1.0" is not found.',
+            str(e.exception),
+        )
+        remove_environment.assert_not_called()
+        self.assertTrue(
+            self._get_entry(catalog, "solution1_app1").internal()["installed"]
+        )
+
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.remove_environment"
+    )
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.install_environment"
+    )
+    @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
+    def test_install_reinstall_parent_with_another_api_version(
+        self, _, __, remove_environment
+    ):
+        catalog = self._install_child_of_app1()
+        self._deploy_changed(
+            catalog,
+            "solution1_app1.py",
+            'album_api_version="0.7.1"',
+            'album_api_version="0.7.2"',
+        )
+
+        with self.assertRaises(RuntimeError) as e:
+            self.album_controller.install_manager().install(
+                "my-catalog:group:solution1_app1:0.1.0", reinstall=True
+            )
+
+        self.assertEqual(
+            'Cannot install "my-catalog:group:solution1_app1:0.1.0" again, nothing was '
+            'changed: its parent "group:app1:0.1.0" has API version 0.7.1, not 0.7.2.',
+            str(e.exception),
+        )
+        remove_environment.assert_not_called()
         self.assertTrue(
             self._get_entry(catalog, "solution1_app1").internal()["installed"]
         )
@@ -1305,8 +1395,52 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         "album.core.controller.environment_manager.EnvironmentManager.install_environment"
     )
     @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
-    def test_install_reinstall_installs_the_other_children_if_one_fails(
-        self, run_solution_script, __, ___
+    def test_install_reinstall_another_album_version(self, _, __, remove_environment):
+        folder = Path(self.tmp_dir.name).joinpath("pinned")
+        folder.mkdir()
+        environment = folder.joinpath("environment.yml")
+        environment.write_text("dependencies:\n  - python\n", encoding="utf-8")
+        folder.joinpath("solution.py").write_text(
+            "from album.runner.api import setup\n\n"
+            'setup(group="group", name="pinned", version="0.1.0", '
+            'album_api_version="0.7.1", '
+            'dependencies={"environment_file": "environment.yml"})\n',
+            encoding="utf-8",
+        )
+        install_manager = self.album_controller.install_manager()
+        install_manager.install(str(folder))
+        cache_catalog = self.album_controller.catalogs().get_cache_catalog()
+        name = f"{cache_catalog.name()}:group:pinned:0.1.0"
+        # its environment installs another album version now
+        environment.write_text(
+            "dependencies:\n  - python\n  - album=0.0.1\n", encoding="utf-8"
+        )
+
+        with self.assertRaises(RuntimeError) as e:
+            install_manager.install(str(folder), reinstall=True)
+
+        self.assertEqual(
+            f'Cannot install "{name}" again, nothing was changed: its environment '
+            f'installs "album=0.0.1", not the running album {album_version}. '
+            f'Uninstall "{name}" and install it with --allow-recursive by hand.',
+            str(e.exception),
+        )
+        remove_environment.assert_not_called()
+        self.assertTrue(
+            self.album_controller.solutions().is_installed(
+                cache_catalog, Coordinates("group", "pinned", "0.1.0")
+            )
+        )
+
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.remove_environment"
+    )
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.install_environment"
+    )
+    @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
+    def test_install_reinstall_a_solution_others_run_in(
+        self, _, __, remove_environment
     ):
         catalog = self._install_child_of_app1()
         self._deploy(catalog, "solution2_app1.py")
@@ -1314,24 +1448,17 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         install_manager = self.album_controller.install_manager()
         install_manager.install("my-catalog:group:solution2_app1:0.1.0")
 
-        def fail_for_solution1_app1(resolve_result, *args):
-            if resolve_result.coordinates().name() == "solution1_app1":
-                raise RuntimeError("install routine failed")
-
-        run_solution_script.side_effect = fail_for_solution1_app1
-
         with self.assertRaises(RuntimeError) as e:
             install_manager.install("my-catalog:group:app1:0.1.0", reinstall=True)
 
-        self.assertIn(
-            'Installed "my-catalog:group:app1:0.1.0" again, but not: '
-            "my-catalog:group:solution1_app1:0.1.0",
+        self.assertEqual(
+            'Cannot install "my-catalog:group:app1:0.1.0" again, nothing was changed: '
+            '"my-catalog:group:solution1_app1:0.1.0", '
+            '"my-catalog:group:solution2_app1:0.1.0" run in its environment, and might '
+            "not work in its new one. Uninstall them first, and install them again "
+            "afterwards.",
             str(e.exception),
         )
-        self.assertTrue(self._get_entry(catalog, "app1").internal()["installed"])
-        self.assertTrue(
-            self._get_entry(catalog, "solution2_app1").internal()["installed"]
-        )
-        self.assertFalse(
-            self._get_entry(catalog, "solution1_app1").internal()["installed"]
-        )
+        remove_environment.assert_not_called()
+        for name in ["app1", "solution1_app1", "solution2_app1"]:
+            self.assertTrue(self._get_entry(catalog, name).internal()["installed"])

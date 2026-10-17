@@ -49,6 +49,13 @@ class InstallManager(IInstallManager):
         reinstall: bool = False,
         no_conda_lock: bool = False,
     ) -> ISolution:
+        if reinstall and allow_recursive:
+            # album in album can break what works, which a reinstall must not risk
+            raise ValueError(
+                f'--reinstall does not take --allow-recursive: uninstall "{solution_to_resolve}" '
+                "and install it with --allow-recursive by hand."
+            )
+
         # this needs to happen before any (potentially not completely installed) solution is resolved
         self.clean_unfinished_installations()
 
@@ -80,19 +87,17 @@ class InstallManager(IInstallManager):
     def _reinstall(
         self, solution_to_resolve: str, allow_recursive: bool, no_conda_lock: bool
     ) -> ISolution:
-        """Uninstall a solution and install it again, with the solutions in its environment.
+        """Uninstall a solution and install it again.
 
-        All that installing them again reads is downloaded or copied first, and the files
-        installing them checks are checked, so a failing download or a file outside the
-        folder of a solution changes nothing. The solutions running in its environment are
-        uninstalled first, deepest first, as a solution others run in cannot be
-        uninstalled, and installed again after it, parents first. A solution installed
-        from a file, URL or DOI running in its environment prevents the reinstall:
-        installing that environment again could break it.
+        A solution that others run in is not installed again: the author of a parent does
+        not know who builds on it, and they might not work in its new environment. They
+        keep it as it is until they are uninstalled. All that installing the solution
+        again reads is downloaded or copied first, and what would make installing it fail
+        is checked, so a failing download, a missing file, parent or resource, or a lock
+        file that conda-lock is not found for changes nothing.
 
-        Plain installations do not take the upgrade lock: an album process installing
-        a solution into its environment while the ones there are uninstalled makes
-        uninstalling it fail, and those uninstalled before are not installed again.
+        Plain installations do not take the upgrade lock: an album process installing a
+        solution into its environment meanwhile makes uninstalling it fail.
         """
         try:
             resolve_result = self.album.collection_manager().resolve_installed(
@@ -109,119 +114,103 @@ class InstallManager(IInstallManager):
         catalog, coordinates = resolve_result.catalog(), resolve_result.coordinates()
         name = f"{catalog.name()}:{coordinates}"
 
-        # the solutions running in its environment, parents first
+        # the solutions running in its environment keep it, deepest first: the order to
+        # uninstall them in
         children = [
-            (
-                self.album.catalogs().get_by_id(entry.internal()["catalog_id"]),
+            "%s:%s"
+            % (
+                self.album.catalogs().get_by_id(entry.internal()["catalog_id"]).name(),
                 dict_to_coordinates(entry.setup()),
             )
-            for entry in reversed(self._installed_children(db_entry))
+            for entry in self._installed_children(db_entry)
         ]
-        local = [
-            str(child) for child_catalog, child in children if child_catalog.is_cache()
-        ]
-        if local:
+        if children:
+            one = len(children) == 1
             raise RuntimeError(
-                'Cannot install "%s" again: "%s", installed from a file, URL or DOI, %s '
-                "in its environment."
-                % (name, '", "'.join(local), "runs" if len(local) == 1 else "run")
-            )
-        children_names = [
-            f"{child_catalog.name()}:{child}" for child_catalog, child in children
-        ]
-        if children_names:
-            module_logger().info(
-                'Installing "%s" again, and the solutions running in its environment: %s'
-                % (name, ", ".join(children_names))
+                'Cannot install "%s" again, nothing was changed: "%s" %s in its '
+                "environment, and might not work in its new one. Uninstall %s first, and "
+                "install %s again afterwards."
+                % (
+                    name,
+                    '", "'.join(children),
+                    "runs" if one else "run",
+                    "it" if one else "them",
+                    "it" if one else "them",
+                )
             )
 
         with TemporaryDirectory(dir=self.album.configuration().tmp_path()) as tmp_dir:
-            # downloaded or copied before anything is uninstalled
-            downloads = (
-                children if catalog.is_cache() else [(catalog, coordinates)] + children
-            )
+            # downloaded or copied, and checked, before anything is uninstalled
             try:
-                source = name
                 if catalog.is_cache():
                     source = self._local_source(
                         solution_to_resolve, catalog, coordinates, tmp_dir
                     )
-                for download_catalog, download in downloads:
-                    self.album.solutions().retrieve_solution(
-                        download_catalog,
-                        download,
-                        self._staged(tmp_dir, download_catalog, download),
+                    to_install = self.album.collection_manager().resolve_and_load(
+                        source
                     )
-                # installing them checks their files, once they are uninstalled
-                self._check_files_to_install_again(
-                    name,
-                    (
-                        self.album.collection_manager().resolve_and_load(source)
-                        if catalog.is_cache()
-                        else self._load_staged(tmp_dir, catalog, coordinates)
-                    ),
-                    [
-                        (child_name, self._load_staged(tmp_dir, child_catalog, child))
-                        for (child_catalog, child), child_name in zip(
-                            children, children_names
-                        )
-                    ],
+                else:
+                    source = name
+                    self.album.solutions().retrieve_solution(
+                        catalog,
+                        coordinates,
+                        self._staged(tmp_dir, catalog, coordinates),
+                    )
+                    to_install = self._load_staged(tmp_dir, catalog, coordinates)
+                # installing it checks its files and parent, once it is uninstalled
+                self._check_files_to_install_again(name, to_install)
+                self._check_parent_to_install_again(to_install)
+                self._check_environment_to_install_again(
+                    name, to_install, no_conda_lock
+                )
+                self.album.download_manager().stage_resources(
+                    to_install, self._staged_installation(tmp_dir, catalog, coordinates)
                 )
             except Exception as e:
                 raise RuntimeError(
                     f'Cannot install "{name}" again, nothing was changed: {e}'
                 ) from e
 
-            for child_name in reversed(children_names):
-                self.uninstall(child_name)
             self.uninstall(name)
-            # where installing them reads them from. Installing a solution from a file
-            # empties album's tmp folder, tmp_dir with it, so this comes first.
-            for download_catalog, download in downloads:
-                with self.album.solutions().get_solution_lock(
-                    download_catalog, download
-                ):
+            # where installing it reads from. Installing a solution from a file empties
+            # album's tmp folder, tmp_dir with it, so this comes first.
+            with self.album.solutions().get_solution_lock(catalog, coordinates):
+                if not catalog.is_cache():
                     copy_folder(
-                        self._staged(tmp_dir, download_catalog, download),
+                        self._staged(tmp_dir, catalog, coordinates),
                         self.album.solutions().get_solution_package_path(
-                            download_catalog, download
+                            catalog, coordinates
+                        ),
+                        copy_root_folder=False,
+                    )
+                # its resources with the scope "solution", into its new installation
+                staged_installation = self._staged_installation(
+                    tmp_dir, catalog, coordinates
+                )
+                if staged_installation.is_dir():
+                    copy_folder(
+                        staged_installation,
+                        self.album.solutions().get_solution_installation_path(
+                            catalog, coordinates
                         ),
                         copy_root_folder=False,
                     )
 
-            try:
-                loaded_solution = self.install(
-                    source, allow_recursive, no_conda_lock=no_conda_lock
-                )
-            except BaseException:
-                if children_names:
-                    module_logger().error(
-                        'Not installed again, as installing "%s" failed: %s'
-                        % (name, ", ".join(children_names))
-                    )
-                raise
-
-        # one that fails does not keep the others from being installed again
-        for child_name in children_names:
-            try:
-                self.install(child_name, allow_recursive, no_conda_lock=no_conda_lock)
-            except Exception as e:
-                module_logger().error(f'Cannot install "{child_name}" again: {e}')
-        not_installed = [
-            child_name
-            for (child_catalog, child), child_name in zip(children, children_names)
-            if not self.album.solutions().is_installed(child_catalog, child)
-        ]
-        if not_installed:
-            raise RuntimeError(
-                f'Installed "{name}" again, but not: {", ".join(not_installed)}'
-            )
-        return loaded_solution
+            return self.install(source, allow_recursive, no_conda_lock=no_conda_lock)
 
     @staticmethod
     def _staged(tmp_dir: str, catalog: ICatalog, coordinates: ICoordinates) -> Path:
         """Return the folder a solution is downloaded or copied into before a reinstall."""
         return Path(tmp_dir).joinpath(f"{catalog.name()}-{as_tag(coordinates)}")
+
+    @staticmethod
+    def _staged_installation(
+        tmp_dir: str, catalog: ICatalog, coordinates: ICoordinates
+    ) -> Path:
+        """Return the folder the resources of a solution are retrieved into before a reinstall."""
+        return Path(tmp_dir).joinpath(
+            "installations", f"{catalog.name()}-{as_tag(coordinates)}"
+        )
 
     def _load_staged(
         self, tmp_dir: str, catalog: ICatalog, coordinates: ICoordinates
@@ -239,29 +228,66 @@ class InstallManager(IInstallManager):
         )
 
     def _check_files_to_install_again(
-        self,
-        name: str,
-        solution: ICollectionSolution,
-        children: List[Tuple[str, ICollectionSolution]],
+        self, name: str, solution: ICollectionSolution
     ) -> None:
-        """Check the files of a solution and of its children before a reinstall uninstalls them.
+        """Check the files of a solution before a reinstall uninstalls it.
 
-        Installing them again checks these files as well, but only once the reinstall has
-        uninstalled them. So they are checked here first: if one fails, nothing is
-        uninstalled, and the user has to uninstall and install that solution by hand.
+        Installing it again checks these files as well, but only once the reinstall has
+        uninstalled it. So they are checked here first: if one fails, nothing is
+        uninstalled, and the user has to uninstall and install the solution by hand.
         """
-        for solution_name, to_install in [(name, solution)] + children:
-            try:
-                self._check_files(to_install)
-            except TypeError as e:
-                runs_in = (
-                    ""
-                    if solution_name == name
-                    else f'"{solution_name}", which runs in its environment: '
-                )
-                raise TypeError(
-                    f'{runs_in}{e} Uninstall "{solution_name}" and install it by hand.'
-                ) from e
+        try:
+            self._check_files(solution)
+        except TypeError as e:
+            raise TypeError(f'{e} Uninstall "{name}" and install it by hand.') from e
+
+    def _check_parent_to_install_again(self, solution: ICollectionSolution) -> None:
+        """Check the parent of a solution before a reinstall uninstalls it.
+
+        Installing it again fails if the parent it names is not found, or its API version
+        is another one, once the reinstall has uninstalled it.
+        """
+        parent_dict = get_parent_dict(solution.loaded_solution())
+        if not parent_dict:
+            return
+        try:
+            parent = self._resolve_parent(
+                parent_dict, solution.coordinates(), solution.catalog(), warn=False
+            )
+        except LookupError as e:
+            raise LookupError(
+                f'its parent "{build_resolve_string(parent_dict)}" is not found.'
+            ) from e
+        api_version = solution.loaded_solution().setup().album_api_version
+        parent_api_version = parent.loaded_solution().setup().album_api_version
+        if parent_api_version != api_version:
+            raise RuntimeError(
+                f'its parent "{parent.coordinates()}" has API version '
+                f"{parent_api_version}, not {api_version}."
+            )
+
+    def _check_environment_to_install_again(
+        self, name: str, solution: ICollectionSolution, no_conda_lock: bool
+    ) -> None:
+        """Check the environment of a solution before a reinstall uninstalls it.
+
+        Only a solution without a parent has an environment of its own, installed again
+        with it: from its lock file if it has one, which needs conda-lock unless
+        no_conda_lock is given, and without another album version, as a reinstall does
+        not take allow_recursive.
+        """
+        if get_parent_dict(solution.loaded_solution()):
+            return
+        environment_manager = self.album.environment_manager()
+        environment_manager.check_lock_file(
+            solution.coordinates(), get_solution_folder(solution), no_conda_lock
+        )
+        try:
+            environment_manager.check_album_version(solution)
+        except ValueError as e:
+            raise ValueError(
+                f'{e} Uninstall "{name}" and install it with --allow-recursive by hand.'
+            ) from e
 
     def _local_source(
         self,
@@ -871,12 +897,13 @@ class InstallManager(IInstallManager):
         parent_dict: Dict[str, Any],
         child_coordinates: ICoordinates,
         catalog: Optional[ICatalog],
+        warn: bool = True,
     ) -> ICollectionSolution:
         """Resolve the parent of a solution of catalog.
 
         A parent given by group, name and version is looked up in the catalog of the
         solution first. Found in any catalog, which one it is depends on the catalogs of
-        the installing album.
+        the installing album; album warns about it unless warn is False.
         """
         if (
             catalog is not None
@@ -889,11 +916,12 @@ class InstallManager(IInstallManager):
                     catalog, dict_to_coordinates(parent_dict)
                 )
             except LookupError:
-                module_logger().warning(
-                    f'Not technically replicable, "{child_coordinates}": its parent '
-                    f'"{dict_to_coordinates(parent_dict)}" is not in its catalog '
-                    f'"{catalog.name()}", album takes the one it finds first.'
-                )
+                if warn:
+                    module_logger().warning(
+                        f'Not technically replicable, "{child_coordinates}": its parent '
+                        f'"{dict_to_coordinates(parent_dict)}" is not in its catalog '
+                        f'"{catalog.name()}", album takes the one it finds first.'
+                    )
         return self.album.collection_manager().resolve_and_load(
             build_resolve_string(parent_dict)
         )

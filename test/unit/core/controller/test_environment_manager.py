@@ -515,6 +515,83 @@ class TestEnvironmentManager(TestUnitCoreCommon):
                 environment_snapshot=snapshot,
             )
 
+    def test_check_album_version(self):
+        folder = Path(self.tmp_dir.name).joinpath("solution")
+        folder.mkdir()
+        solution = Solution(
+            dict(
+                self.get_solution_dict(),
+                dependencies={"environment_file": "environment.yml"},
+            )
+        )
+        resolve = ResolveResult(
+            path=folder.joinpath("solution.py"),
+            catalog=self.catalog,
+            collection_entry=None,
+            coordinates=solution.coordinates(),
+            loaded_solution=solution,
+        )
+
+        # none, an unversioned one or the running one
+        for dependencies in ["python", "album", "album=%s" % album_version]:
+            with self.subTest(dependencies=dependencies):
+                folder.joinpath("environment.yml").write_text(
+                    "dependencies:\n  - %s\n" % dependencies
+                )
+                self.environment_manager.check_album_version(resolve)
+
+        # another album version
+        folder.joinpath("environment.yml").write_text(
+            "dependencies:\n  - album=0.0.1\n"
+        )
+        with self.assertRaises(ValueError) as e:
+            self.environment_manager.check_album_version(resolve)
+        self.assertEqual(
+            'its environment installs "album=0.0.1", not the running album %s.'
+            % album_version,
+            str(e.exception),
+        )
+
+        # a deployed solution is installed from the environment album deploy wrote
+        folder.joinpath("solution.environment.yml").write_text(
+            "dependencies:\n  - python\n"
+        )
+        self.environment_manager.check_album_version(resolve)
+
+    def test_check_lock_file(self):
+        folder = Path(self.tmp_dir.name).joinpath("solution")
+        folder.mkdir()
+        lock_manager = MagicMock()
+        lock_manager.conda_lock_executable.side_effect = RuntimeError(
+            "No conda-lock executable found!"
+        )
+        self.environment_manager._environment_handler.get_conda_lock_manager = (
+            MagicMock(return_value=lock_manager)
+        )
+        coordinates = Coordinates("g", "n", "0.1.0")
+
+        # no lock file, or a single file: solved, conda-lock is not needed
+        self.environment_manager.check_lock_file(coordinates, folder)
+        self.environment_manager.check_lock_file(coordinates, None)
+
+        # a lock file conda-lock is not found for
+        folder.joinpath("solution.conda-lock.yml").write_text("lock")
+        with self.assertRaises(RuntimeError) as e:
+            self.environment_manager.check_lock_file(coordinates, folder)
+        self.assertIn(
+            '"g:n:0.1.0" is installed from its lock file, but conda-lock',
+            str(e.exception),
+        )
+        # unless it is solved instead
+        self.environment_manager.check_lock_file(
+            coordinates, folder, no_conda_lock=True
+        )
+
+        # conda-lock found
+        lock_manager.conda_lock_executable.side_effect = None
+        lock_manager.conda_lock_executable.return_value = "/bin/conda-lock"
+        self.environment_manager.check_lock_file(coordinates, folder)
+
     def _warning_without_lock_file(
         self, lock_file, conda_lock, reasons, no_conda_lock=False
     ):

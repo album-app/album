@@ -972,6 +972,15 @@ class TestInstallManager(TestUnitCoreCommon):
             self.get_logs_as_string(),
         )
 
+        # checked before a reinstall: the warning comes when it is installed
+        self.captured_output.seek(0)
+        self.captured_output.truncate(0)
+        self.assertEqual(
+            "found first",
+            self.install_manager._resolve_parent(parent, child, catalog, warn=False),
+        )
+        self.assertNotIn("Not technically replicable", self.get_logs_as_string())
+
         # a solution installed from a file, a parent given by its DOI: as before
         cache_catalog = MagicMock()
         cache_catalog.is_cache.return_value = True
@@ -1253,6 +1262,23 @@ class TestInstallManager(TestUnitCoreCommon):
 
         install.assert_called_once_with("grp:name:0.1.0", False, no_conda_lock=True)
 
+    def test_install_reinstall_allow_recursive(self):
+        reinstall = MagicMock()
+        self.install_manager._reinstall = reinstall
+
+        # album in album can break what works: installed again by hand
+        with self.assertRaises(ValueError) as e:
+            self.install_manager.install(
+                "grp:name:0.1.0", allow_recursive=True, reinstall=True
+            )
+
+        self.assertEqual(
+            '--reinstall does not take --allow-recursive: uninstall "grp:name:0.1.0" '
+            "and install it with --allow-recursive by hand.",
+            str(e.exception),
+        )
+        reinstall.assert_not_called()
+
     @patch("album.core.controller.install_manager.check_file_or_url")
     def test__local_source_url(self, check_file_or_url):
         catalog = self.album_controller.catalogs().get_cache_catalog()
@@ -1325,31 +1351,16 @@ class TestInstallManager(TestUnitCoreCommon):
         )
 
         # existing files pass, also outside the folder of the solution
+        self.install_manager._check_files_to_install_again("cat:g:a:1", valid)
         self.install_manager._check_files_to_install_again(
-            "cat:g:a:1", valid, [("cat:g:b:1", to_install("../shared.yml"))]
+            "cat:g:a:1", to_install("../shared.yml")
         )
 
-        for solution, children, message in [
-            (
-                missing,
-                [("cat:g:b:1", valid)],
-                rule + ' Uninstall "cat:g:a:1" and install it by hand.',
-            ),
-            # a solution running in its environment is uninstalled with it
-            (
-                valid,
-                [("cat:g:b:1", missing)],
-                '"cat:g:b:1", which runs in its environment: '
-                + rule
-                + ' Uninstall "cat:g:b:1" and install it by hand.',
-            ),
-        ]:
-            with self.subTest(message=message):
-                with self.assertRaises(TypeError) as e:
-                    self.install_manager._check_files_to_install_again(
-                        "cat:g:a:1", solution, children
-                    )
-                self.assertEqual(message, str(e.exception))
+        with self.assertRaises(TypeError) as e:
+            self.install_manager._check_files_to_install_again("cat:g:a:1", missing)
+        self.assertEqual(
+            rule + ' Uninstall "cat:g:a:1" and install it by hand.', str(e.exception)
+        )
 
     def test_uninstall_solution_other_solutions_run_in(self):
         # whether or not the solution has a parent itself
