@@ -15,7 +15,7 @@ from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.model.mmversion import MMVersion
 from album.core.model.resolve_result import ResolveResult
-from album.core.utils.operations.file_operations import write_dict_to_json
+from album.core.utils.operations.file_operations import check_zip, write_dict_to_json
 from album.core.utils.operations.resolve_operations import (
     check_doi,
     check_file_or_url,
@@ -264,7 +264,7 @@ class CollectionManager(ICollectionManager):
         # called solution.py.  Determine this *before* check_file_or_url
         # transforms the path (prepare_path now always returns a file path).
         _input_path = Path(str_input)
-        single_file = _input_path.is_file() and not _input_path.is_dir()
+        single_file = _input_path.is_file() and not check_zip(_input_path)
 
         # always first resolve outside any catalog, excluding a DOI which should be first resolved inside a catalog
         path = check_file_or_url(

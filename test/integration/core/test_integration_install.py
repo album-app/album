@@ -1,6 +1,7 @@
 import os
 import sys
 import unittest
+import zipfile
 from pathlib import Path
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 from typing import Optional
@@ -133,6 +134,24 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
             .joinpath("solution.py")
             .exists()
         )
+
+    def test_install_from_zip(self):
+        # a zip holding solution.py and a file next to it
+        zip_path = Path(self.tmp_dir.name).joinpath("solution.zip")
+        with zipfile.ZipFile(zip_path, "w") as z:
+            z.write(self.get_test_solution_path(), "solution.py")
+            z.writestr("data.txt", "some data")
+
+        self.album_controller.install_manager().install(str(zip_path))
+
+        # assert the whole zip content is installed, not only solution.py
+        self.assertNotIn("ERROR", self.get_logs())
+        solution_file = self.album_controller.solutions().get_solution_file(
+            self.album_controller.collection_manager().catalogs().get_cache_catalog(),
+            Coordinates("group", "name", "0.1.0"),
+        )
+        self.assertTrue(solution_file.exists())
+        self.assertTrue(solution_file.parent.joinpath("data.txt").exists())
 
     @patch(
         "album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file"
