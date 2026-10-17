@@ -172,6 +172,34 @@ class TestConfiguration(TestUnitCoreCommon):
         self.assertTrue(fresh_folder.joinpath("content").exists())
         self.assertTrue(conf._tmp_path.exists())
 
+    def test_remove_stale_downloads(self):
+        # prepare - album before 1.0 left resolved solutions, templates and meta files
+        base_path = Path(self.tmp_dir.name).joinpath("base_path")
+        download_path = base_path.joinpath(
+            DefaultValues.cache_path_download_prefix.value
+        )
+        stale_file = download_path.joinpath("tmp_k2j4l1.zip")
+        stale_folder = download_path.joinpath("x7f3k9q2")
+        stale_catalog_repository = download_path.joinpath("my_catalog")
+        fresh_folder = download_path.joinpath("fresh_folder")
+        create_path_recursively(stale_folder.joinpath("content"))
+        create_path_recursively(stale_catalog_repository.joinpath(".git"))
+        create_path_recursively(fresh_folder.joinpath("content"))
+        stale_file.touch()
+        for path in [stale_file, stale_folder, stale_catalog_repository]:
+            self._make_stale(path)
+
+        # call
+        conf = Configuration()
+        conf.setup(base_cache_path=base_path)
+
+        # assert - the repository deploy works in stays, and what might still be in use
+        self.assertFalse(stale_file.exists())
+        self.assertFalse(stale_folder.exists())
+        self.assertTrue(stale_catalog_repository.joinpath(".git").exists())
+        self.assertTrue(fresh_folder.joinpath("content").exists())
+        self.assertEqual(download_path, conf.cache_path_download())
+
     @staticmethod
     def _make_stale(path):
         stale_time = time.time() - DefaultValues.stale_tmp_age_in_seconds.value - 60

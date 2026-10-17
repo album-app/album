@@ -64,6 +64,42 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
         # FIXME the next assertion doesn't work since not calling main in this method. Don't know how to set the loglevel to DEBUG in this test.
         # self.assertIn("No \"install\" routine configured for solution", self.captured_output.getvalue())
 
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
+    @patch("album.environments.controller.package_manager.PackageManager.install")
+    def test_install_from_zip_with_install_routine(self, _, get_environment_path):
+        get_environment_path.return_value = (
+            self.album_controller.environment_manager()
+            .get_environment_handler()
+            .get_package_manager()
+            .get_active_environment_path()
+        )
+        zip_path = Path(self.tmp_dir.name).joinpath("solution.zip")
+        with zipfile.ZipFile(zip_path, "w") as zip_file:
+            zip_file.write(self.get_test_solution_path(), "solution.py")
+
+        # this solution has an install() configured, it runs the unpacked solution file
+        self.album_controller.install_manager().install(str(zip_path))
+
+        # assert
+        self.assertNotIn("ERROR", self.get_logs())
+        self.assertTrue(
+            self.album_controller.solutions()
+            .get_solution_file(
+                self.album_controller.collection_manager()
+                .catalogs()
+                .get_cache_catalog(),
+                Coordinates("group", "name", "0.1.0"),
+            )
+            .exists()
+        )
+        # the zip was unpacked into the temporary folder, removed when album closes
+        self.assertEqual(
+            [],
+            list(self.album_controller.configuration().cache_path_download().iterdir()),
+        )
+
     def test_install(self):
         self.album_controller.install_manager().install(self.get_test_solution_path())
 

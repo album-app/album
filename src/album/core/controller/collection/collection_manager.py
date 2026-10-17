@@ -266,10 +266,9 @@ class CollectionManager(ICollectionManager):
         _input_path = Path(str_input)
         single_file = _input_path.is_file() and not check_zip(_input_path)
 
-        # always first resolve outside any catalog, excluding a DOI which should be first resolved inside a catalog
-        path = check_file_or_url(
-            str_input, self.album.configuration().cache_path_download()
-        )
+        # always first resolve outside any catalog, excluding a DOI which should be first resolved inside a catalog.
+        # A download or an unpacked zip lives in the temporary folder, removed when album closes
+        path = check_file_or_url(str_input, self.album.configuration().tmp_path())
 
         doi = get_doi_from_input(str_input)
         if path:

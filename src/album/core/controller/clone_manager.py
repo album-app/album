@@ -95,33 +95,30 @@ class CloneManager(ICloneManager):
             n=template_name,
         )
         if is_downloadable(template_url):
-            download_zip_target = (
-                self.album.configuration()
-                .cache_path_download()
-                .joinpath(template_name + ".zip")
-            )
-            download_unzip_target = (
-                self.album.configuration().cache_path_download().joinpath(template_name)
-            )
+            with TemporaryDirectory(
+                dir=self.album.configuration().tmp_path()
+            ) as tmp_dir:
+                download_zip_target = Path(tmp_dir).joinpath(template_name + ".zip")
+                download_unzip_target = Path(tmp_dir).joinpath(template_name)
 
-            download_resource(template_url, download_zip_target)
-            get_active_logger().debug(
-                "Downloaded template from %s to %s!"
-                % (template_url, download_zip_target)
-            )
+                download_resource(template_url, download_zip_target)
+                get_active_logger().debug(
+                    "Downloaded template from %s to %s!"
+                    % (template_url, download_zip_target)
+                )
 
-            unzip_archive(download_zip_target, download_unzip_target)
-            download_unzip_target_subdir = download_unzip_target.joinpath(
-                f"{template_name}-main"
-            )
+                unzip_archive(download_zip_target, download_unzip_target)
+                download_unzip_target_subdir = download_unzip_target.joinpath(
+                    f"{template_name}-main"
+                )
 
-            self.setup_repository_from_template(
-                target_path,
-                download_unzip_target_subdir,
-                catalog_name,
-                git_email,
-                git_name,
-            )
+                self.setup_repository_from_template(
+                    target_path,
+                    download_unzip_target_subdir,
+                    catalog_name,
+                    git_email,
+                    git_name,
+                )
 
             get_active_logger().info(
                 'Initialized new catalog "%s" from template "%s" in %s!'

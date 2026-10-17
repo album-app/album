@@ -12,8 +12,6 @@ from album.core.api.model.collection_index import ICollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import (
     check_zip,
-    create_path_recursively,
-    force_remove,
     rand_folder_name,
     unzip_archive,
 )
@@ -28,12 +26,6 @@ from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.model.coordinates import Coordinates
 
 module_logger = album_logging.get_active_logger
-
-
-def clean_resolve_tmp(tmp_cache_dir: Union[Path, str]) -> None:
-    """Clean the temporary directory which might have been used during resolving."""
-    force_remove(tmp_cache_dir)
-    create_path_recursively(tmp_cache_dir)
 
 
 def get_attributes_from_string(str_input: str) -> Dict[str, Any]:
