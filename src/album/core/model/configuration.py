@@ -5,7 +5,7 @@ import time
 import uuid
 import weakref
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional, Union
 
 from album.core.api.model.configuration import IConfiguration
 from album.core.model.default_values import DefaultValues
@@ -102,6 +102,7 @@ class Configuration(IConfiguration):
         )
 
         self._remove_stale_tmp()
+        self._remove_stale_downloads()
         create_paths_recursively(
             [
                 self._tmp_path,
@@ -169,14 +170,30 @@ class Configuration(IConfiguration):
         }
 
     def _remove_stale_tmp(self) -> None:
-        if not self._tmp_root_path.is_dir():
+        self._remove_stale(self._tmp_root_path, "temporary folder")
+
+    def _remove_stale_downloads(self) -> None:
+        # only the catalog repositories deploy and undeploy work in belong in the downloads
+        # folder. Album before 1.0 also left solutions downloaded or unpacked while resolving,
+        # catalog templates and catalog meta files there
+        self._remove_stale(
+            self._cache_path_download,
+            "download",
+            keep=lambda path: path.joinpath(".git").is_dir(),
+        )
+
+    @staticmethod
+    def _remove_stale(
+        folder: Path, kind: str, keep: Callable[[Path], bool] = lambda _: False
+    ) -> None:
+        if not folder.is_dir():
             return
         stale_before = time.time() - DefaultValues.stale_tmp_age_in_seconds.value
-        for path in self._tmp_root_path.iterdir():
+        for path in folder.iterdir():
             try:
-                if path.lstat().st_mtime < stale_before:
+                if path.lstat().st_mtime < stale_before and not keep(path):
                     force_remove(path)
             except OSError as e:
                 module_logger().warning(
-                    f"Could not remove stale temporary folder {str(path)}: {e}"
+                    f"Could not remove stale {kind} {str(path)}: {e}"
                 )

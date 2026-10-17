@@ -16,7 +16,6 @@ from album.core.utils.operations.resolve_operations import (
     as_tag,
     build_resolve_string,
     check_file_or_url,
-    clean_resolve_tmp,
     dict_to_coordinates,
 )
 from album.core.utils.operations.solution_operations import (
@@ -172,8 +171,8 @@ class InstallManager(IInstallManager):
                 ) from e
 
             self.uninstall(name)
-            # where installing it reads from. Installing a solution from a file empties
-            # album's tmp folder, tmp_dir with it, so this comes first.
+            # where installing it reads from, so this comes first. A solution of the cache
+            # catalog is installed from its copy in tmp_dir
             with self.album.solutions().get_solution_lock(catalog, coordinates):
                 if not catalog.is_cache():
                     copy_folder(
@@ -710,12 +709,9 @@ class InstallManager(IInstallManager):
                 f'Not technically replicable, "{resolve_result.coordinates()}": {reason}'
             )
 
+        # a solution resolved from a url, zip or DOI lives in the temporary folder until album
+        # closes: the install routine still runs the resolved solution file
         self._register(resolve_result)
-
-        if not parent:
-            if resolve_result.catalog().is_cache():
-                # always clean after registration to a catalog!
-                clean_resolve_tmp(self.album.configuration().tmp_path())
 
         # mark as "installation unfinished"
         self.album.solutions().set_installation_unfinished(

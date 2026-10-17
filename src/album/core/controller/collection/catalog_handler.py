@@ -25,7 +25,6 @@ from album.core.utils.operations.file_operations import (
     write_dict_to_json,
 )
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
-from album.environments.utils.file_operations import copy
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
@@ -422,18 +421,9 @@ class CatalogHandler(ICatalogHandler):
                 _, meta_src = retrieve_index_files_from_src(
                     source, branch_name=branch_name, tmp_dir=repo
                 )
-                meta_file = copy(
-                    meta_src,
-                    self.album.configuration()
-                    .cache_path_download()
-                    .joinpath(DefaultValues.catalog_index_metafile_json.value),
-                )
+                return get_dict_from_json(meta_src)
             finally:
                 force_remove(repo)
-
-        meta_dict = get_dict_from_json(meta_file)
-
-        return meta_dict
 
     def _create_catalog_from_src(
         self,

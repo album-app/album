@@ -207,7 +207,7 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         # assert
         check_file_or_url_mock.assert_called_once_with(
             "grp:name:version",
-            self.album_controller.configuration().cache_path_download(),
+            self.album_controller.configuration().tmp_path(),
         )
 
     @patch("album.core.controller.state_manager.StateManager.load")

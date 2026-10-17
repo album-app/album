@@ -181,8 +181,7 @@ class TestInstallManager(TestUnitCoreCommon):
 
         return resolve_result
 
-    @patch("album.core.controller.install_manager.clean_resolve_tmp")
-    def test__install_loaded_resolve_result(self, clean_resolve_tmp):
+    def test__install_loaded_resolve_result(self):
         r = self._prepare_install_loaded_resolve_result(installed=False)
 
         # call
@@ -194,7 +193,6 @@ class TestInstallManager(TestUnitCoreCommon):
             r.catalog(), r.coordinates()
         )
         self.register.assert_called_once_with(r)
-        clean_resolve_tmp.assert_called_once()  # cache catalog
         self.set_installation_unfinished.assert_called_once_with(
             r.catalog(), r.coordinates()
         )
@@ -203,8 +201,7 @@ class TestInstallManager(TestUnitCoreCommon):
         self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
         self.assertIn('Installing "tsn"...', self.get_logs_as_string())
 
-    @patch("album.core.controller.install_manager.clean_resolve_tmp")
-    def test__install_loaded_resolve_result_no_conda_lock(self, _):
+    def test__install_loaded_resolve_result_no_conda_lock(self):
         r = self._prepare_install_loaded_resolve_result(installed=False)
 
         # call
@@ -213,8 +210,7 @@ class TestInstallManager(TestUnitCoreCommon):
         # assert
         self.install_active_solution.assert_called_once_with(r, ANY, False, True)
 
-    @patch("album.core.controller.install_manager.clean_resolve_tmp")
-    def test__install_loaded_resolve_result_parent(self, clean_resolve_tmp):
+    def test__install_loaded_resolve_result_parent(self):
         r = self._prepare_install_loaded_resolve_result(installed=False)
 
         # call
@@ -223,12 +219,32 @@ class TestInstallManager(TestUnitCoreCommon):
         # assert
         self.assertEqual([call(r), call(r)], self.is_installed.call_args_list)
         self.register.assert_called_once_with(r)
-        clean_resolve_tmp.assert_not_called()  # only cleaned for the child
         # a parent gets its resources, too
         self.download_resources.assert_called_once_with(r)
         self.install_active_solution.assert_called_once_with(r, ANY, False, False)
         self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
         self.assertIn('Installing parent solution "tsn"...', self.get_logs_as_string())
+
+    def test__install_loaded_resolve_result_solution_file_in_tmp(self):
+        # resolved from a url, zip or DOI, or copied there by install --reinstall
+        path = (
+            self.album_controller.configuration()
+            .tmp_path()
+            .joinpath("resolved", "solution.py")
+        )
+        path.parent.mkdir(parents=True)
+        path.touch()
+        r = self._prepare_install_loaded_resolve_result(installed=False, path=path)
+        exists_when_installing = []
+        self.install_active_solution.side_effect = lambda *args: (
+            exists_when_installing.append(path.exists())
+        )
+
+        # call
+        self.install_manager._install_loaded_resolve_result(r)
+
+        # assert - the install routine runs this file
+        self.assertEqual([True], exists_when_installing)
 
     def _solution_folder_with_environment_file(self):
         folder = Path(self.tmp_dir.name).joinpath("my-solution")
@@ -240,8 +256,7 @@ class TestInstallManager(TestUnitCoreCommon):
         }
         return folder
 
-    @patch("album.core.controller.install_manager.clean_resolve_tmp")
-    def test__install_loaded_resolve_result_single_file(self, _):
+    def test__install_loaded_resolve_result_single_file(self):
         self.active_solution.setup().dependencies = {
             "environment_file": "dependencies:\n  - python\n"
         }
@@ -256,8 +271,7 @@ class TestInstallManager(TestUnitCoreCommon):
         self.register.assert_called_once_with(r)
         self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
 
-    @patch("album.core.controller.install_manager.clean_resolve_tmp")
-    def test__install_loaded_resolve_result_environment_file_in_folder(self, _):
+    def test__install_loaded_resolve_result_environment_file_in_folder(self):
         folder = self._solution_folder_with_environment_file()
         r = self._prepare_install_loaded_resolve_result(
             installed=False, path=folder.joinpath("solution.py")
@@ -307,8 +321,7 @@ class TestInstallManager(TestUnitCoreCommon):
         self.register.assert_not_called()
         self.set_installation_unfinished.assert_not_called()
 
-    @patch("album.core.controller.install_manager.clean_resolve_tmp")
-    def test__install_loaded_resolve_result_files_written_by_deploy(self, _):
+    def test__install_loaded_resolve_result_files_written_by_deploy(self):
         # a deployed solution: the files it names are not on this computer, it is
         # installed from what album deploy wrote next to it
         folder = Path(self.tmp_dir.name).joinpath("my-solution")
@@ -331,8 +344,7 @@ class TestInstallManager(TestUnitCoreCommon):
         self.register.assert_called_once_with(r)
         self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
 
-    @patch("album.core.controller.install_manager.clean_resolve_tmp")
-    def test__install_loaded_resolve_result_shows_replicability_reasons(self, _):
+    def test__install_loaded_resolve_result_shows_replicability_reasons(self):
         # deployed with --no-replicability: album deploy stored the reasons
         folder = Path(self.tmp_dir.name).joinpath("deployed")
         folder.mkdir()
@@ -369,8 +381,7 @@ class TestInstallManager(TestUnitCoreCommon):
             self.get_logs_as_string(),
         )
 
-    @patch("album.core.controller.install_manager.clean_resolve_tmp")
-    def test__install_loaded_resolve_result_resources_before_environment(self, _):
+    def test__install_loaded_resolve_result_resources_before_environment(self):
         r = self._prepare_install_loaded_resolve_result(installed=False)
         lock_free = []
 
@@ -390,8 +401,7 @@ class TestInstallManager(TestUnitCoreCommon):
         self.assertEqual([False], lock_free)
         self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
 
-    @patch("album.core.controller.install_manager.clean_resolve_tmp")
-    def test__install_loaded_resolve_result_resources_fail(self, _):
+    def test__install_loaded_resolve_result_resources_fail(self):
         r = self._prepare_install_loaded_resolve_result(installed=False)
         error = RuntimeError('Could not retrieve resource "a"')
         self.download_resources.side_effect = error
@@ -407,8 +417,7 @@ class TestInstallManager(TestUnitCoreCommon):
         self.assertEqual(2, self.clean_unfinished_installation.call_count)
         self.assertTrue(self._lock_is_free())
 
-    @patch("album.core.controller.install_manager.clean_resolve_tmp")
-    def test__install_loaded_resolve_result_holds_lock(self, _):
+    def test__install_loaded_resolve_result_holds_lock(self):
         r = self._prepare_install_loaded_resolve_result(installed=False)
         lock_free = []
         for step in [
@@ -521,8 +530,7 @@ class TestInstallManager(TestUnitCoreCommon):
             self.get_logs_as_string(),
         )
 
-    @patch("album.core.controller.install_manager.clean_resolve_tmp")
-    def test__install_loaded_resolve_result_other_solution_locked(self, _):
+    def test__install_loaded_resolve_result_other_solution_locked(self):
         r = self._prepare_install_loaded_resolve_result(installed=False)
 
         # another album process using the same base path installs another solution
@@ -551,8 +559,7 @@ class TestInstallManager(TestUnitCoreCommon):
             'Solution "tsn" already installed. Skipping...', self.get_logs_as_string()
         )
 
-    @patch("album.core.controller.install_manager.clean_resolve_tmp")
-    def test__install_loaded_resolve_result_solution_files_removed(self, _):
+    def test__install_loaded_resolve_result_solution_files_removed(self):
         # e.g. by another album process that failed to install the solution while
         # this one waited for the lock, or with an unfinished installation
         r = self._prepare_install_loaded_resolve_result(

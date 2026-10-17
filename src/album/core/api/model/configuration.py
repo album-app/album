@@ -22,7 +22,13 @@ class IConfiguration:
 
     @abstractmethod
     def cache_path_download(self) -> Path:
-        """Get the path for solution unspecific downloads."""
+        """Get the path for solution unspecific downloads.
+
+        It holds the catalog repositories deploy and undeploy work in, one per catalog,
+        removed with the catalog. Anything else in it is removed by setup() once it has not
+        been modified for DefaultValues.stale_tmp_age_in_seconds, use tmp_path() for
+        temporary files.
+        """
         raise NotImplementedError
 
     @abstractmethod

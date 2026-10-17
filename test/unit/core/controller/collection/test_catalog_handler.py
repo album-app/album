@@ -112,6 +112,10 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
             .get_collection_index()
             .get_all_catalogs(),
         )
+        # the meta information of the catalog is read where it was retrieved
+        self.assertTrue(
+            folder_empty(self.album_controller.configuration().cache_path_download())
+        )
 
     # Info: this is rather a small integration test.
     def test_add_by_src_already_present(self):
@@ -971,30 +975,29 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
         "album.core.controller.collection.catalog_handler.get_dict_from_json",
         return_value={"mydict": "1"},
     )
-    @patch("album.core.controller.collection.catalog_handler.copy")
     @patch(
         "album.core.controller.collection.catalog_handler.retrieve_index_files_from_src",
         return_value=("db_file", "meta_file"),
     )
     def test__retrieve_catalog_meta_information(
-        self, download_resource_mock, copy_mock, get_dict_mock
+        self, download_resource_mock, get_dict_mock
     ):
         # prepare
         link = "https://mylink.com"
-        copy_mock.return_value = Path(self.tmp_dir.name).joinpath(
-            "album", "downloads", "album_catalog_index.json"
-        )
+
         # call
         r = self.catalog_handler._retrieve_catalog_meta_information(link)
 
-        # assert
+        # assert - read where it was retrieved, nothing is left behind
         self.assertDictEqual({"mydict": "1"}, r)
         download_resource_mock.assert_called_once_with(
             "https://mylink.com", branch_name="main", tmp_dir=mock.ANY
         )
-        copy_mock.assert_called_once()
-        get_dict_mock.assert_called_once_with(copy_mock.return_value)
+        get_dict_mock.assert_called_once_with("meta_file")
         self.assertTrue(folder_empty(self.album_controller.configuration().tmp_path()))
+        self.assertTrue(
+            folder_empty(self.album_controller.configuration().cache_path_download())
+        )
 
     def test__create_catalog_from_src(self):
         # call
