@@ -161,12 +161,10 @@ class Album:
                 install it again from its catalog, or from the file, URL or DOI
                 given. A solution installed from a file, URL or DOI and given by its
                 coordinates is installed from its copy in the collection.
-                The solutions running in its environment are uninstalled and
-                installed again with it if they come from a catalog. If one of them
-                was installed from a file, URL or DOI, nothing is changed and a
-                RuntimeError is raised: album leaves the environment of such a
-                solution untouched. Everything is downloaded, resources included,
-                before anything is uninstalled, and what would make installing them
+                A solution other solutions run in is not installed again, as they
+                might not work in its new environment: nothing is changed and a
+                RuntimeError is raised. Everything is downloaded, resources included,
+                before anything is uninstalled, and what would make installing it
                 again fail raises a RuntimeError with nothing changed as well: a
                 missing file, resource or parent, a parent with another API version,
                 or a lock file when conda-lock is not found.
