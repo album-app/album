@@ -69,7 +69,9 @@ class IInstallManager:
                 before anything is uninstalled, and what would make installing it
                 again fail raises a RuntimeError with nothing changed as well: a
                 missing file, resource or parent, a parent with another API version,
-                or a lock file when conda-lock is not found.
+                a lock file when conda-lock is not found, or another album version in
+                its environment. It does not take allow_recursive (ValueError):
+                uninstall such a solution and install it with allow_recursive.
             no_conda_lock:
                 Solve the environment instead of installing it from the lock file of
                 the solution, e.g. when the lock file does not install on this system.

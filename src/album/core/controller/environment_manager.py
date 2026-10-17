@@ -2,6 +2,7 @@ import os
 import re
 from copy import deepcopy
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
 from packaging.requirements import InvalidRequirement, Requirement
@@ -276,10 +277,8 @@ class EnvironmentManager(IEnvironmentManager):
             return EnvironmentManager._is_running_album_version(specifiers[0].version)
         return False
 
-    def _check_album_in_album(
-        self, yml_dict: Dict[str, Any], allow_recursive: bool = False
-    ) -> None:
-        # every album dependency, with whether it is the running version (or unversioned)
+    def _album_dependencies(self, yml_dict: Dict[str, Any]) -> List[Tuple[str, bool]]:
+        """Return every album dependency, with whether it is the running version (or unversioned)."""
         album_dependencies: List[Tuple[str, bool]] = []
         for dep in yml_dict.get("dependencies") or []:
             if isinstance(dep, dict):
@@ -291,7 +290,53 @@ class EnvironmentManager(IEnvironmentManager):
                 running = self._conda_album_dependency(dep)
                 if running is not None:
                     album_dependencies.append((dep, running))
+        return album_dependencies
 
+    def check_album_version(self, collection_solution: ICollectionSolution) -> None:
+        environment = self._load_solution_environment(collection_solution)
+        if environment is None:
+            return
+        other_versions = [
+            dep for dep, running in self._album_dependencies(environment) if not running
+        ]
+        if other_versions:
+            raise ValueError(
+                'its environment installs "%s", not the running album %s.'
+                % ('", "'.join(other_versions), album_version)
+            )
+
+    def _load_solution_environment(
+        self, collection_solution: ICollectionSolution
+    ) -> Optional[Dict[str, Any]]:
+        """Load the environment of a solution, as installing it reads it.
+
+        That is the environment album deploy wrote next to it, or else the one it names;
+        None for the default environment.
+        """
+        solution = collection_solution.loaded_solution()
+        solution_folder = get_solution_folder(collection_solution)
+        folder = solution_folder or solution.installation().package_path()
+        snapshot = (
+            Path(folder).joinpath(DefaultValues.solution_environment_default_name.value)
+            if folder
+            else None
+        )
+        if snapshot is not None and snapshot.is_file():
+            return get_dict_from_yml(snapshot)
+        dependencies = solution.setup().dependencies or {}
+        if "environment_file" not in dependencies:
+            return None
+        with TemporaryDirectory(dir=self._album.configuration().tmp_path()) as tmp_dir:
+            yaml_path = Path(tmp_dir).joinpath("environment.yml")
+            self._album.resource_manager().handle_env_file_dependency(
+                dependencies["environment_file"], yaml_path, solution_folder
+            )
+            return get_dict_from_yml(yaml_path)
+
+    def _check_album_in_album(
+        self, yml_dict: Dict[str, Any], allow_recursive: bool = False
+    ) -> None:
+        album_dependencies = self._album_dependencies(yml_dict)
         if not album_dependencies:
             return
 

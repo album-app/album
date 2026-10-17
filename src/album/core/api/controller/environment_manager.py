@@ -50,6 +50,17 @@ class IEnvironmentManager:
         raise NotImplementedError
 
     @abstractmethod
+    def check_album_version(self, collection_solution: ICollectionSolution) -> None:
+        """Check that the environment of a solution installs no other album version.
+
+        Raises a ValueError naming the album versions its environment installs, other than
+        the running one, which installing it only accepts with allow_recursive. The same or
+        an unversioned album is accepted. The environment is read as installing the
+        solution reads it.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def set_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
         """Resolve the environment the solution runs in and set its path on the solution.
 

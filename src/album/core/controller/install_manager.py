@@ -49,6 +49,13 @@ class InstallManager(IInstallManager):
         reinstall: bool = False,
         no_conda_lock: bool = False,
     ) -> ISolution:
+        if reinstall and allow_recursive:
+            # album in album can break what works, which a reinstall must not risk
+            raise ValueError(
+                f'--reinstall does not take --allow-recursive: uninstall "{solution_to_resolve}" '
+                "and install it with --allow-recursive by hand."
+            )
+
         # this needs to happen before any (potentially not completely installed) solution is resolved
         self.clean_unfinished_installations()
 
@@ -153,13 +160,9 @@ class InstallManager(IInstallManager):
                 # installing it checks its files and parent, once it is uninstalled
                 self._check_files_to_install_again(name, to_install)
                 self._check_parent_to_install_again(to_install)
-                if not get_parent_dict(to_install.loaded_solution()):
-                    # its environment is installed again, from its lock file if it has one
-                    self.album.environment_manager().check_lock_file(
-                        to_install.coordinates(),
-                        get_solution_folder(to_install),
-                        no_conda_lock,
-                    )
+                self._check_environment_to_install_again(
+                    name, to_install, no_conda_lock
+                )
                 self.album.download_manager().stage_resources(
                     to_install, self._staged_installation(tmp_dir, catalog, coordinates)
                 )
@@ -262,6 +265,29 @@ class InstallManager(IInstallManager):
                 f'its parent "{parent.coordinates()}" has API version '
                 f"{parent_api_version}, not {api_version}."
             )
+
+    def _check_environment_to_install_again(
+        self, name: str, solution: ICollectionSolution, no_conda_lock: bool
+    ) -> None:
+        """Check the environment of a solution before a reinstall uninstalls it.
+
+        Only a solution without a parent has an environment of its own, installed again
+        with it: from its lock file if it has one, which needs conda-lock unless
+        no_conda_lock is given, and without another album version, as a reinstall does
+        not take allow_recursive.
+        """
+        if get_parent_dict(solution.loaded_solution()):
+            return
+        environment_manager = self.album.environment_manager()
+        environment_manager.check_lock_file(
+            solution.coordinates(), get_solution_folder(solution), no_conda_lock
+        )
+        try:
+            environment_manager.check_album_version(solution)
+        except ValueError as e:
+            raise ValueError(
+                f'{e} Uninstall "{name}" and install it with --allow-recursive by hand.'
+            ) from e
 
     def _local_source(
         self,

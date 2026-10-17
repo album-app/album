@@ -515,6 +515,49 @@ class TestEnvironmentManager(TestUnitCoreCommon):
                 environment_snapshot=snapshot,
             )
 
+    def test_check_album_version(self):
+        folder = Path(self.tmp_dir.name).joinpath("solution")
+        folder.mkdir()
+        solution = Solution(
+            dict(
+                self.get_solution_dict(),
+                dependencies={"environment_file": "environment.yml"},
+            )
+        )
+        resolve = ResolveResult(
+            path=folder.joinpath("solution.py"),
+            catalog=self.catalog,
+            collection_entry=None,
+            coordinates=solution.coordinates(),
+            loaded_solution=solution,
+        )
+
+        # none, an unversioned one or the running one
+        for dependencies in ["python", "album", "album=%s" % album_version]:
+            with self.subTest(dependencies=dependencies):
+                folder.joinpath("environment.yml").write_text(
+                    "dependencies:\n  - %s\n" % dependencies
+                )
+                self.environment_manager.check_album_version(resolve)
+
+        # another album version
+        folder.joinpath("environment.yml").write_text(
+            "dependencies:\n  - album=0.0.1\n"
+        )
+        with self.assertRaises(ValueError) as e:
+            self.environment_manager.check_album_version(resolve)
+        self.assertEqual(
+            'its environment installs "album=0.0.1", not the running album %s.'
+            % album_version,
+            str(e.exception),
+        )
+
+        # a deployed solution is installed from the environment album deploy wrote
+        folder.joinpath("solution.environment.yml").write_text(
+            "dependencies:\n  - python\n"
+        )
+        self.environment_manager.check_album_version(resolve)
+
     def test_check_lock_file(self):
         folder = Path(self.tmp_dir.name).joinpath("solution")
         folder.mkdir()

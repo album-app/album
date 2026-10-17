@@ -4,6 +4,7 @@ from test.integration.test_integration_core_common import TestIntegrationCoreCom
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 from unittest.mock import ANY, patch
 
+from album.core import __version__ as album_version
 from album.core.model.catalog_updates import ChangeType
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.solution_operations import get_deploy_dict
@@ -1385,6 +1386,50 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         remove_environment.assert_not_called()
         self.assertTrue(
             self.album_controller.solutions().is_installed(cache_catalog, legacy)
+        )
+
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.remove_environment"
+    )
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.install_environment"
+    )
+    @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
+    def test_install_reinstall_another_album_version(self, _, __, remove_environment):
+        folder = Path(self.tmp_dir.name).joinpath("pinned")
+        folder.mkdir()
+        environment = folder.joinpath("environment.yml")
+        environment.write_text("dependencies:\n  - python\n", encoding="utf-8")
+        folder.joinpath("solution.py").write_text(
+            "from album.runner.api import setup\n\n"
+            'setup(group="group", name="pinned", version="0.1.0", '
+            'album_api_version="0.7.1", '
+            'dependencies={"environment_file": "environment.yml"})\n',
+            encoding="utf-8",
+        )
+        install_manager = self.album_controller.install_manager()
+        install_manager.install(str(folder))
+        cache_catalog = self.album_controller.catalogs().get_cache_catalog()
+        name = f"{cache_catalog.name()}:group:pinned:0.1.0"
+        # its environment installs another album version now
+        environment.write_text(
+            "dependencies:\n  - python\n  - album=0.0.1\n", encoding="utf-8"
+        )
+
+        with self.assertRaises(RuntimeError) as e:
+            install_manager.install(str(folder), reinstall=True)
+
+        self.assertEqual(
+            f'Cannot install "{name}" again, nothing was changed: its environment '
+            f'installs "album=0.0.1", not the running album {album_version}. '
+            f'Uninstall "{name}" and install it with --allow-recursive by hand.',
+            str(e.exception),
+        )
+        remove_environment.assert_not_called()
+        self.assertTrue(
+            self.album_controller.solutions().is_installed(
+                cache_catalog, Coordinates("group", "pinned", "0.1.0")
+            )
         )
 
     @patch(

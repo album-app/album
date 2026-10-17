@@ -1262,6 +1262,23 @@ class TestInstallManager(TestUnitCoreCommon):
 
         install.assert_called_once_with("grp:name:0.1.0", False, no_conda_lock=True)
 
+    def test_install_reinstall_allow_recursive(self):
+        reinstall = MagicMock()
+        self.install_manager._reinstall = reinstall
+
+        # album in album can break what works: installed again by hand
+        with self.assertRaises(ValueError) as e:
+            self.install_manager.install(
+                "grp:name:0.1.0", allow_recursive=True, reinstall=True
+            )
+
+        self.assertEqual(
+            '--reinstall does not take --allow-recursive: uninstall "grp:name:0.1.0" '
+            "and install it with --allow-recursive by hand.",
+            str(e.exception),
+        )
+        reinstall.assert_not_called()
+
     @patch("album.core.controller.install_manager.check_file_or_url")
     def test__local_source_url(self, check_file_or_url):
         catalog = self.album_controller.catalogs().get_cache_catalog()

@@ -293,7 +293,9 @@ def create_install_parser(parser):
         "its new environment: uninstall them first, and install them again afterwards. Everything is "
         "downloaded, resources included, before anything is uninstalled, and what would make installing "
         "it again fail stops it with nothing changed: a missing file, resource or parent, a parent with "
-        "another API version, or a lock file when conda-lock is not found.",
+        "another API version, a lock file when conda-lock is not found, or another album version in "
+        "its environment. It does not take --allow-recursive: uninstall such a solution and install it "
+        "with --allow-recursive by hand.",
         action="store_true",
     )
     p.add_argument(
