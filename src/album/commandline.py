@@ -84,6 +84,7 @@ def deploy(album_instance: Album, args: Namespace):
         args.force_deploy,
         args.changelog,
         args.no_conda_lock,
+        args.no_replicability,
     )
 
 
@@ -106,6 +107,7 @@ def install(album_instance: Album, args: Namespace):
         args.allow_recursive,
         sys.argv,
         reinstall=getattr(args, "reinstall", False),
+        no_conda_lock=getattr(args, "no_conda_lock", False),
     )
 
 

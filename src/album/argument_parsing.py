@@ -289,10 +289,22 @@ def create_install_parser(parser):
         help="Install the solution again if it is installed, e.g. after it was deployed again with the "
         "same version. It is installed from its catalog, or from the file, URL or DOI given; a solution "
         "installed from a file, URL or DOI and given by group:name:version is installed from its copy "
-        "in album. The solutions running in its environment are installed again with it if they come "
-        "from a catalog. If one of them was installed from a file, URL or DOI, nothing is changed: "
-        "album leaves the environment of such a solution untouched. Everything is downloaded before "
-        "anything is uninstalled.",
+        "in album. A solution other solutions run in is not installed again, as they might not work in "
+        "its new environment: uninstall them first, and install them again afterwards. Everything is "
+        "downloaded, resources included, before anything is uninstalled, and what would make installing "
+        "it again fail stops it with nothing changed: a missing file, resource or parent, a parent with "
+        "another API version, a lock file when conda-lock is not found, or another album version in "
+        "its environment. It does not take --allow-recursive: uninstall such a solution and install it "
+        "with --allow-recursive by hand.",
+        action="store_true",
+    )
+    p.add_argument(
+        "--no-conda-lock",
+        required=False,
+        help="Solve the environment of the solution instead of installing it from its lock file, "
+        "e.g. when the lock file does not install on this system. The environment is then not "
+        "technically replicable, album warns. A solution with a parent runs in the environment of "
+        "its parent: it applies to the parent if the parent is installed with it.",
         action="store_true",
     )
 
@@ -354,6 +366,15 @@ def create_deploy_parser(parser):
         "--no-conda-lock",
         required=False,
         help="When specified, the conda.lock file will not be created.",
+        action="store_true",
+    )
+    p.add_argument(
+        "--no-replicability",
+        required=False,
+        help="Deploy also a solution that is not technically replicable, e.g. one with a "
+        "resource url without a hash, a parent given by a path, or a version that replaces "
+        "one deployed before. Without it, album deploy names the reasons and stops. They are "
+        "stored with the solution, and installing it shows them.",
         action="store_true",
     )
 

@@ -3,14 +3,14 @@ import importlib.util
 import json
 import logging
 import pkgutil
+import shutil
 import sys
 import threading
 from contextlib import AbstractContextManager, contextmanager, nullcontext
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 import pooch
-import validators
 import yaml
 from jsonschema import ValidationError, validate
 
@@ -18,8 +18,10 @@ from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.shared_downloads_manager import IDownloadManager
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.model.default_values import DefaultValues
+from album.core.model.replicability import ReplicabilityReason
 from album.core.utils.file_lock import FileLock
 from album.core.utils.operations.file_operations import force_remove
+from album.core.utils.operations.solution_operations import get_solution_folder
 from album.runner.album_logging import get_active_logger
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
@@ -47,7 +49,7 @@ class DownloadManager(IDownloadManager):
         self, collection_solution: ICollectionSolution
     ) -> Optional[Path]:
         solution = collection_solution.loaded_solution()
-        resources_dict = self._load_resources(solution)
+        resources_dict = self._load_resources_to_install(collection_solution)
         if resources_dict is None:
             return None
 
@@ -62,35 +64,105 @@ class DownloadManager(IDownloadManager):
         # the json file is only written when every resource is available
         return self._write_resources_json(resources_dict, solution)
 
-    def check_resources(self, solution: ISolution) -> None:
-        resources_dict = self._load_resources(solution)
+    def stage_resources(
+        self, collection_solution: ICollectionSolution, installation_path: Path
+    ) -> None:
+        resources_dict = self._load_resources_to_install(collection_solution)
         if resources_dict is None:
             return
 
-        # a string that is neither a url nor the content of the file is a path, see ResourceManager
-        resource_file = solution.setup().dependencies["resource_file"]
-        if (
-            isinstance(resource_file, str)
-            and not validators.url(resource_file)
-            and not ("resources:" in resource_file and "\n" in resource_file)
-        ):
-            module_logger().warning(
-                'The resource_file of "%s" points to the file %s. The solution can only be '
-                "installed where this path exists. Add the content of the file to the solution "
-                "or use a url instead." % (solution.coordinates(), resource_file)
+        catalog = collection_solution.catalog()
+        self._set_paths_in_dict(
+            resources_dict,
+            installation_path,
+            catalog.name(),
+            self.album.configuration().shared_resources_path(),
+        )
+        installed = Path(
+            self.album.solutions().get_solution_installation_path(
+                catalog, collection_solution.coordinates()
             )
+        )
+        for resource in resources_dict["resources"].values():
+            if resource["scope"] != SCOPE_SOLUTION or resource["path"] is None:
+                continue
+            path = Path(resource["path"])
+            in_installation = installed.joinpath(path.relative_to(installation_path))
+            if in_installation.is_file():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(in_installation, path)
+        # a copy with another content than its hash is downloaded again
+        self._retrieve_resources_from_dict(resources_dict, staged=True)
 
+    def _load_resources_to_install(
+        self, collection_solution: ICollectionSolution
+    ) -> Optional[Dict[str, Any]]:
+        """Load the resources a solution is installed with, see _load_resources.
+
+        A deployed solution is installed from the resource list album deploy wrote next to
+        it, not from the resource file it names.
+        """
+        solution = collection_solution.loaded_solution()
+        solution_folder = get_solution_folder(collection_solution)
+        folder = solution_folder or solution.installation().package_path()
+        resource_snapshot = (
+            Path(folder).joinpath(DefaultValues.solution_resources_default_name.value)
+            if folder
+            else None
+        )
+        return self._load_resources(
+            solution,
+            solution_folder,
+            (
+                resource_snapshot
+                if resource_snapshot is not None and resource_snapshot.is_file()
+                else None
+            ),
+        )
+
+    def check_resources(
+        self, solution: ISolution, solution_folder: Optional[Path] = None
+    ) -> List[ReplicabilityReason]:
+        resources_dict = self._load_resources(solution, solution_folder)
+        if resources_dict is None:
+            return []
+
+        reasons = []
         for key, resource in resources_dict["resources"].items():
-            if resource["scope"] != SCOPE_SOLUTION and not resource["hash"]:
-                module_logger().warning(
-                    'Resource "%s" of "%s" is shared, but has no hash. Every solution sharing '
-                    "it will use the content that was downloaded first, whatever the url "
-                    'returns later. Pin the content with a "hash".'
-                    % (key, solution.coordinates())
+            from_doi = resource["url"].startswith("doi:")
+            if resource["hash"]:
+                if not from_doi:
+                    module_logger().warning(
+                        'Resource "%s" of "%s" is downloaded from %s, which can become '
+                        "unavailable. A DOI, e.g. on Zenodo, keeps it available."
+                        % (key, solution.coordinates(), resource["url"])
+                    )
+            elif from_doi:
+                reasons.append(
+                    ReplicabilityReason(
+                        'resource "%s" has no hash, its content is not verified' % key
+                    )
                 )
+            else:
+                reasons.append(
+                    ReplicabilityReason(
+                        'resource "%s" is downloaded from %s without a hash, its content '
+                        "can change" % (key, resource["url"]),
+                        needs_flag=True,
+                    )
+                )
+        return reasons
 
-    def _load_resources(self, solution: ISolution) -> Optional[Dict[str, Any]]:
+    def _load_resources(
+        self,
+        solution: ISolution,
+        solution_folder: Optional[Path] = None,
+        resource_snapshot: Optional[Path] = None,
+    ) -> Optional[Dict[str, Any]]:
         """Read and validate the resource file of a solution, filled up with the default values.
+
+        A relative path of the resource file starts at solution_folder, the folder of the
+        solution. resource_snapshot, the resource list album deploy wrote, is read instead.
 
         Returns:
             The resources dictionary, or None if the solution declares no resource file.
@@ -98,6 +170,11 @@ class DownloadManager(IDownloadManager):
         dependencies = solution.setup().dependencies
         if not dependencies or "resource_file" not in dependencies:
             return None
+        resource_file = (
+            str(resource_snapshot)
+            if resource_snapshot is not None
+            else dependencies["resource_file"]
+        )
 
         # bring every form of the resource file to a yml file first
         yml_path = (
@@ -107,7 +184,7 @@ class DownloadManager(IDownloadManager):
         )
         try:
             self.album.resource_manager().handle_resource_file_dependency(
-                dependencies["resource_file"], yml_path
+                resource_file, yml_path, solution_folder
             )
             with open(yml_path, encoding="utf-8") as yml_file:
                 resources_dict = yaml.safe_load(yml_file)
@@ -224,11 +301,15 @@ class DownloadManager(IDownloadManager):
             content = resource["url"]
         return hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
 
-    def _retrieve_resources_from_dict(self, resources_dict: Dict[str, Any]) -> None:
+    def _retrieve_resources_from_dict(
+        self, resources_dict: Dict[str, Any], staged: bool = False
+    ) -> None:
         """Download every resource with a path. A resource already on the disk is not downloaded again.
 
         A shared resource is retrieved holding the lock of its content folder, so solutions
-        that are installed at the same time and share it download it once.
+        that are installed at the same time and share it download it once. Retrieved before
+        a reinstall (staged), where it is and whether it has a hash is said when the solution
+        is installed again.
 
         Raises:
             RuntimeError: if a resource cannot be downloaded or does not match its hash.
@@ -256,6 +337,8 @@ class DownloadManager(IDownloadManager):
                     % (key, resource["url"], e)
                 ) from e
 
+            if staged:
+                continue
             module_logger().info(f'Resource "{key}" is available at {path}.')
             if resource["hash"] is None:
                 module_logger().info(

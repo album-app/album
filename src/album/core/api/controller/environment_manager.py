@@ -1,6 +1,7 @@
 """Interface for managing environments."""
 
 from abc import ABCMeta, abstractmethod
+from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Union
 
 from album.core.api.model.catalog import ICatalog
@@ -21,9 +22,42 @@ class IEnvironmentManager:
 
     @abstractmethod
     def install_environment(
-        self, collection_solution: ICollectionSolution, allow_recursive: bool = False
+        self,
+        collection_solution: ICollectionSolution,
+        allow_recursive: bool = False,
+        no_conda_lock: bool = False,
     ) -> IEnvironment:
-        """Install an environment for the given solution."""
+        """Install an environment for the given solution.
+
+        It is installed from the lock file of the solution, if it has one. With
+        no_conda_lock, it is solved instead.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def check_lock_file(
+        self,
+        coordinates: ICoordinates,
+        solution_folder: Optional[Path],
+        no_conda_lock: bool = False,
+    ) -> None:
+        """Check that the environment of a solution can be installed from its lock file.
+
+        Raises a RuntimeError if the solution in solution_folder has a lock file, but
+        conda-lock, which installs it, is not found, unless no_conda_lock is given: then
+        the environment is solved instead.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def check_album_version(self, collection_solution: ICollectionSolution) -> None:
+        """Check that the environment of a solution installs no other album version.
+
+        Raises a ValueError naming the album versions its environment installs, other than
+        the running one, which installing it only accepts with allow_recursive. The same or
+        an unversioned album is accepted. The environment is read as installing the
+        solution reads it.
+        """
         raise NotImplementedError
 
     @abstractmethod

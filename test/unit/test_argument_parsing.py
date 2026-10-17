@@ -89,6 +89,17 @@ class TestArgumentParsing(unittest.TestCase):
         self.assertEqual(deploy, args[0].func)
         self.assertTrue(args[0].force_deploy)
 
+    def test_deploy_no_replicability_flag(self):
+        parser = argument_parsing.create_parser()
+
+        sys.argv = ["", "deploy", "test/path", "catalog-name"]
+        args = parser.parse_known_args()
+        self.assertFalse(args[0].no_replicability)
+
+        sys.argv = ["", "deploy", "test/path", "catalog-name", "--no-replicability"]
+        args = parser.parse_known_args()
+        self.assertTrue(args[0].no_replicability)
+
     def test_abbreviated_options_are_passed_to_the_solution(self):
         parser = argument_parsing.create_parser()
 
@@ -125,6 +136,15 @@ class TestArgumentParsing(unittest.TestCase):
 
         sys.argv = ["", "install", "test/path", "--reinstall"]
         self.assertTrue(parser.parse_known_args()[0].reinstall)
+
+    def test_install_no_conda_lock_flag(self):
+        parser = argument_parsing.create_parser()
+
+        sys.argv = ["", "install", "test/path"]
+        self.assertFalse(parser.parse_known_args()[0].no_conda_lock)
+
+        sys.argv = ["", "install", "test/path", "--no-conda-lock"]
+        self.assertTrue(parser.parse_known_args()[0].no_conda_lock)
 
     def test_upgrade_solutions_parser(self):
         # registered as an entry point in pyproject.toml, created here directly
@@ -265,7 +285,22 @@ class TestInstallAndUpgradeCommands(unittest.TestCase):
         )
 
         self.album_instance.install.assert_called_once_with(
-            "grp:name:0.1.0", False, sys.argv, reinstall=True
+            "grp:name:0.1.0", False, sys.argv, reinstall=True, no_conda_lock=False
+        )
+
+    def test_install_no_conda_lock(self):
+        install(
+            self.album_instance,
+            Namespace(
+                path="grp:name:0.1.0",
+                allow_recursive=False,
+                reinstall=False,
+                no_conda_lock=True,
+            ),
+        )
+
+        self.album_instance.install.assert_called_once_with(
+            "grp:name:0.1.0", False, sys.argv, reinstall=False, no_conda_lock=True
         )
 
     def test_upgrade_solutions(self):

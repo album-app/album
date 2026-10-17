@@ -115,7 +115,14 @@ class TestInstallManager(TestUnitCoreCommon):
 
         # assert
         _install_resolve_result.assert_called_once_with(
-            resolve_result, parent=False, allow_recursive=False
+            resolve_result, parent=False, allow_recursive=False, no_conda_lock=False
+        )
+
+        # without its lock file
+        _install_resolve_result.reset_mock()
+        self.install_manager.install("aPath", no_conda_lock=True)
+        _install_resolve_result.assert_called_once_with(
+            resolve_result, parent=False, allow_recursive=False, no_conda_lock=True
         )
 
     @unittest.skip("Needs to be implemented!")
@@ -124,7 +131,7 @@ class TestInstallManager(TestUnitCoreCommon):
         pass
 
     def _prepare_install_loaded_resolve_result(
-        self, installed, catalog=True, path: Path = None
+        self, installed, catalog=True, path: Path = None, single_file=False
     ):
         if path is None:
             path = Path(self.tmp_dir.name).joinpath("solution.py")
@@ -141,6 +148,7 @@ class TestInstallManager(TestUnitCoreCommon):
             loaded_solution=self.active_solution,
             collection_entry=None,
             coordinates=self.active_solution.coordinates(),
+            single_file_solution=single_file,
         )
 
         # mocks
@@ -191,9 +199,19 @@ class TestInstallManager(TestUnitCoreCommon):
             r.catalog(), r.coordinates()
         )
         self.download_resources.assert_called_once_with(r)
-        self.install_active_solution.assert_called_once_with(r, ANY, False)
+        self.install_active_solution.assert_called_once_with(r, ANY, False, False)
         self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
         self.assertIn('Installing "tsn"...', self.get_logs_as_string())
+
+    @patch("album.core.controller.install_manager.clean_resolve_tmp")
+    def test__install_loaded_resolve_result_no_conda_lock(self, _):
+        r = self._prepare_install_loaded_resolve_result(installed=False)
+
+        # call
+        self.install_manager._install_loaded_resolve_result(r, no_conda_lock=True)
+
+        # assert
+        self.install_active_solution.assert_called_once_with(r, ANY, False, True)
 
     @patch("album.core.controller.install_manager.clean_resolve_tmp")
     def test__install_loaded_resolve_result_parent(self, clean_resolve_tmp):
@@ -208,9 +226,148 @@ class TestInstallManager(TestUnitCoreCommon):
         clean_resolve_tmp.assert_not_called()  # only cleaned for the child
         # a parent gets its resources, too
         self.download_resources.assert_called_once_with(r)
-        self.install_active_solution.assert_called_once_with(r, ANY, False)
+        self.install_active_solution.assert_called_once_with(r, ANY, False, False)
         self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
         self.assertIn('Installing parent solution "tsn"...', self.get_logs_as_string())
+
+    def _solution_folder_with_environment_file(self):
+        folder = Path(self.tmp_dir.name).joinpath("my-solution")
+        folder.mkdir()
+        folder.joinpath("solution.py").touch()
+        folder.joinpath("environment.yml").write_text("dependencies:\n  - python\n")
+        self.active_solution.setup().dependencies = {
+            "environment_file": "environment.yml"
+        }
+        return folder
+
+    @patch("album.core.controller.install_manager.clean_resolve_tmp")
+    def test__install_loaded_resolve_result_single_file(self, _):
+        self.active_solution.setup().dependencies = {
+            "environment_file": "dependencies:\n  - python\n"
+        }
+        r = self._prepare_install_loaded_resolve_result(
+            installed=False, single_file=True
+        )
+
+        # call
+        self.install_manager._install_loaded_resolve_result(r)
+
+        # assert
+        self.register.assert_called_once_with(r)
+        self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
+
+    @patch("album.core.controller.install_manager.clean_resolve_tmp")
+    def test__install_loaded_resolve_result_environment_file_in_folder(self, _):
+        folder = self._solution_folder_with_environment_file()
+        r = self._prepare_install_loaded_resolve_result(
+            installed=False, path=folder.joinpath("solution.py")
+        )
+
+        # call
+        self.install_manager._install_loaded_resolve_result(r)
+
+        # assert
+        self.register.assert_called_once_with(r)
+        self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
+
+    def test__install_loaded_resolve_result_environment_file_missing(self):
+        folder = self._solution_folder_with_environment_file()
+        folder.joinpath("environment.yml").unlink()
+        r = self._prepare_install_loaded_resolve_result(
+            installed=False, path=folder.joinpath("solution.py")
+        )
+
+        # call
+        with self.assertRaises(TypeError) as e:
+            self.install_manager._install_loaded_resolve_result(r)
+
+        # assert: aborted before the solution is registered
+        self.assertIn(
+            'environment_file "environment.yml" does not exist',
+            str(e.exception),
+        )
+        self.register.assert_not_called()
+        self.set_installation_unfinished.assert_not_called()
+
+    def test__install_loaded_resolve_result_single_file_with_environment_file(self):
+        folder = self._solution_folder_with_environment_file()
+        r = self._prepare_install_loaded_resolve_result(
+            installed=False, path=folder.joinpath("solution.py"), single_file=True
+        )
+
+        # call: only solution.py would be installed, without the environment file
+        with self.assertRaises(TypeError) as e:
+            self.install_manager._install_loaded_resolve_result(r)
+
+        # assert: aborted before the solution is registered
+        self.assertIn(
+            "is a path, so the solution has to be installed and deployed as a folder",
+            str(e.exception),
+        )
+        self.register.assert_not_called()
+        self.set_installation_unfinished.assert_not_called()
+
+    @patch("album.core.controller.install_manager.clean_resolve_tmp")
+    def test__install_loaded_resolve_result_files_written_by_deploy(self, _):
+        # a deployed solution: the files it names are not on this computer, it is
+        # installed from what album deploy wrote next to it
+        folder = Path(self.tmp_dir.name).joinpath("my-solution")
+        folder.mkdir()
+        folder.joinpath("solution.py").touch()
+        folder.joinpath("solution.environment.yml").write_text("dependencies: []\n")
+        folder.joinpath("solution.resources.yml").write_text("resources: {}\n")
+        self.active_solution.setup().dependencies = {
+            "environment_file": "/not/on/this/computer/environment.yml",
+            "resource_file": "resources.yml",
+        }
+        r = self._prepare_install_loaded_resolve_result(
+            installed=False, path=folder.joinpath("solution.py")
+        )
+
+        # call
+        self.install_manager._install_loaded_resolve_result(r)
+
+        # assert
+        self.register.assert_called_once_with(r)
+        self.set_installed.assert_called_once_with(r.catalog(), r.coordinates())
+
+    @patch("album.core.controller.install_manager.clean_resolve_tmp")
+    def test__install_loaded_resolve_result_shows_replicability_reasons(self, _):
+        # deployed with --no-replicability: album deploy stored the reasons
+        folder = Path(self.tmp_dir.name).joinpath("deployed")
+        folder.mkdir()
+        folder.joinpath("solution.py").touch()
+        folder.joinpath("solution.yml").write_text(
+            'replicability:\n  reasons:\n  - resource "a" has no hash\n'
+        )
+        r = self._prepare_install_loaded_resolve_result(
+            installed=False, path=folder.joinpath("solution.py")
+        )
+
+        # call
+        self.install_manager._install_loaded_resolve_result(r)
+
+        # assert
+        self.assertIn(
+            'Not technically replicable, "tsg:tsn:tsv": resource "a" has no hash',
+            self.get_logs_as_string(),
+        )
+        self.set_installed.assert_called_once()
+
+    def test_install_from_url(self):
+        self.install_manager.clean_unfinished_installations = MagicMock()
+        self.album_controller.collection_manager().resolve_and_load = MagicMock()
+        self.install_manager._install_loaded_resolve_result = MagicMock()
+
+        # call
+        self.install_manager.install("https://example.org/solution.py")
+
+        # assert
+        self.assertIn(
+            'Not technically replicable, "https://example.org/solution.py": it is '
+            "installed from a url, whose content can change.",
+            self.get_logs_as_string(),
+        )
 
     @patch("album.core.controller.install_manager.clean_resolve_tmp")
     def test__install_loaded_resolve_result_resources_before_environment(self, _):
@@ -514,11 +671,18 @@ class TestInstallManager(TestUnitCoreCommon):
         # assert
         run_solution_install_routine.assert_called_once_with(r)
         set_environment.assert_not_called()
-        install_environment.assert_called_once()
+        install_environment.assert_called_once_with(r, False, False)
         user_cache_path.assert_called_once()
         internal_cache_path.assert_called_once()
         package_path.assert_called_once()
         data_path.assert_called_once()
+
+        # without its lock file
+        install_environment.reset_mock()
+        self.install_manager._install_active_solution(
+            r, ExitStack(), no_conda_lock=True
+        )
+        install_environment.assert_called_once_with(r, False, True)
 
     def test__install_active_solution_with_parent(self):
         self.active_solution._setup.album_api_version = "1.0.1"
@@ -586,6 +750,8 @@ class TestInstallManager(TestUnitCoreCommon):
             Coordinates("tsg", "tsn", "tsv"),
             locks,
             allow_recursive=False,
+            catalog=r.catalog(),
+            no_conda_lock=False,
         )
         run_solution_install_routine.assert_called_once_with(r)
         install_environment.assert_not_called()
@@ -595,7 +761,7 @@ class TestInstallManager(TestUnitCoreCommon):
         package_path.assert_called_once()
         data_path.assert_called_once()
 
-        # the solution runs in the environment of its parent, the flag goes there
+        # the solution runs in the environment of its parent, the flags go there
         _install_parent.reset_mock()
         self.install_manager._install_active_solution(r, locks, allow_recursive=True)
         _install_parent.assert_called_once_with(
@@ -604,6 +770,19 @@ class TestInstallManager(TestUnitCoreCommon):
             Coordinates("tsg", "tsn", "tsv"),
             locks,
             allow_recursive=True,
+            catalog=r.catalog(),
+            no_conda_lock=False,
+        )
+        _install_parent.reset_mock()
+        self.install_manager._install_active_solution(r, locks, no_conda_lock=True)
+        _install_parent.assert_called_once_with(
+            "aParent",
+            "1.0.1",
+            Coordinates("tsg", "tsn", "tsv"),
+            locks,
+            allow_recursive=False,
+            catalog=r.catalog(),
+            no_conda_lock=True,
         )
 
     @unittest.skip("Needs to be implemented!")
@@ -663,7 +842,7 @@ class TestInstallManager(TestUnitCoreCommon):
 
         # asert
         self.install_holding_lock.assert_called_once_with(
-            r, parent=True, allow_recursive=False, locks=locks
+            r, parent=True, allow_recursive=False, locks=locks, no_conda_lock=False
         )
         self.assertEqual([False], lock_free_during_install)
         self.resolve_and_load.assert_called_once()
@@ -680,7 +859,21 @@ class TestInstallManager(TestUnitCoreCommon):
                 allow_recursive=True,
             )
         self.install_holding_lock.assert_called_once_with(
-            r, parent=True, allow_recursive=True, locks=locks
+            r, parent=True, allow_recursive=True, locks=locks, no_conda_lock=False
+        )
+
+        # and so does no_conda_lock
+        self.install_holding_lock.reset_mock()
+        with ExitStack() as locks:
+            self.install_manager._install_parent(
+                {"myDictKey": "myDeps"},
+                "5.1.0",
+                Coordinates("a", "b", "c"),
+                locks,
+                no_conda_lock=True,
+            )
+        self.install_holding_lock.assert_called_once_with(
+            r, parent=True, allow_recursive=False, locks=locks, no_conda_lock=True
         )
 
     @patch(
@@ -742,6 +935,66 @@ class TestInstallManager(TestUnitCoreCommon):
 
         # assert
         self.install_holding_lock.assert_not_called()
+
+    def test__resolve_parent(self):
+        collection_manager = self.album_controller.collection_manager()
+        collection_manager.resolve_and_load_catalog_coordinates = MagicMock(
+            return_value="from its catalog"
+        )
+        collection_manager.resolve_and_load = MagicMock(return_value="found first")
+        catalog = MagicMock()
+        catalog.is_cache.return_value = False
+        catalog.name.return_value = "cat"
+        parent = {"group": "gp", "name": "np", "version": "vp"}
+        child = Coordinates("g", "n", "v")
+
+        # in the catalog of the solution
+        self.assertEqual(
+            "from its catalog",
+            self.install_manager._resolve_parent(parent, child, catalog),
+        )
+        collection_manager.resolve_and_load_catalog_coordinates.assert_called_once_with(
+            catalog, Coordinates("gp", "np", "vp")
+        )
+        collection_manager.resolve_and_load.assert_not_called()
+
+        # not in it: the one album finds first
+        collection_manager.resolve_and_load_catalog_coordinates.side_effect = (
+            LookupError()
+        )
+        self.assertEqual(
+            "found first", self.install_manager._resolve_parent(parent, child, catalog)
+        )
+        collection_manager.resolve_and_load.assert_called_once_with("gp:np:vp")
+        self.assertIn(
+            'Not technically replicable, "g:n:v": its parent "gp:np:vp" is not in its '
+            'catalog "cat", album takes the one it finds first.',
+            self.get_logs_as_string(),
+        )
+
+        # checked before a reinstall: the warning comes when it is installed
+        self.captured_output.seek(0)
+        self.captured_output.truncate(0)
+        self.assertEqual(
+            "found first",
+            self.install_manager._resolve_parent(parent, child, catalog, warn=False),
+        )
+        self.assertNotIn("Not technically replicable", self.get_logs_as_string())
+
+        # a solution installed from a file, a parent given by its DOI: as before
+        cache_catalog = MagicMock()
+        cache_catalog.is_cache.return_value = True
+        for parent_dict, solution_catalog, resolved in [
+            (parent, cache_catalog, "gp:np:vp"),
+            ({"doi": "10.5281/zenodo.123"}, catalog, "10.5281/zenodo.123"),
+            (parent, None, "gp:np:vp"),
+        ]:
+            with self.subTest(parent=parent_dict, catalog=solution_catalog):
+                collection_manager.resolve_and_load.reset_mock()
+                self.install_manager._resolve_parent(
+                    parent_dict, child, solution_catalog
+                )
+                collection_manager.resolve_and_load.assert_called_once_with(resolved)
 
     @unittest.skip("Needs to be implemented!")
     def test_uninstall(self):
@@ -987,6 +1240,45 @@ class TestInstallManager(TestUnitCoreCommon):
         self.assertEqual([True, True], held)
         self.assertFalse(lock.is_held_by_current_thread())
 
+    def test_install_reinstall_no_conda_lock(self):
+        reinstall = MagicMock()
+        self.install_manager._reinstall = reinstall
+
+        self.install_manager.install(
+            "grp:name:0.1.0", reinstall=True, no_conda_lock=True
+        )
+
+        reinstall.assert_called_once_with("grp:name:0.1.0", False, True)
+
+        # not installed: installed as usual, without its lock file
+        del self.install_manager._reinstall
+        self.album_controller.collection_manager().resolve_installed = MagicMock(
+            side_effect=LookupError()
+        )
+        install = MagicMock()
+        self.install_manager.install = install
+
+        self.install_manager._reinstall("grp:name:0.1.0", False, True)
+
+        install.assert_called_once_with("grp:name:0.1.0", False, no_conda_lock=True)
+
+    def test_install_reinstall_allow_recursive(self):
+        reinstall = MagicMock()
+        self.install_manager._reinstall = reinstall
+
+        # album in album can break what works: installed again by hand
+        with self.assertRaises(ValueError) as e:
+            self.install_manager.install(
+                "grp:name:0.1.0", allow_recursive=True, reinstall=True
+            )
+
+        self.assertEqual(
+            '--reinstall does not take --allow-recursive: uninstall "grp:name:0.1.0" '
+            "and install it with --allow-recursive by hand.",
+            str(e.exception),
+        )
+        reinstall.assert_not_called()
+
     @patch("album.core.controller.install_manager.check_file_or_url")
     def test__local_source_url(self, check_file_or_url):
         catalog = self.album_controller.catalogs().get_cache_catalog()
@@ -1011,6 +1303,64 @@ class TestInstallManager(TestUnitCoreCommon):
             ),
         )
         check_file_or_url.assert_called_with("https://example.org/s.py", target)
+
+    def test__load_staged(self):
+        catalog = self.album_controller.catalogs().get_cache_catalog()
+        coordinates = Coordinates("g", "n", "v")
+        staged = self.install_manager._staged(self.tmp_dir.name, catalog, coordinates)
+        staged.mkdir(parents=True)
+        staged.joinpath("solution.py").write_text(
+            "from album.runner.api import setup\n"
+            "setup(group='g', name='n', version='v', album_api_version='%s')\n"
+            % TEST_ALBUM_API_VERSION
+        )
+
+        r = self.install_manager._load_staged(self.tmp_dir.name, catalog, coordinates)
+
+        # installed from the copy as a folder, with the files next to solution.py
+        self.assertEqual(staged.joinpath("solution.py"), r.path())
+        self.assertFalse(r.is_single_file())
+        self.assertEqual("n", r.loaded_solution().coordinates().name())
+
+    def test__check_files_to_install_again(self):
+        catalog = self.album_controller.catalogs().get_cache_catalog()
+        folder = Path(self.tmp_dir.name).joinpath("solution")
+        folder.mkdir()
+        folder.joinpath("environment.yml").write_text("dependencies: []\n")
+
+        def to_install(environment_file):
+            solution = Solution(
+                dict(
+                    self.get_solution_dict(),
+                    dependencies={"environment_file": environment_file},
+                )
+            )
+            return ResolveResult(
+                path=folder.joinpath("solution.py"),
+                catalog=catalog,
+                collection_entry=None,
+                coordinates=solution.coordinates(),
+                loaded_solution=solution,
+            )
+
+        Path(self.tmp_dir.name).joinpath("shared.yml").write_text("dependencies: []\n")
+        valid = to_install("environment.yml")
+        missing = to_install("missing.yml")
+        rule = 'environment_file "missing.yml" does not exist: there is no file %s.' % (
+            folder.joinpath("missing.yml")
+        )
+
+        # existing files pass, also outside the folder of the solution
+        self.install_manager._check_files_to_install_again("cat:g:a:1", valid)
+        self.install_manager._check_files_to_install_again(
+            "cat:g:a:1", to_install("../shared.yml")
+        )
+
+        with self.assertRaises(TypeError) as e:
+            self.install_manager._check_files_to_install_again("cat:g:a:1", missing)
+        self.assertEqual(
+            rule + ' Uninstall "cat:g:a:1" and install it by hand.', str(e.exception)
+        )
 
     def test_uninstall_solution_other_solutions_run_in(self):
         # whether or not the solution has a parent itself
@@ -1496,6 +1846,32 @@ class TestInstallManagerCollectionParent(TestUnitCoreCommon):
         # assert
         uninstall_parent.assert_called_once_with("gp:np:vp", True)
         get_by_id.assert_not_called()
+
+    def test_remove_dependencies_parent_from_its_catalog(self):
+        # the parent the solution was installed into, as the collection records it
+        solution = Solution(
+            {
+                "group": "g1",
+                "name": "n1",
+                "version": "v1",
+                "dependencies": {
+                    "parent": {"group": "gp", "name": "np", "version": "vp"}
+                },
+            }
+        )
+        parent_catalog = MagicMock()
+        parent_catalog.name.return_value = "parent-catalog"
+        get_by_id = MagicMock(return_value=parent_catalog)
+        self.album_controller.collection_manager().catalogs().get_by_id = get_by_id
+        uninstall_parent = MagicMock()
+        self.install_manager._uninstall_parent = uninstall_parent
+
+        # call
+        self.install_manager._remove_dependencies(solution, True, self.parent_entry)
+
+        # assert
+        get_by_id.assert_called_once_with(1)
+        uninstall_parent.assert_called_once_with("parent-catalog:gp:np:vp", True)
 
     def test_remove_dependencies_no_parent_declared_in_solution(self):
         # solution loaded from its file without parent: nothing to remove, as before

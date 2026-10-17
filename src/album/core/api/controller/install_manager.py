@@ -41,6 +41,7 @@ class IInstallManager:
         allow_recursive: bool = False,
         argv: Optional[List[str]] = None,
         reinstall: bool = False,
+        no_conda_lock: bool = False,
     ) -> ISolution:
         """Install an album solution.
 
@@ -62,12 +63,21 @@ class IInstallManager:
                 install it again from its catalog, or from the file, URL or DOI
                 given. A solution installed from a file, URL or DOI and given by its
                 coordinates is installed from its copy in the collection.
-                The solutions running in its environment are uninstalled and
-                installed again with it if they come from a catalog. If one of them
-                was installed from a file, URL or DOI, nothing is changed and a
-                RuntimeError is raised: album leaves the environment of such a
-                solution untouched. Everything is downloaded before anything is
-                uninstalled.
+                A solution other solutions run in is not installed again, as they
+                might not work in its new environment: nothing is changed and a
+                RuntimeError is raised. Everything is downloaded, resources included,
+                before anything is uninstalled, and what would make installing it
+                again fail raises a RuntimeError with nothing changed as well: a
+                missing file, resource or parent, a parent with another API version,
+                a lock file when conda-lock is not found, or another album version in
+                its environment. It does not take allow_recursive (ValueError):
+                uninstall such a solution and install it with allow_recursive.
+            no_conda_lock:
+                Solve the environment instead of installing it from the lock file of
+                the solution, e.g. when the lock file does not install on this system.
+                Not technically replicable, album warns. A solution with a parent runs
+                in the environment of its parent, so there it applies to the parent
+                if the parent is installed with it.
 
         """
         raise NotImplementedError

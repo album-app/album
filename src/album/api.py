@@ -137,6 +137,7 @@ class Album:
         argv=None,
         run_async=False,
         reinstall: bool = False,
+        no_conda_lock: bool = False,
     ):
         """Install a solution to the disk.
 
@@ -160,17 +161,26 @@ class Album:
                 install it again from its catalog, or from the file, URL or DOI
                 given. A solution installed from a file, URL or DOI and given by its
                 coordinates is installed from its copy in the collection.
-                The solutions running in its environment are uninstalled and
-                installed again with it if they come from a catalog. If one of them
-                was installed from a file, URL or DOI, nothing is changed and a
-                RuntimeError is raised: album leaves the environment of such a
-                solution untouched. Everything is downloaded before anything is
-                uninstalled.
+                A solution other solutions run in is not installed again, as they
+                might not work in its new environment: nothing is changed and a
+                RuntimeError is raised. Everything is downloaded, resources included,
+                before anything is uninstalled, and what would make installing it
+                again fail raises a RuntimeError with nothing changed as well: a
+                missing file, resource or parent, a parent with another API version,
+                a lock file when conda-lock is not found, or another album version in
+                its environment. It does not take allow_recursive (ValueError):
+                uninstall such a solution and install it with allow_recursive.
+            no_conda_lock:
+                Solve the environment instead of installing it from the lock file of
+                the solution, e.g. when the lock file does not install on this system.
+                Not technically replicable, album warns. A solution with a parent runs
+                in the environment of its parent, so there it applies to the parent
+                if the parent is installed with it.
 
         """
         return self._run_async(
             self._controller.install_manager().install,
-            (solution_to_resolve, allow_recursive, argv, reinstall),
+            (solution_to_resolve, allow_recursive, argv, reinstall, no_conda_lock),
             run_async,
         )
 
@@ -240,6 +250,7 @@ class Album:
         force_deploy: bool = False,
         changelog: str = "",
         no_conda_lock: bool = False,
+        no_replicability: bool = False,
     ):
         """Deploy a solution.
 
@@ -268,6 +279,10 @@ class Album:
                 The change associated with this version of a solution compared to the last version.
             no_conda_lock:
                 Do not lock the conda environment when deploying.
+            no_replicability:
+                Deploy also a solution that is not technically replicable, e.g. one with a
+                resource url without a hash. Without it, such a solution is refused. The
+                reasons are stored with the solution in solution.yml.
 
         """
         return self._controller.deploy_manager().deploy(
@@ -280,6 +295,7 @@ class Album:
             force_deploy=force_deploy,
             changelog=changelog,
             no_conda_lock=no_conda_lock,
+            no_replicability=no_replicability,
         )
 
     def undeploy(

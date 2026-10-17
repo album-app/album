@@ -4,15 +4,68 @@ import copy
 import hashlib
 import json
 from datetime import date, time
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import yaml
 from packaging.version import InvalidVersion, Version
 
+from album.core.api.model.collection_solution import ICollectionSolution
+from album.core.model.default_values import DefaultValues
 from album.environments.api.model.environment import IEnvironment
 from album.runner import album_logging
 from album.runner.core.api.model.solution import ISolution
 
 module_logger = album_logging.get_active_logger
+
+# The files album deploy writes next to the solution file. A copy of them in the folder of a
+# solution, e.g. of one cloned from a catalog, belongs to another deployment.
+FILES_WRITTEN_BY_DEPLOY = [
+    DefaultValues.solution_yml_default_name.value,
+    DefaultValues.solution_environment_default_name.value,
+    DefaultValues.solution_conda_lock_default_name.value,
+    DefaultValues.solution_resources_default_name.value,
+]
+
+# The copy album deploy writes of the file a solution names in its dependencies. A deployed
+# solution is installed from the copy, not from the file.
+DEPLOYED_COPIES = {
+    "environment_file": DefaultValues.solution_environment_default_name.value,
+    "resource_file": DefaultValues.solution_resources_default_name.value,
+}
+
+
+def get_replicability_reasons(folder: Optional[Path]) -> List[str]:
+    """Return why album deploy found a solution not technically replicable.
+
+    album deploy stores the reasons in the solution.yml it writes next to the solution file.
+    A solution not deployed, or deployed before the reasons were stored, has none.
+    """
+    if folder is None:
+        return []
+    solution_yml = Path(folder).joinpath(DefaultValues.solution_yml_default_name.value)
+    if not solution_yml.is_file():
+        return []
+    with open(solution_yml, encoding="utf-8") as yml_file:
+        content = yaml.safe_load(yml_file)
+    replicability = content.get("replicability") if isinstance(content, dict) else None
+    if not isinstance(replicability, dict):
+        return []
+    return [str(reason) for reason in replicability.get("reasons") or []]
+
+
+def get_solution_folder(collection_solution: ICollectionSolution) -> Optional[Path]:
+    """Return the folder a solution is installed from, where its relative paths start.
+
+    Once that folder is gone, as a download album removed after copying it, album's copy of
+    it. None for a solution installed from a single file, which has no folder.
+    """
+    if collection_solution.is_single_file():
+        return None
+    path = collection_solution.path()
+    if path is not None and Path(path).parent.is_dir():
+        return Path(path).parent
+    return collection_solution.loaded_solution().installation().package_path()
 
 
 def set_environment_paths(solution: ISolution, environment: IEnvironment) -> None:

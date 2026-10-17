@@ -358,6 +358,94 @@ class TestIntegrationSharedResources(TestIntegrationCoreCommon):
         self.assertFalse(Path(resources["own"]["path"]).exists())
         self.assertTrue(Path(resources["shared"]["path"]).exists())
 
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.remove_disc_content_from_environment"
+    )
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.remove_environment"
+    )
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
+    @patch("album.environments.controller.package_manager.PackageManager.install")
+    def test_reinstall_keeps_and_downloads_resources(
+        self, _, get_environment_path, *__
+    ):
+        get_environment_path.return_value = Path(self.tmp_dir.name).joinpath("env")
+        self._serve("own.bin", b"own")
+        shared = self._resource("shared.bin", hash=self._serve("shared.bin", b"shared"))
+        own = self._resource("own.bin", scope="solution")
+        path = self._write_solution("solution_again", {"own": own, "shared": shared})
+        self.album_controller.install_manager().install(path)
+        # no longer where it was downloaded from, and the solution has a new one
+        self.served_path.joinpath("own.bin").unlink()
+        self._serve("new.bin", b"new")
+        self._write_solution(
+            "solution_again",
+            {
+                "own": own,
+                "shared": shared,
+                "new": self._resource("new.bin", scope="solution"),
+            },
+        )
+
+        self.album_controller.install_manager().install(path, reinstall=True)
+
+        # the one it had is kept, the new one downloaded before it was uninstalled
+        resources = self._installed_resources("solution_again")
+        self.assertEqual(b"own", Path(resources["own"]["path"]).read_bytes())
+        self.assertEqual(b"shared", Path(resources["shared"]["path"]).read_bytes())
+        self.assertEqual(b"new", Path(resources["new"]["path"]).read_bytes())
+        self.assertEqual(["/own.bin", "/shared.bin", "/new.bin"], self.server.requests)
+
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.remove_disc_content_from_environment"
+    )
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.remove_environment"
+    )
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
+    @patch("album.environments.controller.package_manager.PackageManager.install")
+    def test_reinstall_resource_not_available(
+        self, _, get_environment_path, remove_environment, __
+    ):
+        get_environment_path.return_value = Path(self.tmp_dir.name).joinpath("env")
+        self._serve("own.bin", b"own")
+        own = self._resource("own.bin", scope="solution")
+        path = self._write_solution("solution_gone", {"own": own})
+        self.album_controller.install_manager().install(path)
+        # a new resource that is not available: its server is gone
+        gone_server = ResourceServer(self.served_path)
+        gone_server.close()
+        self._write_solution(
+            "solution_gone",
+            {
+                "own": own,
+                "gone": {
+                    "name": "gone.bin",
+                    "url": f"{gone_server.url}/gone.bin",
+                    "scope": "solution",
+                },
+            },
+        )
+
+        with self.assertRaises(RuntimeError) as e:
+            self.album_controller.install_manager().install(path, reinstall=True)
+
+        self.assertIn(
+            'Cannot install "cache_catalog:group:solution_gone:0.1.0" again, nothing was '
+            'changed: Could not retrieve resource "gone" from %s/gone.bin'
+            % gone_server.url,
+            str(e.exception),
+        )
+        # still installed, with its resource
+        remove_environment.assert_not_called()
+        resources = self._installed_resources("solution_gone")
+        self.assertEqual(["own"], list(resources))
+        self.assertEqual(b"own", Path(resources["own"]["path"]).read_bytes())
+
 
 if __name__ == "__main__":
     unittest.main()

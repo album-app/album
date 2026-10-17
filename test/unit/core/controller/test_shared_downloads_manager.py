@@ -10,6 +10,8 @@ from unittest.mock import MagicMock, patch
 import pooch
 
 from album.core.controller.shared_downloads_manager import DownloadManager
+from album.core.model.default_values import DefaultValues
+from album.core.model.replicability import ReplicabilityReason
 from album.core.utils.file_lock import FileLock
 from album.runner.core.model.solution import Solution
 
@@ -122,11 +124,11 @@ class TestDownloadManager(TestUnitCoreCommon):
             resource_dict,
             resource_yml,
             StringIO(resource_yml),
-            str(resource_path),
+            "resources.yml",
         ]:
             with self.subTest(resource_file=type(resource_file).__name__):
                 resources_dict = self.download_manager._load_resources(
-                    self._solution(resource_file)
+                    self._solution(resource_file), Path(self.tmp_dir.name)
                 )
                 self.assertEqual(expected, resources_dict)
 
@@ -613,6 +615,111 @@ class TestDownloadManager(TestUnitCoreCommon):
             ["a"], list(json.loads(json_path.read_text(encoding="utf-8"))["resources"])
         )
 
+    @patch("album.core.controller.shared_downloads_manager.pooch.retrieve")
+    def test_download_resources_resource_file_from_solution_folder(self, _):
+        folder = Path(self.tmp_dir.name).joinpath("solution")
+        folder.mkdir()
+        folder.joinpath("resources.yml").write_text(
+            "resources:\n  a:\n    name: a.txt\n    url: https://e.org/a\n    hash: %s\n"
+            % SHA256,
+            encoding="utf-8",
+        )
+        solution = self._solution("resources.yml")
+        # installed from the folder, wherever album runs
+        collection_solution = self._collection_solution(solution)
+        collection_solution.is_single_file.return_value = False
+        collection_solution.path.return_value = folder.joinpath("solution.py")
+
+        json_path = self.download_manager.download_resources(collection_solution)
+
+        self.assertEqual(
+            ["a"], list(json.loads(json_path.read_text(encoding="utf-8"))["resources"])
+        )
+
+    @patch("album.core.controller.shared_downloads_manager.pooch.retrieve")
+    def test_download_resources_resource_list_written_by_deploy(self, _):
+        # a deployed solution: the resource file it names is not on this computer
+        package_path = Path(self.tmp_dir.name).joinpath("package")
+        package_path.mkdir()
+        package_path.joinpath("solution.resources.yml").write_text(
+            "resources:\n  b:\n    name: b.txt\n    url: https://e.org/b\n    hash: %s\n"
+            % SHA256,
+            encoding="utf-8",
+        )
+        solution = self._solution("/not/on/this/computer/resources.yml")
+        solution.installation().set_package_path(package_path)
+        collection_solution = self._collection_solution(solution)
+        collection_solution.is_single_file.return_value = False
+        collection_solution.path.return_value = package_path.joinpath("solution.py")
+
+        json_path = self.download_manager.download_resources(collection_solution)
+
+        self.assertEqual(
+            ["b"], list(json.loads(json_path.read_text(encoding="utf-8"))["resources"])
+        )
+
+    # stage_resources
+
+    @patch("album.core.controller.shared_downloads_manager.pooch.retrieve")
+    def test_stage_resources(self, retrieve_mock):
+        resources = {
+            "own": {"name": "own.bin", "url": "https://e.org/own", "scope": "solution"},
+            "new": {"name": "new.bin", "url": "https://e.org/new", "scope": "solution"},
+            "shared": {"name": "shared.bin", "url": "https://e.org/s", "hash": SHA256},
+        }
+        # a copy of a deployed solution, before it is installed again: no package path
+        folder = Path(self.tmp_dir.name).joinpath("copy")
+        folder.mkdir()
+        folder.joinpath("solution.resources.yml").write_text(
+            json.dumps({"resources": resources}), encoding="utf-8"
+        )
+        collection_solution = self._collection_solution(
+            self._solution("/not/on/this/computer/resources.yml")
+        )
+        collection_solution.is_single_file.return_value = False
+        collection_solution.path.return_value = folder.joinpath("solution.py")
+        # its installation has "own"
+        installed = Path(self.tmp_dir.name).joinpath("installed")
+        self.album_controller.solutions().get_solution_installation_path = MagicMock(
+            return_value=installed
+        )
+
+        def in_folder(root, key, scope_path):
+            return root.joinpath(
+                scope_path,
+                DownloadManager._get_content_folder_name(
+                    dict({"hash": None}, **resources[key])
+                ),
+                resources[key]["name"],
+            )
+
+        resources_prefix = DefaultValues.solution_resources_prefix.value
+        own = in_folder(installed, "own", resources_prefix)
+        own.parent.mkdir(parents=True)
+        own.write_bytes(b"own")
+        staged = Path(self.tmp_dir.name).joinpath("staged")
+
+        self.download_manager.stage_resources(collection_solution, staged)
+
+        # copied from the installation, laid out as there
+        self.assertEqual(
+            b"own", in_folder(staged, "own", resources_prefix).read_bytes()
+        )
+        # all are retrieved: pooch checks a file that is there, and downloads the others
+        self.assertEqual(
+            {
+                in_folder(staged, "own", resources_prefix),
+                in_folder(staged, "new", resources_prefix),
+                in_folder(self.shared_path, "shared", "global"),
+            },
+            {
+                Path(c.kwargs["path"]).joinpath(c.kwargs["fname"])
+                for c in retrieve_mock.call_args_list
+            },
+        )
+        # where they are is said when the solution is installed
+        self.assertNotIn("is available at", self.get_logs_as_string())
+
     # check_resources
 
     def test_check_resources_no_resource_file(self):
@@ -620,19 +727,25 @@ class TestDownloadManager(TestUnitCoreCommon):
 
         self.assertNotIn("WARNING", self.get_logs_as_string())
 
-    def test_check_resources_pinned(self):
-        self.download_manager.check_resources(
+    def test_check_resources_replicability(self):
+        reasons = self.download_manager.check_resources(
             self._solution(
                 {
                     "resources": {
-                        "a": {
-                            "name": "a.txt",
-                            "url": "https://e.org/a",
+                        "doi_pinned": {
+                            "name": "a.zip",
+                            "url": "doi:10.5281/zenodo.123/a.zip",
                             "hash": SHA256,
                         },
-                        "b": {
-                            "name": "b.txt",
-                            "url": "https://e.org/b",
+                        "doi": {"name": "b.zip", "url": "doi:10.5281/zenodo.123/b.zip"},
+                        "url_pinned": {
+                            "name": "c.txt",
+                            "url": "https://e.org/c",
+                            "hash": SHA256,
+                        },
+                        "url": {
+                            "name": "d.txt",
+                            "url": "https://e.org/d",
                             "scope": "solution",
                         },
                     }
@@ -640,31 +753,76 @@ class TestDownloadManager(TestUnitCoreCommon):
             )
         )
 
-        self.assertNotIn("WARNING", self.get_logs_as_string())
-
-    def test_check_resources_unpinned_shared(self):
-        self.download_manager.check_resources(self._solution(RESOURCE_FILE))
-
+        # a hash pins the content; from a url, a solution can only be deployed with
+        # --no-replicability without it
+        self.assertEqual(
+            [
+                ReplicabilityReason(
+                    'resource "doi" has no hash, its content is not verified'
+                ),
+                ReplicabilityReason(
+                    'resource "url" is downloaded from https://e.org/d without a hash, '
+                    "its content can change",
+                    needs_flag=True,
+                ),
+            ],
+            reasons,
+        )
+        # a url can become unavailable, a DOI does not
         logs = self.get_logs_as_string()
         self.assertIn(
-            'Resource "readme" of "tsg:tsn:tsv" is shared, but has no hash', logs
+            'Resource "url_pinned" of "tsg:tsn:tsv" is downloaded from https://e.org/c, '
+            "which can become unavailable. A DOI, e.g. on Zenodo, keeps it available.",
+            logs,
         )
-        self.assertNotIn('"model"', logs)
-        self.assertNotIn('"viewer_', logs)
+        self.assertNotIn('"doi_pinned"', logs)
 
-    def test_check_resources_local_path(self):
+    def test_check_resources_file_in_solution_folder(self):
+        Path(self.tmp_dir.name).joinpath("resources.yml").write_text(
+            "resources:\n  a:\n    name: a.txt\n    url: https://e.org/a\n    scope: solution\n",
+            encoding="utf-8",
+        )
+
+        self.download_manager.check_resources(
+            self._solution("resources.yml"), Path(self.tmp_dir.name)
+        )
+
+        self.assertNotIn("WARNING", self.get_logs_as_string())
+
+    def test_check_resources_file_outside_solution_folder(self):
         resource_path = Path(self.tmp_dir.name).joinpath("resources.yml")
         resource_path.write_text(
             "resources:\n  a:\n    name: a.txt\n    url: https://e.org/a\n    scope: solution\n",
             encoding="utf-8",
         )
+        solution_folder = Path(self.tmp_dir.name).joinpath("solution")
+        solution_folder.mkdir()
 
-        self.download_manager.check_resources(self._solution(str(resource_path)))
+        # an existing file is taken wherever it is
+        for resource_file, folder in [
+            (str(resource_path), solution_folder),
+            ("../resources.yml", solution_folder),
+            (str(resource_path), None),
+        ]:
+            with self.subTest(resource_file=resource_file, folder=folder):
+                self.download_manager.check_resources(
+                    self._solution(resource_file), folder
+                )
 
-        self.assertIn(
-            'The resource_file of "tsg:tsn:tsv" points to the file %s' % resource_path,
-            self.get_logs_as_string(),
-        )
+        for resource_file, folder, message in [
+            ("missing.yml", solution_folder, "does not exist"),
+            # a solution given as a single file has no folder for relative paths
+            ("resources.yml", None, "is a path"),
+        ]:
+            with self.subTest(resource_file=resource_file, folder=folder):
+                with self.assertRaises(TypeError) as e:
+                    self.download_manager.check_resources(
+                        self._solution(resource_file), folder
+                    )
+                self.assertIn(
+                    f'resource_file "{resource_file}" {message}',
+                    str(e.exception),
+                )
 
     def test_check_resources_invalid(self):
         with self.assertRaises(ValueError):

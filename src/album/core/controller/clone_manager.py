@@ -3,9 +3,6 @@ from tempfile import TemporaryDirectory
 from typing import Optional
 
 import validators
-from album.environments.utils.file_operations import copy, copy_folder
-from album.environments.utils.url_operations import download_resource, is_downloadable
-from album.runner.album_logging import get_active_logger
 from git import Repo
 
 from album.core.api.controller.clone_manager import ICloneManager
@@ -25,6 +22,10 @@ from album.core.utils.operations.git_operations import (
     clone_repository,
     create_bare_repository,
 )
+from album.core.utils.operations.solution_operations import FILES_WRITTEN_BY_DEPLOY
+from album.environments.utils.file_operations import copy, copy_folder
+from album.environments.utils.url_operations import download_resource, is_downloadable
+from album.runner.album_logging import get_active_logger
 
 
 class CloneManager(ICloneManager):
@@ -73,6 +74,9 @@ class CloneManager(ICloneManager):
             copy_folder(
                 resolve_result.path().parent, target_path, copy_root_folder=False
             )
+            # they belong to the deployment of the solution cloned, not to the new one
+            for name in FILES_WRITTEN_BY_DEPLOY:
+                force_remove(target_path.joinpath(name))
 
         get_active_logger().info(
             f"Copied solution {resolve_result.path()} to {target_path}!"
