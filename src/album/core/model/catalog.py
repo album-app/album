@@ -343,6 +343,9 @@ class Catalog(ICatalog):
     def set_index_path(self, path: Path) -> None:
         self._index_file_path = path
 
+    def set_solution_list_path(self, path: Path) -> None:
+        self._solution_list_path = path
+
     def type(self) -> str:  # noqa: A003
         return self._type
 

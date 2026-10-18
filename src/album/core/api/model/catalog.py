@@ -97,6 +97,11 @@ class ICatalog:
         raise NotImplementedError
 
     @abstractmethod
+    def set_solution_list_path(self, path: Path) -> None:
+        """Set the path to the catalog solution list cache."""
+        raise NotImplementedError
+
+    @abstractmethod
     def type(self) -> str:  # noqa: A003
         """Get the type of the catalog."""
         raise NotImplementedError
