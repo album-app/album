@@ -403,6 +403,14 @@ class Album:
             .remove_from_collection_by_name(catalog_src)
         )
 
+    def change_catalog_src(self, catalog_name, catalog_src):
+        """Change the src of a catalog in the collection, e.g. to its SSH URL."""
+        return (
+            self._controller.collection_manager()
+            .catalogs()
+            .change_src_by_name(catalog_name, catalog_src)
+        )
+
     def configuration(self) -> IConfiguration:
         """Get the configuration of the album."""
         return self._controller.configuration()

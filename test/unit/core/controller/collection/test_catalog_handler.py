@@ -9,6 +9,8 @@ from test.unit.test_unit_core_common import EmptyTestClass
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
+from git import GitCommandError
+
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.catalog import Catalog
 from album.core.model.catalog_index import CatalogIndex
@@ -908,6 +910,111 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
         )
         _remove_from_collection_mock.assert_not_called()
         self.assertIsNone(c)
+
+    # Info: this is rather a small integration test.
+    def test_change_src_by_name(self):
+        # prepare
+        # the clone of the source of test_catalog2 holds the same catalog
+        new_src = Path(self.tmp_dir.name).joinpath("my-catalogs-clone", "test_catalog2")
+        # the repository deploy and undeploy work in
+        download_path = (
+            self.album_controller.configuration()
+            .cache_path_download()
+            .joinpath("test_catalog2")
+        )
+        download_path.joinpath(".git").mkdir(parents=True)
+
+        # call
+        catalog = self.catalog_handler.change_src_by_name("test_catalog2", str(new_src))
+
+        # assert
+        self.assertEqual(str(new_src.resolve()), catalog.src())
+        expected_list = deepcopy(self.catalog_list)
+        expected_list[3]["src"] = str(new_src.resolve())
+        self.assertEqual(
+            expected_list,
+            self.album_controller.collection_manager()
+            .get_collection_index()
+            .get_all_catalogs(),
+        )
+        self.assertFalse(download_path.exists())
+
+    def test_change_src_by_name_same_src(self):
+        # mock
+        _retrieve_catalog_meta_information = MagicMock()
+        self.catalog_handler._retrieve_catalog_meta_information = (
+            _retrieve_catalog_meta_information
+        )
+
+        # call
+        catalog = self.catalog_handler.change_src_by_name(
+            "default", DefaultValues.default_catalog_src.value
+        )
+
+        # assert
+        _retrieve_catalog_meta_information.assert_not_called()
+        self.assertEqual(DefaultValues.default_catalog_src.value, catalog.src())
+        self.assertEqual(
+            self.catalog_list,
+            self.album_controller.collection_manager()
+            .get_collection_index()
+            .get_all_catalogs(),
+        )  # nothing changed
+
+    # Info: this is rather a small integration test.
+    def test_change_src_by_name_other_catalog(self):
+        # prepare
+        # the source of test_catalog holds another catalog
+        other_src = Path(self.tmp_dir.name).joinpath("my-catalogs", "test_catalog")
+        download_path = (
+            self.album_controller.configuration()
+            .cache_path_download()
+            .joinpath("test_catalog2")
+        )
+        download_path.joinpath(".git").mkdir(parents=True)
+
+        # call
+        with self.assertRaises(ValueError):
+            self.catalog_handler.change_src_by_name("test_catalog2", str(other_src))
+
+        # assert
+        self.assertEqual(
+            self.catalog_list,
+            self.album_controller.collection_manager()
+            .get_collection_index()
+            .get_all_catalogs(),
+        )  # nothing changed
+        self.assertTrue(download_path.exists())
+
+    def test_change_src_by_name_unreachable(self):
+        # call
+        with self.assertRaises(GitCommandError):
+            self.catalog_handler.change_src_by_name(
+                "test_catalog2", str(Path(self.tmp_dir.name).joinpath("doesNotExist"))
+            )
+
+        # assert
+        self.assertEqual(
+            self.catalog_list,
+            self.album_controller.collection_manager()
+            .get_collection_index()
+            .get_all_catalogs(),
+        )  # nothing changed
+
+    def test_change_src_by_name_cache_catalog(self):
+        # call
+        with self.assertRaises(RuntimeError):
+            self.catalog_handler.change_src_by_name(
+                DefaultValues.cache_catalog_name.value, self.tmp_dir.name
+            )
+
+        # assert
+        self.assertEqual(
+            self.catalog_list,
+            self.album_controller.collection_manager()
+            .get_collection_index()
+            .get_all_catalogs(),
+        )  # nothing changed
 
     def test_get_installed_solutions(self):
         # mocks

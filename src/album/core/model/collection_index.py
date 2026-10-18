@@ -252,6 +252,16 @@ class CollectionIndex(ICollectionIndex, Database):
 
         return catalog_list
 
+    def update_catalog_src(self, catalog_id: int, src: str, close: bool = True) -> None:
+        cursor = self.get_cursor()
+        cursor.execute(
+            "UPDATE catalog SET src=:src WHERE catalog_id=:catalog_id",
+            {"src": src, "catalog_id": catalog_id},
+        )
+
+        if close:
+            self.close_current_connection()
+
     def remove_catalog(self, catalog_id: int, close: bool = True) -> None:
         cursor = self.get_cursor()
         cursor.execute(

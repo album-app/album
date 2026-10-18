@@ -320,6 +320,41 @@ class TestCollectionIndex(TestUnitCoreCommon):
 
         self.assertEqual([r, r2], self.test_catalog_collection_index.get_all_catalogs())
 
+    def test_update_catalog_src(self):
+        self.test_catalog_collection_index.insert_catalog(
+            "myName1",
+            "mySrc1",
+            "myPath1",
+            deletable=True,
+            branch_name=None,
+            catalog_type="direct",
+        )
+        catalog_id = self.test_catalog_collection_index.insert_catalog(
+            "myName2",
+            "mySrc2",
+            "myPath2",
+            deletable=True,
+            branch_name=None,
+            catalog_type="direct",
+        )
+        self.test_catalog_collection_index.insert_solution(
+            catalog_id, self.get_solution_dict()
+        )
+
+        self.test_catalog_collection_index.update_catalog_src(catalog_id, "myNewSrc2")
+
+        r = self.get_test_catalog_dict(1)
+        r2 = self.get_test_catalog_dict(2)
+        r2["src"] = "myNewSrc2"
+        self.assertEqual([r, r2], self.test_catalog_collection_index.get_all_catalogs())
+        # the solutions of the catalog stay
+        self.assertEqual(
+            1,
+            len(
+                self.test_catalog_collection_index.get_solutions_by_catalog(catalog_id)
+            ),
+        )
+
     def test_remove_catalog(self):
         self.assertEqual([], self.test_catalog_collection_index.get_all_catalogs())
         self.is_empty_or_full(empty=True)

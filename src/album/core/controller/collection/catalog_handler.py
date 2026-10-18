@@ -376,6 +376,49 @@ class CatalogHandler(ICatalogHandler):
 
         return catalog_to_remove
 
+    def change_src_by_name(self, name: str, src: str) -> ICatalog:
+        catalog = self.get_by_name(name)
+        if catalog.is_cache():
+            raise RuntimeError(
+                'Cannot change the source of catalog "%s"! Only used for caching!'
+                % name
+            )
+
+        # source can be path or url
+        src = str(src)
+        if not validators.url(src):
+            if Path(src).exists():
+                src = str(Path(src).resolve())
+
+        if src == catalog.src():
+            module_logger().warning(
+                'Catalog "%s" already has the source "%s". Doing nothing...'
+                % (name, src)
+            )
+            return catalog
+
+        # also fails when the new source cannot be reached, e.g. without access via SSH
+        catalog_meta_information = self._retrieve_catalog_meta_information(
+            src, catalog.branch_name()
+        )
+        if catalog_meta_information["name"] != catalog.name():
+            raise ValueError(
+                'Cannot change the source of catalog "%s": the source "%s" holds the catalog'
+                ' "%s". Use add-catalog to add another catalog.'
+                % (name, src, catalog_meta_information["name"])
+            )
+
+        self._get_collection_index().update_catalog_src(catalog.catalog_id(), src)
+
+        # deploy and undeploy reuse this repository, it would still push to the old source
+        force_remove(
+            self.album.configuration().cache_path_download().joinpath(catalog.name())
+        )
+
+        module_logger().info(f'Changed the source of catalog "{name}" to "{src}".')
+
+        return self.get_by_name(name)
+
     def get_installed_solutions(
         self, catalog: ICatalog
     ) -> List[ICollectionIndex.ICollectionSolution]:
