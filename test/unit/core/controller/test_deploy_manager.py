@@ -359,6 +359,13 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         retrieve_catalog.assert_called_once()
         _deploy_to_direct_catalog.assert_called_once()
         _deploy_to_request_catalog.assert_not_called()
+        # the solution list is written into the repository, next to the index
+        self.assertEqual(
+            Path(retrieve_catalog.return_value.working_tree_dir).joinpath(
+                DefaultValues.catalog_solution_list_file_name.value
+            ),
+            catalog.solution_list_path(),
+        )
 
     @patch(
         "album.core.controller.deploy_manager.process_changelog_file",
@@ -518,6 +525,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
         catalog = EmptyTestClass()
         catalog.src = lambda: "mySrc"
         catalog.index_file_path = lambda: "indexSrcPath"
+        catalog.solution_list_path = lambda: "solutionListSrcPath"
 
         repo = EmptyTestClass()
         repo.working_tree_dir = "myWorkingDir"
@@ -559,7 +567,7 @@ class TestDeployManager(TestGitCommon, TestCatalogAndCollectionCommon):
             self.active_solution.coordinates(),
             repo,
             [str(Path("solutions", "tsg", "tsn"))],
-            ["export1", "export2", "indexSrcPath"],
+            ["export1", "export2", "indexSrcPath", "solutionListSrcPath"],
             False,
             None,
             "myEmail",
