@@ -1,4 +1,5 @@
 """This module contains the interface for the catalog handler."""
+
 from abc import ABCMeta, abstractmethod
 from typing import Any, Dict, List, Optional
 
@@ -123,6 +124,11 @@ class ICatalogHandler:
     @abstractmethod
     def remove_from_collection_by_src(self, src) -> Optional[ICatalog]:
         """Remove a catalog given its src from the catalog_collection."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def change_src_by_name(self, name: str, src: str) -> ICatalog:
+        """Change the src of a catalog given its name to another src of the same catalog."""
         raise NotImplementedError
 
     @abstractmethod

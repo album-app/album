@@ -103,6 +103,11 @@ class ICollectionIndex(IDatabase):
         raise NotImplementedError
 
     @abstractmethod
+    def update_catalog_src(self, catalog_id: int, src: str, close: bool = True) -> None:
+        """Set the source of a catalog in the collection index."""
+        raise NotImplementedError
+
+    @abstractmethod
     def remove_catalog(self, catalog_id: int, close: bool = True) -> None:
         """Remove a catalog from the collection index."""
         raise NotImplementedError

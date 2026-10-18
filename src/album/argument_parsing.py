@@ -9,6 +9,7 @@ from album import core
 from album.api import Album
 from album.commandline import (
     add_catalog,
+    change_catalog_src,
     clone,
     deploy,
     index,
@@ -245,6 +246,18 @@ def create_add_catalog_parser(parser):
         "add a catalog to your local album configuration file.",
     )
     p.add_argument("src", type=str, help="src of the catalog")
+
+
+def create_change_catalog_src_parser(parser):
+    """Create a parser for the change-catalog-src command."""
+    p = parser.create_command_parser(
+        "change-catalog-src",
+        change_catalog_src,
+        "change the src of a catalog in your local album configuration file, e.g. to its SSH "
+        "URL. Its installed solutions stay installed.",
+    )
+    p.add_argument("name", type=str, help="name of the catalog")
+    p.add_argument("src", type=str, help="new src of the catalog")
 
 
 def create_info_parser(parser):

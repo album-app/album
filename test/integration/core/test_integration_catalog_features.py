@@ -4,6 +4,8 @@ from test.integration.test_integration_core_common import TestIntegrationCoreCom
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 from unittest.mock import ANY, patch
 
+from git import Repo
+
 from album.core import __version__ as album_version
 from album.core.model.catalog_updates import ChangeType
 from album.core.model.default_values import DefaultValues
@@ -118,6 +120,37 @@ class TestIntegrationCatalogFeatures(TestIntegrationCoreCommon):
         )  # cache path deleted
         self.assertFalse(catalog_download_path.exists())  # download path got deleted
         self.assertTrue(new_catalog_src.exists())  # src path still available!
+
+    @patch("album.core.controller.script_manager.ScriptManager.run_solution_script")
+    @patch(
+        "album.environments.environment_api.EnvironmentAPI.create_environment_prefer_lock_file"
+    )
+    def test_change_catalog_src(self, _, __):
+        catalogs = self.album_controller.collection_manager().catalogs()
+        catalog_src, _ = self.setup_empty_catalog("my-catalog")
+        catalog = catalogs.add_by_src(catalog_src)
+        self._deploy(catalog, "app1.py")
+        self._update_and_upgrade(catalog)
+        self.album_controller.install_manager().install("my-catalog:group:app1:0.1.0")
+        # another source of the same catalog, like its SSH URL next to its HTTPS URL
+        new_src = Path(self.tmp_dir.name).joinpath("my-catalog-mirror")
+        Repo.clone_from(catalog_src, new_src, bare=True)
+        old_src_head = Repo(catalog_src).head.commit.hexsha
+
+        # call
+        catalog = catalogs.change_src_by_name("my-catalog", str(new_src))
+
+        # assert
+        self.assertEqual(str(new_src.resolve()), catalog.src())
+        self.assertTrue(self._get_entry(catalog, "app1").internal()["installed"])
+        # deploy pushes to the new source, and the collection is updated from it
+        self._deploy(catalog, "app2.py")
+        self.assertEqual(old_src_head, Repo(catalog_src).head.commit.hexsha)
+        changes = self._update_and_upgrade(catalog).solution_changes()
+        self.assertEqual(
+            ["group:app2:0.1.0"], [str(change.coordinates()) for change in changes]
+        )
+        self.assertTrue(self._get_entry(catalog, "app1").internal()["installed"])
 
     def test_update_collection(self):
         # create a catalog and its meta file and DB file in a src

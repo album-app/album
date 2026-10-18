@@ -35,6 +35,11 @@ def remove_catalog(album_instance: Album, args: Namespace) -> None:
     album_instance.remove_catalog_by_name(args.name)
 
 
+def change_catalog_src(album_instance: Album, args: Namespace) -> None:
+    """Call function corresponding to the `change-catalog-src` subcommand of `album`."""
+    album_instance.change_catalog_src(args.name, args.src)
+
+
 def update(album_instance: Album, args: Namespace):
     """Call function corresponding to the `update` subcommand of `album`."""
     album_instance.update(getattr(args, "catalog", None))

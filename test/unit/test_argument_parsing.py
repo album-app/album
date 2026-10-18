@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, call, patch
 from album import argument_parsing
 from album.commandline import (
     add_catalog,
+    change_catalog_src,
     clone,
     deploy,
     install,
@@ -49,6 +50,24 @@ class TestArgumentParsing(unittest.TestCase):
 
         sys.argv = ["", "index", "--all"]
         self.assertTrue(parser.parse_known_args()[0].all)
+
+    def test_change_catalog_src(self):
+        parser = argument_parsing.create_parser()
+        album_instance = MagicMock()
+
+        sys.argv = [
+            "",
+            "change-catalog-src",
+            "my-catalog",
+            "git@gitlab.com:my-group/my-catalog.git",
+        ]
+        args = parser.parse_known_args()[0]
+        args.func(album_instance, args)
+
+        self.assertEqual(change_catalog_src, args.func)
+        album_instance.change_catalog_src.assert_called_once_with(
+            "my-catalog", "git@gitlab.com:my-group/my-catalog.git"
+        )
 
     def test_create_parser(self):
         parser = argument_parsing.create_parser()

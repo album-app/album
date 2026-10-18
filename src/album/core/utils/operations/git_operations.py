@@ -16,7 +16,7 @@ from album.core.utils.operations.file_operations import (
     folder_empty,
     force_remove,
 )
-from album.core.utils.operations.url_operations import is_url
+from album.core.utils.operations.url_operations import is_git_ssh_address, is_url
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
@@ -745,18 +745,22 @@ def retrieve_default_mr_push_options(repo_url: str) -> List[str]:
 
     Args:
         repo_url:
-            The source url of the catalog. Netloc determines default push option.
+            The source url of the catalog, e.g. https://gitlab.com/group/catalog.git or
+            git@gitlab.com:group/catalog.git. Its host determines default push option.
 
     Returns:
         The default push option to directly create a merge request when pushed to origin.
 
     """
     if is_url(str(repo_url)):
-        parsed_url = urlparse(repo_url)
+        host = urlparse(repo_url).netloc
+    elif is_git_ssh_address(str(repo_url)):
+        # git@gitlab.com:group/catalog.git or ssh://git@gitlab.com[:port]/group/catalog.git
+        host = str(repo_url).split("@", 1)[1].split(":", 1)[0].split("/", 1)[0]
+    else:
+        return []
 
-        if parsed_url.netloc.startswith("gitlab"):
-            return ["merge_request.create"]
-        else:
-            return []
+    if host.startswith("gitlab"):
+        return ["merge_request.create"]
     else:
         return []
