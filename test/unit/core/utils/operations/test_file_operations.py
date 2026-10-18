@@ -8,6 +8,7 @@ import unittest.mock
 from pathlib import Path
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 
+from album.core.model.link import REMOVE_ATTEMPTS, Link
 from album.core.utils.operations.file_operations import (
     _create_free_pointer_folder,
     construct_cache_link_target,
@@ -20,6 +21,7 @@ from album.core.utils.operations.file_operations import (
     get_link_target,
     list_files_recursively,
     rand_folder_name,
+    remove_link,
     unzip_archive,
     write_dict_to_json,
     zip_folder,
@@ -368,6 +370,82 @@ class TestFileOperations(TestUnitCoreCommon):
         os.symlink(str(point_to), str(point_from))
 
         self.assertEqual(point_to.resolve(), get_link_target(point_from).resolve())
+
+    def test_remove_link_while_another_process_has_it_open(self):
+        link, link_file, target = self._create_link()
+        real_remove = os.remove
+        attempts = []
+
+        # another process, e.g. a virus scanner, has the link open during the first two attempts
+        def remove(path):
+            if path == str(link_file):
+                attempts.append(path)
+                if len(attempts) <= 2:
+                    raise self._in_use_error()
+            real_remove(path)
+
+        with (
+            unittest.mock.patch("album.core.model.link.os.remove", side_effect=remove),
+            unittest.mock.patch("album.core.model.link.time.sleep") as sleep,
+        ):
+            remove_link(link)
+
+        self.assertEqual(3, len(attempts))
+        self.assertEqual(2, sleep.call_count)
+        self.assertFalse(link_file.exists())
+        self.assertFalse(target.exists())
+
+    def test_remove_link_another_process_keeps_open(self):
+        link, link_file, _ = self._create_link()
+
+        with (
+            unittest.mock.patch(
+                "album.core.model.link.os.remove", side_effect=self._in_use_error()
+            ) as remove,
+            unittest.mock.patch("album.core.model.link.time.sleep") as sleep,
+        ):
+            with self.assertRaises(PermissionError):
+                remove_link(link)
+
+        self.assertEqual(REMOVE_ATTEMPTS, remove.call_count)
+        self.assertEqual(REMOVE_ATTEMPTS - 1, sleep.call_count)
+        self.assertTrue(link_file.exists())
+
+    def test_remove_link_permission_denied(self):
+        # any other permission error fails at once, as before
+        link, _, _ = self._create_link()
+
+        with (
+            unittest.mock.patch(
+                "album.core.model.link.os.remove",
+                side_effect=PermissionError(13, "Permission denied"),
+            ) as remove,
+            unittest.mock.patch("album.core.model.link.time.sleep") as sleep,
+        ):
+            with self.assertRaises(PermissionError):
+                remove_link(link)
+
+        self.assertEqual(1, remove.call_count)
+        sleep.assert_not_called()
+
+    def _create_link(self):
+        target = Path(self.tmp_dir.name).joinpath("target")
+        target.mkdir()
+        link_path = Path(self.tmp_dir.name).joinpath("link")
+        # the file Link.dispose() removes
+        link_file = Path(str(link_path) + (".lnk" if sys.platform == "win32" else ""))
+        link_file.touch()
+        return Link(target).set_link(link_path), link_file, target
+
+    @staticmethod
+    def _in_use_error():
+        # what os.remove raises on Windows when another process has the file open
+        e = PermissionError(
+            13,
+            "The process cannot access the file because it is being used by another process",
+        )
+        e.winerror = 32
+        return e
 
     if __name__ == "__main__":
         unittest.main()
