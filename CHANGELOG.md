@@ -106,6 +106,7 @@ We use the following:
 - `album install` and `album clone` of a zip file keep only `solution.py` and drop every other file in the zip (!347). They now take the whole content of the zip, as they do for a solution folder. A deployed solution in a zip is now installed from its lock file; before, its environment was solved again.
 - A progress bar of a solution, such as one of tqdm, prints a new line for every update (!345, #217). On a terminal the bar is now redrawn in place, as without album; a bar wider than the terminal is shown whole over several rows. Where the output is no terminal, such as a log file or CI, the bar is written at most every 30 seconds, and its final state always.
 - Changing the source of a catalog, e.g. from its HTTPS URL to its SSH URL to deploy to it, takes uninstalling all its solutions, removing the catalog and adding it again (!351, #163). `album change-catalog-src <catalog-name> <src>` changes it, and `Album.change_catalog_src()` does the same from Python; the installed solutions stay installed. The new source has to hold the same catalog, and `album deploy` and `album undeploy` push to it.
+- `album deploy` to a request catalog on GitLab whose source is an SSH address, such as `git@gitlab.com:group/catalog.git`, pushes the branch but opens no merge request (!351). The push option `merge_request.create` was only set for `https://gitlab...` sources; it is now set for SSH addresses of GitLab as well.
 
 ## [0.12.2]
 

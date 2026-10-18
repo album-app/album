@@ -316,9 +316,22 @@ class TestGitOperations(TestGitCommon):
             "https://gitlab.com/album-app/album/-/merge_requests",
             "https://github.com/",
             "asdasd",
+            "git@gitlab.com:album-app/catalogs/default.git",
+            "ssh://git@gitlab.com/album-app/catalogs/default.git",
+            "ssh://git@gitlab.example.org:2222/group/catalog.git",
+            "git@github.com:album-app/album.git",
         ]
 
-        exp = [[], ["merge_request.create"], [], []]
+        exp = [
+            [],
+            ["merge_request.create"],
+            [],
+            [],
+            ["merge_request.create"],
+            ["merge_request.create"],
+            ["merge_request.create"],
+            [],
+        ]
 
         # run
         res = [git_op.retrieve_default_mr_push_options(url) for url in urls]
