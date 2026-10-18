@@ -149,6 +149,12 @@ class DeployManager(IDeployManager):
                     DefaultValues.catalog_index_file_name.value
                 )
             )
+            # the readable copy of the index, committed with it
+            catalog.set_solution_list_path(
+                Path(repo.working_tree_dir).joinpath(
+                    DefaultValues.catalog_solution_list_file_name.value
+                )
+            )
             copy(
                 Path(repo.working_tree_dir).joinpath(
                     DefaultValues.catalog_index_metafile_json.value
@@ -238,6 +244,12 @@ class DeployManager(IDeployManager):
                     DefaultValues.catalog_index_file_name.value
                 )
             )
+            # the readable copy of the index, committed with it
+            catalog.set_solution_list_path(
+                Path(repo.working_tree_dir).joinpath(
+                    DefaultValues.catalog_solution_list_file_name.value
+                )
+            )
             copy(
                 Path(repo.working_tree_dir).joinpath(
                     DefaultValues.catalog_index_metafile_json.value
@@ -307,7 +319,10 @@ class DeployManager(IDeployManager):
         solution_files = self._deploy_routine_in_local_src(
             catalog, repo, active_solution, deploy_path, no_conda_lock
         )
-        commit_files = solution_files + [catalog.index_file_path()]
+        commit_files = solution_files + [
+            catalog.index_file_path(),
+            catalog.solution_list_path(),
+        ]
         solution_root = str(
             self.album.configuration().get_solution_path_suffix_unversioned(
                 active_solution.coordinates()
@@ -728,6 +743,7 @@ class DeployManager(IDeployManager):
             self.album.configuration().get_solution_path_suffix_unversioned(coordinates)
         )
         db_index = DefaultValues.catalog_index_file_name.value
+        solution_list = DefaultValues.catalog_solution_list_file_name.value
 
         init_msg = (
             "Would remove files %s, would update %s.."
@@ -741,7 +757,7 @@ class DeployManager(IDeployManager):
                 coordinates,
                 repo,
                 [solution_root],
-                [db_index],
+                [db_index, solution_list],
                 push_options,
                 git_email,
                 git_name,
@@ -762,6 +778,7 @@ class DeployManager(IDeployManager):
             self.album.configuration().get_solution_path_suffix_unversioned(coordinates)
         )
         db_index = DefaultValues.catalog_index_file_name.value
+        solution_list = DefaultValues.catalog_solution_list_file_name.value
 
         init_msg = (
             "Would revert %s to %s, would update %s.."
@@ -773,7 +790,13 @@ class DeployManager(IDeployManager):
         if not dry_run:
             revert(repo, previous_version_tag, [solution_root])
             self._try_push_remove_tag(
-                coordinates, repo, [], [db_index], push_options, git_email, git_name
+                coordinates,
+                repo,
+                [],
+                [db_index, solution_list],
+                push_options,
+                git_email,
+                git_name,
             )
 
     def _remove_db_entry_and_tag(
@@ -786,13 +809,20 @@ class DeployManager(IDeployManager):
         git_name: str,
     ):
         db_index = DefaultValues.catalog_index_file_name.value
+        solution_list = DefaultValues.catalog_solution_list_file_name.value
 
         init_msg = "Would update %s.." if dry_run else "Updating %s.."
         module_logger().info(init_msg % (db_index))
 
         if not dry_run:
             self._try_push_remove_tag(
-                coordinates, repo, [], [db_index], push_options, git_email, git_name
+                coordinates,
+                repo,
+                [],
+                [db_index, solution_list],
+                push_options,
+                git_email,
+                git_name,
             )
 
     def _try_push_remove_tag(
