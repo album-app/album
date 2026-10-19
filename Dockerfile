@@ -12,7 +12,10 @@ ENV MAMBA_EXE="/mamba/bin/micromamba"
 RUN $MAMBA_EXE shell init --shell bash
 RUN echo "micromamba activate" >> /root/.bashrc
 
-RUN micromamba install -y git python=3.14 pip -c conda-forge &&  cd /album && pip install . && album index
+# Packages pip installs together with album, none for the published image. album-docker's CI builds the image of an
+# unreleased album with album-solution-api and album-environments from their dev branches (git+https://... URLs).
+ARG ALBUM_DEV_DEPENDENCIES=""
+RUN micromamba install -y git python=3.14 pip -c conda-forge &&  cd /album && pip install $ALBUM_DEV_DEPENDENCIES . && album index
 
 RUN chmod +x /album/docker_entrypoint.sh
 
