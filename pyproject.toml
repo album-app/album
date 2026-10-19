@@ -21,7 +21,7 @@ license-files = ["LICENSE"]
 readme = "README.md"
 keywords = ["virtual environments", "imaging", "data analysis"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX",

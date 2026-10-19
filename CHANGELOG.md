@@ -54,6 +54,7 @@ We use the following:
 - The default of an argument from the catalog and collection databases has the type of the argument (#240), as in `album info --json` and in the solution itself: `album index --json` shows `5`, `1.5` and `true` instead of `"5"`, `"1.5"` and `"1"`, and so do `Album.resolve(...).database_entry()` and album-gui. The databases still store the default as text, so catalogs need no migration and older album versions read them as before. A default that does not convert to the type of its argument stays text.
 - With `--log DEBUG`, `album install` says where it takes a solution from and where it puts it (!357): the file a URL is downloaded to, the folder a zip is unpacked into, what the input resolves to (a single file or a solution folder, and its catalog), and what is copied into the folder of the installed solution.
 - album requires album-solution-api 0.7.3 and album-environments 0.3.4 or newer, the versions released together with album 1.0.0 (!361). Arguments of the type `str`, `int` or `bool` need album-solution-api 0.7.3.
+- PyPI lists album as stable: the classifier is `Development Status :: 5 - Production/Stable` instead of `4 - Beta` (!361)
 
 ### Deprecated
 
