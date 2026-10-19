@@ -24,6 +24,7 @@ from album.core.utils.operations.resolve_operations import (
     get_doi_from_input,
 )
 from album.core.utils.operations.solution_operations import version_sort_key
+from album.core.utils.operations.url_operations import is_url
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 
@@ -259,7 +260,7 @@ class CollectionManager(ICollectionManager):
         str_input = str(str_input)
 
         # A single-file solution is when the user points directly at a .py
-        # file (not a zip, directory, URL, or DOI).  Only single files may
+        # file, on disk or by a URL (not a zip, directory, or DOI).  Only single files may
         # have an arbitrary name; inside a folder / zip the file is always
         # called solution.py.  Determine this *before* check_file_or_url
         # transforms the path (prepare_path now always returns a file path).
@@ -268,7 +269,11 @@ class CollectionManager(ICollectionManager):
 
         # always first resolve outside any catalog, excluding a DOI which should be first resolved inside a catalog.
         # A download or an unpacked zip lives in the temporary folder, removed when album closes
-        path = check_file_or_url(str_input, self.album.configuration().tmp_path())
+        tmp_path = self.album.configuration().tmp_path()
+        path = check_file_or_url(str_input, tmp_path)
+        if path and is_url(str_input):
+            # a downloaded zip is unpacked into a folder, a downloaded .py file stays one
+            single_file = path.parent.samefile(tmp_path)
 
         doi = get_doi_from_input(str_input)
         if path:

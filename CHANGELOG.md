@@ -114,6 +114,7 @@ We use the following:
 - The default 0, 0.0, False or "" and the `required` of an argument could get lost in the catalog and collection databases (#240): when a database already held the same argument without a default or with another `required`, e.g. from an earlier version of the solution, the solution got that row, and album-gui and `album index --json` showed the argument without its default or with the other `required`. Now both are compared, and each solution keeps its own.
 - album-gui asked for a value of an argument with the default `None` (#240): the catalog and collection databases store `None` as no default, and album-gui asks for every argument without default and `required`. An argument with the default `None` and without `required` is now stored as not required, as the argument parser of the solution treats it. A catalog keeps the rows it has until the solution is deployed again.
 - `album info` left out the default 0, 0.0, False or "" of an argument (#240), as if it had none. It shows them now, "" as `(default: "")`.
+- `album install` of a URL to a solution file, such as `https://example.org/solution.py`, installs the file under a temporary name, e.g. `tmpmo4hfsst`, next to everything else in the `downloads` folder, so `album run` fails with `No such file or directory: .../solution.py` (!356). The file is now installed as `solution.py`, as a solution file on disk is.
 
 ## [0.12.2]
 

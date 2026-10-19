@@ -1,8 +1,9 @@
 import os
+import shutil
 import sys
-import unittest
 import zipfile
 from pathlib import Path
+from test.integration.core.test_integration_shared_resources import ResourceServer
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
 from typing import Optional
 from unittest.mock import patch
@@ -369,47 +370,33 @@ class TestIntegrationInstall(TestIntegrationCoreCommon):
             self.get_logs()[-1],
         )
 
-    #  @unittest.skipIf(sys.platform == 'win32' or sys.platform == 'cygwin', "This test fails on the Windows CI with \"SSL: CERTIFICATE_VERIFY_FAILED\"")
-    @unittest.skip("Fixme")
-    def test_install_from_url(self):
-        self.album_controller.install_manager().install(
-            "https://gitlab.com/album-app/catalogs/capture-knowledge-dev/-/raw/main/app-fiji/solution.py"
+    @patch(
+        "album.core.controller.environment_manager.EnvironmentManager.get_environment_path"
+    )
+    @patch("album.environments.controller.package_manager.PackageManager.install")
+    def test_install_from_url(self, _, get_environment_path):
+        get_environment_path.return_value = (
+            self.album_controller.environment_manager()
+            .get_environment_handler()
+            .get_package_manager()
+            .get_active_environment_path()
         )
+        served_path = Path(self.tmp_dir.name).joinpath("served")
+        served_path.mkdir()
+        shutil.copy(self.get_test_solution_path(), served_path.joinpath("solution.py"))
+        server = ResourceServer(served_path)
+        self.addCleanup(server.close)
 
-        # assert solution was added to local catalog
-        self.assertNotIn("ERROR", self.get_logs_as_string())
-        collection = self.album_controller.collection_manager().catalog_collection
-        self.assertEqual(
-            1,
-            len(
-                collection.get_solutions_by_catalog(
-                    self.album_controller.collection_manager()
-                    .catalogs()
-                    .get_cache_catalog()
-                    .catalog_id
-                )
-            ),
-        )
+        # this solution has an install() configured, it runs the downloaded solution file
+        self.album_controller.install_manager().install(server.url + "/solution.py")
 
-        # assert solution is in the right place and has the right name
-        self.assertTrue(
-            Path(self.tmp_dir.name)
-            .joinpath(
-                DefaultValues.catalog_folder_prefix.value,
-                str(
-                    self.album_controller.collection_manager()
-                    .catalogs()
-                    .get_cache_catalog()
-                    .name
-                ),
-                DefaultValues.catalog_solutions_prefix.value,
-                "ida-mdc",
-                "app-fiji",
-                "0.1.0",
-                "solution.py",
-            )
-            .exists()
+        # assert: the download is installed as solution.py, without other files
+        self.assertNotIn("ERROR", self.get_logs())
+        package_path = self.album_controller.solutions().get_solution_package_path(
+            self.album_controller.collection_manager().catalogs().get_cache_catalog(),
+            Coordinates("group", "name", "0.1.0"),
         )
+        self.assertEqual(["solution.py"], os.listdir(package_path))
 
     def test_install_with_parent(self):
         # install parent app solution

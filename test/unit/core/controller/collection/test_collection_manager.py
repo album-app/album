@@ -433,6 +433,53 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         self.assertEqual("solution.py", resolve_result.path().name)
         self.assertTrue(resolve_result.path().parent.joinpath("data.txt").exists())
 
+    @patch("album.core.utils.operations.resolve_operations.download")
+    def test__resolve_case_url_file(self, download_mock):
+        # mock: the download is stored in the temporary folder under a random name
+        def download(url, base):
+            f = Path(base).joinpath("tmpabc123")
+            f.write_text("")
+            return f
+
+        download_mock.side_effect = download
+        self.album_controller.collection_manager()._search_for_local_file = MagicMock(
+            return_value=None
+        )
+
+        # call
+        resolve_result = self.album_controller.collection_manager()._resolve(
+            "https://example.org/solution.py"
+        )
+
+        # assert: a downloaded .py file is a single file, installed as solution.py
+        self.assertTrue(resolve_result.is_single_file())
+        self.assertEqual("tmpabc123", resolve_result.path().name)
+
+    @patch("album.core.utils.operations.resolve_operations.download")
+    def test__resolve_case_url_zip(self, download_mock):
+        # mock: a downloaded zip holding solution.py and a file next to it
+        def download(url, base):
+            f = Path(base).joinpath("tmpabc123.zip")
+            with zipfile.ZipFile(f, "w") as z:
+                z.writestr("solution.py", "")
+                z.writestr("data.txt", "")
+            return f
+
+        download_mock.side_effect = download
+        self.album_controller.collection_manager()._search_for_local_file = MagicMock(
+            return_value=None
+        )
+
+        # call (check_file_or_url unpacks the zip)
+        resolve_result = self.album_controller.collection_manager()._resolve(
+            "https://example.org/solution.zip"
+        )
+
+        # assert: a downloaded zip is a solution folder, as a local one
+        self.assertFalse(resolve_result.is_single_file())
+        self.assertEqual("solution.py", resolve_result.path().name)
+        self.assertTrue(resolve_result.path().parent.joinpath("data.txt").exists())
+
     @patch("album.core.controller.collection.collection_manager.check_doi")
     @patch(
         "album.core.controller.collection.collection_manager.check_file_or_url",
