@@ -91,7 +91,7 @@ We use the following:
 - Test aggregators run the whole suite when they are imported (!319)
 - Deprecated `Logger.warn` and `Thread.setDaemon` calls; tree views (`album index`, `album update`) lose their closing line from the 258th entry on; re-raises drop their cause (!320)
 - Catalog handler: metadata JSON is built by string concatenation, so catalog names with quotes or backslashes break it; a name clash is reported as "Cannot add catalog twice" (!321)
-- Collection database: concurrent writers can hand out the same id, and catalogs have no unique key (!323). Catalog id, name and source are now unique; an existing collection gets the unique indexes on load, exact duplicate catalog rows are removed, and other duplicates are reported with a warning.
+- Collection database: concurrent writers can hand out the same id, and catalogs have no unique key (!323). Ids are now taken under the database write lock, and album refuses to add a catalog whose name or source is already in the collection, also when two album processes add it at the same time. Duplicates already in a collection stay as they are.
 - `Album.search()` with a string searches every character; `force_retrieve` is described wrongly (!325, #272, #275)
 - Database migration: every step records the final version, and the backup cannot be restored on Windows while the index is open (!326, #269)
 - `album uninstall`: a solution that is not installed or not found is reported as "Cannot load solution" and resolved twice (!327, #270)
