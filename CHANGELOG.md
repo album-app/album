@@ -16,6 +16,8 @@ We use the following:
 
 ## [unreleased]
 
+## [1.0.0]
+
 ### Added
 
 - Shared resources: the `resource_file` of a solution and of its parents is downloaded on install, checked against its `hash`, and shared between solutions that ask for the same content (scope `global`, `catalog` or `solution`) (!331). A failed download or a hash mismatch fails `album install`. `album deploy` validates the resource file. Solutions that are installed at the same time and share a resource download it once (!337, #277). Replaces !253.
@@ -171,7 +173,8 @@ We use the following:
 - reconstruct changelog
 - changelog to the repository (#233)
 
-[unreleased]: https://gitlab.com/album-app/album/-/compare/v0.12.2...HEAD
+[unreleased]: https://gitlab.com/album-app/album/-/compare/v1.0.0...HEAD
+[1.0.0]: https://gitlab.com/album-app/album/-/compare/v0.12.2...v1.0.0
 [0.12.2]: https://gitlab.com/album-app/album/-/compare/v0.12.1...v0.12.2
 [0.12.1]: https://gitlab.com/album-app/album/-/compare/v0.12.0...v0.12.1
 [0.12.0]: https://gitlab.com/album-app/album/-/compare/v0.11.0...v0.12.0
