@@ -57,8 +57,10 @@ def get_solution_as_string(solution: ISolution, solution_path: str) -> str:
                 t = f" (type: {arg['type']})" if arg["type"] else ""
 
             f = ""
-            if "default" in arg:
-                f = f" (default: {arg['default']})" if arg["default"] else ""
+            # 0, False and "" are defaults too; None is none
+            if "default" in arg and arg["default"] is not None:
+                default = '""' if arg["default"] == "" else arg["default"]
+                f = f" (default: {default})"
 
             res += "  --{n}:{r}{d}{t}{f}\n".format(n=arg["name"], r=r, d=d, t=t, f=f)
     return res

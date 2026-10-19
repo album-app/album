@@ -7,6 +7,8 @@ from pathlib import Path
 from test.unit.test_unit_core_common import TestCatalogAndCollectionCommon
 from unittest.mock import MagicMock, patch
 
+from jsonschema import ValidationError
+
 from album.core.model.catalog import Catalog
 from album.core.model.mmversion import MMVersion
 
@@ -124,6 +126,50 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
         self.active_solution.setup().pop("timestamp")
         self.active_solution.setup().pop("album_version")
         self.migration_manager.migrate_solution_attrs(self.active_solution.setup())
+
+    def test_migrate_solution_attrs_python_argument_types(self):
+        attrs = deepcopy(self.solution_default_dict)
+        attrs.pop("timestamp")
+        attrs.pop("album_version")
+        attrs["album_api_version"] = "0.7.3"
+        attrs["args"] = [
+            {"name": "a1", "type": "str"},
+            {"name": "a2", "type": "int"},
+            {"name": "a3", "type": "bool"},
+            {"name": "a4", "type": "float"},
+            {"name": "a5", "type": "file"},
+        ]
+
+        # call
+        attrs = self.migration_manager.migrate_solution_attrs(attrs)
+
+        # assert: by the names album stores and shows
+        self.assertEqual(
+            ["string", "integer", "boolean", "float", "file"],
+            [arg["type"] for arg in attrs["args"]],
+        )
+
+    def test_migrate_solution_attrs_python_argument_types_old_api_version(self):
+        # its album-solution-api would pass the value on as text
+        for api_version in ["0.7.2", "0.5.1", "0.4.2"]:
+            attrs = deepcopy(self.solution_default_dict)
+            attrs.pop("timestamp")
+            attrs.pop("album_version")
+            attrs["album_api_version"] = api_version
+            attrs["args"] = [
+                {"name": "a1", "type": "string"},
+                {"name": "a2", "type": "int"},
+            ]
+
+            # call & assert
+            with self.assertRaises(ValidationError) as context:
+                self.migration_manager.migrate_solution_attrs(attrs)
+            self.assertEqual(
+                "The argument a2 has the type 'int', which needs album_api_version 0.7.3 or "
+                "newer, the solution has %s. Give it the type 'integer' or a newer "
+                "album_api_version." % api_version,
+                context.exception.message,
+            )
 
     def test_migrate_solution_schema0_attrs(self):
         self.setup_solution_no_env()
