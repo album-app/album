@@ -77,7 +77,9 @@ def download(str_input: str, base: str) -> Path:
             fd_zip, tmp_file_name_zip = tempfile.mkstemp(dir=base, suffix=".zip")
             os.close(fd_zip)  # only the name is needed, copy() writes the content
             copy(tmp_file_name, tmp_file_name_zip)
+            module_logger().debug(f"Downloaded {str_input} to {tmp_file_name_zip}!")
             return Path(tmp_file_name_zip)
+        module_logger().debug(f"Downloaded {str_input} to {tmp_file_name}!")
         return Path(tmp_file_name)
 
 

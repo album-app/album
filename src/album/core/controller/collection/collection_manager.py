@@ -330,6 +330,10 @@ class CollectionManager(ICollectionManager):
                 "or point to a valid file or folder! Aborting..." % str_input
             )
 
+        kind = "single file" if single_file else "solution folder"
+        module_logger().debug(
+            f'Resolved "{str_input}" to {path} ({kind}, catalog "{catalog.name()}")...'
+        )
         resolve = ResolveResult(
             path=path,  # never None
             catalog=catalog,  # always set
