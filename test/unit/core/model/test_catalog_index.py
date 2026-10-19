@@ -2,13 +2,13 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 from unittest.mock import MagicMock, patch
 
 from album.core.model.catalog_index import CatalogIndex
+from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
 from album.runner.core.model.coordinates import Coordinates
-from album.core.model.default_values import DefaultValues
-from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestCatalogIndex(TestUnitCoreCommon):
@@ -82,7 +82,9 @@ class TestCatalogIndex(TestUnitCoreCommon):
         self.assertEqual("test", self.catalog_index.get_name())
 
         # call
-        self.catalog_index.update_name_version("myName", DefaultValues.catalog_index_db_version.value)
+        self.catalog_index.update_name_version(
+            "myName", DefaultValues.catalog_index_db_version.value
+        )
 
         # assert
         self.assertEqual("myName", self.catalog_index.get_name())
@@ -364,6 +366,75 @@ class TestCatalogIndex(TestUnitCoreCommon):
                 .execute("SELECT * FROM argument")
                 .fetchall()
             ),
+        )
+
+    def test_get_solution_arguments_with_falsy_default_or_required(self):
+        # the same arguments are already stored without default and required, e.g. for an earlier version
+        types = ["integer", "boolean", "string", "float", "file"]
+        solution_dict = self.solution_default_dict.copy()
+        solution_dict["args"] = [
+            {"name": "a%s" % i, "type": t, "description": "d"}
+            for i, t in enumerate(types, start=1)
+        ]
+        self.catalog_index._insert_solution(solution_dict)
+
+        solution_dict2 = solution_dict.copy()
+        solution_dict2["group"] = "anotherGroup"
+        solution_dict2["args"] = [
+            {"name": "a1", "type": "integer", "description": "d", "default": 0},
+            {"name": "a2", "type": "boolean", "description": "d", "default": False},
+            {"name": "a3", "type": "string", "description": "d", "default": ""},
+            {"name": "a4", "type": "float", "description": "d", "default": 0.0},
+            {"name": "a5", "type": "file", "description": "d", "required": True},
+        ]
+        solution_id2 = self.catalog_index._insert_solution(solution_dict2)
+
+        # call
+        solution = self.catalog_index.get_solution(solution_id2)
+
+        # assert
+        self.assertEqual(
+            [
+                {"name": "a1", "type": "integer", "description": "d", "default": 0},
+                {"name": "a2", "type": "boolean", "description": "d", "default": False},
+                {"name": "a3", "type": "string", "description": "d", "default": ""},
+                {"name": "a4", "type": "float", "description": "d", "default": 0.0},
+                {"name": "a5", "type": "file", "description": "d", "required": True},
+            ],
+            solution["args"],
+        )
+
+    def test_get_solution_argument_with_default_none(self):
+        solution_dict = self.solution_default_dict.copy()
+        solution_dict["args"] = [
+            {"name": "a1", "type": "integer", "description": "d", "default": None},
+            {
+                "name": "a2",
+                "type": "integer",
+                "description": "d",
+                "default": None,
+                "required": True,
+            },
+            {"name": "a3", "type": "integer", "description": "d"},
+        ]
+        solution_id = self.catalog_index._insert_solution(solution_dict)
+
+        # call
+        solution = self.catalog_index.get_solution(solution_id)
+
+        # assert: the default None is stored as what it means, not required
+        self.assertEqual(
+            [
+                {
+                    "name": "a1",
+                    "type": "integer",
+                    "description": "d",
+                    "required": False,
+                },
+                {"name": "a2", "type": "integer", "description": "d", "required": True},
+                {"name": "a3", "type": "integer", "description": "d"},
+            ],
+            solution["args"],
         )
 
     def test_get_solution_by_group_name_version(self):

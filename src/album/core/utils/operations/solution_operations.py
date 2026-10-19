@@ -15,6 +15,7 @@ from album.core.model.default_values import DefaultValues
 from album.environments.api.model.environment import IEnvironment
 from album.runner import album_logging
 from album.runner.core.api.model.solution import ISolution
+from album.runner.core.model.solution_script import SolutionScript
 
 module_logger = album_logging.get_active_logger
 
@@ -96,6 +97,43 @@ def _remove_action_from_args(solution_dict: Dict[str, Any]) -> Dict[str, Any]:
                     if callable(arg[key]):
                         arg[key] = "%s_function" % key
     return solution_dict
+
+
+def get_stored_argument_required(argument: Dict[str, Any]) -> Optional[bool]:
+    """Return the required of an argument as the catalog and collection databases store it.
+
+    The databases store the default None as no default. An argument with the default None and
+    without required is optional, as the argument parser of the solution treats it, so it is
+    stored as not required: album-gui asks for a value of an argument without default and required.
+    """
+    if (
+        "required" not in argument
+        and "default" in argument
+        and argument["default"] is None
+    ):
+        return False
+    return argument.get("required")
+
+
+def get_typed_argument_default(
+    argument_type: Optional[str], stored_default: str
+) -> Any:
+    """Return the default of an argument from the text the catalog and collection databases store.
+
+    It is converted as the argument parser of the solution converts it, e.g. "5" of an integer
+    argument to 5, and "1", stored for True, of a boolean argument to True. The default of another
+    type, and a default that does not convert, stay text.
+    """
+    try:
+        if argument_type == "integer":
+            return int(stored_default)
+        if argument_type == "float":
+            return float(stored_default)
+        if argument_type == "boolean":
+            return SolutionScript.strtobool(stored_default)
+    except ValueError:
+        pass
+    return stored_default
 
 
 def get_parent_dict(solution: ISolution) -> Optional[dict]:

@@ -826,6 +826,89 @@ class TestCollectionIndex(TestUnitCoreCommon):
         # assert
         self.assertEqual([argument1, argument2], r)
 
+    def test_get_solution_arguments_with_falsy_default_or_required(self):
+        self.test_catalog_collection_index.insert_catalog(
+            "myName1", "mySrc1", "myPath1", True, None, "direct"
+        )
+        # the same arguments are already stored without default and required, e.g. for an earlier version
+        types = ["integer", "boolean", "string", "float", "file"]
+        args = [
+            {"name": "a%s" % i, "type": t, "description": "d"}
+            for i, t in enumerate(types, start=1)
+        ]
+        self.test_catalog_collection_index.insert_solution(
+            1,
+            self._get_solution_attrs(1, "grp", "name", "0.1.0", None, {"args": args}),
+        )
+        args2 = [
+            {"name": "a1", "type": "integer", "description": "d", "default": 0},
+            {"name": "a2", "type": "boolean", "description": "d", "default": False},
+            {"name": "a3", "type": "string", "description": "d", "default": ""},
+            {"name": "a4", "type": "float", "description": "d", "default": 0.0},
+            {"name": "a5", "type": "file", "description": "d", "required": True},
+        ]
+        collection_id2 = self.test_catalog_collection_index.insert_solution(
+            1,
+            self._get_solution_attrs(2, "grp", "name", "0.2.0", None, {"args": args2}),
+        )
+
+        # call
+        solution = self.test_catalog_collection_index.get_solution_by_collection_id(
+            collection_id2
+        )
+
+        # assert
+        self.assertEqual(
+            [
+                {"name": "a1", "type": "integer", "description": "d", "default": 0},
+                {"name": "a2", "type": "boolean", "description": "d", "default": False},
+                {"name": "a3", "type": "string", "description": "d", "default": ""},
+                {"name": "a4", "type": "float", "description": "d", "default": 0.0},
+                {"name": "a5", "type": "file", "description": "d", "required": True},
+            ],
+            solution.setup()["args"],
+        )
+
+    def test_get_solution_argument_with_default_none(self):
+        self.test_catalog_collection_index.insert_catalog(
+            "myName1", "mySrc1", "myPath1", True, None, "direct"
+        )
+        args = [
+            {"name": "a1", "type": "integer", "description": "d", "default": None},
+            {
+                "name": "a2",
+                "type": "integer",
+                "description": "d",
+                "default": None,
+                "required": True,
+            },
+            {"name": "a3", "type": "integer", "description": "d"},
+        ]
+        collection_id = self.test_catalog_collection_index.insert_solution(
+            1,
+            self._get_solution_attrs(1, "grp", "name", "0.1.0", None, {"args": args}),
+        )
+
+        # call
+        solution = self.test_catalog_collection_index.get_solution_by_collection_id(
+            collection_id
+        )
+
+        # assert: the default None is stored as what it means, not required
+        self.assertEqual(
+            [
+                {
+                    "name": "a1",
+                    "type": "integer",
+                    "description": "d",
+                    "required": False,
+                },
+                {"name": "a2", "type": "integer", "description": "d", "required": True},
+                {"name": "a3", "type": "integer", "description": "d"},
+            ],
+            solution.setup()["args"],
+        )
+
     def test__get_custom_by_solution(self):
         self.test_catalog_collection_index.insert_catalog(
             "myName1", "mySrc1", "myPath1", True, None, "direct"

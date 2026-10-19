@@ -27,6 +27,9 @@ from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
+# the Python names of argument types, and the names album stores and shows these types by
+PYTHON_ARGUMENT_TYPES = {"str": "string", "int": "integer", "bool": "boolean"}
+
 
 class MigrationManager(IMigrationManager):
     def __init__(self, album: IAlbumController):
@@ -215,12 +218,46 @@ class MigrationManager(IMigrationManager):
 
         # TODO: replace hardcoded migration with a more general approach. see database migration for example
         api_version = version.parse(attrs["album_api_version"])
+        self._rename_python_argument_types(attrs, api_version)
         if api_version >= version.parse("0.5.1"):
             validate(attrs, self.schema_solution)
             return attrs
         else:
             validate(attrs, self.schema_solution_runner_0_4_2)
             return self._convert_schema0_schema1(attrs)
+
+    @staticmethod
+    def _rename_python_argument_types(
+        attrs: Dict[str, Any], api_version: version.Version
+    ) -> None:
+        """Give an argument of the type str, int or bool the type string, integer or boolean.
+
+        The databases, solution.yml, album info, album-gui, album-distributed and older album
+        versions know the types by these names. The argument parser of a solution parses the
+        Python names from album-solution-api 0.7.3 on, an older one passes the value on as text,
+        so a solution with an older album_api_version is refused.
+        """
+        args = attrs.get("args")
+        if not isinstance(args, list):
+            return  # validated with the schema next
+        first_version = DefaultValues.python_argument_types_api_version.value
+        for arg in args:
+            arg_type = arg.get("type") if isinstance(arg, dict) else None
+            if not isinstance(arg_type, str) or arg_type not in PYTHON_ARGUMENT_TYPES:
+                continue
+            if api_version < version.parse(first_version):
+                raise ValidationError(
+                    "The argument %s has the type '%s', which needs album_api_version %s or newer, "
+                    "the solution has %s. Give it the type '%s' or a newer album_api_version."
+                    % (
+                        arg.get("name"),
+                        arg_type,
+                        first_version,
+                        attrs["album_api_version"],
+                        PYTHON_ARGUMENT_TYPES[arg_type],
+                    )
+                )
+            arg["type"] = PYTHON_ARGUMENT_TYPES[arg_type]
 
     def _load_solution_schema(self):
         if not self.schema_solution:

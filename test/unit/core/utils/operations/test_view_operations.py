@@ -122,6 +122,27 @@ class TestViewOperations(TestUnitCoreCommon):
             res,
         )
 
+    def test_get_solution_as_string_falsy_defaults(self):
+        solution_dict = self.solution_default_dict.copy()
+        solution_dict["args"] = [
+            {"name": "a1", "type": "integer", "default": 0},
+            {"name": "a2", "type": "boolean", "default": False},
+            {"name": "a3", "type": "string", "default": ""},
+            {"name": "a4", "type": "float", "default": 0.0},
+            {"name": "a5", "type": "string", "default": None},
+        ]
+        solution = Solution(solution_dict)
+
+        # call
+        res = get_solution_as_string(solution, "myPath")
+
+        # assert
+        self.assertIn("  --a1: (type: integer) (default: 0)\n", res)
+        self.assertIn("  --a2: (type: boolean) (default: False)\n", res)
+        self.assertIn('  --a3: (type: string) (default: "")\n', res)
+        self.assertIn("  --a4: (type: float) (default: 0.0)\n", res)
+        self.assertIn("  --a5: (type: string)\n", res)
+
     def test_get_solution_as_string_argument_without_description(self):
         solution_dict = self.solution_default_dict.copy()
         solution_dict["args"] = [{"name": "a1"}]

@@ -9,7 +9,11 @@ from album.core.model.catalog_index import CatalogIndex
 from album.core.model.database import Database
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import get_dict_entry
-from album.core.utils.operations.solution_operations import get_solution_hash
+from album.core.utils.operations.solution_operations import (
+    get_solution_hash,
+    get_stored_argument_required,
+    get_typed_argument_default,
+)
 from album.runner.core.api.model.coordinates import ICoordinates
 
 
@@ -612,6 +616,7 @@ class CollectionIndex(ICollectionIndex, Database):
         }
         argument_type = get_dict_entry(argument, "type")
         argument_default_value = get_dict_entry(argument, "default")
+        argument_required = get_stored_argument_required(argument)
 
         if argument_type:
             exc_str += "AND type=:argument_type "
@@ -619,11 +624,18 @@ class CollectionIndex(ICollectionIndex, Database):
         else:
             exc_str += "AND type IS NULL "
 
-        if argument_default_value:
+        # 0, False and "" are defaults too, not the lack of one
+        if argument_default_value is not None:
             exc_str += "AND default_value=:argument_default_value "
             exc_val["argument_default_value"] = argument_default_value
         else:
             exc_str += "AND default_value IS NULL "
+
+        if argument_required is not None:
+            exc_str += "AND required=:argument_required "
+            exc_val["argument_required"] = argument_required
+        else:
+            exc_str += "AND required IS NULL "
 
         r = cursor.execute(exc_str, exc_val).fetchone()
 
@@ -669,7 +681,7 @@ class CollectionIndex(ICollectionIndex, Database):
                 get_dict_entry(argument, "type"),
                 get_dict_entry(argument, "description") or "",  # optional in the schema
                 get_dict_entry(argument, "default"),
-                get_dict_entry(argument, "required"),
+                get_stored_argument_required(argument),
             ),
         )
 
@@ -1055,7 +1067,9 @@ class CollectionIndex(ICollectionIndex, Database):
             if "required" in row and row["required"] is not None:
                 argument["required"] = bool(row["required"])
             if "default_value" in row and row["default_value"] is not None:
-                argument["default"] = row["default_value"]
+                argument["default"] = get_typed_argument_default(
+                    row["type"], row["default_value"]
+                )
             res.append(argument)
 
         if close:

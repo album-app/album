@@ -6,6 +6,7 @@ from album.core.model.catalog_index import CatalogIndex
 from album.core.utils.operations.solution_operations import (
     get_deploy_dict,
     get_replicability_reasons,
+    get_typed_argument_default,
     version_sort_key,
 )
 from album.runner.core.model.solution import Solution
@@ -28,6 +29,20 @@ channels:
     def test_get_deploy_dict(self):
         active_solution = Solution(self.solution_default_dict)
         self.assertEqual(self.solution_default_dict, get_deploy_dict(active_solution))
+
+    def test_get_typed_argument_default(self):
+        # the text the databases store, as the argument parser of the solution converts it
+        self.assertEqual(5, get_typed_argument_default("integer", "5"))
+        self.assertEqual(1.5, get_typed_argument_default("float", "1.5"))
+        self.assertEqual(1e-07, get_typed_argument_default("float", "1.0e-07"))
+        self.assertIs(True, get_typed_argument_default("boolean", "1"))
+        self.assertIs(False, get_typed_argument_default("boolean", "False"))
+        # other types and a default that does not convert stay text
+        self.assertEqual("5", get_typed_argument_default("string", "5"))
+        self.assertEqual("a.tif", get_typed_argument_default("file", "a.tif"))
+        self.assertEqual("5", get_typed_argument_default(None, "5"))
+        self.assertEqual("", get_typed_argument_default("integer", ""))
+        self.assertEqual("maybe", get_typed_argument_default("boolean", "maybe"))
 
     def test_version_sort_key(self):
         versions = ["0.1.0-SNAPSHOT", "0.10.0", "1.0", "0.9.0", "0.2.0-SNAPSHOT"]

@@ -32,6 +32,9 @@ class DefaultValues(Enum):
     first_album_solution_api_version = (
         "0.6.1"  # first version this album installation knows
     )
+    python_argument_types_api_version = (
+        "0.7.3"  # first version that parses the argument types str, int and bool
+    )
     default_solution_python_version = DEFAULT_SOLUTION_PYTHON_VERSION
 
     # templates
