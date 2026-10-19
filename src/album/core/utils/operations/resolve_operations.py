@@ -273,6 +273,7 @@ def prepare_path(
         target_folder = tmp_cache_dir_.joinpath(rand_folder_name())
         if p.is_file():
             if check_zip(p):  # zip file — unzip and point to solution.py inside
+                module_logger().debug(f"Unpacking {p} into {target_folder}...")
                 p = unzip_archive(p, target_folder)
                 # Zenodo deposit archives contain solution.zip (with full
                 # directory structure) plus individual preview files.  If

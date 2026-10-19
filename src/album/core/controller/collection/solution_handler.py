@@ -67,16 +67,20 @@ class SolutionHandler(ISolutionHandler):
             if solution.path() is None:
                 raise RuntimeError("Single file solution without path!")
 
-            copy(
-                solution.path(),
-                install_location.joinpath(DefaultValues.solution_default_name.value),
+            target = install_location.joinpath(
+                DefaultValues.solution_default_name.value
             )
+            module_logger().debug(f"Copying {solution.path()} to {target}...")
+            copy(solution.path(), target)
         else:
             _path = solution.path()
 
             if _path is None:
                 raise RuntimeError("Solution without path!")
 
+            module_logger().debug(
+                f"Copying the files of {Path(_path).parent} to {install_location}..."
+            )
             copy_folder(Path(_path).parent, install_location, copy_root_folder=False)
 
     def add_to_cache_catalog(self, solution: ICollectionSolution) -> None:
@@ -429,6 +433,9 @@ class SolutionHandler(ISolutionHandler):
                 if target.exists():
                     for f in os.listdir(str(target)):
                         force_remove(os.path.join(str(target), f))
+                module_logger().debug(
+                    f"Copying the files of {tmp_solution} to {target}..."
+                )
                 copy_folder(tmp_solution, target, copy_root_folder=False)
             finally:
                 force_remove(repo_dir)
