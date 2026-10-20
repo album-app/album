@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "album"
-version = "0.12.2"
+version = "1.0.0"
 authors = [
     {name = "Kyle Harrington", email = "album@kyleharrington.com"},
     {name = "Jan Philipp Albrecht", email = "album@jpalbrecht.de"},
@@ -21,7 +21,7 @@ license-files = ["LICENSE"]
 readme = "README.md"
 keywords = ["virtual environments", "imaging", "data analysis"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX",
@@ -35,8 +35,8 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "album-solution-api>=0.7.0,<0.8.0",
-    "album-environments>=0.3.0,<0.4.0",
+    "album-solution-api>=0.7.3,<0.8.0",
+    "album-environments>=0.3.4,<0.4.0",
     "pyyaml>=5.4.1",
     "validators>=0.18.2",
     "gitpython>=3.1.13",
