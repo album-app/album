@@ -171,6 +171,47 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
                 context.exception.message,
             )
 
+    @patch(
+        "album.core.controller.migration_manager.importlib_version",
+        return_value="0.7.3",
+    )
+    def test_migrate_solution_attrs_newer_api_version(self, _):
+        attrs = deepcopy(self.solution_default_dict)
+        attrs.pop("timestamp")
+        attrs.pop("album_version")
+        attrs["album_api_version"] = "0.8.0"
+        attrs["new_keyword"] = "value"
+
+        # call & assert
+        with self.assertRaises(ValidationError) as context:
+            self.migration_manager.migrate_solution_attrs(attrs)
+        self.assertEqual(
+            "The solution needs album_api_version 0.8.0, this album installation knows "
+            "versions up to 0.7.3 and cannot read its setup method: Additional properties "
+            "are not allowed ('new_keyword' was unexpected). Please update album.",
+            context.exception.message,
+        )
+
+    @patch(
+        "album.core.controller.migration_manager.importlib_version",
+        return_value="0.7.3",
+    )
+    def test_migrate_solution_attrs_unknown_keyword(self, _):
+        # e.g. a typo, updating album would not help
+        attrs = deepcopy(self.solution_default_dict)
+        attrs.pop("timestamp")
+        attrs.pop("album_version")
+        attrs["album_api_version"] = "0.7.3"
+        attrs["new_keyword"] = "value"
+
+        # call & assert
+        with self.assertRaises(ValidationError) as context:
+            self.migration_manager.migrate_solution_attrs(attrs)
+        self.assertEqual(
+            "Additional properties are not allowed ('new_keyword' was unexpected)",
+            context.exception.message,
+        )
+
     def test_migrate_solution_schema0_attrs(self):
         self.setup_solution_no_env()
         self.active_solution.setup().pop("timestamp")
