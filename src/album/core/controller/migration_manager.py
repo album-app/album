@@ -220,7 +220,20 @@ class MigrationManager(IMigrationManager):
         api_version = version.parse(attrs["album_api_version"])
         self._rename_python_argument_types(attrs, api_version)
         if api_version >= version.parse("0.5.1"):
-            validate(attrs, self.schema_solution)
+            try:
+                validate(attrs, self.schema_solution)
+            except ValidationError as e:
+                # a newer album_api_version can have setup keywords the installed schema does not know
+                core_api_version = importlib_version(
+                    DefaultValues.runner_api_package_name.value
+                )
+                if api_version > version.parse(core_api_version):
+                    raise ValidationError(
+                        "The solution needs album_api_version %s, this album installation knows "
+                        "versions up to %s and cannot read its setup method: %s. Please update album."
+                        % (attrs["album_api_version"], core_api_version, e.message)
+                    ) from e
+                raise
             return attrs
         else:
             validate(attrs, self.schema_solution_runner_0_4_2)
