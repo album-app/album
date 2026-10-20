@@ -1,10 +1,9 @@
 import operator
 from typing import Any, Dict, List, Tuple, Union
 
-from album.runner import album_logging
-
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.search_manager import ISearchManager
+from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
@@ -13,7 +12,11 @@ class SearchManager(ISearchManager):
     def __init__(self, album: IAlbumController):
         self.album = album
 
-    def search(self, keywords: List[str]) -> List[Tuple[Any, Any]]:
+    def search(self, keywords: Union[str, List[str]]) -> List[Tuple[Any, Any]]:
+        if isinstance(keywords, str):
+            # iterating a string would search for every single character
+            keywords = keywords.split()
+
         module_logger().debug(
             "Searching with following arguments %s..." % ", ".join(keywords)
         )
@@ -50,7 +53,7 @@ class SearchManager(ISearchManager):
         unique_id: str,
     ) -> None:
         if isinstance(entry, str):
-            solution_result = keyword in entry
+            solution_result = keyword.casefold() in entry.casefold()
             if solution_result:
                 if unique_id in match_score.keys():
                     match_score[unique_id] = match_score[unique_id] + 1

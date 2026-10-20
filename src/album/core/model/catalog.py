@@ -79,7 +79,8 @@ class Catalog(ICatalog):
             path:
                 The absolute path to the catalog.
             src:
-                The source of the catalog (Default: None)
+                The source of the catalog (Default: "", no source: such a catalog is
+                treated as a cache catalog, see is_cache()).
                 Can be a URL, a git-link, a path to a network-device or a path to any other storage system.
             deletable:
                 Boolean to indicate whether the catalog is deletable or not. Relevant for a collection of catalogs.
@@ -124,9 +125,12 @@ class Catalog(ICatalog):
             self._catalog_index.close()
 
     def is_cache(self) -> bool:
+        if not self._src:
+            # no source (None or the default ""): nothing to download from,
+            # the catalog only lives in its path, like the cache catalog
+            return True
         return (
-            self._src is None
-            or self.is_local()
+            self.is_local()
             and self._path.exists()
             and os.path.samefile(str(self._src), self._path)
         )
@@ -252,6 +256,23 @@ class Catalog(ICatalog):
         force_retrieve: bool = False,
         update: bool = True,
     ) -> Generator[Repo, None, None]:
+        """Clone or open the repository of the catalog and yield it.
+
+        Args:
+            path:
+                The path to retrieve the catalog repository to. Defaults to the path of the catalog.
+            force_retrieve:
+                Only takes effect when the path does not hold a repository yet.
+                Then everything left in the path is deleted before cloning.
+                An existing repository is never deleted or cloned again, it is only reset if update is set.
+            update:
+                Only takes effect when the path already holds a repository.
+                Then the repository is reset to the state of its remote, discarding all local changes.
+
+        Raises:
+            RuntimeError when the catalog is a cache catalog without a source.
+
+        """
         if self.is_cache():
             raise RuntimeError("Cannot retrieve a cache catalog as no source exists!")
 
@@ -266,8 +287,10 @@ class Catalog(ICatalog):
             str(self._src), str(path), force_download=force_retrieve, update=update
         )
 
-        yield repo
-        repo.close()
+        try:
+            yield repo
+        finally:
+            repo.close()
 
     def get_meta_information(self) -> Dict[str, str]:
         return {"name": self._name, "version": self._version, "type": self._type}
@@ -319,6 +342,9 @@ class Catalog(ICatalog):
 
     def set_index_path(self, path: Path) -> None:
         self._index_file_path = path
+
+    def set_solution_list_path(self, path: Path) -> None:
+        self._solution_list_path = path
 
     def type(self) -> str:  # noqa: A003
         return self._type

@@ -35,7 +35,10 @@ class IMigrationManager:
         curr_version: IMMVersion,
         target_version: IMMVersion,
     ) -> Path:
-        """Migrate a given collection index to the target version."""
+        """Migrate a given collection index to the target version.
+
+        Raises a RuntimeError if the migration fails. The database is restored from its backup first.
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -45,12 +48,19 @@ class IMigrationManager:
         curr_version: IMMVersion,
         target_version: IMMVersion,
     ) -> Path:
-        """Migrate the index of a given catalog to the current framework version if possible."""
+        """Migrate the index of a given catalog to the current framework version if possible.
+
+        Raises a RuntimeError if the migration fails. The database is restored from its backup first.
+        """
         raise NotImplementedError
 
     @abstractmethod
-    def load_index(self, catalog: ICatalog) -> None:
-        """Load the index from file or src. If a file and src exists routine tries to update the index."""
+    def load_index(self, catalog: ICatalog, refresh: bool = True) -> None:
+        """Load the index from file or src. If a file and src exists routine tries to update the index.
+
+        Without refresh, the index files the catalog points to are loaded as they are, without
+        downloading them from the src first.
+        """
         raise NotImplementedError
 
     @abstractmethod

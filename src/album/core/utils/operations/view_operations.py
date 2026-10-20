@@ -1,13 +1,15 @@
 """View operations for the Album CLI."""
+
 import enum
 import logging
 from argparse import Namespace
 from typing import Any, Dict, List, Optional, Tuple
 
 import colorlog
-from album.runner.core.api.model.solution import ISolution
 
 from album.core.api.model.catalog_updates import ICatalogUpdates
+from album.core.utils.operations.solution_operations import version_sort_key
+from album.runner.core.api.model.solution import ISolution
 
 
 def get_solution_as_string(solution: ISolution, solution_path: str) -> str:
@@ -46,17 +48,21 @@ def get_solution_as_string(solution: ISolution, solution_path: str) -> str:
             if "required" in arg:
                 r = " (required: True)" if arg["required"] else " (required: False)"
 
+            d = ""
+            if "description" in arg:
+                d = f" {arg['description']}" if arg["description"] else ""
+
             t = ""
             if "type" in arg:
                 t = f" (type: {arg['type']})" if arg["type"] else ""
 
             f = ""
-            if "default" in arg:
-                f = f" (default: {arg['default']})" if arg["default"] else ""
+            # 0, False and "" are defaults too; None is none
+            if "default" in arg and arg["default"] is not None:
+                default = '""' if arg["default"] == "" else arg["default"]
+                f = f" (default: {default})"
 
-            res += "  --{n}:{r} {d}{t}{f}\n".format(
-                n=arg["name"], d=arg["description"], r=r, t=t, f=f
-            )
+            res += "  --{n}:{r}{d}{t}{f}\n".format(n=arg["name"], r=r, d=d, t=t, f=f)
     return res
 
 
@@ -113,7 +119,7 @@ def get_updates_as_string(updates: Dict[str, ICatalogUpdates]) -> str:
         if len(change.solution_changes()) > 0:
             res += "  Catalog solution changes:\n"
             for i, item in enumerate(change.solution_changes()):
-                if i is len(change.solution_changes()) - 1:
+                if i == len(change.solution_changes()) - 1:
                     res += "  └─ [{n}] {c}\n".format(
                         n=item.change_type().name,
                         c=item.coordinates(),
@@ -139,6 +145,55 @@ def get_updates_as_string(updates: Dict[str, ICatalogUpdates]) -> str:
     return res
 
 
+def get_upgraded_solutions_as_string(result: Dict[str, Any]) -> str:
+    """Get the result of upgrading the installed solutions as a string."""
+    dry_run = result["dry_run"]
+    if not any(
+        result[key] for key in ["install", "uninstall", "keep", "unused", "failed"]
+    ):
+        return "The installed solutions are up to date."
+
+    installed, uninstalled, kept = (
+        ("Would install", "Would uninstall", "Would keep")
+        if dry_run
+        else ("Installed", "Uninstalled", "Kept")
+    )
+    res = ""
+    for solution in result["install"]:
+        res += f"{installed} {solution}\n"
+    for solution in result["uninstall"]:
+        res += f"{uninstalled} {solution}\n"
+    for keep in result["keep"]:
+        used_by = ", ".join(keep["used_by"])
+        res += f"{kept} {keep['solution']}, used by {used_by}\n"
+    for solution in result["unused"]:
+        res += (
+            f'No installed solution uses {solution} anymore. "album uninstall '
+            f'{solution}" removes it.\n'
+        )
+    for failure in result["failed"]:
+        res += f"Failed {failure['solution']}: {failure['error']}\n"
+    if dry_run and result["uninstall"]:
+        res += "A version a newly installed solution still runs in is kept.\n"
+    return res
+
+
+def filter_latest_solutions(index_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """Keep only the highest-version solution per group:name within each catalog."""
+    if "catalogs" not in index_dict:
+        return index_dict
+    for catalog in index_dict["catalogs"]:
+        latest: Dict[tuple, Any] = {}
+        for solution in catalog.get("solutions", []):
+            key = (solution["setup"]["group"], solution["setup"]["name"])
+            if key not in latest or version_sort_key(
+                solution["setup"]["version"]
+            ) > version_sort_key(latest[key]["setup"]["version"]):
+                latest[key] = solution
+        catalog["solutions"] = list(latest.values())
+    return index_dict
+
+
 def get_index_as_string(index_dict: Dict[str, Any]) -> str:
     """Get the index as a string."""
     res = "\n"
@@ -158,7 +213,7 @@ def get_index_as_string(index_dict: Dict[str, Any]) -> str:
                     installed = " "
                     if solution["internal"]["installed"]:
                         installed = "x"
-                    if i is len(catalog["solutions"]) - 1:
+                    if i == len(catalog["solutions"]) - 1:
                         res += "   └─ [{i}] {g}:{n}:{v}\n".format(
                             i=installed,
                             g=solution["setup"]["group"],

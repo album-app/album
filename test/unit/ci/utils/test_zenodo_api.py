@@ -3,6 +3,7 @@ import os
 import tempfile
 import unittest
 from test.unit.test_unit_core_common import TestZenodoCommon
+from unittest.mock import patch
 
 from requests import Response
 
@@ -28,6 +29,31 @@ class TestZenodoEntry(unittest.TestCase):
         test_entry_1 = ZenodoEntry(init_dict, base_url, access_token)
 
         self.assertTrue(test_entry_1.to_dict() == {})
+
+    def test_to_dict_keeps_object_usable(self):
+        init_dict = {"title": "unit_test", "description": "test"}
+        metadata = ZenodoMetadata(init_dict)
+        deposit = ZenodoDeposit(
+            {"id": 1, "metadata": init_dict}, "https://test.test", "1234567890"
+        )
+
+        metadata_dict = metadata.to_dict()
+        deposit_dict = deposit.to_dict()
+
+        # the dictionaries hold neither the token nor internal attributes
+        for d in [metadata_dict, deposit_dict, deposit_dict["metadata"]]:
+            self.assertNotIn("entry_dict", d)
+            self.assertNotIn("params", d)
+            self.assertNotIn("base_url", d)
+        self.assertEqual("unit_test", metadata_dict["title"])
+        self.assertEqual("unit_test", deposit_dict["metadata"]["title"])
+
+        # the objects themselves keep them and can still query the API
+        self.assertEqual(init_dict, metadata.entry_dict)
+        self.assertEqual({"access_token": "1234567890"}, deposit.params)
+        self.assertEqual("https://test.test", deposit.base_url)
+        self.assertEqual({"access_token": ""}, deposit.metadata.params)
+        self.assertEqual(metadata_dict, metadata.to_dict())
 
 
 class TestZenodoDeposit(TestZenodoCommon):
@@ -181,6 +207,74 @@ class TestZenodoRecord(unittest.TestCase):
     def test_print_stats(self):
         # ToDo: implement
         pass
+
+
+class TestZenodoAPIValidateResponse(unittest.TestCase):
+    """Error handling of ZenodoAPI.validate_response, without querying Zenodo."""
+
+    def setUp(self):
+        patcher = patch("album.ci.utils.zenodo_api.module_logger")
+        self.logger = patcher.start().return_value
+        self.addCleanup(patcher.stop)
+
+    @staticmethod
+    def _response(status_code, content):
+        response = Response()
+        response.status_code = status_code
+        response._content = content
+        return response
+
+    def test_validate_response_unknown_status(self):
+        # 503 is no ResponseStatus member, Zenodo answers with it during maintenance
+        response = self._response(
+            503, b"<html><body>\n  <h1>Service Unavailable</h1>\n</body></html>"
+        )
+
+        with self.assertRaises(InvalidResponseStatusError) as context:
+            ZenodoAPI.validate_response(response, ResponseStatus.OK)
+
+        self.assertIn("503", str(context.exception))
+        self.assertIn("<h1>Service Unavailable</h1>", str(context.exception))
+
+    def test_validate_response_long_body_shortened(self):
+        response = self._response(502, b"x" * 2000)
+
+        with self.assertRaises(InvalidResponseStatusError) as context:
+            ZenodoAPI.validate_response(response, ResponseStatus.OK)
+
+        self.assertIn("x" * 500 + "...", str(context.exception))
+        self.assertNotIn("x" * 501, str(context.exception))
+
+    def test_validate_response_non_json_error(self):
+        response = self._response(400, b"Bad Request: malformed upload")
+
+        with self.assertRaises(InvalidResponseStatusError) as context:
+            ZenodoAPI.validate_response(response, ResponseStatus.OK)
+
+        self.assertIn("BadRequest", str(context.exception))
+        self.assertIn("400", str(context.exception))
+        self.assertIn("Bad Request: malformed upload", str(context.exception))
+
+    def test_validate_response_json_error_without_message(self):
+        response = self._response(404, b'{"status": 404}')
+
+        with self.assertRaises(InvalidResponseStatusError) as context:
+            ZenodoAPI.validate_response(response, ResponseStatus.OK)
+
+        self.assertIn("NotFound", str(context.exception))
+        self.assertIn('{"status": 404}', str(context.exception))
+
+    def test_validate_response_json_error(self):
+        response = self._response(
+            400, b'{"message": "Validation error.", "errors": ["title missing"]}'
+        )
+
+        with self.assertRaises(InvalidResponseStatusError) as context:
+            ZenodoAPI.validate_response(response, ResponseStatus.OK)
+
+        self.assertIn("BadRequest", str(context.exception))
+        self.logger.error.assert_any_call("Detailed message: Validation error.")
+        self.logger.error.assert_any_call("Errors: ['title missing']")
 
 
 class TestZenodoAPI(TestZenodoCommon):

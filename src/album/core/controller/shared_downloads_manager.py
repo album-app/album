@@ -1,242 +1,425 @@
+import hashlib
+import importlib.util
 import json
+import logging
+import pkgutil
+import shutil
 import sys
-from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+import threading
+from contextlib import AbstractContextManager, contextmanager, nullcontext
+from pathlib import Path, PurePosixPath, PureWindowsPath
+from typing import Any, Dict, Iterator, List, Optional
 
 import pooch
-import validators
+import yaml
+from jsonschema import ValidationError, validate
 
 from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.shared_downloads_manager import IDownloadManager
 from album.core.api.model.collection_solution import ICollectionSolution
-from album.environments.utils.file_operations import get_dict_from_yml
-from album.environments.utils.url_operations import download_resource
+from album.core.model.default_values import DefaultValues
+from album.core.model.replicability import ReplicabilityReason
+from album.core.utils.file_lock import FileLock
+from album.core.utils.operations.file_operations import force_remove
+from album.core.utils.operations.solution_operations import get_solution_folder
 from album.runner.album_logging import get_active_logger
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
+
+module_logger = get_active_logger
+
+SCOPE_GLOBAL = "global"
+SCOPE_CATALOG = "catalog"
+SCOPE_SOLUTION = "solution"
+
+
+def _is_warning_or_worse(record: logging.LogRecord) -> bool:
+    return record.levelno >= logging.WARNING
 
 
 class DownloadManager(IDownloadManager):
     def __init__(self, album: IAlbumController):
         self.album = album
+        self._schema: Optional[Dict[str, Any]] = None
+        # one lock per content folder of shared resources, see _get_resource_lock
+        self._locks: Dict[Path, FileLock] = {}
+        self._locks_creation = threading.Lock()
 
-    def download_resources_from_yaml(
+    def download_resources(
         self, collection_solution: ICollectionSolution
-    ) -> bool:
-        result = self._resources_yaml_to_dict(collection_solution)
-        if result:
-            resources_dict, resources_json_path = result
-            self._retrieve_resources_from_dict(resources_dict)
-            self._set_file_paths_in_json(resources_dict, resources_json_path)
-        return True
-
-    def get_download_paths(
-        self, collection_solution: ICollectionSolution
-    ) -> Tuple[Dict[str, Any], Path]:
-        """Convert a resource YAML to a dictionary and insert the download paths."""
-        result = self._resources_yaml_to_dict(collection_solution)
-        if result is None:
-            raise RuntimeError(
-                "No resource file found for solution %s."
-                % collection_solution.coordinates()
-            )
-        return result
-
-    def _resources_yaml_to_dict(
-        self, collection_solution: ICollectionSolution
-    ) -> Optional[Tuple[Dict[str, Any], Path]]:
-        """Convert a solution's resource YAML to a dictionary with resolved paths.
-
-        Args:
-            collection_solution (ICollectionSolution): current solution to get the resources for
-
-        Returns:
-            dict: Resources dictionary, including their paths. Paths do NOT contain the resource name!
-            Path: Path to the resource yaml file
-        """
-        # Get solution names and storage paths needed
-        coords = collection_solution.coordinates()
-        sol_name = "_".join([coords.group(), coords.name(), coords.version()])
-
-        catalog_name = collection_solution.catalog().name()
-
-        cache_path = (
-            collection_solution.loaded_solution().installation().internal_cache_path()
-        )
-
-        app_path = collection_solution.loaded_solution().installation().app_path()
-
-        # Get the resource file from the solution dependencies
-        dependencies = collection_solution.loaded_solution().setup().dependencies
-        # TODO: change to json file and implement json handling in the same way as yaml
-        # NOTE: json is native to python, yaml is not
-        resource_json_path = self._prepare_resource_file(
-            dependencies, cache_path, sol_name
-        )
-
-        # Get shared globally path
-        shared_globally_path = self.album.configuration().shared_resources_path()
-
-        if not resource_json_path:
+    ) -> Optional[Path]:
+        solution = collection_solution.loaded_solution()
+        resources_dict = self._load_resources_to_install(collection_solution)
+        if resources_dict is None:
             return None
 
-        # Get the resources from the yaml file and set the paths
-        resources_dict = get_dict_from_yml(resource_json_path)
         self._set_paths_in_dict(
             resources_dict,
-            app_path,
-            catalog_name,
-            shared_globally_path,
+            solution.installation().installation_path(),
+            collection_solution.catalog().name(),
+            self.album.configuration().shared_resources_path(),
+        )
+        self._retrieve_resources_from_dict(resources_dict)
+
+        # the json file is only written when every resource is available
+        return self._write_resources_json(resources_dict, solution)
+
+    def stage_resources(
+        self, collection_solution: ICollectionSolution, installation_path: Path
+    ) -> None:
+        resources_dict = self._load_resources_to_install(collection_solution)
+        if resources_dict is None:
+            return
+
+        catalog = collection_solution.catalog()
+        self._set_paths_in_dict(
+            resources_dict,
+            installation_path,
+            catalog.name(),
+            self.album.configuration().shared_resources_path(),
+        )
+        installed = Path(
+            self.album.solutions().get_solution_installation_path(
+                catalog, collection_solution.coordinates()
+            )
+        )
+        for resource in resources_dict["resources"].values():
+            if resource["scope"] != SCOPE_SOLUTION or resource["path"] is None:
+                continue
+            path = Path(resource["path"])
+            in_installation = installed.joinpath(path.relative_to(installation_path))
+            if in_installation.is_file():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(in_installation, path)
+        # a copy with another content than its hash is downloaded again
+        self._retrieve_resources_from_dict(resources_dict, staged=True)
+
+    def _load_resources_to_install(
+        self, collection_solution: ICollectionSolution
+    ) -> Optional[Dict[str, Any]]:
+        """Load the resources a solution is installed with, see _load_resources.
+
+        A deployed solution is installed from the resource list album deploy wrote next to
+        it, not from the resource file it names.
+        """
+        solution = collection_solution.loaded_solution()
+        solution_folder = get_solution_folder(collection_solution)
+        folder = solution_folder or solution.installation().package_path()
+        resource_snapshot = (
+            Path(folder).joinpath(DefaultValues.solution_resources_default_name.value)
+            if folder
+            else None
+        )
+        return self._load_resources(
+            solution,
+            solution_folder,
+            (
+                resource_snapshot
+                if resource_snapshot is not None and resource_snapshot.is_file()
+                else None
+            ),
         )
 
-        return resources_dict, resource_json_path
+    def check_resources(
+        self, solution: ISolution, solution_folder: Optional[Path] = None
+    ) -> List[ReplicabilityReason]:
+        resources_dict = self._load_resources(solution, solution_folder)
+        if resources_dict is None:
+            return []
 
-    @staticmethod
-    def _prepare_resource_file(
-        dependencies_dict: Dict[str, Any], cache_path: Path, env_name: str
-    ) -> Optional[Path]:
-        """Check if a resource file is provided and return a path to a valid json file.
-
-        Args:
-            dependencies_dict: The solution dependencies dictionary.
-            cache_path: The internal cache path for the solution.
-            env_name: The environment name used as a file prefix.
-
-        Returns:
-            Path to the prepared resource json file, or None if not applicable.
-        """
-        if dependencies_dict:
-            if "resource_file" in dependencies_dict:
-                resource_file = dependencies_dict["resource_file"]
-
-                json_path = cache_path.joinpath(
-                    "{}{}".format(env_name, "_resource_file.json")
-                )
-
-                # in case the file already exists, there is no need to create it again
-                if json_path.exists() and json_path.is_file():
-                    return json_path  # TODO: think about allowing updating this file
-                    # TODO: remind JPA that icache folder was never a cache folder but a storage folder,
-                    # hence i am using it to store the resource yaml, write the paths in it, and read it on the API side
-
-                Path(json_path.parent).mkdir(parents=True, exist_ok=True)
-
-                if isinstance(resource_file, str):
-                    # case valid url
-                    if validators.url(resource_file):
-                        yaml_path = download_resource(resource_file, json_path)
-                        resources_dict = get_dict_from_yml(yaml_path)
-                        # save resources_dict as json file in the same location
-                        with open(str(json_path).replace(".yml", ".json"), "w+") as f:
-                            json.dump(resources_dict, f, indent=4)
-                    # case file content
-                    elif "resources:" in resource_file and "\n" in resource_file:
-                        with open(json_path, "w+") as f:
-                            f.write(resource_file)
-                        resources_dict = get_dict_from_yml(json_path)
-                        # save resources_dict as json file in the same location
-                        with open(str(json_path), "w+") as f:
-                            json.dump(resources_dict, f, indent=4)
-                    # case Path
-                    elif (
-                        Path(resource_file).is_file()
-                        and Path(resource_file).stat().st_size > 0
-                    ):
-                        resources_dict = get_dict_from_yml(resource_file)
-                        # save resources_dict as json file in the same location
-                        with open(str(json_path), "w+") as f:
-                            json.dump(resources_dict, f, indent=4)
-                    else:
-                        raise TypeError(
-                            "resource_file must either contain the content of the resource file, "
-                            "contain the url to a valid file or point to a file on the disk!"
-                        )
-                # case dict
-                elif isinstance(resource_file, dict):
-                    with open(str(json_path), "w+") as f:
-                        json.dump(resource_file, f, indent=4)
-
-                else:
-                    raise RuntimeError(
-                        "Resource file specified, but format is unknown!"
-                        " Don't know where to run solution!"
+        reasons = []
+        for key, resource in resources_dict["resources"].items():
+            from_doi = resource["url"].startswith("doi:")
+            if resource["hash"]:
+                if not from_doi:
+                    module_logger().warning(
+                        'Resource "%s" of "%s" is downloaded from %s, which can become '
+                        "unavailable. A DOI, e.g. on Zenodo, keeps it available."
+                        % (key, solution.coordinates(), resource["url"])
                     )
+            elif from_doi:
+                reasons.append(
+                    ReplicabilityReason(
+                        'resource "%s" has no hash, its content is not verified' % key
+                    )
+                )
+            else:
+                reasons.append(
+                    ReplicabilityReason(
+                        'resource "%s" is downloaded from %s without a hash, its content '
+                        "can change" % (key, resource["url"]),
+                        needs_flag=True,
+                    )
+                )
+        return reasons
 
-                return json_path
-            return None
-        return None
+    def _load_resources(
+        self,
+        solution: ISolution,
+        solution_folder: Optional[Path] = None,
+        resource_snapshot: Optional[Path] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Read and validate the resource file of a solution, filled up with the default values.
 
-    @staticmethod
-    def _retrieve_resources_from_dict(resources_dict: Dict[str, Any]) -> None:
-        """Download the files specified in the dictionary.
-
-        Args:
-            resources_dict:
-                Resources dictionary with resolved paths in regard to scope.
+        A relative path of the resource file starts at solution_folder, the folder of the
+        solution. resource_snapshot, the resource list album deploy wrote, is read instead.
 
         Returns:
-            None, if it worked.
+            The resources dictionary, or None if the solution declares no resource file.
         """
-        for _, resource_value in resources_dict["resources"].items():
-            if "os" in resource_value and not resource_value["os"] == sys.platform:
-                continue
+        dependencies = solution.setup().dependencies
+        if not dependencies or "resource_file" not in dependencies:
+            return None
+        resource_file = (
+            str(resource_snapshot)
+            if resource_snapshot is not None
+            else dependencies["resource_file"]
+        )
 
-            try:
-                fpath = pooch.retrieve(
-                    url=resource_value["url"],
-                    known_hash=resource_value["hash"],
-                    fname=resource_value["name"],
-                    path=str(resource_value["path"]),
-                    progressbar=True,
-                )
-            except Exception as e:
-                get_active_logger().error(f"Failed to download resource: {e}")
-                fpath = None
+        # bring every form of the resource file to a yml file first
+        yml_path = (
+            self.album.configuration()
+            .tmp_path()
+            .joinpath(self._get_resources_file_name(solution.coordinates(), ".yml"))
+        )
+        try:
+            self.album.resource_manager().handle_resource_file_dependency(
+                resource_file, yml_path, solution_folder
+            )
+            with open(yml_path, encoding="utf-8") as yml_file:
+                resources_dict = yaml.safe_load(yml_file)
+        except yaml.YAMLError as e:
+            raise ValueError(
+                'The resource_file of "%s" is not valid YAML: %s'
+                % (solution.coordinates(), e)
+            ) from e
+        finally:
+            force_remove(yml_path)
 
-            get_active_logger().info(f"Downloaded a resource to {fpath}")
-            if resource_value["hash"] is None:
-                get_active_logger().info(
-                    f"Resource {resource_value['name']} has no hash provided in the resource file. \n"
-                    "Therefore, if the requested file already exists in the target directory, "
-                    "it will be used without checking if the hashes match. \n"
-                    "You can copy the following md5 hash of the just obtained file to the resource "
-                    "file to enforce reproducibility before deployment: \n"
-                    f"{pooch.file_hash(fpath, alg='md5')}"
+        self._validate_resources(resources_dict, solution.coordinates())
+        self._set_default_values(resources_dict)
+        return resources_dict
+
+    def _validate_resources(
+        self, resources_dict: Any, coordinates: ICoordinates
+    ) -> None:
+        try:
+            validate(resources_dict, self._get_schema())
+        except ValidationError as e:
+            location = "/".join(str(p) for p in e.absolute_path)
+            raise ValueError(
+                'The resource_file of "%s" is invalid%s: %s'
+                % (coordinates, " at %s" % location if location else "", e.message)
+            ) from e
+
+        for key, resource in resources_dict["resources"].items():
+            if not self._is_plain_file_name(resource["name"]):
+                raise ValueError(
+                    'The resource_file of "%s" is invalid: the name "%s" of resource "%s" '
+                    "must be a plain file name, without any folder."
+                    % (coordinates, resource["name"], key)
                 )
-        return None
+
+    def _get_schema(self) -> Dict[str, Any]:
+        if self._schema is None:
+            data = pkgutil.get_data("album.core.schema", "resource_file_schema.json")
+            if data is None:
+                raise RuntimeError("The schema of the resource file is missing!")
+            self._schema = json.loads(data)
+        return self._schema
+
+    @staticmethod
+    def _is_plain_file_name(name: str) -> bool:
+        """Tell whether a resource name can only point into the folder it is stored in."""
+        return (
+            name not in (".", "..")
+            and PurePosixPath(name).name == name
+            and PureWindowsPath(name).name == name
+        )
+
+    @staticmethod
+    def _set_default_values(resources_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """Add the optional keys of every resource. Resources without "os" are for every platform."""
+        for resource in resources_dict["resources"].values():
+            if resource.get("hash") is None:
+                resource["hash"] = None
+            if resource.get("os") is None:
+                resource["os"] = None
+            if resource.get("scope") is None:
+                resource["scope"] = SCOPE_GLOBAL
+        return resources_dict
 
     @staticmethod
     def _set_paths_in_dict(
         resources_dict: Dict[str, Any],
-        app_path: Path,
+        installation_path: Path,
         catalog_name: str,
-        shared_globally_path: Path,
+        shared_resources_path: Path,
     ) -> Dict[str, Any]:
-        """Set the paths of the downloaded resources in the resources dictionary."""
-        for _, resource_value in resources_dict["resources"].items():
-            # Default scope: fully shared / global scope
-            if "scope" not in resource_value:
-                resource_value["scope"] = "global"
+        """Set the full path of every resource meant for the current platform, None for the others.
 
-            if resource_value["scope"] == "global":
-                resource_value["path"] = shared_globally_path
-            if resource_value["scope"] == "catalog":
-                resource_value["path"] = shared_globally_path / catalog_name
-            if resource_value["scope"] == "solution":
-                resource_value["path"] = app_path
+        A resource is stored in a folder named after its content, so resources only share
+        a file when they ask for the same content::
 
+            global:   <shared_resources_path>/global/<content folder>/<name>
+            catalog:  <shared_resources_path>/catalog/<catalog name>/<content folder>/<name>
+            solution: <installation_path>/resources/<content folder>/<name>
+        """
+        for resource in resources_dict["resources"].values():
+            if resource["os"] not in (None, sys.platform):
+                resource["path"] = None
+                continue
+
+            # album-solution-api selects the resources of the current platform by "os"
+            resource["os"] = sys.platform
+
+            if resource["scope"] == SCOPE_GLOBAL:
+                scope_path = shared_resources_path.joinpath(SCOPE_GLOBAL)
+            elif resource["scope"] == SCOPE_CATALOG:
+                scope_path = shared_resources_path.joinpath(SCOPE_CATALOG, catalog_name)
+            else:
+                scope_path = installation_path.joinpath(
+                    DefaultValues.solution_resources_prefix.value
+                )
+
+            resource["path"] = str(
+                scope_path.joinpath(
+                    DownloadManager._get_content_folder_name(resource),
+                    resource["name"],
+                )
+            )
         return resources_dict
 
     @staticmethod
-    def _set_file_paths_in_json(
-        resources_dict: Dict[str, Any], json_path: Path
-    ) -> Dict[str, Any]:
-        """Set the full file paths into the dict and overwrite the json file."""
-        for _, resource_value in resources_dict["resources"].items():
-            resource_value["path"] = str(
-                Path(resource_value["path"]) / resource_value["name"]
+    def _get_content_folder_name(resource: Dict[str, Any]) -> str:
+        """Name the folder of a resource after its hash, or after its url when it has no hash."""
+        if resource["hash"]:
+            algorithm, _, digest = resource["hash"].rpartition(":")
+            # pooch takes a hash without an algorithm as sha256
+            content = f"{(algorithm or 'sha256').lower()}:{digest.lower()}"
+        else:
+            content = resource["url"]
+        return hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
+
+    def _retrieve_resources_from_dict(
+        self, resources_dict: Dict[str, Any], staged: bool = False
+    ) -> None:
+        """Download every resource with a path. A resource already on the disk is not downloaded again.
+
+        A shared resource is retrieved holding the lock of its content folder, so solutions
+        that are installed at the same time and share it download it once. Retrieved before
+        a reinstall (staged), where it is and whether it has a hash is said when the solution
+        is installed again.
+
+        Raises:
+            RuntimeError: if a resource cannot be downloaded or does not match its hash.
+        """
+        for key, resource in resources_dict["resources"].items():
+            if resource["path"] is None:
+                continue
+
+            path = Path(resource["path"])
+            module_logger().info(
+                f'Retrieving resource "{key}" from {resource["url"]}...'
             )
+            try:
+                with self._get_resource_lock(resource), DownloadManager._quiet_pooch():
+                    pooch.retrieve(
+                        url=resource["url"],
+                        known_hash=resource["hash"],
+                        fname=path.name,
+                        path=str(path.parent),
+                        progressbar=DownloadManager._show_progressbar(),
+                    )
+            except Exception as e:
+                raise RuntimeError(
+                    'Could not retrieve resource "%s" from %s: %s'
+                    % (key, resource["url"], e)
+                ) from e
 
-        # write dict to json
-        with open(json_path, "w") as f:
-            json.dump(resources_dict, f, indent=4)
+            if staged:
+                continue
+            module_logger().info(f'Resource "{key}" is available at {path}.')
+            if resource["hash"] is None:
+                module_logger().info(
+                    'Resource "%s" has no hash, its content is not verified. To pin the content, '
+                    'add hash: "sha256:%s" to the resource.'
+                    % (key, pooch.file_hash(str(path)))
+                )
 
-        return resources_dict
+    def _get_resource_lock(self, resource: Dict[str, Any]) -> AbstractContextManager:
+        """Return the lock of the content folder of a resource.
+
+        A resource with scope "solution" belongs to one installation, and the lock of its
+        solution is held while the solution is installed: it needs no lock of its own.
+        """
+        if resource["scope"] == SCOPE_SOLUTION:
+            return nullcontext()
+
+        # named after the content folder: the same content in two catalogs shares a lock
+        lock_file = (
+            self.album.configuration()
+            .base_cache_path()
+            .joinpath(
+                DefaultValues.lock_folder_prefix.value,
+                DefaultValues.resource_lock_folder_prefix.value,
+                resource["scope"],
+                "%s.lock" % Path(resource["path"]).parent.name,
+            )
+        )
+        # one lock per file, so the threads of this process wait for each other as well
+        with self._locks_creation:
+            if lock_file not in self._locks:
+                self._locks[lock_file] = FileLock(
+                    lock_file,
+                    timeout=DefaultValues.install_lock_timeout_in_seconds.value,
+                    description='downloading the shared resource "%s"'
+                    % resource["name"],
+                )
+            return self._locks[lock_file]
+
+    @staticmethod
+    @contextmanager
+    def _quiet_pooch() -> Iterator[None]:
+        """Keep the info messages of pooch out of the output, album reports the downloads itself."""
+        # a filter, as the level of the pooch logger is cached: it is not registered with logging
+        logger = pooch.get_logger()
+        logger.addFilter(_is_warning_or_worse)
+        try:
+            yield
+        finally:
+            logger.removeFilter(_is_warning_or_worse)
+
+    @staticmethod
+    def _show_progressbar() -> bool:
+        # pooch needs tqdm for a progress bar, which album does not depend on
+        return (
+            importlib.util.find_spec("tqdm") is not None
+            and getattr(sys.stderr, "isatty", lambda: False)()
+        )
+
+    def _write_resources_json(
+        self, resources_dict: Dict[str, Any], solution: ISolution
+    ) -> Path:
+        json_path = (
+            solution.installation()
+            .internal_cache_path()
+            .joinpath(self._get_resources_file_name(solution.coordinates(), ".json"))
+        )
+        json_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(json_path, "w", encoding="utf-8") as f:
+            # yaml can hold values json cannot, e.g. a date in an additional key of a resource
+            json.dump(resources_dict, f, indent=4, default=str)
+        return json_path
+
+    @staticmethod
+    def _get_resources_file_name(coordinates: ICoordinates, suffix: str) -> str:
+        # album-solution-api (get_resources_dict) reads the json file under this name
+        return "_".join(
+            [
+                coordinates.group(),
+                coordinates.name(),
+                coordinates.version(),
+                "resource_file" + suffix,
+            ]
+        )

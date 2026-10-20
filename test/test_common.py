@@ -4,11 +4,14 @@ import os
 import sys
 import tempfile
 import unittest
+from contextlib import contextmanager
 from io import StringIO
 from pathlib import Path
 from test.global_exception_watcher import GlobalExceptionWatcher
-from typing import Optional
+from typing import Generator, List, Optional
 from unittest.mock import patch
+
+import git
 
 from album.api import Album
 from album.core.controller.album_controller import AlbumController
@@ -29,6 +32,25 @@ from album.runner.album_logging import get_active_logger
 # Central test constant — must match DefaultValues.runner_api_package_version.
 # All test resource solutions (except deliberately-old ones) must use this version.
 TEST_ALBUM_API_VERSION: str = DefaultValues.runner_api_package_version.value
+
+
+@contextmanager
+def record_requests_to_remotes() -> Generator[List[List[str]], None, None]:
+    """Record the git commands that contact a remote: each can make git ask for credentials."""
+    requests: List[List[str]] = []
+    execute = git.cmd.Git.execute
+
+    def recording_execute(self, command, *args, **kwargs):
+        if isinstance(command, list) and (
+            command[1] in ("clone", "fetch", "pull", "push")
+            or command[1:3] == ["remote", "update"]
+            or (command[1:3] == ["remote", "set-head"] and "-a" in command)
+        ):
+            requests.append(command)
+        return execute(self, command, *args, **kwargs)
+
+    with patch.object(git.cmd.Git, "execute", recording_execute):
+        yield requests
 
 
 class TestCommon(unittest.TestCase):

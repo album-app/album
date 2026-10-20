@@ -144,12 +144,14 @@ class ZenodoEntry(ABC):  # noqa: B024
         self.params = {"access_token": access_token}
 
     def to_dict(self) -> dict[str, Any]:
-        """Remove sensitive information from the object and gives back its dictionary representation.
+        """Give back the dictionary representation of the object without sensitive information.
+
+        The object itself is not changed and can still be used to query the API.
 
         Returns:
             The dictionary ready for submission via API.
         """
-        d = self.__dict__
+        d = dict(self.__dict__)
 
         if "entry_dict" in d.keys():
             d.pop("entry_dict")
@@ -891,7 +893,15 @@ class ZenodoAPI:
             InvalidResponseStatusError: If query response status other than expected.
         """
         # todo: nice feedback when operation not permitted
-        status_code = ResponseStatus(response.status_code)
+        try:
+            status_code = ResponseStatus(response.status_code)
+        except ValueError:
+            # status code unknown to the API spec, e.g. 502/503/504 during maintenance
+            module_logger().error("Zenodo API error: status %s" % response.status_code)
+            raise InvalidResponseStatusError(
+                "Unexpected status %s occurred. Response: %s"
+                % (response.status_code, ZenodoAPI._response_excerpt(response))
+            ) from None
         if not expected_response_code:
             expected_response_code = status_code
 
@@ -914,20 +924,46 @@ class ZenodoAPI:
                 )
             return {"": True}
         else:
+            body = ZenodoAPI._response_excerpt(response)
             module_logger().error("Zenodo API error: %s" % status_code.name)
             if status_code == ResponseStatus.Forbidden:
                 module_logger().error(
                     "Forbidden operation. Is your access token valid?"
                 )
             if status_code != ResponseStatus.InternalServerError:
-                json_response = response.json()
-                module_logger().error("Detailed message: %s" % json_response["message"])
-                if "errors" in json_response:
-                    module_logger().error("Errors: %s" % json_response["errors"])
+                try:
+                    json_response = response.json()
+                    message = json_response["message"]
+                except (ValueError, KeyError, TypeError):
+                    # not the JSON error document the API specifies, e.g. an HTML page
+                    module_logger().error("Response: %s" % body)
+                else:
+                    module_logger().error("Detailed message: %s" % message)
+                    if "errors" in json_response:
+                        module_logger().error("Errors: %s" % json_response["errors"])
 
-        raise InvalidResponseStatusError(
-            "Error '%s' occurred. See Log for detailed information!" % status_code.name
-        )
+            raise InvalidResponseStatusError(
+                "Error '%s' occurred. See Log for detailed information! "
+                "Status: %s. Response: %s" % (status_code.name, status_code.value, body)
+            )
+
+    @staticmethod
+    def _response_excerpt(response: Response, max_length: int = 500) -> str:
+        """Get the beginning of a response body for error messages.
+
+        Args:
+            response:
+                The response of a request.
+            max_length:
+                The maximum number of characters to keep.
+
+        Returns:
+            The body with collapsed whitespace, shortened to max_length characters.
+        """
+        text = " ".join(response.text.split())
+        if len(text) > max_length:
+            text = text[:max_length] + "..."
+        return text
 
     # ############# Deposits #############
 

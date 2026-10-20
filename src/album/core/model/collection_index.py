@@ -1,7 +1,6 @@
 """Implementation of the collection index Interface."""
 
 import pkgutil
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -10,7 +9,11 @@ from album.core.model.catalog_index import CatalogIndex
 from album.core.model.database import Database
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import get_dict_entry
-from album.core.utils.operations.solution_operations import get_solution_hash
+from album.core.utils.operations.solution_operations import (
+    get_solution_hash,
+    get_stored_argument_required,
+    get_typed_argument_default,
+)
 from album.runner.core.api.model.coordinates import ICoordinates
 
 
@@ -127,8 +130,20 @@ class CollectionIndex(ICollectionIndex, Database):
         close: bool = True,
     ) -> int:
         next_id = self.next_id("catalog")
-        cursor = self.get_cursor()
+        # next_id holds the write lock until the insert is committed, so no other album
+        # process can add a catalog with this name or source between this check and the insert
+        try:
+            if self.get_catalog_by_name(name, close=False):
+                raise RuntimeError(self._duplicate_catalog_message(name, src, "name"))
+            if self.get_catalog_by_src(src, close=False):
+                raise RuntimeError(self._duplicate_catalog_message(name, src, "source"))
+        except Exception:
+            # do not keep the write lock taken by next_id
+            if close:
+                self.close_current_connection()
+            raise
 
+        cursor = self.get_cursor()
         cursor.execute(
             "INSERT INTO catalog VALUES (?, ?, ?, ?, ?, ?, ?)",
             (next_id, name, src, path, branch_name, catalog_type, deletable),
@@ -138,6 +153,13 @@ class CollectionIndex(ICollectionIndex, Database):
             self.close_current_connection()
 
         return next_id
+
+    @staticmethod
+    def _duplicate_catalog_message(name: str, src: str, taken: str) -> str:
+        return (
+            'Cannot add catalog "%s" (%s): the collection already contains a catalog '
+            "with this %s." % (name, src, taken)
+        )
 
     def get_catalog(
         self, catalog_id: int, close: bool = True
@@ -166,7 +188,7 @@ class CollectionIndex(ICollectionIndex, Database):
         cursor = self.get_cursor()
 
         r = cursor.execute(
-            "SELECT * FROM catalog WHERE name=:catalog_name",
+            "SELECT * FROM catalog WHERE name=:catalog_name ORDER BY catalog_id",
             {
                 "catalog_name": catalog_name,
             },
@@ -187,7 +209,7 @@ class CollectionIndex(ICollectionIndex, Database):
         cursor = self.get_cursor()
 
         r = cursor.execute(
-            "SELECT * FROM catalog WHERE path=:catalog_path",
+            "SELECT * FROM catalog WHERE path=:catalog_path ORDER BY catalog_id",
             {
                 "catalog_path": catalog_path,
             },
@@ -208,7 +230,7 @@ class CollectionIndex(ICollectionIndex, Database):
         cursor = self.get_cursor()
 
         r = cursor.execute(
-            "SELECT * FROM catalog WHERE src=:catalog_src",
+            "SELECT * FROM catalog WHERE src=:catalog_src ORDER BY catalog_id",
             {
                 "catalog_src": catalog_src,
             },
@@ -233,6 +255,16 @@ class CollectionIndex(ICollectionIndex, Database):
             self.close_current_connection()
 
         return catalog_list
+
+    def update_catalog_src(self, catalog_id: int, src: str, close: bool = True) -> None:
+        cursor = self.get_cursor()
+        cursor.execute(
+            "UPDATE catalog SET src=:src WHERE catalog_id=:catalog_id",
+            {"src": src, "catalog_id": catalog_id},
+        )
+
+        if close:
+            self.close_current_connection()
 
     def remove_catalog(self, catalog_id: int, close: bool = True) -> None:
         cursor = self.get_cursor()
@@ -309,7 +341,16 @@ class CollectionIndex(ICollectionIndex, Database):
     def insert_solution(
         self, catalog_id: int, solution_attrs: Dict[str, Any], close: bool = True
     ) -> int:
-        collection_id = self.next_id("collection")
+        return self._insert_solution(catalog_id, solution_attrs, None, close=close)
+
+    def _insert_solution(
+        self,
+        catalog_id: int,
+        solution_attrs: Dict[str, Any],
+        collection_id: Optional[int],
+        close: bool = True,
+    ) -> int:
+        """Insert a solution under the given collection id, or under the next free one."""
         hash_val = get_dict_entry(solution_attrs, "hash", allow_none=True)
 
         # there must be a hash value
@@ -317,7 +358,14 @@ class CollectionIndex(ICollectionIndex, Database):
             hash_val = get_solution_hash(
                 solution_attrs, CatalogIndex.get_solution_column_keys()
             )
+        # read the required attributes before next_id takes the write lock, so that a
+        # missing one does not leave the lock held by this connection
+        group = solution_attrs["group"]
+        name = solution_attrs["name"]
+        version = solution_attrs["version"]
 
+        if collection_id is None:
+            collection_id = self.next_id("collection")
         cursor = self.get_cursor()
         cursor.execute(
             "INSERT INTO collection VALUES "
@@ -325,10 +373,10 @@ class CollectionIndex(ICollectionIndex, Database):
             (
                 collection_id,
                 get_dict_entry(solution_attrs, "solution_id"),
-                solution_attrs["group"],
-                solution_attrs["name"],
+                group,
+                name,
                 get_dict_entry(solution_attrs, "title"),
-                solution_attrs["version"],
+                version,
                 get_dict_entry(solution_attrs, "timestamp"),
                 get_dict_entry(solution_attrs, "description"),
                 get_dict_entry(solution_attrs, "doi"),
@@ -562,11 +610,13 @@ class CollectionIndex(ICollectionIndex, Database):
         )
         exc_val = {
             "argument_name": argument["name"],
-            "argument_description": argument["description"],
+            # "description" is optional in the solution schema and stored as ""
+            "argument_description": get_dict_entry(argument, "description") or "",
             "catalog_id": catalog_id,
         }
         argument_type = get_dict_entry(argument, "type")
         argument_default_value = get_dict_entry(argument, "default")
+        argument_required = get_stored_argument_required(argument)
 
         if argument_type:
             exc_str += "AND type=:argument_type "
@@ -574,11 +624,18 @@ class CollectionIndex(ICollectionIndex, Database):
         else:
             exc_str += "AND type IS NULL "
 
-        if argument_default_value:
+        # 0, False and "" are defaults too, not the lack of one
+        if argument_default_value is not None:
             exc_str += "AND default_value=:argument_default_value "
             exc_val["argument_default_value"] = argument_default_value
         else:
             exc_str += "AND default_value IS NULL "
+
+        if argument_required is not None:
+            exc_str += "AND required=:argument_required "
+            exc_val["argument_required"] = argument_required
+        else:
+            exc_str += "AND required IS NULL "
 
         r = cursor.execute(exc_str, exc_val).fetchone()
 
@@ -622,9 +679,9 @@ class CollectionIndex(ICollectionIndex, Database):
                 catalog_id,
                 argument["name"],
                 get_dict_entry(argument, "type"),
-                argument["description"],
+                get_dict_entry(argument, "description") or "",  # optional in the schema
                 get_dict_entry(argument, "default"),
-                get_dict_entry(argument, "required"),
+                get_stored_argument_required(argument),
             ),
         )
 
@@ -883,9 +940,12 @@ class CollectionIndex(ICollectionIndex, Database):
         parent_solution = None
         cursor = self.get_cursor()
 
+        # a link to a parent that is no longer in the collection does not count. Older
+        # album versions left such links behind when they replaced or removed the parent.
         r = cursor.execute(
             "SELECT css.* FROM collection_collection css "
             "JOIN collection c ON c.collection_id = css.collection_id_child "
+            "JOIN collection p ON p.collection_id = css.collection_id_parent "
             "WHERE c.collection_id=:collection_id",
             {"collection_id": collection_id},
         ).fetchall()
@@ -1007,7 +1067,9 @@ class CollectionIndex(ICollectionIndex, Database):
             if "required" in row and row["required"] is not None:
                 argument["required"] = bool(row["required"])
             if "default_value" in row and row["default_value"] is not None:
-                argument["default"] = row["default_value"]
+                argument["default"] = get_typed_argument_default(
+                    row["type"], row["default_value"]
+                )
             res.append(argument)
 
         if close:
@@ -1363,25 +1425,53 @@ class CollectionIndex(ICollectionIndex, Database):
         supported_attrs: List[str],
         close: bool = True,
     ):
-        exec_str = "UPDATE collection SET last_execution=:cur_date"
-        exec_args = {
-            "cur_date": datetime.now().isoformat(),
+        identity = {
             "catalog_id": catalog_id,
             "group": coordinates.group(),
             "name": coordinates.name(),
             "version": coordinates.version(),
         }
+        for key in identity:
+            if key in solution_attrs and str(solution_attrs[key]) != str(identity[key]):
+                raise ValueError(
+                    'Cannot update the collection entry of %s in catalog %s with %s "%s": an update '
+                    "does not change the catalog, group, name or version of an entry."
+                    % (coordinates, catalog_id, key, solution_attrs[key])
+                )
 
+        # own names for the WHERE parameters, so that no attribute can replace them
+        exec_args = {"where_" + key: value for key, value in identity.items()}
+
+        # write only the given attributes, last_execution is set explicitly on run
+        set_clauses = []
         for key in supported_attrs:
+            # the entry is found by these, an update does not change them
+            if key in identity:
+                continue
             if key in solution_attrs:
                 col = self._as_db_col(key)
-                exec_str += f", {col}=:{key}"
+                set_clauses.append(f"{col}=:{key}")
                 exec_args[key] = get_dict_entry(solution_attrs, key)
 
-        exec_str += ' WHERE catalog_id=:catalog_id AND "group"=:group AND name=:name AND version=:version'
+        if not set_clauses:  # nothing to update
+            if close:
+                self.close_current_connection()
+            return
+
+        exec_str = "UPDATE collection SET " + ", ".join(set_clauses)
+        exec_str += (
+            ' WHERE catalog_id=:where_catalog_id AND "group"=:where_group'
+            " AND name=:where_name AND version=:where_version"
+        )
 
         cursor = self.get_cursor()
-        cursor.execute(exec_str, exec_args)
+        try:
+            cursor.execute(exec_str, exec_args)
+        except Exception:
+            # e.g. "database is locked": do not keep the failed transaction on this connection
+            if close:
+                self.close_current_connection(commit=False)
+            raise
 
         if close:
             self.close_current_connection()
@@ -1396,9 +1486,15 @@ class CollectionIndex(ICollectionIndex, Database):
         solution = self.get_solution_by_catalog_grp_name_version(
             catalog_id, coordinates, close=False
         )
-        if solution:
-            self.remove_solution(catalog_id, coordinates, close=False)
-        self.insert_solution(catalog_id, solution_attrs, close=close)
+        if not solution:
+            self.insert_solution(catalog_id, solution_attrs, close=close)
+            return
+        # replaced under the same collection id, so the solutions installed in its
+        # environment keep it as their parent. Its own link to a parent goes with the
+        # old entry: SolutionHandler.apply_change sets it again for an installed solution.
+        collection_id = solution.internal()["collection_id"]
+        self._remove_solution_entry(catalog_id, coordinates, collection_id)
+        self._insert_solution(catalog_id, solution_attrs, collection_id, close=close)
 
     def remove_solution(
         self, catalog_id: int, coordinates: ICoordinates, close: bool = True
@@ -1409,7 +1505,24 @@ class CollectionIndex(ICollectionIndex, Database):
         if not solution:
             return
         collection_id = solution.internal()["collection_id"]
+        self._remove_solution_entry(catalog_id, coordinates, collection_id)
 
+        # the solutions linked to it as their parent have no parent anymore
+        self.get_cursor().execute(
+            "DELETE FROM collection_collection WHERE collection_id_parent=:collection_id",
+            {"collection_id": collection_id},
+        )
+
+        if close:
+            self.close_current_connection()
+
+    def _remove_solution_entry(
+        self, catalog_id: int, coordinates: ICoordinates, collection_id: int
+    ) -> None:
+        """Remove the entry of a solution, with its link to its parent.
+
+        The links of the solutions that have it as their parent are kept.
+        """
         cursor = self.get_cursor()
         cursor.execute(
             "DELETE FROM collection_tag WHERE collection_id=:collection_id",
@@ -1492,9 +1605,6 @@ class CollectionIndex(ICollectionIndex, Database):
                 "version": coordinates.version(),
             },
         )
-
-        if close:
-            self.close_current_connection()
 
     def is_installed(
         self, catalog_id: int, coordinates: ICoordinates, close: bool = True

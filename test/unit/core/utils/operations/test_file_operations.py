@@ -1,27 +1,32 @@
 import json
 import os
 import pathlib
-import platform
 import stat
+import sys
+import threading
 import unittest.mock
 from pathlib import Path
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 
+from album.core.model.link import REMOVE_ATTEMPTS, Link
 from album.core.utils.operations.file_operations import (
+    _create_free_pointer_folder,
+    construct_cache_link_target,
     create_empty_file_recursively,
     create_path_recursively,
-    write_dict_to_json,
-    force_remove,
-    zip_folder,
-    unzip_archive,
-    zip_paths,
-    rand_folder_name,
     folder_empty,
-    _next_free_pointer_number,
+    force_remove,
+    get_dict_entry,
+    get_dict_from_json,
     get_link_target,
-    construct_cache_link_target,
     list_files_recursively,
+    rand_folder_name,
+    remove_link,
+    unzip_archive,
+    write_dict_to_json,
+    zip_folder,
+    zip_paths,
 )
-from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestFileOperations(TestUnitCoreCommon):
@@ -50,6 +55,33 @@ class TestFileOperations(TestUnitCoreCommon):
         self.assertTrue(tmp_json_file.stat().st_size > 0)
         d_loaded = json.load(open(tmp_json_file))
         self.assertEqual(d_loaded, d)
+
+    def test_get_dict_from_json_write_dict_to_json_utf8(self):
+        tmp_json_file = Path(self.tmp_dir.name).joinpath("test_utf8.json")
+        d = {"description": "Zellkerngröße in µm (顕微鏡)"}
+        # write the non-ASCII characters unescaped, as UTF-8 bytes
+        tmp_json_file.write_bytes(json.dumps(d, ensure_ascii=False).encode("utf-8"))
+
+        # read must not depend on the platform default encoding (e.g. cp1252)
+        self.assertEqual(d, get_dict_from_json(tmp_json_file))
+
+        # write and read back
+        write_dict_to_json(tmp_json_file, d)
+        self.assertEqual(d, json.loads(tmp_json_file.read_bytes().decode("utf-8")))
+        self.assertEqual(d, get_dict_from_json(tmp_json_file))
+
+    def test_get_dict_entry(self):
+        self.assertEqual("v", get_dict_entry({"k": "v"}, "k"))
+        self.assertIsNone(get_dict_entry({}, "k"))
+
+    def test_get_dict_entry_missing_key_not_allowed(self):
+        with self.assertRaises(KeyError) as context:
+            get_dict_entry({}, "k", allow_none=False, message="k is missing")
+
+        self.assertEqual("k is missing", context.exception.args[0])
+        # the original lookup error stays attached as the explicit cause
+        self.assertIsInstance(context.exception.__cause__, KeyError)
+        self.assertEqual("k", context.exception.__cause__.args[0])
 
     def test_folder_empty(self):
         self.assertTrue(folder_empty(Path(self.tmp_dir.name).joinpath("myFolder")))
@@ -225,7 +257,7 @@ class TestFileOperations(TestUnitCoreCommon):
         )
 
     @unittest.skipIf(
-        platform.system().lower() == "windows",
+        sys.platform == "win32",
         "Linking in windows currently not tested!",
     )
     def test_construct_cache_link_target(self):
@@ -239,7 +271,47 @@ class TestFileOperations(TestUnitCoreCommon):
             Path(self.tmp_dir.name).joinpath("point_to", "0").resolve(), r.resolve()
         )
 
-    def test__next_free_pointer_number(self):
+    @unittest.skipIf(
+        sys.platform == "win32",
+        "Linking in windows currently not tested!",
+    )
+    def test_construct_cache_link_target_created_at_the_same_time(self):
+        point_from = Path(self.tmp_dir.name).joinpath("point_from")
+        other_target = Path(self.tmp_dir.name).joinpath("point_to", "other")
+        other_target.mkdir(parents=True)
+        symlink = os.symlink
+
+        def link_created_by_other_process_first(src, dst, target_is_directory=False):
+            symlink(str(other_target), dst, target_is_directory=True)
+            symlink(src, dst, target_is_directory=target_is_directory)
+
+        # call
+        with unittest.mock.patch(
+            "album.core.utils.operations.file_operations.os.symlink",
+            side_effect=link_created_by_other_process_first,
+        ):
+            r = construct_cache_link_target(
+                Path(self.tmp_dir.name), point_from, "point_to"
+            )
+
+        # assert - the link of the other process is used, the folder claimed is removed
+        self.assertEqual(other_target.resolve(), r)
+        self.assertEqual(other_target.resolve(), point_from.resolve())
+        self.assertFalse(Path(self.tmp_dir.name).joinpath("point_to", "0").exists())
+
+    @unittest.skipIf(
+        sys.platform == "win32",
+        "Linking in windows currently not tested!",
+    )
+    def test_construct_cache_link_target_point_from_not_a_link(self):
+        point_from = Path(self.tmp_dir.name).joinpath("point_from")
+        point_from.mkdir()
+
+        # call
+        with self.assertRaises(FileExistsError):
+            construct_cache_link_target(Path(self.tmp_dir.name), point_from, "point_to")
+
+    def test__create_free_pointer_folder(self):
         p0 = Path(self.tmp_dir.name).joinpath("0")
         p1 = Path(self.tmp_dir.name).joinpath("1")
         p2isMissing = Path(self.tmp_dir.name).joinpath("3")
@@ -248,12 +320,45 @@ class TestFileOperations(TestUnitCoreCommon):
         p1.touch()
         p2isMissing.mkdir()
 
-        r = _next_free_pointer_number(self.tmp_dir.name)
+        r = _create_free_pointer_folder(self.tmp_dir.name)
 
-        self.assertEqual("2", r)
+        self.assertEqual(Path(self.tmp_dir.name).joinpath("2"), r)
+        self.assertTrue(r.is_dir())
+
+    def test__create_free_pointer_folder_creates_root(self):
+        root = Path(self.tmp_dir.name).joinpath("not", "there")
+
+        r = _create_free_pointer_folder(root)
+
+        self.assertEqual(root.joinpath("0"), r)
+        self.assertTrue(r.is_dir())
+
+    def test__create_free_pointer_folder_at_the_same_time(self):
+        # like album processes creating links for different solutions at the same time
+        root = Path(self.tmp_dir.name).joinpath("point_to")
+        created = []
+        start = threading.Barrier(8)
+
+        def create_folders():
+            start.wait(10)
+            for _ in range(25):
+                created.append(_create_free_pointer_folder(root))
+
+        threads = [threading.Thread(target=create_folders) for _ in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(30)
+
+        # every folder is handed out once
+        self.assertEqual(200, len(created))
+        self.assertEqual(
+            {root.joinpath(str(i)) for i in range(200)},
+            set(created),
+        )
 
     @unittest.skipIf(
-        platform.system().lower() == "windows",
+        sys.platform == "win32",
         "Linking in windows currently not tested!",
     )
     def test_get_link_target(self):
@@ -265,6 +370,82 @@ class TestFileOperations(TestUnitCoreCommon):
         os.symlink(str(point_to), str(point_from))
 
         self.assertEqual(point_to.resolve(), get_link_target(point_from).resolve())
+
+    def test_remove_link_while_another_process_has_it_open(self):
+        link, link_file, target = self._create_link()
+        real_remove = os.remove
+        attempts = []
+
+        # another process, e.g. a virus scanner, has the link open during the first two attempts
+        def remove(path):
+            if path == str(link_file):
+                attempts.append(path)
+                if len(attempts) <= 2:
+                    raise self._in_use_error()
+            real_remove(path)
+
+        with (
+            unittest.mock.patch("album.core.model.link.os.remove", side_effect=remove),
+            unittest.mock.patch("album.core.model.link.time.sleep") as sleep,
+        ):
+            remove_link(link)
+
+        self.assertEqual(3, len(attempts))
+        self.assertEqual(2, sleep.call_count)
+        self.assertFalse(link_file.exists())
+        self.assertFalse(target.exists())
+
+    def test_remove_link_another_process_keeps_open(self):
+        link, link_file, _ = self._create_link()
+
+        with (
+            unittest.mock.patch(
+                "album.core.model.link.os.remove", side_effect=self._in_use_error()
+            ) as remove,
+            unittest.mock.patch("album.core.model.link.time.sleep") as sleep,
+        ):
+            with self.assertRaises(PermissionError):
+                remove_link(link)
+
+        self.assertEqual(REMOVE_ATTEMPTS, remove.call_count)
+        self.assertEqual(REMOVE_ATTEMPTS - 1, sleep.call_count)
+        self.assertTrue(link_file.exists())
+
+    def test_remove_link_permission_denied(self):
+        # any other permission error fails at once, as before
+        link, _, _ = self._create_link()
+
+        with (
+            unittest.mock.patch(
+                "album.core.model.link.os.remove",
+                side_effect=PermissionError(13, "Permission denied"),
+            ) as remove,
+            unittest.mock.patch("album.core.model.link.time.sleep") as sleep,
+        ):
+            with self.assertRaises(PermissionError):
+                remove_link(link)
+
+        self.assertEqual(1, remove.call_count)
+        sleep.assert_not_called()
+
+    def _create_link(self):
+        target = Path(self.tmp_dir.name).joinpath("target")
+        target.mkdir()
+        link_path = Path(self.tmp_dir.name).joinpath("link")
+        # the file Link.dispose() removes
+        link_file = Path(str(link_path) + (".lnk" if sys.platform == "win32" else ""))
+        link_file.touch()
+        return Link(target).set_link(link_path), link_file, target
+
+    @staticmethod
+    def _in_use_error():
+        # what os.remove raises on Windows when another process has the file open
+        e = PermissionError(
+            13,
+            "The process cannot access the file because it is being used by another process",
+        )
+        e.winerror = 32
+        return e
 
     if __name__ == "__main__":
         unittest.main()

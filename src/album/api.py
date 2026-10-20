@@ -112,8 +112,14 @@ class Album:
         """Load a solution from a path."""
         return self._controller.state_manager().load(path)
 
-    def search(self, keywords) -> list[tuple[Any, Any]]:
-        """Search through album catalogs to find closest matching solution."""
+    def search(self, keywords: str | list[str]) -> list[tuple[Any, Any]]:
+        """Search through album catalogs to find closest matching solution.
+
+        Args:
+            keywords:
+                A list of keywords, or a string holding keywords separated by whitespace.
+
+        """
         return self._controller.search_manager().search(keywords)
 
     def run(self, solution_to_resolve: str, argv=None, run_async=False):
@@ -130,11 +136,80 @@ class Album:
         allow_recursive: bool = False,
         argv=None,
         run_async=False,
+        reinstall: bool = False,
+        no_conda_lock: bool = False,
     ):
-        """Install a solution to the disk."""
+        """Install a solution to the disk.
+
+        Args:
+            solution_to_resolve:
+                The solution to install
+            allow_recursive:
+                Allow the environment of the solution to install a different album
+                version than the running one (album in album). Without it, such a
+                solution is not installed (ValueError). The same or an unversioned
+                album is always allowed, with a warning. A solution with a parent runs
+                in the environment of its parent, so there it applies to the parent.
+            argv:
+                Not used, the install routine of a solution takes no arguments.
+                Kept so that existing positional and keyword calls keep working.
+            run_async:
+                If True, register the installation as a task with the task manager
+                and return the task id instead of installing right away.
+            reinstall:
+                Install the solution again if it is installed: uninstall it and
+                install it again from its catalog, or from the file, URL or DOI
+                given. A solution installed from a file, URL or DOI and given by its
+                coordinates is installed from its copy in the collection.
+                A solution other solutions run in is not installed again, as they
+                might not work in its new environment: nothing is changed and a
+                RuntimeError is raised. Everything is downloaded, resources included,
+                before anything is uninstalled, and what would make installing it
+                again fail raises a RuntimeError with nothing changed as well: a
+                missing file, resource or parent, a parent with another API version,
+                a lock file when conda-lock is not found, or another album version in
+                its environment. It does not take allow_recursive (ValueError):
+                uninstall such a solution and install it with allow_recursive.
+            no_conda_lock:
+                Solve the environment instead of installing it from the lock file of
+                the solution, e.g. when the lock file does not install on this system.
+                Not technically replicable, album warns. A solution with a parent runs
+                in the environment of its parent, so there it applies to the parent
+                if the parent is installed with it.
+
+        """
         return self._run_async(
             self._controller.install_manager().install,
-            (solution_to_resolve, allow_recursive, argv),
+            (solution_to_resolve, allow_recursive, argv, reinstall, no_conda_lock),
+            run_async,
+        )
+
+    def upgrade_solutions(
+        self, solutions: list[str] | None = None, dry_run=False, run_async=False
+    ):
+        """Install the latest version of installed solutions, and uninstall what it replaces.
+
+        The catalogs of the solutions are upgraded first. An older version is uninstalled
+        once no installed solution runs in it anymore; the newest installed version of a
+        solution always stays. See IInstallManager.upgrade_solutions.
+
+        Args:
+            solutions:
+                The installed solutions to upgrade, all of them if None or empty.
+            dry_run:
+                Only return what would be installed and uninstalled.
+            run_async:
+                If True, register the upgrade as a task with the task manager and
+                return the task id instead of upgrading right away.
+
+        Returns:
+            The solutions installed, uninstalled and kept, see
+            IInstallManager.upgrade_solutions.
+
+        """
+        return self._run_async(
+            self._controller.install_manager().upgrade_solutions,
+            (solutions, dry_run),
             run_async,
         )
 
@@ -146,12 +221,16 @@ class Album:
         Thereby uninstalling its environment and deleting all its downloads.
 
         Args:
-            argv:
-                Arguments which should be appended to the script call
             solution_to_resolve:
                 The solution to remove
             rm_dep:
                 Boolean to indicate whether to remove parents too.
+            argv:
+                Not used, the uninstall routine of a solution takes no arguments.
+                Kept so that existing positional and keyword calls keep working.
+            run_async:
+                If True, register the removal as a task with the task manager
+                and return the task id instead of removing right away.
 
         """
         return self._run_async(
@@ -171,6 +250,7 @@ class Album:
         force_deploy: bool = False,
         changelog: str = "",
         no_conda_lock: bool = False,
+        no_replicability: bool = False,
     ):
         """Deploy a solution.
 
@@ -199,6 +279,10 @@ class Album:
                 The change associated with this version of a solution compared to the last version.
             no_conda_lock:
                 Do not lock the conda environment when deploying.
+            no_replicability:
+                Deploy also a solution that is not technically replicable, e.g. one with a
+                resource url without a hash. Without it, such a solution is refused. The
+                reasons are stored with the solution in solution.yml.
 
         """
         return self._controller.deploy_manager().deploy(
@@ -211,6 +295,7 @@ class Album:
             force_deploy=force_deploy,
             changelog=changelog,
             no_conda_lock=no_conda_lock,
+            no_replicability=no_replicability,
         )
 
     def undeploy(
@@ -268,7 +353,12 @@ class Album:
         return self._controller.clone_manager().clone(path, target_dir, name)
 
     def close(self):
-        """Close the album instance."""
+        """Close the album instance.
+
+        Closes the catalog collection and removes the temporary folder of this album
+        instance. Other album instances using the same base path keep their temporary
+        folders. close() is also called when the instance is garbage collected.
+        """
         if self.logger_pushed:
             pop_active_logger()
         self._controller.close()
@@ -311,6 +401,14 @@ class Album:
             self._controller.collection_manager()
             .catalogs()
             .remove_from_collection_by_name(catalog_src)
+        )
+
+    def change_catalog_src(self, catalog_name, catalog_src):
+        """Change the src of a catalog in the collection, e.g. to its SSH URL."""
+        return (
+            self._controller.collection_manager()
+            .catalogs()
+            .change_src_by_name(catalog_name, catalog_src)
         )
 
     def configuration(self) -> IConfiguration:

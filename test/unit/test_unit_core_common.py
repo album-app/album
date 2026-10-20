@@ -228,7 +228,7 @@ class TestZenodoCommon(TestUnitCoreCommon):
             raise KeyError(
                 "Environment variable %s not set. Please set environment variable to run tests!"
                 % env_name
-            )
+            ) from None
 
     def setUp(self):
         """Could initialize default values for each test class. use `_<name>` to skip property setting."""

@@ -34,8 +34,9 @@ class TaskManager(ITaskManager):
             f"TaskManager: Initializing {self.num_fetch_threads} worker threads..."
         )
         for i in range(self.num_fetch_threads):
-            worker = Thread(target=self._run_queue_entry, args=(i, current_thread))
-            worker.setDaemon(True)
+            worker = Thread(
+                target=self._run_queue_entry, args=(i, current_thread), daemon=True
+            )
             worker.start()
 
     def get_task(self, task_id: str):

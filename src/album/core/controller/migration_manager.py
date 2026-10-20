@@ -27,6 +27,9 @@ from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
+# the Python names of argument types, and the names album stores and shows these types by
+PYTHON_ARGUMENT_TYPES = {"str": "string", "int": "integer", "bool": "boolean"}
+
 
 class MigrationManager(IMigrationManager):
     def __init__(self, album: IAlbumController):
@@ -47,6 +50,8 @@ class MigrationManager(IMigrationManager):
         )
         if not current_version == target_version:
             if current_version < target_version:
+                # an open connection would keep a failed step from restoring the database on Windows
+                collection_index.close()
                 for vers in range(
                     self.collection_db_versions.index(current_version),
                     self.collection_db_versions.index(target_version),
@@ -78,6 +83,8 @@ class MigrationManager(IMigrationManager):
         )
         if not current_version == target_version:
             if current_version < target_version:
+                # an open connection would keep a failed step from restoring the database on Windows
+                catalog_index.close()
                 for vers in range(
                     self.catalog_db_versions.index(current_version),
                     self.catalog_db_versions.index(target_version),
@@ -112,16 +119,21 @@ class MigrationManager(IMigrationManager):
                     )
                     try:
                         self._execute_migration_script(collection_index_path, schema)
-                        self._update_catalog_collection_version()
+                        self._update_catalog_collection_version(target_version)
                     except Exception as e:
                         module_logger().error(
                             "Could not migrate the catalog collection database: %s" % e
                         )
                         Path(collection_index_path).unlink()
                         shutil.copy(
-                            Path(tmp_dir).joinpath("catalog_collection.db"),
+                            Path(tmp_dir).joinpath(Path(collection_index_path).name),
                             collection_index_path,
                         )
+                        raise RuntimeError(
+                            "Could not migrate the catalog collection database from "
+                            "version %s to %s. The database has been restored from its "
+                            "backup." % (curr_version, target_version)
+                        ) from e
             else:
                 raise Exception(
                     "Your catalog collection database is newer than the current version of your Album. "
@@ -147,16 +159,23 @@ class MigrationManager(IMigrationManager):
                     )
                     try:
                         self._execute_migration_script(catalog_index_path, schema)
-                        self._update_catalog_index_version(catalog_index_path)
+                        self._update_catalog_index_version(
+                            catalog_index_path, target_version
+                        )
                     except Exception as e:
                         module_logger().error(
-                            "Could not migrate the catalog collection database: %s" % e
+                            "Could not migrate the catalog index database: %s" % e
                         )
                         Path(catalog_index_path).unlink()
                         shutil.copy(
-                            Path(tmp_dir).joinpath("album_catalog_index.db"),
+                            Path(tmp_dir).joinpath(Path(catalog_index_path).name),
                             catalog_index_path,
                         )
+                        raise RuntimeError(
+                            "Could not migrate the catalog index database from "
+                            "version %s to %s. The database has been restored from its "
+                            "backup." % (curr_version, target_version)
+                        ) from e
             else:
                 raise Exception(
                     "Your catalog index database is newer than the current version of your Album. "
@@ -164,9 +183,10 @@ class MigrationManager(IMigrationManager):
                 )
         return catalog_index_path
 
-    def load_index(self, catalog: ICatalog) -> None:
+    def load_index(self, catalog: ICatalog, refresh: bool = True) -> None:
         with TemporaryDirectory(dir=self.album.configuration().tmp_path()) as tmp_dir:
-            catalog.update_index_cache(tmp_dir)
+            if refresh:
+                catalog.update_index_cache(tmp_dir)
             index_version = MMVersion.from_string(
                 get_dict_entry(
                     get_dict_from_json(catalog.get_meta_file_path()), "version"
@@ -198,12 +218,59 @@ class MigrationManager(IMigrationManager):
 
         # TODO: replace hardcoded migration with a more general approach. see database migration for example
         api_version = version.parse(attrs["album_api_version"])
+        self._rename_python_argument_types(attrs, api_version)
         if api_version >= version.parse("0.5.1"):
-            validate(attrs, self.schema_solution)
+            try:
+                validate(attrs, self.schema_solution)
+            except ValidationError as e:
+                # a newer album_api_version can have setup keywords the installed schema does not know
+                core_api_version = importlib_version(
+                    DefaultValues.runner_api_package_name.value
+                )
+                if api_version > version.parse(core_api_version):
+                    raise ValidationError(
+                        "The solution needs album_api_version %s, this album installation knows "
+                        "versions up to %s and cannot read its setup method: %s. Please update album."
+                        % (attrs["album_api_version"], core_api_version, e.message)
+                    ) from e
+                raise
             return attrs
         else:
             validate(attrs, self.schema_solution_runner_0_4_2)
             return self._convert_schema0_schema1(attrs)
+
+    @staticmethod
+    def _rename_python_argument_types(
+        attrs: Dict[str, Any], api_version: version.Version
+    ) -> None:
+        """Give an argument of the type str, int or bool the type string, integer or boolean.
+
+        The databases, solution.yml, album info, album-gui, album-distributed and older album
+        versions know the types by these names. The argument parser of a solution parses the
+        Python names from album-solution-api 0.7.3 on, an older one passes the value on as text,
+        so a solution with an older album_api_version is refused.
+        """
+        args = attrs.get("args")
+        if not isinstance(args, list):
+            return  # validated with the schema next
+        first_version = DefaultValues.python_argument_types_api_version.value
+        for arg in args:
+            arg_type = arg.get("type") if isinstance(arg, dict) else None
+            if not isinstance(arg_type, str) or arg_type not in PYTHON_ARGUMENT_TYPES:
+                continue
+            if api_version < version.parse(first_version):
+                raise ValidationError(
+                    "The argument %s has the type '%s', which needs album_api_version %s or newer, "
+                    "the solution has %s. Give it the type '%s' or a newer album_api_version."
+                    % (
+                        arg.get("name"),
+                        arg_type,
+                        first_version,
+                        attrs["album_api_version"],
+                        PYTHON_ARGUMENT_TYPES[arg_type],
+                    )
+                )
+            arg["type"] = PYTHON_ARGUMENT_TYPES[arg_type]
 
     def _load_solution_schema(self):
         if not self.schema_solution:
@@ -219,15 +286,14 @@ class MigrationManager(IMigrationManager):
     def _load_catalog_collection_migration_schema(
         curr_version: IMMVersion, target_version: IMMVersion
     ) -> str:
-        resource_name = "migrate_catalog_collection_{}_to_{}.sql".format(
-            str(curr_version).replace(".", ""),
-            str(target_version).replace(".", ""),
-        )
+        curr = str(curr_version).replace(".", "")
+        target = str(target_version).replace(".", "")
+        resource_name = f"migrate_catalog_collection_{curr}_to_{target}.sql"
 
         schema = (
             files("album.core.schema.migrations.catalog_collection")
             .joinpath(resource_name)
-            .read_text()
+            .read_text(encoding="utf-8")
         )
 
         return schema
@@ -236,15 +302,14 @@ class MigrationManager(IMigrationManager):
     def _load_catalog_index_migration_schema(
         curr_version: IMMVersion, target_version: IMMVersion
     ) -> str:
-        resource_name = "migrate_catalog_index_{}_to_{}.sql".format(
-            str(curr_version).replace(".", ""),
-            str(target_version).replace(".", ""),
-        )
+        curr = str(curr_version).replace(".", "")
+        target = str(target_version).replace(".", "")
+        resource_name = f"migrate_catalog_index_{curr}_to_{target}.sql"
 
         schema = (
             files("album.core.schema.migrations.catalog_index")
             .joinpath(resource_name)
-            .read_text()
+            .read_text(encoding="utf-8")
         )
 
         return schema
@@ -252,28 +317,36 @@ class MigrationManager(IMigrationManager):
     @staticmethod
     def _execute_migration_script(database: Path, schema: str) -> None:
         connection = sqlite3.connect(database)
-        cursor = connection.cursor()
-        cursor.executescript(schema)
-        connection.commit()
-        connection.close()
+        try:
+            cursor = connection.cursor()
+            cursor.executescript(schema)
+            connection.commit()
+        finally:
+            # close even on failure, otherwise the restore cannot replace the database on Windows
+            connection.close()
 
-    def _update_catalog_collection_version(self) -> None:
+    def _update_catalog_collection_version(self, db_version: IMMVersion) -> None:
+        # the version of the migration step, not the final one: if a later step fails,
+        # the meta file must still match the database restored from that step's backup
         catalog_collection_json_path = (
             self.album.configuration().get_catalog_collection_meta_path()
         )
         self.album.collection_manager().write_version_to_json(
             catalog_collection_json_path,
             DefaultValues.catalog_collection_name.value,
-            DefaultValues.catalog_collection_db_version.value,
+            str(db_version),
         )
 
     @staticmethod
-    def _update_catalog_index_version(catalog_index_path: Path) -> None:
+    def _update_catalog_index_version(
+        catalog_index_path: Path, db_version: IMMVersion
+    ) -> None:
+        # the version of the migration step, see _update_catalog_collection_version
         catalog_index_json_path = Path(catalog_index_path).parent.joinpath(
             DefaultValues.catalog_index_metafile_json.value
         )
         index_dict = get_dict_from_json(catalog_index_json_path)
-        index_dict["version"] = DefaultValues.catalog_index_db_version.value
+        index_dict["version"] = str(db_version)
         write_dict_to_json(catalog_index_json_path, index_dict)
 
     @staticmethod
@@ -297,10 +370,10 @@ class MigrationManager(IMigrationManager):
                     versions.append(
                         MMVersion.from_string(file.name.split("_")[-1].split(".")[0])
                     )
-                except (ValueError, IndexError):
+                except (ValueError, IndexError) as err:
                     raise ValueError(
                         "Could not parse version from file name: %s" % file
-                    )
+                    ) from err
         versions.sort()
         return versions
 
@@ -318,10 +391,10 @@ class MigrationManager(IMigrationManager):
                     versions.append(
                         MMVersion.from_string(file.name.split("_")[-1].split(".")[0])
                     )
-                except (ValueError, IndexError):
+                except (ValueError, IndexError) as err:
                     raise ValueError(
                         "Could not parse version from file name: %s" % file
-                    )
+                    ) from err
         versions.sort()
         return versions
 

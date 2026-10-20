@@ -2,8 +2,11 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from test.test_common import record_requests_to_remotes
 from test.unit.test_unit_core_common import TestGitCommon
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+
+import git
 
 import album.core.utils.operations.git_operations as git_op
 from album.core.model.default_values import DefaultValues
@@ -71,6 +74,23 @@ class TestGitOperations(TestGitCommon):
                 )
 
             self.assertTrue("does not hold pattern" in str(context.exception))
+
+    def test_retrieve_files_from_head_single_commit(self):
+        with self.setup_tmp_repo() as repo:
+            # an orphan branch starts a new history, its only commit has no parent
+            repo.git.checkout("--orphan", "orphan_branch")
+            repo.git.commit("-m", "single commit", "--no-verify")
+            self.assertEqual(0, len(repo.heads["orphan_branch"].commit.parents))
+
+            with self.assertRaises(RuntimeError) as context:
+                git_op.retrieve_files_from_head_last_commit(
+                    repo.heads["orphan_branch"], "solutions"
+                )
+
+            self.assertTrue(
+                "Cannot execute diff since there is only a single commit!"
+                in str(context.exception)
+            )
 
     def test__add_files(self):
         tmp_file = tempfile.NamedTemporaryFile(delete=False)
@@ -199,6 +219,50 @@ class TestGitOperations(TestGitCommon):
             self.assertEqual(initial_commit_count + 1, len(commits))
             self.assertEqual("empty_commit_msg\n", commits[0].message)
 
+    def test_add_files_commit_and_push_tag_and_delete_tag(self):
+        with self.setup_tmp_repo() as repo:
+            remote = git.Repo(repo.remote().url)
+            new_file = Path(repo.working_tree_dir).joinpath("new_file")
+
+            # the commit and its tag go in one push
+            new_file.write_text("deployed")
+            with record_requests_to_remotes() as requests:
+                git_op.add_files_commit_and_push(
+                    repo.heads["main"], [new_file], "deploy", push=True, tag="t"
+                )
+            self.assertEqual(1, len(requests), requests)
+            self.assertEqual(repo.head.commit, remote.heads["main"].commit)
+            self.assertEqual(repo.head.commit, remote.tags["t"].commit)
+
+            # the commit and the deletion of the tag go in one push
+            new_file.write_text("undeployed")
+            with record_requests_to_remotes() as requests:
+                git_op.add_files_commit_and_push(
+                    repo.heads["main"],
+                    [new_file],
+                    "undeploy",
+                    push=True,
+                    delete_tag="t",
+                )
+            self.assertEqual(1, len(requests), requests)
+            self.assertEqual(repo.head.commit, remote.heads["main"].commit)
+            self.assertEqual([], remote.tags)
+            self.assertEqual([], repo.tags)
+
+    def test_get_local_remote_ref_head_asks_remote_only_when_needed(self):
+        with self.setup_tmp_repo() as repo:
+            repo.git.remote("set-head", "origin", "main")  # as recorded by a clone
+
+            with record_requests_to_remotes() as requests:
+                head = git_op.get_local_remote_ref_head(repo)
+            self.assertEqual(repo.heads["main"], head)
+            self.assertEqual([], requests)
+
+            with record_requests_to_remotes() as requests:
+                head = git_op.get_local_remote_ref_head(repo, ask_remote=True)
+            self.assertEqual(repo.heads["main"], head)
+            self.assertEqual(1, len(requests), requests)
+
     def test_init_repository_clean_repository(self):
         tmp_file = tempfile.NamedTemporaryFile(delete=False)
         tmp_file.close()
@@ -252,9 +316,22 @@ class TestGitOperations(TestGitCommon):
             "https://gitlab.com/album-app/album/-/merge_requests",
             "https://github.com/",
             "asdasd",
+            "git@gitlab.com:album-app/catalogs/default.git",
+            "ssh://git@gitlab.com/album-app/catalogs/default.git",
+            "ssh://git@gitlab.example.org:2222/group/catalog.git",
+            "git@github.com:album-app/album.git",
         ]
 
-        exp = [[], ["merge_request.create"], [], []]
+        exp = [
+            [],
+            ["merge_request.create"],
+            [],
+            [],
+            ["merge_request.create"],
+            ["merge_request.create"],
+            ["merge_request.create"],
+            [],
+        ]
 
         # run
         res = [git_op.retrieve_default_mr_push_options(url) for url in urls]
@@ -267,10 +344,42 @@ class TestGitOperations(TestGitCommon):
         # ToDo: implement
         pass
 
+    @patch("git.Repo.clone_from")
+    def test_clone_repository_sparse_closes_repo_on_error(self, clone_from_mock):
+        repo_mock = MagicMock()
+        clone_from_mock.return_value = repo_mock
+        target = Path(self.tmp_dir.name).joinpath("testCloneSparse")
+
+        # run
+        with self.assertRaises(ValueError) as context:
+            with git_op.clone_repository_sparse("bla", "main", target) as repo:
+                self.assertIs(repo_mock, repo)
+                raise ValueError("error inside the with body")
+
+        # check
+        self.assertEqual("error inside the with body", str(context.exception))
+        repo_mock.close.assert_called_once()
+
     @unittest.skip("Needs to be implemented!")
     def test_clone_repository(self):
         # ToDo: implement
         pass
+
+    @patch("git.Repo.clone_from")
+    def test_clone_repository_closes_repo_on_error(self, clone_from_mock):
+        repo_mock = MagicMock()
+        clone_from_mock.return_value = repo_mock
+        target = Path(self.tmp_dir.name).joinpath("testClone")
+
+        # run
+        with self.assertRaises(ValueError) as context:
+            with git_op.clone_repository(Path("bla"), target) as repo:
+                self.assertIs(repo_mock, repo)
+                raise ValueError("error inside the with body")
+
+        # check
+        self.assertEqual("error inside the with body", str(context.exception))
+        repo_mock.close.assert_called_once()
 
     @unittest.skip("Needs to be implemented!")
     def test_create_bare_repository(self):

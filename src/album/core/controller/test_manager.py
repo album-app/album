@@ -22,33 +22,35 @@ class TestManager(ITestManager):
             solution_to_resolve
         )
         solution = resolve_result.loaded_solution()
+        test_routine = solution.setup().test
+        pre_test_routine = solution.setup().pre_test
 
-        if (
-            solution.setup().pre_test
-            and callable(solution.setup().pre_test)
-            and solution.setup().test
-            and callable(solution.setup().test)
-        ) or (
-            not solution.setup().pre_test
-            and solution.setup().test
-            and callable(solution.setup().test)
-        ):
-            queue: Queue = Queue()
-
-            # do not run queue immediately
-            self.album.script_manager().build_queue(
-                resolve_result, queue, ISolution.Action.TEST, False, args
-            )
-
-            # runs the queue
-            self.album.script_manager().run_queue(queue)
-
-            module_logger().info(
-                'Ran test routine for "%s"!'
-                % resolve_result.loaded_solution().coordinates().name()
-            )
-        else:
+        # "test" is required
+        if not callable(test_routine):
             module_logger().warning(
                 'No "test" routine configured for solution "%s"! Skipping...'
                 % solution.coordinates().name()
             )
+            return
+
+        # "pre_test" is optional, but the runner calls it whenever it is set
+        if pre_test_routine and not callable(pre_test_routine):
+            module_logger().warning(
+                'The "pre_test" routine of solution "%s" is not callable! Skipping...'
+                % solution.coordinates().name()
+            )
+            return
+
+        queue: Queue = Queue()
+
+        # do not run queue immediately
+        self.album.script_manager().build_queue(
+            resolve_result, queue, ISolution.Action.TEST, False, args
+        )
+
+        # runs the queue
+        self.album.script_manager().run_queue(queue)
+
+        module_logger().info(
+            'Ran test routine for "%s"!' % solution.coordinates().name()
+        )

@@ -178,4 +178,3 @@ CREATE TABLE IF NOT EXISTS collection_custom
     FOREIGN KEY (custom_id) REFERENCES custom (custom_id),
     FOREIGN KEY (catalog_id) REFERENCES catalog (catalog_id)
 );
-

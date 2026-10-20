@@ -1,13 +1,15 @@
+import sqlite3
+import threading
 import unittest
 from datetime import datetime
 from pathlib import Path
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 from unittest.mock import MagicMock
 
 from album.core.model.catalog_index import CatalogIndex
 from album.core.model.collection_index import CollectionIndex
-from album.runner.core.model.coordinates import Coordinates
 from album.core.model.default_values import DefaultValues
-from test.unit.test_unit_core_common import TestUnitCoreCommon
+from album.runner.core.model.coordinates import Coordinates
 
 
 class TestCollectionIndex(TestUnitCoreCommon):
@@ -71,8 +73,9 @@ class TestCollectionIndex(TestUnitCoreCommon):
         )
 
         # call
-        self.test_catalog_collection_index.update_name_version("myName",
-                                                               DefaultValues.catalog_collection_db_version.value)
+        self.test_catalog_collection_index.update_name_version(
+            "myName", DefaultValues.catalog_collection_db_version.value
+        )
 
         # assert
         self.assertEqual("myName", self.test_catalog_collection_index.get_name())
@@ -115,6 +118,121 @@ class TestCollectionIndex(TestUnitCoreCommon):
         r = self.get_test_catalog_dict(1)
 
         self.assertEqual([r], self.test_catalog_collection_index.get_all_catalogs())
+
+    def assert_write_lock_free(self):
+        connection = sqlite3.connect(
+            str(self.test_catalog_collection_index.get_path()), timeout=0
+        )
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            connection.rollback()
+        finally:
+            connection.close()
+
+    def test_insert_catalog_duplicate_name(self):
+        self.test_catalog_collection_index.insert_catalog(
+            "myName1", "mySrc1", "myPath1", True, None, "direct"
+        )
+
+        with self.assertRaises(RuntimeError) as context:
+            self.test_catalog_collection_index.insert_catalog(
+                "myName1", "mySrc2", "myPath2", True, None, "direct"
+            )
+
+        self.assertIn('"myName1"', str(context.exception))
+        self.assertIn(
+            "already contains a catalog with this name", str(context.exception)
+        )
+        self.assertEqual(
+            [self.get_test_catalog_dict(1)],
+            self.test_catalog_collection_index.get_all_catalogs(),
+        )
+        self.assert_write_lock_free()
+
+    def test_insert_catalog_duplicate_src(self):
+        self.test_catalog_collection_index.insert_catalog(
+            "myName1", "mySrc1", "myPath1", True, None, "direct"
+        )
+
+        with self.assertRaises(RuntimeError) as context:
+            self.test_catalog_collection_index.insert_catalog(
+                "myName2", "mySrc1", "myPath2", True, None, "direct"
+            )
+
+        self.assertIn("mySrc1", str(context.exception))
+        self.assertIn(
+            "already contains a catalog with this source", str(context.exception)
+        )
+        self.assertEqual(
+            [self.get_test_catalog_dict(1)],
+            self.test_catalog_collection_index.get_all_catalogs(),
+        )
+        self.assert_write_lock_free()
+
+    def test_insert_catalog_releases_the_lock_if_the_check_fails(self):
+        self.test_catalog_collection_index.get_catalog_by_name = MagicMock(
+            side_effect=sqlite3.OperationalError("disk I/O error")
+        )
+
+        with self.assertRaises(sqlite3.OperationalError):
+            self.test_catalog_collection_index.insert_catalog(
+                "myName1", "mySrc1", "myPath1", True, None, "direct"
+            )
+
+        self.assert_write_lock_free()
+
+    def test_insert_catalog_concurrent_duplicate(self):
+        # a second album process with its own connection to the same collection
+        other_process_index = CollectionIndex(
+            "test_catalog_collection", self.test_catalog_collection_index.get_path()
+        )
+        # the first process inserted the catalog but has not committed yet
+        self.test_catalog_collection_index.insert_catalog(
+            "myName1", "mySrc1", "myPath1", True, None, "direct", close=False
+        )
+        errors = []
+
+        def insert_same_catalog():
+            try:
+                other_process_index.insert_catalog(
+                    "myName1", "mySrc2", "myPath2", True, None, "direct"
+                )
+            except RuntimeError as e:
+                errors.append(e)
+            finally:
+                other_process_index.close_current_connection()
+
+        thread = threading.Thread(target=insert_same_catalog)
+        try:
+            thread.start()
+
+            # the check of the second process waits for the write lock of the first one
+            thread.join(0.5)
+            self.assertTrue(thread.is_alive())
+            self.test_catalog_collection_index.close_current_connection()
+            thread.join(10)
+
+            self.assertFalse(thread.is_alive())
+            self.assertEqual(1, len(errors))
+            self.assertIn("already contains a catalog with this name", str(errors[0]))
+            self.assertEqual(
+                [self.get_test_catalog_dict(1)],
+                self.test_catalog_collection_index.get_all_catalogs(),
+            )
+        finally:
+            self.test_catalog_collection_index.close_current_connection()
+            thread.join(10)
+            other_process_index.close()
+
+    def test_insert_solution_missing_attribute_takes_no_lock(self):
+        solution_attrs = self._get_solution_attrs(1, "grp", "name", "version")
+        del solution_attrs["name"]
+
+        with self.assertRaises(KeyError):
+            self.test_catalog_collection_index.insert_solution(1, solution_attrs)
+
+        # nothing was written, so the cached connection must not hold the write lock
+        self.assert_write_lock_free()
 
     def test_get_catalog(self):
         self.test_catalog_collection_index.insert_catalog(
@@ -201,6 +319,41 @@ class TestCollectionIndex(TestUnitCoreCommon):
         r2 = self.get_test_catalog_dict(2)
 
         self.assertEqual([r, r2], self.test_catalog_collection_index.get_all_catalogs())
+
+    def test_update_catalog_src(self):
+        self.test_catalog_collection_index.insert_catalog(
+            "myName1",
+            "mySrc1",
+            "myPath1",
+            deletable=True,
+            branch_name=None,
+            catalog_type="direct",
+        )
+        catalog_id = self.test_catalog_collection_index.insert_catalog(
+            "myName2",
+            "mySrc2",
+            "myPath2",
+            deletable=True,
+            branch_name=None,
+            catalog_type="direct",
+        )
+        self.test_catalog_collection_index.insert_solution(
+            catalog_id, self.get_solution_dict()
+        )
+
+        self.test_catalog_collection_index.update_catalog_src(catalog_id, "myNewSrc2")
+
+        r = self.get_test_catalog_dict(1)
+        r2 = self.get_test_catalog_dict(2)
+        r2["src"] = "myNewSrc2"
+        self.assertEqual([r, r2], self.test_catalog_collection_index.get_all_catalogs())
+        # the solutions of the catalog stay
+        self.assertEqual(
+            1,
+            len(
+                self.test_catalog_collection_index.get_solutions_by_catalog(catalog_id)
+            ),
+        )
 
     def test_remove_catalog(self):
         self.assertEqual([], self.test_catalog_collection_index.get_all_catalogs())
@@ -385,6 +538,7 @@ class TestCollectionIndex(TestUnitCoreCommon):
             "description": "myDescription",
         }
         arg_minimal = {"name": "myName", "description": "myDescription"}
+        arg_no_description = {"name": "myName"}
 
         # assert
         self.assertIsNone(self.test_catalog_collection_index._exists_argument(arg, 1))
@@ -397,11 +551,15 @@ class TestCollectionIndex(TestUnitCoreCommon):
         self.assertIsNone(
             self.test_catalog_collection_index._exists_argument(arg_minimal, 1)
         )
+        self.assertIsNone(
+            self.test_catalog_collection_index._exists_argument(arg_no_description, 1)
+        )
 
         r1 = self.test_catalog_collection_index._insert_argument(arg, 1)
         r2 = self.test_catalog_collection_index._insert_argument(arg_no_type, 1)
         r3 = self.test_catalog_collection_index._insert_argument(arg_no_default, 1)
         r4 = self.test_catalog_collection_index._insert_argument(arg_minimal, 1)
+        r5 = self.test_catalog_collection_index._insert_argument(arg_no_description, 1)
 
         self.assertEqual(
             r1, self.test_catalog_collection_index._exists_argument(arg, 1)
@@ -414,6 +572,10 @@ class TestCollectionIndex(TestUnitCoreCommon):
         )
         self.assertEqual(
             r4, self.test_catalog_collection_index._exists_argument(arg_minimal, 1)
+        )
+        self.assertEqual(
+            r5,
+            self.test_catalog_collection_index._exists_argument(arg_no_description, 1),
         )
 
     def test__exists_custom(self):
@@ -664,6 +826,89 @@ class TestCollectionIndex(TestUnitCoreCommon):
         # assert
         self.assertEqual([argument1, argument2], r)
 
+    def test_get_solution_arguments_with_falsy_default_or_required(self):
+        self.test_catalog_collection_index.insert_catalog(
+            "myName1", "mySrc1", "myPath1", True, None, "direct"
+        )
+        # the same arguments are already stored without default and required, e.g. for an earlier version
+        types = ["integer", "boolean", "string", "float", "file"]
+        args = [
+            {"name": "a%s" % i, "type": t, "description": "d"}
+            for i, t in enumerate(types, start=1)
+        ]
+        self.test_catalog_collection_index.insert_solution(
+            1,
+            self._get_solution_attrs(1, "grp", "name", "0.1.0", None, {"args": args}),
+        )
+        args2 = [
+            {"name": "a1", "type": "integer", "description": "d", "default": 0},
+            {"name": "a2", "type": "boolean", "description": "d", "default": False},
+            {"name": "a3", "type": "string", "description": "d", "default": ""},
+            {"name": "a4", "type": "float", "description": "d", "default": 0.0},
+            {"name": "a5", "type": "file", "description": "d", "required": True},
+        ]
+        collection_id2 = self.test_catalog_collection_index.insert_solution(
+            1,
+            self._get_solution_attrs(2, "grp", "name", "0.2.0", None, {"args": args2}),
+        )
+
+        # call
+        solution = self.test_catalog_collection_index.get_solution_by_collection_id(
+            collection_id2
+        )
+
+        # assert
+        self.assertEqual(
+            [
+                {"name": "a1", "type": "integer", "description": "d", "default": 0},
+                {"name": "a2", "type": "boolean", "description": "d", "default": False},
+                {"name": "a3", "type": "string", "description": "d", "default": ""},
+                {"name": "a4", "type": "float", "description": "d", "default": 0.0},
+                {"name": "a5", "type": "file", "description": "d", "required": True},
+            ],
+            solution.setup()["args"],
+        )
+
+    def test_get_solution_argument_with_default_none(self):
+        self.test_catalog_collection_index.insert_catalog(
+            "myName1", "mySrc1", "myPath1", True, None, "direct"
+        )
+        args = [
+            {"name": "a1", "type": "integer", "description": "d", "default": None},
+            {
+                "name": "a2",
+                "type": "integer",
+                "description": "d",
+                "default": None,
+                "required": True,
+            },
+            {"name": "a3", "type": "integer", "description": "d"},
+        ]
+        collection_id = self.test_catalog_collection_index.insert_solution(
+            1,
+            self._get_solution_attrs(1, "grp", "name", "0.1.0", None, {"args": args}),
+        )
+
+        # call
+        solution = self.test_catalog_collection_index.get_solution_by_collection_id(
+            collection_id
+        )
+
+        # assert: the default None is stored as what it means, not required
+        self.assertEqual(
+            [
+                {
+                    "name": "a1",
+                    "type": "integer",
+                    "description": "d",
+                    "required": False,
+                },
+                {"name": "a2", "type": "integer", "description": "d", "required": True},
+                {"name": "a3", "type": "integer", "description": "d"},
+            ],
+            solution.setup()["args"],
+        )
+
     def test__get_custom_by_solution(self):
         self.test_catalog_collection_index.insert_catalog(
             "myName1", "mySrc1", "myPath1", True, None, "direct"
@@ -826,6 +1071,96 @@ class TestCollectionIndex(TestUnitCoreCommon):
         self.assertEqual([], r1)
         self.assertListEqual(expected, r2)
 
+    def _insert_two_versions_in_two_catalogs(self):
+        """Insert grp:name:0.1.0 and grp:name:0.2.0 into the catalogs 1 and 2."""
+        for solution_id, (catalog_id, version) in enumerate(
+            [(1, "0.1.0"), (1, "0.2.0"), (2, "0.1.0"), (2, "0.2.0")]
+        ):
+            self.test_catalog_collection_index.insert_solution(
+                catalog_id,
+                self._get_solution_attrs(
+                    solution_id, "grp", "name", version, attrs={"description": "d"}
+                ),
+            )
+
+    def _descriptions(self):
+        """Map (catalog_id, version) to the description of each solution entry."""
+        return {
+            (r._internal["catalog_id"], r._setup["version"]): r._setup["description"]
+            for r in self.test_catalog_collection_index.get_all_solutions()
+        }
+
+    def test_update_solution_identity_in_attrs(self):
+        self._insert_two_versions_in_two_catalogs()
+
+        # the attributes of a loaded solution hold its group, name and version,
+        # matching the entry: only that entry changes
+        self.test_catalog_collection_index.update_solution(
+            1,
+            Coordinates("grp", "name", "0.1.0"),
+            {
+                "catalog_id": 1,
+                "group": "grp",
+                "name": "name",
+                "version": "0.1.0",
+                "description": "updated",
+            },
+            CollectionIndex.get_collection_column_keys(),
+        )
+
+        self.assertEqual(
+            {
+                (1, "0.1.0"): "updated",
+                (1, "0.2.0"): "d",
+                (2, "0.1.0"): "d",
+                (2, "0.2.0"): "d",
+            },
+            self._descriptions(),
+        )
+
+    def test_update_solution_other_identity_in_attrs(self):
+        self._insert_two_versions_in_two_catalogs()
+
+        # an update does not move an entry, and the attributes must not
+        # redirect it to another entry (they used to replace the WHERE values)
+        for other_identity in [
+            {"version": "0.2.0"},
+            {"name": "renamed"},
+            {"group": "other"},
+            {"catalog_id": 2},
+        ]:
+            with self.subTest(other_identity=other_identity):
+                with self.assertRaises(ValueError):
+                    self.test_catalog_collection_index.update_solution(
+                        1,
+                        Coordinates("grp", "name", "0.1.0"),
+                        dict(other_identity, description="updated"),
+                        CollectionIndex.get_collection_column_keys(),
+                    )
+
+                self.assertNotIn("updated", self._descriptions().values())
+
+    def test_update_solution_failed_write(self):
+        # e.g. "database is locked": the failed transaction is not kept
+        # on the cached connection, and nothing is committed
+        cursor = MagicMock()
+        cursor.execute.side_effect = sqlite3.OperationalError("database is locked")
+        self.test_catalog_collection_index.get_cursor = MagicMock(return_value=cursor)
+        close_current_connection = MagicMock()
+        self.test_catalog_collection_index.close_current_connection = (
+            close_current_connection
+        )
+
+        with self.assertRaises(sqlite3.OperationalError):
+            self.test_catalog_collection_index.update_solution(
+                1,
+                Coordinates("grp", "name", "0.1.0"),
+                {"last_execution": datetime(2026, 10, 9).isoformat()},
+                ["last_execution"],
+            )
+
+        close_current_connection.assert_called_once_with(commit=False)
+
     @unittest.skip("Needs to be implemented!")
     def test_get_solutions_by_catalog(self):
         pass
@@ -859,6 +1194,22 @@ class TestCollectionIndex(TestUnitCoreCommon):
         self.assertEqual(3, r._internal["collection_id"])
         self.assertEqual(3, r._internal["solution_id"])
         self.assertDictEqual(expected, r._setup)
+
+    def test_get_solution_argument_without_description(self):
+        self.test_catalog_collection_index.insert_solution(
+            "cat1",
+            self._get_solution_attrs(
+                1, "grp1", "name1", "version1", None, {"args": [{"name": "a1"}]}
+            ),
+        )
+
+        # call
+        r = self.test_catalog_collection_index.get_solution_by_collection_id(1)
+
+        # assert
+        self.assertEqual(
+            [{"name": "a1", "type": None, "description": ""}], r._setup["args"]
+        )
 
     @unittest.skip("Needs to be implemented!")
     def test_get_solution_by_doi(self):
@@ -1130,40 +1481,140 @@ class TestCollectionIndex(TestUnitCoreCommon):
             CatalogIndex.get_solution_column_keys(),
         )
 
+        # assert: nothing to update, last_execution stays untouched
         r = self.test_catalog_collection_index.get_solution_by_collection_id(2)
-        self.assertIsNotNone(r._internal["last_execution"])
+        self.assertIsNone(r._internal["last_execution"])
 
-    def test_add_or_replace_solution(self):
-        self.test_catalog_collection_index.insert_catalog(
-            "myName1", "mySrc1", "myPath1", True, None, "direct"
-        )
+    def test_update_solution_keeps_last_execution(self):
         self.test_catalog_collection_index.insert_solution(
-            1, self._get_solution_attrs(1, "grp1", "name1", "version1")
+            1, self._get_solution_attrs(1, "grp", "name", "version")
+        )
+        coordinates = Coordinates("grp", "name", "version")
+        last_execution = datetime(2021, 6, 14, 4, 42, 59).isoformat()
+        self.test_catalog_collection_index.update_solution(
+            1,
+            coordinates,
+            {"last_execution": last_execution},
+            CollectionIndex.get_collection_column_keys(),
         )
 
-        # mocks
-        get_solution_by_catalog_grp_name_version = MagicMock()
-        self.test_catalog_collection_index.get_solution_by_catalog_grp_name_version = (
-            get_solution_by_catalog_grp_name_version
-        )
-
-        remove_solution = MagicMock()
-        self.test_catalog_collection_index.remove_solution = remove_solution
-
-        insert_solution = MagicMock()
-        self.test_catalog_collection_index.insert_solution = insert_solution
-
-        # call
-        self.test_catalog_collection_index.add_or_replace_solution(
-            1, Coordinates("grp1", "name1", "version1"), self.get_solution_dict()
+        # call - the attributes SolutionHandler.set_installed writes
+        install_date = datetime(2022, 1, 2, 3, 4, 5).isoformat()
+        self.test_catalog_collection_index.update_solution(
+            1,
+            coordinates,
+            {
+                "installed": 1,
+                "installation_unfinished": 0,
+                "install_date": install_date,
+            },
+            CollectionIndex.get_collection_column_keys(),
         )
 
         # assert
-        insert_solution.assert_called_once_with(1, self.get_solution_dict(), close=True)
-        get_solution_by_catalog_grp_name_version.assert_called_once()
-        remove_solution.assert_called_once_with(
-            1, Coordinates("grp1", "name1", "version1"), close=False
+        r = self.test_catalog_collection_index.get_solution_by_collection_id(1)
+        self.assertEqual(1, r._internal["installed"])
+        self.assertEqual(install_date, r._internal["install_date"])
+        self.assertEqual(last_execution, r._internal["last_execution"])
+
+    def test_update_solution_last_execution(self):
+        self.test_catalog_collection_index.insert_solution(
+            1, self._get_solution_attrs(1, "grp", "name", "version")
         )
+        last_execution = datetime(2021, 6, 14, 4, 42, 59).isoformat()
+
+        # call
+        self.test_catalog_collection_index.update_solution(
+            1,
+            Coordinates("grp", "name", "version"),
+            {"last_execution": last_execution},
+            CollectionIndex.get_collection_column_keys(),
+        )
+
+        # assert
+        r = self.test_catalog_collection_index.get_solution_by_collection_id(1)
+        self.assertEqual(last_execution, r._internal["last_execution"])
+        self.assertEqual(0, r._internal["installed"])
+
+    def test_add_or_replace_solution(self):
+        index = self.test_catalog_collection_index
+        index.insert_catalog("myName1", "mySrc1", "myPath1", True, None, "direct")
+        coordinates = Coordinates("grp1", "name1", "version1")
+
+        # not in the collection: added
+        index.add_or_replace_solution(
+            1, coordinates, self._get_solution_attrs(1, "grp1", "name1", "version1")
+        )
+        self.assertEqual(1, len(index.get_all_solutions()))
+
+        # in the collection: replaced
+        index.add_or_replace_solution(
+            1,
+            coordinates,
+            self._get_solution_attrs(
+                1, "grp1", "name1", "version1", attrs={"title": "t2", "tags": ["t2"]}
+            ),
+        )
+        solutions = index.get_all_solutions()
+        self.assertEqual(1, len(solutions))
+        self.assertEqual("t2", solutions[0].setup()["title"])
+        self.assertEqual(["t2"], solutions[0].setup()["tags"])
+
+    def test_add_or_replace_solution_keeps_collection_id_and_children(self):
+        index = self.test_catalog_collection_index
+        index.insert_catalog("myName1", "mySrc1", "myPath1", True, None, "direct")
+        index.insert_solution(1, self._get_solution_attrs(1, "grp", "parent", "v1"))
+        index.insert_solution(1, self._get_solution_attrs(2, "grp", "replaced", "v1"))
+        index.insert_solution(1, self._get_solution_attrs(3, "grp", "child", "v1"))
+        index.insert_collection_collection(1, 2, 1, 1)  # replaced has parent 1
+        index.insert_collection_collection(2, 3, 1, 1)  # child has parent replaced
+
+        # call
+        index.add_or_replace_solution(
+            1,
+            Coordinates("grp", "replaced", "v1"),
+            self._get_solution_attrs(
+                2, "grp", "replaced", "v1", attrs={"title": "changed"}
+            ),
+        )
+
+        # assert
+        replaced = index.get_solution_by_catalog_grp_name_version(
+            1, Coordinates("grp", "replaced", "v1")
+        )
+        self.assertEqual(2, replaced.internal()["collection_id"])
+        self.assertEqual("changed", replaced.setup()["title"])
+        self.assertEqual(2, index.get_parent_of_solution(3).internal()["collection_id"])
+        # its own link to a parent goes with the old entry
+        self.assertIsNone(index.get_parent_of_solution(2))
+        self.assertEqual(4, index.next_id("collection"))
+
+    def test_remove_solution_removes_links_of_its_children(self):
+        index = self.test_catalog_collection_index
+        index.insert_catalog("myName1", "mySrc1", "myPath1", True, None, "direct")
+        index.insert_solution(1, self._get_solution_attrs(1, "grp", "parent", "v1"))
+        index.insert_solution(1, self._get_solution_attrs(2, "grp", "child", "v1"))
+        index.insert_collection_collection(1, 2, 1, 1)  # child has parent 1
+
+        # call
+        index.remove_solution(1, Coordinates("grp", "parent", "v1"))
+
+        # assert
+        self.assertIsNone(index.get_parent_of_solution(2))
+        self.assertTrue(index.is_table_empty("collection_collection"))
+
+    def test_get_parent_of_solution_ignores_link_to_missing_parent(self):
+        index = self.test_catalog_collection_index
+        index.insert_catalog("myName1", "mySrc1", "myPath1", True, None, "direct")
+        index.insert_solution(1, self._get_solution_attrs(1, "grp", "parent", "v1"))
+        index.insert_solution(1, self._get_solution_attrs(2, "grp", "child", "v1"))
+        # left behind by older album versions, which replaced or removed the parent
+        index.insert_collection_collection(99, 2, 1, 1)
+
+        self.assertIsNone(index.get_parent_of_solution(2))
+
+        index.insert_collection_collection(1, 2, 1, 1)
+        self.assertEqual(1, index.get_parent_of_solution(2).internal()["collection_id"])
 
     def test_remove_solution(self):
         self.is_empty_or_full(empty=True)

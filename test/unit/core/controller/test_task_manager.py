@@ -1,7 +1,9 @@
-import platform
 import sys
 import threading
 import unittest.mock
+import warnings
+from pathlib import Path
+from test.unit.test_unit_core_common import TestUnitCoreCommon
 from threading import Thread
 from time import sleep
 
@@ -10,7 +12,6 @@ from album.core.model.task import Task
 from album.environments.utils import subcommand
 from album.runner import album_logging
 from album.runner.album_logging import LogLevel
-from test.unit.test_unit_core_common import TestUnitCoreCommon
 
 
 class TestTaskManager(TestUnitCoreCommon):
@@ -75,7 +76,7 @@ class TestTaskManager(TestUnitCoreCommon):
         for record in task.log_handler().records():
             print(record.msg)
         self.assertTrue(len(task.log_handler().records()) > 1)
-        if platform.system() == "Windows":
+        if sys.platform == "win32":
             self.assertEqual(
                 "Running command: cmd /c echo test...",
                 task.log_handler().records()[0].msg,
@@ -85,6 +86,30 @@ class TestTaskManager(TestUnitCoreCommon):
                 "Running command: echo test...", task.log_handler().records()[0].msg
             )
         self.assertEqual("test", task.log_handler().records()[1].msg)
+
+    def test__initialize_workers_starts_daemon_threads(self):
+        task_manager = TaskManager()
+        threads_before = set(threading.enumerate())
+
+        # call
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            task_manager._initialize_workers()
+
+        # assert
+        workers = [t for t in threading.enumerate() if t not in threads_before]
+        self.assertEqual(task_manager.num_fetch_threads, len(workers))
+        self.assertTrue(all(worker.daemon for worker in workers))
+        # daemon=True instead of the deprecated Thread.setDaemon()
+        self.assertEqual(
+            [],
+            [
+                str(w.message)
+                for w in caught
+                if issubclass(w.category, DeprecationWarning)
+                and Path(w.filename).name == "task_manager.py"
+            ],
+        )
 
     def _log_to_active_logger_via_thread(self):
         thread = Thread(
@@ -96,7 +121,7 @@ class TestTaskManager(TestUnitCoreCommon):
 
     @staticmethod
     def _log_to_active_logger_via_subcommand():
-        if platform.system() == "Windows":
+        if sys.platform == "win32":
             subcommand.run(["cmd", "/c", "echo test"])
         else:
             subcommand.run(["echo", "test"])

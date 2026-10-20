@@ -1,8 +1,15 @@
+import io
+import os
+import tempfile
 import unittest
+import zipfile
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from album.core.utils.operations.url_operations import (
-    is_url,
+    download,
     is_git_ssh_address,
+    is_url,
 )
 from test.unit.test_unit_core_common import TestUnitCoreCommon
 
@@ -13,6 +20,7 @@ class TestUrlOperations(TestUnitCoreCommon):
         self.downloadable_url = "https://www.google.com/favicon.ico"
         self.html_url = "https://www.google.com/"
         self.wrong_url = "https://www.google.com/favicon.i"
+        self.download_base = Path(self.tmp_dir.name).joinpath("download")
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -46,7 +54,88 @@ class TestUrlOperations(TestUnitCoreCommon):
         self.assertTrue(all([u1, u2, u3, u4, u5, u6, u7, u8]))
         self.assertFalse(all([u9, u10, u11, u12]))
 
-    @unittest.skip("Needs to be implemented!")
+    @staticmethod
+    def _mock_session(status_code: int, content: bytes) -> MagicMock:
+        """Build a session mock answering every GET with the given response."""
+        response = MagicMock()
+        response.status_code = status_code
+        response.content = content
+        session = MagicMock()
+        session.__enter__.return_value = session
+        session.get.return_value = response
+        return session
+
+    def _download(self, session: MagicMock) -> tuple[Path, list[int]]:
+        """Run download() against a session mock, recording the fds from mkstemp."""
+        real_mkstemp = tempfile.mkstemp
+        fds = []
+
+        def recording_mkstemp(*args, **kwargs):
+            fd, name = real_mkstemp(*args, **kwargs)
+            fds.append(fd)
+            return fd, name
+
+        with patch(
+            "album.core.utils.operations.url_operations._get_session",
+            return_value=session,
+        ):
+            with patch(
+                "album.core.utils.operations.url_operations.tempfile.mkstemp",
+                side_effect=recording_mkstemp,
+            ):
+                path = download(self.downloadable_url, str(self.download_base))
+
+        return path, fds
+
+    def _assert_closed(self, fds: list[int]) -> None:
+        for fd in fds:
+            with self.assertRaises(OSError):
+                os.fstat(fd)
+
     def test_download(self):
-        # Todo: implement
-        pass
+        content = b"print('hello')"
+        session = self._mock_session(200, content)
+
+        path, fds = self._download(session)
+
+        session.get.assert_called_once_with(
+            self.downloadable_url, allow_redirects=True, stream=True
+        )
+        self.assertEqual(self.download_base, path.parent)
+        self.assertNotEqual(".zip", path.suffix)
+        self.assertEqual(content, path.read_bytes())
+        self.assertEqual(1, len(fds))
+        self._assert_closed(fds)
+        # fails on Windows while a descriptor of the file is still open
+        path.unlink()
+        self.assertFalse(path.exists())
+
+    def test_download_zip(self):
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+            zip_file.writestr("solution.py", "print('hello')")
+        session = self._mock_session(200, zip_buffer.getvalue())
+
+        path, fds = self._download(session)
+
+        self.assertEqual(self.download_base, path.parent)
+        self.assertEqual(".zip", path.suffix)
+        self.assertTrue(zipfile.is_zipfile(path))
+        self.assertEqual(2, len(fds))
+        self._assert_closed(fds)
+        # both temporary files, the plain one and its ".zip" copy, must be deletable
+        for tmp_file in self.download_base.iterdir():
+            tmp_file.unlink()
+        self.assertEqual([], list(self.download_base.iterdir()))
+
+    def test_download_not_found(self):
+        session = self._mock_session(404, b"<html>Not Found</html>")
+
+        with self.assertRaises(ConnectionError):
+            self._download(session)
+
+        self.assertEqual([], list(self.download_base.iterdir()))
+
+
+if __name__ == "__main__":
+    unittest.main()

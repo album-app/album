@@ -1,7 +1,7 @@
 """File operations module."""
+
 import json
 import os
-import platform
 import random
 import shutil
 import sys
@@ -49,10 +49,10 @@ def get_dict_entry(
     """
     try:
         val = d[key]
-    except KeyError:
+    except KeyError as err:
         val = None
         if not allow_none:
-            raise KeyError(message)
+            raise KeyError(message) from err
 
     return val
 
@@ -64,7 +64,7 @@ def write_dict_to_json(
     json_file = Path(json_file)
     create_path_recursively(json_file.parent)
 
-    with open(json_file, "w+") as json_f:
+    with open(json_file, "w+", encoding="utf-8") as json_f:
         json_f.write(json.dumps(d))
 
     return True
@@ -74,7 +74,7 @@ def get_dict_from_json(json_file: Union[str, Path]) -> Dict[str, Any]:
     """Read dictionary from JSON file."""
     json_file = Path(json_file)
 
-    with open(json_file) as json_f:
+    with open(json_file, encoding="utf-8") as json_f:
         d = json.load(json_f)
 
     return d
@@ -136,7 +136,7 @@ def copy_in_file(file_content: str, file_path: Union[str, Path]) -> Path:
     create_path_recursively(file_path.parent)
     if file_path.is_file():
         file_path.unlink()
-    with open(file_path, "w") as script_file:
+    with open(file_path, "w", encoding="utf-8") as script_file:
         script_file.write(file_content)
     return file_path
 
@@ -232,18 +232,16 @@ def construct_cache_link_target(
         Path to the resolved link.
 
     """
-    operation_system = platform.system().lower()
     root = point_to_base.joinpath(point_to)
 
-    if "windows" in operation_system:
+    if sys.platform == "win32":
         point_from_ = str(point_from) + ".lnk"
         shortcut = Path(point_from_)
         if shortcut.exists():
             return _get_shortcut_target(shortcut)
         if create:
-            point_to = root.joinpath(_next_free_pointer_number(root))
+            point_to = _create_free_pointer_folder(root)
 
-            create_path_recursively(point_to)
             create_path_recursively(shortcut.parent)
 
             _create_shortcut(shortcut, target=point_to)
@@ -258,34 +256,46 @@ def construct_cache_link_target(
 
             return r
         if create:
-            point_to = root.joinpath(_next_free_pointer_number(root))
+            point_to = _create_free_pointer_folder(root)
 
-            create_path_recursively(point_to)
             create_path_recursively(Path(point_from).parent)
 
             # point_from -> point_to
-            os.symlink(str(point_to), point_from, target_is_directory=True)
+            try:
+                os.symlink(str(point_to), point_from, target_is_directory=True)
+            except FileExistsError:
+                if not os.path.islink(point_from):
+                    raise
+                # another album process created the same link at the same time
+                force_remove(point_to)
+                return Path(point_from).resolve()
             return point_to.resolve()
 
     return Path("")
 
 
-def _next_free_pointer_number(root: Union[str, Path]) -> str:
-    """Determine the next free point_to number."""
+def _create_free_pointer_folder(root: Union[str, Path]) -> Path:
+    """Create the point_to folder with the lowest free number in root.
+
+    Creating the folder claims its number, so album processes creating links at the
+    same time never point them to the same folder.
+    """
     root = Path(root)
+    create_path_recursively(root)
 
-    # determine next free point_to number
     i = 0
-    while root.joinpath("%s" % i).exists():
-        i += 1
-
-    return str(i)
+    while True:
+        point_to = root.joinpath("%s" % i)
+        try:
+            point_to.mkdir()
+            return point_to
+        except FileExistsError:  # in use, or just claimed by another album process
+            i += 1
 
 
 def get_link_target(link: Union[str, Path]) -> Optional[Path]:
     """Return the target of a link."""
-    operation_system = platform.system().lower()
-    if "windows" in operation_system:
+    if sys.platform == "win32":
         # pylnk3 is windows only
         link_ = str(link) + ".lnk"
         shortcut = Path(link_)

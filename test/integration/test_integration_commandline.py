@@ -157,7 +157,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
         self.assertTrue(isinstance(e.exception.code, LookupError))
 
         self.assertIn("ERROR", self.get_logs_as_string())
-        self.assertIn("Solution not found", e.exception.code.args[0])
+        self.assertIn("is not installed", e.exception.code.args[0])
 
     def test_remove_solution_not_installed(self):
         sys.argv = ["", "uninstall", self.get_test_solution_path()]
@@ -167,7 +167,7 @@ class TestIntegrationCommandline(TestIntegrationCoreCommon):
         self.assertTrue(isinstance(e.exception.code, LookupError))
 
         self.assertIn("ERROR", self.get_logs_as_string())
-        self.assertIn("Solution not found", e.exception.code.args[0])
+        self.assertIn("is not installed", e.exception.code.args[0])
 
     def test_info(self):
         self.fake_install(

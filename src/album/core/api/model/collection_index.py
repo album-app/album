@@ -62,7 +62,11 @@ class ICollectionIndex(IDatabase):
         catalog_type: str,
         close: bool = True,
     ) -> int:
-        """Insert a catalog into the collection index."""
+        """Insert a catalog into the collection index.
+
+        Raises a RuntimeError if the collection already contains a catalog with this name or
+        source.
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -96,6 +100,11 @@ class ICollectionIndex(IDatabase):
     @abstractmethod
     def get_all_catalogs(self, close: bool = True) -> List[Dict[str, Any]]:
         """Return all catalogs from the collection index."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def update_catalog_src(self, catalog_id: int, src: str, close: bool = True) -> None:
+        """Set the source of a catalog in the collection index."""
         raise NotImplementedError
 
     @abstractmethod

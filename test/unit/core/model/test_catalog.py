@@ -31,7 +31,7 @@ class TestCatalog(TestCatalogAndCollectionCommon):
             d = self.get_solution_dict()
 
             for key in ["group", "name", "version", "doi", "deposit_id"]:
-                d[key] = "%s%s" % (key, str(i))
+                d[key] = f"{key}{i}"
 
             solution = Solution(d)
 
@@ -53,6 +53,34 @@ class TestCatalog(TestCatalogAndCollectionCommon):
         self.assertEqual(new_catalog._name, "test")
         self.assertDictEqual(
             self.get_catalog_meta_dict("test"), new_catalog.get_meta_information()
+        )
+
+    def test_is_cache_no_src(self):
+        path = Path(self.tmp_dir.name).joinpath("no_src")
+        path.mkdir()
+
+        # a catalog without a source (default "" or None) only lives in its path
+        for src in ["", None]:
+            with self.subTest(src=src):
+                self.assertTrue(Catalog(None, "n", str(path), src=src).is_cache())
+        self.assertTrue(Catalog(None, "n", str(path)).is_cache())
+        self.assertTrue(Catalog(None, "n", str(path.joinpath("missing"))).is_cache())
+
+    def test_is_cache_src_is_path(self):
+        path = Path(self.tmp_dir.name).joinpath("src_is_path")
+        path.mkdir()
+
+        self.assertTrue(Catalog(None, "n", str(path), src=str(path)).is_cache())
+
+    def test_is_cache_other_src(self):
+        path = Path(self.tmp_dir.name).joinpath("catalog_path")
+        path.mkdir()
+        src = Path(self.tmp_dir.name).joinpath("catalog_src")
+        src.mkdir()
+
+        self.assertFalse(Catalog(None, "n", str(path), src=str(src)).is_cache())
+        self.assertFalse(
+            Catalog(None, "n", str(path), src="https://gitlab.com/x/y.git").is_cache()
         )
 
     @unittest.skip("Needs to be implemented!")
@@ -98,7 +126,7 @@ class TestCatalog(TestCatalogAndCollectionCommon):
 
         d = {}
         for key in CatalogIndex.get_solution_column_keys():
-            d[key] = "%s%s" % (key, "new")
+            d[key] = "{}{}".format(key, "new")
 
         solution = Solution(d)
 
@@ -115,7 +143,7 @@ class TestCatalog(TestCatalogAndCollectionCommon):
 
         d = {}
         for key in CatalogIndex.get_solution_column_keys():
-            d[key] = "%s%s" % (key, "0")
+            d[key] = "{}{}".format(key, "0")
 
         solution = Solution(d)
 
@@ -134,7 +162,7 @@ class TestCatalog(TestCatalogAndCollectionCommon):
 
         d = {}
         for key in CatalogIndex.get_solution_column_keys():
-            d[key] = "%s%s" % (key, "0")
+            d[key] = "{}{}".format(key, "0")
 
         solution = Solution(d)
 
@@ -150,7 +178,7 @@ class TestCatalog(TestCatalogAndCollectionCommon):
 
         d = {}
         for key in CatalogIndex.get_solution_column_keys():
-            d[key] = "%s%s" % (key, "0")
+            d[key] = "{}{}".format(key, "0")
 
         # call
         self.catalog.remove(dict_to_coordinates(d))
@@ -164,7 +192,7 @@ class TestCatalog(TestCatalogAndCollectionCommon):
 
         d = {}
         for key in CatalogIndex.get_solution_column_keys():
-            d[key] = "%s%s" % (key, "new")
+            d[key] = "{}{}".format(key, "new")
 
         # call
         self.catalog.remove(dict_to_coordinates(d))
@@ -216,6 +244,53 @@ class TestCatalog(TestCatalogAndCollectionCommon):
 
         self.assertFalse(blocking_file.exists())
         self.assertTrue(dl_path.stat().st_size > 0)
+
+    @patch("album.core.model.catalog.download_repository")
+    def test_retrieve_catalog_closes_repo_on_error(self, download_repository_mock):
+        # prepare
+        repo_mock = MagicMock()
+        download_repository_mock.return_value = repo_mock
+        dl_path = Path(self.tmp_dir.name).joinpath("test")
+
+        # call
+        with self.assertRaises(ValueError) as context:
+            with self.catalog.retrieve_catalog(dl_path) as repo:
+                self.assertIs(repo_mock, repo)
+                raise ValueError("error inside the with body")
+
+        # assert
+        self.assertEqual("error inside the with body", str(context.exception))
+        repo_mock.close.assert_called_once()
+        download_repository_mock.assert_called_once_with(
+            str(self.catalog._src), str(dl_path), force_download=False, update=True
+        )
+
+    @patch("album.core.model.catalog.retrieve_index_files_from_src")
+    @patch("album.core.model.catalog.download_repository")
+    def test_retrieve_catalog_no_src(
+        self, download_repository_mock, retrieve_index_files_from_src_mock
+    ):
+        # a catalog without a source, its path does not exist (yet)
+        catalog = Catalog(
+            None, "n", str(Path(self.tmp_dir.name).joinpath("no_src_missing"))
+        )
+
+        # call: there is nothing to clone
+        with self.assertRaises(RuntimeError) as context, catalog.retrieve_catalog():
+            pass
+
+        # assert
+        self.assertEqual(
+            "Cannot retrieve a cache catalog as no source exists!",
+            str(context.exception),
+        )
+        download_repository_mock.assert_not_called()
+
+        # call: there is no index to download
+        self.assertFalse(catalog.update_index_cache(self.tmp_dir.name))
+
+        # assert
+        retrieve_index_files_from_src_mock.assert_not_called()
 
     def test_get_meta_information(self):
         self.assertEqual(

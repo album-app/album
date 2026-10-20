@@ -15,7 +15,7 @@ from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.model.mmversion import MMVersion
 from album.core.model.resolve_result import ResolveResult
-from album.core.utils.operations.file_operations import write_dict_to_json
+from album.core.utils.operations.file_operations import check_zip, write_dict_to_json
 from album.core.utils.operations.resolve_operations import (
     check_doi,
     check_file_or_url,
@@ -23,6 +23,8 @@ from album.core.utils.operations.resolve_operations import (
     get_attributes_from_string,
     get_doi_from_input,
 )
+from album.core.utils.operations.solution_operations import version_sort_key
+from album.core.utils.operations.url_operations import is_url
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 
@@ -41,12 +43,9 @@ class CollectionManager(ICollectionManager):
         self.close()
 
     def close(self) -> None:
-        if self.solution_handler is not None:
-            del self.solution_handler
-            self.solution_handler = SolutionHandler(self.album)
-        if self.catalog_handler is not None:
-            del self.catalog_handler
-            self.catalog_handler = CatalogHandler(self.album)
+        # Only the collection index holds a resource (the database). The handlers
+        # keep nothing but the controller, so they stay and work again after the
+        # next load_or_create().
         if self.catalog_collection is not None:
             self.catalog_collection.close()
             self.catalog_collection = None
@@ -158,25 +157,29 @@ class CollectionManager(ICollectionManager):
 
         db_entry = resolve_result.database_entry()
 
+        # a solution without a collection entry was never installed either
+        not_installed = (
+            'Solution "%s" is not installed. "album install %s" installs it.'
+        )
         if not db_entry:
-            raise LookupError("Solution not found in database!")
+            raise LookupError(not_installed % (resolve_solution, resolve_solution))
 
         if not db_entry.internal()["installed"]:
-            raise ValueError(
-                "Solution seems not to be installed! Please install solution first!"
-            )
+            raise ValueError(not_installed % (resolve_solution, resolve_solution))
 
         return resolve_result
 
     def resolve_installed_and_load(self, resolve_solution: str) -> ICollectionSolution:
         resolve_result = self.resolve_installed(resolve_solution)
+        self.load_resolve_result(resolve_result)
 
+        return resolve_result
+
+    def load_resolve_result(self, resolve_result: ICollectionSolution) -> None:
         loaded_solution = self.album.state_manager().load(resolve_result.path())
         self.solution_handler.set_cache_paths(loaded_solution, resolve_result.catalog())
 
         resolve_result.set_loaded_solution(loaded_solution)
-
-        return resolve_result
 
     def resolve_and_load(self, resolve_solution: str) -> ICollectionSolution:
         resolve_result = self._resolve(resolve_solution)
@@ -245,8 +248,10 @@ class CollectionManager(ICollectionManager):
         resolve_result = self._resolve(str_input)
 
         if not Path(resolve_result.path()).exists():
-            self.solution_handler.retrieve_solution(
-                resolve_result.catalog(), resolve_result.coordinates()
+            self._retrieve_missing_solution(
+                resolve_result.catalog(),
+                resolve_result.coordinates(),
+                resolve_result.path(),
             )
 
         return resolve_result
@@ -255,17 +260,20 @@ class CollectionManager(ICollectionManager):
         str_input = str(str_input)
 
         # A single-file solution is when the user points directly at a .py
-        # file (not a zip, directory, URL, or DOI).  Only single files may
+        # file, on disk or by a URL (not a zip, directory, or DOI).  Only single files may
         # have an arbitrary name; inside a folder / zip the file is always
         # called solution.py.  Determine this *before* check_file_or_url
         # transforms the path (prepare_path now always returns a file path).
         _input_path = Path(str_input)
-        single_file = _input_path.is_file() and not _input_path.is_dir()
+        single_file = _input_path.is_file() and not check_zip(_input_path)
 
-        # always first resolve outside any catalog, excluding a DOI which should be first resolved inside a catalog
-        path = check_file_or_url(
-            str_input, self.album.configuration().cache_path_download()
-        )
+        # always first resolve outside any catalog, excluding a DOI which should be first resolved inside a catalog.
+        # A download or an unpacked zip lives in the temporary folder, removed when album closes
+        tmp_path = self.album.configuration().tmp_path()
+        path = check_file_or_url(str_input, tmp_path)
+        if path and is_url(str_input):
+            # a downloaded zip is unpacked into a folder, a downloaded .py file stays one
+            single_file = path.parent.samefile(tmp_path)
 
         doi = get_doi_from_input(str_input)
         if path:
@@ -327,6 +335,10 @@ class CollectionManager(ICollectionManager):
                 "or point to a valid file or folder! Aborting..." % str_input
             )
 
+        kind = "single file" if single_file else "solution folder"
+        module_logger().debug(
+            f'Resolved "{str_input}" to {path} ({kind}, catalog "{catalog.name()}")...'
+        )
         resolve = ResolveResult(
             path=path,  # never None
             catalog=catalog,  # always set
@@ -459,14 +471,27 @@ class CollectionManager(ICollectionManager):
             if not db_entry:
                 raise LookupError("Solution not found!")
 
-            self.solution_handler.retrieve_solution(
+            self._retrieve_missing_solution(
                 resolve_result.catalog(),
                 dict_to_coordinates(db_entry.setup()),
+                resolve_result.path(),
             )
         resolve_result.set_loaded_solution(
             self.album.state_manager().load(resolve_result.path())
         )
         resolve_result.set_coordinates(resolve_result.loaded_solution().coordinates())
+
+    def _retrieve_missing_solution(
+        self,
+        catalog: ICatalog,
+        coordinates: ICoordinates,
+        solution_file: Optional[Path],
+    ) -> None:
+        # another album process retrieving or installing the same solution holds its
+        # lock while it writes the solution files, and might have written them already
+        with self.solution_handler.get_solution_lock(catalog, coordinates):
+            if not solution_file or not Path(solution_file).exists():
+                self.solution_handler.retrieve_solution(catalog, coordinates)
 
     @staticmethod
     def write_version_to_json(path: Path, name: str, version: str) -> None:
@@ -487,7 +512,7 @@ class CollectionManager(ICollectionManager):
         if len(input_parts) == 1:
             solutions = self.catalog_collection.get_solutions_by_name(input_parts[0])
             if len(solutions) == 1:
-                module_logger().warn(
+                module_logger().warning(
                     call_not_reproducible % dict_to_coordinates(solutions[0].setup())
                 )
                 return solutions[0]
@@ -500,7 +525,7 @@ class CollectionManager(ICollectionManager):
                 input_parts[0], input_parts[1]
             )
             if len(solutions) == 1:
-                module_logger().warn(
+                module_logger().warning(
                     call_not_reproducible % dict_to_coordinates(solutions[0].setup())
                 )
                 return solutions[0]
@@ -511,7 +536,7 @@ class CollectionManager(ICollectionManager):
                     input_parts[0], input_parts[1]
                 )
                 if len(solutions) == 1:
-                    module_logger().warn(
+                    module_logger().warning(
                         call_not_reproducible
                         % dict_to_coordinates(solutions[0].setup())
                     )
@@ -536,39 +561,25 @@ class CollectionManager(ICollectionManager):
             if solution.internal()["catalog_id"] != cache_id
         ]
         if len(cache_matches) == 1:
-            module_logger().warn(
+            module_logger().warning(
                 call_not_reproducible % dict_to_coordinates(cache_matches[0].setup())
             )
             return cache_matches[0]
         elif len(cache_matches) > 1:
-            latest_installed_solution = self._get_latest_installed_solution(
-                cache_matches
-            )
-            if latest_installed_solution:
-                module_logger().warn(
-                    call_not_reproducible
-                    % dict_to_coordinates(latest_installed_solution.setup())
-                )
-            return latest_installed_solution
+            candidates = cache_matches
         elif len(non_cache_matches) > 0:
-            latest_installed_solution = self._get_latest_installed_solution(
-                non_cache_matches
+            candidates = non_cache_matches
+        else:
+            return None
+        # prefer the latest installed candidate, fall back to the latest version
+        latest_solution = self._get_latest_installed_solution(candidates)
+        if latest_solution is None:
+            latest_solution = self._get_latest_solution(candidates)
+        if latest_solution:
+            module_logger().warning(
+                call_not_reproducible % dict_to_coordinates(latest_solution.setup())
             )
-            if latest_installed_solution:
-                module_logger().warn(
-                    call_not_reproducible
-                    % dict_to_coordinates(latest_installed_solution.setup())
-                )
-                return latest_installed_solution
-            else:
-                latest_solution = self._get_latest_solution(non_cache_matches)
-                if latest_solution:
-                    module_logger().warn(
-                        call_not_reproducible
-                        % dict_to_coordinates(latest_solution.setup())
-                    )
-                    return latest_solution
-        return None
+        return latest_solution
 
     def _solutions_as_list(
         self, solutions: List[ICollectionIndex.ICollectionSolution]
@@ -597,10 +608,9 @@ class CollectionManager(ICollectionManager):
     def _get_latest_solution(
         solutions: List[ICollectionIndex.ICollectionSolution],
     ) -> Optional[ICollectionIndex.ICollectionSolution]:
-        latest_solution = solutions[0]
-        for solution in solutions:
-            if MMVersion.from_string(
-                solution.setup()["version"]
-            ) > MMVersion.from_string(latest_solution.setup()["version"]):
-                latest_solution = solution
-        return latest_solution
+        if not solutions:
+            return None
+        return max(
+            solutions,
+            key=lambda solution: version_sort_key(str(solution.setup()["version"])),
+        )

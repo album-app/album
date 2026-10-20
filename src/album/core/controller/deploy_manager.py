@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -8,27 +9,30 @@ from album.core.api.controller.controller import IAlbumController
 from album.core.api.controller.deploy_manager import IDeployManager
 from album.core.api.model.catalog import ICatalog
 from album.core.model.default_values import DefaultValues
+from album.core.model.replicability import ReplicabilityReason
 from album.core.utils.export.changelog import process_changelog_file
 from album.core.utils.operations.file_operations import folder_empty
 from album.core.utils.operations.git_operations import (
     add_files_commit_and_push,
-    add_tag,
     checkout_main,
     clean_repository,
     create_new_head,
     get_tags,
     remove_files,
-    remove_tag,
     retrieve_default_mr_push_options,
     revert,
 )
 from album.core.utils.operations.resolve_operations import (
     as_tag,
-    as_tag_unversioned,
     dict_to_coordinates,
     get_attributes_from_string,
+    get_doi_from_input,
 )
-from album.environments.utils.file_operations import force_remove
+from album.core.utils.operations.solution_operations import (
+    get_parent_dict,
+    version_sort_key,
+)
+from album.environments.utils.file_operations import copy, force_remove
 from album.runner import album_logging
 from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.api.model.solution import ISolution
@@ -51,6 +55,7 @@ class DeployManager(IDeployManager):
         force_deploy: bool = False,
         changelog: str = "",
         no_conda_lock: bool = False,
+        no_replicability: bool = False,
     ):
         _push_options = push_options if push_options is not None else []
         if dry_run:
@@ -65,6 +70,17 @@ class DeployManager(IDeployManager):
 
         active_solution = self.album.state_manager().load(path_to_solution)
         active_solution.setup().changelog = changelog
+
+        # the environment and the resource file the solution names by their path
+        solution_folder = _deploy_path if _deploy_path.is_dir() else None
+        self.album.resource_manager().check_file_dependencies(
+            active_solution, solution_folder
+        )
+        # an invalid resource file would only fail when the solution gets installed
+        reasons = self.album.download_manager().check_resources(
+            active_solution, solution_folder
+        )
+        reasons += self._get_replicability_reasons(active_solution, no_conda_lock)
 
         if catalog_name:
             catalog = self.album.catalogs().get_by_name(catalog_name)
@@ -81,6 +97,8 @@ class DeployManager(IDeployManager):
             git_email,
             git_name,
             no_conda_lock,
+            no_replicability,
+            reasons,
         )
 
         if dry_run:
@@ -124,16 +142,31 @@ class DeployManager(IDeployManager):
         with catalog.retrieve_catalog(
             self.get_download_path(catalog), force_retrieve=True
         ) as repo:
-            # load index
+            # load index of the retrieved repository: downloading it again could make git ask
+            # for credentials again. The meta file holds the version of the index.
             catalog.set_index_path(
                 Path(repo.working_tree_dir).joinpath(
                     DefaultValues.catalog_index_file_name.value
                 )
             )
-            self.album.migration_manager().load_index(catalog)
+            # the readable copy of the index, committed with it
+            catalog.set_solution_list_path(
+                Path(repo.working_tree_dir).joinpath(
+                    DefaultValues.catalog_solution_list_file_name.value
+                )
+            )
+            copy(
+                Path(repo.working_tree_dir).joinpath(
+                    DefaultValues.catalog_index_metafile_json.value
+                ),
+                catalog.get_meta_file_path(),
+            )
+            self.album.migration_manager().load_index(catalog, refresh=False)
 
             # get versions from catalog
-            ordered_version_tags = self._get_tags_for_coordinates(repo, coordinates)
+            ordered_version_tags = self._get_tags_for_coordinates(
+                repo, catalog, coordinates
+            )
             current_version_tag = (
                 ordered_version_tags[0] if len(ordered_version_tags) > 0 else None
             )
@@ -173,9 +206,6 @@ class DeployManager(IDeployManager):
                         repo, coordinates, dry_run, _push_options, git_email, git_name
                     )
 
-        # refresh the local index of the catalog
-        self.album.migration_manager().refresh_index(catalog)
-
         exit_msg = (
             "Successfully pretended to remove %s from %s."
             if dry_run
@@ -194,6 +224,8 @@ class DeployManager(IDeployManager):
         git_email: str = "",
         git_name: str = "",
         no_conda_lock: bool = False,
+        no_replicability: bool = False,
+        reasons: Optional[List[ReplicabilityReason]] = None,
     ) -> None:
         # check for cache catalog only
         if catalog.is_cache():
@@ -205,15 +237,31 @@ class DeployManager(IDeployManager):
 
         # a catalog is always a repository
         with catalog.retrieve_catalog(dl_path, force_retrieve=True) as repo:
-            # load index
+            # load index of the retrieved repository: downloading it again could make git ask
+            # for credentials again. The meta file holds the version of the index.
             catalog.set_index_path(
                 Path(repo.working_tree_dir).joinpath(
                     DefaultValues.catalog_index_file_name.value
                 )
             )
-            self.album.migration_manager().load_index(catalog)
+            # the readable copy of the index, committed with it
+            catalog.set_solution_list_path(
+                Path(repo.working_tree_dir).joinpath(
+                    DefaultValues.catalog_solution_list_file_name.value
+                )
+            )
+            copy(
+                Path(repo.working_tree_dir).joinpath(
+                    DefaultValues.catalog_index_metafile_json.value
+                ),
+                catalog.get_meta_file_path(),
+            )
+            self.album.migration_manager().load_index(catalog, refresh=False)
 
-            # requires a loaded index
+            # requires a loaded index, decided before anything is written
+            self._check_replicability(
+                catalog, active_solution, reasons or [], no_replicability, force_deploy
+            )
             process_changelog_file(catalog, active_solution, deploy_path)
 
             # carry forward doi from the catalog index so it survives
@@ -271,7 +319,10 @@ class DeployManager(IDeployManager):
         solution_files = self._deploy_routine_in_local_src(
             catalog, repo, active_solution, deploy_path, no_conda_lock
         )
-        commit_files = solution_files + [catalog.index_file_path()]
+        commit_files = solution_files + [
+            catalog.index_file_path(),
+            catalog.solution_list_path(),
+        ]
         solution_root = str(
             self.album.configuration().get_solution_path_suffix_unversioned(
                 active_solution.coordinates()
@@ -290,8 +341,8 @@ class DeployManager(IDeployManager):
                     push_options,
                     git_email,
                     git_name,
+                    tag=as_tag(active_solution.coordinates()),
                 )
-                add_tag(repo, as_tag(active_solution.coordinates()))
             except Exception as e:
                 module_logger().error(
                     "Pushing to catalog failed! Rolling back deployment..."
@@ -302,14 +353,10 @@ class DeployManager(IDeployManager):
                         export.unlink()
                 finally:
                     raise e
-
-            # refresh the local index of the catalog
-            self.album.migration_manager().refresh_index(catalog)
         else:
             module_logger().info(
                 "Would commit the changes and push to %s..." % catalog.src()
             )
-            module_logger().info("Would refresh the index from src")
 
     def _deploy_to_request_catalog(
         self,
@@ -349,6 +396,91 @@ class DeployManager(IDeployManager):
             git_name,
             files_to_remove=[solution_root],
         )
+
+    @staticmethod
+    def _get_replicability_reasons(
+        solution: ISolution, no_conda_lock: bool
+    ) -> List[ReplicabilityReason]:
+        """Return what keeps the parent and the environment of a solution from replicability."""
+        reasons = []
+        parent = get_parent_dict(solution)
+        if (
+            parent
+            and "doi" not in parent
+            and not all(key in parent for key in ["group", "name", "version"])
+        ):
+            # anything else than a DOI or [catalog:]group:name:version, e.g. a path, a url
+            # or a reference without version, can differ where the solution is installed
+            resolve_solution = str(parent.get("resolve_solution", ""))
+            if not get_doi_from_input(resolve_solution) and not re.fullmatch(
+                r"[^:/\\\s]+(:[^:/\\\s]+){2,3}", resolve_solution
+            ):
+                reasons.append(
+                    ReplicabilityReason(
+                        'its parent "%s" is not given by a DOI or by group:name:version'
+                        % resolve_solution,
+                        needs_flag=True,
+                    )
+                )
+        if no_conda_lock:
+            reasons.append(
+                ReplicabilityReason(
+                    "it is deployed without a lock file (--no-conda-lock), its environment "
+                    "is solved again when it is installed"
+                )
+            )
+        return reasons
+
+    @staticmethod
+    def _check_replicability(
+        catalog: ICatalog,
+        active_solution: ISolution,
+        reasons: List[ReplicabilityReason],
+        no_replicability: bool,
+        force_deploy: bool,
+    ) -> None:
+        """Refuse a solution that is not technically replicable, unless no_replicability.
+
+        The reasons are stored with the solution, in solution.yml.
+        """
+        coordinates = active_solution.coordinates()
+        index = catalog.index()
+        replaces = (
+            index is not None
+            and index.get_solution_by_coordinates(coordinates) is not None
+            and (force_deploy or catalog.type() == "request")
+        )
+        if replaces:
+            if coordinates.version().endswith("SNAPSHOT"):
+                module_logger().warning(
+                    'Version %s of "%s" replaces the one deployed before.'
+                    % (coordinates.version(), coordinates)
+                )
+            else:
+                reasons = reasons + [
+                    ReplicabilityReason(
+                        "version %s replaces the one deployed before, the same version "
+                        "stands for other content then" % coordinates.version(),
+                        needs_flag=True,
+                    )
+                ]
+
+        refused = [reason.text for reason in reasons if reason.needs_flag]
+        if refused and not no_replicability:
+            raise RuntimeError(
+                '"%s" is not technically replicable:\n%s\nDeploy it with '
+                "--no-replicability to deploy it anyway: the reasons are stored with the "
+                "solution, and installing it shows them."
+                % (coordinates, "\n".join("- %s" % text for text in refused))
+            )
+        for reason in reasons:
+            module_logger().warning(
+                f'Not technically replicable, "{coordinates}": {reason.text}'
+            )
+        if reasons:
+            active_solution.setup().replicability = {
+                "reasons": [reason.text for reason in reasons]
+            }
 
     @staticmethod
     def _carry_forward_doi(catalog: ICatalog, active_solution: ISolution) -> None:
@@ -427,7 +559,7 @@ class DeployManager(IDeployManager):
             if "zenodo" in doi.lower():
                 setup["deposit_id"] = doi.rsplit(".", 1)[-1]
                 module_logger().info(
-                    "Derived deposit_id={} from doi={}".format(setup["deposit_id"], doi)
+                    f"Derived deposit_id={setup['deposit_id']} from doi={doi}"
                 )
 
     def _deploy_routine_in_local_src(
@@ -453,10 +585,26 @@ class DeployManager(IDeployManager):
         return self.album.configuration().tmp_path()
 
     @staticmethod
-    def _get_tags_for_coordinates(repo: Repo, coordinates: ICoordinates) -> List[str]:
-        tags = get_tags(repo)
-        tag_start = as_tag_unversioned(coordinates)
-        return [tag for tag in tags if tag.startswith(tag_start)]
+    def _get_tags_for_coordinates(
+        repo: Repo, catalog: ICatalog, coordinates: ICoordinates
+    ) -> List[str]:
+        """Get the tags of all deployed versions of a solution, newest version first.
+
+        Only tags of versions the catalog index knows are returned, so that the tags
+        of solutions whose names merely share a prefix (e.g. "grp-seg-tools" for
+        "grp-seg") are not mixed in.
+        """
+        index = catalog.index()
+        if index is None:
+            raise RuntimeError("Catalog index not loaded!")
+        versions = index.get_all_solution_versions(
+            coordinates.group(), coordinates.name()
+        )
+        repo_tags = set(get_tags(repo))
+        deployed = [dict_to_coordinates(entry) for entry in versions]
+        deployed = [c for c in deployed if as_tag(c) in repo_tags]
+        deployed.sort(key=lambda c: version_sort_key(c.version()), reverse=True)
+        return [as_tag(c) for c in deployed]
 
     @staticmethod
     def _add_to_downloaded_catalog(
@@ -556,6 +704,7 @@ class DeployManager(IDeployManager):
         push_option: Optional[List[str]] = None,
         email: str = "",
         username: str = "",
+        tag: str = "",
     ) -> None:
         if push_option is None:
             push_option = []
@@ -577,6 +726,7 @@ class DeployManager(IDeployManager):
             email=email,
             username=username,
             force=False,
+            tag=tag,
         )
 
     def _remove_db_entry_and_files(
@@ -593,6 +743,7 @@ class DeployManager(IDeployManager):
             self.album.configuration().get_solution_path_suffix_unversioned(coordinates)
         )
         db_index = DefaultValues.catalog_index_file_name.value
+        solution_list = DefaultValues.catalog_solution_list_file_name.value
 
         init_msg = (
             "Would remove files %s, would update %s.."
@@ -606,7 +757,7 @@ class DeployManager(IDeployManager):
                 coordinates,
                 repo,
                 [solution_root],
-                [db_index],
+                [db_index, solution_list],
                 push_options,
                 git_email,
                 git_name,
@@ -627,6 +778,7 @@ class DeployManager(IDeployManager):
             self.album.configuration().get_solution_path_suffix_unversioned(coordinates)
         )
         db_index = DefaultValues.catalog_index_file_name.value
+        solution_list = DefaultValues.catalog_solution_list_file_name.value
 
         init_msg = (
             "Would revert %s to %s, would update %s.."
@@ -638,7 +790,13 @@ class DeployManager(IDeployManager):
         if not dry_run:
             revert(repo, previous_version_tag, [solution_root])
             self._try_push_remove_tag(
-                coordinates, repo, [], [db_index], push_options, git_email, git_name
+                coordinates,
+                repo,
+                [],
+                [db_index, solution_list],
+                push_options,
+                git_email,
+                git_name,
             )
 
     def _remove_db_entry_and_tag(
@@ -651,13 +809,20 @@ class DeployManager(IDeployManager):
         git_name: str,
     ):
         db_index = DefaultValues.catalog_index_file_name.value
+        solution_list = DefaultValues.catalog_solution_list_file_name.value
 
         init_msg = "Would update %s.." if dry_run else "Updating %s.."
         module_logger().info(init_msg % (db_index))
 
         if not dry_run:
             self._try_push_remove_tag(
-                coordinates, repo, [], [db_index], push_options, git_email, git_name
+                coordinates,
+                repo,
+                [],
+                [db_index, solution_list],
+                push_options,
+                git_email,
+                git_name,
             )
 
     def _try_push_remove_tag(
@@ -679,8 +844,6 @@ class DeployManager(IDeployManager):
 
             commit_msg = "Removing %s" % DeployManager.retrieve_head_name(coordinates)
 
-            remove_tag(repo, as_tag(coordinates))
-
             remove_files(head, files_to_remove)
 
             add_files_commit_and_push(
@@ -692,6 +855,7 @@ class DeployManager(IDeployManager):
                 email=git_email,
                 username=git_name,
                 force=False,
+                delete_tag=as_tag(coordinates),
             )
         except Exception as e:
             module_logger().error(

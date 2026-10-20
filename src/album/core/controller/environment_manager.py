@@ -1,7 +1,13 @@
 import os
+import re
 from copy import deepcopy
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
+
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.utils import canonicalize_name
+from packaging.version import InvalidVersion, Version
 
 from album.core import __version__ as album_version
 from album.core.api.controller.controller import IAlbumController
@@ -18,8 +24,15 @@ from album.core.utils.operations.file_operations import (
     create_path_recursively,
     remove_link,
 )
-from album.core.utils.operations.resolve_operations import dict_to_coordinates
-from album.core.utils.operations.solution_operations import set_environment_paths
+from album.core.utils.operations.resolve_operations import (
+    dict_to_coordinates,
+    get_parent,
+)
+from album.core.utils.operations.solution_operations import (
+    get_replicability_reasons,
+    get_solution_folder,
+    set_environment_paths,
+)
 from album.environments.api.environment_api import IEnvironmentAPI
 from album.environments.api.model.environment import IEnvironment
 from album.environments.initialization import init_environment_handler
@@ -49,16 +62,22 @@ class EnvironmentManager(IEnvironmentManager):
         )
 
     def install_environment(
-        self, collection_solution: ICollectionSolution, allow_recursive: bool = False
+        self,
+        collection_solution: ICollectionSolution,
+        allow_recursive: bool = False,
+        no_conda_lock: bool = False,
     ) -> IEnvironment:
         environment = self._create_environment_for_solution(
-            collection_solution, allow_recursive
+            collection_solution, allow_recursive, no_conda_lock
         )
         set_environment_paths(collection_solution.loaded_solution(), environment)
         return environment
 
     def _create_environment_for_solution(
-        self, collection_solution: ICollectionSolution, allow_recursive: bool = False
+        self,
+        collection_solution: ICollectionSolution,
+        allow_recursive: bool = False,
+        no_conda_lock: bool = False,
     ) -> IEnvironment:
         env_name = self.get_environment_name(
             collection_solution.coordinates(), collection_solution.catalog()
@@ -73,6 +92,9 @@ class EnvironmentManager(IEnvironmentManager):
         solution_package_path = (
             collection_solution.loaded_solution().installation().package_path()
         )
+        self._warn_without_lock_file(
+            collection_solution.coordinates(), solution_package_path, no_conda_lock
+        )
         environment = self.create_environment(
             cache,
             dependencies,
@@ -80,9 +102,64 @@ class EnvironmentManager(IEnvironmentManager):
             album_api_version,
             solution_package_path,
             allow_recursive,
+            solution_folder=get_solution_folder(collection_solution),
+            no_conda_lock=no_conda_lock,
         )
         set_environment_paths(collection_solution.loaded_solution(), environment)
         return environment
+
+    def check_lock_file(
+        self,
+        coordinates: ICoordinates,
+        solution_folder: Optional[Path],
+        no_conda_lock: bool = False,
+    ) -> None:
+        lock_file = (
+            solution_folder.joinpath(
+                DefaultValues.solution_conda_lock_default_name.value
+            )
+            if solution_folder is not None
+            else None
+        )
+        if no_conda_lock or lock_file is None or not lock_file.is_file():
+            return
+        try:
+            self._environment_handler.get_conda_lock_manager().conda_lock_executable()
+        except RuntimeError as e:
+            raise RuntimeError(
+                f'"{coordinates}" is installed from its lock file, but conda-lock, which '
+                "installs it, is not found. Set ENVIRONMENT_CONDA_LOCK_PATH to the "
+                "conda-lock executable, or install it with --no-conda-lock to solve its "
+                "environment instead."
+            ) from e
+
+    def _warn_without_lock_file(
+        self,
+        coordinates: ICoordinates,
+        solution_package_path: Path,
+        no_conda_lock: bool = False,
+    ) -> None:
+        """Warn when the environment of a solution is solved now, not taken from a lock file.
+
+        A lock file is solved again only with no_conda_lock: without it, installing fails if
+        conda-lock, which installs it, is not found.
+        """
+        lock_file = solution_package_path.joinpath(
+            DefaultValues.solution_conda_lock_default_name.value
+        )
+        if lock_file.is_file() and no_conda_lock:
+            module_logger().warning(
+                f'Not technically replicable, "{coordinates}": it is installed without its '
+                "lock file (--no-conda-lock), its environment is solved now."
+            )
+        elif lock_file.is_file():
+            self.check_lock_file(coordinates, solution_package_path)
+        elif not get_replicability_reasons(solution_package_path):
+            # a solution deployed without a lock file says so in the reasons shown already
+            module_logger().warning(
+                f'Not technically replicable, "{coordinates}": it has no lock file, its '
+                "environment is solved now."
+            )
 
     def create_environment(
         self,
@@ -92,88 +169,198 @@ class EnvironmentManager(IEnvironmentManager):
         album_api_version: str,
         solution_package_path: Path,
         allow_recursive: bool = False,
+        solution_folder: Optional[Path] = None,
+        no_conda_lock: bool = False,
     ) -> IEnvironment:
+        """Create the environment of a solution.
+
+        A deployed solution is installed from what album deploy wrote next to it: its lock
+        file, or else the environment it locked, not from the environment file it names. A
+        relative path of the environment file starts at solution_folder, the folder the
+        solution is installed from; None for a solution installed from a single file. With
+        no_conda_lock, the environment is solved even if the solution has a lock file.
+        """
+        environment_snapshot = solution_package_path.joinpath(
+            DefaultValues.solution_environment_default_name.value
+        )
         env_file = self._prepare_env_file(
-            dependencies, cache, env_name, album_api_version, allow_recursive
+            dependencies,
+            cache,
+            env_name,
+            album_api_version,
+            allow_recursive,
+            solution_folder=solution_folder,
+            environment_snapshot=(
+                environment_snapshot if environment_snapshot.is_file() else None
+            ),
         )
         env_path = self.get_environment_path(env_name, create=True)
         environment = Environment(env_file, env_name, env_path)
-        solution_lock_file = solution_package_path.joinpath("solution.conda-lock.yml")
-        self._environment_handler.create_environment_prefer_lock_file(
-            environment, str(solution_lock_file.absolute())
+        solution_lock_file = solution_package_path.joinpath(
+            DefaultValues.solution_conda_lock_default_name.value
         )
+        if no_conda_lock:
+            # solved as create_environment_prefer_lock_file does without a lock file
+            self._environment_handler.get_package_manager().install(environment)
+            return environment
+        try:
+            self._environment_handler.create_environment_prefer_lock_file(
+                environment, str(solution_lock_file.absolute())
+            )
+        except RuntimeError as e:
+            if not solution_lock_file.is_file():
+                raise
+            # the output of conda-lock is in the log, the error names only the command
+            raise RuntimeError(
+                f"Installing the environment from the lock file failed: {e}. If the lock "
+                "file does not install on this system, install the solution with "
+                "--no-conda-lock to solve its environment instead."
+            ) from e
 
         return environment
 
     @staticmethod
-    def _get_pypi_package_name_version(str_: str) -> Tuple[str, str]:
-        if "==" in str_:
-            p = str_.split("==")[0]
-            v = str_.split("==")[-1]
-        elif "~=" in str_:
-            p = str_.split("~=")[0]
-            v = str_.split("~=")[-1]
-        else:
-            p = str_
-            v = ""
-        return p, v
+    def _is_running_album_version(version_str: str) -> bool:
+        try:
+            return Version(version_str) == Version(album_version)
+        except InvalidVersion:
+            return version_str == album_version
+
+    @staticmethod
+    def _conda_album_dependency(dependency: str) -> Optional[bool]:
+        """Check a conda dependency (a match spec) for album.
+
+        Returns None if the dependency is not album, True if it is album without a
+        version or with exactly the running version, and False for any other version
+        spec, e.g. another version or a range.
+        """
+        # e.g. "album", "album=0.1.0", "album 0.1.0 py_0", "conda-forge::album>=0.1"
+        spec = dependency.strip().split("::")[-1]
+        match = re.match(r"([A-Za-z0-9_.\-]+)\s*(.*)$", spec)
+        if not match or match.group(1).lower() != "album":
+            return None
+        version_spec = match.group(2).strip()
+        bracket = re.match(
+            r"^\[\s*version\s*=\s*[\"']?([^\"'\],]*)[\"']?\s*\]$", version_spec
+        )
+        if bracket:  # album[version='0.1.0']
+            version_spec = bracket.group(1).strip()
+        if not version_spec:
+            return True
+        # one exact version, as "=0.1.0", "==0.1.0" or "0.1.0", optionally followed by a build
+        exact = re.match(
+            r"^(?:==?)?\s*([0-9][0-9A-Za-z._+!\-]*)(?:[=\s].*)?$", version_spec
+        )
+        if not exact:
+            return False
+        return EnvironmentManager._is_running_album_version(exact.group(1))
+
+    @staticmethod
+    def _pip_album_dependency(dependency: str) -> Optional[bool]:
+        """Check a pip dependency (a requirement) for album, see _conda_album_dependency."""
+        try:
+            requirement = Requirement(dependency)
+        except InvalidRequirement:  # e.g. an option like "--index-url ..."
+            return None
+        if canonicalize_name(requirement.name) != "album":
+            return None
+        if requirement.url:  # album @ git+https://...
+            return False
+        specifiers = list(requirement.specifier)
+        if not specifiers:
+            return True
+        if (
+            len(specifiers) == 1
+            and specifiers[0].operator in ("==", "===")
+            and "*" not in specifiers[0].version
+        ):
+            return EnvironmentManager._is_running_album_version(specifiers[0].version)
+        return False
+
+    def _album_dependencies(self, yml_dict: Dict[str, Any]) -> List[Tuple[str, bool]]:
+        """Return every album dependency, with whether it is the running version (or unversioned)."""
+        album_dependencies: List[Tuple[str, bool]] = []
+        for dep in yml_dict.get("dependencies") or []:
+            if isinstance(dep, dict):
+                for pip_dep in dep.get("pip") or []:
+                    running = self._pip_album_dependency(str(pip_dep))
+                    if running is not None:
+                        album_dependencies.append(("pip: %s" % pip_dep, running))
+            elif isinstance(dep, str):
+                running = self._conda_album_dependency(dep)
+                if running is not None:
+                    album_dependencies.append((dep, running))
+        return album_dependencies
+
+    def check_album_version(self, collection_solution: ICollectionSolution) -> None:
+        environment = self._load_solution_environment(collection_solution)
+        if environment is None:
+            return
+        other_versions = [
+            dep for dep, running in self._album_dependencies(environment) if not running
+        ]
+        if other_versions:
+            raise ValueError(
+                'its environment installs "%s", not the running album %s.'
+                % ('", "'.join(other_versions), album_version)
+            )
+
+    def _load_solution_environment(
+        self, collection_solution: ICollectionSolution
+    ) -> Optional[Dict[str, Any]]:
+        """Load the environment of a solution, as installing it reads it.
+
+        That is the environment album deploy wrote next to it, or else the one it names;
+        None for the default environment.
+        """
+        solution = collection_solution.loaded_solution()
+        solution_folder = get_solution_folder(collection_solution)
+        folder = solution_folder or solution.installation().package_path()
+        snapshot = (
+            Path(folder).joinpath(DefaultValues.solution_environment_default_name.value)
+            if folder
+            else None
+        )
+        if snapshot is not None and snapshot.is_file():
+            return get_dict_from_yml(snapshot)
+        dependencies = solution.setup().dependencies or {}
+        if "environment_file" not in dependencies:
+            return None
+        with TemporaryDirectory(dir=self._album.configuration().tmp_path()) as tmp_dir:
+            yaml_path = Path(tmp_dir).joinpath("environment.yml")
+            self._album.resource_manager().handle_env_file_dependency(
+                dependencies["environment_file"], yaml_path, solution_folder
+            )
+            return get_dict_from_yml(yaml_path)
 
     def _check_album_in_album(
         self, yml_dict: Dict[str, Any], allow_recursive: bool = False
     ) -> None:
-        album_installed_version = None
-        if "dependencies" in yml_dict:
-            for dep in yml_dict["dependencies"]:
-                # check for pip dependencies
-                if isinstance(dep, dict):
-                    if "pip" in dep:
-                        for pip_dep in dep["pip"]:
-                            if (
-                                "album"
-                                == self._get_pypi_package_name_version(pip_dep)[0]
-                            ):
-                                album_installed_version = (
-                                    self._get_pypi_package_name_version(pip_dep)[-1]
-                                )
-                                # check if unversioned
-                                album_installed_version = (
-                                    album_version
-                                    if album_installed_version == ""
-                                    else album_installed_version
-                                )
-                                break
-                if isinstance(dep, str):
-                    if "album" == dep.split("=")[0]:
-                        album_installed_version = dep.split("=")[-1]
-                        # check if unversioned
-                        album_installed_version = (
-                            album_version
-                            if album_installed_version == "album"
-                            else album_installed_version
-                        )
-                        break
+        album_dependencies = self._album_dependencies(yml_dict)
+        if not album_dependencies:
+            return
 
-        if album_installed_version == album_version:
+        other_versions = [dep for dep, running in album_dependencies if not running]
+        if not other_versions:
             module_logger().warning(
                 "Album is planned to be installed in the solution environment. "
-                "This might cause issues when sharing the same database!"
+                "This might cause issues when sharing the same database! "
                 "Only proceed if you know what you are doing!"
             )
-        if album_installed_version is not None and (
-            album_installed_version != album_version
-        ):
-            str_ = (
-                "Album is planned to be installed in the solution environment with a different version."
-                " They might be incompatible! It is recommended to update the parent solution!"
-                " If you know what you are doing, set allow_recursive during installation!"
-            )
-            if not allow_recursive:
-                module_logger().error(str_)
-                raise ValueError(str_)
-            else:
-                module_logger().info(
-                    "Potentially incompatible installation of album in album detected!"
-                )
+            return
+
+        str_ = (
+            "Album is planned to be installed in the solution environment with a different version"
+            ' ("%s", running album %s).' % ('", "'.join(other_versions), album_version)
+            + " They might be incompatible! It is recommended to update the parent solution!"
+            " If you know what you are doing, set allow_recursive during installation!"
+        )
+        if not allow_recursive:
+            module_logger().error(str_)
+            raise ValueError(str_)
+        module_logger().info(
+            "Potentially incompatible installation of album in album detected!"
+        )
 
     def set_environment(self, collection_solution: ICollectionSolution) -> IEnvironment:
         db_entry = collection_solution.database_entry()
@@ -189,10 +376,13 @@ class EnvironmentManager(IEnvironmentManager):
             environment = Environment(None, env_name, None)
             self.set_environment_path(environment)
 
-        # solution runs in the parents environment - we need to resolve first to get info about parents environment
+        # solution runs in the environment of the solution at the top of its parent
+        # chain: a parent can have a parent itself, and only the top one has an
+        # environment (InstallManager._install_active_solution creates no other)
         else:
-            coordinates = dict_to_coordinates(parent.setup())
-            catalog = self._album.catalogs().get_by_id(parent.internal()["catalog_id"])
+            root = get_parent(db_entry)
+            coordinates = dict_to_coordinates(root.setup())
+            catalog = self._album.catalogs().get_by_id(root.internal()["catalog_id"])
             env_name = self.get_environment_name(coordinates, catalog)
             environment = Environment(None, env_name, None)
             self.set_environment_path(environment)
@@ -292,16 +482,27 @@ class EnvironmentManager(IEnvironmentManager):
         env_name: str,
         album_api_version: Optional[str] = "",
         allow_recursive: bool = False,
+        solution_folder: Optional[Path] = None,
+        environment_snapshot: Optional[Path] = None,
     ) -> Path:
         yaml_path = cache_path.joinpath("{n}{s}".format(n=env_name, s=".yml"))
         create_path_recursively(yaml_path.parent)
+        if environment_snapshot is not None:
+            # the environment album deploy locked, album-solution-api added already
+            yaml_dict = get_dict_from_yml(environment_snapshot)
+            yaml_dict["name"] = env_name
+            self._check_album_in_album(yaml_dict, allow_recursive)
+            write_dict_to_yml(yaml_path, yaml_dict)
+            return yaml_path
+
         yaml_dict = None
         if dependencies_dict:
             if "environment_file" in dependencies_dict:
                 env_file = dependencies_dict["environment_file"]
 
+                # a relative path starts at the folder solution.py is installed from
                 self._album.resource_manager().handle_env_file_dependency(
-                    env_file, yaml_path
+                    env_file, yaml_path, solution_folder
                 )
 
                 yaml_dict = get_dict_from_yml(yaml_path)
@@ -315,6 +516,12 @@ class EnvironmentManager(IEnvironmentManager):
 
         if not yaml_dict:
             yaml_dict = deepcopy(DEFAULT_SOLUTION_ENV_CONTENT)
+            # Keep the Anaconda "defaults" channels out, even when the user's conda
+            # configuration (e.g. ~/.condarc) lists them. Not part of
+            # DEFAULT_SOLUTION_ENV_CONTENT, which deploy also hands to conda-lock:
+            # conda-lock overrides the channels anyway, and before 2.0 it took
+            # "nodefaults" for a channel name.
+            yaml_dict["channels"].append("nodefaults")
 
         # safety check to avoid album in album issues
         self._check_album_in_album(yaml_dict, allow_recursive)
@@ -359,10 +566,16 @@ class EnvironmentManager(IEnvironmentManager):
             return content
 
         # Check if framework is properly defined. No zip, https or folder allowed.
+        # Only inspect the configured string itself. Probing the filesystem
+        # (e.g. Path(...).is_dir()) depends on the current working directory and
+        # rejects a valid package name whenever a folder of the same name exists
+        # there, such as a checkout of album-solution-api.
+        framework_name = DefaultValues.runner_api_package_name.value
         if (
-            Path(DefaultValues.runner_api_package_name.value).is_dir()
-            or DefaultValues.runner_api_package_name.value.endswith(".zip")
-            or DefaultValues.runner_api_package_name.value.startswith("https")
+            "/" in framework_name
+            or os.sep in framework_name
+            or framework_name.endswith(".zip")
+            or framework_name.startswith("https")
         ):
             raise ValueError(
                 "Framework is not properly defined. No zip, https or folder allowed."

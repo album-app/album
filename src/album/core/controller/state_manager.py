@@ -1,15 +1,21 @@
+import threading
 from typing import List, Optional
 
+from album.core.api.controller.controller import IAlbumController
+from album.core.api.controller.state_manager import IStateManager
 from album.runner import api
 from album.runner.album_logging import get_active_logger
 from album.runner.core.api.model.solution import ISolution
 from album.runner.core.model.solution import Solution
 
-from album.core.api.controller.controller import IAlbumController
-from album.core.api.controller.state_manager import IStateManager
-
 
 class StateManager(IStateManager):
+    # A solution file calls album.runner.api.setup, a single function for the whole
+    # process, and the solution it creates is taken from the active solutions afterwards.
+    # Solutions are therefore loaded one at a time, by all album instances and threads.
+    # Re-entrant, as a solution file might load another solution.
+    _load_lock = threading.RLock()
+
     def __init__(self, album: IAlbumController):
         self._active_solution: List[ISolution] = []
         self.album = album
@@ -18,16 +24,23 @@ class StateManager(IStateManager):
 
     def load(self, path: str) -> ISolution:
         get_active_logger().debug(f"Loading solution from {path}...")
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             solution = f.read()
-        exec(solution)
-        active_solution = self._get_active_solution()
-        if active_solution is None:
-            get_active_logger().error("Cannot load solution %s!" % path)
-            raise ValueError("Cannot load solution %s!" % path)
+        with StateManager._load_lock:
+            # the setup of this album instance, another one might have overwritten it
+            previous_setup = api.setup
+            api.setup = self._setup_solution
+            try:
+                exec(solution)
+            finally:
+                api.setup = previous_setup
+            active_solution = self._get_active_solution()
+            if active_solution is None:
+                get_active_logger().error("Cannot load solution %s!" % path)
+                raise ValueError("Cannot load solution %s!" % path)
 
-        active_solution.set_script(path)
-        self._pop_active_solution()
+            active_solution.set_script(path)
+            self._pop_active_solution()
         return active_solution
 
     def _setup_solution(self, **attrs) -> None:

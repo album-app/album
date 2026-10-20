@@ -1,4 +1,8 @@
+import subprocess
+import sys
+import textwrap
 import unittest
+from pathlib import Path
 from queue import Queue
 from test.unit.test_unit_core_common import EmptyTestClass, TestUnitCoreCommon
 from unittest import mock
@@ -154,6 +158,57 @@ class TestScriptManager(TestUnitCoreCommon):
         r = self.script_manager._get_args(step, None)
 
         self.assertEqual(["", "--test1=test1Value", "--test2=test2Value"], r)
+
+    def test__handle_old_runner_api_version_warns_without_deprecated_call(self):
+        # The wrapper for album_api_version <= 0.6.1 solutions runs as its own script.
+        # Its "no run routine" notice must go through Logger.warning(): the deprecated
+        # Logger.warn() alias raises once DeprecationWarnings are turned into errors.
+        tmp_path = Path(self.tmp_dir.name)
+        solution_script = tmp_path.joinpath("legacy_solution.py")
+        solution_script.write_text(
+            textwrap.dedent(
+                """
+                import warnings
+
+
+                class _Setup:
+                    name = "legacy-solution"
+                    run = None
+                    close = None
+
+
+                class _Solution:
+                    def setup(self):
+                        return _Setup()
+
+
+                warnings.simplefilter("error", DeprecationWarning)
+                SolutionScript.execute_run_action(_Solution())
+                """
+            ),
+            encoding="utf-8",
+        )
+        collection_solution = MagicMock()
+        loaded_solution = collection_solution.loaded_solution()
+        loaded_solution.installation().internal_cache_path.return_value = tmp_path
+        loaded_solution.script.return_value = str(solution_script)
+
+        # call
+        wrapper = ScriptManager._handle_old_runner_api_version(collection_solution)
+        completed = subprocess.run(
+            [sys.executable, str(wrapper)],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=120,
+        )
+
+        # assert
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertIn(
+            'No "run" routine configured for solution "legacy-solution".',
+            completed.stdout + completed.stderr,
+        )
 
 
 if __name__ == "__main__":

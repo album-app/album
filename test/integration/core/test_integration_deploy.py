@@ -1,15 +1,16 @@
 import filecmp
+import json
 import os
 import sys
 from pathlib import Path
 from shutil import copy
 from test.integration.test_integration_core_common import TestIntegrationCoreCommon
+from test.test_common import record_requests_to_remotes
 from unittest.mock import patch
-
-from album.environments.utils.subcommand import SubProcessError
 
 from album.core.api.model.catalog_updates import ChangeType
 from album.core.model.default_values import DefaultValues
+from album.environments.utils.subcommand import SubProcessError
 from album.runner.core.model.coordinates import Coordinates
 
 
@@ -19,6 +20,60 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
 
     def tearDown(self) -> None:
         super().tearDown()
+
+    @staticmethod
+    def versions_in_solution_list(repo):
+        """Return the versions the solution list in the catalog repository names."""
+        solution_list = Path(repo.working_tree_dir).joinpath(
+            DefaultValues.catalog_solution_list_file_name.value
+        )
+        with open(solution_list, encoding="utf-8") as f:
+            return sorted(json.loads(entry)["version"] for entry in json.load(f))
+
+    @patch(
+        "album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file"
+    )
+    def test_requests_to_the_catalog_repository(self, conda_lock_mock):
+        conda_lock_mock.return_value = None
+        path, _ = self.setup_empty_catalog("test_catalog")
+        catalogs = self.album_controller.collection_manager().catalogs()
+        deploy_manager = self.album_controller.deploy_manager()
+        git_user = {
+            "git_email": DefaultValues.catalog_git_email.value,
+            "git_name": DefaultValues.catalog_git_user.value,
+        }
+
+        # meta information, index
+        with record_requests_to_remotes() as requests:
+            catalog = catalogs.add_by_src(path)
+        self.assertEqual(2, len(requests), requests)
+
+        # clone, push of commit and tag
+        with record_requests_to_remotes() as requests:
+            deploy_manager.deploy(
+                str(self.get_test_solution_path("solution11_minimal.py")),
+                catalog.name(),
+                False,
+                **git_user,
+            )
+        self.assertEqual(2, len(requests), requests)
+
+        # fetch, remote HEAD, push of commit and tag
+        with record_requests_to_remotes() as requests:
+            deploy_manager.deploy(
+                str(self.get_test_solution_path("solution11_changed_version.py")),
+                catalog.name(),
+                False,
+                **git_user,
+            )
+        self.assertEqual(3, len(requests), requests)
+
+        # fetch, remote HEAD, push of commit and deletion of the tag
+        with record_requests_to_remotes() as requests:
+            deploy_manager.undeploy(
+                "group:name:0.2.0", catalog.name(), False, **git_user
+            )
+        self.assertEqual(3, len(requests), requests)
 
     @patch(
         "album.environments.controller.conda_lock_manager.CondaLockManager.create_conda_lock_file"
@@ -130,6 +185,9 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
                     self.get_test_solution_path("solution11_version3.py"), solution_file
                 )
             )
+            self.assertEqual(
+                ["0.1.0", "0.2.0", "0.3.0"], self.versions_in_solution_list(tmp_repo)
+            )
 
         # undeploy second solution
         self.album_controller.deploy_manager().undeploy(
@@ -168,6 +226,9 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
                     self.get_test_solution_path("solution11_version3.py"), solution_file
                 )
             )
+            self.assertEqual(
+                ["0.1.0", "0.3.0"], self.versions_in_solution_list(tmp_repo)
+            )
 
         # undeploy the first third solution
         # this should revert the solution file back to the first version and remove the entry from the database
@@ -200,6 +261,7 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
                     self.get_test_solution_path("solution11_minimal.py"), solution_file
                 )
             )
+            self.assertEqual(["0.1.0"], self.versions_in_solution_list(tmp_repo))
 
         # undeploy the first version
         self.album_controller.deploy_manager().undeploy(
@@ -218,6 +280,7 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
                 remote_solution_file
             )
             self.assertFalse(solution_file.exists())
+            self.assertEqual([], self.versions_in_solution_list(tmp_repo))
 
         # update collection
         self.album_controller.collection_manager().catalogs().update_any("test_catalog")
@@ -303,6 +366,8 @@ class TestIntegrationDeploy(TestIntegrationCoreCommon):
             git_email=DefaultValues.catalog_git_email.value,
             git_name=DefaultValues.catalog_git_user.value,
             force_deploy=True,
+            # the same version for other content
+            no_replicability=True,
         )
         self.assertNotIn("ERROR", self.get_logs_as_string())
         self.album_controller.collection_manager().catalogs().update_any(catalog.name())

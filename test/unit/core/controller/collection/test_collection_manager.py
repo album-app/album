@@ -1,4 +1,8 @@
+import threading
+import time
 import unittest
+import warnings
+import zipfile
 from pathlib import Path
 from test.unit.test_unit_core_common import TestCatalogAndCollectionCommon
 from unittest import mock
@@ -7,6 +11,7 @@ from unittest.mock import MagicMock, patch
 from album.core.model.catalog import Catalog
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.resolve_result import ResolveResult
+from album.core.utils.file_lock import FileLock
 from album.runner.core.model.coordinates import Coordinates
 from album.runner.core.model.solution import Solution
 
@@ -28,6 +33,51 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
 
     def test_solutions(self):
         self.assertIsNotNone(self.album_controller.collection_manager().solutions())
+
+    @patch("album.core.controller.collection.collection_manager.CatalogHandler")
+    @patch("album.core.controller.collection.collection_manager.SolutionHandler")
+    def test_close(self, solution_handler_class, catalog_handler_class):
+        collection_manager = self.album_controller.collection_manager()
+        solution_handler = collection_manager.solutions()
+        catalog_handler = collection_manager.catalogs()
+        collection_index = collection_manager.get_collection_index()
+        collection_index_close = MagicMock(wraps=collection_index.close)
+        collection_index.close = collection_index_close
+
+        # call
+        collection_manager.close()
+
+        # assert: the index (the database) is closed
+        collection_index_close.assert_called_once_with()
+        self.assertFalse(collection_manager.collection_loaded)
+        with self.assertRaises(LookupError):
+            collection_manager.get_collection_index()
+
+        # assert: the handlers hold no resources, they are kept and not rebuilt
+        self.assertIs(solution_handler, collection_manager.solutions())
+        self.assertIs(catalog_handler, collection_manager.catalogs())
+        solution_handler_class.assert_not_called()
+        catalog_handler_class.assert_not_called()
+
+        # closing again does nothing
+        collection_manager.close()
+        collection_index_close.assert_called_once_with()
+
+    def test_close_and_load_again(self):
+        collection_manager = self.album_controller.collection_manager()
+        catalog_handler = collection_manager.catalogs()
+        catalog_names = [catalog.name() for catalog in catalog_handler.get_all()]
+        collection_manager.close()
+
+        # call
+        collection_manager.load_or_create()
+
+        # assert: the kept handler works on the reopened index
+        self.assertIs(catalog_handler, collection_manager.catalogs())
+        self.assertTrue(catalog_names)
+        self.assertEqual(
+            catalog_names, [catalog.name() for catalog in catalog_handler.get_all()]
+        )
 
     def test_get_index_as_dict(self):
         expected_dict = {
@@ -94,10 +144,43 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
             self.album_controller.collection_manager().get_index_as_dict(),
         )
 
-    @unittest.skip("Needs to be implemented!")
-    def test_resolve_require_installation(self):
-        # todo: implement
-        pass
+    def test_resolve_installed_not_installed(self):
+        collection_manager = self.album_controller.collection_manager()
+        catalog = collection_manager.catalogs().get_cache_catalog()
+        coordinates = Coordinates("grp", "name", "version")
+        uninstalled = ResolveResult(
+            path=Path("aPath"),
+            catalog=catalog,
+            collection_entry=CollectionIndex.CollectionSolution(
+                internal={"catalog_id": 1, "installed": False},
+                setup={"group": "grp", "name": "name", "version": "version"},
+            ),
+            coordinates=coordinates,
+        )
+        # e.g. a solution file that is not part of the collection
+        without_entry = ResolveResult(
+            path=Path("aPath"),
+            catalog=catalog,
+            collection_entry=None,
+            coordinates=coordinates,
+        )
+
+        for resolve_result, error in [
+            (uninstalled, ValueError),
+            (without_entry, LookupError),
+        ]:
+            with self.subTest(error=error.__name__):
+                collection_manager._resolve = MagicMock(return_value=resolve_result)
+
+                with self.assertRaises(error) as context:
+                    collection_manager.resolve_installed("grp:name:version")
+
+                # names the solution and how to install it
+                self.assertEqual(
+                    'Solution "grp:name:version" is not installed. '
+                    '"album install grp:name:version" installs it.',
+                    str(context.exception),
+                )
 
     @patch("album.core.controller.collection.collection_manager.check_file_or_url")
     @patch("album.core.controller.state_manager.StateManager.load")
@@ -125,8 +208,32 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         # assert
         check_file_or_url_mock.assert_called_once_with(
             "grp:name:version",
-            self.album_controller.configuration().cache_path_download(),
+            self.album_controller.configuration().tmp_path(),
         )
+
+    @patch("album.core.controller.state_manager.StateManager.load")
+    def test_load_resolve_result(self, load_mock):
+        # prepare
+        collection_manager = self.album_controller.collection_manager()
+        solution = Solution({"group": "grp", "name": "name", "version": "version"})
+        load_mock.return_value = solution
+        catalog = collection_manager.catalogs().get_cache_catalog()
+        resolve_result = ResolveResult(
+            path=Path("aPath"),
+            catalog=catalog,
+            collection_entry=None,
+            coordinates=Coordinates("grp", "name", "version"),
+        )
+        set_cache_paths = MagicMock()
+        collection_manager.solution_handler.set_cache_paths = set_cache_paths
+
+        # call
+        collection_manager.load_resolve_result(resolve_result)
+
+        # assert
+        load_mock.assert_called_once_with(Path("aPath"))
+        set_cache_paths.assert_called_once_with(solution, catalog)
+        self.assertIs(solution, resolve_result.loaded_solution())
 
     @unittest.skip("Needs to be implemented!")
     def test_resolve_require_installation_and_load_valid_path(self):
@@ -164,6 +271,63 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
             resolve_catalog, Coordinates("a", "b", "c")
         )
         self.assertEqual(resolve, r)
+
+    def _prepare_resolve_download(self):
+        self.resolve_catalog = Catalog("aNiceId", "aNiceName", "aValidPath")
+        self.resolve_path = Path(self.tmp_dir.name).joinpath("myResolvedSolution")
+        self.album_controller.collection_manager()._resolve = MagicMock(
+            return_value=ResolveResult(
+                path=self.resolve_path,
+                catalog=self.resolve_catalog,
+                collection_entry={},
+                coordinates=Coordinates("a", "b", "c"),
+            )
+        )
+        lock = self.solution_handler.get_solution_lock(
+            self.resolve_catalog, Coordinates("a", "b", "c")
+        )
+        lock._timeout = 10  # instead of waiting for two hours when it is not released
+        return lock
+
+    def test_resolve_download_holds_lock(self):
+        lock = self._prepare_resolve_download()
+        held_while_retrieving = []
+        self.solution_handler.retrieve_solution = MagicMock(
+            side_effect=lambda *args: held_while_retrieving.append(
+                lock.is_held_by_current_thread()
+            )
+        )
+
+        # call
+        self.album_controller.collection_manager().resolve("myInput")
+
+        # assert - another album process does not retrieve it at the same time
+        self.assertEqual([True], held_while_retrieving)
+        self.assertFalse(lock.is_held_by_current_thread())
+
+    def test_resolve_download_retrieved_while_waiting(self):
+        lock = self._prepare_resolve_download()
+        retrieve_solution = MagicMock()
+        self.solution_handler.retrieve_solution = retrieve_solution
+        locked = threading.Event()
+
+        def retrieve_in_other_process():
+            # another lock on the same file
+            with FileLock(lock._path, timeout=10, description="testing"):
+                locked.set()
+                time.sleep(0.2)
+                self.resolve_path.touch()
+
+        other_process = threading.Thread(target=retrieve_in_other_process)
+        other_process.start()
+        self.assertTrue(locked.wait(10))
+
+        # call
+        self.album_controller.collection_manager().resolve("myInput")
+        other_process.join(10)
+
+        # assert - retrieved by the other album process, not a second time
+        retrieve_solution.assert_not_called()
 
     def test_resolve_download_file_exists(self):
         # prepare
@@ -246,6 +410,75 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         _search_for_local_file_mock.assert_called_once_with(f)
         _search_mock.assert_not_called()
         _search_doi_mock.assert_not_called()
+
+    def test__resolve_case_local_zip(self):
+        # prepare: a zip holding solution.py and a file next to it
+        zip_path = Path(self.tmp_dir.name).joinpath("mySolution.zip")
+        with zipfile.ZipFile(zip_path, "w") as z:
+            z.writestr("solution.py", "")
+            z.writestr("data.txt", "")
+
+        # mock
+        self.album_controller.collection_manager()._search_for_local_file = MagicMock(
+            return_value=None
+        )
+
+        # call (check_file_or_url unpacks the zip)
+        resolve_result = self.album_controller.collection_manager()._resolve(
+            str(zip_path)
+        )
+
+        # assert: a zip is a solution folder, not a single file
+        self.assertFalse(resolve_result.is_single_file())
+        self.assertEqual("solution.py", resolve_result.path().name)
+        self.assertTrue(resolve_result.path().parent.joinpath("data.txt").exists())
+
+    @patch("album.core.utils.operations.resolve_operations.download")
+    def test__resolve_case_url_file(self, download_mock):
+        # mock: the download is stored in the temporary folder under a random name
+        def download(url, base):
+            f = Path(base).joinpath("tmpabc123")
+            f.write_text("")
+            return f
+
+        download_mock.side_effect = download
+        self.album_controller.collection_manager()._search_for_local_file = MagicMock(
+            return_value=None
+        )
+
+        # call
+        resolve_result = self.album_controller.collection_manager()._resolve(
+            "https://example.org/solution.py"
+        )
+
+        # assert: a downloaded .py file is a single file, installed as solution.py
+        self.assertTrue(resolve_result.is_single_file())
+        self.assertEqual("tmpabc123", resolve_result.path().name)
+
+    @patch("album.core.utils.operations.resolve_operations.download")
+    def test__resolve_case_url_zip(self, download_mock):
+        # mock: a downloaded zip holding solution.py and a file next to it
+        def download(url, base):
+            f = Path(base).joinpath("tmpabc123.zip")
+            with zipfile.ZipFile(f, "w") as z:
+                z.writestr("solution.py", "")
+                z.writestr("data.txt", "")
+            return f
+
+        download_mock.side_effect = download
+        self.album_controller.collection_manager()._search_for_local_file = MagicMock(
+            return_value=None
+        )
+
+        # call (check_file_or_url unpacks the zip)
+        resolve_result = self.album_controller.collection_manager()._resolve(
+            "https://example.org/solution.zip"
+        )
+
+        # assert: a downloaded zip is a solution folder, as a local one
+        self.assertFalse(resolve_result.is_single_file())
+        self.assertEqual("solution.py", resolve_result.path().name)
+        self.assertTrue(resolve_result.path().parent.joinpath("data.txt").exists())
 
     @patch("album.core.controller.collection.collection_manager.check_doi")
     @patch(
@@ -348,6 +581,33 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         _search_mock.assert_called_once_with(this_input)
         _search_doi_mock.assert_not_called()
 
+    @patch("album.core.controller.collection.collection_manager.check_doi")
+    @patch(
+        "album.core.controller.collection.collection_manager.check_file_or_url",
+        return_value=None,
+    )
+    def test__resolve_case_relative_path_not_a_doi(self, _, check_doi_mock):
+        """A non-existing relative path with one slash is not a DOI (issue #263,
+        1.12) and must end in a lookup error instead of a DOI download."""
+        # prepare
+        this_input = "mygroup/solution.py"
+
+        # mocks
+        _search_mock = MagicMock(return_value=None)
+        self.album_controller.collection_manager()._search = _search_mock
+
+        _search_doi_mock = MagicMock(return_value=None)
+        self.album_controller.collection_manager()._search_doi = _search_doi_mock
+
+        # call
+        with self.assertRaises(LookupError):
+            self.album_controller.collection_manager()._resolve(this_input)
+
+        # assert mocks
+        _search_mock.assert_called_once_with(this_input)
+        _search_doi_mock.assert_not_called()
+        check_doi_mock.assert_not_called()
+
     @unittest.skip("Needs to be implemented!")
     def test__search_local_file(self):
         # todo: implement
@@ -424,6 +684,25 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         d["version"] = attrs["version"]
         d["doi"] = attrs.get("doi", None)
         return d
+
+    def _get_collection_solution(self, version, catalog_id, installed=False):
+        return CollectionIndex.CollectionSolution(
+            setup=self._get_expected_attrs_setup(
+                {
+                    "group": "grp3",
+                    "name": "name3",
+                    "version": version,
+                }
+            ),
+            internal=self._get_expected_attrs_internal(
+                {
+                    "collection_id": "collection_id",
+                    "solution_id": "solution_id",
+                    "catalog_id": catalog_id,
+                },
+                installed=installed,
+            ),
+        )
 
     @patch(
         "album.core.controller.collection.collection_manager.CollectionManager._get_latest_solution"
@@ -557,6 +836,48 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
 
         # assert
         self.assertEqual(latest_solution, Solution_030)
+
+    def test__get_latest_solution_empty_list(self):
+        # call
+        latest_solution = (
+            self.album_controller.collection_manager()._get_latest_solution([])
+        )
+
+        # assert
+        self.assertIsNone(latest_solution)
+
+    def test__get_latest_solution_any_version(self):
+        def solution(version):
+            return CollectionIndex.CollectionSolution(
+                setup=self._get_expected_attrs_setup(
+                    {"group": "grp3", "name": "name3", "version": version}
+                ),
+                internal=self._get_expected_attrs_internal(
+                    {
+                        "collection_id": "collection_id",
+                        "solution_id": "solution_id",
+                        "catalog_id": "catalog_id",
+                    },
+                    installed=True,
+                ),
+            )
+
+        # PEP 440 versions in numeric order, others (e.g. SNAPSHOT) below them
+        for versions, latest in [
+            (["0.9.0", "0.10.0", "0.11.0-SNAPSHOT"], "0.10.0"),
+            (["1.0", "0.10.0rc1"], "1.0"),
+            (["0.1.0-SNAPSHOT", "0.2.0-SNAPSHOT"], "0.2.0-SNAPSHOT"),
+        ]:
+            with self.subTest(versions=versions):
+                # call
+                latest_solution = (
+                    self.album_controller.collection_manager()._get_latest_solution(
+                        [solution(version) for version in versions]
+                    )
+                )
+
+                # assert
+                self.assertEqual(latest, latest_solution.setup()["version"])
 
     def test__handle_multiple_solution_matches(self):
         # prepare
@@ -697,6 +1018,138 @@ class TestCollectionManager(TestCatalogAndCollectionCommon):
         self.assertEqual(latest_solution_no_cache, solution_020)
         self.assertEqual(latest_solution_one_cache, solution_040)
         self.assertEqual(latest_solution_two_cache, solution_050_cache)
+
+    def test__handle_multiple_solution_matches_cache_none_installed(self):
+        # prepare
+        collection_manager = self.album_controller.collection_manager()
+        cache_id = collection_manager.catalogs().get_cache_catalog().catalog_id()
+        solution_010 = self._get_collection_solution("0.1.0", cache_id, installed=False)
+        solution_020 = self._get_collection_solution("0.2.0", cache_id, installed=False)
+
+        # call
+        latest_solution = collection_manager._handle_multiple_solution_matches(
+            [solution_020, solution_010]
+        )
+
+        # assert
+        self.assertEqual(solution_020, latest_solution)
+        self.assertIn(
+            "Resolving ambiguous input to grp3:name3:0.2.0", self.get_logs()[-1]
+        )
+
+    def test__handle_multiple_solution_matches_non_cache_none_installed(self):
+        # prepare
+        collection_manager = self.album_controller.collection_manager()
+        solution_010 = self._get_collection_solution(
+            "0.1.0", "catalog_id", installed=False
+        )
+        solution_020 = self._get_collection_solution(
+            "0.2.0", "catalog_id", installed=False
+        )
+
+        # call
+        latest_solution = collection_manager._handle_multiple_solution_matches(
+            [solution_020, solution_010]
+        )
+
+        # assert
+        self.assertEqual(solution_020, latest_solution)
+        self.assertIn(
+            "Resolving ambiguous input to grp3:name3:0.2.0", self.get_logs()[-1]
+        )
+
+    def test__handle_multiple_solution_matches_prefers_installed(self):
+        # prepare
+        collection_manager = self.album_controller.collection_manager()
+        cache_id = collection_manager.catalogs().get_cache_catalog().catalog_id()
+        solution_010_cache = self._get_collection_solution(
+            "0.1.0", cache_id, installed=True
+        )
+        solution_020_cache = self._get_collection_solution(
+            "0.2.0", cache_id, installed=False
+        )
+        solution_010 = self._get_collection_solution(
+            "0.1.0", "catalog_id", installed=True
+        )
+        solution_020 = self._get_collection_solution(
+            "0.2.0", "catalog_id", installed=False
+        )
+
+        # call
+        latest_cache_solution = collection_manager._handle_multiple_solution_matches(
+            [solution_010_cache, solution_020_cache]
+        )
+        latest_solution = collection_manager._handle_multiple_solution_matches(
+            [solution_010, solution_020]
+        )
+
+        # assert
+        self.assertEqual(solution_010_cache, latest_cache_solution)
+        self.assertEqual(solution_010, latest_solution)
+
+    def test_resolution_notices_use_logger_warning(self):
+        # every "not reproducible" / "ambiguous input" notice of the resolution goes
+        # through Logger.warning(), not the deprecated Logger.warn() alias
+        collection_manager = self.album_controller.collection_manager()
+        catalog_collection = collection_manager.catalog_collection
+        cache_id = collection_manager.catalogs().get_cache_catalog().catalog_id()
+        cache_solution = self._get_collection_solution("0.1.0", cache_id)
+        solution_010 = self._get_collection_solution("0.1.0", "catalog_id")
+        solution_020 = self._get_collection_solution("0.2.0", "catalog_id")
+
+        # call
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            with patch.object(
+                catalog_collection, "get_solutions_by_name", return_value=[solution_010]
+            ):
+                guessed_by_name = collection_manager._guess("name3")
+            with patch.object(
+                catalog_collection,
+                "get_solutions_by_name_version",
+                return_value=[solution_010],
+            ):
+                guessed_by_name_version = collection_manager._guess("name3:0.1.0")
+            with (
+                patch.object(
+                    catalog_collection, "get_solutions_by_name_version", return_value=[]
+                ),
+                patch.object(
+                    catalog_collection,
+                    "get_solutions_by_grp_name",
+                    return_value=[solution_010],
+                ),
+            ):
+                guessed_by_grp_name = collection_manager._guess("grp3:name3")
+            single_cache_match = collection_manager._handle_multiple_solution_matches(
+                [cache_solution, solution_010]
+            )
+            latest_match = collection_manager._handle_multiple_solution_matches(
+                [solution_010, solution_020]
+            )
+
+        # assert
+        self.assertEqual(solution_010, guessed_by_name)
+        self.assertEqual(solution_010, guessed_by_name_version)
+        self.assertEqual(solution_010, guessed_by_grp_name)
+        self.assertEqual(cache_solution, single_cache_match)
+        self.assertEqual(solution_020, latest_match)
+        self.assertEqual(
+            [],
+            [
+                str(w.message)
+                for w in caught
+                if issubclass(w.category, DeprecationWarning)
+                and Path(w.filename).name == "collection_manager.py"
+            ],
+        )
+        notices = [
+            log
+            for log in self.get_logs()
+            if "This call is not fully reproducible" in log
+            or "Resolving ambiguous input" in log
+        ]
+        self.assertEqual(5, len(notices))
 
     def test__solutions_as_list(self):
         # prepare

@@ -9,6 +9,7 @@ from album import core
 from album.api import Album
 from album.commandline import (
     add_catalog,
+    change_catalog_src,
     clone,
     deploy,
     index,
@@ -23,6 +24,7 @@ from album.commandline import (
     uninstall,
     update,
     upgrade,
+    upgrade_solutions,
 )
 from album.environments.utils.subcommand import SubProcessError
 from album.runner.album_logging import (
@@ -30,6 +32,12 @@ from album.runner.album_logging import (
     debug_settings,
     get_active_logger,
     to_loglevel,
+)
+
+# help of the positional solution argument of every command that resolves a solution
+SOLUTION_HELP = (
+    "the solution: [catalog:]group:name:version (or a shorter form such as group:name), "
+    "a DOI, a URL, or the path to a solution file, folder or zip"
 )
 
 
@@ -131,8 +139,14 @@ def create_test_parser(parser):
 
 def create_index_parser(parser):
     """Create a parser for the index command."""
-    parser.create_command_parser(
+    p = parser.create_command_parser(
         "index", index, "print the index of the local album collection."
+    )
+    p.add_argument(
+        "--all",
+        required=False,
+        help="Show all versions of each solution, including outdated ones.",
+        action="store_true",
     )
 
 
@@ -180,6 +194,30 @@ def create_upgrade_parser(parser):
     )
 
 
+def create_upgrade_solutions_parser(parser):
+    """Create a parser for the upgrade-solutions command."""
+    p = parser.create_command_parser(
+        "upgrade-solutions",
+        upgrade_solutions,
+        "install the latest version of installed solutions from their catalogs, and uninstall the "
+        "versions it replaces once no other solution runs in them.",
+    )
+    p.add_argument(
+        "solutions",
+        nargs="*",
+        metavar="solution",
+        help="an installed solution to upgrade: [catalog:]group:name:version or a shorter form such "
+        "as group:name. Without one, all installed solutions are upgraded. Solutions installed "
+        "from a file, URL or DOI are not upgraded.",
+    )
+    p.add_argument(
+        "--dry-run",
+        required=False,
+        help="Only show what would be installed and uninstalled.",
+        action="store_true",
+    )
+
+
 def create_update_parser(parser):
     """Create a parser for the update command."""
     p = parser.create_command_parser(
@@ -210,6 +248,18 @@ def create_add_catalog_parser(parser):
     p.add_argument("src", type=str, help="src of the catalog")
 
 
+def create_change_catalog_src_parser(parser):
+    """Create a parser for the change-catalog-src command."""
+    p = parser.create_command_parser(
+        "change-catalog-src",
+        change_catalog_src,
+        "change the src of a catalog in your local album configuration file, e.g. to its SSH "
+        "URL. Its installed solutions stay installed.",
+    )
+    p.add_argument("name", type=str, help="name of the catalog")
+    p.add_argument("src", type=str, help="new src of the catalog")
+
+
 def create_info_parser(parser):
     """Create a parser for the info command."""
     parser.create_file_command_parser(
@@ -225,8 +275,8 @@ def create_uninstall_parser(parser):
     p.add_argument(
         "--uninstall-deps",
         required=False,
-        help="Boolean to additionally remove all album dependencies. Choose between %s."
-        % ", ".join([str(True), str(False)]),
+        help="Also uninstall the parent solution, and its parents in turn. A parent that other "
+        "installed solutions still depend on stays installed.",
         default=False,
         action="store_true",
     )
@@ -240,14 +290,47 @@ def create_install_parser(parser):
     p.add_argument(
         "--allow-recursive",
         required=False,
-        help="Parameter to indicate to allow album in album installation.",
+        help="Install even if the solution environment requires a different album version (album in album). "
+        "Both albums then share the base path and collection database unless configured otherwise, "
+        "which can break the database or the solution's runner. The same or an unpinned album version "
+        "is always accepted, with a warning.",
+        action="store_true",
+    )
+    p.add_argument(
+        "--reinstall",
+        required=False,
+        help="Install the solution again if it is installed, e.g. after it was deployed again with the "
+        "same version. It is installed from its catalog, or from the file, URL or DOI given; a solution "
+        "installed from a file, URL or DOI and given by group:name:version is installed from its copy "
+        "in album. A solution other solutions run in is not installed again, as they might not work in "
+        "its new environment: uninstall them first, and install them again afterwards. Everything is "
+        "downloaded, resources included, before anything is uninstalled, and what would make installing "
+        "it again fail stops it with nothing changed: a missing file, resource or parent, a parent with "
+        "another API version, a lock file when conda-lock is not found, or another album version in "
+        "its environment. It does not take --allow-recursive: uninstall such a solution and install it "
+        "with --allow-recursive by hand.",
+        action="store_true",
+    )
+    p.add_argument(
+        "--no-conda-lock",
+        required=False,
+        help="Solve the environment of the solution instead of installing it from its lock file, "
+        "e.g. when the lock file does not install on this system. The environment is then not "
+        "technically replicable, album warns. A solution with a parent runs in the environment of "
+        "its parent: it applies to the parent if the parent is installed with it.",
         action="store_true",
     )
 
 
 def create_deploy_parser(parser):
     """Create a parser for the deploy command."""
-    p = parser.create_file_command_parser("deploy", deploy, "deploy an album solution.")
+    p = parser.create_file_command_parser(
+        "deploy",
+        deploy,
+        "deploy an album solution.",
+        path_help="path to the solution file, or to the folder that holds solution.py and its other files",
+        path_metavar="path",
+    )
     p.add_argument(
         "catalog",
         type=str,
@@ -281,9 +364,9 @@ def create_deploy_parser(parser):
     p.add_argument(
         "--force-deploy",
         required=False,
-        help="When specified,force deploys a solution to a catalog."
+        help="When specified, force deploys a solution to a catalog."
         " Useful if the solution has already been deployed once.",
-        action="store_false",
+        action="store_true",
     )
     p.add_argument(
         "--changelog",
@@ -298,12 +381,24 @@ def create_deploy_parser(parser):
         help="When specified, the conda.lock file will not be created.",
         action="store_true",
     )
+    p.add_argument(
+        "--no-replicability",
+        required=False,
+        help="Deploy also a solution that is not technically replicable, e.g. one with a "
+        "resource url without a hash, a parent given by a path, or a version that replaces "
+        "one deployed before. Without it, album deploy names the reasons and stops. They are "
+        "stored with the solution, and installing it shows them.",
+        action="store_true",
+    )
 
 
 def create_undeploy_parser(parser):
     """Create a parser for the undeploy command."""
     p = parser.create_file_command_parser(
-        "undeploy", undeploy, "undeploy an album solution."
+        "undeploy",
+        undeploy,
+        "undeploy an album solution.",
+        path_help="group:name:version of the solution to remove from the catalog",
     )
     p.add_argument(
         "catalog",
@@ -346,7 +441,13 @@ def create_repl_parser(parser):
 
 def create_run_parser(parser):
     """Create a parser for the run command."""
-    parser.create_file_command_parser("run", run, "run an album solution.")
+    p = parser.create_file_command_parser("run", run, "run an album solution.")
+    p.add_argument(
+        "--install",
+        required=False,
+        help="Install the solution first if it is not installed.",
+        action="store_true",
+    )
 
 
 def create_search_parser(parser):
@@ -358,7 +459,16 @@ def create_search_parser(parser):
 
 
 class ArgumentParser(argparse.ArgumentParser):
-    """Override default error method of all parsers to show help of subcommand."""
+    """Parser of album and its commands, the base of every album parser.
+
+    Long options are only matched in full. album passes every argument it does not know on to
+    the solution, so a solution argument such as --js must not be taken for album's --json.
+    """
+
+    def __init__(self, *args, **kwargs):
+        """Create the parser. Abbreviated long options are not recognized."""
+        kwargs.setdefault("allow_abbrev", False)
+        super().__init__(*args, **kwargs)
 
     def error(self, message):
         """Override default error method of all parsers to show help of subcommand."""
@@ -420,15 +530,23 @@ class AlbumParser(ArgumentParser):
         parser.set_defaults(func=command_function)
         return parser
 
-    def create_file_command_parser(self, command_name, command_function, command_help):
-        """Create a parser for a album command dealing with an album file.
+    def create_file_command_parser(
+        self,
+        command_name,
+        command_function,
+        command_help,
+        path_help=SOLUTION_HELP,
+        path_metavar="solution",
+    ):
+        """Create a parser for a album command dealing with a solution.
 
-        Parser is specified by a name, a function and a help description.
+        Parser is specified by a name, a function and a help description. The solution is
+        the positional argument "path", its help and its name in the usage can be set.
         """
         parser = self.create_command_parser(
             command_name, command_function, command_help
         )
-        parser.add_argument("path", type=str, help="path for the solution file")
+        parser.add_argument("path", type=str, metavar=path_metavar, help=path_help)
         return parser
 
 

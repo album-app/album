@@ -1,13 +1,9 @@
 import os
+import threading
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Dict, Optional
-
-from album.environments.utils.file_operations import copy, copy_folder
-from album.runner import album_logging
-from album.runner.core.api.model.coordinates import ICoordinates
-from album.runner.core.api.model.solution import ISolution
 
 from album.core.api.controller.collection.solution_handler import ISolutionHandler
 from album.core.api.controller.controller import IAlbumController
@@ -15,9 +11,11 @@ from album.core.api.model.catalog import ICatalog
 from album.core.api.model.catalog_updates import ChangeType, ISolutionChange
 from album.core.api.model.collection_index import ICollectionIndex
 from album.core.api.model.collection_solution import ICollectionSolution
+from album.core.model.catalog_updates import SolutionChange
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.model.link import Link
+from album.core.utils.file_lock import FileLock
 from album.core.utils.operations.file_operations import (
     construct_cache_link_target,
     force_remove,
@@ -32,6 +30,10 @@ from album.core.utils.operations.resolve_operations import (
     get_zip_name,
 )
 from album.core.utils.operations.solution_operations import get_deploy_dict
+from album.environments.utils.file_operations import copy, copy_folder
+from album.runner import album_logging
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
 
 module_logger = album_logging.get_active_logger
 
@@ -44,6 +46,8 @@ class SolutionHandler(ISolutionHandler):
 
     def __init__(self, album: IAlbumController):
         self.album = album
+        self._locks: Dict[Path, FileLock] = {}
+        self._locks_creation = threading.Lock()
 
     def add_or_replace(self, catalog: ICatalog, solution: ICollectionSolution) -> None:
         deploy_dict = get_deploy_dict(solution.loaded_solution())
@@ -63,16 +67,20 @@ class SolutionHandler(ISolutionHandler):
             if solution.path() is None:
                 raise RuntimeError("Single file solution without path!")
 
-            copy(
-                solution.path(),
-                install_location.joinpath(DefaultValues.solution_default_name.value),
+            target = install_location.joinpath(
+                DefaultValues.solution_default_name.value
             )
+            module_logger().debug(f"Copying {solution.path()} to {target}...")
+            copy(solution.path(), target)
         else:
             _path = solution.path()
 
             if _path is None:
                 raise RuntimeError("Solution without path!")
 
+            module_logger().debug(
+                f"Copying the files of {Path(_path).parent} to {install_location}..."
+            )
             copy_folder(Path(_path).parent, install_location, copy_root_folder=False)
 
     def add_to_cache_catalog(self, solution: ICollectionSolution) -> None:
@@ -87,6 +95,9 @@ class SolutionHandler(ISolutionHandler):
         if index is None:
             raise RuntimeError("Collection index not found!")
 
+        # a solution has one parent: a link left from an earlier installation, e.g. to a
+        # parent the solution no longer declares, is replaced
+        index.remove_parent(child_entry.internal()["collection_id"], close=False)
         index.insert_collection_collection(
             parent_entry.internal()["collection_id"],
             child_entry.internal()["collection_id"],
@@ -134,8 +145,35 @@ class SolutionHandler(ISolutionHandler):
     def apply_change(
         self, catalog: ICatalog, change: ISolutionChange, override: bool
     ) -> None:
+        if change.change_type() is ChangeType.ADDED:
+            # not in the collection yet, so not installed either
+            self._apply_change(catalog, change, override)
+            return
+        # an album process installing or uninstalling the solution holds its lock: the
+        # change is applied once that process is done, to the status it left
+        with self.get_solution_lock(catalog, change.coordinates()):
+            self._apply_change(catalog, change, override)
+
+    def _apply_change(
+        self, catalog: ICatalog, change: ISolutionChange, override: bool
+    ) -> None:
         cat_index = catalog.index()
         col_index = self._get_collection_index()
+        # the status now, not the one from when the change was found
+        entry = (
+            col_index.get_solution_by_catalog_grp_name_version(
+                catalog.catalog_id(), change.coordinates()
+            )
+            if col_index is not None
+            else None
+        )
+        if entry is not None:
+            change = SolutionChange(
+                change.coordinates(),
+                change.change_type(),
+                change.change_log(),
+                entry.internal(),
+            )
         sol_stat = change.solution_status()
 
         if cat_index is None:
@@ -155,7 +193,23 @@ class SolutionHandler(ISolutionHandler):
             )
 
         elif change.change_type() is ChangeType.REMOVED:
-            self.remove_solution(catalog, change.coordinates())
+            if col_index is None:
+                raise RuntimeError("Collection index not found!")
+
+            # an installed solution keeps its entry, so it can still be run and
+            # uninstalled; once it is uninstalled, the next upgrade removes it. So does an
+            # unfinished installation, whose files the next installation removes.
+            if entry is None or not (
+                entry.internal()["installed"]
+                or entry.internal()["installation_unfinished"]
+            ):
+                self.remove_solution(catalog, change.coordinates())
+            elif entry.internal()["installed"]:
+                module_logger().warning(
+                    'Solution "%s" was removed from catalog "%s", but it is installed.'
+                    " It stays in your collection until you uninstall it."
+                    % (str(change.coordinates()), catalog.name())
+                )
 
         elif change.change_type() is ChangeType.CHANGED:
             if not sol_stat:
@@ -173,18 +227,28 @@ class SolutionHandler(ISolutionHandler):
                 change.coordinates(),
                 cat_index.get_solution_by_coordinates(change.coordinates()),
             )
-            if installed:
+            if installed or sol_stat["installation_unfinished"]:
                 # set old (install) status and parents again
                 self._set_old_db_stat(catalog, change)
 
+            reinstall = (
+                f'"album install --reinstall {catalog.name()}:{change.coordinates()}"'
+                " installs it again."
+            )
             if override and not catalog.is_cache() and installed:
                 module_logger().warning(
                     'CAUTION: Solution "%s" seems to be installed.'
                     " The performed operation can leave a broken installation behind "
-                    "if dependencies got changed! Consider reinstalling the solution!"
-                    % str(change.coordinates())
+                    "if dependencies got changed! %s"
+                    % (str(change.coordinates()), reinstall)
                 )
                 self.retrieve_solution(catalog, change.coordinates())
+            elif installed:
+                # the installation stays as it was, until it is installed again
+                module_logger().warning(
+                    'Solution "%s" changed in catalog "%s" after it was installed. %s'
+                    % (str(change.coordinates()), catalog.name(), reinstall)
+                )
 
     def _set_old_db_stat(self, catalog: ICatalog, change: ISolutionChange) -> None:
         sol_stat = change.solution_status()
@@ -228,6 +292,11 @@ class SolutionHandler(ISolutionHandler):
     def set_installation_unfinished(self, catalog: ICatalog, coordinates: ICoordinates):
         self.update_solution(
             catalog, coordinates, {"installed": 0, "installation_unfinished": 1}
+        )
+
+    def set_last_execution(self, catalog: ICatalog, coordinates: ICoordinates) -> None:
+        self.update_solution(
+            catalog, coordinates, {"last_execution": datetime.now().isoformat()}
         )
 
     def is_installed(self, catalog: ICatalog, coordinates: ICoordinates) -> bool:
@@ -276,18 +345,69 @@ class SolutionHandler(ISolutionHandler):
             DefaultValues.solution_default_name.value
         )
 
+    def get_solution_lock(
+        self, catalog: ICatalog, coordinates: ICoordinates
+    ) -> FileLock:
+        lock_file = (
+            self.album.configuration()
+            .base_cache_path()
+            .joinpath(
+                DefaultValues.lock_folder_prefix.value,
+                catalog.name(),
+                coordinates.group(),
+                coordinates.name(),
+                "%s.lock" % coordinates.version(),
+            )
+        )
+        return self._get_lock(
+            lock_file,
+            f'installing or uninstalling "{catalog.name()}:{coordinates}" '
+            "or a solution depending on it",
+        )
+
+    def get_upgrade_lock(self) -> FileLock:
+        lock_file = (
+            self.album.configuration()
+            .base_cache_path()
+            .joinpath(DefaultValues.lock_folder_prefix.value, "upgrade.lock")
+        )
+        return self._get_lock(
+            lock_file,
+            'running "album upgrade", "album upgrade-solutions" or '
+            '"album install --reinstall"',
+        )
+
+    def _get_lock(self, lock_file: Path, description: str) -> FileLock:
+        # one lock per lock file, which the thread holding it acquires again instead of
+        # waiting for itself
+        with self._locks_creation:
+            if lock_file not in self._locks:
+                self._locks[lock_file] = FileLock(
+                    lock_file,
+                    timeout=DefaultValues.install_lock_timeout_in_seconds.value,
+                    description=description,
+                )
+            return self._locks[lock_file]
+
     def get_solution_zip_suffix(self, coordinates: ICoordinates) -> Path:
         return Path("").joinpath(
             self.album.configuration().get_solution_path_suffix(coordinates),
             get_zip_name(coordinates),
         )
 
-    def retrieve_solution(self, catalog: ICatalog, coordinates: ICoordinates) -> Path:
+    def retrieve_solution(
+        self,
+        catalog: ICatalog,
+        coordinates: ICoordinates,
+        target: Optional[Path] = None,
+    ) -> Path:
         if catalog.is_cache():  # no src to download form or src to copy from
             raise RuntimeError("Cannot download from a cache catalog!")
         else:  # src to download from
-            solution_download_target = self.get_solution_package_path(
-                catalog, coordinates
+            solution_download_target = (
+                target
+                if target is not None
+                else self.get_solution_package_path(catalog, coordinates)
             )
             self._download_solution(
                 catalog.src(), coordinates, solution_download_target
@@ -313,6 +433,9 @@ class SolutionHandler(ISolutionHandler):
                 if target.exists():
                     for f in os.listdir(str(target)):
                         force_remove(os.path.join(str(target), f))
+                module_logger().debug(
+                    f"Copying the files of {tmp_solution} to {target}..."
+                )
                 copy_folder(tmp_solution, target, copy_root_folder=False)
             finally:
                 force_remove(repo_dir)
@@ -333,6 +456,7 @@ class SolutionHandler(ISolutionHandler):
         """Everything that should NOT change internally when an UPDATE change is performed on a solution."""
         r = {
             "installed": internal_status["installed"],
+            "installation_unfinished": internal_status["installation_unfinished"],
             "install_date": internal_status["install_date"],
             "last_execution": internal_status["last_execution"],
         }

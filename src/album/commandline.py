@@ -1,4 +1,5 @@
 """Module containing the commandline functions for the `album` commandline tool."""
+
 import os
 import pkgutil
 import sys
@@ -11,10 +12,12 @@ from album.core.utils.operations.solution_operations import (
     serialize_json,
 )
 from album.core.utils.operations.view_operations import (
+    filter_latest_solutions,
     get_index_as_string,
     get_search_result_as_string,
     get_solution_as_string,
     get_updates_as_string,
+    get_upgraded_solutions_as_string,
 )
 from album.runner.album_logging import get_active_logger
 from album.runner.core.model.solution import Solution
@@ -30,6 +33,11 @@ def add_catalog(album_instance: Album, args: Namespace) -> None:
 def remove_catalog(album_instance: Album, args: Namespace) -> None:
     """Call function corresponding to the `remove-catalog` subcommand of `album`."""
     album_instance.remove_catalog_by_name(args.name)
+
+
+def change_catalog_src(album_instance: Album, args: Namespace) -> None:
+    """Call function corresponding to the `change-catalog-src` subcommand of `album`."""
+    album_instance.change_catalog_src(args.name, args.src)
 
 
 def update(album_instance: Album, args: Namespace):
@@ -55,6 +63,20 @@ def upgrade(album_instance: Album, args: Namespace):
         module_logger().info(res)
 
 
+def upgrade_solutions(album_instance: Album, args: Namespace):
+    """Call function corresponding to the `upgrade-solutions` subcommand of `album`."""
+    result = album_instance.upgrade_solutions(args.solutions, dry_run=args.dry_run)
+    if _get_print_json(args):
+        print(_as_json(result))
+    else:
+        module_logger().info(get_upgraded_solutions_as_string(result))
+    if result["failed"]:
+        raise RuntimeError(
+            "Cannot upgrade every solution: %s"
+            % ", ".join(failure["solution"] for failure in result["failed"])
+        )
+
+
 def deploy(album_instance: Album, args: Namespace):
     """Call function corresponding to the `deploy` subcommand of `album`."""
     album_instance.deploy(
@@ -67,6 +89,7 @@ def deploy(album_instance: Album, args: Namespace):
         args.force_deploy,
         args.changelog,
         args.no_conda_lock,
+        args.no_replicability,
     )
 
 
@@ -84,7 +107,13 @@ def undeploy(album_instance: Album, args: Namespace):
 
 def install(album_instance: Album, args: Namespace):
     """Call function corresponding to the `install` subcommand of `album`."""
-    album_instance.install(str(args.path), args.allow_recursive, sys.argv)
+    album_instance.install(
+        str(args.path),
+        args.allow_recursive,
+        sys.argv,
+        reinstall=getattr(args, "reinstall", False),
+        no_conda_lock=getattr(args, "no_conda_lock", False),
+    )
 
 
 def uninstall(album_instance: Album, args: Namespace):
@@ -108,7 +137,10 @@ def info(album_instance: Album, args: Namespace):
 
 def run(album_instance: Album, args: Namespace):
     """Call function corresponding to the `run` subcommand of `album`."""
-    album_instance.run(str(args.path), argv=sys.argv)
+    solution = str(args.path)
+    if getattr(args, "install", False) and not album_instance.is_installed(solution):
+        album_instance.install(solution)
+    album_instance.run(solution, argv=sys.argv)
 
 
 def search(album_instance: Album, args: Namespace):
@@ -135,6 +167,8 @@ def clone(album_instance: Album, args: Namespace):
 def index(album_instance: Album, args: Namespace):
     """Call function corresponding to the `index` subcommand of `album`."""
     index_dict = album_instance.get_index_as_dict()
+    if not getattr(args, "all", False):
+        filter_latest_solutions(index_dict)
     print_json = _get_print_json(args)
     if print_json:
         print(_as_json(index_dict))
@@ -145,14 +179,19 @@ def index(album_instance: Album, args: Namespace):
 
 def _merge_scripts(script1, script2_content, tmp_dir):
     """Merge two scripts into one."""
-    with open(script1) as fp:
+    with open(script1, encoding="utf-8") as fp:
         data = fp.read()
 
     data += "\n"
     data += script2_content.decode("utf-8")
 
     with tempfile.NamedTemporaryFile(
-        "w", suffix=".py", prefix="solution_repl", dir=tmp_dir, delete=False
+        "w",
+        suffix=".py",
+        prefix="solution_repl",
+        dir=tmp_dir,
+        delete=False,
+        encoding="utf-8",
     ) as tmp_file:
         tmp_file.write(data)
     return tmp_file.name

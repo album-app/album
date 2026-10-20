@@ -1,9 +1,11 @@
+import sqlite3
 import unittest
 from test.unit.test_unit_core_common import EmptyTestClass, TestUnitCoreCommon
 from unittest import mock
 from unittest.mock import MagicMock, create_autospec, patch
 
 from album.core.controller.run_manager import RunManager
+from album.core.model.default_values import DefaultValues
 from album.core.model.resolve_result import ResolveResult
 
 
@@ -40,6 +42,121 @@ class TestRunManager(TestUnitCoreCommon):
         # assert
         build_queue.assert_called_once()
         run_queue.assert_called_once()
+
+    def test_run_sets_last_execution(self):
+        # mocks
+        build_queue = MagicMock(return_value=None)
+        self.album_controller.script_manager().build_queue = build_queue
+
+        run_queue = MagicMock(return_value=None)
+        self.album_controller.script_manager().run_queue = run_queue
+
+        set_last_execution = MagicMock(return_value=None)
+        self.album_controller.solutions().set_last_execution = set_last_execution
+
+        calls = MagicMock()
+        calls.attach_mock(run_queue, "run_queue")
+        calls.attach_mock(set_last_execution, "set_last_execution")
+
+        catalog = EmptyTestClass()
+        coordinates = self.active_solution.coordinates()
+        resolve_result = ResolveResult(
+            "", catalog, None, coordinates, self.active_solution
+        )
+
+        resolve_installed_and_load = MagicMock(return_value=resolve_result)
+        self.album_controller.collection_manager().resolve_installed_and_load = (
+            resolve_installed_and_load
+        )
+
+        # call
+        self.run_manager.run("", False)
+
+        # assert
+        set_last_execution.assert_called_once_with(catalog, coordinates)
+        self.assertEqual(
+            [
+                mock.call.run_queue(mock.ANY),
+                mock.call.set_last_execution(catalog, coordinates),
+            ],
+            calls.mock_calls,
+        )
+
+    def test_run_last_execution_not_recorded(self):
+        # mocks
+        self.album_controller.script_manager().build_queue = MagicMock()
+        run_queue = MagicMock(return_value=None)
+        self.album_controller.script_manager().run_queue = run_queue
+
+        # e.g. many album processes on one base path hold the collection database
+        set_last_execution = MagicMock(
+            side_effect=sqlite3.OperationalError("database is locked")
+        )
+        self.album_controller.solutions().set_last_execution = set_last_execution
+
+        publish = MagicMock()
+        self.album_controller.event_manager().publish = publish
+
+        resolve_result = ResolveResult(
+            "",
+            EmptyTestClass(),
+            None,
+            self.active_solution.coordinates(),
+            self.active_solution,
+        )
+        self.album_controller.collection_manager().resolve_installed_and_load = (
+            MagicMock(return_value=resolve_result)
+        )
+
+        # call: the solution has finished, so the run does not fail
+        self.run_manager.run("", False)
+
+        # assert
+        run_queue.assert_called_once()
+        set_last_execution.assert_called_once()
+        self.assertIn(
+            "the run could not be recorded in the collection: database is locked",
+            self.get_logs_as_string(),
+        )
+        self.assertEqual(
+            [
+                DefaultValues.before_run_event_name.value,
+                DefaultValues.after_run_event_name.value,
+            ],
+            [c.args[0].name() for c in publish.call_args_list],
+        )
+
+    def test_run_failed_does_not_set_last_execution(self):
+        # mocks
+        build_queue = MagicMock(return_value=None)
+        self.album_controller.script_manager().build_queue = build_queue
+
+        run_queue = MagicMock(side_effect=RuntimeError("run failed"))
+        self.album_controller.script_manager().run_queue = run_queue
+
+        set_last_execution = MagicMock(return_value=None)
+        self.album_controller.solutions().set_last_execution = set_last_execution
+
+        resolve_result = ResolveResult(
+            "",
+            EmptyTestClass(),
+            None,
+            self.active_solution.coordinates(),
+            self.active_solution,
+        )
+
+        resolve_installed_and_load = MagicMock(return_value=resolve_result)
+        self.album_controller.collection_manager().resolve_installed_and_load = (
+            resolve_installed_and_load
+        )
+
+        # call
+        with self.assertRaises(RuntimeError):
+            self.run_manager.run("", False)
+
+        # assert
+        run_queue.assert_called_once()
+        set_last_execution.assert_not_called()
 
     @patch("album.core.controller.run_manager.entry_points")
     def test_load_plugins(self, mock_entry_points):
@@ -88,6 +205,36 @@ class TestRunManager(TestUnitCoreCommon):
         entry_point_load_return.assert_called_with(
             mock.ANY, resolve_result.coordinates.return_value, {"my-arg": "arg-value"}
         )
+
+    @patch("album.core.controller.run_manager.entry_points")
+    def test_load_plugins_warns_deprecated(self, mock_entry_points):
+        entry_point = EmptyTestClass()
+        entry_point.name = "plugin-name"
+        entry_point_load = MagicMock()
+        entry_point.load = entry_point_load
+        mock_entry_points.return_value = [entry_point]
+        resolve_result = create_autospec(ResolveResult)
+        self.active_solution._setup["dependencies"] = {}
+        self.active_solution._setup["dependencies"]["plugins"] = [{"id": "plugin-name"}]
+        resolve_result.loaded_solution = lambda: self.active_solution
+
+        self.album_controller.run_manager().load_plugins(resolve_result)
+
+        # deprecated, not removed: the plugin is still activated (#266)
+        entry_point_load.return_value.assert_called_once()
+        logs = self.get_logs_as_string()
+        self.assertIn("uses solution plugins (plugin-name)", logs)
+        self.assertIn("deprecated", logs)
+        self.assertIn("https://gitlab.com/album-app/album/-/issues/266", logs)
+
+    def test_load_plugins_no_plugins_no_warning(self):
+        resolve_result = create_autospec(ResolveResult)
+        self.active_solution._setup["dependencies"] = {"environment_file": "env"}
+        resolve_result.loaded_solution = lambda: self.active_solution
+
+        self.album_controller.run_manager().load_plugins(resolve_result)
+
+        self.assertNotIn("solution plugins", self.get_logs_as_string())
 
 
 if __name__ == "__main__":

@@ -59,6 +59,18 @@ class RunManager(IRunManager):
         # runs the queue
         try:
             self.album.script_manager().run_queue(que)
+            if resolve_result.catalog():
+                try:
+                    self.album.solutions().set_last_execution(
+                        resolve_result.catalog(), resolve_result.coordinates()
+                    )
+                except Exception as e:
+                    # e.g. "database is locked" with many album processes on one base path:
+                    # the solution has finished, failing to record the run must not fail it
+                    module_logger().warning(
+                        "%s has finished, but the run could not be recorded in the collection: %s"
+                        % (resolve_result.coordinates(), e)
+                    )
         finally:
             self.album.event_manager().publish(
                 Event(DefaultValues.after_run_event_name.value),
@@ -70,11 +82,26 @@ class RunManager(IRunManager):
         )
 
     def load_plugins(self, resolve_result: ICollectionSolution):
-        # process solution plugins
+        """Activate the solution plugins a solution declares in its dependencies.
+
+        Deprecated: solution plugins will be removed in a future release, together
+        with album-socket and album-client, see
+        https://gitlab.com/album-app/album/-/issues/266. Until then they still load,
+        with a warning.
+        """
         module_logger().debug("Processing plugins...")
         if "dependencies" in resolve_result.loaded_solution().setup():
             deps = resolve_result.loaded_solution().setup()["dependencies"]
             if "plugins" in deps:
+                module_logger().warning(
+                    'Solution "%s" uses solution plugins (%s). Solution plugins are '
+                    "deprecated and will be removed in a future release of album, see "
+                    "https://gitlab.com/album-app/album/-/issues/266"
+                    % (
+                        resolve_result.loaded_solution().coordinates().name(),
+                        ", ".join(str(plugin.get("id")) for plugin in deps["plugins"]),
+                    )
+                )
                 module_logger().debug(
                     "Processing solution plugins: %s" % deps["plugins"]
                 )

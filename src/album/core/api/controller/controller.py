@@ -1,4 +1,5 @@
 """Interface for the Album Controller."""
+
 from abc import ABCMeta, abstractmethod
 
 from album.core.api.controller.clone_manager import ICloneManager
@@ -107,7 +108,11 @@ class IAlbumController:
 
     @abstractmethod
     def close(self) -> None:
-        """Close the controller."""
+        """Close the controller.
+
+        Closes the catalog collection and removes the temporary folder of this album
+        instance, see IConfiguration.close().
+        """
         raise NotImplementedError
 
     @abstractmethod

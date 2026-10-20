@@ -7,6 +7,11 @@ workflow:
       when: never
     - when: always
 
+variables:
+  # PyYAML has no wheels for Python 3.15 yet, and without a compiler its build only falls back to pure Python on
+  # Linux and macOS: on Windows, setuptools raises a PlatformError PyYAML does not catch. Build it without libyaml.
+  PYYAML_FORCE_LIBYAML: "0"
+
 #----------------------------
 # templates
 #----------------------------
@@ -39,12 +44,13 @@ workflow:
     - '& $7ZIP_EXE x micromamba.tar -ttar -aoa -r Library\bin\micromamba.exe $("-o" + (Join-Path -Path (Get-Location) -ChildPath micromamba_installation))'
     - "$progressPreference = $oldProgressPreference"
     - 'Get-ChildItem Env: | Where-Object { $_.Name -match "album" -or $_.Value -match "album" } | Format-Table -AutoSize'
-    - '.\micromamba_installation\Library\bin\micromamba.exe create -y -n album python=$env:TEST_PYTHON_VERSION -c conda-forge' # created under $env:WINDOWS_MAMBA_ENV_PREFIX
+    # zstandard (a dependency of conda-lock, which album-environments needs) has no wheels for Python 3.15 on PyPI yet, and the runners have no compiler to build it
+    - '.\micromamba_installation\Library\bin\micromamba.exe create -y -n album python=$env:TEST_PYTHON_VERSION zstandard -c conda-forge' # created under $env:WINDOWS_MAMBA_ENV_PREFIX
     - 'Write-Output "CI_COMMIT_REF_NAME: $env:CI_COMMIT_REF_NAME"'
     #- "$Env:MAMBA_ROOT_PREFIX=(Join-Path -Path (Get-Location) -ChildPath micromamba)"
-    # The following lines allow to install the dev version of the API and envs in the album environment, based on the current branch name
-    - 'if($env:CI_COMMIT_REF_NAME -match "api_change_runner*") { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX pip install git+https://gitlab.com/album-app/album-solution-api.git@dev}'
-    - 'if($env:CI_COMMIT_REF_NAME -match "api_change_env*") { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX pip install git+https://gitlab.com/album-app/album-environments.git@dev}'
+    # The following lines install the dev version of the API and envs in the album environment when the branch name contains api_change_runner or api_change_env, anywhere and both at once
+    - 'if($env:CI_COMMIT_REF_NAME -match "api_change_runner") { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX pip install git+https://gitlab.com/album-app/album-solution-api.git@dev}'
+    - 'if($env:CI_COMMIT_REF_NAME -match "api_change_env") { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX pip install git+https://gitlab.com/album-app/album-environments.git@dev}'
     # The following allows to install the dev version of the API and envs via CI variables on any branch
     - 'if($env:ALBUM_DEV_CORE_API -match "True") { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX pip install git+https://gitlab.com/album-app/album-solution-api.git@dev}'
     - 'if($env:ALBUM_DEV_CORE_ENV -match "True") { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX pip install git+https://gitlab.com/album-app/album-environments.git@dev}'
@@ -77,14 +83,17 @@ workflow:
     - tar -xvjf /tmp/micromamba.tar.bz2 -C $CI_PROJECT_DIR/bin/ --strip-components=1 bin/micromamba
     - MICROMAMBA_EXECUTABLE=$CI_PROJECT_DIR/bin/micromamba
     - $MICROMAMBA_EXECUTABLE --version
-    - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=$TEST_PYTHON_VERSION
+    # OLDEST_PYTHON_VERSION is only set by the job testing the oldest supported Python
+    # zstandard (a dependency of conda-lock, which album-environments needs) has no wheels for Python 3.15 on PyPI yet, and the runners have no compiler to build it
+    - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=${OLDEST_PYTHON_VERSION:-$TEST_PYTHON_VERSION} zstandard
     - bash -c 'echo $CI_COMMIT_REF_NAME'
-    # The following lines allow to install the dev version of the API and envs in the album environment, based on the current branch name
-    - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_runner* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No api_change_runner branch"'
-    - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_env* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No api_change_env branch"'
-    # The following allows to install the dev version of the API and envs via CI variables on any branch
-    - bash -c '[[ $ALBUM_DEV_CORE_ENV == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "ALBUM_DEV_CORE_ENV not active"'
+    # The following lines install the dev version of the API and envs in the album environment when the branch name contains api_change_runner or api_change_env, anywhere and both at once
+    - bash -c '[[ $CI_COMMIT_REF_NAME == *api_change_runner* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No api_change_runner branch"'
+    - bash -c '[[ $CI_COMMIT_REF_NAME == *api_change_env* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No api_change_env branch"'
+    # The following allows to install the dev version of the API and envs via CI variables on any branch.
+    # The API comes first: the dev version of album-environments may require the dev version of album-solution-api.
     - bash -c '[[ $ALBUM_DEV_CORE_API == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "ALBUM_DEV_CORE_API not active"'
+    - bash -c '[[ $ALBUM_DEV_CORE_ENV == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "ALBUM_DEV_CORE_ENV not active"'
     - $MICROMAMBA_EXECUTABLE run -n album pip install --no-cache-dir -e $CI_PROJECT_DIR # -e needed for coverage
     - $MICROMAMBA_EXECUTABLE run -n album pip install coverage
     - $MICROMAMBA_EXECUTABLE run -n album python -V
@@ -120,14 +129,16 @@ workflow:
     - tar -xvjf $tmpdir/micromamba.tar.bz2 -C $tmpdir/bin/ --strip-components=1 bin/micromamba
     - MICROMAMBA_EXECUTABLE=$tmpdir/bin/micromamba
     - $MICROMAMBA_EXECUTABLE --version
-    - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=$TEST_PYTHON_VERSION
+    # zstandard (a dependency of conda-lock, which album-environments needs) has no wheels for Python 3.15 on PyPI yet, and the runners have no compiler to build it
+    - $MICROMAMBA_EXECUTABLE create -y -n album -c conda-forge python=$TEST_PYTHON_VERSION zstandard
     - bash -c 'echo $CI_COMMIT_REF_NAME'
-    # The following lines allow to install the dev version of the API and envs in the album environment, based on the current branch name
-    - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_runner* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No api_change_runner branch"'
-    - bash -c '[[ $CI_COMMIT_REF_NAME == api_change_env* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No api_change_env branch"'
-    # The following allows to install the dev version of the API and envs via CI variables on any branch
-    - bash -c '[[ $ALBUM_DEV_CORE_ENV == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "ALBUM_DEV_CORE_ENV not active"'
+    # The following lines install the dev version of the API and envs in the album environment when the branch name contains api_change_runner or api_change_env, anywhere and both at once
+    - bash -c '[[ $CI_COMMIT_REF_NAME == *api_change_runner* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "No api_change_runner branch"'
+    - bash -c '[[ $CI_COMMIT_REF_NAME == *api_change_env* ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "No api_change_env branch"'
+    # The following allows to install the dev version of the API and envs via CI variables on any branch.
+    # The API comes first: the dev version of album-environments may require the dev version of album-solution-api.
     - bash -c '[[ $ALBUM_DEV_CORE_API == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-solution-api.git@dev || echo "ALBUM_DEV_CORE_API not active"'
+    - bash -c '[[ $ALBUM_DEV_CORE_ENV == "True" ]] && $MICROMAMBA_EXECUTABLE run -n album pip install git+https://gitlab.com/album-app/album-environments.git@dev || echo "ALBUM_DEV_CORE_ENV not active"'
     - $MICROMAMBA_EXECUTABLE run -n album pip install --no-cache-dir -e $CI_PROJECT_DIR # -e needed for coverage
     - $MICROMAMBA_EXECUTABLE run -n album pip install coverage
     - $MICROMAMBA_EXECUTABLE run -n album python -V
@@ -177,7 +188,8 @@ prepare release:
     - DeployDocker
   script:
     - echo "preparing release"
-    - VERSION=$(cat pyproject.toml | grep "version=*" | awk '{gsub(/"/, "", $3); print $3}')
+    - VERSION=$(awk -F'"' '/^version *=/ {print $2; exit}' pyproject.toml) # version = "..." of [project], the only place it is written down
+    - test -n "$VERSION" || (echo "No version line found in pyproject.toml" && exit 1)
     - TAG=v$VERSION
     - echo "prepare to release version $VERSION with tag $TAG"
     - echo "VERSION=$VERSION" >> variables.env
@@ -324,18 +336,29 @@ unit tests linux micromamba:
   extends: .linux_base_template_micromamba
   stage: test
   script:
-    - $MICROMAMBA_EXECUTABLE run -n album coverage run --omit './test/*' -m unittest test/unit/run_all_unit_micromamba.py
+    - $MICROMAMBA_EXECUTABLE run -n album coverage run --omit './test/*' -m test.unit.run_all_unit_micromamba
     - $MICROMAMBA_EXECUTABLE run -n album coverage report
     - mv .coverage unit.coverage # rename coverage file
   artifacts:
     paths:
       - unit.coverage
 
+# The oldest Python of requires-python in pyproject.toml; all other jobs use TEST_PYTHON_VERSION.
+# A job cannot override TEST_PYTHON_VERSION itself: the value in the project's CI/CD settings
+# takes precedence over variables defined in this file.
+unit tests linux micromamba oldest python:
+  extends: .linux_base_template_micromamba
+  stage: test
+  variables:
+    OLDEST_PYTHON_VERSION: "3.11"
+  script:
+    - $MICROMAMBA_EXECUTABLE run -n album python -m test.unit.run_all_unit_micromamba
+
 integration tests linux micromamba:
   extends: .linux_base_template_micromamba
   stage: test
   script:
-    - $MICROMAMBA_EXECUTABLE run -n album coverage run --omit './test/*' -m unittest test/integration/run_all_integration_micromamba.py
+    - $MICROMAMBA_EXECUTABLE run -n album coverage run --omit './test/*' -m test.integration.run_all_integration_micromamba
     - $MICROMAMBA_EXECUTABLE run -n album coverage report
     - mv .coverage integration.coverage # rename coverage file
   artifacts:
@@ -348,13 +371,13 @@ unit tests macos micromamba:
   extends: .macos_base_template_micromamba
   stage: test
   script:
-    - $MICROMAMBA_EXECUTABLE run -n album python -m unittest test/unit/run_all_unit_micromamba.py
+    - $MICROMAMBA_EXECUTABLE run -n album python -m test.unit.run_all_unit_micromamba
 
 integration tests macos micromamba:
   extends: .macos_base_template_micromamba
   stage: test
   script:
-    - $MICROMAMBA_EXECUTABLE run -n album python -m unittest test/integration/run_all_integration_micromamba.py
+    - $MICROMAMBA_EXECUTABLE run -n album python -m test.integration.run_all_integration_micromamba
 
 # Windows Tests with coverage
 
@@ -362,7 +385,7 @@ unit tests windows micromamba:
   extends: .windows_base_template_micromamba
   stage: test
   script:
-    - '.\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX coverage run --omit .\test\* -m unittest test\unit\run_all_unit_micromamba.py'
+    - '.\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX coverage run --omit .\test\* -m test.unit.run_all_unit_micromamba'
     - 'if ($lastexitcode -ne 0) {exit(1)} else { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX coverage report }'
     - 'if ($lastexitcode -ne 0) {exit(1)} else { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX coverage xml } '
     - 'if ($lastexitcode -ne 0) {exit(1)} else { Rename-Item -Path ".coverage" -NewName "unit.coverage" }'
@@ -376,7 +399,7 @@ integration tests windows micromamba:
   extends: .windows_base_template_micromamba
   stage: test
   script:
-    - '.\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX coverage run --omit .\test\* -m unittest test\integration\run_all_integration_micromamba.py '
+    - '.\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX coverage run --omit .\test\* -m test.integration.run_all_integration_micromamba'
     - 'if ($lastexitcode -ne 0) {exit(1)} else { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX coverage report }'
     - 'if ($lastexitcode -ne 0) {exit(1)} else { .\micromamba_installation\Library\bin\micromamba.exe run -p $env:WINDOWS_MAMBA_ENV_PREFIX coverage xml } '
     - 'if ($lastexitcode -ne 0) {exit(1)} else { Rename-Item -Path ".coverage" -NewName "integration.coverage" }'

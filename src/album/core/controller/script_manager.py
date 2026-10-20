@@ -124,16 +124,16 @@ class ScriptManager(IScriptManager):
         )
         current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
-        with open(script_path, "w") as f:
+        with open(script_path, "w", encoding="utf-8") as f:
             # write the backup script
             f.write(
                 Path(current_path)
                 .joinpath("..", "utils", "runner", "backwards_compatibility_0_6_1.py")
-                .read_text()
+                .read_text(encoding="utf-8")
             )
             # write the solution script
             f.write(
-                'exec(open(r"%s").read())'
+                'exec(open(r"%s", encoding="utf-8").read())'
                 % collection_solution.loaded_solution().script()
             )
 

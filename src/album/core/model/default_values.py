@@ -6,7 +6,10 @@ from typing import Dict, Final, List
 import album.core
 
 # outside of the class to be able to use it in the default values
-DEFAULT_SOLUTION_PYTHON_VERSION: Final[str] = "3.10"
+# The Python of a solution without an environment file: the newest Python album is tested with. album installs
+# album-solution-api from conda-forge into this environment, whose noarch builds need at least conda-forge's
+# python_min (3.11 since October 2026), so this must not be older than that.
+DEFAULT_SOLUTION_PYTHON_VERSION: Final[str] = "3.14"
 
 # outside of the class. Dictionary as enum values are not hashable
 # always use with deepcopy, as it is mutable
@@ -20,7 +23,7 @@ class DefaultValues(Enum):
     """Add an entry here to initialize default attributes for a album framework installation instance."""
 
     album_cite_doi = "arXiv:2110.00601"  # album DOI
-    album_cite_text = "Albrecht, Schmidt, Harrington. Album: a framework for scientific data processing with software solutions of heterogeneous tools."  # noqa: E501
+    album_cite_text = "Albrecht, Schmidt, Rieckert, Otto, Harrington. Album: executable building blocks for scientific imaging routines, from sharing to LLM-assisted orchestration."  # noqa: E501
     album_cite_url = "https://album.solutions"  # album url
 
     # runner
@@ -32,6 +35,9 @@ class DefaultValues(Enum):
     first_album_solution_api_version = (
         "0.6.1"  # first version this album installation knows
     )
+    python_argument_types_api_version = (
+        "0.7.3"  # first version that parses the argument types str, int and bool
+    )
     default_solution_python_version = DEFAULT_SOLUTION_PYTHON_VERSION
 
     # templates
@@ -39,9 +45,9 @@ class DefaultValues(Enum):
 
     # deployment & cloning
     catalog_git_user = "album"  # username used for initial push to a new catalog
-    catalog_git_email = (
-        album.core.__email__
-    )  # email used for initial push to a new catalog
+    # email used for initial push to a new catalog: the first one of album's authors,
+    # a git identity takes a single address
+    catalog_git_email = album.core.__email__.partition(",")[0]
 
     # catalog
     cache_catalog_name = (
@@ -85,6 +91,9 @@ class DefaultValues(Enum):
         "installations"  # base folder prefix where installations live
     )
     cache_path_tmp_prefix = "tmp"  # base folder prefix where solution unspecific internal temporary files live
+    stale_tmp_age_in_seconds = (
+        7 * 24 * 60 * 60
+    )  # temporary folders and downloads not modified for this long are leftovers and get removed
     link_folder_prefix = (
         "lnk"  # base folder prefix where all internal link destinations live
     )
@@ -93,6 +102,19 @@ class DefaultValues(Enum):
     cache_path_envs_prefix = "envs"  # base folder prefix where environments live in
 
     shared_globally_suffix = "shared_downloads"  # suffix for shared globally downloads
+    solution_resources_prefix = (
+        "resources"  # folder in the installation of a solution for its own resources
+    )
+
+    # base folder prefix of the lock files, one per solution, locked while the solution
+    # is installed, uninstalled or downloaded (see ISolutionHandler.get_solution_lock)
+    lock_folder_prefix = "locks"
+    # folder in the lock folder for the lock files of shared resources, one per content
+    # folder, locked while the resource is downloaded (see DownloadManager._get_resource_lock)
+    resource_lock_folder_prefix = "resources"
+    install_lock_timeout_in_seconds = (
+        2 * 60 * 60
+    )  # how long to wait for another album process to finish installing or uninstalling a solution
 
     # solutions
     solution_default_name = (
@@ -101,6 +123,13 @@ class DefaultValues(Enum):
     solution_yml_default_name = "solution.yml"  # default name of the solution.yml file
     solution_zip_default_name = "solution.zip"  # default name of the solution.zip file
     changelog_default_name = "CHANGELOG.md"  # default name of the changelog file
+    # written by album deploy next to the solution file: the environment album locks, its
+    # lock file and the resource list. A solution is installed from them when they are there.
+    solution_environment_default_name = "solution.environment.yml"
+    solution_conda_lock_default_name = "solution.conda-lock.yml"
+    solution_resources_default_name = "solution.resources.yml"
+    # album deploy warns when the files of a solution take more in the catalog repository
+    deploy_size_warning_in_mb = 5
 
     # lnk folder prefixes
     lnk_package_prefix = (
@@ -126,7 +155,3 @@ class DefaultValues(Enum):
     # events
     before_run_event_name = "before-run"
     after_run_event_name = "after-run"
-
-    # server
-    server_port = 5476  # default port used to launch server
-    server_host = "127.0.0.1"  # default host used to launch server. Set to 0.0.0.0 when used in docker

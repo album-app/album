@@ -1,11 +1,10 @@
 """Implementation of the ICatalogHandler interface."""
+
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Optional
 
 import validators
-from album.environments.utils.file_operations import copy
-from album.runner import album_logging
 
 from album.core.api.controller.collection.catalog_handler import ICatalogHandler
 from album.core.api.controller.controller import IAlbumController
@@ -20,9 +19,13 @@ from album.core.model.catalog import Catalog, retrieve_index_files_from_src
 from album.core.model.catalog_updates import CatalogUpdates, SolutionChange
 from album.core.model.default_values import DefaultValues
 from album.core.model.mmversion import MMVersion
-from album.core.utils.operations.dict_operations import str_to_dict
-from album.core.utils.operations.file_operations import force_remove, get_dict_from_json
+from album.core.utils.operations.file_operations import (
+    force_remove,
+    get_dict_from_json,
+    write_dict_to_json,
+)
 from album.core.utils.operations.resolve_operations import dict_to_coordinates
+from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
 
@@ -66,7 +69,7 @@ class CatalogHandler(ICatalogHandler):
 
         catalog_dict = self._get_collection_index().get_catalog_by_src(source)
         if catalog_dict:
-            module_logger().warning("Cannot add catalog twice! Doing nothing...")
+            self._warn_already_in_collection(catalog_dict, source)
             return self._as_catalog(catalog_dict)
 
         catalog_meta_information = self._retrieve_catalog_meta_information(
@@ -76,7 +79,8 @@ class CatalogHandler(ICatalogHandler):
             catalog_meta_information["name"]
         )
         if catalog_dict:
-            module_logger().warning("Cannot add catalog twice! Doing nothing...")
+            # a name clash, or this source added by another album process since the check above
+            self._warn_already_in_collection(catalog_dict, source)
             return self._as_catalog(catalog_dict)
 
         catalog = self._create_catalog_from_src(
@@ -93,16 +97,48 @@ class CatalogHandler(ICatalogHandler):
                 MMVersion.from_string(DefaultValues.catalog_index_db_version.value),
             )
 
-        self._add_to_index(catalog)
+        try:
+            self._add_to_index(catalog)
+        except RuntimeError:
+            # another album process added this catalog since the check above
+            catalog_dict = self._get_collection_index().get_catalog_by_src(
+                source
+            ) or self._get_collection_index().get_catalog_by_name(catalog.name())
+            if not catalog_dict:
+                raise
+            self._warn_already_in_collection(catalog_dict, source)
+            return self._as_catalog(catalog_dict)
         self._create_catalog_cache_if_missing(catalog)
         self.album.migration_manager().load_index(catalog)
 
+        # the index was just downloaded, downloading it again could make git ask for credentials
         module_logger().info("Catching catalog content..")
-        self._update(catalog)
-        self._update_collection_from_catalog(catalog)
+        self._update_collection_from_catalog(catalog, refresh=False)
         module_logger().info("Added catalog %s!" % source)
 
         return catalog
+
+    @staticmethod
+    def _warn_already_in_collection(catalog_dict: Dict[str, Any], source: str) -> None:
+        """Explain why the catalog in the collection is returned instead of adding the source."""
+        if catalog_dict["src"] == source:
+            module_logger().warning(
+                'Catalog "%s" with source "%s" is already in the collection.'
+                " Doing nothing..." % (catalog_dict["name"], source)
+            )
+            return
+
+        if catalog_dict["deletable"]:
+            hint = "Remove that catalog first to add this one."
+        else:
+            # e.g. the cache catalog, removing it fails
+            hint = "That catalog cannot be removed, so this one cannot be added."
+        module_logger().warning(
+            'Cannot add catalog from source "%s": another catalog with the name'
+            ' "%s" is already in the collection (source "%s"). %s'
+            " Doing nothing..."
+            % (source, catalog_dict["name"], catalog_dict["src"], hint)
+        )
 
     def _add_to_index(self, catalog: ICatalog) -> int:
         catalog_id = self._get_collection_index().insert_catalog(
@@ -176,21 +212,19 @@ class CatalogHandler(ICatalogHandler):
         if not local_path_.exists():
             local_path_.mkdir(parents=True)
 
-        meta_data = (
-            '{"name": "'
-            + name
-            + '", "version": "'
-            + DefaultValues.catalog_index_db_version.value
-            + '", "type": "'
-            + catalog_type
-            + '"}'
+        # let json escape the values, so a name containing quotes or
+        # backslashes still produces a valid metadata file
+        meta_data = {
+            "name": name,
+            "version": DefaultValues.catalog_index_db_version.value,
+            "type": catalog_type,
+        }
+        write_dict_to_json(
+            local_path_.joinpath(DefaultValues.catalog_index_metafile_json.value),
+            meta_data,
         )
-        with open(
-            local_path_.joinpath(DefaultValues.catalog_index_metafile_json.value), "w"
-        ) as meta:
-            meta.writelines(meta_data)
 
-        return str_to_dict(meta_data)
+        return meta_data
 
     def _update(self, catalog: ICatalog) -> bool:
         r = self.album.migration_manager().refresh_index(catalog)
@@ -221,6 +255,13 @@ class CatalogHandler(ICatalogHandler):
             self.update_all()
 
     def update_collection(
+        self, catalog_name=None, dry_run: bool = False, override: bool = False
+    ) -> Dict[str, ICatalogUpdates]:
+        # one at a time, see ISolutionHandler.get_upgrade_lock
+        with self.album.solutions().get_upgrade_lock():
+            return self._update_collection(catalog_name, dry_run, override)
+
+    def _update_collection(
         self, catalog_name=None, dry_run: bool = False, override: bool = False
     ) -> Dict[str, ICatalogUpdates]:
         if dry_run:
@@ -335,6 +376,49 @@ class CatalogHandler(ICatalogHandler):
 
         return catalog_to_remove
 
+    def change_src_by_name(self, name: str, src: str) -> ICatalog:
+        catalog = self.get_by_name(name)
+        if catalog.is_cache():
+            raise RuntimeError(
+                'Cannot change the source of catalog "%s"! Only used for caching!'
+                % name
+            )
+
+        # source can be path or url
+        src = str(src)
+        if not validators.url(src):
+            if Path(src).exists():
+                src = str(Path(src).resolve())
+
+        if src == catalog.src():
+            module_logger().warning(
+                'Catalog "%s" already has the source "%s". Doing nothing...'
+                % (name, src)
+            )
+            return catalog
+
+        # also fails when the new source cannot be reached, e.g. without access via SSH
+        catalog_meta_information = self._retrieve_catalog_meta_information(
+            src, catalog.branch_name()
+        )
+        if catalog_meta_information["name"] != catalog.name():
+            raise ValueError(
+                'Cannot change the source of catalog "%s": the source "%s" holds the catalog'
+                ' "%s". Use add-catalog to add another catalog.'
+                % (name, src, catalog_meta_information["name"])
+            )
+
+        self._get_collection_index().update_catalog_src(catalog.catalog_id(), src)
+
+        # deploy and undeploy reuse this repository, it would still push to the old source
+        force_remove(
+            self.album.configuration().cache_path_download().joinpath(catalog.name())
+        )
+
+        module_logger().info(f'Changed the source of catalog "{name}" to "{src}".')
+
+        return self.get_by_name(name)
+
     def get_installed_solutions(
         self, catalog: ICatalog
     ) -> List[ICollectionIndex.ICollectionSolution]:
@@ -380,18 +464,9 @@ class CatalogHandler(ICatalogHandler):
                 _, meta_src = retrieve_index_files_from_src(
                     source, branch_name=branch_name, tmp_dir=repo
                 )
-                meta_file = copy(
-                    meta_src,
-                    self.album.configuration()
-                    .cache_path_download()
-                    .joinpath(DefaultValues.catalog_index_metafile_json.value),
-                )
+                return get_dict_from_json(meta_src)
             finally:
                 force_remove(repo)
-
-        meta_dict = get_dict_from_json(meta_file)
-
-        return meta_dict
 
     def _create_catalog_from_src(
         self,
@@ -435,7 +510,7 @@ class CatalogHandler(ICatalogHandler):
         return res
 
     def _get_divergence_between_catalog_and_collection(
-        self, catalog: ICatalog
+        self, catalog: ICatalog, refresh: bool = True
     ) -> ICatalogUpdates:
         if catalog.is_cache():
             # cache catalog is always up to date since src and path are the same
@@ -444,7 +519,7 @@ class CatalogHandler(ICatalogHandler):
         solutions_in_collection = self._get_collection_index().get_solutions_by_catalog(
             catalog.catalog_id()
         )
-        self.album.migration_manager().load_index(catalog)
+        self.album.migration_manager().load_index(catalog, refresh)
         index = catalog.index()
         if index is None:
             raise RuntimeError(
@@ -468,9 +543,11 @@ class CatalogHandler(ICatalogHandler):
         return res
 
     def _update_collection_from_catalog(
-        self, catalog: ICatalog, override: bool = False
+        self, catalog: ICatalog, override: bool = False, refresh: bool = True
     ) -> ICatalogUpdates:
-        divergence = self._get_divergence_between_catalog_and_collection(catalog)
+        divergence = self._get_divergence_between_catalog_and_collection(
+            catalog, refresh
+        )
         # TODO apply changes to catalog attributes
         for change in divergence.solution_changes():
             self.album.solutions().apply_change(divergence.catalog(), change, override)

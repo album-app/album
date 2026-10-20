@@ -12,8 +12,6 @@ from album.core.api.model.collection_index import ICollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.file_operations import (
     check_zip,
-    create_path_recursively,
-    force_remove,
     rand_folder_name,
     unzip_archive,
 )
@@ -28,12 +26,6 @@ from album.runner.core.api.model.coordinates import ICoordinates
 from album.runner.core.model.coordinates import Coordinates
 
 module_logger = album_logging.get_active_logger
-
-
-def clean_resolve_tmp(tmp_cache_dir: Union[Path, str]) -> None:
-    """Clean the temporary directory which might have been used during resolving."""
-    force_remove(tmp_cache_dir)
-    create_path_recursively(tmp_cache_dir)
 
 
 def get_attributes_from_string(str_input: str) -> Dict[str, Any]:
@@ -90,8 +82,23 @@ def get_cgnv_from_input(str_input: str) -> Optional[Dict[str, str]]:
 
 
 def get_doi_from_input(str_input: str) -> Optional[Dict[str, str]]:
-    """Parse the DOI from string input."""
-    s = re.search(r"^(^doi:)?([^:\/]*\/[^:\/]*)$", str_input)
+    """Parse the DOI from string input.
+
+    A DOI always starts with the directory indicator ``10.`` followed by a
+    registrant code of four to nine digits, a slash and a suffix. Requiring
+    this prefix keeps relative paths such as ``mygroup/solution.py`` from
+    being mistaken for a DOI. An optional ``doi:`` scheme is stripped.
+
+    Args:
+        str_input:
+            The string input, e.g. ``10.5281/zenodo.5571504`` or
+            ``doi:10.5281/zenodo.5571504``.
+
+    Returns:
+        Dictionary with the key ``doi`` or None if the input is not a DOI.
+
+    """
+    s = re.search(r"^(doi:)?(10\.\d{4,9}/[^:/\s]+)$", str_input)
     if s:
         return {"doi": s.group(2)}
     return None
@@ -204,8 +211,13 @@ def parse_doi_service_url(url: str) -> str:
 
 
 def _parse_zenodo_url(url: str):
-    """Parse the zenodo URL and return the download link for the record archive."""
-    g = re.search(r"(https:\/\/[a-zA-Z.]*zenodo[.]org\/)(record)[\/]([0-9]*)$", url)
+    """Parse the zenodo URL and return the download link for the record archive.
+
+    Both the legacy ``/record/<id>`` and the current ``/records/<id>`` path forms
+    are accepted: Zenodo redirects the former to the latter, and the URL handed
+    in here is the final one after all redirects (see ``retrieve_redirect_url``).
+    """
+    g = re.search(r"(https:\/\/[a-zA-Z.]*zenodo[.]org\/)(records?)[\/]([0-9]*)$", url)
 
     if g:
         base_url = g.group(1).rstrip("/")
@@ -261,6 +273,7 @@ def prepare_path(
         target_folder = tmp_cache_dir_.joinpath(rand_folder_name())
         if p.is_file():
             if check_zip(p):  # zip file — unzip and point to solution.py inside
+                module_logger().debug(f"Unpacking {p} into {target_folder}...")
                 p = unzip_archive(p, target_folder)
                 # Zenodo deposit archives contain solution.zip (with full
                 # directory structure) plus individual preview files.  If
@@ -336,14 +349,19 @@ def build_resolve_string(
 def get_parent(
     parent_collection_entry: ICollectionIndex.ICollectionSolution,
 ) -> ICollectionIndex.ICollectionSolution:
-    """Given a collection entry (aka row of the collection table) this method returns the corresponding parent."""
-    if parent_collection_entry.internal()["parent"]:
-        parent = parent_collection_entry.internal()["parent"]
-        while parent.internal()["parent"]:
-            parent = parent["parent"]
+    """Return the solution at the top of the parent chain of a collection entry.
 
-        return parent
-    return parent_collection_entry
+    A parent can have a parent itself (solA -> parentB -> parentC). Only the solution at
+    the top of the chain, parentC, gets an environment, and every solution below it runs
+    in that one. The collection index nests the chain: the entry in internal()["parent"]
+    carries its own parent the same way.
+
+    Returns the entry itself when it has no parent.
+    """
+    parent = parent_collection_entry
+    while parent.internal()["parent"]:
+        parent = parent.internal()["parent"]
+    return parent
 
 
 def as_tag(coordinates: ICoordinates) -> str:

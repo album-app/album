@@ -7,6 +7,8 @@ from pathlib import Path
 from test.unit.test_unit_core_common import TestCatalogAndCollectionCommon
 from unittest.mock import MagicMock, patch
 
+from jsonschema import ValidationError
+
 from album.core.model.catalog import Catalog
 from album.core.model.mmversion import MMVersion
 
@@ -124,6 +126,91 @@ class TestMigrationManager(TestCatalogAndCollectionCommon):
         self.active_solution.setup().pop("timestamp")
         self.active_solution.setup().pop("album_version")
         self.migration_manager.migrate_solution_attrs(self.active_solution.setup())
+
+    def test_migrate_solution_attrs_python_argument_types(self):
+        attrs = deepcopy(self.solution_default_dict)
+        attrs.pop("timestamp")
+        attrs.pop("album_version")
+        attrs["album_api_version"] = "0.7.3"
+        attrs["args"] = [
+            {"name": "a1", "type": "str"},
+            {"name": "a2", "type": "int"},
+            {"name": "a3", "type": "bool"},
+            {"name": "a4", "type": "float"},
+            {"name": "a5", "type": "file"},
+        ]
+
+        # call
+        attrs = self.migration_manager.migrate_solution_attrs(attrs)
+
+        # assert: by the names album stores and shows
+        self.assertEqual(
+            ["string", "integer", "boolean", "float", "file"],
+            [arg["type"] for arg in attrs["args"]],
+        )
+
+    def test_migrate_solution_attrs_python_argument_types_old_api_version(self):
+        # its album-solution-api would pass the value on as text
+        for api_version in ["0.7.2", "0.5.1", "0.4.2"]:
+            attrs = deepcopy(self.solution_default_dict)
+            attrs.pop("timestamp")
+            attrs.pop("album_version")
+            attrs["album_api_version"] = api_version
+            attrs["args"] = [
+                {"name": "a1", "type": "string"},
+                {"name": "a2", "type": "int"},
+            ]
+
+            # call & assert
+            with self.assertRaises(ValidationError) as context:
+                self.migration_manager.migrate_solution_attrs(attrs)
+            self.assertEqual(
+                "The argument a2 has the type 'int', which needs album_api_version 0.7.3 or "
+                "newer, the solution has %s. Give it the type 'integer' or a newer "
+                "album_api_version." % api_version,
+                context.exception.message,
+            )
+
+    @patch(
+        "album.core.controller.migration_manager.importlib_version",
+        return_value="0.7.3",
+    )
+    def test_migrate_solution_attrs_newer_api_version(self, _):
+        attrs = deepcopy(self.solution_default_dict)
+        attrs.pop("timestamp")
+        attrs.pop("album_version")
+        attrs["album_api_version"] = "0.8.0"
+        attrs["new_keyword"] = "value"
+
+        # call & assert
+        with self.assertRaises(ValidationError) as context:
+            self.migration_manager.migrate_solution_attrs(attrs)
+        self.assertEqual(
+            "The solution needs album_api_version 0.8.0, this album installation knows "
+            "versions up to 0.7.3 and cannot read its setup method: Additional properties "
+            "are not allowed ('new_keyword' was unexpected). Please update album.",
+            context.exception.message,
+        )
+
+    @patch(
+        "album.core.controller.migration_manager.importlib_version",
+        return_value="0.7.3",
+    )
+    def test_migrate_solution_attrs_unknown_keyword(self, _):
+        # e.g. a typo, updating album would not help
+        attrs = deepcopy(self.solution_default_dict)
+        attrs.pop("timestamp")
+        attrs.pop("album_version")
+        attrs["album_api_version"] = "0.7.3"
+        attrs["new_keyword"] = "value"
+
+        # call & assert
+        with self.assertRaises(ValidationError) as context:
+            self.migration_manager.migrate_solution_attrs(attrs)
+        self.assertEqual(
+            "Additional properties are not allowed ('new_keyword' was unexpected)",
+            context.exception.message,
+        )
 
     def test_migrate_solution_schema0_attrs(self):
         self.setup_solution_no_env()
@@ -255,6 +342,129 @@ WHERE version = '0.0.1'"""
         # assert
         self.assertEqual(prep_schema, called_schema)
 
+    def test_migrate_catalog_collection_db_broken_migration(self):
+        # prepare
+        # the name differs from the default so a hard-coded restore name would be caught
+        collection_db_path = Path(self.tmp_dir.name).joinpath("my_collection.db")
+        shutil.copyfile(
+            Path(self.tmp_dir.name).joinpath("catalog_collection.db"),
+            collection_db_path,
+        )
+        collection_meta_path = Path(self.tmp_dir.name).joinpath(
+            "catalog_collection.json"
+        )
+        original_db_bytes = collection_db_path.read_bytes()
+        original_meta_bytes = collection_meta_path.read_bytes()
+        broken_schema = """CREATE TABLE IF NOT EXISTS test_table (
+    spalte_1 INTEGER DEFAULT 0
+);
+INSERT INTO does_not_exist VALUES (1)"""
+        self.migration_manager._load_catalog_collection_migration_schema = MagicMock(
+            return_value=broken_schema
+        )
+
+        # call & assert
+        with self.assertRaises(RuntimeError) as context:
+            self.migration_manager.migrate_catalog_collection_db(
+                collection_db_path,
+                MMVersion.from_string("0.0.1"),
+                MMVersion.from_string("0.1.0"),
+            )
+
+        self.assertIsInstance(context.exception.__cause__, sqlite3.OperationalError)
+        self.assertIn("catalog collection database", str(context.exception))
+        self.assertEqual(original_db_bytes, collection_db_path.read_bytes())
+        self.assertFalse(self._table_exists(collection_db_path, "test_table"))
+        self.assertEqual(original_meta_bytes, collection_meta_path.read_bytes())
+
+    def test_migrate_catalog_collection_db_missing_schema(self):
+        # prepare
+        collection_db_path = Path(self.tmp_dir.name).joinpath("catalog_collection.db")
+        original_db_bytes = collection_db_path.read_bytes()
+        self.migration_manager._load_catalog_collection_migration_schema = MagicMock(
+            side_effect=FileNotFoundError("no migration script")
+        )
+        execute_migration_script = MagicMock()
+        self.migration_manager._execute_migration_script = execute_migration_script
+
+        # call & assert
+        with self.assertRaises(FileNotFoundError):
+            self.migration_manager.migrate_catalog_collection_db(
+                collection_db_path,
+                MMVersion.from_string("0.0.1"),
+                MMVersion.from_string("0.1.0"),
+            )
+
+        execute_migration_script.assert_not_called()
+        self.assertEqual(original_db_bytes, collection_db_path.read_bytes())
+
+    def test_migrate_catalog_index_db_broken_migration(self):
+        # prepare
+        # the name differs from the default so a hard-coded restore name would be caught
+        catalog_index_path = Path(self.tmp_dir.name).joinpath("my_catalog_index.db")
+        shutil.copyfile(
+            Path(self.tmp_dir.name).joinpath("album_catalog_index.db"),
+            catalog_index_path,
+        )
+        catalog_meta_path = Path(self.tmp_dir.name).joinpath("album_catalog_index.json")
+        original_db_bytes = catalog_index_path.read_bytes()
+        original_meta_bytes = catalog_meta_path.read_bytes()
+        broken_schema = """CREATE TABLE IF NOT EXISTS test_table (
+    spalte_1 INTEGER DEFAULT 0
+);
+INSERT INTO does_not_exist VALUES (1)"""
+        self.migration_manager._load_catalog_index_migration_schema = MagicMock(
+            return_value=broken_schema
+        )
+
+        # call & assert
+        with self.assertRaises(RuntimeError) as context:
+            self.migration_manager.migrate_catalog_index_db(
+                catalog_index_path,
+                MMVersion.from_string("0.0.1"),
+                MMVersion.from_string("0.1.0"),
+            )
+
+        self.assertIsInstance(context.exception.__cause__, sqlite3.OperationalError)
+        self.assertIn("catalog index database", str(context.exception))
+        self.assertEqual(original_db_bytes, catalog_index_path.read_bytes())
+        self.assertFalse(self._table_exists(catalog_index_path, "test_table"))
+        self.assertEqual(original_meta_bytes, catalog_meta_path.read_bytes())
+
+    def test_migrate_catalog_index_db_missing_schema(self):
+        # prepare
+        catalog_index_path = Path(self.tmp_dir.name).joinpath("album_catalog_index.db")
+        original_db_bytes = catalog_index_path.read_bytes()
+        self.migration_manager._load_catalog_index_migration_schema = MagicMock(
+            side_effect=FileNotFoundError("no migration script")
+        )
+        execute_migration_script = MagicMock()
+        self.migration_manager._execute_migration_script = execute_migration_script
+
+        # call & assert
+        with self.assertRaises(FileNotFoundError):
+            self.migration_manager.migrate_catalog_index_db(
+                catalog_index_path,
+                MMVersion.from_string("0.0.1"),
+                MMVersion.from_string("0.1.0"),
+            )
+
+        execute_migration_script.assert_not_called()
+        self.assertEqual(original_db_bytes, catalog_index_path.read_bytes())
+
+    @staticmethod
+    def _table_exists(database: Path, table_name: str) -> bool:
+        con = sqlite3.connect(database)
+        try:
+            cur = con.cursor()
+            cur.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                (table_name,),
+            )
+            return cur.fetchone() is not None
+        finally:
+            con.close()
+
     def test_execute_migration_script(self):
         # prepare
         check_script = """SELECT name FROM sqlite_master WHERE type='table' AND name='test_table';"""
@@ -279,22 +489,118 @@ WHERE name = 'album_collection'"""
         con.close()
 
     def test_update_catalog_collection_version(self):
-        # call
-        self.migration_manager._update_catalog_collection_version()
+        # call: the version of a migration step, not the final version 0.1.0
+        self.migration_manager._update_catalog_collection_version(
+            MMVersion.from_string("0.0.1")
+        )
 
         # assert
         with open(Path(self.tmp_dir.name).joinpath("catalog_collection.json")) as file:
-            self.assertTrue(json.load(file)["catalog_collection_version"] == "0.1.0")
+            self.assertEqual("0.0.1", json.load(file)["catalog_collection_version"])
 
     def test_update_catalog_index_version(self):
-        # call
+        # call: the version of a migration step, not the final version 0.1.0
         self.migration_manager._update_catalog_index_version(
-            Path(self.tmp_dir.name).joinpath("album_catalog_index.json")
+            Path(self.tmp_dir.name).joinpath("album_catalog_index.json"),
+            MMVersion.from_string("0.0.1"),
         )
 
         # assert
         with open(Path(self.tmp_dir.name).joinpath("album_catalog_index.json")) as file:
-            self.assertTrue(json.load(file)["version"] == "0.1.0")
+            self.assertEqual("0.0.1", json.load(file)["version"])
+
+    # a chain of two steps, 0.0.0 -> 0.0.1 -> 0.1.0 (see setUp), whose second script fails
+    _step_one_schema = "CREATE TABLE step_one (spalte_1 INTEGER DEFAULT 0);"
+    _step_two_schema = """CREATE TABLE step_two (spalte_1 INTEGER DEFAULT 0);
+INSERT INTO does_not_exist VALUES (1)"""
+
+    def _schema_of_step(self, curr_version, target_version):
+        if str(target_version) == "0.0.1":
+            return self._step_one_schema
+        return self._step_two_schema
+
+    def test_migrate_collection_index_second_step_fails(self):
+        # prepare
+        collection_db_path = Path(self.tmp_dir.name).joinpath("catalog_collection.db")
+        collection_meta_path = Path(self.tmp_dir.name).joinpath(
+            "catalog_collection.json"
+        )
+        collection_index = MagicMock()
+        collection_index.get_path.return_value = collection_db_path
+        self.migration_manager._load_catalog_collection_migration_schema = MagicMock(
+            side_effect=self._schema_of_step
+        )
+
+        # call
+        with self.assertRaises(RuntimeError) as context:
+            self.migration_manager.migrate_collection_index(
+                collection_index, MMVersion.from_string("0.0.0")
+            )
+
+        # assert: the database is restored to the state after step one,
+        # and the meta file says so, not the final version 0.1.0
+        self.assertIn("from version 0.0.1 to 0.1.0", str(context.exception))
+        self.assertTrue(self._table_exists(collection_db_path, "step_one"))
+        self.assertFalse(self._table_exists(collection_db_path, "step_two"))
+        with open(collection_meta_path) as file:
+            self.assertEqual("0.0.1", json.load(file)["catalog_collection_version"])
+
+    def test_load_catalog_index_second_step_fails(self):
+        # prepare
+        catalog_index_path = Path(self.tmp_dir.name).joinpath("album_catalog_index.db")
+        catalog_meta_path = Path(self.tmp_dir.name).joinpath("album_catalog_index.json")
+        self.migration_manager._load_catalog_index_migration_schema = MagicMock(
+            side_effect=self._schema_of_step
+        )
+
+        # call
+        with self.assertRaises(RuntimeError) as context:
+            self.migration_manager._load_catalog_index(
+                self.catalog, MMVersion.from_string("0.0.0")
+            )
+
+        # assert: the database is restored to the state after step one,
+        # and the meta file says so, not the final version 0.1.0
+        self.assertIn("from version 0.0.1 to 0.1.0", str(context.exception))
+        self.assertTrue(self._table_exists(catalog_index_path, "step_one"))
+        self.assertFalse(self._table_exists(catalog_index_path, "step_two"))
+        with open(catalog_meta_path) as file:
+            self.assertEqual("0.0.1", json.load(file)["version"])
+
+    def test_migration_closes_the_index_before_the_first_step(self):
+        # an open connection keeps a failed step from restoring the database on Windows
+        calls = []
+        index = MagicMock()
+        index.close.side_effect = lambda: calls.append("close")
+        catalog = MagicMock()
+        catalog.index.return_value = index
+        self.migration_manager.migrate_catalog_collection_db = MagicMock(
+            side_effect=lambda *args: calls.append("migrate")
+        )
+        self.migration_manager.migrate_catalog_index_db = MagicMock(
+            side_effect=lambda *args: calls.append("migrate")
+        )
+
+        self.migration_manager.migrate_collection_index(
+            index, MMVersion.from_string("0.0.0")
+        )
+        self.assertEqual(["close", "migrate", "migrate"], calls)
+
+        calls.clear()
+        self.migration_manager._load_catalog_index(
+            catalog, MMVersion.from_string("0.0.0")
+        )
+        self.assertEqual(["close", "migrate", "migrate"], calls)
+
+        # nothing to migrate: the index stays open
+        calls.clear()
+        self.migration_manager.migrate_collection_index(
+            index, MMVersion.from_string("0.1.0")
+        )
+        self.migration_manager._load_catalog_index(
+            catalog, MMVersion.from_string("0.1.0")
+        )
+        self.assertEqual([], calls)
 
     @patch("album.core.controller.migration_manager.files")
     def test_read_collection_database_versions_from_scripts(
@@ -344,8 +650,16 @@ WHERE name = 'album_collection'"""
         ]
         mock_resource_filename.return_value = list_mock
         # call & assert
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValueError) as context:
             self.migration_manager._read_collection_database_versions_from_scripts()
+        self.assertIn(
+            "Could not parse version from file name: "
+            "migrate_catalog_collection_000_to_10.sql",
+            str(context.exception),
+        )
+        # the parse error behind the message stays attached as the explicit cause:
+        # "10" has no third digit
+        self.assertIsInstance(context.exception.__cause__, IndexError)
 
     @patch("album.core.controller.migration_manager.files")
     def test_read_broken_catalog_database_versions_from_scripts(
@@ -359,5 +673,14 @@ WHERE name = 'album_collection'"""
         ]
         mock_resource_filename.return_value = list_mock
         # call & assert
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValueError) as context:
             self.migration_manager._read_catalog_database_versions_from_scripts()
+        self.assertIn(
+            "Could not parse version from file name: "
+            "migrate_catalog_index_000_to_01s.sql",
+            str(context.exception),
+        )
+        # the parse error behind the message stays attached as the explicit cause:
+        # int("s") fails
+        self.assertIsInstance(context.exception.__cause__, ValueError)
+        self.assertIn("'s'", str(context.exception.__cause__))

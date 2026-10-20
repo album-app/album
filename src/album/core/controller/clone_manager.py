@@ -3,9 +3,6 @@ from tempfile import TemporaryDirectory
 from typing import Optional
 
 import validators
-from album.environments.utils.file_operations import copy, copy_folder
-from album.environments.utils.url_operations import download_resource, is_downloadable
-from album.runner.album_logging import get_active_logger
 from git import Repo
 
 from album.core.api.controller.clone_manager import ICloneManager
@@ -25,6 +22,10 @@ from album.core.utils.operations.git_operations import (
     clone_repository,
     create_bare_repository,
 )
+from album.core.utils.operations.solution_operations import FILES_WRITTEN_BY_DEPLOY
+from album.environments.utils.file_operations import copy, copy_folder
+from album.environments.utils.url_operations import download_resource, is_downloadable
+from album.runner.album_logging import get_active_logger
 
 
 class CloneManager(ICloneManager):
@@ -40,19 +41,23 @@ class CloneManager(ICloneManager):
         git_name: Optional[str] = None,
     ) -> None:
         if path.startswith("template:"):
+            template_name = path[len("template:") :]  # noqa: E203
+            error_message = (
+                "Cannot resolve %s - make sure it's a valid name of a template located in %s!"
+                % (template_name, DefaultValues.catalog_template_url.value)
+            )
             try:
-                self._clone_catalog_template(
-                    path[len("template:") :],  # noqa: E203
+                cloned = self._clone_catalog_template(
+                    template_name,
                     Path(target_dir),
                     name,
                     git_email,
                     git_name,
                 )
-            except (LookupError, ValueError):
-                raise LookupError(
-                    "Cannot resolve %s - make sure it's a valid name of a template located in %s!",
-                    (path, DefaultValues.catalog_template_url.value),
-                )
+            except (LookupError, ValueError) as e:
+                raise LookupError(error_message) from e
+            if not cloned:
+                raise LookupError(error_message)
         else:
             target_path = Path(target_dir).joinpath(name)
             self._clone_solution(Path(path), target_path)
@@ -69,6 +74,9 @@ class CloneManager(ICloneManager):
             copy_folder(
                 resolve_result.path().parent, target_path, copy_root_folder=False
             )
+            # they belong to the deployment of the solution cloned, not to the new one
+            for name in FILES_WRITTEN_BY_DEPLOY:
+                force_remove(target_path.joinpath(name))
 
         get_active_logger().info(
             f"Copied solution {resolve_result.path()} to {target_path}!"
@@ -87,33 +95,30 @@ class CloneManager(ICloneManager):
             n=template_name,
         )
         if is_downloadable(template_url):
-            download_zip_target = (
-                self.album.configuration()
-                .cache_path_download()
-                .joinpath(template_name + ".zip")
-            )
-            download_unzip_target = (
-                self.album.configuration().cache_path_download().joinpath(template_name)
-            )
+            with TemporaryDirectory(
+                dir=self.album.configuration().tmp_path()
+            ) as tmp_dir:
+                download_zip_target = Path(tmp_dir).joinpath(template_name + ".zip")
+                download_unzip_target = Path(tmp_dir).joinpath(template_name)
 
-            download_resource(template_url, download_zip_target)
-            get_active_logger().debug(
-                "Downloaded template from %s to %s!"
-                % (template_url, download_zip_target)
-            )
+                download_resource(template_url, download_zip_target)
+                get_active_logger().debug(
+                    "Downloaded template from %s to %s!"
+                    % (template_url, download_zip_target)
+                )
 
-            unzip_archive(download_zip_target, download_unzip_target)
-            download_unzip_target_subdir = download_unzip_target.joinpath(
-                f"{template_name}-main"
-            )
+                unzip_archive(download_zip_target, download_unzip_target)
+                download_unzip_target_subdir = download_unzip_target.joinpath(
+                    f"{template_name}-main"
+                )
 
-            self.setup_repository_from_template(
-                target_path,
-                download_unzip_target_subdir,
-                catalog_name,
-                git_email,
-                git_name,
-            )
+                self.setup_repository_from_template(
+                    target_path,
+                    download_unzip_target_subdir,
+                    catalog_name,
+                    git_email,
+                    git_name,
+                )
 
             get_active_logger().info(
                 'Initialized new catalog "%s" from template "%s" in %s!'

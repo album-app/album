@@ -6,6 +6,7 @@ from test.unit.test_unit_core_common import TestUnitCoreCommon
 from unittest import mock
 from unittest.mock import patch
 
+from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
 from album.core.utils.operations.resolve_operations import (
     _parse_zenodo_url,
@@ -16,6 +17,7 @@ from album.core.utils.operations.resolve_operations import (
     get_cgnv_from_input,
     get_doi_from_input,
     get_gnv_from_input,
+    get_parent,
     get_zip_name,
     get_zip_name_prefix,
     parse_doi_service_url,
@@ -34,14 +36,23 @@ class TestResolveOperations(TestUnitCoreCommon):
 
     def test_get_doi_from_input(self):
         solution = {
-            "doi": "prefix/suffix",
+            "doi": "10.5281/zenodo.5571504",
         }
-        self.assertEqual(solution, get_doi_from_input("doi:prefix/suffix"))
-        self.assertEqual(solution, get_doi_from_input("prefix/suffix"))
+        self.assertEqual(solution, get_doi_from_input("doi:10.5281/zenodo.5571504"))
+        self.assertEqual(solution, get_doi_from_input("10.5281/zenodo.5571504"))
         self.assertIsNone(get_doi_from_input("prefixOnly"))
         self.assertIsNone(get_doi_from_input("doi:"))
         self.assertIsNone(get_doi_from_input(":"))
         self.assertIsNone(get_doi_from_input("grp:name:version"))
+        # a relative path with one slash is not a DOI (album issue #263, 1.12)
+        self.assertIsNone(get_doi_from_input("mygroup/solution.py"))
+        self.assertIsNone(get_doi_from_input("a/b"))
+        self.assertIsNone(get_doi_from_input("prefix/suffix"))
+        self.assertIsNone(get_doi_from_input("doi:prefix/suffix"))
+        # the suffix must not be empty or contain further colons or slashes
+        self.assertIsNone(get_doi_from_input("10.5281/"))
+        self.assertIsNone(get_doi_from_input("10.5281/zenodo.5571504/extra"))
+        self.assertIsNone(get_doi_from_input("10.5281/zenodo:5571504"))
 
     @unittest.skip("Needs to be implemented!")
     def test_is_pathname_valid(self):
@@ -113,6 +124,28 @@ class TestResolveOperations(TestUnitCoreCommon):
         get_doi_from_input_mock.assert_called_once()
         get_gnv_from_input_mock.assert_called_once()
 
+    def test_get_attributes_from_string_unpatched(self):
+        # DOI, gnv and cgnv inputs are told apart by the real parsers
+        self.assertEqual(
+            {"doi": "10.5281/zenodo.5571504"},
+            get_attributes_from_string("doi:10.5281/zenodo.5571504"),
+        )
+        self.assertEqual(
+            {"doi": "10.5281/zenodo.5571504"},
+            get_attributes_from_string("10.5281/zenodo.5571504"),
+        )
+        self.assertEqual(
+            {"group": "grp", "name": "name", "version": "version"},
+            get_attributes_from_string("grp:name:version"),
+        )
+        self.assertEqual(
+            {"catalog": "cat", "group": "grp", "name": "name", "version": "version"},
+            get_attributes_from_string("cat:grp:name:version"),
+        )
+        # a mistyped relative path is not a DOI and is rejected as invalid format
+        with self.assertRaises(ValueError):
+            get_attributes_from_string("mygroup/solution.py")
+
     @patch("album.core.utils.operations.resolve_operations.prepare_path")
     @patch("album.core.utils.operations.resolve_operations.download_resource")
     @patch("album.core.utils.operations.resolve_operations.parse_doi_service_url")
@@ -135,6 +168,28 @@ class TestResolveOperations(TestUnitCoreCommon):
         )
         parse_doi_mock.assert_called_once_with(retrieve_url_mock.return_value)
         dl_mock.assert_called_once_with(parse_doi_mock.return_value, mock.ANY)
+        prepare_mock.assert_called_once_with("myDownloadFile", mock.ANY)
+
+    @patch("album.core.utils.operations.resolve_operations.prepare_path")
+    @patch("album.core.utils.operations.resolve_operations.download_resource")
+    @patch("album.core.utils.operations.resolve_operations.retrieve_redirect_url")
+    def test_check_doi_records_url(self, retrieve_url_mock, dl_mock, prepare_mock):
+        # prepare: doi.org redirects to zenodo.org/record/<id>, which Zenodo in
+        # turn redirects to zenodo.org/records/<id>; retrieve_redirect_url hands
+        # back that final url, so the real parsing chain must accept it.
+        doi = "10.5281/zenodo.5571504"
+        # mocks
+        retrieve_url_mock.return_value = "https://zenodo.org/records/5571504"
+        dl_mock.return_value = "myDownloadFile"
+        prepare_mock.return_value = "whatever"
+
+        # call
+        check_doi(doi, "myTempDir")
+
+        # assert
+        dl_mock.assert_called_once_with(
+            "https://zenodo.org/api/records/5571504/files-archive", mock.ANY
+        )
         prepare_mock.assert_called_once_with("myDownloadFile", mock.ANY)
 
     @patch(
@@ -188,8 +243,32 @@ class TestResolveOperations(TestUnitCoreCommon):
         with self.assertRaises(ValueError):
             _parse_zenodo_url(url6)
 
+    def test__parse_zenodo_url_records(self):
+        # prepare: the path form Zenodo redirects /record/<id> to
+        url1 = "https://zenodo.org/records/5571504"
+        url2 = "https://zenodo.org/recordss/5571504"
+        url3 = "https://zenodo.org/records/5571504/1234"
+
+        # call
+        result = _parse_zenodo_url(url1)
+
+        # assert
+        self.assertEqual("https://zenodo.org/api/records/5571504/files-archive", result)
+
+        # call expect error
+        with self.assertRaises(ValueError):
+            _parse_zenodo_url(url2)
+        with self.assertRaises(ValueError):
+            _parse_zenodo_url(url3)
+
     def test__parse_zenodo_url_subdomain(self):
         url = "https://sandbox.zenodo.org/record/9999"
+        result = _parse_zenodo_url(url)
+        self.assertEqual(
+            "https://sandbox.zenodo.org/api/records/9999/files-archive", result
+        )
+
+        url = "https://sandbox.zenodo.org/records/9999"
         result = _parse_zenodo_url(url)
         self.assertEqual(
             "https://sandbox.zenodo.org/api/records/9999/files-archive", result
@@ -422,6 +501,19 @@ class TestResolveOperations(TestUnitCoreCommon):
         sol_dict.pop("version")
         with self.assertRaises(ValueError):
             self.assertTrue(dict_to_coordinates(sol_dict))
+
+    def test_get_parent(self):
+        entry_c = CollectionIndex.CollectionSolution({"name": "c"}, {"parent": None})
+        entry_b = CollectionIndex.CollectionSolution({"name": "b"}, {"parent": entry_c})
+        entry_a = CollectionIndex.CollectionSolution({"name": "a"}, {"parent": entry_b})
+
+        # no parent: the entry itself
+        self.assertIs(entry_c, get_parent(entry_c))
+        # one level: the parent
+        self.assertIs(entry_c, get_parent(entry_b))
+        # a parent with a parent of its own: the top of the chain. This raised
+        # "TypeError: 'CollectionSolution' object is not subscriptable" (#264).
+        self.assertIs(entry_c, get_parent(entry_a))
 
     @patch(
         "album.core.utils.operations.resolve_operations.get_zip_name_prefix",

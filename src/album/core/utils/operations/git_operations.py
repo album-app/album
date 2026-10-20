@@ -16,7 +16,7 @@ from album.core.utils.operations.file_operations import (
     folder_empty,
     force_remove,
 )
-from album.core.utils.operations.url_operations import is_url
+from album.core.utils.operations.url_operations import is_git_ssh_address, is_url
 from album.runner import album_logging
 
 module_logger = album_logging.get_active_logger
@@ -140,11 +140,14 @@ def retrieve_files_from_head_last_commit(head, pattern, option="", number_of_fil
     """
     pattern = str(pattern)
     parent = head.commit.parents[0] if head.commit.parents else None
-    module_logger().debug("Found head commit: %s..." % parent)
-    module_logger().debug("Summary message: %s..." % parent.summary)
 
     if not parent:
         raise RuntimeError("Cannot execute diff since there is only a single commit!")
+
+    module_logger().debug(
+        f"Comparing head commit {head.commit} with its parent {parent}..."
+    )
+    module_logger().debug("Summary message of the parent: %s..." % parent.summary)
 
     diff = head.commit.diff(parent)
 
@@ -211,6 +214,8 @@ def add_files_commit_and_push(
     force: bool = False,
     force_with_lease: bool = False,
     allow_empty: bool = False,
+    tag: str = "",
+    delete_tag: str = "",
 ) -> None:
     """Add files in a given path to a git head and commits.
 
@@ -239,6 +244,12 @@ def add_files_commit_and_push(
             instead of raising.  This is useful when the push itself must
             happen (e.g. to deliver push options like auto-merge) even
             though no files were modified.
+        tag:
+            Tag the new commit and push the tag in the same push as the branch. Every push
+            can make git ask for credentials, so one push means one authentication. The push
+            is atomic: the remote gets the commit and the tag both or neither.
+        delete_tag:
+            Delete this tag locally and, in the same atomic push, on the remote.
 
     Raises:
         RuntimeError when no files are in the index and allow_empty is False
@@ -280,6 +291,15 @@ def add_files_commit_and_push(
         repo.git.commit(m=commit_message, allow_empty=True)
     else:
         raise RuntimeError("Diff shows no changes to the repository. Aborting...")
+
+    if tag:
+        repo.git.tag("-a", tag, "-f", "-m", "")
+        cmd = cmd + [f"+refs/tags/{tag}:refs/tags/{tag}"]  # "+" overwrites it
+    if delete_tag:
+        repo.git.tag("-d", delete_tag)
+        cmd = cmd + [f":refs/tags/{delete_tag}"]
+    if tag or delete_tag:
+        cmd = ["--atomic"] + cmd
 
     if push:
         module_logger().info("Preparing pushing...")
@@ -487,7 +507,9 @@ def download_repository(
         git_folder_path:
             The complete path to clone to
         force_download:
-            Boolean, indicates whether to force delete existing folder before cloning
+            Only takes effect when git_folder_path does not hold a repository yet (no ".git" folder).
+            Then the folder and everything left in it is deleted before cloning.
+            An existing repository is never deleted or cloned again, it is only reset if update is set.
         update:
             Flag to indicate whether to hard reset the repo upon initialization or not.
 
@@ -562,8 +584,10 @@ def clone_repository_sparse(
         single_branch=True,
         multi_options=["--no-local"],
     )
-    yield repo
-    repo.close()
+    try:
+        yield repo
+    finally:
+        repo.close()
 
 
 @contextmanager
@@ -590,8 +614,10 @@ def clone_repository(
     create_path_recursively(target_repo_path)
     repo = git.Repo.clone_from(src, target_repo_path, multi_options=["--no-local"])
 
-    yield repo
-    repo.close()
+    try:
+        yield repo
+    finally:
+        repo.close()
 
 
 def init_repository(path: Union[Path, str]) -> Repo:
@@ -617,8 +643,9 @@ def init_repository(path: Union[Path, str]) -> Repo:
     # update the remote to get latest changes on all remotes (pushes, HEAD pointer change, reverts, etc.)
     repo.remote().update()
 
-    # remove all eventual changes made local
-    remote_head = get_local_remote_ref_head(repo)
+    # remove all eventual changes made local. The fetch does not update the remote HEAD,
+    # ask the remote for it to follow a change of its default branch.
+    remote_head = get_local_remote_ref_head(repo, ask_remote=True)
     checkout_main(repo, remote_head.name)
     clean_repository(repo, remote_head.name)
 
@@ -664,14 +691,28 @@ def clean_repository(repo: Repo, target_head_name: str = "") -> None:
     repo.git.clean("-fd")
 
 
-def get_local_remote_ref_head(repo: Repo) -> Head:
-    """Get the local remote reference head of the repository."""
+def get_local_remote_ref_head(repo: Repo, ask_remote: bool = False) -> Head:
+    """Get the local remote reference head of the repository.
+
+    The remote HEAD known locally (set by the clone) is used. Only with ask_remote, or when it
+    is not known, the remote is asked, as every request to it can make git ask for credentials.
+    """
     if repo.remote().refs:
-        try:
-            remote_head = repo.git.remote(["set-head", "origin", "-a"])
-            remote_main_name = remote_head.split(" ")[-1]
-        except git.GitCommandError:
-            remote_main_name = "main"
+        remote_main_name = ""
+        if not ask_remote:
+            try:
+                # e.g. "origin/main"
+                remote_main_name = repo.git.symbolic_ref(
+                    "--short", "refs/remotes/origin/HEAD"
+                ).split("/", 1)[1]
+            except git.GitCommandError:
+                pass  # not known locally
+        if not remote_main_name:
+            try:
+                remote_head = repo.git.remote(["set-head", "origin", "-a"])
+                remote_main_name = remote_head.split(" ")[-1]
+            except git.GitCommandError:
+                remote_main_name = "main"
         # Sanitize the name, as it might contain ' or " when it is "main"
         # E.g. when the branch is called "main",  remote_main_name="'origin/HEAD' is unchanged and points to 'main'"
         remote_main_name = remote_main_name.strip("'\"")
@@ -704,18 +745,22 @@ def retrieve_default_mr_push_options(repo_url: str) -> List[str]:
 
     Args:
         repo_url:
-            The source url of the catalog. Netloc determines default push option.
+            The source url of the catalog, e.g. https://gitlab.com/group/catalog.git or
+            git@gitlab.com:group/catalog.git. Its host determines default push option.
 
     Returns:
         The default push option to directly create a merge request when pushed to origin.
 
     """
     if is_url(str(repo_url)):
-        parsed_url = urlparse(repo_url)
+        host = urlparse(repo_url).netloc
+    elif is_git_ssh_address(str(repo_url)):
+        # git@gitlab.com:group/catalog.git or ssh://git@gitlab.com[:port]/group/catalog.git
+        host = str(repo_url).split("@", 1)[1].split(":", 1)[0].split("/", 1)[0]
+    else:
+        return []
 
-        if parsed_url.netloc.startswith("gitlab"):
-            return ["merge_request.create"]
-        else:
-            return []
+    if host.startswith("gitlab"):
+        return ["merge_request.create"]
     else:
         return []

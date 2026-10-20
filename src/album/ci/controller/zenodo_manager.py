@@ -279,7 +279,6 @@ class ZenodoManager:
                         "Deposit found via DOI search (doi=%s, id=%s)."
                         % (doi, records[0].id)
                     )
-                    print("Deposit found via DOI search: id=%s" % records[0].id)
                     return records[0]
             except Exception:
                 module_logger().info(

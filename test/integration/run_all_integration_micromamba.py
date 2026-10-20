@@ -1,3 +1,14 @@
+"""Run all integration tests as one suite.
+
+Importing this module runs nothing. Entry points:
+
+* ``python -m test.integration.run_all_integration_micromamba`` runs ``main()``
+  (verbose runner, prints Success/Failed, exits 0/1); used by CI.
+* ``python -m unittest test/integration/run_all_integration_micromamba.py`` collects
+  the same suite through ``load_tests``.
+"""
+
+import sys
 import time
 import unittest
 from test.integration import (
@@ -18,13 +29,14 @@ from test.integration.core import (
     test_integration_repl,
     test_integration_run,
     test_integration_search,
+    test_integration_shared_resources,
     test_integration_test,
     test_integration_uninstall,
 )
 
 
-def main():
-    loader = unittest.TestLoader()
+def load_tests(loader, standard_tests, pattern):
+    """Return the aggregated suite (unittest ``load_tests`` protocol)."""
     suite = unittest.TestSuite()
 
     ### integration
@@ -46,6 +58,7 @@ def main():
     suite.addTests(loader.loadTestsFromModule(test_integration_repl))
     suite.addTests(loader.loadTestsFromModule(test_integration_run))
     suite.addTests(loader.loadTestsFromModule(test_integration_search))
+    suite.addTests(loader.loadTestsFromModule(test_integration_shared_resources))
     # suite.addTests(loader.loadTestsFromModule(test_integration_task_manager)) # todo: fix me
     suite.addTests(loader.loadTestsFromModule(test_integration_test))
     suite.addTests(loader.loadTestsFromModule(test_integration_uninstall))
@@ -53,15 +66,21 @@ def main():
     # CI
     suite.addTests(loader.loadTestsFromModule(test_integration_ci))
 
+    return suite
+
+
+def main():
+    suite = load_tests(unittest.TestLoader(), None, None)
     runner = unittest.TextTestRunner(verbosity=3)
     result = runner.run(suite)
     if result.wasSuccessful():
         time.sleep(5)
         print("Success")
-        exit(0)
+        sys.exit(0)
     else:
         print("Failed")
-        exit(1)
+        sys.exit(1)
 
 
-main()
+if __name__ == "__main__":
+    main()

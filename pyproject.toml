@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "album"
-version = "0.12.2"
+version = "1.0.0"
 authors = [
     {name = "Kyle Harrington", email = "album@kyleharrington.com"},
     {name = "Jan Philipp Albrecht", email = "album@jpalbrecht.de"},
@@ -21,11 +21,10 @@ license-files = ["LICENSE"]
 readme = "README.md"
 keywords = ["virtual environments", "imaging", "data analysis"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -33,23 +32,27 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
     "Topic :: Utilities"
 ]
-requires-python = ">=3.10,<3.15"
+requires-python = ">=3.11"
 dependencies = [
-    "album-solution-api>=0.7.0,<0.8.0",
-    "album-environments>=0.3.0,<0.4.0",
+    "album-solution-api>=0.7.3,<0.8.0",
+    "album-environments>=0.3.4,<0.4.0",
     "pyyaml>=5.4.1",
     "validators>=0.18.2",
     "gitpython>=3.1.13",
     "requests>=2.25.1",
-    "pexpect>=4.8.0",
     "jsonschema>=4.0.0",
     "colorlog>=6.6.0",
     'pywin32>=303 ; platform_system== "Windows"',
     "packaging>=21.3",
-    "pre-commit>=2.20.0",
     "pooch>=1.4.0",
 ]
 
+# Only needed to develop album, never installed with it.
+# Install with "pip install --group dev" (pip >= 25.1).
+[dependency-groups]
+dev = [
+    "pre-commit>=3.2.0", # runs the hooks of .pre-commit-config.yaml
+]
 
 [project.urls]
 Documentation = "https://docs.album.solutions/en/latest/"
@@ -57,6 +60,11 @@ Homepage = "https://album.solutions/"
 DeveloperDocumentation = "https://gitlab.com/album-app/album/-/wikis/home"
 Repository = "https://gitlab.com/album-app/album"
 Tracker= "https://gitlab.com/album-app/album/-/issues"
+Changelog = "https://gitlab.com/album-app/album/-/blob/main/CHANGELOG.md"
+Paper = "https://arxiv.org/abs/2110.00601"
+conda-forge = "https://anaconda.org/conda-forge/album"
+Docker = "https://hub.docker.com/r/albumsolutions/album"
+"Helmholtz RSD" = "https://helmholtz.software/software/album"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -78,8 +86,10 @@ uninstall="album.argument_parsing:create_uninstall_parser"
 info="album.argument_parsing:create_info_parser"
 add_catalog="album.argument_parsing:create_add_catalog_parser"
 remove_catalog="album.argument_parsing:create_remove_catalog_parser"
+change_catalog_src="album.argument_parsing:create_change_catalog_src_parser"
 update="album.argument_parsing:create_update_parser"
 upgrade="album.argument_parsing:create_upgrade_parser"
+upgrade_solutions="album.argument_parsing:create_upgrade_solutions_parser"
 clone="album.argument_parsing:create_clone_parser"
 index="album.argument_parsing:create_index_parser"
 test="album.argument_parsing:create_test_parser"

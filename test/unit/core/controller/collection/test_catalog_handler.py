@@ -9,7 +9,7 @@ from test.unit.test_unit_core_common import EmptyTestClass
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
-from album.runner.core.model.coordinates import Coordinates
+from git import GitCommandError
 
 from album.core.controller.collection.catalog_handler import CatalogHandler
 from album.core.model.catalog import Catalog
@@ -17,7 +17,12 @@ from album.core.model.catalog_index import CatalogIndex
 from album.core.model.catalog_updates import CatalogUpdates, ChangeType, SolutionChange
 from album.core.model.collection_index import CollectionIndex
 from album.core.model.default_values import DefaultValues
-from album.core.utils.operations.file_operations import folder_empty, write_dict_to_json
+from album.core.utils.operations.file_operations import (
+    folder_empty,
+    get_dict_from_json,
+    write_dict_to_json,
+)
+from album.runner.core.model.coordinates import Coordinates
 
 
 class TestCatalogHandler(TestCatalogAndCollectionCommon):
@@ -65,6 +70,9 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
 
     def test_add_initial_catalogs(self):
         # mocks
+        # setUp already created the cache catalog, a second one would be rejected
+        create_cache_catalog_mock = MagicMock()
+        self.catalog_handler.create_cache_catalog = create_cache_catalog_mock
         add_by_src_mock = MagicMock()
         self.catalog_handler.add_by_src = add_by_src_mock
 
@@ -72,6 +80,7 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
         self.catalog_handler.add_initial_catalogs()
 
         # assert
+        create_cache_catalog_mock.assert_called_once()
         self.assertEqual(1, add_by_src_mock.call_count)
 
     # Info: this is rather a small integration test.
@@ -105,6 +114,10 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
             .get_collection_index()
             .get_all_catalogs(),
         )
+        # the meta information of the catalog is read where it was retrieved
+        self.assertTrue(
+            folder_empty(self.album_controller.configuration().cache_path_download())
+        )
 
     # Info: this is rather a small integration test.
     def test_add_by_src_already_present(self):
@@ -132,6 +145,148 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
 
         # assert
         _retrieve_catalog_meta_information.assert_not_called()
+        self.assertIn(
+            'Catalog "aNiceCatalog" with source "%s" is already in the collection.'
+            % catalog_src.resolve(),
+            self.get_logs_as_string(),
+        )
+
+    def _add_by_src_with_name_of(self, existing_name, deletable):
+        """Add a new source whose metadata declares the name of an added catalog."""
+        # prepare
+        catalog_src, _ = self.setup_empty_catalog("aNiceCatalog")
+        existing_catalog = (
+            self.album_controller.collection_manager()
+            .get_collection_index()
+            .get_catalog_by_name(existing_name)
+        )
+        self.assertNotEqual(str(catalog_src.resolve()), existing_catalog["src"])
+        self.assertEqual(deletable, bool(existing_catalog["deletable"]))
+
+        # mocks
+        # the new catalog declares the name of a catalog that is already added
+        self.catalog_handler._retrieve_catalog_meta_information = MagicMock(
+            return_value=self.get_catalog_meta_dict(name=existing_name)
+        )
+        _create_catalog_from_src = MagicMock()
+        self.catalog_handler._create_catalog_from_src = _create_catalog_from_src
+
+        # call
+        r = self.catalog_handler.add_by_src(str(catalog_src))
+
+        # assert
+        _create_catalog_from_src.assert_not_called()
+        self.assertEqual(existing_catalog["catalog_id"], r.catalog_id())
+        logs = self.get_logs_as_string()
+        self.assertIn(
+            'Cannot add catalog from source "%s": another catalog with the name'
+            ' "%s" is already in the collection (source "%s").'
+            % (catalog_src.resolve(), existing_name, existing_catalog["src"]),
+            logs,
+        )
+        self.assertNotIn("is already in the collection. Doing nothing", logs)
+        return logs
+
+    # Info: this is rather a small integration test.
+    def test_add_by_src_name_already_present_with_other_src(self):
+        logs = self._add_by_src_with_name_of("test_catalog2", deletable=True)
+
+        self.assertIn("Remove that catalog first to add this one.", logs)
+        self.assertNotIn("cannot be removed", logs)
+
+    # Info: this is rather a small integration test.
+    def test_add_by_src_name_already_present_not_deletable(self):
+        logs = self._add_by_src_with_name_of("test_catalog", deletable=False)
+
+        # removing a catalog that is not deletable fails, so do not suggest it
+        self.assertIn(
+            "That catalog cannot be removed, so this one cannot be added.", logs
+        )
+        self.assertNotIn("Remove that catalog first", logs)
+
+    def test_add_by_src_added_concurrently(self):
+        # prepare
+        catalog_src, _ = self.setup_empty_catalog("aNiceCatalog")
+        collection_index = (
+            self.album_controller.collection_manager().get_collection_index()
+        )
+        retrieve_catalog_meta_information = (
+            self.catalog_handler._retrieve_catalog_meta_information
+        )
+
+        def retrieve_while_another_process_adds_the_catalog(source, branch_name):
+            meta_information = retrieve_catalog_meta_information(source, branch_name)
+            collection_index.insert_catalog(
+                "aNiceCatalog",
+                str(catalog_src.resolve()),
+                "anotherPath",
+                True,
+                "main",
+                "direct",
+            )
+            return meta_information
+
+        self.catalog_handler._retrieve_catalog_meta_information = (
+            retrieve_while_another_process_adds_the_catalog
+        )
+
+        # call
+        catalog = self.catalog_handler.add_by_src(str(catalog_src))
+
+        # assert: the catalog of the other process is returned and not added again
+        self.assertEqual(5, catalog.catalog_id())
+        self.assertEqual(Path("anotherPath"), Path(catalog.path()))
+        self.assertEqual(
+            len(self.catalog_list) + 1, len(collection_index.get_all_catalogs())
+        )
+        # same source: not reported as a name clash with itself
+        logs = self.captured_output.getvalue()
+        self.assertIn(
+            'Catalog "aNiceCatalog" with source "%s" is already in the collection.'
+            % catalog_src.resolve(),
+            logs,
+        )
+        self.assertNotIn("another catalog with the name", logs)
+
+    def test_add_by_src_added_concurrently_after_the_checks(self):
+        # prepare
+        catalog_src, _ = self.setup_empty_catalog("aNiceCatalog")
+        collection_index = (
+            self.album_controller.collection_manager().get_collection_index()
+        )
+        create_catalog_from_src = self.catalog_handler._create_catalog_from_src
+
+        def create_while_another_process_adds_the_catalog(*args):
+            catalog = create_catalog_from_src(*args)
+            collection_index.insert_catalog(
+                "aNiceCatalog",
+                str(catalog_src.resolve()),
+                "anotherPath",
+                True,
+                "main",
+                "direct",
+            )
+            return catalog
+
+        self.catalog_handler._create_catalog_from_src = (
+            create_while_another_process_adds_the_catalog
+        )
+
+        # call: inserting the catalog fails on the unique key
+        catalog = self.catalog_handler.add_by_src(str(catalog_src))
+
+        # assert: the catalog of the other process is returned and not added again
+        self.assertEqual(Path("anotherPath"), Path(catalog.path()))
+        self.assertEqual(
+            len(self.catalog_list) + 1, len(collection_index.get_all_catalogs())
+        )
+        logs = self.captured_output.getvalue()
+        self.assertIn(
+            'Catalog "aNiceCatalog" with source "%s" is already in the collection.'
+            % catalog_src.resolve(),
+            logs,
+        )
+        self.assertNotIn("another catalog with the name", logs)
 
     def test__add_to_index(self):
         # prepare
@@ -247,6 +402,36 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
                 '{"name": "myNewCatalogName", "version": "0.1.0", "type": "direct"}',
                 metafile[0],
             )
+
+    def test_create_new_metadata_special_characters_in_name(self):
+        names = [
+            'my "quoted" catalog',  # was written as invalid JSON
+            "C:\\build",  # backslash + b was read back as a backspace
+            "catalog \\x",  # was written as an invalid JSON escape
+        ]
+        for i, name in enumerate(names):
+            with self.subTest(name=name):
+                # prepare
+                local_path = Path(self.tmp_dir.name).joinpath("catalog%s" % i)
+                expected = {
+                    "name": name,
+                    "version": DefaultValues.catalog_index_db_version.value,
+                    "type": "direct",
+                }
+
+                # call
+                r = self.catalog_handler.create_new_metadata(local_path, name, "direct")
+
+                # assert
+                self.assertEqual(expected, r)
+                self.assertEqual(
+                    expected,
+                    get_dict_from_json(
+                        local_path.joinpath(
+                            DefaultValues.catalog_index_metafile_json.value
+                        )
+                    ),
+                )
 
     def test__update(self):
         # mocks
@@ -401,6 +586,20 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
             ].name(),
         )
         _update_collection_from_catalog.assert_not_called()
+
+    def test_update_collection_holds_the_upgrade_lock(self):
+        lock = self.album_controller.solutions().get_upgrade_lock()
+        held = []
+        self.catalog_handler._update_collection = lambda *args: held.append(
+            lock.is_held_by_current_thread()
+        )
+
+        # call
+        self.catalog_handler.update_collection()
+
+        # assert
+        self.assertEqual([True], held)
+        self.assertFalse(lock.is_held_by_current_thread())
 
     def test_update_collection_specific_catalog(self):
         # mocks
@@ -712,6 +911,111 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
         _remove_from_collection_mock.assert_not_called()
         self.assertIsNone(c)
 
+    # Info: this is rather a small integration test.
+    def test_change_src_by_name(self):
+        # prepare
+        # the clone of the source of test_catalog2 holds the same catalog
+        new_src = Path(self.tmp_dir.name).joinpath("my-catalogs-clone", "test_catalog2")
+        # the repository deploy and undeploy work in
+        download_path = (
+            self.album_controller.configuration()
+            .cache_path_download()
+            .joinpath("test_catalog2")
+        )
+        download_path.joinpath(".git").mkdir(parents=True)
+
+        # call
+        catalog = self.catalog_handler.change_src_by_name("test_catalog2", str(new_src))
+
+        # assert
+        self.assertEqual(str(new_src.resolve()), catalog.src())
+        expected_list = deepcopy(self.catalog_list)
+        expected_list[3]["src"] = str(new_src.resolve())
+        self.assertEqual(
+            expected_list,
+            self.album_controller.collection_manager()
+            .get_collection_index()
+            .get_all_catalogs(),
+        )
+        self.assertFalse(download_path.exists())
+
+    def test_change_src_by_name_same_src(self):
+        # mock
+        _retrieve_catalog_meta_information = MagicMock()
+        self.catalog_handler._retrieve_catalog_meta_information = (
+            _retrieve_catalog_meta_information
+        )
+
+        # call
+        catalog = self.catalog_handler.change_src_by_name(
+            "default", DefaultValues.default_catalog_src.value
+        )
+
+        # assert
+        _retrieve_catalog_meta_information.assert_not_called()
+        self.assertEqual(DefaultValues.default_catalog_src.value, catalog.src())
+        self.assertEqual(
+            self.catalog_list,
+            self.album_controller.collection_manager()
+            .get_collection_index()
+            .get_all_catalogs(),
+        )  # nothing changed
+
+    # Info: this is rather a small integration test.
+    def test_change_src_by_name_other_catalog(self):
+        # prepare
+        # the source of test_catalog holds another catalog
+        other_src = Path(self.tmp_dir.name).joinpath("my-catalogs", "test_catalog")
+        download_path = (
+            self.album_controller.configuration()
+            .cache_path_download()
+            .joinpath("test_catalog2")
+        )
+        download_path.joinpath(".git").mkdir(parents=True)
+
+        # call
+        with self.assertRaises(ValueError):
+            self.catalog_handler.change_src_by_name("test_catalog2", str(other_src))
+
+        # assert
+        self.assertEqual(
+            self.catalog_list,
+            self.album_controller.collection_manager()
+            .get_collection_index()
+            .get_all_catalogs(),
+        )  # nothing changed
+        self.assertTrue(download_path.exists())
+
+    def test_change_src_by_name_unreachable(self):
+        # call
+        with self.assertRaises(GitCommandError):
+            self.catalog_handler.change_src_by_name(
+                "test_catalog2", str(Path(self.tmp_dir.name).joinpath("doesNotExist"))
+            )
+
+        # assert
+        self.assertEqual(
+            self.catalog_list,
+            self.album_controller.collection_manager()
+            .get_collection_index()
+            .get_all_catalogs(),
+        )  # nothing changed
+
+    def test_change_src_by_name_cache_catalog(self):
+        # call
+        with self.assertRaises(RuntimeError):
+            self.catalog_handler.change_src_by_name(
+                DefaultValues.cache_catalog_name.value, self.tmp_dir.name
+            )
+
+        # assert
+        self.assertEqual(
+            self.catalog_list,
+            self.album_controller.collection_manager()
+            .get_collection_index()
+            .get_all_catalogs(),
+        )  # nothing changed
+
     def test_get_installed_solutions(self):
         # mocks
         get_all_installed_solutions_by_catalog = MagicMock(
@@ -778,30 +1082,29 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
         "album.core.controller.collection.catalog_handler.get_dict_from_json",
         return_value={"mydict": "1"},
     )
-    @patch("album.core.controller.collection.catalog_handler.copy")
     @patch(
         "album.core.controller.collection.catalog_handler.retrieve_index_files_from_src",
         return_value=("db_file", "meta_file"),
     )
     def test__retrieve_catalog_meta_information(
-        self, download_resource_mock, copy_mock, get_dict_mock
+        self, download_resource_mock, get_dict_mock
     ):
         # prepare
         link = "https://mylink.com"
-        copy_mock.return_value = Path(self.tmp_dir.name).joinpath(
-            "album", "downloads", "album_catalog_index.json"
-        )
+
         # call
         r = self.catalog_handler._retrieve_catalog_meta_information(link)
 
-        # assert
+        # assert - read where it was retrieved, nothing is left behind
         self.assertDictEqual({"mydict": "1"}, r)
         download_resource_mock.assert_called_once_with(
             "https://mylink.com", branch_name="main", tmp_dir=mock.ANY
         )
-        copy_mock.assert_called_once()
-        get_dict_mock.assert_called_once_with(copy_mock.return_value)
+        get_dict_mock.assert_called_once_with("meta_file")
         self.assertTrue(folder_empty(self.album_controller.configuration().tmp_path()))
+        self.assertTrue(
+            folder_empty(self.album_controller.configuration().cache_path_download())
+        )
 
     def test__create_catalog_from_src(self):
         # call
@@ -899,7 +1202,7 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
 
             # assert
             get_solutions_by_catalog_mock.assert_called_once_with(5)
-            load_index_mock.assert_called_once_with(c1)
+            load_index_mock.assert_called_once_with(c1, True)
             get_all_solutions_mock.assert_called_once()
             _compare_solutions_mock.assert_called_once_with([], r_val)
 
@@ -956,7 +1259,7 @@ class TestCatalogHandler(TestCatalogAndCollectionCommon):
 
         # assert
         self.assertEqual(2, apply_change_mock.call_count)
-        _get_div_b_cat_and_coll_mock.assert_called_once_with("n")
+        _get_div_b_cat_and_coll_mock.assert_called_once_with("n", True)
         self.assertEqual(c_updates, u)
 
     def test__compare_solutions(self):

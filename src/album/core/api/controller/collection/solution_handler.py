@@ -1,15 +1,17 @@
 """Solution handler interface."""
+
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-
-from album.runner.core.api.model.coordinates import ICoordinates
-from album.runner.core.api.model.solution import ISolution
+from typing import Optional
 
 from album.core.api.model.catalog import ICatalog
 from album.core.api.model.catalog_updates import ISolutionChange
 from album.core.api.model.collection_index import ICollectionIndex
 from album.core.api.model.collection_solution import ICollectionSolution
 from album.core.model.link import Link
+from album.core.utils.file_lock import FileLock
+from album.runner.core.api.model.coordinates import ICoordinates
+from album.runner.core.api.model.solution import ISolution
 
 
 class ISolutionHandler:
@@ -128,7 +130,50 @@ class ISolutionHandler:
         raise NotImplementedError
 
     @abstractmethod
-    def retrieve_solution(self, catalog: ICatalog, coordinates: ICoordinates) -> Path:
+    def get_solution_lock(
+        self, catalog: ICatalog, coordinates: ICoordinates
+    ) -> FileLock:
+        """Get the lock held while a solution is installed, uninstalled or downloaded.
+
+        Album instances, processes and threads using the same base path share it: it locks
+        a file of the solution in the folder DefaultValues.lock_folder_prefix of the base
+        path. Every solution has its own lock, so they only wait for each other when they
+        use the same solution. Installing a solution also holds the locks of its parents,
+        see IInstallManager.
+
+        Args:
+            catalog:
+                The catalog this solution belongs to.
+            coordinates:
+                The group affiliation, name, and version of the solution.
+
+        Returns:
+            The lock of the solution, the same one on every call.
+
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_upgrade_lock(self) -> FileLock:
+        """Get the lock held while album upgrade, upgrade-solutions or install --reinstall runs.
+
+        Album instances, processes and threads using the same base path share it, so
+        only one of these runs at a time. Installing, uninstalling and running a
+        solution do not take it, they only take the locks of solutions.
+
+        Returns:
+            The lock, the same one on every call.
+
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def retrieve_solution(
+        self,
+        catalog: ICatalog,
+        coordinates: ICoordinates,
+        target: Optional[Path] = None,
+    ) -> Path:
         """Download or copy a solution from the catalog to the local resource (cache path of the catalog).
 
         Args:
@@ -136,6 +181,8 @@ class ISolutionHandler:
                 The catalog this solution belongs to.
             coordinates:
                 The group affiliation, name, and version of the solution.
+            target:
+                The folder to download the solution into instead.
         Returns:
             The absolute path of the downloaded solution.
 
@@ -164,4 +211,9 @@ class ISolutionHandler:
     @abstractmethod
     def set_installation_unfinished(self, catalog: ICatalog, coordinates: ICoordinates):
         """Set the installation status of a solution to unfinished."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def set_last_execution(self, catalog: ICatalog, coordinates: ICoordinates) -> None:
+        """Record the current time as the last execution of a solution in a catalog."""
         raise NotImplementedError
