@@ -6,7 +6,10 @@ from typing import Dict, Final, List
 import album.core
 
 # outside of the class to be able to use it in the default values
-DEFAULT_SOLUTION_PYTHON_VERSION: Final[str] = "3.10"
+# The Python of a solution without an environment file: the newest Python album is tested with. album installs
+# album-solution-api from conda-forge into this environment, whose noarch builds need at least conda-forge's
+# python_min (3.11 since October 2026), so this must not be older than that.
+DEFAULT_SOLUTION_PYTHON_VERSION: Final[str] = "3.14"
 
 # outside of the class. Dictionary as enum values are not hashable
 # always use with deepcopy, as it is mutable

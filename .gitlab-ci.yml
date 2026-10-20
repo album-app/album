@@ -350,7 +350,7 @@ unit tests linux micromamba oldest python:
   extends: .linux_base_template_micromamba
   stage: test
   variables:
-    OLDEST_PYTHON_VERSION: "3.10"
+    OLDEST_PYTHON_VERSION: "3.11"
   script:
     - $MICROMAMBA_EXECUTABLE run -n album python -m test.unit.run_all_unit_micromamba
 
