@@ -16,6 +16,10 @@ We use the following:
 
 ## [unreleased]
 
+### Changed
+
+- Tooling: the description of a GitLab release is the section of its version in `CHANGELOG.md` (!365). For each tag the GitLab mirror copies to GitHub, a GitHub release with the same name and description is published, which Zenodo archives with a DOI.
+
 ## [1.0.0]
 
 ### Added

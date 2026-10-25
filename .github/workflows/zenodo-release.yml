@@ -1,0 +1,36 @@
+# album is released on GitLab, and the GitLab push mirror copies the tags to GitHub. For each mirrored tag, this
+# workflow publishes a GitHub release with the name and description of the GitLab release, which the Zenodo GitHub
+# integration archives with a DOI. Run it by hand for a tag that was mirrored before.
+name: GitHub release for Zenodo
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag of a GitLab release, e.g. v1.0.0
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copy the GitLab release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          gitlab="https://gitlab.com/$GITHUB_REPOSITORY"
+          # the tag can arrive before the GitLab release job is done
+          curl -fsS --retry 10 --retry-delay 30 --retry-all-errors -o release.json \
+            "https://gitlab.com/api/v4/projects/${GITHUB_REPOSITORY/\//%2F}/releases/$TAG"
+          # GitLab references such as !331 and #277 become links, as GitHub would link them to its own numbers
+          jq -r .description release.json \
+            | sed -E "s@(^|[^[:alnum:]_/&])!([0-9]+)@\1[!\2]($gitlab/-/merge_requests/\2)@g; s@(^|[^[:alnum:]_/&])#([0-9]+)@\1[#\2]($gitlab/-/issues/\2)@g" \
+            > notes.md
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "$(jq -r .name release.json)" --notes-file notes.md

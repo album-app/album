@@ -217,6 +217,9 @@ gitlab release:
       artifacts: true
   script:
     - echo "running release_job for version $VERSION and tag $TAG"
+    # the release description is the section of the version in CHANGELOG.md, copied to GitHub (and Zenodo) by .github/workflows/zenodo-release.yml
+    - awk -v heading="## [$VERSION]" '$0 == heading {found = 1; next} found && /^## \[/ {exit} found' CHANGELOG.md > release_notes.md
+    - test -s release_notes.md || echo "See [CHANGELOG.md](https://gitlab.com/album-app/album/-/blob/$TAG/CHANGELOG.md)." > release_notes.md
   rules:
     - if: $ALBUM_DEV_CORE_API == "True" || $ALBUM_DEV_CORE_ENV == "True"
       when: never
@@ -227,7 +230,7 @@ gitlab release:
         - pyproject.toml
   release:
     name: "Release $TAG"
-    description: "Created using the release-cli"
+    description: "./release_notes.md"
     tag_name: "$TAG"
     ref: "$CI_COMMIT_SHA"
 
